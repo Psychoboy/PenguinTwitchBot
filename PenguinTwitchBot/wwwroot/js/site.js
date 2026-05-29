@@ -16,3 +16,13 @@ window.downloadFile = function (filename, content) {
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
 };
+
+window.panScrollElementById = function (elementId, deltaX, deltaY) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.scrollBy({
+        left: deltaX || 0,
+        top: deltaY || 0,
+        behavior: 'smooth'
+    });
+};

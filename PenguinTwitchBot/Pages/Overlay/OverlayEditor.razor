@@ -3,12 +3,14 @@
 @using PenguinTwitchBot.Bot.Models.Overlay
 @using PenguinTwitchBot.Repository
 @using System.Text.Json
+@using System.Globalization
 @using Microsoft.Extensions.DependencyInjection
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IServiceScopeFactory ScopeFactory
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -99,6 +101,54 @@
                                    Variant="Variant.Outlined"
                                    OnClick="CopyUrl" Class="ml-1" />
                 </MudTooltip>
+
+                <MudDivider Vertical="true" Class="mx-2" />
+
+                <MudTooltip Text="Zoom out">
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
+                                   Variant="Variant.Outlined"
+                                   OnClick="ZoomOut"
+                                   Disabled="@(_zoomPercent <= MinZoomPercent)" />
+                </MudTooltip>
+                <MudText Typo="Typo.body2" Class="px-2" Style="min-width:60px; text-align:center;">@_zoomPercent%</MudText>
+                <MudTooltip Text="Zoom in">
+                    <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                                   Variant="Variant.Outlined"
+                                   OnClick="ZoomIn"
+                                   Disabled="@(_zoomPercent >= MaxZoomPercent)" />
+                </MudTooltip>
+                <MudTooltip Text="Reset zoom">
+                    <MudIconButton Icon="@Icons.Material.Filled.CenterFocusStrong"
+                                   Variant="Variant.Outlined"
+                                   OnClick="ResetZoom"
+                                   Class="ml-1" />
+                </MudTooltip>
+
+                <MudDivider Vertical="true" Class="mx-2" />
+
+                <MudTooltip Text="Pan left">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                                   Variant="Variant.Outlined"
+                                   OnClick="PanLeft" />
+                </MudTooltip>
+                <MudTooltip Text="Pan up">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward"
+                                   Variant="Variant.Outlined"
+                                   OnClick="PanUp"
+                                   Class="ml-1" />
+                </MudTooltip>
+                <MudTooltip Text="Pan down">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward"
+                                   Variant="Variant.Outlined"
+                                   OnClick="PanDown"
+                                   Class="ml-1" />
+                </MudTooltip>
+                <MudTooltip Text="Pan right">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowForward"
+                                   Variant="Variant.Outlined"
+                                   OnClick="PanRight"
+                                   Class="ml-1" />
+                </MudTooltip>
             }
             else
             {
@@ -106,13 +156,13 @@
             }
         </div>
 
-        <div class="canvas-scroll-wrapper">
+        <div class="canvas-scroll-wrapper" id="canvas-scroll-wrapper">
             <div id="overlay-canvas" class="overlay-canvas"
                  style="width:@(DisplayCanvasWidthPx)px; height:@(DisplayCanvasHeightPx)px;"
                  @onclick="() => _selected = null">
                 @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
                 {
-                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "")"
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
                          data-widget-id="@w.TempId"
                          data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
                          data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
@@ -120,13 +170,58 @@
                          @key="w.TempId"
                          @onclick:stopPropagation="true"
                          @onclick="() => SelectWidget(w)">
-                        <span class="widget-label">@w.DisplayName</span>
+                        @if (w.WidgetType == "chat")
+                        {
+                            var preview = GetPreviewChatSettings(w);
+                            var badgeSizePx = GetPreviewBadgeSizePx(preview);
+                            <div class="chat-preview @(preview.Direction == "horizontal" ? "chat-preview--horizontal" : "chat-preview--vertical") @(preview.Direction == "vertical" && preview.Valign == "bottom" ? "chat-preview--valign-bottom" : "chat-preview--valign-top")"
+                                 style="@BuildChatPreviewContainerStyle(preview)">
+                                @if (preview.Direction == "horizontal")
+                                {
+                                    <div class="chat-preview-row" style="@BuildChatPreviewRowStyle(preview)">
+                                        <span class="chat-preview-badge" style="width:@(badgeSizePx)px; height:@(badgeSizePx)px;"></span>
+                                        <span class="chat-preview-user" style="color:#73C9FF;">PenguinBot</span>
+                                        <span class="chat-preview-sep">:</span>
+                                        <span class="chat-preview-text">Welcome to stream chat!</span>
+                                    </div>
+                                    <div class="chat-preview-row" style="@BuildChatPreviewRowStyle(preview)">
+                                        <span class="chat-preview-user" style="color:#F3B562;">mod_jane</span>
+                                        <span class="chat-preview-sep">:</span>
+                                        <span class="chat-preview-text">wheel spin in 5...</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="chat-preview-row" style="@BuildChatPreviewRowStyle(preview)">
+                                        <span class="chat-preview-badge" style="width:@(badgeSizePx)px; height:@(badgeSizePx)px;"></span>
+                                        <span class="chat-preview-user" style="color:#73C9FF;">PenguinBot</span>
+                                        <span class="chat-preview-sep">:</span>
+                                        <span class="chat-preview-text">Just landed a huge fish!</span>
+                                    </div>
+                                    <div class="chat-preview-row" style="@BuildChatPreviewRowStyle(preview)">
+                                        <span class="chat-preview-user" style="color:#9FF2A1;">viewer123</span>
+                                        <span class="chat-preview-sep">:</span>
+                                        <span class="chat-preview-text">GG everyone</span>
+                                    </div>
+                                    <div class="chat-preview-row" style="@BuildChatPreviewRowStyle(preview)">
+                                        <span class="chat-preview-user" style="color:#F3B562;">mod_jane</span>
+                                        <span class="chat-preview-sep">:</span>
+                                        <span class="chat-preview-text">Hydrate check</span>
+                                    </div>
+                                }
+                            </div>
+                            <span class="widget-label widget-label--corner">@w.DisplayName</span>
+                        }
+                        else
+                        {
+                            <span class="widget-label">@w.DisplayName</span>
+                        }
                     </div>
                 }
             </div>
         </div>
 
-        <MudText Typo="Typo.caption" Class="canvas-hint">@_canvasWidth × @_canvasHeight (scale: @((int)(Scale * 100))%)</MudText>
+        <MudText Typo="Typo.caption" Class="canvas-hint">@_canvasWidth × @_canvasHeight (fit: @((int)(FitScale * 100))% | zoom: @_zoomPercent% | display: @((int)(Scale * 100))%)</MudText>
     </div>
 
     <!-- ===================== RIGHT: Properties panel ===================== -->
@@ -228,11 +323,27 @@
                                  Value="_chatSettings.FontSize"
                                  ValueChanged="@(v => { _chatSettings.FontSize = v; SaveChatSettings(); })" />
 
-                <MudTextField Label="Font family"
-                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
-                              HelperText="Leave blank for default system font"
-                              Value="_chatSettings.FontFamily"
-                              ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })" />
+                <MudAutocomplete T="string"
+                                 Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="Pick a common web font or type a custom family"
+                                 Value="_chatSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _chatSettings.FontFamily = v; SaveChatSettings(); })"
+                                 SearchFunc="SearchFontFamilies"
+                                 CoerceText="false"
+                                 CoerceValue="false"
+                                 ResetValueOnEmptyText="true"
+                                 MinCharacters="0"
+                                 MaxItems="12"
+                                 Dense="true"
+                                 Clearable="true" />
+
+                <MudNumericField T="int" Label="Font weight"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="900" Step="100"
+                                 HelperText="100-900, e.g. 400 = normal, 700 = bold"
+                                 Value="_chatSettings.FontWeight"
+                                 ValueChanged="@(v => { _chatSettings.FontWeight = v; SaveChatSettings(); })" />
 
                 <MudNumericField T="int" Label="Max messages"
                                  Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -252,6 +363,17 @@
                                  Min="0"
                                  Value="_chatSettings.Timeout"
                                  ValueChanged="@(v => { _chatSettings.Timeout = v; SaveChatSettings(); })" />
+
+                <MudCheckBox T="bool" Label="Hide commands (messages starting with !)"
+                             Class="mb-2"
+                             Value="_chatSettings.HideCommands"
+                             ValueChanged="@(v => { _chatSettings.HideCommands = v; SaveChatSettings(); })" />
+
+                <MudTextField Label="Ignored users"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Comma-separated login names to hide"
+                              Value="_chatSettings.IgnoredUsers"
+                              ValueChanged="@((string v) => { _chatSettings.IgnoredUsers = v; SaveChatSettings(); })" />
 
             }
 
@@ -276,7 +398,7 @@
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" Min="100" />
             <MudNumericField T="int" Label="Height (px)" @bind-Value="_canvasHeight"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-1" Min="100" />
-            <MudText Typo="Typo.caption" Class="mb-4" Style="color: var(--mud-palette-text-secondary);">Display scale: @((int)(Scale * 100))%</MudText>
+            <MudText Typo="Typo.caption" Class="mb-4" Style="color: var(--mud-palette-text-secondary);">Display scale: @((int)(Scale * 100))% (fit @((int)(FitScale * 100))% × zoom @_zoomPercent%)</MudText>
             <MudDivider Class="mb-3" />
             <div class="props-empty">
                 <MudIcon Icon="@Icons.Material.Filled.TouchApp"
@@ -352,9 +474,15 @@
 @code {
     private const double MaxDisplayWidth  = 960;
     private const double MaxDisplayHeight = 540;
+    private const int MinZoomPercent = 25;
+    private const int MaxZoomPercent = 300;
+    private const int ZoomStepPercent = 25;
+    private const int WheelZoomStepPercent = 10;
+    private const int PanStepPx = 120;
 
     // Scale to fit the layout's canvas inside MaxDisplay dimensions
-    private double Scale => Math.Min(MaxDisplayWidth / _canvasWidth, MaxDisplayHeight / _canvasHeight);
+    private double FitScale => Math.Min(MaxDisplayWidth / _canvasWidth, MaxDisplayHeight / _canvasHeight);
+    private double Scale => FitScale * (_zoomPercent / 100.0);
     private int DisplayCanvasWidthPx  => (int)(_canvasWidth  * Scale);
     private int DisplayCanvasHeightPx => (int)(_canvasHeight * Scale);
 
@@ -372,6 +500,12 @@
     private bool _showRenameDialog;
     private int _renameLayoutId;
     private string _renameLayoutName = "";
+    private int _zoomPercent = 100;
+    private bool _pendingWheelZoomAnchor;
+    private double _wheelAnchorX;
+    private double _wheelAnchorY;
+    private double _wheelOldScale;
+    private double _wheelNewScale;
     private DotNetObjectReference<OverlayEditor>? _dotNetRef;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -393,6 +527,18 @@
             _jsInitialized = true;
             _jsNeedsReinit = false;
             await JS.InvokeVoidAsync("overlayEditor.init", _dotNetRef, Scale);
+        }
+
+        if (_pendingWheelZoomAnchor)
+        {
+            _pendingWheelZoomAnchor = false;
+            await JS.InvokeVoidAsync(
+                "overlayEditor.applyZoomAnchor",
+                "canvas-scroll-wrapper",
+                _wheelAnchorX,
+                _wheelAnchorY,
+                _wheelOldScale,
+                _wheelNewScale);
         }
     }
 
@@ -426,6 +572,27 @@
     public async Task OnDragEnd()
     {
         // Refresh property panel to show the final position after drag/resize.
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task AdjustZoomFromWheel(int direction, double anchorX, double anchorY)
+    {
+        var oldScale = Scale;
+        var delta = direction > 0 ? WheelZoomStepPercent : -WheelZoomStepPercent;
+        var next = Math.Clamp(_zoomPercent + delta, MinZoomPercent, MaxZoomPercent);
+        if (next == _zoomPercent) return;
+
+        _zoomPercent = next;
+        var newScale = Scale;
+
+        _wheelAnchorX = anchorX;
+        _wheelAnchorY = anchorY;
+        _wheelOldScale = oldScale;
+        _wheelNewScale = newScale;
+        _pendingWheelZoomAnchor = true;
+
+        _jsNeedsReinit = true;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -509,6 +676,12 @@
             }
 
             await db.SaveChangesAsync();
+
+            // Notify any overlay.html page showing this layout to reload
+            var layoutName = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId.Value)?.Name ?? "";
+            var reloadJson = System.Text.Json.JsonSerializer.Serialize(new { type = "overlay_reload", layout = layoutName });
+            await WebSocketMessenger.AddToQueue(reloadJson);
+
             Snackbar.Add("Layout saved!", Severity.Success);
         }
         catch (Exception ex)
@@ -661,6 +834,46 @@
         _showNewLayoutDialog = true;
     }
 
+    private void ZoomIn()
+    {
+        var next = Math.Min(MaxZoomPercent, _zoomPercent + ZoomStepPercent);
+        if (next == _zoomPercent) return;
+        _zoomPercent = next;
+        _jsNeedsReinit = true;
+    }
+
+    private void ZoomOut()
+    {
+        var next = Math.Max(MinZoomPercent, _zoomPercent - ZoomStepPercent);
+        if (next == _zoomPercent) return;
+        _zoomPercent = next;
+        _jsNeedsReinit = true;
+    }
+
+    private void ResetZoom()
+    {
+        if (_zoomPercent == 100) return;
+        _zoomPercent = 100;
+        _jsNeedsReinit = true;
+    }
+
+    private Task PanLeft() => PanViewport(-PanStepPx, 0);
+    private Task PanRight() => PanViewport(PanStepPx, 0);
+    private Task PanUp() => PanViewport(0, -PanStepPx);
+    private Task PanDown() => PanViewport(0, PanStepPx);
+
+    private async Task PanViewport(int deltaX, int deltaY)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("panScrollElementById", "canvas-scroll-wrapper", deltaX, deltaY);
+        }
+        catch (JSException)
+        {
+            Snackbar.Add("Pan controls are not ready yet. Refresh the page and try again.", Severity.Warning);
+        }
+    }
+
     private async Task OnNewLayoutKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")  await CreateLayout();
@@ -733,12 +946,80 @@
 
     private ChatSettings? _chatSettings;
 
+    private static readonly string[] _fontFamilyOptions =
+    [
+        "Arial",
+        "Verdana",
+        "Tahoma",
+        "Trebuchet MS",
+        "Segoe UI",
+        "Georgia",
+        "Times New Roman",
+        "Courier New",
+        "Roboto",
+        "Open Sans",
+        "Lato",
+        "Montserrat",
+        "Poppins",
+        "Nunito",
+        "Merriweather",
+        "Oswald",
+        "Bebas Neue",
+        "Raleway",
+        "Playfair Display",
+        "Inter"
+    ];
+
     private static readonly JsonSerializerOptions _chatJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
+
+    private Task<IEnumerable<string>> SearchFontFamilies(string? value, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(_fontFamilyOptions.AsEnumerable());
+
+        var matches = _fontFamilyOptions.Where(f =>
+            CultureInfo.InvariantCulture.CompareInfo.IndexOf(f, value, CompareOptions.IgnoreCase) >= 0);
+
+        return Task.FromResult(matches);
+    }
+
+    private ChatSettings GetPreviewChatSettings(WidgetModel widget)
+    {
+        if (widget.WidgetType != "chat") return new ChatSettings();
+
+        try
+        {
+            return string.IsNullOrWhiteSpace(widget.CustomSettings)
+                ? new ChatSettings()
+                : (JsonSerializer.Deserialize<ChatSettings>(widget.CustomSettings, _chatJsonOptions) ?? new ChatSettings());
+        }
+        catch
+        {
+            return new ChatSettings();
+        }
+    }
+
+    private int GetPreviewFontSizePx(ChatSettings settings)
+        => Math.Clamp((int)Math.Round(settings.FontSize * Scale), 7, 32);
+
+    private int GetPreviewBadgeSizePx(ChatSettings settings)
+        => Math.Clamp((int)Math.Round(settings.BadgeSize * Scale), 0, 32);
+
+    private string BuildChatPreviewContainerStyle(ChatSettings settings)
+    {
+        var fontFamily = string.IsNullOrWhiteSpace(settings.FontFamily) ? "inherit" : settings.FontFamily;
+        return $"background:{settings.BgColor}; color:{settings.MsgColor}; font-size:{GetPreviewFontSizePx(settings)}px; font-weight:{settings.FontWeight}; font-family:{fontFamily};";
+    }
+
+    private string BuildChatPreviewRowStyle(ChatSettings settings)
+        => $"background:{settings.RowBg};";
 
     private void LoadChatSettings()
     {
@@ -792,10 +1073,13 @@
         public string MsgColor   { get; set; } = "#ffffff";
         public string BgColor    { get; set; } = "transparent";
         public string RowBg      { get; set; } = "transparent";
-        public int    FontSize    { get; set; } = 16;
-        public string FontFamily  { get; set; } = "";
-        public int    MaxMessages { get; set; } = 30;
-        public int    BadgeSize   { get; set; } = 20;
-        public int    Timeout     { get; set; } = 0;
+        public int    FontSize      { get; set; } = 16;
+        public string FontFamily    { get; set; } = "";
+        public int    FontWeight    { get; set; } = 700;
+        public int    MaxMessages   { get; set; } = 30;
+        public int    BadgeSize     { get; set; } = 20;
+        public int    Timeout       { get; set; } = 0;
+        public bool   HideCommands  { get; set; } = false;
+        public string IgnoredUsers  { get; set; } = "";
     }
 }

@@ -108,5 +108,33 @@
             el.style.display = 'block';
         }
     </script>
+
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const layoutName = (params.get('layout') || '').toLowerCase();
+
+            const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const ws = new ReconnectingWebSocket(scheme + '://' + window.location.host + '/ws', null, { reconnectInterval: 5000 });
+
+            ws.onmessage = function (event) {
+                try {
+                    const raw = event.data;
+                    if (raw === 'ping') { ws.send('pong'); return; }
+                    const msg = JSON.parse(raw);
+                    if (msg.type === 'overlay_reload') {
+                        // Reload if the message targets this layout or broadcasts to all
+                        const target = (msg.layout || '').toLowerCase();
+                        if (!target || target === layoutName) {
+                            location.reload();
+                        }
+                    }
+                } catch (e) {
+                    // ignore parse errors from non-JSON messages
+                }
+            };
+        }());
+    </script>
 </body>
 </html>
