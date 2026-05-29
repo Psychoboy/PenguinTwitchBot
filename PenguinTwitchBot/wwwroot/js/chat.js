@@ -46,7 +46,7 @@
     const badgeSize   = parseInt(qp.get('badgeSize')   || '20', 10);
     const timeoutSecs = parseInt(qp.get('timeout')     || '0',  10);
     const tickerSpeed   = parseInt(qp.get('tickerSpeed')  || '80',   10); // px/sec
-    const fontWeight    = parseInt(qp.get('fontWeight')   || '400',  10) || 400;
+    const fontWeight    = parseInt(qp.get('fontWeight')   || '700',  10) || 700;
     const hideCommands  = qp.get('hideCommands') === 'true';
     const ignoredUsers  = new Set(
         (qp.get('ignoredUsers') || '').split(',').map(u => u.trim().toLowerCase()).filter(Boolean)
@@ -417,10 +417,10 @@
             if (msg.type === 'chat_message') {
                 // Filter: ignored users
                 if (ignoredUsers.size > 0 && ignoredUsers.has((msg.login || '').toLowerCase())) return;
-                // Filter: hide commands (messages whose first text fragment starts with !)
+                // Filter: hide commands only when the message starts with a text fragment beginning with '!'
                 if (hideCommands) {
-                    const firstText = (msg.fragments || []).find(f => f.type === 'text');
-                    if (firstText && firstText.text.trimStart().startsWith('!')) return;
+                    const firstFragment = (msg.fragments || [])[0];
+                    if (firstFragment && firstFragment.type === 'text' && firstFragment.text.trimStart().startsWith('!')) return;
                 }
                 if (direction === 'horizontal') {
                     addMessageHorizontal(msg);
