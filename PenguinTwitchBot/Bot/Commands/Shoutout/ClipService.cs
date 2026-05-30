@@ -4,9 +4,9 @@ using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
+using PenguinTwitchBot.Bot.Twitch.Models;
 using PenguinTwitchBot.Extensions;
 using System.Text.RegularExpressions;
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
 namespace PenguinTwitchBot.Bot.Commands.Shoutout
 {

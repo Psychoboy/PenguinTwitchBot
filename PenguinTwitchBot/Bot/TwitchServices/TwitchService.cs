@@ -1,19 +1,20 @@
 ﻿using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
-using NetTopologySuite.Algorithm;
-using Serilog.Configuration;
+using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.Bot.Twitch.Models;
 using System.Collections.Concurrent;
 using System.Timers;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Core.Exceptions;
-using TwitchLib.Api.Helix.Models.ChannelPoints;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Chat.GetChatters;
 using TwitchLib.Api.Helix.Models.EventSub;
-using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
-using TwitchLib.Api.Helix.Models.Subscriptions;
 using Timer = System.Timers.Timer;
+using TwitchLibChannelStreamSchedule = TwitchLib.Api.Helix.Models.Schedule.ChannelStreamSchedule;
+using Chatter = TwitchLib.Api.Helix.Models.Chat.GetChatters.Chatter;
+using CustomReward = TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward;
+using CreateCustomRewardsRequest = TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward.CreateCustomRewardsRequest;
+using CreateCustomRewardsResponse = TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward.CreateCustomRewardsResponse;
+using Subscription = TwitchLib.Api.Helix.Models.Subscriptions.Subscription;
+using BannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -26,8 +27,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly ILogger<TwitchService> _logger;
         private readonly IConfiguration _configuration;
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
-        readonly ConcurrentDictionary<string, TwitchLib.Api.Helix.Models.Users.GetUsers.User?> UserCache = new();
+        readonly ConcurrentDictionary<string, User?> UserCache = new();
         readonly Timer _timer;
+        private readonly IChatClient _chatClient;
+        private readonly IChannelPointsClient _channelPointsClient;
+        private readonly IModerationEventSubClient _moderationEventSubClient;
+        private readonly IChannelsClient _channelsClient;
+        private readonly IStreamsClient _streamsClient;
+        private readonly IClipsClient _clipsClient;
+        private readonly IGamesClient _gamesClient;
+        private readonly ISubscriptionsClient _subscriptionsClient;
+        private readonly IRaidsClient _raidsClient;
+        private readonly IUsersClient _usersClient;
         private readonly SettingsFileManager _settingsFileManager;
         private readonly ChatMessageIdTracker _messageIdTracker;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
@@ -39,6 +50,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         public TwitchService(
             ILogger<TwitchService> logger,
             IConfiguration configuration,
+            IChatClient chatClient,
+            IChannelPointsClient channelPointsClient,
+            IModerationEventSubClient moderationEventSubClient,
+            IChannelsClient channelsClient,
+            IStreamsClient streamsClient,
+            IClipsClient clipsClient,
+            IGamesClient gamesClient,
+            ISubscriptionsClient subscriptionsClient,
+            IRaidsClient raidsClient,
+            IUsersClient usersClient,
             SettingsFileManager settingsFileManager,
             Application.Notifications.IPenguinDispatcher dispatcher,
             ChatMessageIdTracker messageIdTracker)
@@ -47,6 +68,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             _logger = logger;
             _settingsFileManager = settingsFileManager;
             _configuration = configuration;
+            _chatClient = chatClient;
+            _channelPointsClient = channelPointsClient;
+            _moderationEventSubClient = moderationEventSubClient;
+            _channelsClient = channelsClient;
+            _streamsClient = streamsClient;
+            _clipsClient = clipsClient;
+            _gamesClient = gamesClient;
+            _subscriptionsClient = subscriptionsClient;
+            _raidsClient = raidsClient;
+            _usersClient = usersClient;
             _twitchApi.Settings.ClientId = _configuration["twitchClientId"];
             _twitchApi.Settings.AccessToken = _configuration["twitchAccessToken"];
             _twitchApi.Settings.Scopes = [];
@@ -87,7 +118,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     SenderId = broadcasterId,
                     Message = message
                 };
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
+                var result = await _chatClient.SendChatMessageAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    msg);
                 if (result.Data.First().IsSent == false)
                 {
                     _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
@@ -111,7 +145,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     SenderId = broadcasterId,
                     Message = message
                 };
-                var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
+                var result = await _chatClient.SendChatMessageAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    msg);
                 _messageIdTracker.AddMessageId(result.Data.First().MessageId);
                 if (result.Data.First().IsSent == false)
                 {
@@ -128,15 +165,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Schedule.ChannelStreamSchedule?> GetStreamSchedule()
+        public async Task<ChannelStreamSchedule?> GetStreamSchedule()
         {
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
                 var result = await _twitchApi.Helix.Schedule.GetChannelStreamScheduleAsync(broadcasterId);
-                if (result != null)
+                if (result?.Schedule != null)
                 {
-                    return result.Schedule;
+                    return MapChannelStreamSchedule(result.Schedule);
                 }
             }
             catch (Exception ex)
@@ -160,13 +197,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 throw new BadParameterException("Failed to refresh token");
             }
             var broadcasterId = await GetBroadcasterUserId();
+            if (string.IsNullOrWhiteSpace(broadcasterId))
+            {
+                _logger.LogError("Error getting broadcaster id.");
+                return [];
+            }
             var after = "";
             List<Chatter> chatters = [];
             try
             {
                 while (true)
                 {
-                    var curChatters = await _twitchApi.Helix.Chat.GetChattersAsync(broadcasterId, broadcasterId, after: after, accessToken: _configuration["twitchAccessToken"]);
+                    var curChatters = await _chatClient.GetChattersAsync(
+                        _configuration["twitchClientId"]!,
+                        _configuration["twitchAccessToken"],
+                        broadcasterId,
+                        broadcasterId,
+                        after);
                     if (curChatters != null)
                     {
                         chatters.AddRange(curChatters.Data);
@@ -195,7 +242,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var result = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId, [id], accessToken: _configuration["twitchAccessToken"]);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return null;
+                }
+
+                var result = await _channelPointsClient.GetCustomRewardAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    [id]);
                 return result == null
                     ? throw new BadParameterException("Result from Twitch API getting channel point reward was null")
                     : result.Data.First();
@@ -217,13 +274,22 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var result = await _twitchApi.Helix.Moderation.CheckAutoModStatusAsync(new List<TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus.Message>
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return false;
+                }
+
+                var result = await _moderationEventSubClient.CheckAutoModStatusAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    new List<TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus.Message>
                 {
                     new() {
                         MsgId = Guid.NewGuid().ToString(),
                         MsgText = message
                     }
-                }, broadcasterId, _configuration["twitchAccessToken"]);
+                }, broadcasterId);
                 if (result == null)
                 {
                     _logger.LogWarning("Failed to check automod message.");
@@ -244,7 +310,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                return await _twitchApi.Helix.ChannelPoints.CreateCustomRewardsAsync(broadcasterId, request);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return new();
+                }
+
+                return await _channelPointsClient.CreateCustomRewardsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    request);
             }
             catch (Exception ex)
             {
@@ -258,7 +334,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return [];
+                }
+
+                var rewards = await _channelPointsClient.GetCustomRewardAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId);
                 if (rewards != null)
                 {
                     return rewards.Data.ToList();
@@ -276,7 +361,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                var rewards = await _twitchApi.Helix.ChannelPoints.GetCustomRewardAsync(broadcasterId, onlyManageableRewards: onlyManageable);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return [];
+                }
+
+                var rewards = await _channelPointsClient.GetCustomRewardAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    onlyManageableRewards: onlyManageable);
                 if (rewards != null)
                 {
                     return rewards.Data.ToList();
@@ -294,7 +389,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                await _twitchApi.Helix.ChannelPoints.UpdateCustomRewardAsync(broadcasterId, rewardId, request);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return;
+                }
+
+                await _channelPointsClient.UpdateCustomRewardAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    rewardId,
+                    request);
             }
             catch (Exception ex)
             {
@@ -307,7 +413,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                await _twitchApi.Helix.ChannelPoints.DeleteCustomRewardAsync(broadcasterId, rewardId);
+                if (string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return;
+                }
+
+                await _channelPointsClient.DeleteCustomRewardAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    rewardId);
             }
             catch (Exception ex)
             {
@@ -327,7 +443,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var after = "";
             while (true)
             {
-                var curSubs = await _twitchApi.Helix.Subscriptions.GetBroadcasterSubscriptionsAsync(userId, 100, after, accessToken: _configuration["twitchAccessToken"]);
+                var curSubs = await _subscriptionsClient.GetBroadcasterSubscriptionsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    userId,
+                    100,
+                    after);
                 if (curSubs != null)
                 {
                     subs.AddRange(curSubs.Data);
@@ -353,7 +474,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             List<BannedUserEvent> curBannedUsers = [];
             while (true)
             {
-                var bannedUsers = await _twitchApi.Helix.Moderation.GetBannedUsersAsync(broadcasterId: userId, first: 100, after: after, accessToken: _configuration["twitchAccessToken"]);
+                var bannedUsers = await _moderationEventSubClient.GetBannedUsersAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    userId,
+                    after);
                 if (bannedUsers != null)
                 {
                     curBannedUsers.AddRange(bannedUsers.Data);
@@ -394,22 +519,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return (await GetUserByName(user))?.Id;
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUserByName(string user)
+        public async Task<User?> GetUserByName(string user)
         {
             try
             {
-                if (UserCache.TryGetValue(user, out var twitchUser))
+                if (UserCache.TryGetValue(user, out var cachedUser))
                 {
-                    if (twitchUser != null)
-                    {
-                        return twitchUser;
-                    }
+                    return cachedUser;
                 }
 
-                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, [user], _configuration["twitchAccessToken"]);
+                var users = await _usersClient.GetUsersAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    null,
+                    [user]);
                 var userObj = users.Users.FirstOrDefault();
-                UserCache[user] = userObj;
-                return userObj;
+                if (userObj != null)
+                {
+                    var mappedUser = UsersClient.MapToUser(userObj);
+                    UserCache[user] = mappedUser;
+                    return mappedUser;
+                }
+                UserCache[user] = null;
+                return null;
             }
             catch (TooManyRequestsException)
             {
@@ -423,14 +555,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Users.GetUsers.User?> GetUserById(string userId)
+        public async Task<User?> GetUserById(string userId)
         {
             try
             {
-
-                var users = await _twitchApi.Helix.Users.GetUsersAsync([userId],null, _configuration["twitchAccessToken"]);
+                var users = await _usersClient.GetUsersAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    [userId],
+                    null);
                 var userObj = users.Users.FirstOrDefault();
-                return userObj;
+                return userObj != null ? UsersClient.MapToUser(userObj) : null;
             }
             catch (TooManyRequestsException)
             {
@@ -443,18 +578,22 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task<List<TwitchLib.Api.Helix.Models.Users.GetUsers.User?>?> GetUsers(List<string> userNames)
+        public async Task<List<User?>?> GetUsers(List<string> userNames)
         {
             try
             {
-
-                var users = await _twitchApi.Helix.Users.GetUsersAsync(null, userNames, _configuration["twitchAccessToken"]);
+                var users = await _usersClient.GetUsersAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    null,
+                    userNames);
                 if (users == null) throw new Exception("Got a null response");
+                var mappedUsers = users.Users.Select(u => UsersClient.MapToUser(u)).ToList();
                 foreach (var user in users.Users)
                 {
-                    UserCache[user.Login] = user;
+                    UserCache[user.Login] = UsersClient.MapToUser(user);
                 }
-                return [.. users.Users];
+                return mappedUsers;
             }
             catch (TooManyRequestsException)
             {
@@ -472,6 +611,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
             if (userId == null) return null;
+            if (broadcasterId == null) return null;
             if (broadcasterId == userId)
             {
                 return new()
@@ -486,7 +626,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 //var response = await _twitchApi.Helix.Users.GetUsersFollowsAsync(null, null, 1, userId, broadcasterId, _configuration["twitchAccessToken"]);
-                var response = await _twitchApi.Helix.Channels.GetChannelFollowersAsync(broadcasterId, userId, 1, null, _configuration["twitchAccessToken"]);
+                var response = await _channelsClient.GetChannelFollowersAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    userId,
+                    1,
+                    null);
                 if (response.Data.Length == 0)
                 {
                     return null;
@@ -520,7 +666,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if (userId == null) return false;
             try
             {
-                var response = await _twitchApi.Helix.Subscriptions.CheckUserSubscriptionAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+                var response = await _subscriptionsClient.CheckUserSubscriptionAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId!,
+                    userId);
                 if (response == null) return false;
                 return response.Data.Length != 0;
             }
@@ -541,10 +691,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             var broadcasterId = await GetBroadcasterUserId();
             var userId = await GetUserId(user);
-            if (userId == null) return false;
+            if (userId == null || string.IsNullOrWhiteSpace(broadcasterId)) return false;
             try
             {
-                var response = await _twitchApi.Helix.Moderation.GetModeratorsAsync(broadcasterId, [userId]);
+                var response = await _moderationEventSubClient.GetModeratorsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    [userId]);
                 return response.Data.Length != 0;
             }
             catch (HttpResponseException ex)
@@ -567,7 +721,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task<TwitchLib.Api.Helix.Models.Streams.GetStreams.GetStreamsResponse> GetStreams(List<string> userIds)
         {
-            return await _twitchApi.Helix.Streams.GetStreamsAsync(userIds: userIds, first: 100, accessToken: _configuration["twitchAccessToken"]);
+            return await _streamsClient.GetStreamsAsync(
+                _configuration["twitchClientId"]!,
+                _configuration["twitchAccessToken"],
+                userIds: userIds);
         }
 
         public async Task<bool> IsStreamOnline()
@@ -699,7 +856,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.GetChannelInformationResponse> GetChannelInformation(string userId)
         {
-            return await _twitchApi.Helix.Channels.GetChannelInformationAsync(userId, _configuration["twitchAccessToken"]);
+            return await _channelsClient.GetChannelInformationAsync(
+                _configuration["twitchClientId"]!,
+                _configuration["twitchAccessToken"],
+                userId);
         }
 
         public async Task<string> GetCurrentGame(string userId)
@@ -725,12 +885,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return "";
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.ChannelInformation?> GetChannelInfo(string userId)
+        public async Task<ChannelInformation?> GetChannelInfo(string userId)
         {
             try
             {
                 var channelInfo = await GetChannelInformation(userId);
-                return channelInfo?.Data?.FirstOrDefault();
+                var info = channelInfo?.Data?.FirstOrDefault();
+                return info != null ? ChannelsClient.MapToChannelInformation(info) : null;
             }
             catch (HttpResponseException ex)
             {
@@ -791,13 +952,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return "";
         }
 
-        public async Task<TwitchLib.Api.Helix.Models.Games.Game?> GetGameInfo(string gameId)
+        public async Task<Game?> GetGameInfo(string gameId)
         {
             try
             {
-                var gameInfo = await _twitchApi.Helix.Games.GetGamesAsync([gameId]);
-                return gameInfo?.Data?.FirstOrDefault();
-
+                var gameInfo = await _gamesClient.GetGamesAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    [gameId]);
+                var game = gameInfo?.Data?.FirstOrDefault();
+                return game != null ? GamesClient.MapToGame(game) : null;
             }
             catch (HttpResponseException ex)
             {
@@ -866,7 +1030,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                await _twitchApi.Helix.Raids.StartRaidAsync(broadcasterId, userId, _configuration["twitchAccessToken"]);
+                await _raidsClient.StartRaidAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    userId);
             }
             catch (HttpResponseException ex)
             {
@@ -885,7 +1053,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var broadcasterId = await GetBroadcasterUserId() ?? throw new Exception("Error getting broadcaster id.");
             try
             {
-                await _twitchApi.Helix.Chat.SendShoutoutAsync(broadcasterId, userId, broadcasterId, _configuration["twitchAccessToken"]);
+                await _chatClient.SendShoutoutAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    userId,
+                    broadcasterId);
                 return ShoutoutResponseEnum.Success;
             }
             catch (HttpResponseException ex)
@@ -905,13 +1078,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return ShoutoutResponseEnum.Failure;
         }
 
-        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetClips(string user)
+        public async Task<List<Clip>> GetClips(string user)
         {
             var userId = await GetUserId(user);
             try
             {
-                var result = await _twitchApi.Helix.Clips.GetClipsAsync(null, null, userId, null, null, null, null, null, 100, _configuration["twitchAccessToken"]);
-                return [.. result.Clips];
+                var result = await _clipsClient.GetClipsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    null,
+                    userId,
+                    100,
+                    null);
+                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
             catch (HttpResponseException ex)
             {
@@ -926,13 +1105,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return [];
         }
 
-        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetFeaturedClips(string user)
+        public async Task<List<Clip>> GetFeaturedClips(string user)
         {
             var userId = await GetUserId(user);
             try
             {
-                var result = await _twitchApi.Helix.Clips.GetClipsAsync(null, null, userId, null, null, null, null, true, 100, _configuration["twitchAccessToken"]);
-                return [.. result.Clips];
+                var result = await _clipsClient.GetClipsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    null,
+                    userId,
+                    100,
+                    true);
+                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
             catch (HttpResponseException ex)
             {
@@ -947,22 +1132,25 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return [];
         }
 
-        public async Task<List<TwitchLib.Api.Helix.Models.Clips.GetClips.Clip>> GetClip(string clipId)
+        public async Task<List<Clip>> GetClip(string clipId)
         {
             try
             {
-                var result = await _twitchApi.Helix.Clips.GetClipsAsync([clipId], null, null, null, null, null, null, null, 1, _configuration["twitchAccessToken"]);
-                return [.. result.Clips];
+                var result = await _clipsClient.GetClipsByIdAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    [clipId]);
+                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
             catch (HttpResponseException ex)
             {
                 var error = await ex.HttpResponse.Content.ReadAsStringAsync();
-                _logger.LogError("Error doing GetFeaturedClips: {error}", error);
+                _logger.LogError("Error doing GetClip: {error}", error);
             }
             catch (Exception ex)
             {
                 var error = ex.Message;
-                _logger.LogError("Error doing GetFeaturedClips(): {error}", error);
+                _logger.LogError("Error doing GetClip(): {error}", error);
             }
             return [];
         }
@@ -989,7 +1177,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Reason = reason,
                     Duration = length
                 };
-                await _twitchApi.Helix.Moderation.BanUserAsync(broadcasterId, broadcasterId, banUserRequest);
+                await _moderationEventSubClient.BanUserAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    broadcasterId,
+                    banUserRequest);
             }
             catch (Exception ex)
             {
@@ -1008,7 +1201,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
             try
             {
-                await _twitchApi.Helix.Chat.SendChatAnnouncementAsync(broadcasterId, broadcasterId, message);
+                await _chatClient.SendChatAnnouncementAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    broadcasterId,
+                    message);
                 _logger.LogInformation("Announcement sent: {message}", message);
             }
             catch (Exception ex)
@@ -1028,10 +1226,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
             try
             {
-                var editors = await _twitchApi.Helix.Channels.GetChannelEditorsAsync(broadcasterId, _configuration["twitchAccessToken"]);
+                var editors = await _channelsClient.GetChannelEditorsAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId);
                 if (editors != null)
                 {
-                    return [.. editors.Data];
+                    return editors.Data.Select(e => ChannelsClient.MapToChannelEditor(e)).ToList();
                 }
             }
             catch (Exception ex)
@@ -1051,7 +1252,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
             try
             {
-                await _twitchApi.Helix.Moderation.DeleteChatMessagesAsync(broadcasterId, broadcasterId, messageId, _configuration["twitchAccessToken"]);
+                await _moderationEventSubClient.DeleteChatMessagesAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"],
+                    broadcasterId,
+                    broadcasterId,
+                    messageId);
             }
             catch (Exception ex)
             {
@@ -1072,192 +1278,117 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 throw new Exception("Error getting broadcaster id.");
             }
 
-            var response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.chat.message", "1",
-                new Dictionary<string, string>{
-                    {"broadcaster_user_id", userId},
-                    {"user_id", userId}
+            var response = await CreateWebsocketEventSubscription(
+                "channel.chat.message",
+                "1",
+                new Dictionary<string, string>
+                {
+                    { "broadcaster_user_id", userId },
+                    { "user_id", userId }
                 },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
-
+                sessionId);
             ValidateEventSubscription(response, "channel.chat.message");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.follow", "2",
-                new Dictionary<string, string>{
-                    {"broadcaster_user_id", userId},
-                    {"moderator_user_id", userId}
+            response = await CreateWebsocketEventSubscription(
+                "channel.follow",
+                "2",
+                new Dictionary<string, string>
+                {
+                    { "broadcaster_user_id", userId },
+                    { "moderator_user_id", userId }
                 },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
-
+                sessionId);
             ValidateEventSubscription(response, "channel.follow");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscribe", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
-
+            response = await CreateWebsocketEventSubscription("channel.subscribe", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.subscribe");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.end", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.subscription.end", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.subscription.end");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.gift", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.subscription.gift", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.subscription.gift");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.subscription.message", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.subscription.message", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.subscription.message");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.cheer", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.cheer", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.cheer");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.bits.use", "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.bits.use", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.bits.use");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.channel_points_custom_reward_redemption.add",
-                "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.channel_points_custom_reward_redemption.add", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.channel_points_custom_reward_redemption.add");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "stream.offline",
-                "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("stream.offline", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "stream.offline");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "stream.online",
-                "1",
-                new Dictionary<string, string>{{"broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("stream.online", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "stream.online");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-                "channel.raid",
-                "1",
-                new Dictionary<string, string>{{"to_broadcaster_user_id", userId},
-                },
-                EventSubTransportMethod.Websocket,
-                sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.raid", "1", new() { { "to_broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.raid");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-               "channel.ban",
-               "1",
-               new Dictionary<string, string>{{"broadcaster_user_id", userId},
-               },
-               EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-           );
+            response = await CreateWebsocketEventSubscription("channel.ban", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.ban");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-               "channel.unban",
-               "1",
-               new Dictionary<string, string>{{"broadcaster_user_id", userId},
-               },
-               EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-           );
+            response = await CreateWebsocketEventSubscription("channel.unban", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.unban");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
-               "channel.ad_break.begin",
-               "1",
-               new Dictionary<string, string>{{"broadcaster_user_id", userId},
-               },
-               EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-            );
+            response = await CreateWebsocketEventSubscription("channel.ad_break.begin", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.ad_break.begin");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await CreateWebsocketEventSubscription(
                 "channel.suspicious_user.message",
                 "1",
-                new Dictionary<string, string>{
-                    {"broadcaster_user_id", userId},
-                    {"moderator_user_id", userId}
+                new()
+                {
+                    { "broadcaster_user_id", userId },
+                    { "moderator_user_id", userId }
                 },
-                EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-                );
+                sessionId);
             ValidateEventSubscription(response, "channel.suspicious_user.message");
-            
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+
+            response = await CreateWebsocketEventSubscription(
                 "channel.chat.message_delete",
                 "1",
-                new Dictionary<string, string>{
-                    {"broadcaster_user_id", userId},
-                    {"user_id", userId}
+                new()
+                {
+                    { "broadcaster_user_id", userId },
+                    { "user_id", userId }
                 },
-                EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-                );
+                sessionId);
             ValidateEventSubscription(response, "channel.chat.message_delete");
 
-            response = await _twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+            response = await CreateWebsocketEventSubscription(
                 "channel.chat.notification",
                 "1",
-                new Dictionary<string, string>{
-                    {"broadcaster_user_id", userId},
-                     {"user_id", userId}
+                new()
+                {
+                    { "broadcaster_user_id", userId },
+                    { "user_id", userId }
                 },
-                EventSubTransportMethod.Websocket,
-               sessionId, accessToken: _configuration["twitchAccessToken"]
-                );
+                sessionId);
             ValidateEventSubscription(response, "channel.chat.notification");
 
             return true;
+        }
+
+        private Task<CreateEventSubSubscriptionResponse> CreateWebsocketEventSubscription(
+            string type,
+            string version,
+            Dictionary<string, string> condition,
+            string sessionId)
+        {
+            return _moderationEventSubClient.CreateEventSubSubscriptionAsync(
+                _configuration["twitchClientId"]!,
+                _configuration["twitchAccessToken"],
+                type,
+                version,
+                condition,
+                EventSubTransportMethod.Websocket,
+                sessionId);
         }
 
         private void ValidateEventSubscription(CreateEventSubSubscriptionResponse response, string eventName)
@@ -1339,8 +1470,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var result = new Dictionary<string, string>(StringComparer.Ordinal);
             try
             {
-                var globalBadges = await _twitchApi.Helix.Chat.GetGlobalChatBadgesAsync(
-                    accessToken: _configuration["twitchAccessToken"]);
+                var globalBadges = await _chatClient.GetGlobalChatBadgesAsync(
+                    _configuration["twitchClientId"]!,
+                    _configuration["twitchAccessToken"]);
                 if (globalBadges?.EmoteSet != null)
                 {
                     foreach (var set in globalBadges.EmoteSet)
@@ -1355,8 +1487,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var broadcasterId = await GetBroadcasterUserId();
                 if (!string.IsNullOrEmpty(broadcasterId))
                 {
-                    var channelBadges = await _twitchApi.Helix.Chat.GetChannelChatBadgesAsync(
-                        broadcasterId, accessToken: _configuration["twitchAccessToken"]);
+                    var channelBadges = await _chatClient.GetChannelChatBadgesAsync(
+                        _configuration["twitchClientId"]!,
+                        _configuration["twitchAccessToken"],
+                        broadcasterId);
                     if (channelBadges?.EmoteSet != null)
                     {
                         foreach (var set in channelBadges.EmoteSet)
@@ -1377,6 +1511,26 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return result;
         }
 
+        private static ChannelStreamSchedule MapChannelStreamSchedule(TwitchLibChannelStreamSchedule source)
+        {
+            var vacation = source.Vacation != null
+                ? new ChannelStreamScheduleVacation(source.Vacation.StartTime, source.Vacation.EndTime)
+                : null;
+
+            var segments = source.Segments?.Select(s => new StreamScheduleSegment(
+                Id: s.Id,
+                StartTime: s.StartTime,
+                EndTime: s.EndTime,
+                Title: s.Title,
+                CanceledUntil: s.CanceledUntil,
+                IsRecurring: s.IsRecurring
+            )).ToList() ?? [];
+
+            return new ChannelStreamSchedule(
+                BroadcasterId: source.BroadcasterId,
+                Segments: segments,
+                Vacation: vacation);
+        }
 
     }
 }
