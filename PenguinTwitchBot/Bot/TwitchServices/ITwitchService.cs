@@ -1,15 +1,18 @@
-﻿using TwitchLib.Api.Helix.Models.ChannelPoints;
+﻿using PenguinTwitchBot.Bot.Twitch.Models;
+using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
-using TwitchLib.Api.Helix.Models.Games;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
-using TwitchLib.Api.Helix.Models.Schedule;
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using TwitchLib.Api.Helix.Models.Users.GetUsers;
+using User = PenguinTwitchBot.Bot.Twitch.Models.User;
+using Clip = PenguinTwitchBot.Bot.Twitch.Models.Clip;
+using ChannelInformation = PenguinTwitchBot.Bot.Twitch.Models.ChannelInformation;
+using Game = PenguinTwitchBot.Bot.Twitch.Models.Game;
+using ChannelEditor = PenguinTwitchBot.Bot.Twitch.Models.ChannelEditor;
+using ChannelStreamSchedule = PenguinTwitchBot.Bot.Twitch.Models.ChannelStreamSchedule;
+using Chatter = TwitchLib.Api.Helix.Models.Chat.GetChatters.Chatter;
+using Subscription = TwitchLib.Api.Helix.Models.Subscriptions.Subscription;
+using BannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
