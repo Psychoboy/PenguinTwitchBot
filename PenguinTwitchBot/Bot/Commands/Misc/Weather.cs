@@ -47,10 +47,20 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             var settings = _configuration.GetRequiredSection("Weather").Get<WeatherSettings>()
                 ?? throw new Exception("Invalid Configuration. Weather settings missing.");
 
+            if (string.IsNullOrWhiteSpace(settings.ApiKey))
+            {
+                return "Weather API key is not configured. Add it in Integration Settings.";
+            }
+
             var location = settings.DefaultLocation;
             if (!string.IsNullOrWhiteSpace(arg))
             {
                 location = arg;
+            }
+
+            if (string.IsNullOrWhiteSpace(location))
+            {
+                return "Weather default location is not configured. Set it in App Settings or provide a location argument.";
             }
             var response = await _client.GetAsync($"https://api.weatherapi.com/v1/forecast.json?key={settings.ApiKey}&q={location}&days=1&aqi=no&alerts=no");
             if (!response.IsSuccessStatusCode)
