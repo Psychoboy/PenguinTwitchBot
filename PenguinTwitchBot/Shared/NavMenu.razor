@@ -2,7 +2,8 @@
 @implements IDisposable
 @using PenguinTwitchBot.Helpers
 
-<MudNavMenu>
+<div style="height:100%; display:flex; flex-direction:column;">
+<MudNavMenu Style="flex:1; overflow:auto;">
 <CascadingAuthenticationState>  
     
     <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
@@ -116,10 +117,23 @@
 
 </CascadingAuthenticationState>
 </MudNavMenu>
+<div class="pa-3" style="border-top: 1px solid var(--mud-palette-lines-default);">
+    <MudStack Spacing="1">
+        <MudLink Href="https://github.com/Psychoboy/PenguinTwitchBot" Target="_blank">
+            <MudIcon Icon="@Icons.Material.Filled.Code" Class="mr-2" />GitHub
+        </MudLink>
+        <MudLink Href="@StarCitizenReferralUrl" Target="_blank">
+            <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-2" />Star Citizen Referral
+        </MudLink>
+    </MudStack>
+</div>
+</div>
 
 @code {
+    private const string DefaultStarCitizenReferralUrl = "https://www.robertsspaceindustries.com/enlist?referral=STAR-6564-JQ7N";
     private Dictionary<string, bool> _groupExpandedState = new();
     private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
+    private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)
     {
