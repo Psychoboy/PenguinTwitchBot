@@ -266,7 +266,7 @@ namespace PenguinTwitchBot.Controllers
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
                    $"state={stateString}&" +
                    "response_type=code&" +
-                   $"scope=";
+                   $"scope=&" + "force_verify=true";
         }
 
         private string NormalizeLocalRedirect(string? redirect)
