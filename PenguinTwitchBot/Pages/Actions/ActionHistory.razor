@@ -1,4 +1,4 @@
-﻿@page "/actions/history"
+@page "/actions/history"
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Bot.Models.Queues
 @using Microsoft.AspNetCore.SignalR.Client
@@ -10,7 +10,7 @@
 @inject IActionExecutionLogger ExecutionLogger
 @implements IAsyncDisposable
 
-<PageTitle>Penguin Twitch Bot - Action History</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action History</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>

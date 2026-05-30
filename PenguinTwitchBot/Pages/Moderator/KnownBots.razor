@@ -1,10 +1,10 @@
-﻿@page "/knownbots"
+@page "/knownbots"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @using PenguinTwitchBot.Bot.Models;
 @inject PenguinTwitchBot.Bot.Commands.Moderation.IKnownBots KnownBotsApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Penguin Twitch Bot - Known Bots</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Known Bots</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>

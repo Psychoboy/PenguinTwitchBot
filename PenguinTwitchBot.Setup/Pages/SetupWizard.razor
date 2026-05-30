@@ -93,11 +93,6 @@ else
                                   HelperText="Your Twitch channel name — the channel the bot monitors"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tv"
                                   Variant="Variant.Outlined" />
-                    <MudTextField @bind-Value="_model.BaseUrl"
-                                  Label="Base URL"
-                                  HelperText="The URL this bot is accessible at. Use the default for local installs; change for production (e.g. https://bot.example.com)"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"
-                                  Variant="Variant.Outlined" />
                     <MudAlert Severity="Severity.Info">
                         The bot and broadcaster can be the same Twitch account if you prefer.
                     </MudAlert>
@@ -118,7 +113,7 @@ else
                             <li>Go to <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink></li>
                             <li>Log in with your <strong>streamer</strong> account</li>
                             <li>Set the name to something like "MyBot Streamer"</li>
-                            <li>Add the OAuth Redirect URL: <code>http://localhost:5000/streamerredirect</code></li>
+                            <li>Add the OAuth Redirect URL: <code>@StreamerRedirectUri</code></li>
                             <li>Set Category to "Chat Bot" and click Create</li>
                             <li>Click "Manage" â†’ "New Secret" to generate a client secret</li>
                         </ol>
@@ -159,7 +154,7 @@ else
                             Create a second application at
                             <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink>
                             — this time log in with your <strong>bot</strong> account and add redirect URL
-                            <code>http://localhost:5000/botredirect</code>.
+                            <code>@BotRedirectUri</code>.
                         </MudAlert>
                         <MudTextField @bind-Value="_model.TwitchBotClientId"
                                       Label="Bot Client ID"
@@ -175,7 +170,7 @@ else
                     {
                         <MudAlert Severity="Severity.Success">
                             The streamer app credentials will be reused for the bot. Make sure the redirect URL
-                            <code>http://localhost:5000/botredirect</code> is also added to the application's
+                            <code>@BotRedirectUri</code> is also added to the application's
                             OAuth Redirect URLs.
                         </MudAlert>
                     }
@@ -200,7 +195,7 @@ else
                             and grant the bot access. Your browser will open the Twitch authorization page.
                         </MudText>
                         <MudAlert Severity="Severity.Warning">
-                            Make sure <code>http://localhost:5000/streamerredirect</code> is listed as an
+                            Make sure <code>@StreamerRedirectUri</code> is listed as an
                             OAuth Redirect URL in your Twitch application (configured in Step 2).
                         </MudAlert>
                         @if (_streamerAuthFailed)
@@ -238,7 +233,7 @@ else
                             and open it in a browser where you are signed in as the bot account.
                         </MudText>
                         <MudAlert Severity="Severity.Warning">
-                            Make sure <code>http://localhost:5000/botredirect</code> is listed as an
+                            Make sure <code>@BotRedirectUri</code> is listed as an
                             OAuth Redirect URL in your Twitch bot application (configured in Step 3).
                         </MudAlert>
                         @if (_botAuthFailed)
@@ -528,7 +523,6 @@ else
                         <tbody>
                             <tr><td>Bot Name</td><td>@_model.BotName</td></tr>
                             <tr><td>Broadcaster</td><td>@_model.Broadcaster</td></tr>
-                            <tr><td>Base URL</td><td>@_model.BaseUrl</td></tr>
                             <tr><td>Twitch Client ID</td><td>@Mask(_model.TwitchClientId)</td></tr>
                             <tr><td>Twitch Client Secret</td><td>@Mask(_model.TwitchClientSecret)</td></tr>
                             <tr><td>Bot Client ID</td><td>@Mask(_model.TwitchBotClientId)</td></tr>
@@ -676,6 +670,9 @@ else
 
     private string StepTitle => _stepTitles[_step];
     private bool IsOptionalStep => OptionalSteps.Contains(_step);
+    private string SetupOrigin => NavManager.BaseUri.TrimEnd('/');
+    private string StreamerRedirectUri => $"{SetupOrigin}/streamerredirect";
+    private string BotRedirectUri => $"{SetupOrigin}/botredirect";
 
     protected override void OnInitialized()
     {
@@ -788,7 +785,7 @@ else
         var scopeStr = string.Join("+", Scopes);
         var url = "https://id.twitch.tv/oauth2/authorize" +
                   $"?client_id={Uri.EscapeDataString(_model.TwitchClientId)}" +
-                  $"&redirect_uri={Uri.EscapeDataString("http://localhost:5000/streamerredirect")}" +
+                  $"&redirect_uri={Uri.EscapeDataString(StreamerRedirectUri)}" +
                   "&response_type=code" +
                   $"&scope={scopeStr}" +
                   $"&state={state}" +
@@ -809,10 +806,9 @@ else
         var state = SetupSvc.BeginAuth();
         var clientId = _model.BotUseSameApp ? _model.TwitchClientId : _model.TwitchBotClientId;
         var scopeStr = string.Join("+", BotScopes);
-        const string botRedirect = "http://localhost:5000/botredirect";
         _botAuthUrl = "https://id.twitch.tv/oauth2/authorize" +
                   $"?client_id={Uri.EscapeDataString(clientId)}" +
-                  $"&redirect_uri={Uri.EscapeDataString(botRedirect)}" +
+                  $"&redirect_uri={Uri.EscapeDataString(BotRedirectUri)}" +
                   "&response_type=code" +
                   $"&scope={scopeStr}" +
                   $"&state={state}" +

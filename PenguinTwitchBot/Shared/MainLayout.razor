@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Circuit;
+@using PenguinTwitchBot.Circuit;
 @using PenguinTwitchBot.CustomMiddleware
 @using PenguinTwitchBot.Models;
 @using PenguinTwitchBot.Helpers;
@@ -16,7 +16,7 @@
 @inject PenguinTwitchBot.Services.IVersionCheckService VersionCheckService
 
 
-<PageTitle>Penguin Twitch Bot</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")</PageTitle>
 <MudThemeProvider IsDarkMode=true />
 <MudPopoverProvider/>
 <MudDialogProvider />

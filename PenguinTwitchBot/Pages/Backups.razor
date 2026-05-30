@@ -1,9 +1,9 @@
-﻿@page "/backups"
+@page "/backups"
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
 @using PenguinTwitchBot.Bot.DatabaseTools
 @attribute [Authorize(Roles = "Streamer")]
 
-<PageTitle>Penguin Twitch Bot - Backups</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Backups</PageTitle>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="BackupDatabase">Backup Database</MudButton>

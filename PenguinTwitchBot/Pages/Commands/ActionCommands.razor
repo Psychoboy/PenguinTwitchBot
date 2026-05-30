@@ -1,4 +1,4 @@
-﻿@page "/actions/commands"
+@page "/actions/commands"
 @using PenguinTwitchBot.Bot.Models.Commands
 @using PenguinTwitchBot.Bot.Models.Points
 @using PenguinTwitchBot.Bot.Commands
@@ -14,7 +14,7 @@
 @inject NavigationManager NavigationManager
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem
 
-<PageTitle>Penguin Twitch Bot - Action Commands</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action Commands</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Action Commands</MudText>

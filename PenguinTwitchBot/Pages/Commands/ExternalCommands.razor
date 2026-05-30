@@ -1,9 +1,9 @@
-﻿@page "/externalcommands"
+@page "/externalcommands"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Penguin Twitch Bot - External Commands</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - External Commands</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>

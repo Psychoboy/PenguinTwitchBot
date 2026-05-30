@@ -1,11 +1,11 @@
-﻿@page "/autoshoutouts/{id:int}"
+@page "/autoshoutouts/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
 
-<PageTitle>Penguin Twitch Bot - Edit Shoutout</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Shoutout</PageTitle>
 @if (autoShoutout == null)
 {
     <p><em>Loading...</em></p>

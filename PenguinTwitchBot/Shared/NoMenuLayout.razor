@@ -1,6 +1,6 @@
 @inherits LayoutComponentBase
 
-<PageTitle>Penguin Twitch Bot</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")</PageTitle>
 <MudThemeProvider IsDarkMode=true />
 <MudPopoverProvider/>
 <MudDialogProvider />

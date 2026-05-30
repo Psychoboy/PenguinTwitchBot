@@ -1,10 +1,10 @@
-﻿@page "/blacklist"
+@page "/blacklist"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Bot.Models;
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist BlacklistApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Penguin Twitch Bot - Blacklist</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Blacklist</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>

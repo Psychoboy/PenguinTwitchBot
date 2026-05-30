@@ -1,4 +1,4 @@
-﻿@page "/obs/connections"
+@page "/obs/connections"
 @using PenguinTwitchBot.Bot.Models.Obs
 @using PenguinTwitchBot.Bot.ObsConnector
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -6,7 +6,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<PageTitle>Penguin Twitch Bot - OBS Connections</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - OBS Connections</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">OBS WebSocket Connections</MudText>

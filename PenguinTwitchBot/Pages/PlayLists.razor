@@ -1,4 +1,4 @@
-﻿@page "/playlists"
+@page "/playlists"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<PlayLists> logger
 
-<PageTitle>Penguin Twitch Bot - Playlists</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Playlists</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h4" Class="mb-2">

@@ -9,7 +9,7 @@
 @inject IDiscordService DiscordService
 @inject DiscordLookupService DiscordLookupSvc
 
-<PageTitle>Penguin Twitch Bot - Integration Settings</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Integration Settings</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
     <MudText Typo="Typo.h5" Class="mb-2">Integration Settings</MudText>
@@ -216,15 +216,13 @@
                         Get a free API key at <MudLink Href="https://openweathermap.org/api" Target="_blank">openweathermap.org/api</MudLink>
                         (the free "Current Weather Data" plan is sufficient).
                     </MudAlert>
+                    <MudAlert Severity="Severity.Info">
+                        Default location is configured in <MudLink Href="settings/app">App Settings</MudLink>.
+                    </MudAlert>
                     <MudTextField @bind-Value="_weatherApiKey"
                                   Label="OpenWeatherMap API Key"
                                   InputType="InputType.Password"
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Cloud"
-                                  Variant="Variant.Outlined" />
-                    <MudTextField @bind-Value="_weatherDefaultLocation"
-                                  Label="Default Location"
-                                  HelperText="A ZIP code or city name (e.g. 85234)"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
                                   Variant="Variant.Outlined" />
                 }
                 <div>
@@ -297,7 +295,6 @@
     // Weather
     private bool _weatherEnabled = false;
     private string _weatherApiKey = "";
-    private string _weatherDefaultLocation = "";
 
     // OpenAI
     private bool _openAiEnabled = false;
@@ -315,7 +312,6 @@
         _discordEnabled = !string.IsNullOrWhiteSpace(_discordToken);
 
         _weatherApiKey = Configuration["Weather:ApiKey"] ?? "";
-        _weatherDefaultLocation = Configuration["Weather:DefaultLocation"] ?? "";
         _weatherEnabled = !string.IsNullOrWhiteSpace(_weatherApiKey);
 
         _openAiApiKey = Configuration["OpenAI:ApiKey"] ?? "";
@@ -467,9 +463,8 @@
     {
         _saving = true;
         await SettingsFileManager.AddOrUpdateAppSetting("Weather:ApiKey", _weatherEnabled ? _weatherApiKey.Trim() : "");
-        await SettingsFileManager.AddOrUpdateAppSetting("Weather:DefaultLocation", _weatherEnabled ? _weatherDefaultLocation.Trim() : "");
         _saving = false;
-        Snackbar.Add("Weather settings saved. Restart the bot for changes to take effect.", Severity.Success);
+        Snackbar.Add("Weather API key saved. Restart the bot for changes to take effect.", Severity.Success);
     }
 
     private async Task SaveOpenAiAsync()

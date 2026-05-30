@@ -1,8 +1,8 @@
-﻿@page "/viewplaylist/{id:int}"
+@page "/viewplaylist/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
 
-<PageTitle>Penguin Twitch Bot - View Playlist</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - View Playlist</PageTitle>
 @if (musicPlaylist != null)
 {
     <MudItem xs="12">

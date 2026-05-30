@@ -1,4 +1,4 @@
-﻿@page "/audiocommands/{id:int}"
+@page "/audiocommands/{id:int}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -8,7 +8,7 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
-<PageTitle>Penguin Twitch Bot - Edit Audio Command</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Audio Command</PageTitle>
 @if (audioCommand != null && audioFiles != null)
 {
     <MudCard>

@@ -1,8 +1,8 @@
-﻿@page "/acommands"
+@page "/acommands"
 @inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 
-<PageTitle>Penguin Twitch Bot - Audio Commands</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Audio Commands</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h4" Class="mb-2">

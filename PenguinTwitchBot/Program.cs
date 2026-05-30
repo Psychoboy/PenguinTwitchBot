@@ -302,7 +302,7 @@ internal class Program
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             options.RequireHeaderSymmetry = false;
             options.ForwardLimit = null;
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("10.0.0.0/8"));
@@ -385,7 +385,19 @@ internal class Program
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
-            var url = app.Configuration["BaseUrl"] ?? "http://localhost:5000";
+            var url = app.Urls.FirstOrDefault()?.TrimEnd('/')
+                ?? app.Configuration["Kestrel:Endpoints:Http:Url"]?.TrimEnd('/')
+                ?? "http://localhost:5000";
+
+            if (Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
+            {
+                if (parsedUrl.Host == "0.0.0.0" || parsedUrl.Host == "[::]" || parsedUrl.Host == "::")
+                {
+                    var port = parsedUrl.IsDefaultPort ? "" : $":{parsedUrl.Port}";
+                    url = $"{parsedUrl.Scheme}://localhost{port}";
+                }
+            }
+
             logger?.LogInformation("Bot Started");
             logger?.LogInformation("Connect to the bot at {Url}", url);
         });

@@ -1,10 +1,10 @@
-﻿@page "/defaultcommands"
+@page "/defaultcommands"
 @using PenguinTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Penguin Twitch Bot - Default Commands</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Default Commands</PageTitle>
 
 @if (defaultCommands == null)
 {

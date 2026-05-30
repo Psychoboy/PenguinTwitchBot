@@ -4,6 +4,7 @@
 @namespace PenguinTwitchBot.Pages
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @inject IHttpContextAccessor httpContextAccessor;
+@inject IConfiguration Configuration
 @{
     var remoteIpAddress =
            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
@@ -20,6 +21,7 @@
     <link href="PenguinTwitchBot.styles.css" rel="stylesheet" asp-append-version="true" />
     <link href="css/app.css" rel="stylesheet" asp-append-version="true" />
     <link rel="icon" type="image/png" href="favicon.png" />
+    <meta name="application-title" content="@(Configuration["ApplicationTitle"] ?? "Penguin Twitch Bot")" />
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link href="_content/MudBlazor.Markdown/MudBlazor.Markdown.min.css" rel="stylesheet" />
@@ -164,6 +166,7 @@
     <script src="_content/BlazorTime/blazorTime.js"></script>
     <script src="_content/MudBlazor.Markdown/MudBlazor.Markdown.min.js"></script>
     <script src="~/js/site.js"></script>
+    <script src="~/js/site-title.js"></script>
     <script src="~/js/interact/interact.min.js"></script>
     <script src="~/js/overlay-editor.js"></script>
 </body>

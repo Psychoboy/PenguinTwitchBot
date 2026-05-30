@@ -1,4 +1,4 @@
-﻿@page "/viewergiveaway"
+@page "/viewergiveaway"
 
 @using System.Security.Claims
 @using PenguinTwitchBot.Pages.ViewerViews.Components
@@ -16,7 +16,7 @@
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone ServiceBackbone
 @implements IAsyncDisposable
 
-<PageTitle>Penguin Twitch Bot - Giveaway</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway</PageTitle>
 
 <style> 
     .mud-contrast-text {

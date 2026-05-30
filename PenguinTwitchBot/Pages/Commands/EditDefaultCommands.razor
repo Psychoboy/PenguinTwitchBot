@@ -1,4 +1,4 @@
-﻿@page "/defaultcommands/{id:int}"
+@page "/defaultcommands/{id:int}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -7,7 +7,7 @@
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
-<PageTitle>Penguin Twitch Bot - Edit Default Command</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Default Command</PageTitle>
 <style type="text/css">
     .white-text {
         color: white;

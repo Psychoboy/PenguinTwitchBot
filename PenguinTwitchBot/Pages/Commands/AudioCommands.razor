@@ -1,11 +1,11 @@
-﻿@page "/audiocommands"
+@page "/audiocommands"
 @using PenguinTwitchBot.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
-<PageTitle>Penguin Twitch Bot - Audio Commands</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Audio Commands</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>

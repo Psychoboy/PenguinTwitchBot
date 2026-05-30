@@ -1,9 +1,9 @@
-﻿@page "/twitcheventsettings"
+@page "/twitcheventsettings"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Pages.PointGameSettings
 @using PenguinTwitchBot.Pages.PointGameSettings.Providers
 
-<PageTitle>Penguin Twitch Bot - Loyalty Bonuses</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Loyalty Bonuses</PageTitle>
 <CascadingAuthenticationState>
     <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
         <MudGrid>

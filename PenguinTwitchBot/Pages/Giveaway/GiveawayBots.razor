@@ -1,9 +1,9 @@
-﻿@page "/giveawaybots"
+@page "/giveawaybots"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Bot.Models.Giveaway
 @inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 
-<PageTitle>Penguin Twitch Bot - Giveaway Bots</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Bots</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>

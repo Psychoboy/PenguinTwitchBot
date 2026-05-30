@@ -1,8 +1,8 @@
-﻿@page "/raidhistory"
+@page "/raidhistory"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Misc.RaidTracker RaidTracker
 
-<PageTitle>Penguin Twitch Bot - Raid History</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid History</PageTitle>
 
 @if (raidHistory != null)
 {

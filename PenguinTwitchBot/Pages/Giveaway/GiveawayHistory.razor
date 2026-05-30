@@ -1,8 +1,8 @@
-﻿@page "/giveawayhistory"
+@page "/giveawayhistory"
 @using PenguinTwitchBot.Bot.Models.Giveaway
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>Penguin Twitch Bot - Giveaway History</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway History</PageTitle>
 
 <style>
     .mud-contrast-text {
