@@ -1,0 +1,123 @@
+@page "/settings/app"
+@attribute [Authorize(Roles = "Streamer")]
+@using PenguinTwitchBot.Bot.TwitchServices
+@inject IConfiguration Configuration
+@inject SettingsFileManager SettingsFileManager
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - App Settings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-6">
+    <MudText Typo="Typo.h5" Class="mb-2">App Settings</MudText>
+    <MudText Class="mb-4">
+        Configure non-secret application settings.
+    </MudText>
+
+    <MudPaper Elevation="2" Class="pa-4">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Application Branding</MudText>
+            <MudText>
+                This title is used as the app name in browser page titles.
+            </MudText>
+            <MudAlert Severity="Severity.Info" Class="mb-1">
+                Saved to <code>appsettings.json</code> as <code>ApplicationTitle</code>. Restart the bot after saving.
+            </MudAlert>
+            <MudTextField @bind-Value="_applicationTitle"
+                          Label="Application Title"
+                          HelperText="Default: Penguin Twitch Bot"
+                          Immediate="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Title"
+                          Variant="Variant.Outlined" />
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveApplicationTitleAsync"
+                           Disabled="_saving">
+                    Save Application Title
+                </MudButton>
+            </div>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Elevation="2" Class="pa-4 mt-4">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Weather Defaults</MudText>
+            <MudText>
+                Configure the default weather location used by weather commands.
+            </MudText>
+            <MudAlert Severity="Severity.Info" Class="mb-1">
+                Saved to <code>appsettings.json</code> as <code>Weather:DefaultLocation</code>.
+                The weather API key is a secret and should be configured in
+                <MudLink Href="/settings/integrations">Integration Settings</MudLink>.
+            </MudAlert>
+            <MudTextField @bind-Value="_weatherDefaultLocation"
+                          Label="Default Location"
+                          HelperText="ZIP code or city name (e.g. 85234)"
+                          Immediate="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                          Variant="Variant.Outlined" />
+            <div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveWeatherDefaultLocationAsync"
+                           Disabled="_saving">
+                    Save Weather Location
+                </MudButton>
+            </div>
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _saving;
+    private string _applicationTitle = "Penguin Twitch Bot";
+    private string _weatherDefaultLocation = "";
+
+    protected override Task OnInitializedAsync()
+    {
+        _applicationTitle = Configuration["ApplicationTitle"] ?? "Penguin Twitch Bot";
+        _weatherDefaultLocation = Configuration["Weather:DefaultLocation"] ?? "";
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveApplicationTitleAsync()
+    {
+        _saving = true;
+        try
+        {
+            _applicationTitle = string.IsNullOrWhiteSpace(_applicationTitle)
+                ? "Penguin Twitch Bot"
+                : _applicationTitle.Trim();
+
+            await SettingsFileManager.AddOrUpdateMainAppSetting("ApplicationTitle", _applicationTitle);
+            Snackbar.Add("Application title saved to appsettings.json. Restart the bot for changes to take effect.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save application title: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveWeatherDefaultLocationAsync()
+    {
+        _saving = true;
+        try
+        {
+            _weatherDefaultLocation = _weatherDefaultLocation.Trim();
+            await SettingsFileManager.AddOrUpdateMainAppSetting("Weather:DefaultLocation", _weatherDefaultLocation);
+            Snackbar.Add("Weather default location saved to appsettings.json. Restart the bot for changes to take effect.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save weather default location: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

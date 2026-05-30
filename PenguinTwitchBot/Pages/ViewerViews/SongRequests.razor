@@ -1,4 +1,4 @@
-﻿@page "/songrequests"
+@page "/songrequests"
 @using PenguinTwitchBot.Models
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
@@ -8,7 +8,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
 
-<PageTitle>Penguin Twitch Bot - Song Requests</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Song Requests</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
 
     <MudStack Spacing="3">

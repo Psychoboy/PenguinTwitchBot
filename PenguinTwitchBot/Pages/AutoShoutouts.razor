@@ -1,8 +1,8 @@
-﻿@page "/autoshoutouts"
+@page "/autoshoutouts"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-<PageTitle>Penguin Twitch Bot - Auto Shoutouts</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Auto Shoutouts</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
     @if (autoShoutouts == null)
     {

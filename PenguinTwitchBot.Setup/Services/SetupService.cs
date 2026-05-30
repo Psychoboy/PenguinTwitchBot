@@ -132,7 +132,6 @@ namespace PenguinTwitchBot.Setup.Services
                 {
                     ["Provider"] = providerString
                 },
-                ["BaseUrl"] = model.BaseUrl.Trim(),
                 ["ConnectionStrings"] = new Dictionary<string, object?>
                 {
                     ["SqliteConnection"] = ToSqliteConnectionString(model.SqliteFilePath.Trim()),
@@ -180,7 +179,6 @@ namespace PenguinTwitchBot.Setup.Services
                 {
                     BotName = node["botName"]?.GetValue<string>() ?? "",
                     Broadcaster = node["broadcaster"]?.GetValue<string>() ?? "",
-                    BaseUrl = node["BaseUrl"]?.GetValue<string>() ?? "http://localhost:5000",
                     TwitchClientId = node["twitchClientId"]?.GetValue<string>() ?? "",
                     TwitchClientSecret = node["twitchClientSecret"]?.GetValue<string>() ?? "",
                     TwitchBotClientId = node["twitchBotClientId"]?.GetValue<string>() ?? "",

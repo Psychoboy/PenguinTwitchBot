@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -16,13 +17,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         }
         public async Task AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {
+            var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
+            await AddOrUpdateSettingInFile(sectionPathKey, value, filePath);
+        }
 
+        public async Task AddOrUpdateMainAppSetting<T>(string sectionPathKey, T value)
+        {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+            await AddOrUpdateSettingInFile(sectionPathKey, value, filePath);
+        }
+
+        private async Task AddOrUpdateSettingInFile<T>(string sectionPathKey, T value, string filePath)
+        {
             try
             {
-                _semaphoreSlim.Wait();
-                var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
+                await _semaphoreSlim.WaitAsync();
                 string json = File.ReadAllText(filePath);
-                dynamic jsonObj = JsonConvert.DeserializeObject(json) ?? throw new InvalidOperationException();
+                var jsonObj = JsonConvert.DeserializeObject<JObject>(json) ?? throw new InvalidOperationException();
 
                 SetValueRecursively(sectionPathKey, jsonObj, value);
 
@@ -52,23 +63,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             catch (Exception) { return false; }
         }
 
-        private void SetValueRecursively<T>(string sectionPathKey, dynamic jsonObj, T value)
+        private static void SetValueRecursively<T>(string sectionPathKey, JObject jsonObj, T value)
         {
-            // split the string at the first ':' character
-            var remainingSections = sectionPathKey.Split(":", 2);
+            var sections = sectionPathKey.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (sections.Length == 0)
+            {
+                throw new ArgumentException("Invalid section path key", nameof(sectionPathKey));
+            }
 
-            var currentSection = remainingSections[0];
-            if (remainingSections.Length > 1)
+            var currentObject = jsonObj;
+            for (var i = 0; i < sections.Length - 1; i++)
             {
-                // continue with the process, moving down the tree
-                var nextSection = remainingSections[1];
-                SetValueRecursively(nextSection, jsonObj[currentSection], value);
+                var section = sections[i];
+                if (currentObject[section] is not JObject childObject)
+                {
+                    childObject = new JObject();
+                    currentObject[section] = childObject;
+                }
+
+                currentObject = childObject;
             }
-            else
-            {
-                // we've got to the end of the tree, set the value
-                jsonObj[currentSection] = value;
-            }
+
+            var finalSection = sections[^1];
+            currentObject[finalSection] = value is null ? JValue.CreateNull() : JToken.FromObject(value);
         }
     }
 }

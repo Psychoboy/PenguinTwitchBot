@@ -1,4 +1,4 @@
-﻿@page "/actions/queues"
+@page "/actions/queues"
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Bot.Models.Queues
 @using Microsoft.AspNetCore.SignalR.Client
@@ -9,7 +9,7 @@
 @inject NavigationManager NavigationManager
 @implements IAsyncDisposable
 
-<PageTitle>Penguin Twitch Bot - Queue Management</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queue Management</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Queue Management</MudText>

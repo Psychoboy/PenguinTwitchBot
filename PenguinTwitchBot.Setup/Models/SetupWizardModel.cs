@@ -12,7 +12,6 @@
         // Step 1: Bot Identity
         public string BotName { get; set; } = "";
         public string Broadcaster { get; set; } = "";
-        public string BaseUrl { get; set; } = "http://localhost:5000";
 
         // Step 2: Twitch Streamer App
         public string TwitchClientId { get; set; } = "";

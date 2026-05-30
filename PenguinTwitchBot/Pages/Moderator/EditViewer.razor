@@ -1,4 +1,4 @@
-﻿@page "/editviewer/{id}"
+@page "/editviewer/{id}"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @using PenguinTwitchBot.Bot;
 
@@ -12,7 +12,7 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Core.IChatHistory chatHistory
 
-<PageTitle>Penguin Twitch Bot - Edit Viewer</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Viewer</PageTitle>
 @if (viewer.Viewer == null)
 {
     <p><em>Loading...</em></p>

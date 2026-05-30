@@ -22,7 +22,6 @@ Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/Twitc
 - [Quick Start (Pre-built Release)](#quick-start-pre-built-release)
   - [Step 1: Run the Setup Wizard](#step-1-run-the-setup-wizard)
   - [Step 2: Run the Bot](#step-2-run-the-bot)
-  - [Configuring BaseUrl](#configuring-baseurl)
 - [Database Support](#database-support)
 - [Optional Integrations](#optional-integrations)
 - [Web Dashboard](#web-dashboard)
@@ -134,7 +133,7 @@ Step 6 provides two options:
    - `http://localhost:5000/botredirect`
    - `http://localhost:5000/redirect`
 
-   > **Running on a different host or port?** See [Configuring BaseUrl](#configuring-baseurl) below and substitute your actual URL above.
+  > **Running on a different host or port?** Use your actual bot URL and port in the redirect URLs above.
 
 4. Set the category to **Chat Bot** and click **Create**.
 5. Click **Manage** → **New Secret** to generate your Client Secret.
@@ -152,20 +151,7 @@ On first launch, the database will be automatically created and migrated. The bo
 
 > **Tip:** If you skipped the bot account authorization in the setup wizard, navigate to `/botsignin` in the dashboard to authorize your bot account after the bot starts.
 
-### Configuring BaseUrl
-
-The bot needs to know its own public URL so that Twitch can redirect back to it after OAuth authorization. This defaults to `http://localhost:5000` and is correct for a local setup. If you are running the bot on a server, behind a reverse proxy, or on a non-default port, set `BaseUrl` in `appsettings.secrets.json`:
-
-```json
-{
-  "BaseUrl": "https://mybot.example.com"
-}
-```
-
-Then add the corresponding redirect URLs to your Twitch Developer Application:
-- `https://mybot.example.com/streamerredirect`
-- `https://mybot.example.com/botredirect`
-- `https://mybot.example.com/redirect`
+OAuth redirects now use the URL/host/port from the request used to access the bot, so no separate URL configuration setting is required.
 
 ---
 

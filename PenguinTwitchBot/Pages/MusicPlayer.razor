@@ -1,4 +1,4 @@
-﻿@page "/musicplayer"
+@page "/musicplayer"
 @attribute [Authorize(Roles = "Streamer")]
 @layout NoMenuLayout
 @using PenguinTwitchBot.Helpers
@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<MusicPlayer> logger
 
-<PageTitle>Penguin Twitch Bot - Music Player</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Player</PageTitle>
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h4" Class="mb-2">

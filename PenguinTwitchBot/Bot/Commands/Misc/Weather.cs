@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 {
     public class Weather : BaseCommandService, IHostedService
     {
-        private readonly WeatherSettings _settings;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<Weather> _logger;
         private readonly HttpClient _client = new();
 
@@ -17,8 +17,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             ICommandHandler commandHandler
             ) : base(serviceBackbone, commandHandler, "Weather", dispatcher)
         {
-            var settings = configuration.GetRequiredSection("Weather").Get<WeatherSettings>() ?? throw new Exception("Invalid Configuration. Weather settings missing.");
-            _settings = settings;
+            _configuration = configuration;
             _logger = logger;
         }
 
@@ -45,12 +44,15 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         public async Task<string> GetWeather(string? arg)
         {
-            var location = _settings.DefaultLocation;
+            var settings = _configuration.GetRequiredSection("Weather").Get<WeatherSettings>()
+                ?? throw new Exception("Invalid Configuration. Weather settings missing.");
+
+            var location = settings.DefaultLocation;
             if (!string.IsNullOrWhiteSpace(arg))
             {
                 location = arg;
             }
-            var response = await _client.GetAsync($"https://api.weatherapi.com/v1/forecast.json?key={_settings.ApiKey}&q={location}&days=1&aqi=no&alerts=no");
+            var response = await _client.GetAsync($"https://api.weatherapi.com/v1/forecast.json?key={settings.ApiKey}&q={location}&days=1&aqi=no&alerts=no");
             if (!response.IsSuccessStatusCode)
             {
                 return "Failed to get weather for " + location;

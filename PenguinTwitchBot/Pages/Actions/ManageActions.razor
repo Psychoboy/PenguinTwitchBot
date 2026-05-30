@@ -1,4 +1,4 @@
-﻿@page "/actions/manage"
+@page "/actions/manage"
 @using PenguinTwitchBot.Bot.Models.Actions
 @using PenguinTwitchBot.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Bot.Models.Actions.Triggers
@@ -14,7 +14,7 @@
 @inject PenguinTwitchBot.Bot.Queues.IQueueManager QueueManager
 @inject PenguinTwitchBot.Bot.Actions.IAction ActionExecutor
 
-<PageTitle>Penguin Twitch Bot - Manage Actions</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Actions</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-4">

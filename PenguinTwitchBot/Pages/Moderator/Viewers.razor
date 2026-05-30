@@ -1,4 +1,4 @@
-﻿@page "/viewers"
+@page "/viewers"
 @using PenguinTwitchBot.Bot.Models.Giveaway
 @using PenguinTwitchBot.Bot.Models.IpLogs
 @attribute [Authorize(Roles = "Streamer, Moderator")]
@@ -7,7 +7,7 @@
 @inject PenguinTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
 @inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 
-<PageTitle>Penguin Twitch Bot - Viewers</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Viewers</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
 <MudGrid>
     <MudItem xs="6">
@@ -144,7 +144,7 @@
                 })
             .ToList();
 
-        // Only show a pair if at least one user is new — skip pairs where both users
+        // Only show a pair if at least one user is new � skip pairs where both users
         // already appeared in an earlier pair (redundant connections).
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         data = data.Where(x =>

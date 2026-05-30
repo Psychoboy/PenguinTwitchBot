@@ -1,10 +1,10 @@
-﻿@page "/aliases/{id:int}"
+@page "/aliases/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
-<PageTitle>Penguin Twitch Bot - Edit Alias</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Alias</PageTitle>
 @if (theAlias == null)
 {
     <p><em>Loading...</em></p>

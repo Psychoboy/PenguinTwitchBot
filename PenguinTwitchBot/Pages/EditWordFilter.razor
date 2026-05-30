@@ -1,4 +1,4 @@
-﻿@page "/blacklist/{id:int}"
+@page "/blacklist/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
@@ -6,7 +6,7 @@
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist Blacklist
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 
-<PageTitle>Penguin Twitch Bot - Edit Word Filter</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Word Filter</PageTitle>
 @if (wordFilter == null)
 {
     <p><em>Loading...</em></p>

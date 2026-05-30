@@ -1,4 +1,4 @@
-﻿@page "/keywords"
+@page "/keywords"
 @page "/actions/keywords"
 @using PenguinTwitchBot.Bot.Models.Commands
 @using PenguinTwitchBot.Bot.Models.Points
@@ -14,7 +14,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-<PageTitle>Penguin Twitch Bot - Action Keywords</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action Keywords</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Action Keywords</MudText>

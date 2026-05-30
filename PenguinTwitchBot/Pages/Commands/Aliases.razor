@@ -1,10 +1,10 @@
-﻿@page "/aliases"
+@page "/aliases"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
-<PageTitle>Penguin Twitch Bot - Aliases</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Aliases</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>
         @if (aliases != null)

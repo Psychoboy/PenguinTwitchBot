@@ -32,7 +32,22 @@ namespace PenguinTwitchBot.Controllers
             return View();
         }
 
-        private string NormalizedBaseUrl => (configuration["BaseUrl"] ?? "").TrimEnd('/');
+        private string GetRequestOrigin()
+        {
+            var request = HttpContext?.Request;
+            if (request is not null && request.Host.HasValue)
+            {
+                var origin = $"{request.Scheme}://{request.Host.Value}";
+                if (request.PathBase.HasValue)
+                {
+                    origin += request.PathBase.Value;
+                }
+
+                return origin.TrimEnd('/');
+            }
+
+            return "http://localhost:5000";
+        }
 
         public IActionResult YtPlayer()
         {
@@ -50,7 +65,8 @@ namespace PenguinTwitchBot.Controllers
         public IActionResult StreamerSignin()
         {
             logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
-            var url = GetBotScopeUrl($"{NormalizedBaseUrl}/streamerredirect", configuration["twitchClientId"]);
+            var origin = GetRequestOrigin();
+            var url = GetBotScopeUrl($"{origin}/streamerredirect", configuration["twitchClientId"]);
             return Redirect(url);
         }
         [HttpGet("streamerredirect")]
@@ -67,7 +83,8 @@ namespace PenguinTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/streamerredirect");
+            var origin = GetRequestOrigin();
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{origin}/streamerredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -105,7 +122,8 @@ namespace PenguinTwitchBot.Controllers
 
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchBotClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{NormalizedBaseUrl}/botredirect");
+            var origin = GetRequestOrigin();
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{origin}/botredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -126,7 +144,8 @@ namespace PenguinTwitchBot.Controllers
         {
             logger.LogInformation("{ipAddress} accessed /signin.", HttpContext.Connection?.RemoteIpAddress);
             var safeRedirect = NormalizeLocalRedirect(redirect);
-            var url = GetAuthorizationCodeUrl($"{NormalizedBaseUrl}/redirect", safeRedirect);
+            var origin = GetRequestOrigin();
+            var url = GetAuthorizationCodeUrl($"{origin}/redirect", safeRedirect);
             return Redirect(url);
         }
 
@@ -146,7 +165,8 @@ namespace PenguinTwitchBot.Controllers
             }
             var api = new TwitchLib.Api.TwitchAPI();
             api.Settings.ClientId = configuration["twitchClientId"];
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{NormalizedBaseUrl}/redirect");
+            var origin = GetRequestOrigin();
+            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{origin}/redirect");
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {

@@ -1,4 +1,4 @@
-﻿@page "/actions/timers"
+@page "/actions/timers"
 @using PenguinTwitchBot.Bot.Models.Timers
 @using PenguinTwitchBot.Bot.Commands.Misc
 @using PenguinTwitchBot.Bot.Actions
@@ -13,7 +13,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-<PageTitle>Penguin Twitch Bot - Timer Groups</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Timer Groups</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" GutterBottom="true">Timer Groups</MudText>
