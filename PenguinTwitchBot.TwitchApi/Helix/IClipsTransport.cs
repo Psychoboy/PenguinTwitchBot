@@ -1,6 +1,6 @@
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public interface IClipsTransport
 {

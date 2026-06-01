@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
 using TwitchLib.Api.Helix.Models.Schedule.GetChannelStreamSchedule;
 using TwitchLibChannelStreamSchedule = TwitchLib.Api.Helix.Models.Schedule.ChannelStreamSchedule;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ScheduleClient(ILogger<ScheduleClient> logger, IScheduleTransport transport) : TwitchClientRetryBase(logger), IScheduleClient
 {

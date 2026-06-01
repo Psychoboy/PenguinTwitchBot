@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
+using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
+using PenguinTwitchBot.TwitchApi.Auth;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
 using PenguinTwitchBot.Extensions;
-using TwitchLib.Api;
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using Timer = System.Timers.Timer;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
@@ -19,17 +19,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         ILogger<TwitchChatBot> logger,
          IConfiguration configuration,
          ITwitchService twitchService,
+         IAuthClient authClient,
+         IChatClient chatClient,
          ChatMessageIdTracker messageIdTracker,
          SettingsFileManager settingsFileManager) : ITwitchChatBot
     {
-        private readonly TwitchAPI _twitchApi = new();
-
         private readonly Timer HealthStatusTimer = new();
         static readonly SemaphoreSlim semaphoreSlim = new(1, 1);
+        private volatile string _accessToken = configuration["twitchBotAccessToken"] ?? string.Empty;
 
         public void SetAccessToken(string accessToken)
         {
-            _twitchApi.Settings.AccessToken = accessToken;
+            _accessToken = accessToken;
+            configuration["twitchBotAccessToken"] = accessToken;
         }
 
         public Task<bool> IsConnected()
@@ -55,19 +57,30 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var chunks = message.SplitInParts(450);
                 foreach (var chunk in chunks)
                 {
-                    //var result = await _twitchApi.Helix.Chat.SendChatMessage(await twitchService.GetBroadcasterUserId(), await twitchService.GetBotUserId(), chunk);
-                    var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                    var request = new SendChatMessageRequest
                     {
                         BroadcasterId = await twitchService.GetBroadcasterUserId(),
                         SenderId = await twitchService.GetBotUserId(),
                         Message = chunk,
-                        ForSourceOnly = sourceOnly
+                        ForSourceOnly = sourceOnly,
                     };
-                    var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
-                    messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                    if (result.Data.First().IsSent == false)
+
+                    var result = await chatClient.SendChatMessageAsync(
+                        configuration["twitchBotClientId"]!,
+                        _accessToken,
+                        request);
+
+                    var first = result.Data.FirstOrDefault();
+                    if (first == null)
                     {
-                        logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                        logger.LogWarning("Message failed to send: no response payload");
+                        return;
+                    }
+
+                    messageIdTracker.AddMessageId(first.MessageId);
+                    if (first.IsSent == false)
+                    {
+                        logger.LogWarning("Message failed to send: {reason}", first.DropReason?.Message);
                         return;
                     }
                     else
@@ -95,19 +108,31 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var chunks = message.SplitInParts(450);
                 foreach (var chunk in chunks)
                 {
-                    var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                    var request = new SendChatMessageRequest
                     {
                         BroadcasterId = await twitchService.GetBroadcasterUserId(),
                         SenderId = await twitchService.GetBotUserId(),
                         Message = chunk,
                         ReplyParentMessageId = messageId,
-                        ForSourceOnly = sourceOnly
+                        ForSourceOnly = sourceOnly,
                     };
-                    var result = await _twitchApi.Helix.Chat.SendChatMessage(msg);
-                    messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                    if (result.Data.First().IsSent == false)
+
+                    var result = await chatClient.SendChatMessageAsync(
+                        configuration["twitchBotClientId"]!,
+                        _accessToken,
+                        request);
+
+                    var first = result.Data.FirstOrDefault();
+                    if (first == null)
                     {
-                        logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
+                        logger.LogWarning("Reply failed to send: no response payload");
+                        return;
+                    }
+
+                    messageIdTracker.AddMessageId(first.MessageId);
+                    if (first.IsSent == false)
+                    {
+                        logger.LogWarning("Message failed to send: {reason}", first.DropReason?.Message);
                         return;
                     }
                     else
@@ -127,7 +152,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await semaphoreSlim.WaitAsync();
             try
             {
-                var validToken = await _twitchApi.Auth.ValidateAccessTokenAsync(configuration["twitchBotAccessToken"]);
+                var validToken = await authClient.ValidateAccessTokenAsync(_accessToken);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
                     await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
@@ -183,7 +208,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     }
                     configuration["twitchBotAccessToken"] = tokenResponse.AccessToken;
                     configuration["botExpiresIn"] = tokenResponse.ExpiresIn.ToString();
-                    _twitchApi.Settings.AccessToken = tokenResponse.AccessToken;
+                    _accessToken = tokenResponse.AccessToken;
                     await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", tokenResponse.AccessToken);
                     await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", tokenResponse.ExpiresIn.ToString());
                 }
@@ -202,15 +227,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             HealthStatusTimer.Interval = 30000;
             HealthStatusTimer.Elapsed += HealthStatusTimer_Elapsed;
 
-            _twitchApi.Settings.ClientId = configuration["twitchBotClientId"];
-            _twitchApi.Settings.AccessToken = configuration["twitchBotAccessToken"];
-            _twitchApi.Settings.Secret = configuration["twitchBotClientSecret"];
-            _twitchApi.Settings.Scopes = [];
-            foreach (var authScope in Enum.GetValues(typeof(AuthScopes)))
-            {
-                if ((AuthScopes)authScope == AuthScopes.Any) continue;
-                _twitchApi.Settings.Scopes.Add((AuthScopes)authScope);
-            }
+            _accessToken = configuration["twitchBotAccessToken"] ?? string.Empty;
 
             await ValidateAndRefreshToken();
             HealthStatusTimer.Start();

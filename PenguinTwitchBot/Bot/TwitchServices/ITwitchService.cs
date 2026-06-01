@@ -1,13 +1,12 @@
-﻿using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
-using PenguinTwitchBot.Bot.Twitch.Models.Channels;
-using PenguinTwitchBot.Bot.Twitch.Models.Chat;
-using PenguinTwitchBot.Bot.Twitch.Models.Clips;
-using PenguinTwitchBot.Bot.Twitch.Models.Games;
-using PenguinTwitchBot.Bot.Twitch.Models.Moderation;
-using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
-using PenguinTwitchBot.Bot.Twitch.Models.Subscriptions;
-using PenguinTwitchBot.Bot.Twitch.Models.Users;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
+using PenguinTwitchBot.TwitchApi.Models.Games;
+using PenguinTwitchBot.TwitchApi.Models.Moderation;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {

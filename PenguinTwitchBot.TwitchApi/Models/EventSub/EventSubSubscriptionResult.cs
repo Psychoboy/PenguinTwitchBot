@@ -1,3 +1,3 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+namespace PenguinTwitchBot.TwitchApi.Models.EventSub;
 
 public record EventSubSubscriptionResult(bool IsEnabled);

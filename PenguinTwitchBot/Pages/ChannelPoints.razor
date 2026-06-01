@@ -1,7 +1,6 @@
 @page "/redeems"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints
-@using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
+@using PenguinTwitchBot.TwitchApi.Models.ChannelPoints
 @inject PenguinTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
 @inject ISnackbar Snackbar
 

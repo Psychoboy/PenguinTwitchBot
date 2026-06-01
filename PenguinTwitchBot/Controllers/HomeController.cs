@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Commands.Features;
-using PenguinTwitchBot.Bot.Twitch.Auth;
+using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.TwitchApi.Auth;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
 using PenguinTwitchBot.Models;

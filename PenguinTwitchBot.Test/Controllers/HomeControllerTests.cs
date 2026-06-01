@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Bot.Twitch.Auth;
+using PenguinTwitchBot.TwitchApi.Auth;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Controllers;
 using Microsoft.AspNetCore.Authentication;

@@ -1,7 +1,7 @@
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using TwitchLibClip = TwitchLib.Api.Helix.Models.Clips.GetClips.Clip;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ClipsClient(ILogger<ClipsClient> logger, IClipsTransport transport) : TwitchClientRetryBase(logger), IClipsClient
 {

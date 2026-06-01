@@ -1,9 +1,8 @@
-using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public interface IChannelPointsClient
 {

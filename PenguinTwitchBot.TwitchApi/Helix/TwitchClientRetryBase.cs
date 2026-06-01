@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 /// <summary>
 /// Base class for Twitch API clients providing consistent exponential backoff retry logic.

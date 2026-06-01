@@ -13,7 +13,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.Core;
-using TwitchLib.Api.Helix.Models.Charity;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.PastyGames

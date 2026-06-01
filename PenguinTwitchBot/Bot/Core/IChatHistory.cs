@@ -1,6 +1,5 @@
 ﻿using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Models;
-using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {

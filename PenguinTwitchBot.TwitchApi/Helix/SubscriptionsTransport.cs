@@ -1,7 +1,7 @@
 using TwitchLib.Api;
 using TwitchLib.Api.Helix.Models.Subscriptions;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class SubscriptionsTransport : ISubscriptionsTransport
 {

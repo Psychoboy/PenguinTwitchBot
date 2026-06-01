@@ -1,0 +1,8 @@
+global using TwitchLib.EventSub.Core.EventArgs.Channel;
+global using TwitchLib.EventSub.Core.EventArgs.Stream;
+global using TwitchLib.EventSub.Core.Models;
+global using TwitchLib.EventSub.Core.Models.Chat;
+global using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
+global using TwitchLib.EventSub.Websockets;
+global using TwitchLib.EventSub.Websockets.Core.EventArgs;
+global using TwitchLib.EventSub.Websockets.Core.Models;

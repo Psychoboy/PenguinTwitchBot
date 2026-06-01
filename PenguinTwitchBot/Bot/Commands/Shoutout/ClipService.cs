@@ -1,10 +1,10 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Application.Clips;
 using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Bot.Twitch.Models.Clips;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
 using PenguinTwitchBot.Extensions;
 using System.Text.RegularExpressions;
 

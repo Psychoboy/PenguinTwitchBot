@@ -35,7 +35,7 @@
     }
 
     /// <summary>
-    /// Local Power-Up model — not the TwitchLib type.
+    /// Local Power-Up model for event processing.
     /// Possible types: message_effect, celebration, gigantify_an_emote
     /// </summary>
     public class PowerUp
@@ -55,7 +55,7 @@
     }
 
     /// <summary>
-    /// Local bits message model — not the TwitchLib type.
+    /// Local bits message model for event processing.
     /// </summary>
     public class BitsMessage
     {
@@ -64,7 +64,7 @@
     }
 
     /// <summary>
-    /// Local bits emote/fragment model — not the TwitchLib type.
+    /// Local bits emote/fragment model for event processing.
     /// Fragment type: text, cheermote, emote
     /// </summary>
     public class BitsEmote

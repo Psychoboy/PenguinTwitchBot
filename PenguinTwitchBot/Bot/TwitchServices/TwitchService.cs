@@ -1,19 +1,18 @@
 using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
-using PenguinTwitchBot.Bot.Twitch.Auth;
-using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
-using PenguinTwitchBot.Bot.Twitch.Models.Channels;
-using PenguinTwitchBot.Bot.Twitch.Models.Chat;
-using PenguinTwitchBot.Bot.Twitch.Models.Clips;
-using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
-using PenguinTwitchBot.Bot.Twitch.Models.Games;
-using PenguinTwitchBot.Bot.Twitch.Models.Moderation;
-using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
-using PenguinTwitchBot.Bot.Twitch.Models.Subscriptions;
-using PenguinTwitchBot.Bot.Twitch.Models.Users;
+using PenguinTwitchBot.TwitchApi.Auth;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
+using PenguinTwitchBot.TwitchApi.Models.EventSub;
+using PenguinTwitchBot.TwitchApi.Models.Games;
+using PenguinTwitchBot.TwitchApi.Models.Moderation;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 using System.Collections.Concurrent;
 using System.Timers;
-using TwitchLib.Api.Core.Exceptions;
 using Timer = System.Timers.Timer;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
@@ -110,7 +109,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 var broadcasterId = await GetBroadcasterUserId();
                 //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
-                var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                var msg = new SendChatMessageRequest
                 {
                     BroadcasterId = broadcasterId,
                     SenderId = broadcasterId,
@@ -137,7 +136,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 var broadcasterId = await GetBroadcasterUserId();
                 //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
-                var msg = new TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest
+                var msg = new SendChatMessageRequest
                 {
                     BroadcasterId = broadcasterId,
                     SenderId = broadcasterId,
@@ -284,7 +283,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var result = await _moderationEventSubClient.CheckAutoModStatusAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
-                    new List<TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus.Message>
+                    new()
                 {
                     new() {
                         MsgId = Guid.NewGuid().ToString(),
@@ -385,7 +384,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return [];
         }
 
-        public async Task UpdateChannelPointReward(string rewardId, TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest request)
+        public async Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request)
         {
             try
             {
@@ -544,7 +543,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 UserCache[user] = null;
                 return null;
             }
-            catch (TooManyRequestsException)
+            catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
             {
                 return null;
             }
@@ -568,7 +567,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var userObj = users.Users.FirstOrDefault();
                 return userObj != null ? UsersClient.MapToUser(userObj) : null;
             }
-            catch (TooManyRequestsException)
+            catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
             {
                 return null;
             }
@@ -596,7 +595,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 }
                 return mappedUsers;
             }
-            catch (TooManyRequestsException)
+            catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
             {
                 return null;
             }
@@ -647,9 +646,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     FollowDate = DateTime.Parse( firstFollower.FollowedAt)
                 };
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetUserFollow():{user} {error}", user, error);
             }
             catch (Exception ex)
@@ -675,9 +674,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (response == null) return false;
                 return response.Data.Length != 0;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing IsUserSub(): {error}", error);
             }
             catch (Exception ex)
@@ -702,9 +701,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     [userId]);
                 return response.Data.Length != 0;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing IsUserMod(): {error}", error);
             }
             catch (Exception ex)
@@ -715,17 +714,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return false;
         }
 
-        private async Task<TwitchLib.Api.Helix.Models.Streams.GetStreams.GetStreamsResponse> GetStreams(string userId)
-        {
-            return await GetStreams(new List<string>() { userId });
-        }
+        private sealed record StreamSnapshot(
+            string UserId,
+            string UserName,
+            string GameName,
+            int ViewerCount,
+            DateTime StartedAt,
+            string ThumbnailUrl);
 
-        private async Task<TwitchLib.Api.Helix.Models.Streams.GetStreams.GetStreamsResponse> GetStreams(List<string> userIds)
+        private async Task<List<StreamSnapshot>> GetStreams(List<string> userIds)
         {
-            return await _streamsClient.GetStreamsAsync(
+            var response = await _streamsClient.GetStreamsAsync(
                 _configuration["twitchClientId"]!,
                 _accessToken,
                 userIds: userIds);
+
+            if (response?.Streams == null)
+            {
+                return [];
+            }
+
+            return response.Streams
+                .Select(s => new StreamSnapshot(s.UserId, s.UserName, s.GameName, s.ViewerCount, s.StartedAt, s.ThumbnailUrl))
+                .ToList();
         }
 
         public async Task<bool> IsStreamOnline()
@@ -746,17 +757,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                var streams = await GetStreams(userId);
-                if (streams.Streams == null)
-                {
-                    return false;
-                }
-
-                return streams.Streams.Length > 0;
+                var streams = await GetStreams([userId]);
+                return streams.Count > 0;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing IsStreamOnline(userId): {error}", error);
             }
             catch (Exception ex)
@@ -772,11 +778,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var streams = await GetStreams(userIds);
-                if (streams.Streams == null)
-                {
-                    return [];
-                }
-                return streams.Streams.Select(x => new TwitchModels.OnlineStream
+                return streams.Select(x => new TwitchModels.OnlineStream
                 {
                     UserId = x.UserId,
                     UserName = x.UserName,
@@ -784,9 +786,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Game = x.GameName
                 }).ToList();
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing AreStreamsOnline: {error}", error);
             }
             catch (Exception ex)
@@ -802,18 +804,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                var streams = await GetStreams(userId);
-                if (streams.Streams.Length == 0)
+                var streams = await GetStreams([userId]);
+                if (streams.Count == 0)
                 {
                     return DateTime.MinValue;
                 }
-                var stream = streams.Streams.First();
+                var stream = streams.First();
                 var startTime = stream.StartedAt;
                 return startTime;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing getting stream started at: {error}", error);
             }
             catch (Exception ex)
@@ -829,16 +831,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                var streams = await GetStreams(userId);
-                if (streams.Streams.Length == 0)
+                var streams = await GetStreams([userId]);
+                if (streams.Count == 0)
                 {
                     return 0;
                 }
-                return streams.Streams.First().ViewerCount;
+                return streams.First().ViewerCount;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing getting viewer count: {error}", error);
             }
             catch (Exception ex)
@@ -855,12 +857,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return await GetCurrentGame(userId);
         }
 
-        private async Task<TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.GetChannelInformationResponse> GetChannelInformation(string userId)
+        private async Task<List<ChannelInformation>> GetChannelInformation(string userId)
         {
-            return await _channelsClient.GetChannelInformationAsync(
+            var response = await _channelsClient.GetChannelInformationAsync(
                 _configuration["twitchClientId"]!,
                 _accessToken,
                 userId);
+
+            if (response?.Data == null)
+            {
+                return [];
+            }
+
+            return response.Data.Select(ChannelsClient.MapToChannelInformation).ToList();
         }
 
         public async Task<string> GetCurrentGame(string userId)
@@ -868,14 +877,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var channelInfo = await GetChannelInformation(userId);
-                if (channelInfo.Data.Length > 0)
+                if (channelInfo.Count > 0)
                 {
-                    return channelInfo.Data[0].GameName;
+                    return channelInfo[0].GameName;
                 }
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Getting current game: {error}", error);
             }
             catch (Exception ex)
@@ -891,12 +900,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var channelInfo = await GetChannelInformation(userId);
-                var info = channelInfo?.Data?.FirstOrDefault();
-                return info != null ? ChannelsClient.MapToChannelInformation(info) : null;
+                return channelInfo.FirstOrDefault();
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetChannelInfo: {error}", error);
             }
             catch (Exception ex)
@@ -917,9 +925,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     return user.Description;
                 }
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Getting user bio: {error}", error);
             }
             catch (Exception ex)
@@ -935,14 +943,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var channelInfo = await GetChannelInformation(userId);
-                if (channelInfo.Data.Length > 0)
+                if (channelInfo.Count > 0)
                 {
-                    return channelInfo.Data[0].Title;
+                    return channelInfo[0].Title;
                 }
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Getting user stream title: {error}", error);
             }
             catch (Exception ex)
@@ -964,9 +972,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var game = gameInfo?.Data?.FirstOrDefault();
                 return game != null ? GamesClient.MapToGame(game) : null;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetGameInfo: {error}", error);
             }
             catch (Exception ex)
@@ -983,14 +991,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var channelInfo = await GetChannelInformation(userId);
-                if (channelInfo.Data.Length > 0)
+                if (channelInfo.Count > 0)
                 {
-                    return channelInfo.Data[0].Title;
+                    return channelInfo[0].Title;
                 }
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Getting stream title: {error}", error);
             }
             catch (Exception ex)
@@ -1006,16 +1014,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
             {
-                var streamInfo = await GetStreams(userId);
-                if (streamInfo.Streams.Length > 0)
+                var streamInfo = await GetStreams([userId]);
+                if (streamInfo.Count > 0)
                 {
-                    var stream = streamInfo.Streams.First();
+                    var stream = streamInfo.First();
                     return stream.ThumbnailUrl;
                 }
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Getting Thumbnail: {error}", error);
             }
             catch (Exception ex)
@@ -1037,9 +1045,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     broadcasterId,
                     userId);
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing Raid: {error}", error);
             }
             catch (Exception ex)
@@ -1062,11 +1070,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     broadcasterId);
                 return ShoutoutResponseEnum.Success;
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing shoutout: {error}", error);
-                if (ex.HttpResponse.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                if (error.Contains("429", StringComparison.OrdinalIgnoreCase) || error.Contains("Too Many Requests", StringComparison.OrdinalIgnoreCase))
                 {
                     return ShoutoutResponseEnum.TooManyRequests;
                 }
@@ -1093,9 +1101,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     null);
                 return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetClips: {error}", error);
             }
             catch (Exception ex)
@@ -1120,9 +1128,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     true);
                 return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetFeaturedClips: {error}", error);
             }
             catch (Exception ex)
@@ -1143,9 +1151,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     [clipId]);
                 return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
             }
-            catch (HttpResponseException ex)
+            catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
-                var error = await ex.HttpResponse.Content.ReadAsStringAsync();
+                var error = ex.Message;
                 _logger.LogError("Error doing GetClip: {error}", error);
             }
             catch (Exception ex)
@@ -1172,18 +1180,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
             try
             {
-                var banUserRequest = new TwitchLib.Api.Helix.Models.Moderation.BanUser.BanUserRequest
-                {
-                    UserId = userId,
-                    Reason = reason,
-                    Duration = length
-                };
                 await _moderationEventSubClient.BanUserAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId,
                     broadcasterId,
-                    banUserRequest);
+                    new()
+                    {
+                        UserId = userId,
+                        Reason = reason,
+                        Duration = length
+                    });
             }
             catch (Exception ex)
             {

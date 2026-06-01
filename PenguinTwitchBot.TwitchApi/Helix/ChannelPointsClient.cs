@@ -1,11 +1,10 @@
-using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 using TwitchLibCustomReward = TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, IChannelPointsTransport transport) : TwitchClientRetryBase(logger), IChannelPointsClient
 {
@@ -64,5 +63,24 @@ public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, ICh
             IsGlobalCooldownEnabled = source.IsGlobalCooldownEnabled,
             GlobalCooldownSeconds = source.GlobalCooldownSeconds,
             BackgroundColor = source.BackgroundColor
+        };
+
+    public static TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward.UpdateCustomRewardRequest MapToTwitchRequest(UpdateCustomRewardRequest source) =>
+        new()
+        {
+            IsEnabled = source.IsEnabled,
+            IsPaused = source.IsPaused,
+            Title = source.Title,
+            Cost = source.Cost,
+            Prompt = source.Prompt,
+            BackgroundColor = source.BackgroundColor,
+            IsUserInputRequired = source.IsUserInputRequired,
+            ShouldRedemptionsSkipRequestQueue = source.ShouldRedemptionsSkipRequestQueue,
+            IsMaxPerStreamEnabled = source.IsMaxPerStreamEnabled,
+            MaxPerStream = source.MaxPerStream,
+            IsMaxPerUserPerStreamEnabled = source.IsMaxPerUserPerStreamEnabled,
+            MaxPerUserPerStream = source.MaxPerUserPerStream,
+            IsGlobalCooldownEnabled = source.IsGlobalCooldownEnabled,
+            GlobalCooldownSeconds = source.GlobalCooldownSeconds
         };
 }

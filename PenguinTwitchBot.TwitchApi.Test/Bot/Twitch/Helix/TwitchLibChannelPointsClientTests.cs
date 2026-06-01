@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;

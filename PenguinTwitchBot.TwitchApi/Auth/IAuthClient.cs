@@ -1,6 +1,6 @@
-using PenguinTwitchBot.Bot.Twitch.Models.Auth;
+using PenguinTwitchBot.TwitchApi.Models.Auth;
 
-namespace PenguinTwitchBot.Bot.Twitch.Auth;
+namespace PenguinTwitchBot.TwitchApi.Auth;
 
 public interface IAuthClient
 {

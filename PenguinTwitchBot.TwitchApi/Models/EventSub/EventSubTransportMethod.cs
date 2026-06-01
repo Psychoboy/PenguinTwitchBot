@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+namespace PenguinTwitchBot.TwitchApi.Models.EventSub;
 
 public enum EventSubTransportMethod
 {

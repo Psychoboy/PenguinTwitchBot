@@ -1,4 +1,4 @@
-using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.TwitchApi.Helix;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using TwitchLib.Api.Helix.Models.Users.GetUsers;

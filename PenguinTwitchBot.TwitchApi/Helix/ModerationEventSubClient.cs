@@ -1,4 +1,4 @@
-using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+using PenguinTwitchBot.TwitchApi.Models.EventSub;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix.Models.EventSub;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
@@ -8,7 +8,7 @@ using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 using TwitchLibBannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
 using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransportMethod;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ModerationEventSubClient(ILogger<ModerationEventSubClient> logger, IModerationEventSubTransport transport) : TwitchClientRetryBase(logger), IModerationEventSubClient
 {

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notifications;
+using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -7,13 +7,6 @@ using PenguinTwitchBot.Bot.Services.Chat;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
-using TwitchLib.EventSub.Core.EventArgs.Channel;
-using TwitchLib.EventSub.Core.EventArgs.Stream;
-using TwitchLib.EventSub.Core.Models;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
-using TwitchLib.EventSub.Websockets;
-using TwitchLib.EventSub.Websockets.Core.EventArgs;
-using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -254,7 +247,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private static ChatOverlayFragment MapFragment(TwitchLib.EventSub.Core.Models.Chat.ChatMessageFragment f)
+        private static ChatOverlayFragment MapFragment(ChatMessageFragment f)
         {
             if (f.Type == "emote" && f.Emote != null)
             {

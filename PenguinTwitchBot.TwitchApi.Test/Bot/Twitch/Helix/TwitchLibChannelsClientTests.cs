@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.TwitchApi.Helix;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;

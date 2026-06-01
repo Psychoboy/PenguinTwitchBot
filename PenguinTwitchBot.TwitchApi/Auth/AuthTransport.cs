@@ -1,7 +1,7 @@
-using PenguinTwitchBot.Bot.Twitch.Models.Auth;
+using PenguinTwitchBot.TwitchApi.Models.Auth;
 using TwitchLib.Api;
 
-namespace PenguinTwitchBot.Bot.Twitch.Auth;
+namespace PenguinTwitchBot.TwitchApi.Auth;
 
 public sealed class AuthTransport : IAuthTransport
 {

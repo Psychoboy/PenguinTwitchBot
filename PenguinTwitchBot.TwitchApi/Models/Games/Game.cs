@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Games;
+namespace PenguinTwitchBot.TwitchApi.Models.Games;
 
 /// <summary>
 /// Domain model for Twitch game information

@@ -1,7 +1,7 @@
 using TwitchLib.Api.Helix.Models.Subscriptions;
 using TwitchLibSubscription = TwitchLib.Api.Helix.Models.Subscriptions.Subscription;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class SubscriptionsClient(ILogger<SubscriptionsClient> logger, ISubscriptionsTransport transport) : TwitchClientRetryBase(logger), ISubscriptionsClient
 {

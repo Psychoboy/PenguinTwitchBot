@@ -1,7 +1,7 @@
-using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models.Auth;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Auth;
 
-namespace PenguinTwitchBot.Bot.Twitch.Auth;
+namespace PenguinTwitchBot.TwitchApi.Auth;
 
 public sealed class AuthClient(ILogger<AuthClient> logger, IAuthTransport transport) : TwitchClientRetryBase(logger), IAuthClient
 {

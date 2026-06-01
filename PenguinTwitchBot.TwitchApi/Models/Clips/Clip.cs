@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Clips;
+namespace PenguinTwitchBot.TwitchApi.Models.Clips;
 
 /// <summary>
 /// Domain model for a Twitch clip

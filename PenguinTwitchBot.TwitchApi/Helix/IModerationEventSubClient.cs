@@ -1,10 +1,10 @@
-using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+using PenguinTwitchBot.TwitchApi.Models.EventSub;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
 using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public interface IModerationEventSubClient
 {

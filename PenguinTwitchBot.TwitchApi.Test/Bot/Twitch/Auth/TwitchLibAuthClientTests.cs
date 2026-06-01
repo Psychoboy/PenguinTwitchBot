@@ -1,4 +1,4 @@
-using PenguinTwitchBot.Bot.Twitch.Auth;
+using PenguinTwitchBot.TwitchApi.Auth;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 

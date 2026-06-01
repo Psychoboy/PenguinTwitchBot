@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Auth;
+namespace PenguinTwitchBot.TwitchApi.Auth;
 
 public sealed class TwitchAuthTokenResponse
 {

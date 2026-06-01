@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Channels;
+namespace PenguinTwitchBot.TwitchApi.Models.Channels;
 
 /// <summary>
 /// Domain model for a Twitch channel editor

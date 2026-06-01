@@ -1,5 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 
 namespace PenguinTwitchBot.Bot.Commands.ChannelPoints
 {

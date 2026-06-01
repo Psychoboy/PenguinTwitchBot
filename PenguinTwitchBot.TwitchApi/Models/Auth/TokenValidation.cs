@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Auth;
+namespace PenguinTwitchBot.TwitchApi.Models.Auth;
 
 /// <summary>
 /// Domain model for a Twitch access token validation response.

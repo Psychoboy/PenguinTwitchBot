@@ -1,7 +1,7 @@
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
 using TwitchLibUser = TwitchLib.Api.Helix.Models.Users.GetUsers.User;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class UsersClient(ILogger<UsersClient> logger, IUsersTransport transport) : TwitchClientRetryBase(logger), IUsersClient
 {

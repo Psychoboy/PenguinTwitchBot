@@ -1,10 +1,10 @@
 using TwitchLib.Api;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelPointsTransport : IChannelPointsTransport
 {
@@ -23,7 +23,11 @@ public sealed class ChannelPointsTransport : IChannelPointsTransport
     public Task UpdateCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, string rewardId, UpdateCustomRewardRequest request)
     {
         var api = CreateApi(clientId, accessToken);
-        return api.Helix.ChannelPoints.UpdateCustomRewardAsync(broadcasterId, rewardId, request, accessToken);
+        return api.Helix.ChannelPoints.UpdateCustomRewardAsync(
+            broadcasterId,
+            rewardId,
+            ChannelPointsClient.MapToTwitchRequest(request),
+            accessToken);
     }
 
     public Task DeleteCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, string rewardId)

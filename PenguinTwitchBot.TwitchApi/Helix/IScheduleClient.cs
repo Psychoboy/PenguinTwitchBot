@@ -1,6 +1,6 @@
 using TwitchLib.Api.Helix.Models.Schedule.GetChannelStreamSchedule;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public interface IScheduleClient
 {

@@ -4,7 +4,7 @@ using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
 using TwitchLibChannelInformation = TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.ChannelInformation;
 using TwitchLibChannelEditor = TwitchLib.Api.Helix.Models.Channels.GetChannelEditors.ChannelEditor;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelsClient(ILogger<ChannelsClient> logger, IChannelsTransport transport) : TwitchClientRetryBase(logger), IChannelsClient
 {

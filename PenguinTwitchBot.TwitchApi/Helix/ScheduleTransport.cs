@@ -1,7 +1,7 @@
 using TwitchLib.Api;
 using TwitchLib.Api.Helix.Models.Schedule.GetChannelStreamSchedule;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ScheduleTransport : IScheduleTransport
 {

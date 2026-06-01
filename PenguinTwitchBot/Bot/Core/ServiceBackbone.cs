@@ -10,7 +10,6 @@ using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.SignalR;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {

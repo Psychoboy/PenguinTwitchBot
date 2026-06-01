@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Subscriptions;
+namespace PenguinTwitchBot.TwitchApi.Models.Subscriptions;
 
 /// <summary>
 /// Domain model for a channel subscription.

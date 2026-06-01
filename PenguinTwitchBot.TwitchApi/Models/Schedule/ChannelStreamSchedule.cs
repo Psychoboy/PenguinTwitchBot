@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models.Schedule;
+namespace PenguinTwitchBot.TwitchApi.Models.Schedule;
 
 /// <summary>
 /// Domain model for Twitch channel stream schedule

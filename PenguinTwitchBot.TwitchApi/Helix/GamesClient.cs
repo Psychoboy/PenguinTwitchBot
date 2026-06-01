@@ -1,7 +1,7 @@
 using TwitchLib.Api.Helix.Models.Games;
 using TwitchLibGame = TwitchLib.Api.Helix.Models.Games.Game;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class GamesClient(ILogger<GamesClient> logger, IGamesTransport transport) : TwitchClientRetryBase(logger), IGamesClient
 {

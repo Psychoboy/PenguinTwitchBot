@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class RaidsClient(ILogger<RaidsClient> logger, IRaidsTransport transport) : TwitchClientRetryBase(logger), IRaidsClient
 {

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot;
+using PenguinTwitchBot.Bot;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Admin;
 using PenguinTwitchBot.Bot.Commands.Ai;
@@ -16,8 +16,8 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Diagnostics;
 using PenguinTwitchBot.Bot.ServiceTools;
 using PenguinTwitchBot.Bot.StreamSchedule;
-using PenguinTwitchBot.Bot.Twitch.Auth;
-using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.TwitchApi.Auth;
+using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Bot.Commands.Fishing;
@@ -167,7 +167,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Global concurrency limiter — shared SemaphoreSlim across all non-blocking queues
+            // Global concurrency limiter � shared SemaphoreSlim across all non-blocking queues
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager

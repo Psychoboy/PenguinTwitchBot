@@ -1,6 +1,6 @@
 using TwitchLib.Api.Helix.Models.Subscriptions;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public interface ISubscriptionsClient
 {

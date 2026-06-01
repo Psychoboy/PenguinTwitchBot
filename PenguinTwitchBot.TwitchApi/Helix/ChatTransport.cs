@@ -1,17 +1,20 @@
 using TwitchLib.Api;
-using TwitchLib.Api.Helix.Models.Channels.SendChatMessage;
 using TwitchLib.Api.Helix.Models.Chat.Badges.GetChannelChatBadges;
 using TwitchLib.Api.Helix.Models.Chat.Badges.GetGlobalChatBadges;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
+using TwitchLibSendChatMessageRequest = TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageRequest;
+using TwitchLibSendChatMessageResponse = TwitchLib.Api.Helix.Models.Channels.SendChatMessage.SendChatMessageResponse;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChatTransport : IChatTransport
 {
-    public Task<SendChatMessageResponse> SendChatMessageAsync(string clientId, string? accessToken, SendChatMessageRequest request)
+    public async Task<SendChatMessageResponse> SendChatMessageAsync(string clientId, string? accessToken, SendChatMessageRequest request)
     {
         var api = CreateApi(clientId, accessToken);
-        return api.Helix.Chat.SendChatMessage(request, accessToken);
+        var twitchResponse = await api.Helix.Chat.SendChatMessage(MapToTwitchRequest(request), accessToken);
+        return MapToResponse(twitchResponse);
     }
 
     public Task<GetChattersResponse> GetChattersAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? after)
@@ -54,5 +57,32 @@ public sealed class ChatTransport : IChatTransport
         }
 
         return api;
+    }
+
+    private static TwitchLibSendChatMessageRequest MapToTwitchRequest(SendChatMessageRequest request)
+    {
+        return new TwitchLibSendChatMessageRequest
+        {
+            BroadcasterId = request.BroadcasterId,
+            SenderId = request.SenderId,
+            Message = request.Message,
+            ForSourceOnly = request.ForSourceOnly,
+            ReplyParentMessageId = request.ReplyParentMessageId,
+        };
+    }
+
+    private static SendChatMessageResponse MapToResponse(TwitchLibSendChatMessageResponse source)
+    {
+        var data = source.Data?
+            .Select(item => new SendChatMessageResult(
+                MessageId: item.MessageId,
+                IsSent: item.IsSent,
+                DropReason: item.DropReason == null
+                    ? null
+                    : new SendChatMessageDropReason(item.DropReason.Code, item.DropReason.Message)))
+            .ToList()
+            ?? [];
+
+        return new SendChatMessageResponse(data);
     }
 }

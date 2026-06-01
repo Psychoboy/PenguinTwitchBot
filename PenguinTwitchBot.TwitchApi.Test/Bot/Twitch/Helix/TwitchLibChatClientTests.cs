@@ -1,7 +1,7 @@
-using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TwitchLib.Api.Helix.Models.Channels.SendChatMessage;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
@@ -86,7 +86,12 @@ public class ChatClientTests
 
     private static SendChatMessageResponse CreateSendChatMessageResponse()
     {
-        const string json = "{\"data\":[{\"message_id\":\"abc\",\"is_sent\":true}]}";
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<SendChatMessageResponse>(json)!;
+        return new SendChatMessageResponse(
+        [
+            new SendChatMessageResult(
+                MessageId: "abc",
+                IsSent: true,
+                DropReason: null)
+        ]);
     }
 }

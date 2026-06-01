@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.EventSub;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using TwitchLib.Api.Helix.Models.EventSub;

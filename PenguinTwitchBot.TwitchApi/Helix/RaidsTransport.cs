@@ -1,6 +1,6 @@
 using TwitchLib.Api;
 
-namespace PenguinTwitchBot.Bot.Twitch.Helix;
+namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class RaidsTransport : IRaidsTransport
 {

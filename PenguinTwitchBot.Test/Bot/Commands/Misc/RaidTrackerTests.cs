@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
-using PenguinTwitchBot.Bot.Twitch.Models.Users;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Misc
 {
