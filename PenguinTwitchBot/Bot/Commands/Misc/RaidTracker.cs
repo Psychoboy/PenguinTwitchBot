@@ -182,7 +182,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var raidHistory = await db.RaidHistory.Find(x => x.Name.Equals(user.Login)).FirstOrDefaultAsync();
+                    var raidHistory = await db.RaidHistory.Find(x => x.UserId.Equals(user.Id)).FirstOrDefaultAsync();
                     raidHistory ??= new RaidHistoryEntry
                     {
                         UserId = user.Id,
