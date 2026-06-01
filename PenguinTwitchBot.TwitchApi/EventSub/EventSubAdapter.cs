@@ -80,9 +80,9 @@ public static class EventSubAdapter
             Event = new()
             {
                 IsAnonymous = payload.IsAnonymous,
-                CheererId = payload.UserId!,
-                CheererLogin = payload.UserLogin!,
-                CheererName = payload.UserName!,
+                CheererId = payload.UserId,
+                CheererLogin = payload.UserLogin,
+                CheererName = payload.UserName,
                 Bits = payload.Bits,
                 Message = payload.Message,
                 UserId = payload.UserId,
@@ -196,10 +196,10 @@ public static class EventSubAdapter
             Event = new()
             {
                 UserId = payload.UserId,
-                UserLogin = payload.UserLogin!,
-                UserName = payload.UserName!,
+                UserLogin = payload.UserLogin,
+                UserName = payload.UserName,
                 Total = payload.Total,
-                CumulativeTotal = payload.CumulativeTotal ?? 0,
+                CumulativeTotal = payload.CumulativeTotal,
                 Tier = payload.Tier,
                 IsAnonymous = payload.IsAnonymous,
             }

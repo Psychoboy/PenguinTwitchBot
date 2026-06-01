@@ -12,7 +12,7 @@ public sealed class ChannelCheer
     public string? CheererName { get; set; }
     public int Bits { get; set; }
     public string? Message { get; set; }
-    public required string UserId { get; set; }
-    public required string UserLogin { get; set; }
-    public required string UserName { get; set; }
+    public string? UserId { get; set; }
+    public string? UserLogin { get; set; }
+    public string? UserName { get; set; }
 }
