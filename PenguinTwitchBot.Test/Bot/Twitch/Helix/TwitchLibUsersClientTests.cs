@@ -5,17 +5,17 @@ using TwitchLib.Api.Helix.Models.Users.GetUsers;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibUsersClientTests
+public class UsersClientTests
 {
     [Fact]
     public async Task GetUsersAsync_ShouldReturnResponse_WhenTransportSucceeds()
     {
-        var logger = Substitute.For<ILogger<TwitchLibUsersClient>>();
-        var transport = Substitute.For<ITwitchUsersTransport>();
+        var logger = Substitute.For<ILogger<UsersClient>>();
+        var transport = Substitute.For<IUsersTransport>();
         var response = CreateResponse();
 
         transport.GetUsersAsync("cid", "token", Arg.Any<List<string>?>(), Arg.Any<List<string>?>()).Returns(response);
-        var sut = new TwitchLibUsersClient(logger, transport);
+        var sut = new UsersClient(logger, transport);
 
         var result = await sut.GetUsersAsync("cid", "token", null, ["penguin"]);
 
@@ -26,8 +26,8 @@ public class TwitchLibUsersClientTests
     [Fact]
     public async Task GetUsersAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibUsersClient>>();
-        var transport = Substitute.For<ITwitchUsersTransport>();
+        var logger = Substitute.For<ILogger<UsersClient>>();
+        var transport = Substitute.For<IUsersTransport>();
         var attempts = 0;
 
         transport.GetUsersAsync("cid", "token", Arg.Any<List<string>?>(), Arg.Any<List<string>?>())
@@ -42,7 +42,7 @@ public class TwitchLibUsersClientTests
                 return CreateResponse();
             });
 
-        var sut = new TwitchLibUsersClient(logger, transport);
+        var sut = new UsersClient(logger, transport);
 
         var result = await sut.GetUsersAsync("cid", "token", null, ["penguin"]);
 
@@ -53,8 +53,8 @@ public class TwitchLibUsersClientTests
     [Fact]
     public async Task GetUsersAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<TwitchLibUsersClient>>();
-        var transport = Substitute.For<ITwitchUsersTransport>();
+        var logger = Substitute.For<ILogger<UsersClient>>();
+        var transport = Substitute.For<IUsersTransport>();
         var attempts = 0;
 
         transport.GetUsersAsync("cid", "token", Arg.Any<List<string>?>(), Arg.Any<List<string>?>())
@@ -64,7 +64,7 @@ public class TwitchLibUsersClientTests
                 return Task.FromException<GetUsersResponse>(new InvalidOperationException("bad state"));
             });
 
-        var sut = new TwitchLibUsersClient(logger, transport);
+        var sut = new UsersClient(logger, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.GetUsersAsync("cid", "token", null, ["penguin"]));
         Assert.Equal(1, attempts);

@@ -1,4 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Twitch.Models;
+﻿using PenguinTwitchBot.Bot.Twitch.Models.Clips;
+using PenguinTwitchBot.Bot.Twitch.Models.Users;
 
 namespace PenguinTwitchBot.Application.Clips
 {

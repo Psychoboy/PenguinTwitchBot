@@ -4,13 +4,13 @@ using NSubstitute;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Auth;
 
-public class TwitchLibAuthClientTests
+public class AuthClientTests
 {
     [Fact]
     public async Task ExchangeCodeAsync_ShouldReturnToken_WhenTransportReturnsToken()
     {
-        var logger = Substitute.For<ILogger<TwitchLibAuthClient>>();
-        var transport = Substitute.For<ITwitchAuthTransport>();
+        var logger = Substitute.For<ILogger<AuthClient>>();
+        var transport = Substitute.For<IAuthTransport>();
         transport.ExchangeCodeAsync("cid", "secret", "code", "redirect")
             .Returns(new TwitchAuthTokenResponse
             {
@@ -19,7 +19,7 @@ public class TwitchLibAuthClientTests
                 ExpiresIn = 3600
             });
 
-        var sut = new TwitchLibAuthClient(logger, transport);
+        var sut = new AuthClient(logger, transport);
 
         var result = await sut.ExchangeCodeAsync("cid", "secret", "code", "redirect");
 
@@ -33,8 +33,8 @@ public class TwitchLibAuthClientTests
     [Fact]
     public async Task ExchangeCodeAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibAuthClient>>();
-        var transport = Substitute.For<ITwitchAuthTransport>();
+        var logger = Substitute.For<ILogger<AuthClient>>();
+        var transport = Substitute.For<IAuthTransport>();
         var attempts = 0;
 
         transport.ExchangeCodeAsync("cid", "secret", "code", "redirect")
@@ -54,7 +54,7 @@ public class TwitchLibAuthClientTests
                 };
             });
 
-        var sut = new TwitchLibAuthClient(logger, transport);
+        var sut = new AuthClient(logger, transport);
 
         var result = await sut.ExchangeCodeAsync("cid", "secret", "code", "redirect");
 
@@ -66,8 +66,8 @@ public class TwitchLibAuthClientTests
     [Fact]
     public async Task ExchangeCodeAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<TwitchLibAuthClient>>();
-        var transport = Substitute.For<ITwitchAuthTransport>();
+        var logger = Substitute.For<ILogger<AuthClient>>();
+        var transport = Substitute.For<IAuthTransport>();
         var attempts = 0;
 
         transport.ExchangeCodeAsync("cid", "secret", "code", "redirect")
@@ -77,7 +77,7 @@ public class TwitchLibAuthClientTests
                 return Task.FromException<TwitchAuthTokenResponse?>(new InvalidOperationException("bad state"));
             });
 
-        var sut = new TwitchLibAuthClient(logger, transport);
+        var sut = new AuthClient(logger, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.ExchangeCodeAsync("cid", "secret", "code", "redirect"));
         Assert.Equal(1, attempts);
@@ -86,11 +86,11 @@ public class TwitchLibAuthClientTests
     [Fact]
     public async Task GetAuthenticatedUserAsync_ShouldReturnNull_WhenTransportReturnsNull()
     {
-        var logger = Substitute.For<ILogger<TwitchLibAuthClient>>();
-        var transport = Substitute.For<ITwitchAuthTransport>();
+        var logger = Substitute.For<ILogger<AuthClient>>();
+        var transport = Substitute.For<IAuthTransport>();
         transport.GetAuthenticatedUserAsync("cid", "access").Returns((TwitchAuthenticatedUser?)null);
 
-        var sut = new TwitchLibAuthClient(logger, transport);
+        var sut = new AuthClient(logger, transport);
 
         var result = await sut.GetAuthenticatedUserAsync("cid", "access");
 
@@ -101,8 +101,8 @@ public class TwitchLibAuthClientTests
     [Fact]
     public async Task GetAuthenticatedUserAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibAuthClient>>();
-        var transport = Substitute.For<ITwitchAuthTransport>();
+        var logger = Substitute.For<ILogger<AuthClient>>();
+        var transport = Substitute.For<IAuthTransport>();
         var attempts = 0;
 
         transport.GetAuthenticatedUserAsync("cid", "access")
@@ -123,7 +123,7 @@ public class TwitchLibAuthClientTests
                 };
             });
 
-        var sut = new TwitchLibAuthClient(logger, transport);
+        var sut = new AuthClient(logger, transport);
 
         var result = await sut.GetAuthenticatedUserAsync("cid", "access");
 

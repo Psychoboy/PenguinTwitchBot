@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models;
+namespace PenguinTwitchBot.Bot.Twitch.Models.Users;
 
 /// <summary>
 /// Domain model for a Twitch user, replacing direct TwitchLib.Api types

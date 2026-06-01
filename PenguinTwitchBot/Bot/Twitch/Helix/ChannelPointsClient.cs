@@ -1,4 +1,4 @@
-using PenguinTwitchBot.Bot.Twitch.Models;
+using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
@@ -15,9 +15,9 @@ public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, ICh
         return ExecuteWithRetryAsync(() => transport.GetCustomRewardAsync(clientId, accessToken, broadcasterId, rewardIds, onlyManageableRewards), "fetch custom rewards");
     }
 
-    public Task<CreateCustomRewardsResponse> CreateCustomRewardsAsync(string clientId, string? accessToken, string broadcasterId, CreateCustomRewardsRequest request)
+    public Task CreateCustomRewardsAsync(string clientId, string? accessToken, string broadcasterId, CreateChannelPointRewardRequest request)
     {
-        return ExecuteWithRetryAsync(() => transport.CreateCustomRewardsAsync(clientId, accessToken, broadcasterId, request), "create custom reward");
+        return ExecuteWithRetryAsync(() => transport.CreateCustomRewardsAsync(clientId, accessToken, broadcasterId, MapToTwitchRequest(request)), "create custom reward");
     }
 
     public Task UpdateCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, string rewardId, UpdateCustomRewardRequest request)
@@ -47,4 +47,22 @@ public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, ICh
             MaxPerUserPerStream: source.MaxPerUserPerStreamSetting?.MaxPerUserPerStream,
             IsGlobalCooldownEnabled: source.GlobalCooldownSetting?.IsEnabled,
             GlobalCooldownSeconds: source.GlobalCooldownSetting?.GlobalCooldownSeconds);
+
+    internal static CreateCustomRewardsRequest MapToTwitchRequest(CreateChannelPointRewardRequest source) =>
+        new()
+        {
+            Title = source.Title,
+            Cost = source.Cost,
+            Prompt = source.Prompt,
+            IsEnabled = source.IsEnabled,
+            IsUserInputRequired = source.IsUserInputRequired,
+            ShouldRedemptionsSkipRequestQueue = source.ShouldRedemptionsSkipRequestQueue,
+            IsMaxPerStreamEnabled = source.IsMaxPerStreamEnabled,
+            MaxPerStream = source.MaxPerStream,
+            IsMaxPerUserPerStreamEnabled = source.IsMaxPerUserPerStreamEnabled,
+            MaxPerUserPerStream = source.MaxPerUserPerStream,
+            IsGlobalCooldownEnabled = source.IsGlobalCooldownEnabled,
+            GlobalCooldownSeconds = source.GlobalCooldownSeconds,
+            BackgroundColor = source.BackgroundColor
+        };
 }

@@ -15,6 +15,6 @@ public sealed class SubscriptionsClient(ILogger<SubscriptionsClient> logger, ISu
         return ExecuteWithRetryAsync(() => transport.GetBroadcasterSubscriptionsAsync(clientId, accessToken, broadcasterId, first, after), "fetch broadcaster subscriptions");
     }
 
-    internal static Models.Subscription MapToSubscription(TwitchLibSubscription source) =>
+    internal static Models.Subscriptions.Subscription MapToSubscription(TwitchLibSubscription source) =>
         new(UserId: source.UserId, UserLogin: source.UserLogin, UserName: source.UserName);
 }

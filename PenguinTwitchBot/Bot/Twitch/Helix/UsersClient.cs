@@ -1,5 +1,4 @@
 using TwitchLib.Api.Helix.Models.Users.GetUsers;
-using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLibUser = TwitchLib.Api.Helix.Models.Users.GetUsers.User;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
@@ -17,9 +16,9 @@ public sealed class UsersClient(ILogger<UsersClient> logger, IUsersTransport tra
     /// <summary>
     /// Maps a TwitchLib User to the internal domain model
     /// </summary>
-    internal static Models.User MapToUser(TwitchLibUser source)
+    internal static Models.Users.User MapToUser(TwitchLibUser source)
     {
-        return new Models.User(
+        return new Models.Users.User(
             Id: source.Id,
             Login: source.Login,
             DisplayName: source.DisplayName,

@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix.Models.EventSub;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
@@ -5,6 +6,7 @@ using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 using TwitchLibBannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
+using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransportMethod;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
 
@@ -36,11 +38,18 @@ public sealed class ModerationEventSubClient(ILogger<ModerationEventSubClient> l
         return ExecuteWithRetryAsync(() => transport.DeleteChatMessagesAsync(clientId, accessToken, broadcasterId, moderatorId, messageId), "delete chat messages");
     }
 
-    public Task<CreateEventSubSubscriptionResponse> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId)
+    public async Task<EventSubSubscriptionResult> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, Models.EventSub.EventSubTransportMethod transportMethod, string transportSessionId)
     {
-        return ExecuteWithRetryAsync(() => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, transportMethod, transportSessionId), "create eventsub subscription");
+        var twitchMethod = transportMethod == Models.EventSub.EventSubTransportMethod.Websocket
+            ? TwitchLibEventSubTransportMethod.Websocket
+            : throw new ArgumentOutOfRangeException(nameof(transportMethod), transportMethod, null);
+        var response = await ExecuteWithRetryAsync(
+            () => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, twitchMethod, transportSessionId),
+            "create eventsub subscription");
+        var isEnabled = response?.Subscriptions?.Length > 0 && response.Subscriptions.First().Status == "enabled";
+        return new EventSubSubscriptionResult(isEnabled);
     }
 
-    internal static Models.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
+    internal static Models.Moderation.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
         new(UserId: source.UserId, UserLogin: source.UserLogin, ExpiresAt: source.ExpiresAt);
 }

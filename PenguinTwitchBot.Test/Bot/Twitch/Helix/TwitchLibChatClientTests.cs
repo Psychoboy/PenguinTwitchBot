@@ -5,18 +5,18 @@ using TwitchLib.Api.Helix.Models.Channels.SendChatMessage;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibChatClientTests
+public class ChatClientTests
 {
     [Fact]
     public async Task SendChatMessageAsync_ShouldReturnResponse_WhenTransportSucceeds()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChatClient>>();
-        var transport = Substitute.For<ITwitchChatTransport>();
+        var logger = Substitute.For<ILogger<ChatClient>>();
+        var transport = Substitute.For<IChatTransport>();
         var response = CreateSendChatMessageResponse();
 
         transport.SendChatMessageAsync("cid", "token", Arg.Any<SendChatMessageRequest>()).Returns(response);
 
-        var sut = new TwitchLibChatClient(logger, transport);
+        var sut = new ChatClient(logger, transport);
         var result = await sut.SendChatMessageAsync("cid", "token", new SendChatMessageRequest
         {
             BroadcasterId = "1",
@@ -31,8 +31,8 @@ public class TwitchLibChatClientTests
     [Fact]
     public async Task SendChatMessageAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChatClient>>();
-        var transport = Substitute.For<ITwitchChatTransport>();
+        var logger = Substitute.For<ILogger<ChatClient>>();
+        var transport = Substitute.For<IChatTransport>();
         var attempts = 0;
 
         transport.SendChatMessageAsync("cid", "token", Arg.Any<SendChatMessageRequest>())
@@ -47,7 +47,7 @@ public class TwitchLibChatClientTests
                 return CreateSendChatMessageResponse();
             });
 
-        var sut = new TwitchLibChatClient(logger, transport);
+        var sut = new ChatClient(logger, transport);
         var result = await sut.SendChatMessageAsync("cid", "token", new SendChatMessageRequest
         {
             BroadcasterId = "1",
@@ -62,8 +62,8 @@ public class TwitchLibChatClientTests
     [Fact]
     public async Task SendChatMessageAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChatClient>>();
-        var transport = Substitute.For<ITwitchChatTransport>();
+        var logger = Substitute.For<ILogger<ChatClient>>();
+        var transport = Substitute.For<IChatTransport>();
         var attempts = 0;
 
         transport.SendChatMessageAsync("cid", "token", Arg.Any<SendChatMessageRequest>())
@@ -73,7 +73,7 @@ public class TwitchLibChatClientTests
                 return Task.FromException<SendChatMessageResponse>(new InvalidOperationException("bad state"));
             });
 
-        var sut = new TwitchLibChatClient(logger, transport);
+        var sut = new ChatClient(logger, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.SendChatMessageAsync("cid", "token", new SendChatMessageRequest
         {

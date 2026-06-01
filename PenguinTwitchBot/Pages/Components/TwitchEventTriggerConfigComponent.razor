@@ -2,6 +2,7 @@
 @using TwitchEventConfig = PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using MudBlazor
 @using PenguinTwitchBot.Bot.TwitchServices
+@using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints
 
 <MudStack Spacing="3">
     <MudText Typo="Typo.h6">Configure Twitch Event Trigger</MudText>
@@ -565,7 +566,7 @@
     private ITwitchService TwitchService { get; set; } = null!;
 
     private List<TwitchEventInfo> _availableEvents = new();
-    private List<PenguinTwitchBot.Bot.Twitch.Models.ChannelPointReward> _availableRewards = new();
+    private List<ChannelPointReward> _availableRewards = new();
     private RewardTitleOption? _selectedRewardToAdd;
     private TwitchEventInfo? _selectedEventInfo;
     private bool _tier1Selected;
@@ -646,7 +647,7 @@
         catch (Exception)
         {
             // If loading fails, just continue with empty list
-            _availableRewards = new List<PenguinTwitchBot.Bot.Twitch.Models.ChannelPointReward>();
+            _availableRewards = new List<ChannelPointReward>();
         }
     }
 

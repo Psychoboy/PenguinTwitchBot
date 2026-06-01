@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Twitch.Models;
+namespace PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
 
 /// <summary>
 /// Domain model for a channel point custom reward.

@@ -100,7 +100,7 @@ public class HomeControllerTests
         memoryCache.Set(state, redirect);
     }
 
-    private static (HomeController sut, ITwitchAuthClient authClient, IViewerFeature viewerFeature, FakeAuthenticationService fakeAuthService) CreateSut()
+    private static (HomeController sut, IAuthClient authClient, IViewerFeature viewerFeature, FakeAuthenticationService fakeAuthService) CreateSut()
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -117,7 +117,7 @@ public class HomeControllerTests
         var viewerFeature = Substitute.For<IViewerFeature>();
         var twitchChatBot = Substitute.For<ITwitchChatBot>();
         var twitchService = Substitute.For<ITwitchService>();
-        var authClient = Substitute.For<ITwitchAuthClient>();
+        var authClient = Substitute.For<IAuthClient>();
 
         var fakeAuthService = new FakeAuthenticationService();
         var services = new ServiceCollection();

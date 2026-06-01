@@ -1,6 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Twitch.Models;
+﻿using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
 using PenguinTwitchBot.Bot.TwitchServices;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 
 namespace PenguinTwitchBot.Bot.Commands.ChannelPoints
@@ -18,7 +17,7 @@ namespace PenguinTwitchBot.Bot.Commands.ChannelPoints
         }
 
 
-        public Task CreateChannelPointReward(CreateCustomRewardsRequest request)
+        public Task CreateChannelPointReward(CreateChannelPointRewardRequest request)
         {
             return twitchService.CreateChannelPointReward(request);
         }

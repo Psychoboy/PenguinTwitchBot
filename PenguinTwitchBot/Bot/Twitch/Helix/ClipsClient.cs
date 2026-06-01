@@ -1,5 +1,4 @@
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
-using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLibClip = TwitchLib.Api.Helix.Models.Clips.GetClips.Clip;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
@@ -19,9 +18,9 @@ public sealed class ClipsClient(ILogger<ClipsClient> logger, IClipsTransport tra
     /// <summary>
     /// Maps a TwitchLib Clip to the internal domain model
     /// </summary>
-    internal static Models.Clip MapToClip(TwitchLibClip source)
+    internal static Models.Clips.Clip MapToClip(TwitchLibClip source)
     {
-        return new Models.Clip(
+        return new Models.Clips.Clip(
             Id: source.Id,
             Url: source.Url,
             EmbedUrl: source.EmbedUrl,

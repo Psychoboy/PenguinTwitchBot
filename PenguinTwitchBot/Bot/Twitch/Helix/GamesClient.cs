@@ -1,5 +1,4 @@
 using TwitchLib.Api.Helix.Models.Games;
-using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLibGame = TwitchLib.Api.Helix.Models.Games.Game;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
@@ -14,9 +13,9 @@ public sealed class GamesClient(ILogger<GamesClient> logger, IGamesTransport tra
     /// <summary>
     /// Maps a TwitchLib Game to the internal domain model
     /// </summary>
-    internal static Models.Game MapToGame(TwitchLibGame source)
+    internal static Models.Games.Game MapToGame(TwitchLibGame source)
     {
-        return new Models.Game(
+        return new Models.Games.Game(
             Id: source.Id,
             Name: source.Name,
             BoxArtUrl: source.BoxArtUrl);

@@ -1,7 +1,6 @@
 @page "/redeems"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Bot.Twitch.Models
-@using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward
+@using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints
 @using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
 @inject PenguinTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
 @inject ISnackbar Snackbar
@@ -282,7 +281,7 @@
     private string SearchString { get; set; } = string.Empty;
     private bool IsLoading { get; set; }
     private bool IsSavingEdit { get; set; }
-    private CreateCustomRewardsRequest CreateCustomReward { get; set; } = new(){IsEnabled = true};
+    private CreateChannelPointRewardRequest CreateCustomReward { get; set; } = new(){IsEnabled = true};
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     private class ChannelPoint

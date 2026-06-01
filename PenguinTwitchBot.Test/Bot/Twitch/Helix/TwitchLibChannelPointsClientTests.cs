@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
@@ -6,19 +7,19 @@ using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibChannelPointsClientTests
+public class ChannelPointsClientTests
 {
     [Fact]
     public async Task GetCustomRewardAsync_ShouldReturnResponse_WhenTransportSucceeds()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChannelPointsClient>>();
-        var transport = Substitute.For<ITwitchChannelPointsTransport>();
+        var logger = Substitute.For<ILogger<ChannelPointsClient>>();
+        var transport = Substitute.For<IChannelPointsTransport>();
         var response = CreateGetCustomRewardsResponse();
 
         transport.GetCustomRewardAsync("cid", "token", "broadcaster", Arg.Any<List<string>?>(), false)
             .Returns(response);
 
-        var sut = new TwitchLibChannelPointsClient(logger, transport);
+        var sut = new ChannelPointsClient(logger, transport);
 
         var result = await sut.GetCustomRewardAsync("cid", "token", "broadcaster", ["reward-id"]);
 
@@ -29,8 +30,8 @@ public class TwitchLibChannelPointsClientTests
     [Fact]
     public async Task GetCustomRewardAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChannelPointsClient>>();
-        var transport = Substitute.For<ITwitchChannelPointsTransport>();
+        var logger = Substitute.For<ILogger<ChannelPointsClient>>();
+        var transport = Substitute.For<IChannelPointsTransport>();
         var attempts = 0;
 
         transport.GetCustomRewardAsync("cid", "token", "broadcaster", Arg.Any<List<string>?>(), false)
@@ -45,7 +46,7 @@ public class TwitchLibChannelPointsClientTests
                 return CreateGetCustomRewardsResponse();
             });
 
-        var sut = new TwitchLibChannelPointsClient(logger, transport);
+        var sut = new ChannelPointsClient(logger, transport);
         var result = await sut.GetCustomRewardAsync("cid", "token", "broadcaster", ["reward-id"]);
 
         Assert.NotNull(result);
@@ -55,8 +56,8 @@ public class TwitchLibChannelPointsClientTests
     [Fact]
     public async Task CreateCustomRewardsAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<TwitchLibChannelPointsClient>>();
-        var transport = Substitute.For<ITwitchChannelPointsTransport>();
+        var logger = Substitute.For<ILogger<ChannelPointsClient>>();
+        var transport = Substitute.For<IChannelPointsTransport>();
         var attempts = 0;
 
         transport.CreateCustomRewardsAsync("cid", "token", "broadcaster", Arg.Any<CreateCustomRewardsRequest>())
@@ -66,9 +67,9 @@ public class TwitchLibChannelPointsClientTests
                 return Task.FromException<CreateCustomRewardsResponse>(new InvalidOperationException("bad state"));
             });
 
-        var sut = new TwitchLibChannelPointsClient(logger, transport);
+        var sut = new ChannelPointsClient(logger, transport);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.CreateCustomRewardsAsync("cid", "token", "broadcaster", new CreateCustomRewardsRequest()));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sut.CreateCustomRewardsAsync("cid", "token", "broadcaster", new CreateChannelPointRewardRequest()));
         Assert.Equal(1, attempts);
     }
 

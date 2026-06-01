@@ -1,7 +1,6 @@
 using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
-using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLibChannelInformation = TwitchLib.Api.Helix.Models.Channels.GetChannelInformation.ChannelInformation;
 using TwitchLibChannelEditor = TwitchLib.Api.Helix.Models.Channels.GetChannelEditors.ChannelEditor;
 
@@ -27,9 +26,9 @@ public sealed class ChannelsClient(ILogger<ChannelsClient> logger, IChannelsTran
     /// <summary>
     /// Maps a TwitchLib ChannelInformation to the internal domain model
     /// </summary>
-    internal static Models.ChannelInformation MapToChannelInformation(TwitchLibChannelInformation source)
+    internal static Models.Channels.ChannelInformation MapToChannelInformation(TwitchLibChannelInformation source)
     {
-        return new Models.ChannelInformation(
+        return new Models.Channels.ChannelInformation(
             BroadcasterId: source.BroadcasterId,
             BroadcasterLogin: source.BroadcasterLogin,
             BroadcasterName: source.BroadcasterName,
@@ -43,9 +42,9 @@ public sealed class ChannelsClient(ILogger<ChannelsClient> logger, IChannelsTran
     /// <summary>
     /// Maps a TwitchLib ChannelEditor to the internal domain model
     /// </summary>
-    internal static Models.ChannelEditor MapToChannelEditor(TwitchLibChannelEditor source)
+    internal static Models.Channels.ChannelEditor MapToChannelEditor(TwitchLibChannelEditor source)
     {
-        return new Models.ChannelEditor(
+        return new Models.Channels.ChannelEditor(
             UserId: source.UserId,
             UserName: source.UserName,
             UserLogin: source.UserName.ToLower(), // Use lowercased UserName as login

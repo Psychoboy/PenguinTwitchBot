@@ -1,5 +1,5 @@
 using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models;
+using PenguinTwitchBot.Bot.Twitch.Models.Auth;
 
 namespace PenguinTwitchBot.Bot.Twitch.Auth;
 

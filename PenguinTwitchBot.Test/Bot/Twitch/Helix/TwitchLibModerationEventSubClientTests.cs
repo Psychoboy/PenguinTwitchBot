@@ -1,18 +1,19 @@
 using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Helix.Models.EventSub;
+using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransportMethod;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibModerationEventSubClientTests
+public class ModerationEventSubClientTests
 {
     [Fact]
-    public async Task CreateEventSubSubscriptionAsync_ShouldReturnResponse_WhenTransportSucceeds()
+    public async Task CreateEventSubSubscriptionAsync_ShouldReturnEnabled_WhenTransportSucceeds()
     {
-        var logger = Substitute.For<ILogger<TwitchLibModerationEventSubClient>>();
-        var transport = Substitute.For<ITwitchModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
+        var transport = Substitute.For<IModerationEventSubTransport>();
         var response = CreateEventSubResponse();
 
         transport.CreateEventSubSubscriptionAsync(
@@ -21,11 +22,11 @@ public class TwitchLibModerationEventSubClientTests
             "channel.chat.message",
             "1",
             Arg.Any<Dictionary<string, string>>(),
-            EventSubTransportMethod.Websocket,
+            TwitchLibEventSubTransportMethod.Websocket,
             "session")
             .Returns(response);
 
-        var sut = new TwitchLibModerationEventSubClient(logger, transport);
+        var sut = new ModerationEventSubClient(logger, transport);
 
         var result = await sut.CreateEventSubSubscriptionAsync(
             "cid",
@@ -36,15 +37,14 @@ public class TwitchLibModerationEventSubClientTests
             EventSubTransportMethod.Websocket,
             "session");
 
-        Assert.Same(response, result);
-        Assert.Equal("enabled", result.Subscriptions[0].Status);
+        Assert.True(result.IsEnabled);
     }
 
     [Fact]
     public async Task CreateEventSubSubscriptionAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<TwitchLibModerationEventSubClient>>();
-        var transport = Substitute.For<ITwitchModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
+        var transport = Substitute.For<IModerationEventSubTransport>();
         var attempts = 0;
 
         transport.CreateEventSubSubscriptionAsync(
@@ -53,7 +53,7 @@ public class TwitchLibModerationEventSubClientTests
             "channel.chat.message",
             "1",
             Arg.Any<Dictionary<string, string>>(),
-            EventSubTransportMethod.Websocket,
+            TwitchLibEventSubTransportMethod.Websocket,
             "session")
             .Returns(_ =>
             {
@@ -66,7 +66,7 @@ public class TwitchLibModerationEventSubClientTests
                 return CreateEventSubResponse();
             });
 
-        var sut = new TwitchLibModerationEventSubClient(logger, transport);
+        var sut = new ModerationEventSubClient(logger, transport);
 
         var result = await sut.CreateEventSubSubscriptionAsync(
             "cid",
@@ -84,8 +84,8 @@ public class TwitchLibModerationEventSubClientTests
     [Fact]
     public async Task DeleteChatMessagesAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<TwitchLibModerationEventSubClient>>();
-        var transport = Substitute.For<ITwitchModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
+        var transport = Substitute.For<IModerationEventSubTransport>();
         var attempts = 0;
 
         transport.DeleteChatMessagesAsync("cid", "token", "broadcaster", "moderator", "msg-id")
@@ -95,7 +95,7 @@ public class TwitchLibModerationEventSubClientTests
                 return Task.FromException(new InvalidOperationException("bad state"));
             });
 
-        var sut = new TwitchLibModerationEventSubClient(logger, transport);
+        var sut = new ModerationEventSubClient(logger, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.DeleteChatMessagesAsync("cid", "token", "broadcaster", "moderator", "msg-id"));
         Assert.Equal(1, attempts);

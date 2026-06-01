@@ -1,4 +1,4 @@
-using PenguinTwitchBot.Bot.Twitch.Models;
+using PenguinTwitchBot.Bot.Twitch.Models.Auth;
 using TwitchLib.Api;
 
 namespace PenguinTwitchBot.Bot.Twitch.Auth;

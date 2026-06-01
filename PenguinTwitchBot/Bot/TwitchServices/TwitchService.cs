@@ -1,15 +1,20 @@
 using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
 using PenguinTwitchBot.Bot.Twitch.Auth;
 using PenguinTwitchBot.Bot.Twitch.Helix;
-using PenguinTwitchBot.Bot.Twitch.Models;
+using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
+using PenguinTwitchBot.Bot.Twitch.Models.Channels;
+using PenguinTwitchBot.Bot.Twitch.Models.Chat;
+using PenguinTwitchBot.Bot.Twitch.Models.Clips;
+using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
+using PenguinTwitchBot.Bot.Twitch.Models.Games;
+using PenguinTwitchBot.Bot.Twitch.Models.Moderation;
+using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
+using PenguinTwitchBot.Bot.Twitch.Models.Subscriptions;
+using PenguinTwitchBot.Bot.Twitch.Models.Users;
 using System.Collections.Concurrent;
 using System.Timers;
-using TwitchLib.Api.Core.Enums;
 using TwitchLib.Api.Core.Exceptions;
-using TwitchLib.Api.Helix.Models.EventSub;
 using Timer = System.Timers.Timer;
-using CreateCustomRewardsRequest = TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward.CreateCustomRewardsRequest;
-using CreateCustomRewardsResponse = TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward.CreateCustomRewardsResponse;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -190,7 +195,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if(!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");
-                throw new BadParameterException("Failed to refresh token");
+                throw new InvalidOperationException("Failed to refresh token");
             }
             var broadcasterId = await GetBroadcasterUserId();
             if (string.IsNullOrWhiteSpace(broadcasterId))
@@ -250,7 +255,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     broadcasterId,
                     [id]);
                 return result == null
-                    ? throw new BadParameterException("Result from Twitch API getting channel point reward was null")
+                    ? throw new InvalidOperationException("Result from Twitch API getting channel point reward was null")
                     : ChannelPointsClient.MapToChannelPointReward(result.Data.First());
             }
             catch (Exception ex)
@@ -301,7 +306,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        public async Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request)
+        public async Task CreateChannelPointReward(CreateChannelPointRewardRequest request)
         {
             try
             {
@@ -309,10 +314,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (string.IsNullOrWhiteSpace(broadcasterId))
                 {
                     _logger.LogError("Error getting broadcaster id.");
-                    return new();
+                    return;
                 }
 
-                return await _channelPointsClient.CreateCustomRewardsAsync(
+                await _channelPointsClient.CreateCustomRewardsAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId,
@@ -321,7 +326,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating channel point reward");
-                return new();
+                throw;
             }
         }
 
@@ -432,7 +437,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if(!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");
-                throw new BadParameterException("Failed to refresh token");
+                throw new InvalidOperationException("Failed to refresh token");
             }
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
             List<Subscription> subs = [];
@@ -463,7 +468,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if(!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");
-                throw new BadParameterException("Failed to refresh token");
+                throw new InvalidOperationException("Failed to refresh token");
             }    
             var userId = await GetBroadcasterUserId() ?? throw new Exception("Error getting user id.");
             var after = "";
@@ -1266,7 +1271,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if(!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");
-                throw new BadParameterException("Failed to refresh token");
+                throw new InvalidOperationException("Failed to refresh token");
             }
             var userId = await GetBroadcasterUserId();
             if (userId == null) {
@@ -1371,13 +1376,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return true;
         }
 
-        private Task<CreateEventSubSubscriptionResponse> CreateWebsocketEventSubscription(
+        private async Task<EventSubSubscriptionResult> CreateWebsocketEventSubscription(
             string type,
             string version,
             Dictionary<string, string> condition,
             string sessionId)
         {
-            return _moderationEventSubClient.CreateEventSubSubscriptionAsync(
+            return await _moderationEventSubClient.CreateEventSubSubscriptionAsync(
                 _configuration["twitchClientId"]!,
                 _accessToken,
                 type,
@@ -1387,14 +1392,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 sessionId);
         }
 
-        private void ValidateEventSubscription(CreateEventSubSubscriptionResponse response, string eventName)
+        private void ValidateEventSubscription(EventSubSubscriptionResult result, string eventName)
         {
-            if (response == null)
-            {
-                _logger.LogError("Error creating event subscription for {eventName}", eventName);
-                throw new Exception("Error creating event subscription");
-            }
-            if (response.Subscriptions.Length == 0 || response.Subscriptions.First().Status != "enabled")
+            if (!result.IsEnabled)
             {
                 _logger.LogError("Event subscription for {eventName} is not enabled", eventName);
                 throw new Exception("Event subscription is not enabled");

@@ -1,12 +1,13 @@
-﻿using PenguinTwitchBot.Bot.Twitch.Models;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
+﻿using PenguinTwitchBot.Bot.Twitch.Models.ChannelPoints;
+using PenguinTwitchBot.Bot.Twitch.Models.Channels;
+using PenguinTwitchBot.Bot.Twitch.Models.Chat;
+using PenguinTwitchBot.Bot.Twitch.Models.Clips;
+using PenguinTwitchBot.Bot.Twitch.Models.Games;
+using PenguinTwitchBot.Bot.Twitch.Models.Moderation;
+using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
+using PenguinTwitchBot.Bot.Twitch.Models.Subscriptions;
+using PenguinTwitchBot.Bot.Twitch.Models.Users;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
-using User = PenguinTwitchBot.Bot.Twitch.Models.User;
-using Clip = PenguinTwitchBot.Bot.Twitch.Models.Clip;
-using ChannelInformation = PenguinTwitchBot.Bot.Twitch.Models.ChannelInformation;
-using Game = PenguinTwitchBot.Bot.Twitch.Models.Game;
-using ChannelEditor = PenguinTwitchBot.Bot.Twitch.Models.ChannelEditor;
-using ChannelStreamSchedule = PenguinTwitchBot.Bot.Twitch.Models.ChannelStreamSchedule;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -42,7 +43,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards();
         Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
         Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards(bool onlyManageable);
-        Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request);
+        Task CreateChannelPointReward(CreateChannelPointRewardRequest request);
         Task DeleteChannelPointReward(string rewardId);
         Task<bool> WillBePermittedByAutomod(string message);
         Task<ChannelPointReward?> GetCustomReward(string id);

@@ -1,6 +1,6 @@
 ﻿using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Bot.Twitch.Models;
+using PenguinTwitchBot.Bot.Twitch.Models.Schedule;
 using PenguinTwitchBot.Repository;
 
 namespace PenguinTwitchBot.Bot.StreamSchedule

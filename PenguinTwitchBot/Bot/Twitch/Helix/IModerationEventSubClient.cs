@@ -1,5 +1,4 @@
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.EventSub;
+using PenguinTwitchBot.Bot.Twitch.Models.EventSub;
 using TwitchLib.Api.Helix.Models.Moderation.BanUser;
 using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
@@ -14,5 +13,5 @@ public interface IModerationEventSubClient
     Task<GetModeratorsResponse> GetModeratorsAsync(string clientId, string? accessToken, string broadcasterId, List<string> userIds);
     Task BanUserAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, BanUserRequest request);
     Task DeleteChatMessagesAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? messageId);
-    Task<CreateEventSubSubscriptionResponse> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId);
+    Task<EventSubSubscriptionResult> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId);
 }

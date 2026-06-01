@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using PenguinTwitchBot.Bot.Twitch.Helix;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
@@ -7,23 +9,20 @@ using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibChannelsClientTests
+public class ChannelsClientTests
 {
     [Fact]
     public async Task GetChannelInformationAsync_SuccessfulCall_ReturnsResponse()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibChannelsClient>>();
-        var transport = Substitute.For<ITwitchChannelsTransport>();
+        var logger = Substitute.For<ILogger<ChannelsClient>>();
+        var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelInformationResponse
-        {
-            Data = new[] { new ChannelInformation { Title = "Test Stream" } }
-        };
+        var expectedResponse = new GetChannelInformationResponse();
         transport.GetChannelInformationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(expectedResponse));
 
-        var client = new TwitchLibChannelsClient(logger, transport);
+        var client = new ChannelsClient(logger, transport);
 
         // Act
         var result = await client.GetChannelInformationAsync("client", "token", "broadcaster123");
@@ -37,13 +36,10 @@ public class TwitchLibChannelsClientTests
     public async Task GetChannelInformationAsync_TransientError_RetriesAndSucceeds()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibChannelsClient>>();
-        var transport = Substitute.For<ITwitchChannelsTransport>();
+        var logger = Substitute.For<ILogger<ChannelsClient>>();
+        var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelInformationResponse
-        {
-            Data = new[] { new ChannelInformation { Title = "Test Stream" } }
-        };
+        var expectedResponse = new GetChannelInformationResponse();
         
         transport.GetChannelInformationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(
@@ -51,7 +47,7 @@ public class TwitchLibChannelsClientTests
                 Task.FromResult(expectedResponse)
             );
 
-        var client = new TwitchLibChannelsClient(logger, transport);
+        var client = new ChannelsClient(logger, transport);
 
         // Act
         var result = await client.GetChannelInformationAsync("client", "token", "broadcaster123");
@@ -66,18 +62,14 @@ public class TwitchLibChannelsClientTests
     public async Task GetChannelFollowersAsync_SuccessfulCall_ReturnsResponse()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibChannelsClient>>();
-        var transport = Substitute.For<ITwitchChannelsTransport>();
+        var logger = Substitute.For<ILogger<ChannelsClient>>();
+        var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelFollowersResponse
-        {
-            Data = new[] { new Follow { UserLogin = "testuser" } },
-            TotalFollows = 100
-        };
+        var expectedResponse = new GetChannelFollowersResponse();
         transport.GetChannelFollowersAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
             .Returns(Task.FromResult(expectedResponse));
 
-        var client = new TwitchLibChannelsClient(logger, transport);
+        var client = new ChannelsClient(logger, transport);
 
         // Act
         var result = await client.GetChannelFollowersAsync("client", "token", "broadcaster123", "user456", 1, null);
@@ -91,14 +83,14 @@ public class TwitchLibChannelsClientTests
     public async Task GetChannelEditorsAsync_NonTransientError_ThrowsImmediately()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibChannelsClient>>();
-        var transport = Substitute.For<ITwitchChannelsTransport>();
+        var logger = Substitute.For<ILogger<ChannelsClient>>();
+        var transport = Substitute.For<IChannelsTransport>();
         
         var exception = new InvalidOperationException("Non-transient error");
         transport.GetChannelEditorsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromException<GetChannelEditorsResponse>(exception));
 
-        var client = new TwitchLibChannelsClient(logger, transport);
+        var client = new ChannelsClient(logger, transport);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => 

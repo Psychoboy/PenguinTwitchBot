@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using PenguinTwitchBot.Bot.Twitch.Helix;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using TwitchLib.Api.Helix.Models.Clips.GetClips;
@@ -5,23 +7,20 @@ using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class TwitchLibClipsClientTests
+public class ClipsClientTests
 {
     [Fact]
     public async Task GetClipsAsync_SuccessfulCall_ReturnsResponse()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibClipsClient>>();
-        var transport = Substitute.For<ITwitchClipsTransport>();
+        var logger = Substitute.For<ILogger<ClipsClient>>();
+        var transport = Substitute.For<IClipsTransport>();
         
-        var expectedResponse = new GetClipsResponse
-        {
-            Clips = new[] { new Clip { Title = "Test Clip" } }
-        };
+        var expectedResponse = new GetClipsResponse();
         transport.GetClipsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool?>())
             .Returns(Task.FromResult(expectedResponse));
 
-        var client = new TwitchLibClipsClient(logger, transport);
+        var client = new ClipsClient(logger, transport);
 
         // Act
         var result = await client.GetClipsAsync("client", "token", "broadcaster123", "user456", 100, null);
@@ -35,13 +34,10 @@ public class TwitchLibClipsClientTests
     public async Task GetClipsByIdAsync_TransientError_RetriesAndSucceeds()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibClipsClient>>();
-        var transport = Substitute.For<ITwitchClipsTransport>();
+        var logger = Substitute.For<ILogger<ClipsClient>>();
+        var transport = Substitute.For<IClipsTransport>();
         
-        var expectedResponse = new GetClipsResponse
-        {
-            Clips = new[] { new Clip { Title = "Test Clip" } }
-        };
+        var expectedResponse = new GetClipsResponse();
         
         transport.GetClipsByIdAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(
@@ -49,7 +45,7 @@ public class TwitchLibClipsClientTests
                 Task.FromResult(expectedResponse)
             );
 
-        var client = new TwitchLibClipsClient(logger, transport);
+        var client = new ClipsClient(logger, transport);
 
         // Act
         var result = await client.GetClipsByIdAsync("client", "token", new List<string> { "clip123" });
@@ -64,14 +60,14 @@ public class TwitchLibClipsClientTests
     public async Task GetClipsAsync_NonTransientError_ThrowsImmediately()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<TwitchLibClipsClient>>();
-        var transport = Substitute.For<ITwitchClipsTransport>();
+        var logger = Substitute.For<ILogger<ClipsClient>>();
+        var transport = Substitute.For<IClipsTransport>();
         
         var exception = new NotSupportedException("Non-transient error");
         transport.GetClipsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool?>())
             .Returns(Task.FromException<GetClipsResponse>(exception));
 
-        var client = new TwitchLibClipsClient(logger, transport);
+        var client = new ClipsClient(logger, transport);
 
         // Act & Assert
         await Assert.ThrowsAsync<NotSupportedException>(() => 
