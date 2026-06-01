@@ -11,7 +11,7 @@ public sealed class ScheduleClient(ILogger<ScheduleClient> logger, IScheduleTran
         return ExecuteWithRetryAsync(() => transport.GetChannelStreamScheduleAsync(clientId, accessToken, broadcasterId), "get channel stream schedule");
     }
 
-    internal static ChannelStreamSchedule MapToChannelStreamSchedule(TwitchLibChannelStreamSchedule source)
+    public static ChannelStreamSchedule MapToChannelStreamSchedule(TwitchLibChannelStreamSchedule source)
     {
         var vacation = source.Vacation != null
             ? new ChannelStreamScheduleVacation(source.Vacation.StartTime, source.Vacation.EndTime)

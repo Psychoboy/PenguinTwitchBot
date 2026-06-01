@@ -13,7 +13,7 @@ public sealed class GamesClient(ILogger<GamesClient> logger, IGamesTransport tra
     /// <summary>
     /// Maps a TwitchLib Game to the internal domain model
     /// </summary>
-    internal static Models.Games.Game MapToGame(TwitchLibGame source)
+    public static Models.Games.Game MapToGame(TwitchLibGame source)
     {
         return new Models.Games.Game(
             Id: source.Id,

@@ -26,6 +26,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.Migrations
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.Setup", "PenguinTwitchBot.Setup\PenguinTwitchBot.Setup.csproj", "{6F13E98B-32BD-415E-BBC5-9CA1944A0129}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.TwitchApi", "PenguinTwitchBot.TwitchApi\PenguinTwitchBot.TwitchApi.csproj", "{B47EAD38-8A88-4909-BF59-EF840D95434E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.TwitchApi.Test", "PenguinTwitchBot.TwitchApi.Test\PenguinTwitchBot.TwitchApi.Test.csproj", "{5C4C6887-7098-454E-A372-B572DA86BDC4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -144,6 +148,30 @@ Global
 		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x64.Build.0 = Release|Any CPU
 		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x86.ActiveCfg = Release|Any CPU
 		{6F13E98B-32BD-415E-BBC5-9CA1944A0129}.Release|x86.Build.0 = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|x64.Build.0 = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Debug|x86.Build.0 = Debug|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|x64.ActiveCfg = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|x64.Build.0 = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|x86.ActiveCfg = Release|Any CPU
+		{B47EAD38-8A88-4909-BF59-EF840D95434E}.Release|x86.Build.0 = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|x64.Build.0 = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Debug|x86.Build.0 = Debug|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|x64.ActiveCfg = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|x64.Build.0 = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|x86.ActiveCfg = Release|Any CPU
+		{5C4C6887-7098-454E-A372-B572DA86BDC4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

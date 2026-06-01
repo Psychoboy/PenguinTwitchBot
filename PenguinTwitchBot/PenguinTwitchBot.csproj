@@ -118,6 +118,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PenguinTwitchBot.TwitchApi\PenguinTwitchBot.TwitchApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="Language\**">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

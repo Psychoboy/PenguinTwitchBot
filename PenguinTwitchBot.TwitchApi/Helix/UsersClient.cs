@@ -16,7 +16,7 @@ public sealed class UsersClient(ILogger<UsersClient> logger, IUsersTransport tra
     /// <summary>
     /// Maps a TwitchLib User to the internal domain model
     /// </summary>
-    internal static Models.Users.User MapToUser(TwitchLibUser source)
+    public static Models.Users.User MapToUser(TwitchLibUser source)
     {
         return new Models.Users.User(
             Id: source.Id,

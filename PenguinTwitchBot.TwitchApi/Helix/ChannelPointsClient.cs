@@ -30,7 +30,7 @@ public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, ICh
         return ExecuteWithRetryAsync(() => transport.DeleteCustomRewardAsync(clientId, accessToken, broadcasterId, rewardId), "delete custom reward");
     }
 
-    internal static ChannelPointReward MapToChannelPointReward(TwitchLibCustomReward source) =>
+    public static ChannelPointReward MapToChannelPointReward(TwitchLibCustomReward source) =>
         new(
             Id: source.Id,
             Title: source.Title,
@@ -48,7 +48,7 @@ public sealed class ChannelPointsClient(ILogger<ChannelPointsClient> logger, ICh
             IsGlobalCooldownEnabled: source.GlobalCooldownSetting?.IsEnabled,
             GlobalCooldownSeconds: source.GlobalCooldownSetting?.GlobalCooldownSeconds);
 
-    internal static CreateCustomRewardsRequest MapToTwitchRequest(CreateChannelPointRewardRequest source) =>
+    public static CreateCustomRewardsRequest MapToTwitchRequest(CreateChannelPointRewardRequest source) =>
         new()
         {
             Title = source.Title,

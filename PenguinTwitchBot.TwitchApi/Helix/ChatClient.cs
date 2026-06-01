@@ -29,7 +29,7 @@ public sealed class ChatClient(ILogger<ChatClient> logger, IChatTransport transp
         return ExecuteWithRetryAsync(() => transport.SendChatAnnouncementAsync(clientId, accessToken, broadcasterId, moderatorId, message), "send chat announcement");
     }
 
-    internal static Models.Chat.Chatter MapToChatter(TwitchLibChatter source) =>
+    public static Models.Chat.Chatter MapToChatter(TwitchLibChatter source) =>
         new(UserId: source.UserId, UserLogin: source.UserLogin);
 
     public Task<GetGlobalChatBadgesResponse> GetGlobalChatBadgesAsync(string clientId, string? accessToken)

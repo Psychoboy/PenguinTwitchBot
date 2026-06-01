@@ -50,6 +50,6 @@ public sealed class ModerationEventSubClient(ILogger<ModerationEventSubClient> l
         return new EventSubSubscriptionResult(isEnabled);
     }
 
-    internal static Models.Moderation.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
+    public static Models.Moderation.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
         new(UserId: source.UserId, UserLogin: source.UserLogin, ExpiresAt: source.ExpiresAt);
 }

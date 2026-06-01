@@ -26,7 +26,7 @@ public sealed class ChannelsClient(ILogger<ChannelsClient> logger, IChannelsTran
     /// <summary>
     /// Maps a TwitchLib ChannelInformation to the internal domain model
     /// </summary>
-    internal static Models.Channels.ChannelInformation MapToChannelInformation(TwitchLibChannelInformation source)
+    public static Models.Channels.ChannelInformation MapToChannelInformation(TwitchLibChannelInformation source)
     {
         return new Models.Channels.ChannelInformation(
             BroadcasterId: source.BroadcasterId,
@@ -42,7 +42,7 @@ public sealed class ChannelsClient(ILogger<ChannelsClient> logger, IChannelsTran
     /// <summary>
     /// Maps a TwitchLib ChannelEditor to the internal domain model
     /// </summary>
-    internal static Models.Channels.ChannelEditor MapToChannelEditor(TwitchLibChannelEditor source)
+    public static Models.Channels.ChannelEditor MapToChannelEditor(TwitchLibChannelEditor source)
     {
         return new Models.Channels.ChannelEditor(
             UserId: source.UserId,
