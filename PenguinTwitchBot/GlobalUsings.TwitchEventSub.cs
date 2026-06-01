@@ -1,3 +1,4 @@
+global using PenguinTwitchBot.TwitchApi.EventSub;
 global using TwitchLib.EventSub.Core.EventArgs.Channel;
 global using TwitchLib.EventSub.Core.EventArgs.Stream;
 global using TwitchLib.EventSub.Core.Models;
