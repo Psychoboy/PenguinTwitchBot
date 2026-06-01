@@ -57,10 +57,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var chunks = message.SplitInParts(450);
                 foreach (var chunk in chunks)
                 {
+                    var broadcasterId = await twitchService.GetBroadcasterUserId() ?? throw new InvalidOperationException("Broadcaster ID is unavailable.");
+                    var senderId = await twitchService.GetBotUserId() ?? throw new InvalidOperationException("Bot user ID is unavailable.");
                     var request = new SendChatMessageRequest
                     {
-                        BroadcasterId = await twitchService.GetBroadcasterUserId(),
-                        SenderId = await twitchService.GetBotUserId(),
+                        BroadcasterId = broadcasterId,
+                        SenderId = senderId,
                         Message = chunk,
                         ForSourceOnly = sourceOnly,
                     };
@@ -108,10 +110,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var chunks = message.SplitInParts(450);
                 foreach (var chunk in chunks)
                 {
+                    var broadcasterId = await twitchService.GetBroadcasterUserId() ?? throw new InvalidOperationException("Broadcaster ID is unavailable.");
+                    var senderId = await twitchService.GetBotUserId() ?? throw new InvalidOperationException("Bot user ID is unavailable.");
                     var request = new SendChatMessageRequest
                     {
-                        BroadcasterId = await twitchService.GetBroadcasterUserId(),
-                        SenderId = await twitchService.GetBotUserId(),
+                        BroadcasterId = broadcasterId,
+                        SenderId = senderId,
                         Message = chunk,
                         ReplyParentMessageId = messageId,
                         ForSourceOnly = sourceOnly,
