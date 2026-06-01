@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLib.Api;
 
 namespace PenguinTwitchBot.Bot.Twitch.Auth;
@@ -38,6 +39,20 @@ public sealed class AuthTransport : IAuthTransport
             DisplayName = user.DisplayName,
             ProfileImageUrl = user.ProfileImageUrl
         };
+    }
+
+    public async Task<TokenValidation?> ValidateAccessTokenAsync(string accessToken)
+    {
+        var api = CreateApi(string.Empty, accessToken);
+        var result = await api.Auth.ValidateAccessTokenAsync(accessToken);
+        return result != null ? new TokenValidation(result.ExpiresIn) : null;
+    }
+
+    public async Task<TokenRefresh> RefreshAuthTokenAsync(string refreshToken, string clientSecret, string clientId)
+    {
+        var api = CreateApi(clientId);
+        var result = await api.Auth.RefreshAuthTokenAsync(refreshToken, clientSecret, clientId);
+        return new TokenRefresh(result.AccessToken, result.RefreshToken, result.ExpiresIn);
     }
 
     private static TwitchAPI CreateApi(string clientId, string? accessToken = null)

@@ -77,10 +77,10 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
                 }
                 string gameUrl = "";
         
-                var gameInfo = await twitchService.GetGameInfo(clip.GameId);
+                var gameInfo = clip.GameId != null ? await twitchService.GetGameInfo(clip.GameId) : null;
                 if (gameInfo != null)
                 {
-                    gameUrl = gameInfo.BoxArtUrl;
+                    gameUrl = gameInfo.BoxArtUrl ?? "";
                     gameUrl = gameUrl.Replace("{width}", "200").Replace("{height}", "200");
                 }
 

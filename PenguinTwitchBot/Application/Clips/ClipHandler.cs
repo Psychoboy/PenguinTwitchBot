@@ -32,7 +32,7 @@ namespace PenguinTwitchBot.Application.Clips
                     ClipFile = request.Clip.Id + ".mp4",
                     Duration = request.Clip.Duration,
                     StreamerName = request.User.DisplayName,
-                    StreamerAvatarUrl = request.User.ProfileImageUrl,
+                    StreamerAvatarUrl = request.User.ProfileImageUrl ?? "",
                     GameImageUrl = request.GameUrl
                 };
                 File.SetLastWriteTime("wwwroot/clips/" + request.Clip.Id + ".mp4", DateTime.Now);

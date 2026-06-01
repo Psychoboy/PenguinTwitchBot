@@ -53,6 +53,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IRaidsClient, RaidsClient>();
             services.AddSingleton<IUsersTransport, UsersTransport>();
             services.AddSingleton<IUsersClient, UsersClient>();
+            services.AddSingleton<IScheduleTransport, ScheduleTransport>();
+            services.AddSingleton<IScheduleClient, ScheduleClient>();
             services.AddSingleton<ITwitchEventActionHandler, TwitchEventActionHandler>();
             services.AddTransient<ISchedule, Schedule>();
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.ICommandHandler, PenguinTwitchBot.Bot.Commands.CommandHandler>();

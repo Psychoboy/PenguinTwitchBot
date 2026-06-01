@@ -1,6 +1,6 @@
 @page "/redeems"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using TwitchLib.Api.Helix.Models.ChannelPoints
+@using PenguinTwitchBot.Bot.Twitch.Models
 @using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward
 @using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward
 @inject PenguinTwitchBot.Bot.Commands.ChannelPoints.IChannelPoints CP
@@ -287,7 +287,7 @@
 
     private class ChannelPoint
     {
-        public CustomReward Reward { get; set; } = default!;
+        public ChannelPointReward Reward { get; set; } = default!;
         public bool IsOwned { get; set; }
     }
 
@@ -433,7 +433,7 @@
         return channelPoints.OrderBy(x => x.Reward.Title).ToList();
     }
 
-    private static UpdateCustomRewardRequest MapToUpdateRequest(CustomReward reward)
+    private static UpdateCustomRewardRequest MapToUpdateRequest(ChannelPointReward reward)
     {
         return new UpdateCustomRewardRequest
         {
@@ -445,12 +445,12 @@
             IsUserInputRequired = reward.IsUserInputRequired,
             BackgroundColor = reward.BackgroundColor,
             ShouldRedemptionsSkipRequestQueue = reward.ShouldRedemptionsSkipQueue,
-            IsMaxPerStreamEnabled = reward.MaxPerStreamSetting?.IsEnabled,
-            MaxPerStream = reward.MaxPerStreamSetting?.MaxPerStream,
-            IsMaxPerUserPerStreamEnabled = reward.MaxPerUserPerStreamSetting?.IsEnabled,
-            MaxPerUserPerStream = reward.MaxPerUserPerStreamSetting?.MaxPerUserPerStream,
-            IsGlobalCooldownEnabled = reward.GlobalCooldownSetting?.IsEnabled,
-            GlobalCooldownSeconds = reward.GlobalCooldownSetting?.GlobalCooldownSeconds
+            IsMaxPerStreamEnabled = reward.IsMaxPerStreamEnabled,
+            MaxPerStream = reward.MaxPerStream,
+            IsMaxPerUserPerStreamEnabled = reward.IsMaxPerUserPerStreamEnabled,
+            MaxPerUserPerStream = reward.MaxPerUserPerStream,
+            IsGlobalCooldownEnabled = reward.IsGlobalCooldownEnabled,
+            GlobalCooldownSeconds = reward.GlobalCooldownSeconds
         };
     }
 }

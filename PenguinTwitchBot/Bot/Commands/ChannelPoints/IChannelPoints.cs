@@ -1,4 +1,4 @@
-﻿using TwitchLib.Api.Helix.Models.ChannelPoints;
+﻿using PenguinTwitchBot.Bot.Twitch.Models;
 using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
 using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
 
@@ -8,8 +8,8 @@ namespace PenguinTwitchBot.Bot.Commands.ChannelPoints
     {
         Task CreateChannelPointReward(CreateCustomRewardsRequest request);
         Task DeleteChannelPointReward(string channelPointRewardId);
-        Task<IEnumerable<CustomReward>> GetAllChannelPoints();
-        Task<IEnumerable<CustomReward>> GetOwnedChannelPoints();
+        Task<IEnumerable<ChannelPointReward>> GetAllChannelPoints();
+        Task<IEnumerable<ChannelPointReward>> GetOwnedChannelPoints();
         Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
     }
 }

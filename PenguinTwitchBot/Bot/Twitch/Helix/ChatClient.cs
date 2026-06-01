@@ -2,6 +2,7 @@ using TwitchLib.Api.Helix.Models.Channels.SendChatMessage;
 using TwitchLib.Api.Helix.Models.Chat.Badges.GetChannelChatBadges;
 using TwitchLib.Api.Helix.Models.Chat.Badges.GetGlobalChatBadges;
 using TwitchLib.Api.Helix.Models.Chat.GetChatters;
+using TwitchLibChatter = TwitchLib.Api.Helix.Models.Chat.GetChatters.Chatter;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
 
@@ -27,6 +28,9 @@ public sealed class ChatClient(ILogger<ChatClient> logger, IChatTransport transp
     {
         return ExecuteWithRetryAsync(() => transport.SendChatAnnouncementAsync(clientId, accessToken, broadcasterId, moderatorId, message), "send chat announcement");
     }
+
+    internal static Models.Chatter MapToChatter(TwitchLibChatter source) =>
+        new(UserId: source.UserId, UserLogin: source.UserLogin);
 
     public Task<GetGlobalChatBadgesResponse> GetGlobalChatBadgesAsync(string clientId, string? accessToken)
     {

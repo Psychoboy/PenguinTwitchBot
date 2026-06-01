@@ -565,7 +565,7 @@
     private ITwitchService TwitchService { get; set; } = null!;
 
     private List<TwitchEventInfo> _availableEvents = new();
-    private List<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward> _availableRewards = new();
+    private List<PenguinTwitchBot.Bot.Twitch.Models.ChannelPointReward> _availableRewards = new();
     private RewardTitleOption? _selectedRewardToAdd;
     private TwitchEventInfo? _selectedEventInfo;
     private bool _tier1Selected;
@@ -646,7 +646,7 @@
         catch (Exception)
         {
             // If loading fails, just continue with empty list
-            _availableRewards = new List<TwitchLib.Api.Helix.Models.ChannelPoints.CustomReward>();
+            _availableRewards = new List<PenguinTwitchBot.Bot.Twitch.Models.ChannelPointReward>();
         }
     }
 

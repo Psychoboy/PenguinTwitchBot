@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Twitch.Helix;
+using PenguinTwitchBot.Bot.Twitch.Models;
 
 namespace PenguinTwitchBot.Bot.Twitch.Auth;
 
@@ -12,5 +13,15 @@ public sealed class AuthClient(ILogger<AuthClient> logger, IAuthTransport transp
     public Task<TwitchAuthenticatedUser?> GetAuthenticatedUserAsync(string clientId, string accessToken)
     {
         return ExecuteWithRetryAsync(() => transport.GetAuthenticatedUserAsync(clientId, accessToken), "load authenticated user");
+    }
+
+    public Task<TokenValidation?> ValidateAccessTokenAsync(string accessToken)
+    {
+        return ExecuteWithRetryAsync(() => transport.ValidateAccessTokenAsync(accessToken), "validate access token");
+    }
+
+    public Task<TokenRefresh> RefreshAuthTokenAsync(string refreshToken, string clientSecret, string clientId)
+    {
+        return ExecuteWithRetryAsync(() => transport.RefreshAuthTokenAsync(refreshToken, clientSecret, clientId), "refresh auth token");
     }
 }

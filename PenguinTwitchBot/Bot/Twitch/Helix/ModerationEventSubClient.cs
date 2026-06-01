@@ -4,6 +4,7 @@ using TwitchLib.Api.Helix.Models.Moderation.BanUser;
 using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
 using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
 using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
+using TwitchLibBannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
 
 namespace PenguinTwitchBot.Bot.Twitch.Helix;
 
@@ -39,4 +40,7 @@ public sealed class ModerationEventSubClient(ILogger<ModerationEventSubClient> l
     {
         return ExecuteWithRetryAsync(() => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, transportMethod, transportSessionId), "create eventsub subscription");
     }
+
+    internal static Models.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
+        new(UserId: source.UserId, UserLogin: source.UserLogin, ExpiresAt: source.ExpiresAt);
 }
