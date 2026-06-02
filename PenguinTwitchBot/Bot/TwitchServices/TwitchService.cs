@@ -283,17 +283,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     new()
                 {
-                    new() {
-                        MsgId = Guid.NewGuid().ToString(),
-                        MsgText = message
-                    }
+                    new AutoModMessage(Guid.NewGuid().ToString(), message)
                 }, broadcasterId);
                 if (result == null)
                 {
                     _logger.LogWarning("Failed to check automod message.");
                     return true;
                 }
-                return result.Data.First().IsPermitted;
+                return result.Data.FirstOrDefault()?.IsPermitted ?? true;
 
             }
             catch (Exception ex)
@@ -473,12 +470,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     after);
                 if (bannedUsers != null)
                 {
-                    curBannedUsers.AddRange(bannedUsers.Data.Select(ModerationClient.MapToBannedUser));
-                    if (string.IsNullOrEmpty(bannedUsers.Pagination.Cursor))
+                    curBannedUsers.AddRange(bannedUsers.Data);
+                    if (string.IsNullOrEmpty(bannedUsers.Cursor))
                     {
                         break;
                     }
-                    after = bannedUsers.Pagination.Cursor;
+                    after = bannedUsers.Cursor;
                 }
             }
             return curBannedUsers;
@@ -690,7 +687,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     broadcasterId,
                     [userId]);
-                return response.Data.Length != 0;
+                return response.Data.Count != 0;
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {

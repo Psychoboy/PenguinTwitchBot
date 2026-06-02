@@ -1,19 +1,12 @@
 using PenguinTwitchBot.TwitchApi.Models.EventSub;
-using TwitchLib.Api.Core.Enums;
-using TwitchLib.Api.Helix.Models.EventSub;
-using TwitchLib.Api.Helix.Models.Moderation.BanUser;
-using TwitchLib.Api.Helix.Models.Moderation.CheckAutoModStatus;
-using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
-using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
-using TwitchLibBannedUserEvent = TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers.BannedUserEvent;
-using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransportMethod;
+using PenguinTwitchBot.TwitchApi.Models.Moderation;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ModerationClient(ILogger<ModerationClient> logger, IModerationTransport transport) : TwitchClientRetryBase(logger), IModerationClient
 {
 
-    public Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<Message> messages, string broadcasterId)
+    public Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<AutoModMessage> messages, string broadcasterId)
     {
         return ExecuteWithRetryAsync(() => transport.CheckAutoModStatusAsync(clientId, accessToken, messages, broadcasterId), "check automod status");
     }
@@ -40,16 +33,8 @@ public sealed class ModerationClient(ILogger<ModerationClient> logger, IModerati
 
     public async Task<EventSubSubscriptionResult> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, Models.EventSub.EventSubTransportMethod transportMethod, string transportSessionId)
     {
-        var twitchMethod = transportMethod == Models.EventSub.EventSubTransportMethod.Websocket
-            ? TwitchLibEventSubTransportMethod.Websocket
-            : throw new ArgumentOutOfRangeException(nameof(transportMethod), transportMethod, null);
-        var response = await ExecuteWithRetryAsync(
-            () => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, twitchMethod, transportSessionId),
+        return await ExecuteWithRetryAsync(
+            () => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, transportMethod, transportSessionId),
             "create eventsub subscription");
-        var isEnabled = response?.Subscriptions?.Length > 0 && response.Subscriptions.First().Status == "enabled";
-        return new EventSubSubscriptionResult(isEnabled);
     }
-
-    public static Models.Moderation.BannedUser MapToBannedUser(TwitchLibBannedUserEvent source) =>
-        new(UserId: source.UserId, UserLogin: source.UserLogin, ExpiresAt: source.ExpiresAt);
 }

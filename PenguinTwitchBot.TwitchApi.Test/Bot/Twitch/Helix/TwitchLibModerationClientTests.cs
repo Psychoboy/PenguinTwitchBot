@@ -2,8 +2,6 @@ using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.TwitchApi.Models.EventSub;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TwitchLib.Api.Helix.Models.EventSub;
-using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransportMethod;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
@@ -22,7 +20,7 @@ public class ModerationClientTests
             "channel.chat.message",
             "1",
             Arg.Any<Dictionary<string, string>>(),
-            TwitchLibEventSubTransportMethod.Websocket,
+            EventSubTransportMethod.Websocket,
             "session")
             .Returns(response);
 
@@ -53,7 +51,7 @@ public class ModerationClientTests
             "channel.chat.message",
             "1",
             Arg.Any<Dictionary<string, string>>(),
-            TwitchLibEventSubTransportMethod.Websocket,
+            EventSubTransportMethod.Websocket,
             "session")
             .Returns(_ =>
             {
@@ -101,9 +99,8 @@ public class ModerationClientTests
         Assert.Equal(1, attempts);
     }
 
-    private static CreateEventSubSubscriptionResponse CreateEventSubResponse()
+    private static EventSubSubscriptionResult CreateEventSubResponse()
     {
-        const string json = "{\"data\":[{\"id\":\"sub-id\",\"status\":\"enabled\",\"type\":\"channel.chat.message\",\"version\":\"1\",\"condition\":{},\"created_at\":\"2024-01-01T00:00:00Z\",\"transport\":{},\"cost\":0}],\"total\":1,\"total_cost\":0,\"max_total_cost\":10000}";
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<CreateEventSubSubscriptionResponse>(json)!;
+        return new EventSubSubscriptionResult(true);
     }
 }
