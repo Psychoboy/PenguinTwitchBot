@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using TwitchLib.Api.Helix.Models.Subscriptions;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
@@ -16,7 +16,7 @@ public class SubscriptionsClientTests
         var logger = Substitute.For<ILogger<SubscriptionsClient>>();
         var transport = Substitute.For<ISubscriptionsTransport>();
         
-        var expectedResponse = new CheckUserSubscriptionResponse();
+        var expectedResponse = new CheckUserSubscriptionResponse([]);
         transport.CheckUserSubscriptionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(expectedResponse));
 
@@ -37,7 +37,7 @@ public class SubscriptionsClientTests
         var logger = Substitute.For<ILogger<SubscriptionsClient>>();
         var transport = Substitute.For<ISubscriptionsTransport>();
         
-        var expectedResponse = new GetBroadcasterSubscriptionsResponse();
+        var expectedResponse = new GetBroadcasterSubscriptionsResponse([], null, 0, 0);
         
         transport.GetBroadcasterSubscriptionsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
             .Returns(

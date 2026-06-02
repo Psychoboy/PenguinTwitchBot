@@ -443,12 +443,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     after);
                 if (curSubs != null)
                 {
-                    subs.AddRange(curSubs.Data.Select(SubscriptionsClient.MapToSubscription));
-                    if (string.IsNullOrEmpty(curSubs.Pagination.Cursor))
+                    subs.AddRange(curSubs.Data);
+                    if (string.IsNullOrEmpty(curSubs.Cursor))
                     {
                         break;
                     }
-                    after = curSubs.Pagination.Cursor;
+                    after = curSubs.Cursor;
                 }
             }
             return subs;
@@ -663,7 +663,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     broadcasterId!,
                     userId);
                 if (response == null) return false;
-                return response.Data.Length != 0;
+                return response.Data.Count != 0;
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {

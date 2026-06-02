@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Subscriptions;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 

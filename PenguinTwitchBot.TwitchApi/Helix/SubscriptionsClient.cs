@@ -1,5 +1,4 @@
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using TwitchLibSubscription = TwitchLib.Api.Helix.Models.Subscriptions.Subscription;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
@@ -14,7 +13,4 @@ public sealed class SubscriptionsClient(ILogger<SubscriptionsClient> logger, ISu
     {
         return ExecuteWithRetryAsync(() => transport.GetBroadcasterSubscriptionsAsync(clientId, accessToken, broadcasterId, first, after), "fetch broadcaster subscriptions");
     }
-
-    public static Models.Subscriptions.Subscription MapToSubscription(TwitchLibSubscription source) =>
-        new(UserId: source.UserId, UserLogin: source.UserLogin, UserName: source.UserName);
 }
