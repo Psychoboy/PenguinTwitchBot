@@ -31,13 +31,6 @@ jobs:
       run: |
         OUTPUT="LocalPackages"
         dotnet pack TwitchLib.EventSub.Core/TwitchLib.EventSub.Core/TwitchLib.EventSub.Core.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Enums/TwitchLib.Api.Core.Enums.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Interfaces/TwitchLib.Api.Core.Interfaces.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Models/TwitchLib.Api.Core.Models.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core/TwitchLib.Api.Core.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Helix.Models/TwitchLib.Api.Helix.Models.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Helix/TwitchLib.Api.Helix.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api/TwitchLib.Api.csproj -o "$OUTPUT" -c Release
         dotnet pack TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets.csproj -o "$OUTPUT" -c Release
     - name: Restore dependencies
       run: dotnet restore
