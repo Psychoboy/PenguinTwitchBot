@@ -25,24 +25,28 @@ public abstract class TwitchClientRetryBase
             {
                 return await action();
             }
-            catch (Exception ex) when (IsTransient(ex) && attempt < MaxAttempts)
+            catch (Exception ex) when (IsTransient(ex))
             {
+                if (attempt == MaxAttempts)
+                {
+                    Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
+                    throw;
+                }
+
                 var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
                 Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.", 
                     operation, attempt, MaxAttempts, delay.TotalMilliseconds);
                 await Task.Delay(delay);
             }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message}",
+                    operation, ex.GetType().Name, ex.Message);
+                throw;
+            }
         }
 
-        try
-        {
-            return await action();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
-            throw;
-        }
+        throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
     }
 
     /// <summary>
@@ -57,24 +61,28 @@ public abstract class TwitchClientRetryBase
                 await action();
                 return;
             }
-            catch (Exception ex) when (IsTransient(ex) && attempt < MaxAttempts)
+            catch (Exception ex) when (IsTransient(ex))
             {
+                if (attempt == MaxAttempts)
+                {
+                    Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
+                    throw;
+                }
+
                 var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
                 Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.",
                     operation, attempt, MaxAttempts, delay.TotalMilliseconds);
                 await Task.Delay(delay);
             }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message}",
+                    operation, ex.GetType().Name, ex.Message);
+                throw;
+            }
         }
 
-        try
-        {
-            await action();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
-            throw;
-        }
+        throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
     }
 
     /// <summary>
