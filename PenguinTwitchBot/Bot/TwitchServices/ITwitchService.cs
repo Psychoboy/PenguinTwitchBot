@@ -1,15 +1,12 @@
-﻿using TwitchLib.Api.Helix.Models.ChannelPoints;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
-using TwitchLib.Api.Helix.Models.Chat.GetChatters;
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
-using TwitchLib.Api.Helix.Models.Games;
-using TwitchLib.Api.Helix.Models.Moderation.GetBannedUsers;
-using TwitchLib.Api.Helix.Models.Schedule;
-using TwitchLib.Api.Helix.Models.Subscriptions;
-using TwitchLib.Api.Helix.Models.Users.GetUsers;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
+using PenguinTwitchBot.TwitchApi.Models.Chat;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
+using PenguinTwitchBot.TwitchApi.Models.Games;
+using PenguinTwitchBot.TwitchApi.Models.Moderation;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
+using PenguinTwitchBot.TwitchApi.Models.Subscriptions;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -39,16 +36,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> SubscribeToAllTheStuffs(string sessionId);
         Task TimeoutUser(string name, string reason, int? length);
         Task<bool> ValidateAndRefreshToken();
-        Task<List<BannedUserEvent>> GetAllBannedViewers();
+        Task<List<BannedUser>> GetAllBannedViewers();
         bool IsServiceUp();
         Task<IEnumerable<Chatter>> GetCurrentChatters();
-        Task<IEnumerable<CustomReward>> GetChannelPointRewards();
+        Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards();
         Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
-        Task<IEnumerable<CustomReward>> GetChannelPointRewards(bool onlyManageable);
-        Task<CreateCustomRewardsResponse> CreateChannelPointReward(CreateCustomRewardsRequest request);
+        Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards(bool onlyManageable);
+        Task CreateChannelPointReward(CreateChannelPointRewardRequest request);
         Task DeleteChannelPointReward(string rewardId);
         Task<bool> WillBePermittedByAutomod(string message);
-        Task<CustomReward?> GetCustomReward(string id);
+        Task<ChannelPointReward?> GetCustomReward(string id);
         void SetAccessToken(string accessToken);
         Task SendMessage(string message);
         Task<ChannelStreamSchedule?> GetStreamSchedule();

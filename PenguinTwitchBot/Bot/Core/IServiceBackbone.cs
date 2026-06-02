@@ -1,7 +1,6 @@
 ﻿using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.CustomMiddleware;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {

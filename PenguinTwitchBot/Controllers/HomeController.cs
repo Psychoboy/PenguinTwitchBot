@@ -1,4 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.TwitchApi.Auth;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Bot.TwitchServices.TwitchModels;
 using PenguinTwitchBot.Models;
@@ -20,7 +21,8 @@ namespace PenguinTwitchBot.Controllers
         IViewerFeature viewerFeature,
         IMemoryCache stateCache,
         ITwitchChatBot twitchChatBot,
-        ITwitchService twitchService) : Controller
+        ITwitchService twitchService,
+        IAuthClient authClient) : Controller
     {
         public IActionResult Index()
         {
@@ -81,10 +83,12 @@ namespace PenguinTwitchBot.Controllers
             {
                 return Redirect("/");
             }
-            var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = configuration["twitchClientId"];
             var origin = GetRequestOrigin();
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{origin}/streamerredirect");
+            var resp = await authClient.ExchangeCodeAsync(
+                configuration["twitchClientId"]!,
+                configuration["twitchClientSecret"]!,
+                code,
+                $"{origin}/streamerredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -120,10 +124,12 @@ namespace PenguinTwitchBot.Controllers
                 return Redirect("/");
             }
 
-            var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = configuration["twitchBotClientId"];
             var origin = GetRequestOrigin();
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchBotClientSecret"], $"{origin}/botredirect");
+            var resp = await authClient.ExchangeCodeAsync(
+                configuration["twitchBotClientId"]!,
+                configuration["twitchBotClientSecret"]!,
+                code,
+                $"{origin}/botredirect");
 
             if (resp == null) { return Redirect("/"); }
 
@@ -163,10 +169,16 @@ namespace PenguinTwitchBot.Controllers
             {
                 return Redirect("/");
             }
-            var api = new TwitchLib.Api.TwitchAPI();
-            api.Settings.ClientId = configuration["twitchClientId"];
             var origin = GetRequestOrigin();
-            var resp = await api.Auth.GetAccessTokenFromCodeAsync(code, configuration["twitchClientSecret"], $"{origin}/redirect");
+            var resp = await authClient.ExchangeCodeAsync(
+                configuration["twitchClientId"]!,
+                configuration["twitchClientSecret"]!,
+                code,
+                $"{origin}/redirect");
+            if (resp == null)
+            {
+                return Redirect("/");
+            }
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {
@@ -181,11 +193,9 @@ namespace PenguinTwitchBot.Controllers
                 return Redirect("/");
             }
 
-            api.Settings.AccessToken = resp.AccessToken;
-            var users = await api.Helix.Users.GetUsersAsync();
-            if (users.Users.Length > 0)
+            var user = await authClient.GetAuthenticatedUserAsync(configuration["twitchClientId"]!, resp.AccessToken);
+            if (user != null)
             {
-                var user = users.Users[0];
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),

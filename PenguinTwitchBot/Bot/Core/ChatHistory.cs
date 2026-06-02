@@ -3,7 +3,6 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Models;
 using PenguinTwitchBot.Repository;
-using TwitchLib.EventSub.Core.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {

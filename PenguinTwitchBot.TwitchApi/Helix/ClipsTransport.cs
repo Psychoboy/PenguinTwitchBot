@@ -1,0 +1,100 @@
+using System.Text.Json.Serialization;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
+
+namespace PenguinTwitchBot.TwitchApi.Helix;
+
+public sealed class ClipsTransport : IClipsTransport
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ClipsTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    public async Task<GetClipsResponse> GetClipsAsync(string clientId, string? accessToken, string? broadcasterId, string? userId, int first, bool? isFeatured)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildClipsUrl(broadcasterId, userId, first, isFeatured);
+        using var response = await http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await HelixJson.DeserializeAsync<GetClipsApiResponse>(response);
+        var clips = payload?.Data.Select(MapToClip).ToList() ?? [];
+        return new GetClipsResponse(clips);
+    }
+
+    public async Task<GetClipsResponse> GetClipsByIdAsync(string clientId, string? accessToken, List<string> clipIds)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildClipIdsUrl(clipIds);
+        using var response = await http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await HelixJson.DeserializeAsync<GetClipsApiResponse>(response);
+        var clips = payload?.Data.Select(MapToClip).ToList() ?? [];
+        return new GetClipsResponse(clips);
+    }
+
+    private static string BuildClipsUrl(string? broadcasterId, string? userId, int first, bool? isFeatured)
+    {
+        var clipBroadcasterId = !string.IsNullOrWhiteSpace(broadcasterId)
+            ? broadcasterId
+            : userId;
+
+        return HelixQuery.Build("clips", new (string Key, string? Value)[]
+        {
+            ("first", first.ToString()),
+            ("broadcaster_id", clipBroadcasterId),
+            ("is_featured", isFeatured.HasValue ? isFeatured.Value.ToString().ToLowerInvariant() : null)
+        });
+    }
+
+    private static string BuildClipIdsUrl(List<string> clipIds)
+    {
+        var parameters = new List<(string Key, string? Value)> { ("first", "100") };
+        parameters.AddRange(HelixQuery.Repeat("id", clipIds));
+
+        return HelixQuery.Build("clips", parameters);
+    }
+
+    private static Clip MapToClip(ClipApiItem source)
+    {
+        return new Clip(
+            Id: source.Id,
+            Url: source.Url,
+            EmbedUrl: source.EmbedUrl,
+            Title: source.Title,
+            ViewCount: source.ViewCount,
+            CreatedAt: source.CreatedAt.UtcDateTime,
+            Language: source.Language,
+            ThumbnailUrl: source.ThumbnailUrl,
+            BroadcasterName: source.BroadcasterName,
+            BroadcasterId: source.BroadcasterId,
+            CreatorName: source.CreatorName,
+            CreatorId: source.CreatorId,
+            Duration: source.Duration,
+            VideoId: source.VideoId,
+            GameId: source.GameId);
+    }
+
+    private sealed record GetClipsApiResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<ClipApiItem> Data);
+
+    private sealed record ClipApiItem(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("url")] string Url,
+        [property: JsonPropertyName("embed_url")] string EmbedUrl,
+        [property: JsonPropertyName("broadcaster_id")] string BroadcasterId,
+        [property: JsonPropertyName("broadcaster_name")] string BroadcasterName,
+        [property: JsonPropertyName("creator_id")] string CreatorId,
+        [property: JsonPropertyName("creator_name")] string CreatorName,
+        [property: JsonPropertyName("video_id")] string? VideoId,
+        [property: JsonPropertyName("game_id")] string? GameId,
+        [property: JsonPropertyName("language")] string Language,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("view_count")] int ViewCount,
+        [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
+        [property: JsonPropertyName("thumbnail_url")] string ThumbnailUrl,
+        [property: JsonPropertyName("duration")] float Duration);
+}
