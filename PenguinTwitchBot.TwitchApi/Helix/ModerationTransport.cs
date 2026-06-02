@@ -8,7 +8,7 @@ using TwitchLib.Api.Helix.Models.Moderation.GetModerators;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
-public sealed class ModerationEventSubTransport : IModerationEventSubTransport
+public sealed class ModerationTransport : IModerationTransport
 {
     public Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<Message> messages, string broadcasterId)
     {

@@ -30,7 +30,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly IAuthClient _authClient;
         private readonly IChatClient _chatClient;
         private readonly IChannelPointsClient _channelPointsClient;
-        private readonly IModerationEventSubClient _moderationEventSubClient;
+        private readonly IModerationClient _moderationClient;
         private readonly IChannelsClient _channelsClient;
         private readonly IStreamsClient _streamsClient;
         private readonly IClipsClient _clipsClient;
@@ -54,7 +54,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             IAuthClient authClient,
             IChatClient chatClient,
             IChannelPointsClient channelPointsClient,
-            IModerationEventSubClient moderationEventSubClient,
+            IModerationClient moderationClient,
             IChannelsClient channelsClient,
             IStreamsClient streamsClient,
             IClipsClient clipsClient,
@@ -74,7 +74,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             _authClient = authClient;
             _chatClient = chatClient;
             _channelPointsClient = channelPointsClient;
-            _moderationEventSubClient = moderationEventSubClient;
+            _moderationClient = moderationClient;
             _channelsClient = channelsClient;
             _streamsClient = streamsClient;
             _clipsClient = clipsClient;
@@ -278,7 +278,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     return false;
                 }
 
-                var result = await _moderationEventSubClient.CheckAutoModStatusAsync(
+                var result = await _moderationClient.CheckAutoModStatusAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     new()
@@ -466,14 +466,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             List<BannedUser> curBannedUsers = [];
             while (true)
             {
-                var bannedUsers = await _moderationEventSubClient.GetBannedUsersAsync(
+                var bannedUsers = await _moderationClient.GetBannedUsersAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     userId,
                     after);
                 if (bannedUsers != null)
                 {
-                    curBannedUsers.AddRange(bannedUsers.Data.Select(ModerationEventSubClient.MapToBannedUser));
+                    curBannedUsers.AddRange(bannedUsers.Data.Select(ModerationClient.MapToBannedUser));
                     if (string.IsNullOrEmpty(bannedUsers.Pagination.Cursor))
                     {
                         break;
@@ -685,7 +685,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if (userId == null || string.IsNullOrWhiteSpace(broadcasterId)) return false;
             try
             {
-                var response = await _moderationEventSubClient.GetModeratorsAsync(
+                var response = await _moderationClient.GetModeratorsAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId,
@@ -1160,7 +1160,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
             try
             {
-                await _moderationEventSubClient.BanUserAsync(
+                await _moderationClient.BanUserAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId,
@@ -1237,7 +1237,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
             try
             {
-                await _moderationEventSubClient.DeleteChatMessagesAsync(
+                await _moderationClient.DeleteChatMessagesAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId,
@@ -1366,7 +1366,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             Dictionary<string, string> condition,
             string sessionId)
         {
-            return await _moderationEventSubClient.CreateEventSubSubscriptionAsync(
+            return await _moderationClient.CreateEventSubSubscriptionAsync(
                 _configuration["twitchClientId"]!,
                 _accessToken,
                 type,

@@ -10,7 +10,7 @@ using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransp
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
-public sealed class ModerationEventSubClient(ILogger<ModerationEventSubClient> logger, IModerationEventSubTransport transport) : TwitchClientRetryBase(logger), IModerationEventSubClient
+public sealed class ModerationClient(ILogger<ModerationClient> logger, IModerationTransport transport) : TwitchClientRetryBase(logger), IModerationClient
 {
 
     public Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<Message> messages, string broadcasterId)

@@ -37,8 +37,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IChatClient, ChatClient>();
             services.AddSingleton<IChannelPointsTransport, ChannelPointsTransport>();
             services.AddSingleton<IChannelPointsClient, ChannelPointsClient>();
-            services.AddSingleton<IModerationEventSubTransport, ModerationEventSubTransport>();
-            services.AddSingleton<IModerationEventSubClient, ModerationEventSubClient>();
+            services.AddSingleton<IModerationTransport, ModerationTransport>();
+            services.AddSingleton<IModerationClient, ModerationClient>();
             services.AddSingleton<IChannelsTransport, ChannelsTransport>();
             services.AddSingleton<IChannelsClient, ChannelsClient>();
             services.AddSingleton<IStreamsTransport, StreamsTransport>();
@@ -167,7 +167,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Global concurrency limiter — shared SemaphoreSlim across all non-blocking queues
+            // Global concurrency limiter ï¿½ shared SemaphoreSlim across all non-blocking queues
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager

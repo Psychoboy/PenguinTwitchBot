@@ -7,13 +7,13 @@ using TwitchLibEventSubTransportMethod = TwitchLib.Api.Core.Enums.EventSubTransp
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
-public class ModerationEventSubClientTests
+public class ModerationClientTests
 {
     [Fact]
     public async Task CreateEventSubSubscriptionAsync_ShouldReturnEnabled_WhenTransportSucceeds()
     {
-        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
-        var transport = Substitute.For<IModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationClient>>();
+        var transport = Substitute.For<IModerationTransport>();
         var response = CreateEventSubResponse();
 
         transport.CreateEventSubSubscriptionAsync(
@@ -26,7 +26,7 @@ public class ModerationEventSubClientTests
             "session")
             .Returns(response);
 
-        var sut = new ModerationEventSubClient(logger, transport);
+        var sut = new ModerationClient(logger, transport);
 
         var result = await sut.CreateEventSubSubscriptionAsync(
             "cid",
@@ -43,8 +43,8 @@ public class ModerationEventSubClientTests
     [Fact]
     public async Task CreateEventSubSubscriptionAsync_ShouldRetryTransientFailures_AndSucceed()
     {
-        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
-        var transport = Substitute.For<IModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationClient>>();
+        var transport = Substitute.For<IModerationTransport>();
         var attempts = 0;
 
         transport.CreateEventSubSubscriptionAsync(
@@ -66,7 +66,7 @@ public class ModerationEventSubClientTests
                 return CreateEventSubResponse();
             });
 
-        var sut = new ModerationEventSubClient(logger, transport);
+        var sut = new ModerationClient(logger, transport);
 
         var result = await sut.CreateEventSubSubscriptionAsync(
             "cid",
@@ -84,8 +84,8 @@ public class ModerationEventSubClientTests
     [Fact]
     public async Task DeleteChatMessagesAsync_ShouldThrowImmediately_OnNonTransientFailure()
     {
-        var logger = Substitute.For<ILogger<ModerationEventSubClient>>();
-        var transport = Substitute.For<IModerationEventSubTransport>();
+        var logger = Substitute.For<ILogger<ModerationClient>>();
+        var transport = Substitute.For<IModerationTransport>();
         var attempts = 0;
 
         transport.DeleteChatMessagesAsync("cid", "token", "broadcaster", "moderator", "msg-id")
@@ -95,7 +95,7 @@ public class ModerationEventSubClientTests
                 return Task.FromException(new InvalidOperationException("bad state"));
             });
 
-        var sut = new ModerationEventSubClient(logger, transport);
+        var sut = new ModerationClient(logger, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => sut.DeleteChatMessagesAsync("cid", "token", "broadcaster", "moderator", "msg-id"));
         Assert.Equal(1, attempts);
