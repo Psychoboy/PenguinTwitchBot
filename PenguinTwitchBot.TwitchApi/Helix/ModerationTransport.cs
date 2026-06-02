@@ -1,16 +1,19 @@
 using System.Text.Json.Serialization;
 using PenguinTwitchBot.TwitchApi.Models.EventSub;
 using PenguinTwitchBot.TwitchApi.Models.Moderation;
+using System.Globalization;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ModerationTransport : IModerationTransport
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<ModerationTransport> _logger;
 
-    public ModerationTransport(IHttpClientFactory httpClientFactory)
+    public ModerationTransport(IHttpClientFactory httpClientFactory, ILogger<ModerationTransport> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<AutoModMessage> messages, string broadcasterId)
@@ -35,11 +38,13 @@ public sealed class ModerationTransport : IModerationTransport
     {
         using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildBannedUsersUrl(broadcasterId, after);
+
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
         var payload = await HelixJson.DeserializeAsync<HelixPaginatedDataResponse<BannedUserApiItem>>(response);
-        var users = payload?.Data.Select(x => new BannedUser(x.UserId, x.UserLogin, x.ExpiresAt)).ToList() ?? [];
+
+        var users = payload?.Data.Select(x => new BannedUser(x.UserId, x.UserLogin, ParseExpiresAt(x.ExpiresAt))).ToList() ?? [];
         return new GetBannedUsersResponse(users, payload?.Pagination?.Cursor);
     }
 
@@ -150,7 +155,26 @@ public sealed class ModerationTransport : IModerationTransport
     private sealed record BannedUserApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin,
-        [property: JsonPropertyName("expires_at")] DateTime? ExpiresAt);
+        [property: JsonPropertyName("expires_at")] string? ExpiresAt);
+
+    private static DateTime? ParseExpiresAt(string? expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(expiresAt))
+        {
+            return null;
+        }
+
+        if (DateTime.TryParse(
+                expiresAt,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                out var parsed))
+        {
+            return parsed;
+        }
+
+        return null;
+    }
 
     private sealed record ModeratorApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
