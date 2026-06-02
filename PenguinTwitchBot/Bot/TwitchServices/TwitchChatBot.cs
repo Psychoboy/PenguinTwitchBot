@@ -189,10 +189,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         public async Task<bool> RefreshAccessToken()
         {
             var url = "https://id.twitch.tv/oauth2/token";
+            var clientId = configuration["twitchBotClientId"] ?? throw new InvalidOperationException("Missing configuration value: twitchBotClientId");
+            var clientSecret = configuration["twitchBotClientSecret"] ?? throw new InvalidOperationException("Missing configuration value: twitchBotClientSecret");
             var formData = new List<KeyValuePair<string, string>>
             {
-                new("client_id", configuration["twitchBotClientId"]),
-                new("client_secret", configuration["twitchBotClientSecret"]),
+                new("client_id", clientId),
+                new("client_secret", clientSecret),
                 new("grant_type", "client_credentials"),
             };
             var encodedContent = new FormUrlEncodedContent(formData);

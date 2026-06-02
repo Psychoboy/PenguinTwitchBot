@@ -1,7 +1,3 @@
-using TwitchLib.Api.Helix.Models.Chat.Badges.GetChannelChatBadges;
-using TwitchLib.Api.Helix.Models.Chat.Badges.GetGlobalChatBadges;
-using TwitchLib.Api.Helix.Models.Chat.GetChatters;
-using TwitchLibChatter = TwitchLib.Api.Helix.Models.Chat.GetChatters.Chatter;
 using PenguinTwitchBot.TwitchApi.Models.Chat;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
@@ -14,7 +10,7 @@ public sealed class ChatClient(ILogger<ChatClient> logger, IChatTransport transp
         return ExecuteWithRetryAsync(() => transport.SendChatMessageAsync(clientId, accessToken, request), "send chat message");
     }
 
-    public Task<GetChattersResponse> GetChattersAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? after)
+    public Task<GetChattersPageResponse> GetChattersAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? after)
     {
         return ExecuteWithRetryAsync(() => transport.GetChattersAsync(clientId, accessToken, broadcasterId, moderatorId, after), "fetch chatters");
     }
@@ -29,15 +25,12 @@ public sealed class ChatClient(ILogger<ChatClient> logger, IChatTransport transp
         return ExecuteWithRetryAsync(() => transport.SendChatAnnouncementAsync(clientId, accessToken, broadcasterId, moderatorId, message), "send chat announcement");
     }
 
-    public static Models.Chat.Chatter MapToChatter(TwitchLibChatter source) =>
-        new(UserId: source.UserId, UserLogin: source.UserLogin);
-
-    public Task<GetGlobalChatBadgesResponse> GetGlobalChatBadgesAsync(string clientId, string? accessToken)
+    public Task<IReadOnlyList<ChatBadgeSet>> GetGlobalChatBadgesAsync(string clientId, string? accessToken)
     {
         return ExecuteWithRetryAsync(() => transport.GetGlobalChatBadgesAsync(clientId, accessToken), "fetch global chat badges");
     }
 
-    public Task<GetChannelChatBadgesResponse> GetChannelChatBadgesAsync(string clientId, string? accessToken, string broadcasterId)
+    public Task<IReadOnlyList<ChatBadgeSet>> GetChannelChatBadgesAsync(string clientId, string? accessToken, string broadcasterId)
     {
         return ExecuteWithRetryAsync(() => transport.GetChannelChatBadgesAsync(clientId, accessToken, broadcasterId), "fetch channel chat badges");
     }

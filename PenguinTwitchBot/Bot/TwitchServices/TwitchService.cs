@@ -216,12 +216,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         after);
                     if (curChatters != null)
                     {
-                        chatters.AddRange(curChatters.Data.Select(ChatClient.MapToChatter));
-                        if (string.IsNullOrEmpty(curChatters.Pagination.Cursor))
+                        chatters.AddRange(curChatters.Data);
+                        if (string.IsNullOrEmpty(curChatters.Cursor))
                         {
                             break;
                         }
-                        after = curChatters.Pagination.Cursor;
+                        after = curChatters.Cursor;
                     }
                 }
             }
@@ -1473,11 +1473,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var globalBadges = await _chatClient.GetGlobalChatBadgesAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken);
-                if (globalBadges?.EmoteSet != null)
+                if (globalBadges != null)
                 {
-                    foreach (var set in globalBadges.EmoteSet)
+                    foreach (var set in globalBadges)
                     {
-                        foreach (var version in set.Versions ?? [])
+                        foreach (var version in set.Versions)
                         {
                             result[$"{set.SetId}/{version.Id}"] = version.ImageUrl1x;
                         }
@@ -1491,11 +1491,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         _configuration["twitchClientId"]!,
                         _accessToken,
                         broadcasterId);
-                    if (channelBadges?.EmoteSet != null)
+                    if (channelBadges != null)
                     {
-                        foreach (var set in channelBadges.EmoteSet)
+                        foreach (var set in channelBadges)
                         {
-                            foreach (var version in set.Versions ?? [])
+                            foreach (var version in set.Versions)
                             {
                                 // Channel badges override globals for the same key
                                 result[$"{set.SetId}/{version.Id}"] = version.ImageUrl1x;
