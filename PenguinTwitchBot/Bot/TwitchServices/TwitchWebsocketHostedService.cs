@@ -10,7 +10,6 @@ using EventSubStream = PenguinTwitchBot.TwitchApi.EventSub.Stream;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
-using TwitchLibChannel = TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
@@ -39,10 +38,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task ChannelChatMessage(object? sender, ChannelChatMessageArgs args)
         {
-            await ChannelChatMessage(EventSubAdapter.AdaptChannelChatMessage(args), args.Payload.Event);
+            await ChannelChatMessage(EventSubAdapter.AdaptChannelChatMessage(args));
         }
 
-        private async Task ChannelChatMessage(EventSubChannel.ChannelChatMessagePayload payload, TwitchLibChannel.ChannelChatMessage sourceEvent)
+        private async Task ChannelChatMessage(EventSubChannel.ChannelChatMessagePayload payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
@@ -79,123 +78,26 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             else
             {
                 logger.LogInformation("CHATMSG: {name}: {message}", payload.Event.ChatterUserName, messageText);
-                await Task.WhenAll([ProcessCommandMessage(sourceEvent), ProcessChatMessage(sourceEvent)]);
+                await Task.WhenAll([ProcessCommandMessage(payload.Event), ProcessChatMessage(payload.Event)]);
             }
         }
 
         
         private async Task OnChannelChatNotification(object? sender, ChannelChatNotificationArgs args)
         {
-            await OnChannelChatNotification(EventSubAdapter.AdaptChannelChatNotification(args), args.Payload.Event);
+            await OnChannelChatNotification(EventSubAdapter.AdaptChannelChatNotification(args));
         }
 
-        private async Task OnChannelChatNotification(EventSubChannel.ChannelChatNotificationPayload payload, TwitchLibChannel.ChannelChatNotification sourceEvent)
+        private async Task OnChannelChatNotification(EventSubChannel.ChannelChatNotificationPayload payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
 
             try
             {
-                var e = sourceEvent;
                 logger.LogInformation("ChatNotification: {NoticeType} from {User}", payload.Event.NoticeType, payload.Event.ChatterUserName);
 
-                var eventArgs = new Events.ChatNotificationEventArgs
-                {
-                    UserId = e.ChatterUserId,
-                    Name = e.ChatterUserLogin,
-                    DisplayName = e.ChatterUserName,
-                    IsAnonymous = e.ChatterIsAnonymous,
-                    NoticeType = e.NoticeType,
-                    SystemMessage = e.SystemMessage,
-                    Message = e.Message?.Text,
-                    Sub = e.Sub == null ? null : new Events.ChatNotificationSubInfo
-                    {
-                        SubTier = e.Sub.SubTier,
-                        DurationMonths = e.Sub.DurationMonths,
-                        IsPrime = e.Sub.IsPrime,
-                    },
-                    Resub = e.Resub == null ? null : new Events.ChatNotificationResubInfo
-                    {
-                        CumulativeMonths = e.Resub.CumulativeMonths,
-                        DurationMonths = e.Resub.DurationMonths,
-                        StreakMonths = e.Resub.StreakMonths,
-                        SubTier = e.Resub.SubTier,
-                        IsPrime = e.Resub.IsPrime,
-                        IsGift = e.Resub.IsGift,
-                        GifterIsAnonymous = e.Resub.GifterIsAnonymous,
-                        GifterUserId = e.Resub.GifterUserId,
-                        GifterUserName = e.Resub.GifterUserName,
-                        GifterUserLogin = e.Resub.GifterUserLogin,
-                    },
-                    SubGift = e.SubGift == null ? null : new Events.ChatNotificationSubGiftInfo
-                    {
-                        DurationMonths = e.SubGift.DurationMonths,
-                        CumulativeTotal = e.SubGift.CumulativeTotal,
-                        RecipientUserId = e.SubGift.RecipientUserId,
-                        RecipientUserName = e.SubGift.RecipientUserName,
-                        RecipientUserLogin = e.SubGift.RecipientUserLogin,
-                        SubTier = e.SubGift.SubTier,
-                        CommunityGiftId = e.SubGift.CommunityGiftId,
-                    },
-                    CommunitySubGift = e.CommunitySubGift == null ? null : new Events.ChatNotificationCommunitySubGiftInfo
-                    {
-                        Id = e.CommunitySubGift.Id,
-                        Total = e.CommunitySubGift.Total,
-                        SubTier = e.CommunitySubGift.SubTier,
-                        CumulativeTotal = e.CommunitySubGift.CumulativeTotal,
-                    },
-                    GiftPaidUpgrade = e.GiftPaidUpgrade == null ? null : new Events.ChatNotificationGiftPaidUpgradeInfo
-                    {
-                        GifterIsAnonymous = e.GiftPaidUpgrade.GifterIsAnonymous,
-                        GifterUserId = e.GiftPaidUpgrade.GifterUserId,
-                        GifterUserName = e.GiftPaidUpgrade.GifterUserName,
-                        GifterUserLogin = e.GiftPaidUpgrade.GifterUserLogin,
-                    },
-                    PrimePaidUpgrade = e.PrimePaidUpgrade == null ? null : new Events.ChatNotificationPrimePaidUpgradeInfo
-                    {
-                        SubTier = e.PrimePaidUpgrade.SubTier,
-                    },
-                    Raid = e.Raid == null ? null : new Events.ChatNotificationRaidInfo
-                    {
-                        UserId = e.Raid.UserId,
-                        UserName = e.Raid.UserName,
-                        UserLogin = e.Raid.UserLogin,
-                        ViewerCount = e.Raid.ViewerCount,
-                        ProfileImageUrl = e.Raid.ProfileImageUrl,
-                    },
-                    PayItForward = e.PayItForward == null ? null : new Events.ChatNotificationPayItForwardInfo
-                    {
-                        GifterIsAnonymous = e.PayItForward.GifterIsAnonymous,
-                        GifterUserId = e.PayItForward.GifterUserId,
-                        GifterUserName = e.PayItForward.GifterUserName,
-                        GifterUserLogin = e.PayItForward.GifterUserLogin,
-                        RecipientUserId = e.PayItForward.RecipientUserId,
-                        RecipientUserName = e.PayItForward.RecipientUserName,
-                        RecipientUserLogin = e.PayItForward.RecipientUserLogin,
-                    },
-                    Announcement = e.Announcement == null ? null : new Events.ChatNotificationAnnouncementInfo
-                    {
-                        Color = e.Announcement.Color,
-                    },
-                    CharityDonation = e.CharityDonation == null ? null : new Events.ChatNotificationCharityDonationInfo
-                    {
-                        CharityName = e.CharityDonation.Name,
-                        AmountValue = e.CharityDonation.Amount.Value,
-                        AmountDecimalPlaces = e.CharityDonation.Amount.DecimalPlaces,
-                        AmountCurrency = e.CharityDonation.Amount.Currency,
-                    },
-                    BitsBadgeTier = e.BitsBadgeTier == null ? null : new Events.ChatNotificationBitsBadgeTierInfo
-                    {
-                        Tier = e.BitsBadgeTier.Tier,
-                    },
-                    WatchStreak = e.WatchStreak == null ? null : new Events.ChatNotificationWatchStreakInfo
-                    {
-                        StreakCount = e.WatchStreak.StreakCount,
-                        ChannelPointsAwarded = e.WatchStreak.ChannelPointsAwarded,
-                    },
-                };
-
-                await twitchEventActionHandler.HandleChatNotificationAsync(eventArgs);
+                await twitchEventActionHandler.HandleChatNotificationAsync(payload.Event);
             }
             catch (Exception ex)
             {
@@ -231,12 +133,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private Task ProcessChatMessage(ChannelChatMessage e)
+        private Task ProcessChatMessage(EventSubChannel.ChannelChatMessage e)
         {
-            var messageText = e.Message.Text;
+            var messageText = e.Message;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
 
-            var fragments = (e.Message.Fragments ?? [])
+            var fragments = (e.Fragments ?? [])
                 .Select(f => MapFragment(f))
                 .ToList();
 
@@ -263,7 +165,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private static ChatOverlayFragment MapFragment(ChatMessageFragment f)
+        private static ChatOverlayFragment MapFragment(EventSubChannel.ChannelChatMessageFragment f)
         {
             if (f.Type == "emote" && f.Emote != null)
             {
@@ -298,10 +200,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             };
         }
 
-        private async Task ProcessCommandMessage(ChannelChatMessage e)
+        private async Task ProcessCommandMessage(EventSubChannel.ChannelChatMessage e)
         {
-            if (e.Message.Text.StartsWith('!') == false) return;
-            var messageText = e.Message.Text;
+            if (e.Message.StartsWith('!') == false) return;
+            var messageText = e.Message;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
             var argsFull = messageText.Split(' ', 2);
             var command = argsFull[0];

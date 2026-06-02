@@ -57,6 +57,30 @@ public static class EventSubAdapter
             IsVip = payload.IsVip,
             IsBroadcaster = payload.IsBroadcaster,
             Message = payload.Message.Text,
+            Fragments = payload.Message.Fragments.Select(fragment => new Channel.ChannelChatMessageFragment
+            {
+                Type = fragment.Type,
+                Text = fragment.Text,
+                Emote = fragment.Emote == null ? null : new Channel.ChannelChatMessageFragmentEmote
+                {
+                    Id = fragment.Emote.Id,
+                    EmoteSetId = fragment.Emote.EmoteSetId,
+                    OwnerId = fragment.Emote.OwnerId,
+                    Format = fragment.Emote.Format,
+                },
+                Cheermote = fragment.Cheermote == null ? null : new Channel.ChannelChatMessageFragmentCheermote
+                {
+                    Prefix = fragment.Cheermote.Prefix,
+                    Bits = fragment.Cheermote.Bits,
+                },
+            }).ToArray(),
+            Badges = payload.Badges.Select(b => new Channel.ChatBadge
+            {
+                SetId = b.SetId,
+                Id = b.Id,
+                Info = b.Info,
+            }).ToArray(),
+            Color = payload.Color,
             ChannelPointsCustomRewardId = payload.ChannelPointsCustomRewardId ?? string.Empty,
             SourceBroadcasterUserId = payload.SourceBroadcasterUserId,
         });
@@ -213,12 +237,189 @@ public static class EventSubAdapter
         var payload = args.Payload.Event;
         return CreatePayload<Channel.ChannelChatNotificationPayload, Channel.ChannelChatNotification>(args.Metadata, new()
         {
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
             MessageId = payload.MessageId,
             ChatterUserId = payload.ChatterUserId,
             ChatterUserLogin = payload.ChatterUserLogin,
             ChatterUserName = payload.ChatterUserName,
+            ChatterIsAnonymous = payload.ChatterIsAnonymous,
+            Color = payload.Color,
+            Badges = payload.Badges.Select(b => new Channel.ChatBadge
+            {
+                SetId = b.SetId,
+                Id = b.Id,
+                Info = b.Info,
+            }).ToArray(),
+            SystemMessage = payload.SystemMessage,
             NoticeType = payload.NoticeType,
             Message = payload.Message.Text,
+            Sub = payload.Sub == null ? null : new Channel.ChatNotificationSubInfo
+            {
+                SubTier = payload.Sub.SubTier,
+                DurationMonths = payload.Sub.DurationMonths,
+                IsPrime = payload.Sub.IsPrime,
+            },
+            Resub = payload.Resub == null ? null : new Channel.ChatNotificationResubInfo
+            {
+                CumulativeMonths = payload.Resub.CumulativeMonths,
+                DurationMonths = payload.Resub.DurationMonths,
+                StreakMonths = payload.Resub.StreakMonths,
+                SubTier = payload.Resub.SubTier,
+                IsPrime = payload.Resub.IsPrime,
+                IsGift = payload.Resub.IsGift,
+                GifterIsAnonymous = payload.Resub.GifterIsAnonymous,
+                GifterUserId = payload.Resub.GifterUserId,
+                GifterUserName = payload.Resub.GifterUserName,
+                GifterUserLogin = payload.Resub.GifterUserLogin,
+            },
+            SubGift = payload.SubGift == null ? null : new Channel.ChatNotificationSubGiftInfo
+            {
+                DurationMonths = payload.SubGift.DurationMonths,
+                CumulativeTotal = payload.SubGift.CumulativeTotal,
+                RecipientUserId = payload.SubGift.RecipientUserId,
+                RecipientUserName = payload.SubGift.RecipientUserName,
+                RecipientUserLogin = payload.SubGift.RecipientUserLogin,
+                SubTier = payload.SubGift.SubTier,
+                CommunityGiftId = payload.SubGift.CommunityGiftId,
+            },
+            CommunitySubGift = payload.CommunitySubGift == null ? null : new Channel.ChatNotificationCommunitySubGiftInfo
+            {
+                Id = payload.CommunitySubGift.Id,
+                Total = payload.CommunitySubGift.Total,
+                SubTier = payload.CommunitySubGift.SubTier,
+                CumulativeTotal = payload.CommunitySubGift.CumulativeTotal,
+            },
+            GiftPaidUpgrade = payload.GiftPaidUpgrade == null ? null : new Channel.ChatNotificationGiftPaidUpgradeInfo
+            {
+                GifterIsAnonymous = payload.GiftPaidUpgrade.GifterIsAnonymous,
+                GifterUserId = payload.GiftPaidUpgrade.GifterUserId,
+                GifterUserName = payload.GiftPaidUpgrade.GifterUserName,
+                GifterUserLogin = payload.GiftPaidUpgrade.GifterUserLogin,
+            },
+            PrimePaidUpgrade = payload.PrimePaidUpgrade == null ? null : new Channel.ChatNotificationPrimePaidUpgradeInfo
+            {
+                SubTier = payload.PrimePaidUpgrade.SubTier,
+            },
+            Raid = payload.Raid == null ? null : new Channel.ChatNotificationRaidInfo
+            {
+                UserId = payload.Raid.UserId,
+                UserName = payload.Raid.UserName,
+                UserLogin = payload.Raid.UserLogin,
+                ViewerCount = payload.Raid.ViewerCount,
+                ProfileImageUrl = payload.Raid.ProfileImageUrl,
+            },
+            PayItForward = payload.PayItForward == null ? null : new Channel.ChatNotificationPayItForwardInfo
+            {
+                GifterIsAnonymous = payload.PayItForward.GifterIsAnonymous,
+                GifterUserId = payload.PayItForward.GifterUserId,
+                GifterUserName = payload.PayItForward.GifterUserName,
+                GifterUserLogin = payload.PayItForward.GifterUserLogin,
+                RecipientUserId = payload.PayItForward.RecipientUserId,
+                RecipientUserName = payload.PayItForward.RecipientUserName,
+                RecipientUserLogin = payload.PayItForward.RecipientUserLogin,
+            },
+            Announcement = payload.Announcement == null ? null : new Channel.ChatNotificationAnnouncementInfo
+            {
+                Color = payload.Announcement.Color,
+            },
+            CharityDonation = payload.CharityDonation == null ? null : new Channel.ChatNotificationCharityDonationInfo
+            {
+                CharityName = payload.CharityDonation.Name,
+                AmountValue = payload.CharityDonation.Amount.Value,
+                AmountDecimalPlaces = payload.CharityDonation.Amount.DecimalPlaces,
+                AmountCurrency = payload.CharityDonation.Amount.Currency,
+            },
+            BitsBadgeTier = payload.BitsBadgeTier == null ? null : new Channel.ChatNotificationBitsBadgeTierInfo
+            {
+                Tier = payload.BitsBadgeTier.Tier,
+            },
+            WatchStreak = payload.WatchStreak == null ? null : new Channel.ChatNotificationWatchStreakInfo
+            {
+                StreakCount = payload.WatchStreak.StreakCount,
+                ChannelPointsAwarded = payload.WatchStreak.ChannelPointsAwarded,
+            },
+            SourceBroadcasterUserId = payload.SourceBroadcasterUserId,
+            SourceBroadcasterUserName = payload.SourceBroadcasterUserName,
+            SourceBroadcasterUserLogin = payload.SourceBroadcasterUserLogin,
+            SourceMessageId = payload.SourceMessageId,
+            SourceBadges = payload.SourceBadges?.Select(b => new Channel.ChatBadge
+            {
+                SetId = b.SetId,
+                Id = b.Id,
+                Info = b.Info,
+            }).ToArray(),
+            SharedChatSub = payload.SharedChatSub == null ? null : new Channel.ChatNotificationSubInfo
+            {
+                SubTier = payload.SharedChatSub.SubTier,
+                DurationMonths = payload.SharedChatSub.DurationMonths,
+                IsPrime = payload.SharedChatSub.IsPrime,
+            },
+            IsSourceOnly = payload.IsSourceOnly,
+            SharedChatResub = payload.SharedChatResub == null ? null : new Channel.ChatNotificationResubInfo
+            {
+                CumulativeMonths = payload.SharedChatResub.CumulativeMonths,
+                DurationMonths = payload.SharedChatResub.DurationMonths,
+                StreakMonths = payload.SharedChatResub.StreakMonths,
+                SubTier = payload.SharedChatResub.SubTier,
+                IsPrime = payload.SharedChatResub.IsPrime,
+                IsGift = payload.SharedChatResub.IsGift,
+                GifterIsAnonymous = payload.SharedChatResub.GifterIsAnonymous,
+                GifterUserId = payload.SharedChatResub.GifterUserId,
+                GifterUserName = payload.SharedChatResub.GifterUserName,
+                GifterUserLogin = payload.SharedChatResub.GifterUserLogin,
+            },
+            SharedChatSubGift = payload.SharedChatSubGift == null ? null : new Channel.ChatNotificationSubGiftInfo
+            {
+                DurationMonths = payload.SharedChatSubGift.DurationMonths,
+                CumulativeTotal = payload.SharedChatSubGift.CumulativeTotal,
+                RecipientUserId = payload.SharedChatSubGift.RecipientUserId,
+                RecipientUserName = payload.SharedChatSubGift.RecipientUserName,
+                RecipientUserLogin = payload.SharedChatSubGift.RecipientUserLogin,
+                SubTier = payload.SharedChatSubGift.SubTier,
+                CommunityGiftId = payload.SharedChatSubGift.CommunityGiftId,
+            },
+            SharedChatCommunitySubGift = payload.SharedChatCommunitySubGift == null ? null : new Channel.ChatNotificationCommunitySubGiftInfo
+            {
+                Id = payload.SharedChatCommunitySubGift.Id,
+                Total = payload.SharedChatCommunitySubGift.Total,
+                SubTier = payload.SharedChatCommunitySubGift.SubTier,
+                CumulativeTotal = payload.SharedChatCommunitySubGift.CumulativeTotal,
+            },
+            SharedChatGiftPaidUpgrade = payload.SharedChatGiftPaidUpgrade == null ? null : new Channel.ChatNotificationGiftPaidUpgradeInfo
+            {
+                GifterIsAnonymous = payload.SharedChatGiftPaidUpgrade.GifterIsAnonymous,
+                GifterUserId = payload.SharedChatGiftPaidUpgrade.GifterUserId,
+                GifterUserName = payload.SharedChatGiftPaidUpgrade.GifterUserName,
+                GifterUserLogin = payload.SharedChatGiftPaidUpgrade.GifterUserLogin,
+            },
+            SharedChatPrimePaidUpgrade = payload.SharedChatPrimePaidUpgrade == null ? null : new Channel.ChatNotificationPrimePaidUpgradeInfo
+            {
+                SubTier = payload.SharedChatPrimePaidUpgrade.SubTier,
+            },
+            SharedChatRaid = payload.SharedChatRaid == null ? null : new Channel.ChatNotificationRaidInfo
+            {
+                UserId = payload.SharedChatRaid.UserId,
+                UserName = payload.SharedChatRaid.UserName,
+                UserLogin = payload.SharedChatRaid.UserLogin,
+                ViewerCount = payload.SharedChatRaid.ViewerCount,
+                ProfileImageUrl = payload.SharedChatRaid.ProfileImageUrl,
+            },
+            SharedChatPayItForward = payload.SharedChatPayItForward == null ? null : new Channel.ChatNotificationPayItForwardInfo
+            {
+                GifterIsAnonymous = payload.SharedChatPayItForward.GifterIsAnonymous,
+                GifterUserId = payload.SharedChatPayItForward.GifterUserId,
+                GifterUserName = payload.SharedChatPayItForward.GifterUserName,
+                GifterUserLogin = payload.SharedChatPayItForward.GifterUserLogin,
+                RecipientUserId = payload.SharedChatPayItForward.RecipientUserId,
+                RecipientUserName = payload.SharedChatPayItForward.RecipientUserName,
+                RecipientUserLogin = payload.SharedChatPayItForward.RecipientUserLogin,
+            },
+            SharedChatAnnouncement = payload.SharedChatAnnouncement == null ? null : new Channel.ChatNotificationAnnouncementInfo
+            {
+                Color = payload.SharedChatAnnouncement.Color,
+            },
         });
     }
 

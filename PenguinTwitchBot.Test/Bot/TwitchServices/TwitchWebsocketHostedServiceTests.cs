@@ -416,7 +416,7 @@ public class TwitchWebsocketHostedServiceTests
 
         await InvokeEventHandlerAsync(_sut, "OnChannelChatNotification", args);
 
-        await _twitchEventActionHandler.Received(1).HandleChatNotificationAsync(Arg.Any<ChatNotificationEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleChatNotificationAsync(Arg.Any<EventSubChannel.ChannelChatNotification>());
     }
 
     [Fact]
