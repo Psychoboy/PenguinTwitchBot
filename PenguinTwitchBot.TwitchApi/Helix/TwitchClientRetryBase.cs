@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
 /// <summary>
@@ -40,8 +42,8 @@ public abstract class TwitchClientRetryBase
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message}",
-                    operation, ex.GetType().Name, ex.Message);
+                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message} {failureHint}",
+                    operation, ex.GetType().Name, ex.Message, GetFailureHint(ex));
                 throw;
             }
         }
@@ -76,8 +78,8 @@ public abstract class TwitchClientRetryBase
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message}",
-                    operation, ex.GetType().Name, ex.Message);
+                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message} {failureHint}",
+                    operation, ex.GetType().Name, ex.Message, GetFailureHint(ex));
                 throw;
             }
         }
@@ -93,5 +95,17 @@ public abstract class TwitchClientRetryBase
         return ex is HttpRequestException
             || ex is TaskCanceledException
             || ex is TimeoutException;
+    }
+
+    private static string GetFailureHint(Exception ex)
+    {
+        return ex switch
+        {
+            HttpRequestException httpRequestException when httpRequestException.StatusCode is not null =>
+                $"(HTTP {(int)httpRequestException.StatusCode.Value} {httpRequestException.StatusCode.Value})",
+            HttpRequestException => "(HTTP request failed)",
+            JsonException => "(JSON parsing failed)",
+            _ => string.Empty
+        };
     }
 }
