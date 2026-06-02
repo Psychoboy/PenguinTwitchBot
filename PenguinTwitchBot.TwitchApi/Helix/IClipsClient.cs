@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 

@@ -624,7 +624,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     userId,
                     1,
                     null);
-                if (response.Data.Length == 0)
+                if (response.Data.Count == 0)
                 {
                     return null;
                 }
@@ -850,12 +850,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 _accessToken,
                 userId);
 
-            if (response?.Data == null)
-            {
-                return [];
-            }
-
-            return response.Data.Select(ChannelsClient.MapToChannelInformation).ToList();
+            return response.Data.ToList();
         }
 
         public async Task<string> GetCurrentGame(string userId)
@@ -1084,7 +1079,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     userId,
                     100,
                     null);
-                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
+                return result.Data.ToList();
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
@@ -1111,7 +1106,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     userId,
                     100,
                     true);
-                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
+                return result.Data.ToList();
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
@@ -1134,7 +1129,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     [clipId]);
-                return result.Clips.Select(c => ClipsClient.MapToClip(c)).ToList();
+                return result.Data.ToList();
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
@@ -1223,10 +1218,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId);
-                if (editors != null)
-                {
-                    return editors.Data.Select(e => ChannelsClient.MapToChannelEditor(e)).ToList();
-                }
+                return editors.Data.ToList();
             }
             catch (Exception ex)
             {

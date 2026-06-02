@@ -1,39 +1,122 @@
-using TwitchLib.Api;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
+using System.Text.Json.Serialization;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelsTransport : IChannelsTransport
 {
-    public Task<GetChannelInformationResponse> GetChannelInformationAsync(string clientId, string? accessToken, string broadcasterId)
+    public async Task<GetChannelInformationResponse> GetChannelInformationAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        var api = CreateApi(clientId, accessToken);
-        return api.Helix.Channels.GetChannelInformationAsync(broadcasterId, accessToken);
+        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        var url = HelixHttp.BuildUrl($"channels?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var response = await http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await HelixJson.DeserializeAsync<GetChannelInformationApiResponse>(response);
+        var channels = payload?.Data.Select(MapToChannelInformation).ToList() ?? [];
+        return new GetChannelInformationResponse(channels);
     }
 
-    public Task<GetChannelFollowersResponse> GetChannelFollowersAsync(string clientId, string? accessToken, string broadcasterId, string userId, int first, string? after)
+    public async Task<GetChannelFollowersResponse> GetChannelFollowersAsync(string clientId, string? accessToken, string broadcasterId, string userId, int first, string? after)
     {
-        var api = CreateApi(clientId, accessToken);
-        return api.Helix.Channels.GetChannelFollowersAsync(broadcasterId, userId, first, after, accessToken);
+        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        var url = HelixHttp.BuildUrl(BuildFollowersUrl(broadcasterId, userId, first, after));
+        using var response = await http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await HelixJson.DeserializeAsync<GetChannelFollowersApiResponse>(response);
+        var followers = payload?.Data.Select(MapToChannelFollower).ToList() ?? [];
+        return new GetChannelFollowersResponse(followers);
     }
 
-    public Task<GetChannelEditorsResponse> GetChannelEditorsAsync(string clientId, string? accessToken, string broadcasterId)
+    public async Task<GetChannelEditorsResponse> GetChannelEditorsAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        var api = CreateApi(clientId, accessToken);
-        return api.Helix.Channels.GetChannelEditorsAsync(broadcasterId, accessToken);
+        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        var url = HelixHttp.BuildUrl($"channels/editors?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var response = await http.GetAsync(url);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await HelixJson.DeserializeAsync<GetChannelEditorsApiResponse>(response);
+        var editors = payload?.Data.Select(MapToChannelEditor).ToList() ?? [];
+        return new GetChannelEditorsResponse(editors);
     }
 
-    private static TwitchAPI CreateApi(string clientId, string? accessToken)
+    private static string BuildFollowersUrl(string broadcasterId, string userId, int first, string? after)
     {
-        var api = new TwitchAPI();
-        api.Settings.ClientId = clientId;
-        if (!string.IsNullOrWhiteSpace(accessToken))
+        var queryParts = new List<string>
         {
-            api.Settings.AccessToken = accessToken;
+            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}",
+            $"user_id={Uri.EscapeDataString(userId)}",
+            $"first={first}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(after))
+        {
+            queryParts.Add($"after={Uri.EscapeDataString(after)}");
         }
 
-        return api;
+        return $"channels/followers?{string.Join("&", queryParts)}";
     }
+
+    private static ChannelInformation MapToChannelInformation(ChannelInformationApiItem source)
+    {
+        return new ChannelInformation(
+            BroadcasterId: source.BroadcasterId,
+            BroadcasterLogin: source.BroadcasterLogin,
+            BroadcasterName: source.BroadcasterName,
+            BroadcasterLanguage: source.BroadcasterLanguage,
+            GameId: source.GameId,
+            GameName: source.GameName,
+            Title: source.Title,
+            Delay: source.Delay);
+    }
+
+    private static ChannelFollower MapToChannelFollower(ChannelFollowerApiItem source)
+    {
+        return new ChannelFollower(
+            UserId: source.UserId,
+            UserLogin: source.UserLogin,
+            UserName: source.UserName,
+            FollowedAt: source.FollowedAt);
+    }
+
+    private static ChannelEditor MapToChannelEditor(ChannelEditorApiItem source)
+    {
+        return new ChannelEditor(
+            UserId: source.UserId,
+            UserName: source.UserName,
+            UserLogin: source.UserLogin,
+            CreatedAt: source.CreatedAt);
+    }
+
+    private sealed record GetChannelInformationApiResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<ChannelInformationApiItem> Data);
+
+    private sealed record ChannelInformationApiItem(
+        [property: JsonPropertyName("broadcaster_id")] string BroadcasterId,
+        [property: JsonPropertyName("broadcaster_login")] string BroadcasterLogin,
+        [property: JsonPropertyName("broadcaster_name")] string BroadcasterName,
+        [property: JsonPropertyName("game_id")] string GameId,
+        [property: JsonPropertyName("broadcaster_language")] string BroadcasterLanguage,
+        [property: JsonPropertyName("game_name")] string GameName,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("delay")] int Delay);
+
+    private sealed record GetChannelFollowersApiResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<ChannelFollowerApiItem> Data);
+
+    private sealed record ChannelFollowerApiItem(
+        [property: JsonPropertyName("user_id")] string UserId,
+        [property: JsonPropertyName("user_login")] string UserLogin,
+        [property: JsonPropertyName("user_name")] string UserName,
+        [property: JsonPropertyName("followed_at")] string FollowedAt);
+
+    private sealed record GetChannelEditorsApiResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<ChannelEditorApiItem> Data);
+
+    private sealed record ChannelEditorApiItem(
+        [property: JsonPropertyName("user_id")] string UserId,
+        [property: JsonPropertyName("user_name")] string UserName,
+        [property: JsonPropertyName("user_login")] string UserLogin,
+        [property: JsonPropertyName("created_at")] DateTime CreatedAt);
 }

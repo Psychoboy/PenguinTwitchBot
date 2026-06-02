@@ -1,6 +1,4 @@
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
