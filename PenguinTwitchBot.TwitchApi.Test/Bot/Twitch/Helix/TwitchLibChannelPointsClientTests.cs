@@ -2,8 +2,6 @@ using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using TwitchLib.Api.Helix.Models.ChannelPoints.CreateCustomReward;
-using TwitchLib.Api.Helix.Models.ChannelPoints.GetCustomReward;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
 
@@ -17,7 +15,7 @@ public class ChannelPointsClientTests
         var response = CreateGetCustomRewardsResponse();
 
         transport.GetCustomRewardAsync("cid", "token", "broadcaster", Arg.Any<List<string>?>(), false)
-            .Returns(response);
+            .Returns(Task.FromResult(response));
 
         var sut = new ChannelPointsClient(logger, transport);
 
@@ -43,7 +41,7 @@ public class ChannelPointsClientTests
                     throw new HttpRequestException("network issue");
                 }
 
-                return CreateGetCustomRewardsResponse();
+                return Task.FromResult(CreateGetCustomRewardsResponse());
             });
 
         var sut = new ChannelPointsClient(logger, transport);
@@ -60,11 +58,11 @@ public class ChannelPointsClientTests
         var transport = Substitute.For<IChannelPointsTransport>();
         var attempts = 0;
 
-        transport.CreateCustomRewardsAsync("cid", "token", "broadcaster", Arg.Any<CreateCustomRewardsRequest>())
+        transport.CreateCustomRewardsAsync("cid", "token", "broadcaster", Arg.Any<CreateChannelPointRewardRequest>())
             .Returns(_ =>
             {
                 attempts++;
-                return Task.FromException<CreateCustomRewardsResponse>(new InvalidOperationException("bad state"));
+                return Task.FromException(new InvalidOperationException("bad state"));
             });
 
         var sut = new ChannelPointsClient(logger, transport);
@@ -73,9 +71,25 @@ public class ChannelPointsClientTests
         Assert.Equal(1, attempts);
     }
 
-    private static GetCustomRewardsResponse CreateGetCustomRewardsResponse()
+    private static GetChannelPointRewardsResponse CreateGetCustomRewardsResponse()
     {
-        const string json = "{\"data\":[{\"id\":\"reward-id\",\"title\":\"Reward\"}]}";
-        return Newtonsoft.Json.JsonConvert.DeserializeObject<GetCustomRewardsResponse>(json)!;
+        return new GetChannelPointRewardsResponse([
+            new ChannelPointReward(
+                Id: "reward-id",
+                Title: "Reward",
+                IsEnabled: true,
+                IsPaused: false,
+                Cost: 100,
+                Prompt: null,
+                IsUserInputRequired: false,
+                BackgroundColor: null,
+                ShouldRedemptionsSkipQueue: false,
+                IsMaxPerStreamEnabled: null,
+                MaxPerStream: null,
+                IsMaxPerUserPerStreamEnabled: null,
+                MaxPerUserPerStream: null,
+                IsGlobalCooldownEnabled: null,
+                GlobalCooldownSeconds: null)
+        ]);
     }
 }

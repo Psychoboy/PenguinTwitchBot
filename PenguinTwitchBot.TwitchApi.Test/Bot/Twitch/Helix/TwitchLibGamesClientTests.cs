@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Games;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using TwitchLib.Api.Helix.Models.Games;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
@@ -16,7 +16,7 @@ public class GamesClientTests
         var logger = Substitute.For<ILogger<GamesClient>>();
         var transport = Substitute.For<IGamesTransport>();
         
-        var expectedResponse = new GetGamesResponse();
+        var expectedResponse = new GetGamesResponse([]);
         transport.GetGamesAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(Task.FromResult(expectedResponse));
 
@@ -37,7 +37,7 @@ public class GamesClientTests
         var logger = Substitute.For<ILogger<GamesClient>>();
         var transport = Substitute.For<IGamesTransport>();
         
-        var expectedResponse = new GetGamesResponse();
+        var expectedResponse = new GetGamesResponse([]);
         
         transport.GetGamesAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Streams;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using TwitchLib.Api.Helix.Models.Streams.GetStreams;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
@@ -16,7 +16,7 @@ public class StreamsClientTests
         var logger = Substitute.For<ILogger<StreamsClient>>();
         var transport = Substitute.For<IStreamsTransport>();
         
-        var expectedResponse = new GetStreamsResponse();
+        var expectedResponse = new GetStreamsResponse([]);
         transport.GetStreamsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(Task.FromResult(expectedResponse));
 
@@ -37,7 +37,7 @@ public class StreamsClientTests
         var logger = Substitute.For<ILogger<StreamsClient>>();
         var transport = Substitute.For<IStreamsTransport>();
         
-        var expectedResponse = new GetStreamsResponse();
+        var expectedResponse = new GetStreamsResponse([]);
         
         transport.GetStreamsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(

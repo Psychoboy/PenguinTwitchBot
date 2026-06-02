@@ -1,10 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Channels;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelEditors;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelFollowers;
-using TwitchLib.Api.Helix.Models.Channels.GetChannelInformation;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
@@ -18,7 +16,7 @@ public class ChannelsClientTests
         var logger = Substitute.For<ILogger<ChannelsClient>>();
         var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelInformationResponse();
+        var expectedResponse = new GetChannelInformationResponse([]);
         transport.GetChannelInformationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(expectedResponse));
 
@@ -39,7 +37,7 @@ public class ChannelsClientTests
         var logger = Substitute.For<ILogger<ChannelsClient>>();
         var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelInformationResponse();
+        var expectedResponse = new GetChannelInformationResponse([]);
         
         transport.GetChannelInformationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(
@@ -65,7 +63,7 @@ public class ChannelsClientTests
         var logger = Substitute.For<ILogger<ChannelsClient>>();
         var transport = Substitute.For<IChannelsTransport>();
         
-        var expectedResponse = new GetChannelFollowersResponse();
+        var expectedResponse = new GetChannelFollowersResponse([]);
         transport.GetChannelFollowersAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
             .Returns(Task.FromResult(expectedResponse));
 

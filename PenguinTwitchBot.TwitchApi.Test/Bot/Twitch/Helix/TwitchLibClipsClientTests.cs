@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.TwitchApi.Helix;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Twitch.Helix;
@@ -16,7 +16,7 @@ public class ClipsClientTests
         var logger = Substitute.For<ILogger<ClipsClient>>();
         var transport = Substitute.For<IClipsTransport>();
         
-        var expectedResponse = new GetClipsResponse();
+        var expectedResponse = new GetClipsResponse([]);
         transport.GetClipsAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool?>())
             .Returns(Task.FromResult(expectedResponse));
 
@@ -37,7 +37,7 @@ public class ClipsClientTests
         var logger = Substitute.For<ILogger<ClipsClient>>();
         var transport = Substitute.For<IClipsTransport>();
         
-        var expectedResponse = new GetClipsResponse();
+        var expectedResponse = new GetClipsResponse([]);
         
         transport.GetClipsByIdAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<List<string>>())
             .Returns(
