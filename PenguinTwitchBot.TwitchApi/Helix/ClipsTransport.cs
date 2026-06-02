@@ -5,10 +5,17 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ClipsTransport : IClipsTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ClipsTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetClipsResponse> GetClipsAsync(string clientId, string? accessToken, string? broadcasterId, string? userId, int first, bool? isFeatured)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(BuildClipsUrl(broadcasterId, userId, first, isFeatured));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildClipsUrl(broadcasterId, userId, first, isFeatured);
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -19,8 +26,8 @@ public sealed class ClipsTransport : IClipsTransport
 
     public async Task<GetClipsResponse> GetClipsByIdAsync(string clientId, string? accessToken, List<string> clipIds)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(BuildClipIdsUrl(clipIds));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildClipIdsUrl(clipIds);
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -35,30 +42,20 @@ public sealed class ClipsTransport : IClipsTransport
             ? broadcasterId
             : userId;
 
-        var queryParts = new List<string> { $"first={first}" };
-
-        if (!string.IsNullOrWhiteSpace(clipBroadcasterId))
+        return HelixQuery.Build("clips", new (string Key, string? Value)[]
         {
-            queryParts.Add($"broadcaster_id={Uri.EscapeDataString(clipBroadcasterId)}");
-        }
-
-        if (isFeatured.HasValue)
-        {
-            queryParts.Add($"is_featured={isFeatured.Value.ToString().ToLowerInvariant()}");
-        }
-
-        return $"clips?{string.Join("&", queryParts)}";
+            ("first", first.ToString()),
+            ("broadcaster_id", clipBroadcasterId),
+            ("is_featured", isFeatured.HasValue ? isFeatured.Value.ToString().ToLowerInvariant() : null)
+        });
     }
 
     private static string BuildClipIdsUrl(List<string> clipIds)
     {
-        var queryParts = new List<string>();
-        foreach (var clipId in clipIds.Where(id => !string.IsNullOrWhiteSpace(id)))
-        {
-            queryParts.Add($"id={Uri.EscapeDataString(clipId)}");
-        }
+        var parameters = new List<(string Key, string? Value)> { ("first", "100") };
+        parameters.AddRange(HelixQuery.Repeat("id", clipIds));
 
-        return $"clips?{string.Join("&", queryParts)}&first=100";
+        return HelixQuery.Build("clips", parameters);
     }
 
     private static Clip MapToClip(ClipApiItem source)
@@ -69,7 +66,7 @@ public sealed class ClipsTransport : IClipsTransport
             EmbedUrl: source.EmbedUrl,
             Title: source.Title,
             ViewCount: source.ViewCount,
-            CreatedAt: DateTime.Parse(source.CreatedAt),
+            CreatedAt: source.CreatedAt.UtcDateTime,
             Language: source.Language,
             ThumbnailUrl: source.ThumbnailUrl,
             BroadcasterName: source.BroadcasterName,
@@ -97,7 +94,7 @@ public sealed class ClipsTransport : IClipsTransport
         [property: JsonPropertyName("language")] string Language,
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("view_count")] int ViewCount,
-        [property: JsonPropertyName("created_at")] string CreatedAt,
+        [property: JsonPropertyName("created_at")] DateTimeOffset CreatedAt,
         [property: JsonPropertyName("thumbnail_url")] string ThumbnailUrl,
         [property: JsonPropertyName("duration")] float Duration);
 }

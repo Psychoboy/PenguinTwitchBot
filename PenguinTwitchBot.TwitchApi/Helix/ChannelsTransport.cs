@@ -5,10 +5,20 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelsTransport : IChannelsTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ChannelsTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetChannelInformationResponse> GetChannelInformationAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"channels?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("channels", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        });
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -19,8 +29,8 @@ public sealed class ChannelsTransport : IChannelsTransport
 
     public async Task<GetChannelFollowersResponse> GetChannelFollowersAsync(string clientId, string? accessToken, string broadcasterId, string userId, int first, string? after)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(BuildFollowersUrl(broadcasterId, userId, first, after));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildFollowersUrl(broadcasterId, userId, first, after);
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -31,8 +41,11 @@ public sealed class ChannelsTransport : IChannelsTransport
 
     public async Task<GetChannelEditorsResponse> GetChannelEditorsAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"channels/editors?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("channels/editors", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        });
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -43,19 +56,13 @@ public sealed class ChannelsTransport : IChannelsTransport
 
     private static string BuildFollowersUrl(string broadcasterId, string userId, int first, string? after)
     {
-        var queryParts = new List<string>
+        return HelixQuery.Build("channels/followers", new (string Key, string? Value)[]
         {
-            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}",
-            $"user_id={Uri.EscapeDataString(userId)}",
-            $"first={first}"
-        };
-
-        if (!string.IsNullOrWhiteSpace(after))
-        {
-            queryParts.Add($"after={Uri.EscapeDataString(after)}");
-        }
-
-        return $"channels/followers?{string.Join("&", queryParts)}";
+            ("broadcaster_id", broadcasterId),
+            ("user_id", userId),
+            ("first", first.ToString()),
+            ("after", after)
+        });
     }
 
     private static ChannelInformation MapToChannelInformation(ChannelInformationApiItem source)

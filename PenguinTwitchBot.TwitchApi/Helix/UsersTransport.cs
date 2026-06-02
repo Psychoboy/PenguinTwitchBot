@@ -5,10 +5,17 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class UsersTransport : IUsersTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public UsersTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetUsersResponse> GetUsersAsync(string clientId, string? accessToken, List<string>? userIds, List<string>? logins)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(BuildUsersUrl(userIds, logins));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildUsersUrl(userIds, logins);
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -19,27 +26,10 @@ public sealed class UsersTransport : IUsersTransport
 
     private static string BuildUsersUrl(List<string>? userIds, List<string>? logins)
     {
-        var queryParts = new List<string>();
+        var parameters = HelixQuery.Repeat("id", userIds)
+            .Concat(HelixQuery.Repeat("login", logins));
 
-        if (userIds != null)
-        {
-            foreach (var userId in userIds.Where(id => !string.IsNullOrWhiteSpace(id)))
-            {
-                queryParts.Add($"id={Uri.EscapeDataString(userId)}");
-            }
-        }
-
-        if (logins != null)
-        {
-            foreach (var login in logins.Where(name => !string.IsNullOrWhiteSpace(name)))
-            {
-                queryParts.Add($"login={Uri.EscapeDataString(login)}");
-            }
-        }
-
-        return queryParts.Count == 0
-            ? "users"
-            : $"users?{string.Join("&", queryParts)}";
+        return HelixQuery.Build("users", parameters);
     }
 
     private static User MapToUser(GetUsersApiItem source)

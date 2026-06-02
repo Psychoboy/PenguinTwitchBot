@@ -6,10 +6,20 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ModerationTransport : IModerationTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ModerationTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<AutoModMessage> messages, string broadcasterId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"moderation/enforcements/status?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("moderation/enforcements/status", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        });
         var request = new CheckAutoModStatusApiRequest(
             Data: messages.Select(m => new AutoModMessageApiItem(m.MsgId, m.MsgText)).ToList());
 
@@ -23,32 +33,36 @@ public sealed class ModerationTransport : IModerationTransport
 
     public async Task<GetBannedUsersResponse> GetBannedUsersAsync(string clientId, string? accessToken, string broadcasterId, string? after)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildBannedUsersUrl(broadcasterId, after);
-        using var response = await http.GetAsync(HelixHttp.BuildUrl(url));
+        using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<GetBannedUsersApiResponse>(response);
+        var payload = await HelixJson.DeserializeAsync<HelixPaginatedDataResponse<BannedUserApiItem>>(response);
         var users = payload?.Data.Select(x => new BannedUser(x.UserId, x.UserLogin, x.ExpiresAt)).ToList() ?? [];
         return new GetBannedUsersResponse(users, payload?.Pagination?.Cursor);
     }
 
     public async Task<GetModeratorsResponse> GetModeratorsAsync(string clientId, string? accessToken, string broadcasterId, List<string> userIds)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildModeratorsUrl(broadcasterId, userIds);
-        using var response = await http.GetAsync(HelixHttp.BuildUrl(url));
+        using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<GetModeratorsApiResponse>(response);
+        var payload = await HelixJson.DeserializeAsync<HelixPaginatedDataResponse<ModeratorApiItem>>(response);
         var moderators = payload?.Data.Select(x => new Moderator(x.UserId, x.UserLogin, x.UserName)).ToList() ?? [];
         return new GetModeratorsResponse(moderators, payload?.Pagination?.Cursor);
     }
 
     public async Task BanUserAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, BanUserRequest request)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"moderation/bans?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&moderator_id={Uri.EscapeDataString(moderatorId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("moderation/bans", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId),
+            ("moderator_id", moderatorId)
+        });
         var body = new BanUserApiRequest(
             Data: new BanUserApiData(
                 UserId: request.UserId,
@@ -61,16 +75,16 @@ public sealed class ModerationTransport : IModerationTransport
 
     public async Task DeleteChatMessagesAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? messageId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildDeleteChatMessagesUrl(broadcasterId, moderatorId, messageId);
-        using var response = await http.DeleteAsync(HelixHttp.BuildUrl(url));
+        using var response = await http.DeleteAsync(url);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task<EventSubSubscriptionResult> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl("eventsub/subscriptions");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = "eventsub/subscriptions";
         var body = new CreateEventSubSubscriptionApiRequest(
             Type: type,
             Version: version,
@@ -89,47 +103,34 @@ public sealed class ModerationTransport : IModerationTransport
 
     private static string BuildBannedUsersUrl(string broadcasterId, string? after)
     {
-        var queryParts = new List<string>
+        return HelixQuery.Build("moderation/banned", new (string Key, string? Value)[]
         {
-            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}",
-            "first=100"
-        };
-        if (!string.IsNullOrWhiteSpace(after))
-        {
-            queryParts.Add($"after={Uri.EscapeDataString(after)}");
-        }
-
-        return $"moderation/banned?{string.Join("&", queryParts)}";
+            ("broadcaster_id", broadcasterId),
+            ("first", "100"),
+            ("after", after)
+        });
     }
 
     private static string BuildModeratorsUrl(string broadcasterId, List<string> userIds)
     {
-        var queryParts = new List<string>
+        var parameters = new List<(string Key, string? Value)>
         {
-            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}"
+            ("broadcaster_id", broadcasterId)
         };
 
-        foreach (var userId in userIds.Where(id => !string.IsNullOrWhiteSpace(id)))
-        {
-            queryParts.Add($"user_id={Uri.EscapeDataString(userId)}");
-        }
+        parameters.AddRange(HelixQuery.Repeat("user_id", userIds));
 
-        return $"moderation/moderators?{string.Join("&", queryParts)}";
+        return HelixQuery.Build("moderation/moderators", parameters);
     }
 
     private static string BuildDeleteChatMessagesUrl(string broadcasterId, string moderatorId, string? messageId)
     {
-        var queryParts = new List<string>
+        return HelixQuery.Build("moderation/chat", new (string Key, string? Value)[]
         {
-            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}",
-            $"moderator_id={Uri.EscapeDataString(moderatorId)}"
-        };
-        if (!string.IsNullOrWhiteSpace(messageId))
-        {
-            queryParts.Add($"message_id={Uri.EscapeDataString(messageId)}");
-        }
-
-        return $"moderation/chat?{string.Join("&", queryParts)}";
+            ("broadcaster_id", broadcasterId),
+            ("moderator_id", moderatorId),
+            ("message_id", messageId)
+        });
     }
 
     private sealed record CheckAutoModStatusApiRequest(
@@ -146,26 +147,15 @@ public sealed class ModerationTransport : IModerationTransport
         [property: JsonPropertyName("msg_id")] string MsgId,
         [property: JsonPropertyName("is_permitted")] bool IsPermitted);
 
-    private sealed record GetBannedUsersApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<BannedUserApiItem> Data,
-        [property: JsonPropertyName("pagination")] PaginationApiItem? Pagination);
-
     private sealed record BannedUserApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin,
         [property: JsonPropertyName("expires_at")] DateTime? ExpiresAt);
 
-    private sealed record GetModeratorsApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<ModeratorApiItem> Data,
-        [property: JsonPropertyName("pagination")] PaginationApiItem? Pagination);
-
     private sealed record ModeratorApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin,
         [property: JsonPropertyName("user_name")] string UserName);
-
-    private sealed record PaginationApiItem(
-        [property: JsonPropertyName("cursor")] string? Cursor);
 
     private sealed record BanUserApiRequest(
         [property: JsonPropertyName("data")] BanUserApiData Data);

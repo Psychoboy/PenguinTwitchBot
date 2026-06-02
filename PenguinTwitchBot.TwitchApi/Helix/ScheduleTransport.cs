@@ -5,16 +5,26 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ScheduleTransport : IScheduleTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ScheduleTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetChannelStreamScheduleResponse> GetChannelStreamScheduleAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"schedule?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("schedule", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        });
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<GetChannelStreamScheduleApiResponse>(response);
+        var payload = await HelixJson.DeserializeAsync<HelixObjectWithPaginationResponse<ChannelStreamScheduleApiItem>>(response);
         return new GetChannelStreamScheduleResponse(
-            Schedule: payload?.Schedule != null ? MapToSchedule(payload.Schedule) : null,
+            Schedule: payload?.Data != null ? MapToSchedule(payload.Data) : null,
             Cursor: payload?.Pagination?.Cursor);
     }
 
@@ -38,13 +48,6 @@ public sealed class ScheduleTransport : IScheduleTransport
             Segments: segments,
             Vacation: vacation);
     }
-
-    private sealed record GetChannelStreamScheduleApiResponse(
-        [property: JsonPropertyName("data")] ChannelStreamScheduleApiItem? Schedule,
-        [property: JsonPropertyName("pagination")] PaginationApiItem? Pagination);
-
-    private sealed record PaginationApiItem(
-        [property: JsonPropertyName("cursor")] string? Cursor);
 
     private sealed record ChannelStreamScheduleApiItem(
         [property: JsonPropertyName("segments")] IReadOnlyList<SegmentApiItem>? Segments,

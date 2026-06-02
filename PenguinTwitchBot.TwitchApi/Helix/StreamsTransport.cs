@@ -6,10 +6,17 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class StreamsTransport : IStreamsTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public StreamsTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetStreamsResponse> GetStreamsAsync(string clientId, string? accessToken, List<string>? userIds)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(BuildStreamsUrl(userIds));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = BuildStreamsUrl(userIds);
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
@@ -20,17 +27,13 @@ public sealed class StreamsTransport : IStreamsTransport
 
     private static string BuildStreamsUrl(List<string>? userIds)
     {
-        var queryParts = new List<string> { "first=100" };
-
-        if (userIds != null)
+        var parameters = new List<(string Key, string? Value)>
         {
-            foreach (var id in userIds.Where(id => !string.IsNullOrWhiteSpace(id)))
-            {
-                queryParts.Add($"user_id={Uri.EscapeDataString(id)}");
-            }
-        }
+            ("first", "100")
+        };
+        parameters.AddRange(HelixQuery.Repeat("user_id", userIds));
 
-        return $"streams?{string.Join("&", queryParts)}";
+        return HelixQuery.Build("streams", parameters);
     }
 
     private static StreamModel MapToStream(StreamApiItem source)

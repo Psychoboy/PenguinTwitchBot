@@ -28,6 +28,20 @@ namespace PenguinTwitchBot.CustomMiddleware
     {
         public static IServiceCollection AddBotCommands(this IServiceCollection services)
         {
+            const string helixHttpClientName = "TwitchHelix";
+
+            services.AddHttpClient(helixHttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("https://api.twitch.tv/helix/");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+                MaxConnectionsPerServer = 100,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+            });
+
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();

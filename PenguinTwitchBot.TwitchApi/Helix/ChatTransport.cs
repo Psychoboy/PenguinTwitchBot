@@ -5,10 +5,17 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChatTransport : IChatTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ChatTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<SendChatMessageResponse> SendChatMessageAsync(string clientId, string? accessToken, SendChatMessageRequest request)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var message = new HttpRequestMessage(HttpMethod.Post, HelixHttp.BuildUrl("chat/messages"))
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var message = new HttpRequestMessage(HttpMethod.Post, "chat/messages")
         {
             Content = HelixJson.CreateJsonContent(new SendChatMessageRequestBody(
                 BroadcasterId: request.BroadcasterId,
@@ -21,33 +28,36 @@ public sealed class ChatTransport : IChatTransport
         using var response = await http.SendAsync(message);
         response.EnsureSuccessStatusCode();
 
-        var payload = await HelixJson.DeserializeAsync<SendChatMessageApiResponse>(response) ?? new SendChatMessageApiResponse([]);
+        var payload = await HelixJson.DeserializeAsync<HelixDataResponse<SendChatMessageApiResult>>(response) ?? new HelixDataResponse<SendChatMessageApiResult>([]);
         return MapToResponse(payload);
     }
 
     public async Task<GetChattersPageResponse> GetChattersAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? after)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"chat/chatters?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&moderator_id={Uri.EscapeDataString(moderatorId)}");
-        if (!string.IsNullOrWhiteSpace(after))
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("chat/chatters", new (string Key, string? Value)[]
         {
-            url += $"&after={Uri.EscapeDataString(after)}";
-        }
+            ("broadcaster_id", broadcasterId),
+            ("moderator_id", moderatorId),
+            ("after", after)
+        });
 
         using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
-        var payload = await HelixJson.DeserializeAsync<GetChattersApiResponse>(response) ?? new GetChattersApiResponse([], null);
+        var payload = await HelixJson.DeserializeAsync<HelixPaginatedDataResponse<GetChattersApiItem>>(response) ?? new HelixPaginatedDataResponse<GetChattersApiItem>([], null);
 
         return MapToChattersPageResponse(payload);
     }
 
     public async Task SendShoutoutAsync(string clientId, string? accessToken, string fromBroadcasterId, string toBroadcasterId, string moderatorId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(
-            $"chat/shoutouts?from_broadcaster_id={Uri.EscapeDataString(fromBroadcasterId)}" +
-            $"&to_broadcaster_id={Uri.EscapeDataString(toBroadcasterId)}" +
-            $"&moderator_id={Uri.EscapeDataString(moderatorId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("chat/shoutouts", new (string Key, string? Value)[]
+        {
+            ("from_broadcaster_id", fromBroadcasterId),
+            ("to_broadcaster_id", toBroadcasterId),
+            ("moderator_id", moderatorId)
+        });
 
         using var response = await http.PostAsync(url, null);
         response.EnsureSuccessStatusCode();
@@ -55,10 +65,12 @@ public sealed class ChatTransport : IChatTransport
 
     public async Task SendChatAnnouncementAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string message)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl(
-            $"chat/announcements?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-            $"&moderator_id={Uri.EscapeDataString(moderatorId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("chat/announcements", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId),
+            ("moderator_id", moderatorId)
+        });
 
         using var response = await http.PostAsync(
             url,
@@ -68,23 +80,26 @@ public sealed class ChatTransport : IChatTransport
 
     public async Task<IReadOnlyList<ChatBadgeSet>> GetGlobalChatBadgesAsync(string clientId, string? accessToken)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var response = await http.GetAsync(HelixHttp.BuildUrl("chat/badges/global"));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var response = await http.GetAsync("chat/badges/global");
         response.EnsureSuccessStatusCode();
-        var payload = await HelixJson.DeserializeAsync<ChatBadgesApiResponse>(response) ?? new ChatBadgesApiResponse([]);
+        var payload = await HelixJson.DeserializeAsync<HelixDataResponse<ChatBadgeSetApiItem>>(response) ?? new HelixDataResponse<ChatBadgeSetApiItem>([]);
         return MapToBadgeSets(payload.Data);
     }
 
     public async Task<IReadOnlyList<ChatBadgeSet>> GetChannelChatBadgesAsync(string clientId, string? accessToken, string broadcasterId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var response = await http.GetAsync(HelixHttp.BuildUrl($"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"));
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var response = await http.GetAsync(HelixQuery.Build("chat/badges", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        }));
         response.EnsureSuccessStatusCode();
-        var payload = await HelixJson.DeserializeAsync<ChatBadgesApiResponse>(response) ?? new ChatBadgesApiResponse([]);
+        var payload = await HelixJson.DeserializeAsync<HelixDataResponse<ChatBadgeSetApiItem>>(response) ?? new HelixDataResponse<ChatBadgeSetApiItem>([]);
         return MapToBadgeSets(payload.Data);
     }
 
-    private static SendChatMessageResponse MapToResponse(SendChatMessageApiResponse source)
+    private static SendChatMessageResponse MapToResponse(HelixDataResponse<SendChatMessageApiResult> source)
     {
         var data = source.Data
             .Select(item => new SendChatMessageResult(
@@ -98,7 +113,7 @@ public sealed class ChatTransport : IChatTransport
         return new SendChatMessageResponse(data);
     }
 
-    private static GetChattersPageResponse MapToChattersPageResponse(GetChattersApiResponse source)
+    private static GetChattersPageResponse MapToChattersPageResponse(HelixPaginatedDataResponse<GetChattersApiItem> source)
     {
         var chatters = source.Data
             .Select(item => new Chatter(item.UserId, item.UserLogin))
@@ -142,9 +157,6 @@ public sealed class ChatTransport : IChatTransport
     private sealed record SendChatAnnouncementRequestBody(
         [property: JsonPropertyName("message")] string Message);
 
-    private sealed record SendChatMessageApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<SendChatMessageApiResult> Data);
-
     private sealed record SendChatMessageApiResult(
         [property: JsonPropertyName("message_id")] string MessageId,
         [property: JsonPropertyName("is_sent")] bool IsSent,
@@ -154,16 +166,9 @@ public sealed class ChatTransport : IChatTransport
         [property: JsonPropertyName("code")] string? Code,
         [property: JsonPropertyName("message")] string? Message);
 
-    private sealed record GetChattersApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<GetChattersApiItem> Data,
-        [property: JsonPropertyName("pagination")] PaginationApi? Pagination);
-
     private sealed record GetChattersApiItem(
         [property: JsonPropertyName("user_id")] string UserId,
         [property: JsonPropertyName("user_login")] string UserLogin);
-
-    private sealed record ChatBadgesApiResponse(
-        [property: JsonPropertyName("data")] IReadOnlyList<ChatBadgeSetApiItem> Data);
 
     private sealed record ChatBadgeSetApiItem(
         [property: JsonPropertyName("set_id")] string SetId,
@@ -173,6 +178,4 @@ public sealed class ChatTransport : IChatTransport
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("image_url_1x")] string ImageUrl1x);
 
-    private sealed record PaginationApi(
-        [property: JsonPropertyName("cursor")] string? Cursor);
 }

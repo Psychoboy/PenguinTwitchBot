@@ -4,19 +4,11 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 internal static class HelixHttp
 {
-    private const string HelixBaseUrl = "https://api.twitch.tv/helix/";
+    internal const string HelixClientName = "TwitchHelix";
 
-    internal static string BuildUrl(string relativePath)
+    internal static HttpClient CreateClient(IHttpClientFactory httpClientFactory, string clientId, string? accessToken)
     {
-        return new Uri(new Uri(HelixBaseUrl), relativePath).ToString();
-    }
-
-    internal static HttpClient CreateClient(string clientId, string? accessToken)
-    {
-        var client = new HttpClient
-        {
-            BaseAddress = new Uri(HelixBaseUrl),
-        };
+        var client = httpClientFactory.CreateClient(HelixClientName);
 
         client.DefaultRequestHeaders.Add("Client-Id", clientId);
         if (!string.IsNullOrWhiteSpace(accessToken))

@@ -5,11 +5,18 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class ChannelPointsTransport : IChannelPointsTransport
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public ChannelPointsTransport(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
     public async Task<GetChannelPointRewardsResponse> GetCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, List<string>? rewardIds = null, bool onlyManageableRewards = false)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
         var url = BuildRewardQueryUrl(broadcasterId, rewardIds, onlyManageableRewards);
-        using var response = await http.GetAsync(HelixHttp.BuildUrl(url));
+        using var response = await http.GetAsync(url);
         response.EnsureSuccessStatusCode();
 
         var payload = await HelixJson.DeserializeAsync<GetCustomRewardsApiResponse>(response);
@@ -19,45 +26,50 @@ public sealed class ChannelPointsTransport : IChannelPointsTransport
 
     public async Task CreateCustomRewardsAsync(string clientId, string? accessToken, string broadcasterId, CreateChannelPointRewardRequest request)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"channel_points/custom_rewards?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("channel_points/custom_rewards", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        });
         using var response = await http.PostAsync(url, HelixJson.CreateJsonContent(MapToCreateRequest(request), ignoreNullValues: true));
         response.EnsureSuccessStatusCode();
     }
 
     public async Task UpdateCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, string rewardId, UpdateCustomRewardRequest request)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"channel_points/custom_rewards?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&id={Uri.EscapeDataString(rewardId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("channel_points/custom_rewards", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId),
+            ("id", rewardId)
+        });
         using var response = await http.PatchAsync(url, HelixJson.CreateJsonContent(MapToUpdateRequest(request), ignoreNullValues: true));
         response.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteCustomRewardAsync(string clientId, string? accessToken, string broadcasterId, string rewardId)
     {
-        using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = HelixHttp.BuildUrl($"channel_points/custom_rewards?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&id={Uri.EscapeDataString(rewardId)}");
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = HelixQuery.Build("channel_points/custom_rewards", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId),
+            ("id", rewardId)
+        });
         using var response = await http.DeleteAsync(url);
         response.EnsureSuccessStatusCode();
     }
 
     private static string BuildRewardQueryUrl(string broadcasterId, List<string>? rewardIds, bool onlyManageableRewards)
     {
-        var queryParts = new List<string>
+        var parameters = new List<(string Key, string? Value)>
         {
-            $"broadcaster_id={Uri.EscapeDataString(broadcasterId)}",
-            $"only_manageable_rewards={onlyManageableRewards.ToString().ToLowerInvariant()}"
+            ("broadcaster_id", broadcasterId),
+            ("only_manageable_rewards", onlyManageableRewards.ToString().ToLowerInvariant())
         };
 
-        if (rewardIds != null)
-        {
-            foreach (var rewardId in rewardIds.Where(id => !string.IsNullOrWhiteSpace(id)))
-            {
-                queryParts.Add($"id={Uri.EscapeDataString(rewardId)}");
-            }
-        }
+        parameters.AddRange(HelixQuery.Repeat("id", rewardIds));
 
-        return $"channel_points/custom_rewards?{string.Join("&", queryParts)}";
+        return HelixQuery.Build("channel_points/custom_rewards", parameters);
     }
 
     private static ChannelPointReward MapToReward(CustomRewardApiItem source)
