@@ -253,9 +253,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     broadcasterId,
                     [id]);
-                return result == null
-                    ? throw new InvalidOperationException("Result from Twitch API getting channel point reward was null")
-                    : ChannelPointsClient.MapToChannelPointReward(result.Data.First());
+                return result.Data.FirstOrDefault();
             }
             catch (Exception ex)
             {
@@ -344,10 +342,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     broadcasterId);
-                if (rewards != null)
-                {
-                    return rewards.Data.Select(ChannelPointsClient.MapToChannelPointReward).ToList();
-                }
+                return rewards.Data;
             }
             catch (Exception ex)
             {
@@ -372,10 +367,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     broadcasterId,
                     onlyManageableRewards: onlyManageable);
-                if (rewards != null)
-                {
-                    return rewards.Data.Select(ChannelPointsClient.MapToChannelPointReward).ToList();
-                }
+                return rewards.Data;
             }
             catch (Exception ex)
             {
@@ -536,9 +528,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var userObj = users.Users.FirstOrDefault();
                 if (userObj != null)
                 {
-                    var mappedUser = UsersClient.MapToUser(userObj);
-                    UserCache[user] = mappedUser;
-                    return mappedUser;
+                    UserCache[user] = userObj;
+                    return userObj;
                 }
                 UserCache[user] = null;
                 return null;
@@ -565,7 +556,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     [userId],
                     null);
                 var userObj = users.Users.FirstOrDefault();
-                return userObj != null ? UsersClient.MapToUser(userObj) : null;
+                return userObj;
             }
             catch (Exception ex) when (ex.GetType().Name == "TooManyRequestsException")
             {
@@ -588,10 +579,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     null,
                     userNames);
                 if (users == null) throw new Exception("Got a null response");
-                var mappedUsers = users.Users.Select(u => (User?)UsersClient.MapToUser(u)).ToList();
+                var mappedUsers = users.Users.Select(u => (User?)u).ToList();
                 foreach (var user in users.Users)
                 {
-                    UserCache[user.Login] = UsersClient.MapToUser(user);
+                    UserCache[user.Login] = user;
                 }
                 return mappedUsers;
             }
@@ -714,13 +705,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return false;
         }
 
-        private sealed record StreamSnapshot(
-            string UserId,
-            string UserName,
-            string GameName,
-            int ViewerCount,
-            DateTime StartedAt,
-            string ThumbnailUrl);
+            private sealed record StreamSnapshot(
+                string UserId,
+                string UserName,
+                string GameName,
+                int ViewerCount,
+                DateTime StartedAt,
+                string ThumbnailUrl);
 
         private async Task<List<StreamSnapshot>> GetStreams(List<string> userIds)
         {
@@ -729,12 +720,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 _accessToken,
                 userIds: userIds);
 
-            if (response?.Streams == null)
-            {
-                return [];
-            }
-
-            return response.Streams
+            return response.Data
                 .Select(s => new StreamSnapshot(s.UserId, s.UserName, s.GameName, s.ViewerCount, s.StartedAt, s.ThumbnailUrl))
                 .ToList();
         }
@@ -969,8 +955,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     [gameId]);
-                var game = gameInfo?.Data?.FirstOrDefault();
-                return game != null ? GamesClient.MapToGame(game) : null;
+                return gameInfo.Data.FirstOrDefault();
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {

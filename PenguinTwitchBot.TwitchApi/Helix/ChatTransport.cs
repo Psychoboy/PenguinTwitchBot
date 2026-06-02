@@ -8,7 +8,7 @@ public sealed class ChatTransport : IChatTransport
     public async Task<SendChatMessageResponse> SendChatMessageAsync(string clientId, string? accessToken, SendChatMessageRequest request)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var message = new HttpRequestMessage(HttpMethod.Post, "chat/messages")
+        using var message = new HttpRequestMessage(HttpMethod.Post, HelixHttp.BuildUrl("chat/messages"))
         {
             Content = HelixJson.CreateJsonContent(new SendChatMessageRequestBody(
                 BroadcasterId: request.BroadcasterId,
@@ -28,7 +28,7 @@ public sealed class ChatTransport : IChatTransport
     public async Task<GetChattersPageResponse> GetChattersAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? after)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url = $"chat/chatters?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&moderator_id={Uri.EscapeDataString(moderatorId)}";
+        var url = HelixHttp.BuildUrl($"chat/chatters?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&moderator_id={Uri.EscapeDataString(moderatorId)}");
         if (!string.IsNullOrWhiteSpace(after))
         {
             url += $"&after={Uri.EscapeDataString(after)}";
@@ -44,10 +44,10 @@ public sealed class ChatTransport : IChatTransport
     public async Task SendShoutoutAsync(string clientId, string? accessToken, string fromBroadcasterId, string toBroadcasterId, string moderatorId)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url =
+        var url = HelixHttp.BuildUrl(
             $"chat/shoutouts?from_broadcaster_id={Uri.EscapeDataString(fromBroadcasterId)}" +
             $"&to_broadcaster_id={Uri.EscapeDataString(toBroadcasterId)}" +
-            $"&moderator_id={Uri.EscapeDataString(moderatorId)}";
+            $"&moderator_id={Uri.EscapeDataString(moderatorId)}");
 
         using var response = await http.PostAsync(url, null);
         response.EnsureSuccessStatusCode();
@@ -56,9 +56,9 @@ public sealed class ChatTransport : IChatTransport
     public async Task SendChatAnnouncementAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string message)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        var url =
+        var url = HelixHttp.BuildUrl(
             $"chat/announcements?broadcaster_id={Uri.EscapeDataString(broadcasterId)}" +
-            $"&moderator_id={Uri.EscapeDataString(moderatorId)}";
+            $"&moderator_id={Uri.EscapeDataString(moderatorId)}");
 
         using var response = await http.PostAsync(
             url,
@@ -69,7 +69,7 @@ public sealed class ChatTransport : IChatTransport
     public async Task<IReadOnlyList<ChatBadgeSet>> GetGlobalChatBadgesAsync(string clientId, string? accessToken)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var response = await http.GetAsync("chat/badges/global");
+        using var response = await http.GetAsync(HelixHttp.BuildUrl("chat/badges/global"));
         response.EnsureSuccessStatusCode();
         var payload = await HelixJson.DeserializeAsync<ChatBadgesApiResponse>(response) ?? new ChatBadgesApiResponse([]);
         return MapToBadgeSets(payload.Data);
@@ -78,7 +78,7 @@ public sealed class ChatTransport : IChatTransport
     public async Task<IReadOnlyList<ChatBadgeSet>> GetChannelChatBadgesAsync(string clientId, string? accessToken, string broadcasterId)
     {
         using var http = HelixHttp.CreateClient(clientId, accessToken);
-        using var response = await http.GetAsync($"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        using var response = await http.GetAsync(HelixHttp.BuildUrl($"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"));
         response.EnsureSuccessStatusCode();
         var payload = await HelixJson.DeserializeAsync<ChatBadgesApiResponse>(response) ?? new ChatBadgesApiResponse([]);
         return MapToBadgeSets(payload.Data);

@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Games;
+using PenguinTwitchBot.TwitchApi.Models.Games;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 

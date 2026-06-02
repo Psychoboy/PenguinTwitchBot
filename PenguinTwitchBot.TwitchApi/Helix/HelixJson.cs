@@ -10,9 +10,17 @@ internal static class HelixJson
         PropertyNameCaseInsensitive = true,
     };
 
-    internal static StringContent CreateJsonContent<T>(T body)
+    private static readonly JsonSerializerOptions JsonOptionsIgnoreNulls = new(JsonOptions)
     {
-        var json = JsonSerializer.Serialize(body, JsonOptions);
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    internal static StringContent CreateJsonContent<T>(T body)
+        => CreateJsonContent(body, ignoreNullValues: false);
+
+    internal static StringContent CreateJsonContent<T>(T body, bool ignoreNullValues)
+    {
+        var json = JsonSerializer.Serialize(body, ignoreNullValues ? JsonOptionsIgnoreNulls : JsonOptions);
         return new StringContent(json, Encoding.UTF8, "application/json");
     }
 

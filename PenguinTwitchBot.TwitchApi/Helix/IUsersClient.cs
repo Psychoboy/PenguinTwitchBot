@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Users.GetUsers;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 

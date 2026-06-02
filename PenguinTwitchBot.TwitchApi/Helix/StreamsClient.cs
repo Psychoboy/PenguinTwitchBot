@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Streams.GetStreams;
+using PenguinTwitchBot.TwitchApi.Models.Streams;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
