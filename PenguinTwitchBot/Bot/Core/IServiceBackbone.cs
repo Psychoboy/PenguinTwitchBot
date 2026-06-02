@@ -1,6 +1,7 @@
 ﻿using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.CustomMiddleware;
+using PenguinTwitchBot.TwitchApi.EventSub.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -33,9 +34,9 @@ namespace PenguinTwitchBot.Bot.Core
         Task OnChannelPointRedeem(string userId, string userName, string title);
         Task OnChannelPointRedeem(string userId, string userName, string id, string userInput);
         //Task OnChatMessage(ChatMessageEventArgs message);
-        Task OnCheer(ChannelCheer ev);
+        Task OnCheer(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelCheer ev);
         Task OnCommand(CommandEventArgs command);
-        Task OnFollow(ChannelFollow ev);
+        Task OnFollow(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelFollow ev);
         Task OnIncomingRaid(RaidEventArgs args);
         Task OnStreamEnded();
         Task OnStreamStarted();

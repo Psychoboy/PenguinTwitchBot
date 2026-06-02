@@ -9,6 +9,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.CustomMiddleware;
+using PenguinTwitchBot.TwitchApi.EventSub.Channel;
 using Microsoft.AspNetCore.SignalR;
 
 namespace PenguinTwitchBot.Bot.Core
@@ -171,23 +172,29 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnCheer(ChannelCheer ev)
+        public async Task OnCheer(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelCheer ev)
         {
             if (CheerEvent != null)
             {
+                string message = "";
+                if(ev != null && !string.IsNullOrWhiteSpace(ev.Message))
+                {
+                    message = ev.Message;
+                }
                 await CheerEvent(this, new CheerEventArgs
                 {
-                    Name = ev.UserLogin,
-                    DisplayName = ev.UserName,
-                    Amount = ev.Bits,
-                    Message = ev.Message,
-                    IsAnonymous = ev.IsAnonymous,
-                    UserId = ev.UserId
+                    Name = ev?.UserLogin,
+                    DisplayName = ev?.UserName,
+                    Amount = ev?.Bits ?? 0,
+                    Message = message,
+                    IsAnonymous = ev?.IsAnonymous ?? false,
+                    UserId = ev?.UserId
+
                 });
             }
         }
 
-        public async Task OnFollow(ChannelFollow ev)
+        public async Task OnFollow(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelFollow ev)
         {
             if (FollowEvent != null)
             {
@@ -196,7 +203,7 @@ namespace PenguinTwitchBot.Bot.Core
                     Username = ev.UserLogin,
                     UserId = ev.UserId,
                     DisplayName = ev.UserName,
-                    FollowDate = ev.FollowedAt.DateTime
+                    FollowDate = ev.FollowedAt
                 });
             }
         }

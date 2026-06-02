@@ -17,38 +17,42 @@ namespace PenguinTwitchBot.Bot.TwitchServices
     {
         private readonly SemaphoreSlim _eventLock = new(1, 1);
 
-        public async Task HandleFollowAsync(FollowEventArgs eventArgs)
+        public async Task HandleFollowAsync(EventSubChannel.ChannelFollow eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelFollow", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleCheerAsync(CheerEventArgs eventArgs)
+        public async Task HandleCheerAsync(EventSubChannel.ChannelCheer eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelCheer", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleSubscribeAsync(SubscriptionEventArgs eventArgs)
+        public async Task HandleSubscribeAsync(EventSubChannel.ChannelSubscribe eventArgs)
         {
-            var triggerName = eventArgs.IsRenewal ? "ChannelSubscriptionMessage" : "ChannelSubscribe";
-            await ExecuteActionsForEventAsync(triggerName, TwitchEventArgsConverter.ToDictionary(eventArgs));
+            await ExecuteActionsForEventAsync("ChannelSubscribe", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleSubscriptionGiftAsync(SubscriptionGiftEventArgs eventArgs)
+        public async Task HandleSubscriptionRenewalAsync(EventSubChannel.ChannelSubscriptionRenewal eventArgs)
+        {
+            await ExecuteActionsForEventAsync("ChannelSubscriptionMessage", TwitchEventArgsConverter.ToDictionary(eventArgs));
+        }
+
+        public async Task HandleSubscriptionGiftAsync(EventSubChannel.ChannelSubscriptionGift eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelSubscriptionGift", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleSubscriptionEndAsync(SubscriptionEndEventArgs eventArgs)
+        public async Task HandleSubscriptionEndAsync(EventSubChannel.ChannelSubscriptionEnd eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelSubscriptionEnd", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleChannelPointRedemptionAsync(ChannelPointRedeemEventArgs eventArgs)
+        public async Task HandleChannelPointRedemptionAsync(EventSubChannel.ChannelPointRedemption eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelPointsCustomRewardRedemptionAdd", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleRaidAsync(RaidEventArgs eventArgs)
+        public async Task HandleRaidAsync(EventSubChannel.ChannelRaid eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelRaid", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
@@ -63,22 +67,22 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await ExecuteActionsForEventAsync("StreamOffline", TwitchEventArgsConverter.StreamOfflineVariables());
         }
 
-        public async Task HandleChannelBanAsync(BanEventArgs eventArgs)
+        public async Task HandleChannelBanAsync(EventSubChannel.ChannelBan eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelBan", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleChannelUnbanAsync(BanEventArgs eventArgs)
+        public async Task HandleChannelUnbanAsync(EventSubChannel.ChannelUnban eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelUnban", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleAdBreakBeginAsync(AdBreakStartEventArgs eventArgs)
+        public async Task HandleAdBreakBeginAsync(EventSubChannel.ChannelAdBreakBegin eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelAdBreakBegin", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleBitsUseAsync(BitsUseEventArgs eventArgs)
+        public async Task HandleBitsUseAsync(EventSubChannel.ChannelBitsUse eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelBitsUse", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
@@ -166,19 +170,20 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
     public interface ITwitchEventActionHandler
     {
-        Task HandleFollowAsync(FollowEventArgs eventArgs);
-        Task HandleCheerAsync(CheerEventArgs eventArgs);
-        Task HandleSubscribeAsync(SubscriptionEventArgs eventArgs);
-        Task HandleSubscriptionGiftAsync(SubscriptionGiftEventArgs eventArgs);
-        Task HandleSubscriptionEndAsync(SubscriptionEndEventArgs eventArgs);
-        Task HandleChannelPointRedemptionAsync(ChannelPointRedeemEventArgs eventArgs);
-        Task HandleRaidAsync(RaidEventArgs eventArgs);
+        Task HandleFollowAsync(EventSubChannel.ChannelFollow eventArgs);
+        Task HandleCheerAsync(EventSubChannel.ChannelCheer eventArgs);
+        Task HandleSubscribeAsync(EventSubChannel.ChannelSubscribe eventArgs);
+        Task HandleSubscriptionRenewalAsync(EventSubChannel.ChannelSubscriptionRenewal eventArgs);
+        Task HandleSubscriptionGiftAsync(EventSubChannel.ChannelSubscriptionGift eventArgs);
+        Task HandleSubscriptionEndAsync(EventSubChannel.ChannelSubscriptionEnd eventArgs);
+        Task HandleChannelPointRedemptionAsync(EventSubChannel.ChannelPointRedemption eventArgs);
+        Task HandleRaidAsync(EventSubChannel.ChannelRaid eventArgs);
         Task HandleStreamOnlineAsync();
         Task HandleStreamOfflineAsync();
-        Task HandleChannelBanAsync(BanEventArgs eventArgs);
-        Task HandleChannelUnbanAsync(BanEventArgs eventArgs);
-        Task HandleAdBreakBeginAsync(AdBreakStartEventArgs eventArgs);
-        Task HandleBitsUseAsync(BitsUseEventArgs eventArgs);
+        Task HandleChannelBanAsync(EventSubChannel.ChannelBan eventArgs);
+        Task HandleChannelUnbanAsync(EventSubChannel.ChannelUnban eventArgs);
+        Task HandleAdBreakBeginAsync(EventSubChannel.ChannelAdBreakBegin eventArgs);
+        Task HandleBitsUseAsync(EventSubChannel.ChannelBitsUse eventArgs);
         Task HandleChatNotificationAsync(EventSubChannel.ChannelChatNotification eventArgs);
     }
 }

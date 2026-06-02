@@ -76,11 +76,11 @@ public class TwitchWebsocketHostedServiceTests
             e.DisplayName == "FromName" &&
             e.NumberOfViewers == 42));
 
-        await _twitchEventActionHandler.Received(1).HandleRaidAsync(Arg.Is<RaidEventArgs>(e =>
-            e.UserId == "from-id" &&
-            e.Name == "from-login" &&
-            e.DisplayName == "FromName" &&
-            e.NumberOfViewers == 42));
+        await _twitchEventActionHandler.Received(1).HandleRaidAsync(Arg.Is<EventSubChannel.ChannelRaid>(e =>
+            e.FromBroadcasterUserId == "from-id" &&
+            e.FromBroadcasterUserLogin == "from-login" &&
+            e.FromBroadcasterUserName == "FromName" &&
+            e.Viewers == 42));
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokePrivateAsync(_sut, "OnChannelRaid", payload);
 
         await _eventService.Received(1).OnIncomingRaid(Arg.Any<RaidEventArgs>());
-        await _twitchEventActionHandler.Received(1).HandleRaidAsync(Arg.Any<RaidEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleRaidAsync(Arg.Any<EventSubChannel.ChannelRaid>());
     }
 
     [Fact]
@@ -142,8 +142,8 @@ public class TwitchWebsocketHostedServiceTests
 
         await InvokeEventHandlerAsync(_sut, "OnChannelFollow", args);
 
-        await _eventService.Received(1).OnFollow(Arg.Any<ChannelFollow>());
-        await _twitchEventActionHandler.Received(1).HandleFollowAsync(Arg.Any<FollowEventArgs>());
+        await _eventService.Received(1).OnFollow(Arg.Any<EventSubChannel.ChannelFollow>());
+        await _twitchEventActionHandler.Received(1).HandleFollowAsync(Arg.Any<EventSubChannel.ChannelFollow>());
     }
 
     [Fact]
@@ -160,8 +160,8 @@ public class TwitchWebsocketHostedServiceTests
 
         await InvokeEventHandlerAsync(_sut, "OnChannelCheer", args);
 
-        await _eventService.Received(1).OnCheer(Arg.Any<ChannelCheer>());
-        await _twitchEventActionHandler.Received(1).HandleCheerAsync(Arg.Any<CheerEventArgs>());
+        await _eventService.Received(1).OnCheer(Arg.Any<EventSubChannel.ChannelCheer>());
+        await _twitchEventActionHandler.Received(1).HandleCheerAsync(Arg.Any<EventSubChannel.ChannelCheer>());
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelSubscription", args);
 
         await _eventService.Received(1).OnSubscription(Arg.Any<SubscriptionEventArgs>());
-        await _twitchEventActionHandler.Received(1).HandleSubscribeAsync(Arg.Any<SubscriptionEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleSubscribeAsync(Arg.Any<EventSubChannel.ChannelSubscribe>());
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelSubscriptionRenewal", args);
 
         await _eventService.Received(1).OnSubscription(Arg.Any<SubscriptionEventArgs>());
-        await _twitchEventActionHandler.Received(1).HandleSubscribeAsync(Arg.Any<SubscriptionEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleSubscriptionRenewalAsync(Arg.Any<EventSubChannel.ChannelSubscriptionRenewal>());
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelSubscriptionGift", args);
 
         await _eventService.Received(1).OnSubscriptionGift(Arg.Any<SubscriptionGiftEventArgs>());
-        await _twitchEventActionHandler.Received(1).HandleSubscriptionGiftAsync(Arg.Any<SubscriptionGiftEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleSubscriptionGiftAsync(Arg.Any<EventSubChannel.ChannelSubscriptionGift>());
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelSubscriptionEnd", args);
 
         await _eventService.Received(1).OnSubscriptionEnd("login6", "u6");
-        await _twitchEventActionHandler.Received(1).HandleSubscriptionEndAsync(Arg.Any<SubscriptionEndEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleSubscriptionEndAsync(Arg.Any<EventSubChannel.ChannelSubscriptionEnd>());
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelPointRedeemed", args);
 
         await _eventService.Received(1).OnChannelPointRedeem("u7", "User Seven", "Reward");
-        await _twitchEventActionHandler.Received(1).HandleChannelPointRedemptionAsync(Arg.Any<ChannelPointRedeemEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleChannelPointRedemptionAsync(Arg.Any<EventSubChannel.ChannelPointRedemption>());
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelPointRedeemed", args);
 
         await _eventService.DidNotReceive().OnChannelPointRedeem(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
-        await _twitchEventActionHandler.DidNotReceive().HandleChannelPointRedemptionAsync(Arg.Any<ChannelPointRedeemEventArgs>());
+        await _twitchEventActionHandler.DidNotReceive().HandleChannelPointRedemptionAsync(Arg.Any<EventSubChannel.ChannelPointRedemption>());
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class TwitchWebsocketHostedServiceTests
 
         await _dispatcher.Received(1).Publish(Arg.Any<BannedChatUser>(), Arg.Any<CancellationToken>());
         await _eventService.Received(1).OnViewerBan("u9", "login9", false, Arg.Any<DateTimeOffset?>());
-        await _twitchEventActionHandler.Received(1).HandleChannelBanAsync(Arg.Any<BanEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleChannelBanAsync(Arg.Any<EventSubChannel.ChannelBan>());
     }
 
     [Fact]
@@ -332,7 +332,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "OnChannelUnBan", args);
 
         await _eventService.Received(1).OnViewerBan("u11", "login11", true, null);
-        await _twitchEventActionHandler.Received(1).HandleChannelUnbanAsync(Arg.Any<BanEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleChannelUnbanAsync(Arg.Any<EventSubChannel.ChannelUnban>());
     }
 
     [Fact]
@@ -348,7 +348,7 @@ public class TwitchWebsocketHostedServiceTests
         await InvokeEventHandlerAsync(_sut, "ChannelAdBreakBegin", args);
 
         await _eventService.Received(1).OnAdBreakStartEvent(Arg.Any<AdBreakStartEventArgs>());
-        await _twitchEventActionHandler.Received(1).HandleAdBreakBeginAsync(Arg.Any<AdBreakStartEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleAdBreakBeginAsync(Arg.Any<EventSubChannel.ChannelAdBreakBegin>());
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public class TwitchWebsocketHostedServiceTests
 
         await InvokeEventHandlerAsync(_sut, "OnChannelBitsUse", args);
 
-        await _twitchEventActionHandler.Received(1).HandleBitsUseAsync(Arg.Any<BitsUseEventArgs>());
+        await _twitchEventActionHandler.Received(1).HandleBitsUseAsync(Arg.Any<EventSubChannel.ChannelBitsUse>());
     }
 
     [Fact]
