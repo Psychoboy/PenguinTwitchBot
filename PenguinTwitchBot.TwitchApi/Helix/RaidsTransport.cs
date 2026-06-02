@@ -1,24 +1,12 @@
-using TwitchLib.Api;
-
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
 public sealed class RaidsTransport : IRaidsTransport
 {
-    public Task StartRaidAsync(string clientId, string? accessToken, string broadcasterId, string targetUserId)
+    public async Task StartRaidAsync(string clientId, string? accessToken, string broadcasterId, string targetUserId)
     {
-        var api = CreateApi(clientId, accessToken);
-        return api.Helix.Raids.StartRaidAsync(broadcasterId, targetUserId, accessToken);
-    }
-
-    private static TwitchAPI CreateApi(string clientId, string? accessToken)
-    {
-        var api = new TwitchAPI();
-        api.Settings.ClientId = clientId;
-        if (!string.IsNullOrWhiteSpace(accessToken))
-        {
-            api.Settings.AccessToken = accessToken;
-        }
-
-        return api;
+        using var http = HelixHttp.CreateClient(clientId, accessToken);
+        var url = HelixHttp.BuildUrl($"raids?from_broadcaster_id={Uri.EscapeDataString(broadcasterId)}&to_broadcaster_id={Uri.EscapeDataString(targetUserId)}");
+        using var response = await http.PostAsync(url, content: null);
+        response.EnsureSuccessStatusCode();
     }
 }

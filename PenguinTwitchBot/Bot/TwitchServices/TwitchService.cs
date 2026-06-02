@@ -173,7 +173,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     broadcasterId!);
                 if (result?.Schedule != null)
                 {
-                    return ScheduleClient.MapToChannelStreamSchedule(result.Schedule);
+                    return result.Schedule;
                 }
             }
             catch (Exception ex)

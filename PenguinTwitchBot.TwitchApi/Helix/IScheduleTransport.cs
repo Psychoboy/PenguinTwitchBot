@@ -1,4 +1,4 @@
-using TwitchLib.Api.Helix.Models.Schedule.GetChannelStreamSchedule;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
 
 namespace PenguinTwitchBot.TwitchApi.Helix;
 
