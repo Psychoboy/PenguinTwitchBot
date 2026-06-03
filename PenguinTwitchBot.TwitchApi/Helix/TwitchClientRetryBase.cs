@@ -27,7 +27,7 @@ public abstract class TwitchClientRetryBase
             {
                 return await action();
             }
-            catch (Exception ex) when (IsTransient(ex) && !(ex is HttpRequestException httpEx && httpEx.StatusCode == System.Net.HttpStatusCode.Unauthorized))
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 if (attempt == MaxAttempts)
                 {
@@ -63,7 +63,7 @@ public abstract class TwitchClientRetryBase
                 await action();
                 return;
             }
-            catch (Exception ex) when (IsTransient(ex) && !(ex is HttpRequestException httpEx && httpEx.StatusCode == System.Net.HttpStatusCode.Unauthorized))
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 if (attempt == MaxAttempts)
                 {
@@ -87,14 +87,17 @@ public abstract class TwitchClientRetryBase
         throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
     }
 
-    /// <summary>
-    /// Determines if an exception represents a transient error worth retrying.
-    /// </summary>
-    protected static bool IsTransient(Exception ex)
+    private static bool IsRetryable(Exception ex)
     {
-        return ex is HttpRequestException
-            || ex is TaskCanceledException
-            || ex is TimeoutException;
+        return ex switch
+        {
+            TaskCanceledException => true,
+            TimeoutException => true,
+            HttpRequestException {StatusCode: null} => true, // Network errors without HTTP response
+            HttpRequestException {StatusCode: System.Net.HttpStatusCode.TooManyRequests} => true, // Rate limiting
+            HttpRequestException httpEx when (int)(httpEx.StatusCode ?? 0) >= 500 => true, // Server errors
+            _ => false
+        };
     }
 
     private static string GetFailureHint(Exception ex)
