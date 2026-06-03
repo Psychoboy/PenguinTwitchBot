@@ -2,7 +2,6 @@
 using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events;
-using EventSubChannel = PenguinTwitchBot.TwitchApi.EventSub.Channel;
 
 namespace PenguinTwitchBot.Test.Bot.Actions;
 
@@ -781,24 +780,10 @@ public class ChannelBitsUseTriggerTests
 /// </summary>
 public class ChatNotificationConverterTests
 {
-    private static EventSubChannel.ChannelChatNotification MinimalArgs(string noticeType = "sub") =>
-        new()
-        {
-            BroadcasterUserId = "b1",
-            BroadcasterUserName = "Broadcaster",
-            BroadcasterUserLogin = "broadcaster",
-            MessageId = "msg1",
-            ChatterUserId = string.Empty,
-            ChatterUserLogin = string.Empty,
-            ChatterUserName = string.Empty,
-            NoticeType = noticeType,
-            Message = string.Empty
-        };
-
     [Fact]
     public void NullArgs_ReturnsEmptyDictionary()
     {
-        var dict = TwitchEventArgsConverter.ToDictionary((EventSubChannel.ChannelChatNotification)null!);
+        var dict = TwitchEventArgsConverter.ToDictionary((PenguinTwitchBot.Bot.Events.ChatNotificationEventArgs)null!);
         Assert.NotNull(dict);
         Assert.Empty(dict);
     }
@@ -806,16 +791,12 @@ public class ChatNotificationConverterTests
     [Fact]
     public void CommonFields_ArePopulated()
     {
-        var args = new EventSubChannel.ChannelChatNotification
+        var args = new PenguinTwitchBot.Bot.Events.ChatNotificationEventArgs
         {
-            BroadcasterUserId = "b1",
-            BroadcasterUserName = "Broadcaster",
-            BroadcasterUserLogin = "broadcaster",
-            MessageId = "msg1",
-            ChatterUserId = "123",
-            ChatterUserLogin = "testlogin",
-            ChatterUserName = "TestLogin",
-            ChatterIsAnonymous = false,
+            UserId = "123",
+            Name = "testlogin",
+            DisplayName = "TestLogin",
+            IsAnonymous = false,
             NoticeType = "sub",
             SystemMessage = "TestLogin subscribed",
             Message = "Hello!"
@@ -836,8 +817,11 @@ public class ChatNotificationConverterTests
     [Fact]
     public void SubObject_PopulatesDotNotationKeys()
     {
-        var args = MinimalArgs("sub");
-        args.Sub = new EventSubChannel.ChatNotificationSubInfo { SubTier = "1000", DurationMonths = 1, IsPrime = false };
+         var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "sub",
+            Sub = new ChatNotificationSubInfo { SubTier = "1000", DurationMonths = 1, IsPrime = false }
+        };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
@@ -849,15 +833,18 @@ public class ChatNotificationConverterTests
     [Fact]
     public void ResubObject_PopulatesDotNotationKeys()
     {
-        var args = MinimalArgs("resub");
-        args.Resub = new EventSubChannel.ChatNotificationResubInfo
+        var args = new ChatNotificationEventArgs
         {
-            CumulativeMonths = 18,
-            DurationMonths = 1,
-            StreakMonths = 3,
-            SubTier = "2000",
-            IsPrime = false,
-            IsGift = false
+            NoticeType = "resub",
+            Resub = new ChatNotificationResubInfo
+            {
+                CumulativeMonths = 18,
+                DurationMonths = 1,
+                StreakMonths = 3,
+                SubTier = "2000",
+                IsPrime = false,
+                IsGift = false
+            }
         };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
@@ -871,14 +858,17 @@ public class ChatNotificationConverterTests
     [Fact]
     public void RaidObject_PopulatesDotNotationKeys()
     {
-        var args = MinimalArgs("raid");
-        args.Raid = new EventSubChannel.ChatNotificationRaidInfo
+        var args = new ChatNotificationEventArgs
         {
-            UserId = "456",
-            UserName = "RaiderName",
-            UserLogin = "raidername",
-            ViewerCount = 250,
-            ProfileImageUrl = "https://example.com/img.png"
+            NoticeType = "raid",
+            Raid = new ChatNotificationRaidInfo
+            {
+                UserId = "456",
+                UserName = "RaiderName",
+                UserLogin = "raidername",
+                ViewerCount = 250,
+                ProfileImageUrl = "https://example.com/img.png"
+            }
         };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
@@ -892,8 +882,11 @@ public class ChatNotificationConverterTests
     [Fact]
     public void WatchStreakObject_PopulatesDotNotationKeys()
     {
-        var args = MinimalArgs("watch_streak");
-        args.WatchStreak = new EventSubChannel.ChatNotificationWatchStreakInfo { StreakCount = 7, ChannelPointsAwarded = 350 };
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "watch_streak",
+            WatchStreak = new ChatNotificationWatchStreakInfo { StreakCount = 7, ChannelPointsAwarded = 350 }
+        };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
@@ -904,8 +897,11 @@ public class ChatNotificationConverterTests
     [Fact]
     public void NullSubObject_EmitsEmptyStringsForItsKeys()
     {
-        var args = MinimalArgs("raid");
-        args.Sub = null;
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "raid",
+            Sub = null
+        };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
@@ -918,13 +914,16 @@ public class ChatNotificationConverterTests
     [Fact]
     public void CharityDonationObject_PopulatesDotNotationKeys()
     {
-        var args = MinimalArgs("charity_donation");
-        args.CharityDonation = new EventSubChannel.ChatNotificationCharityDonationInfo
+        var args = new ChatNotificationEventArgs
         {
-            CharityName = "Some Charity",
-            AmountValue = 5000,
-            AmountDecimalPlaces = 2,
-            AmountCurrency = "USD"
+            NoticeType = "charity_donation",
+            CharityDonation = new ChatNotificationCharityDonationInfo
+            {
+                CharityName = "Some Charity",
+                AmountValue = 5000,
+                AmountDecimalPlaces = 2,
+                AmountCurrency = "USD"
+            }
         };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
@@ -939,7 +938,10 @@ public class ChatNotificationConverterTests
     public void AllExpectedKeysArePresent()
     {
         // Verify that every documented key is emitted even with a default (all-null) args object
-        var args = MinimalArgs("sub");
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "sub"
+        };
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
         var expectedKeys = new[]

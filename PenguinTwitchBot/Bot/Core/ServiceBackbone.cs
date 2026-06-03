@@ -9,8 +9,8 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.CustomMiddleware;
-using PenguinTwitchBot.TwitchApi.EventSub.Channel;
 using Microsoft.AspNetCore.SignalR;
+using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -172,7 +172,7 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnCheer(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelCheer ev)
+        public async Task OnCheer(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelCheer ev)
         {
             if (CheerEvent != null)
             {
@@ -194,7 +194,7 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnFollow(PenguinTwitchBot.TwitchApi.EventSub.Channel.ChannelFollow ev)
+        public async Task OnFollow(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelFollow ev)
         {
             if (FollowEvent != null)
             {
@@ -203,7 +203,7 @@ namespace PenguinTwitchBot.Bot.Core
                     Username = ev.UserLogin,
                     UserId = ev.UserId,
                     DisplayName = ev.UserName,
-                    FollowDate = ev.FollowedAt
+                    FollowDate = ev.FollowedAt.DateTime
                 });
             }
         }

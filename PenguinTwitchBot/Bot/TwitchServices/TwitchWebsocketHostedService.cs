@@ -4,15 +4,9 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
 using PenguinTwitchBot.Bot.Services.Chat;
-using PenguinTwitchBot.TwitchApi.EventSub;
-using EventSubChannel = PenguinTwitchBot.TwitchApi.EventSub.Channel;
-using EventSubStream = PenguinTwitchBot.TwitchApi.EventSub.Stream;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
-using TwitchLib.EventSub.Core.EventArgs.Channel;
-using TwitchLib.EventSub.Core.EventArgs.Stream;
-using TwitchLib.EventSub.Websockets.Core.EventArgs;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
@@ -41,13 +35,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await ChannelChatMessage(EventSubAdapter.AdaptChannelChatMessage(args));
         }
 
-        private async Task ChannelChatMessage(EventSubChannel.ChannelChatMessagePayload payload)
+        private async Task ChannelChatMessage(TwitchApi.EventSub.EventArgs.Channel.ChannelChatMessageEventArgs payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
 
-            var messageText = payload.Event.Message;
-            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            var message = payload.Event.Message;
+            var messageText = MessageRegex().Replace(message.Text, string.Empty).Trim();
 
             if (string.IsNullOrEmpty(payload.Event.ChannelPointsCustomRewardId) == false)
             {
@@ -67,20 +61,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     UserInput = messageText
                 };
 
-                var pointRedemption = new EventSubChannel.ChannelPointRedemption
-                {
-                    Id = "chat-msg-" + payload.Event.MessageId,
-                    UserId = payload.Event.ChatterUserId,
-                    UserLogin = payload.Event.ChatterUserLogin,
-                    UserName = payload.Event.ChatterUserName,
-                    UserInput = messageText,
-                    Reward = new EventSubChannel.ChannelPointReward
-                    {
-                        Id = payload.Event.ChannelPointsCustomRewardId,
-                        Title = channelPoint.Title
-                    },
-                    Status = "fulfilled"
-                };
 
                 await eventService.OnChannelPointRedeem(
                     payload.Event.ChatterUserId,
@@ -103,7 +83,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelChatNotification(EventSubAdapter.AdaptChannelChatNotification(args));
         }
 
-        private async Task OnChannelChatNotification(EventSubChannel.ChannelChatNotificationPayload payload)
+        private async Task OnChannelChatNotification(TwitchApi.EventSub.EventArgs.Channel.ChannelChatNotificationEventArgs payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
@@ -190,13 +170,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     {
                         Color = e.Announcement.Color,
                     },
-                    // CharityDonation = e.CharityDonation == null ? null : new Events.ChatNotificationCharityDonationInfo
-                    // {
-                    //     CharityName = e.CharityDonation.Name,
-                    //     AmountValue = e.CharityDonation.Amount.Value,
-                    //     AmountDecimalPlaces = e.CharityDonation.Amount.DecimalPlaces,
-                    //     AmountCurrency = e.CharityDonation.Amount.Currency,
-                    // },
+                    CharityDonation = e.CharityDonation == null ? null : new Events.ChatNotificationCharityDonationInfo
+                    {
+                        CharityName = e.CharityDonation.Name,
+                        AmountValue = e.CharityDonation.Amount.Value,
+                        AmountDecimalPlaces = e.CharityDonation.Amount.DecimalPlaces,
+                        AmountCurrency = e.CharityDonation.Amount.Currency,
+                    },
                     BitsBadgeTier = e.BitsBadgeTier == null ? null : new Events.ChatNotificationBitsBadgeTierInfo
                     {
                         Tier = e.BitsBadgeTier.Tier,
@@ -244,12 +224,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private Task ProcessChatMessage(EventSubChannel.ChannelChatMessage e)
+        private Task ProcessChatMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
         {
-            var messageText = e.Message;
+            var messageText = e.Message.Text;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
 
-            var fragments = (e.Fragments ?? [])
+            var fragments = (e.Message.Fragments ?? [])
                 .Select(f => MapFragment(f))
                 .ToList();
 
@@ -276,7 +256,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new ReceivedChatMessage { EventArgs = chatMessage });
         }
 
-        private static ChatOverlayFragment MapFragment(EventSubChannel.ChannelChatMessageFragment f)
+        private static ChatOverlayFragment MapFragment(TwitchApi.EventSub.Models.Chat.ChatMessageFragment f)
         {
             if (f.Type == "emote" && f.Emote != null)
             {
@@ -311,10 +291,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             };
         }
 
-        private async Task ProcessCommandMessage(EventSubChannel.ChannelChatMessage e)
+        private async Task ProcessCommandMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
         {
-            if (e.Message.StartsWith('!') == false) return;
-            var messageText = e.Message;
+            if (e.Message.Text.StartsWith('!') == false) return;
+            var messageText = e.Message.Text;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
             var argsFull = messageText.Split(' ', 2);
             var command = argsFull[0];
@@ -350,7 +330,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await ChannelAdBreakBegin(EventSubAdapter.AdaptChannelAdBreakBegin(e));
         }
 
-        private async Task ChannelAdBreakBegin(EventSubChannel.ChannelAdBreakBeginPayload payload)
+        private async Task ChannelAdBreakBegin(TwitchApi.EventSub.EventArgs.Channel.ChannelAdBreakBeginEventArgs payload)
         {
             try
             {
@@ -376,7 +356,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelUnBan(EventSubAdapter.AdaptChannelUnban(e));
         }
 
-        private async Task OnChannelUnBan(EventSubChannel.ChannelUnbanPayload payload)
+        private async Task OnChannelUnBan(TwitchApi.EventSub.EventArgs.Channel.ChannelUnbanEventArgs payload)
         {
             try
             {
@@ -409,7 +389,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelBan(EventSubAdapter.AdaptChannelBan(e));
         }
 
-        private async Task OnChannelBan(EventSubChannel.ChannelBanPayload payload)
+        private async Task OnChannelBan(TwitchApi.EventSub.EventArgs.Channel.ChannelBanEventArgs payload)
         {
             try
             {
@@ -453,7 +433,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelRaid(EventSubAdapter.AdaptChannelRaid(e));
         }
 
-        private async Task OnChannelRaid(EventSubChannel.ChannelRaidPayload payload)
+        private async Task OnChannelRaid(TwitchApi.EventSub.EventArgs.Channel.ChannelRaidEventArgs payload)
         {
             try
             {
@@ -510,7 +490,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnStreamOffline(EventSubAdapter.AdaptStreamOffline(e));
         }
 
-        private async Task OnStreamOffline(EventSubStream.StreamOfflinePayload payload)
+        private async Task OnStreamOffline(TwitchApi.EventSub.EventArgs.Stream.StreamOfflineEventArgs payload)
         {
             try
             {
@@ -543,7 +523,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnStreamOnline(EventSubAdapter.AdaptStreamOnline(e));
         }
 
-        private async Task OnStreamOnline(EventSubStream.StreamOnlinePayload payload)
+        private async Task OnStreamOnline(TwitchApi.EventSub.EventArgs.Stream.StreamOnlineEventArgs payload)
         {
             try
             {
@@ -561,23 +541,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelSubscription(EventSubAdapter.AdaptChannelSubscribe(e));
         }
 
-        private async Task OnChannelSubscription(EventSubChannel.ChannelSubscribePayload payload)
+        private async Task OnChannelSubscription(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscribeEventArgs payload)
         {
             try
             {
                 if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Tier- {Tier}"
                 , payload.Event.UserLogin, payload.Event.IsGift, payload.Event.Tier);
-
-                //if (await CheckIfPreviousSub(e.Payload.Event.UserLogin))
-                //{
-                //    logger.LogInformation("{UserLogin} previously subscribed, waiting for Renewal.", e.Payload.Event.UserLogin);
-                //    return;
-                //}
-
-                //await subscriptionHistory.AddOrUpdateSubHistory(e.Payload.Event.UserLogin, e.Payload.Event.UserId);
-
-                //if (CheckIfExistsAndAddSubCache(e.Payload.Event.UserLogin)) return;
 
                 var subscriptionEventArgs = new Events.SubscriptionEventArgs
                 {
@@ -605,10 +575,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
         {
-            await OnChannelSubscriptionRenewal(EventSubAdapter.AdaptChannelSubscriptionRenewal(e));
+            await OnChannelSubscriptionRenewal(EventSubAdapter.AdaptChannelSubscriptionMessage(e));
         }
 
-        private async Task OnChannelSubscriptionRenewal(EventSubChannel.ChannelSubscriptionRenewalPayload payload)
+        private async Task OnChannelSubscriptionRenewal(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionMessageEventArgs payload)
         {
             try
             {
@@ -616,7 +586,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", payload.Event.UserLogin);
                 await subscriptionHistory.AddOrUpdateSubHistory(payload.Event.UserLogin, payload.Event.UserId);
 
-                //if (CheckIfExistsAndAddSubCache(e.Payload.Event.UserLogin)) return;
                 var subscriptionEventArgs = new Events.SubscriptionEventArgs
                 {
                     Name = payload.Event.UserLogin,
@@ -644,7 +613,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelSubscriptionGift(EventSubAdapter.AdaptChannelSubscriptionGift(e));
         }
 
-        private async Task OnChannelSubscriptionGift(EventSubChannel.ChannelSubscriptionGiftPayload payload)
+        private async Task OnChannelSubscriptionGift(TwitchApi.EventSub.EventArgs.Channel.ChannelSubsctiptionGiftEventArgs payload)
         {
             try
             {
@@ -674,7 +643,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelSubscriptionEnd(EventSubAdapter.AdaptChannelSubscriptionEnd(e));
         }
 
-        private async Task OnChannelSubscriptionEnd(EventSubChannel.ChannelSubscriptionEndPayload payload)
+        private async Task OnChannelSubscriptionEnd(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionEndEventArgs payload)
         {
             try
             {
@@ -702,7 +671,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelCheer(EventSubAdapter.AdaptChannelCheer(e));
         }
 
-        private async Task OnChannelCheer(EventSubChannel.ChannelCheerPayload payload)
+        private async Task OnChannelCheer(TwitchApi.EventSub.EventArgs.Channel.ChannelCheerEventArgs payload)
         {
             try
             {
@@ -733,7 +702,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelBitsUse(EventSubAdapter.AdaptChannelBitsUse(e));
         }
 
-        private async Task OnChannelBitsUse(EventSubChannel.ChannelBitsUsePayload payload)
+        private async Task OnChannelBitsUse(TwitchApi.EventSub.EventArgs.Channel.ChannelBitsUseEventArgs payload)
         {
             try
             {
@@ -793,7 +762,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelPointRedeemed(EventSubAdapter.AdaptChannelPointRedemption(e));
         }
 
-        private async Task OnChannelPointRedeemed(EventSubChannel.ChannelPointRedemptionPayload payload)
+        private async Task OnChannelPointRedeemed(TwitchApi.EventSub.EventArgs.Channel.ChannelPointsCustomRewardRedemptionEventArgs payload)
         {
             try
             {
@@ -827,7 +796,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelFollow(EventSubAdapter.AdaptChannelFollow(e));
         }
 
-        private async Task OnChannelFollow(EventSubChannel.ChannelFollowPayload payload)
+        private async Task OnChannelFollow(TwitchApi.EventSub.EventArgs.Channel.ChannelFollowEventArgs payload)
         {
             try
             {
@@ -839,7 +808,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Username = payload.Event.UserLogin,
                     UserId = payload.Event.UserId,
                     DisplayName = payload.Event.UserName,
-                    FollowDate = payload.Event.FollowedAt
+                    FollowDate = payload.Event.FollowedAt.DateTime
                 };
 
                 await eventService.OnFollow(payload.Event);
