@@ -707,15 +707,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(payload.Metadata)) return;
-                logger.LogInformation("OnChannelCheer: {UserLogin}", payload.Event.CheererLogin ?? "Anonymous");
+                logger.LogInformation("OnChannelCheer: {UserLogin}", payload.Event.UserLogin ?? "Anonymous");
 
                 var cheerEventArgs = new Events.CheerEventArgs
                 {
-                    UserId = payload.Event.CheererId ?? "",
-                    Name = payload.Event.CheererLogin ?? "",
-                    DisplayName = payload.Event.CheererName ?? "",
+                    UserId = payload.Event.UserId,
+                    Name = payload.Event.UserLogin,
+                    DisplayName = payload.Event.UserName,
                     Amount = payload.Event.Bits,
-                    Message = payload.Event.Message ?? "",
+                    Message = payload.Event.Message,
                     IsAnonymous = payload.Event.IsAnonymous
                 };
 

@@ -104,9 +104,6 @@ public static class EventSubAdapter
         return CreatePayload<Channel.ChannelCheerPayload, Channel.ChannelCheer>(args.Metadata, new()
         {
             IsAnonymous = payload.IsAnonymous,
-            CheererId = payload.UserId,
-            CheererLogin = payload.UserLogin,
-            CheererName = payload.UserName,
             Bits = payload.Bits,
             Message = payload.Message,
             UserId = payload.UserId,
