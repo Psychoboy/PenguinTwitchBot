@@ -18,7 +18,7 @@ public sealed class ChannelChatNotification
     public ChatBadge[] Badges { get; set; } = [];
     public string SystemMessage { get; set; } = string.Empty;
     public required string NoticeType { get; set; }
-    public required string Message { get; set; }
+    public ChannelNotificationChatMessage? Message { get; set; }
     public ChatNotificationSubInfo? Sub { get; set; }
     public ChatNotificationResubInfo? Resub { get; set; }
     public ChatNotificationSubGiftInfo? SubGift { get; set; }
@@ -46,6 +46,14 @@ public sealed class ChannelChatNotification
     public ChatNotificationRaidInfo? SharedChatRaid { get; set; }
     public ChatNotificationPayItForwardInfo? SharedChatPayItForward { get; set; }
     public ChatNotificationAnnouncementInfo? SharedChatAnnouncement { get; set; }
+}
+
+public sealed class ChannelNotificationChatMessage
+{
+    public string Text { get; set; } = string.Empty;
+    public ChannelChatMessageFragment[] Fragments { get; set; } = [];
+    public ChatBadge[] Badges { get; set; } = [];
+    
 }
 
 public sealed class ChatNotificationSubInfo

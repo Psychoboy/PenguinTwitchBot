@@ -254,7 +254,27 @@ public static class EventSubAdapter
             }).ToArray(),
             SystemMessage = payload.SystemMessage,
             NoticeType = payload.NoticeType,
-            Message = payload.Message.Text,
+            Message = payload.Message != null ? new()
+            {
+                Text = payload.Message.Text,
+                Fragments = payload.Message.Fragments.Select(fragment => new Channel.ChannelChatMessageFragment
+                {
+                    Type = fragment.Type,
+                    Text = fragment.Text,
+                    Emote = fragment.Emote == null ? null : new Channel.ChannelChatMessageFragmentEmote
+                    {
+                        Id = fragment.Emote.Id,
+                        EmoteSetId = fragment.Emote.EmoteSetId,
+                        OwnerId = fragment.Emote.OwnerId,
+                        Format = fragment.Emote.Format,
+                    },
+                    Cheermote = fragment.Cheermote == null ? null : new Channel.ChannelChatMessageFragmentCheermote
+                    {
+                        Prefix = fragment.Cheermote.Prefix,
+                        Bits = fragment.Cheermote.Bits,
+                    },
+                }).ToArray(),
+            } : null!,
             Sub = payload.Sub == null ? null : new Channel.ChatNotificationSubInfo
             {
                 SubTier = payload.Sub.SubTier,

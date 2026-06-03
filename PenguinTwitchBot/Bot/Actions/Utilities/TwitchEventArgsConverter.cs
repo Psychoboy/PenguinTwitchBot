@@ -1,6 +1,6 @@
-﻿using System.Collections.Concurrent;
+﻿using PenguinTwitchBot.Bot.Events;
+using System.Collections.Concurrent;
 using System.Text.Json;
-using EventSubChannel = PenguinTwitchBot.TwitchApi.EventSub.Channel;
 
 namespace PenguinTwitchBot.Bot.Actions.Utilities
 {
@@ -9,7 +9,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
     /// </summary>
     public static class TwitchEventArgsConverter
     {
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelChatNotification eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(FollowEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
@@ -18,17 +18,240 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["UserId"] = eventArgs.ChatterUserId ?? string.Empty,
-                ["Name"] = eventArgs.ChatterUserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.ChatterUserName ?? string.Empty,
-                ["User"] = eventArgs.ChatterUserName ?? string.Empty,
-                ["IsAnonymous"] = eventArgs.ChatterIsAnonymous.ToString(),
-                ["NoticeType"] = eventArgs.NoticeType ?? string.Empty,
-                ["SystemMessage"] = eventArgs.SystemMessage ?? string.Empty,
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Username"] = eventArgs.Username ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["FollowDate"] = eventArgs.FollowDate.ToString("o"),
+                ["FollowEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(CheerEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
                 ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Amount"] = eventArgs.Amount.ToString(),
+                ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
+                ["CheerEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+    
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Count"] = eventArgs.Count?.ToString() ?? string.Empty,
+                ["Streak"] = eventArgs.Streak?.ToString() ?? string.Empty,
+                ["Tier"] = eventArgs.Tier ?? string.Empty,
+                ["IsGift"] = eventArgs.IsGift.ToString(),
+                ["IsRenewal"] = eventArgs.IsRenewal.ToString(),
+                ["HadPreviousSub"] = eventArgs.HadPreviousSub.ToString(),
+                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["SubscriptionEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionGiftEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["GiftAmount"] = eventArgs.GiftAmount.ToString(),
+                ["TotalGifted"] = eventArgs.TotalGifted?.ToString() ?? string.Empty,
+                ["SubscriptionGiftEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(SubscriptionEndEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["User"] = eventArgs.Name ?? string.Empty,
+                ["SubscriptionEndEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(RaidEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["NumberOfViewers"] = eventArgs.NumberOfViewers.ToString(),
+                ["Viewers"] = eventArgs.NumberOfViewers.ToString(),
+                ["RaidEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(ChannelPointRedeemEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Sender"] = eventArgs.Sender ?? string.Empty,
+                ["Name"] = eventArgs.Sender ?? string.Empty,
+                ["Username"] = eventArgs.Username ?? eventArgs.Sender ?? string.Empty,
+                ["DisplayName"] = eventArgs.Sender ?? string.Empty,
+                ["User"] = eventArgs.Sender ?? string.Empty,
+                ["Title"] = eventArgs.Title ?? string.Empty,
+                ["RewardName"] = eventArgs.Title ?? string.Empty,
+                ["UserInput"] = eventArgs.UserInput ?? string.Empty,
+                ["Message"] = eventArgs.UserInput ?? string.Empty,
+                ["ChannelPointRedeemEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(AdBreakStartEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Length"] = eventArgs.Length.ToString(),
+                ["Automatic"] = eventArgs.Automatic.ToString(),
+                ["StartedAt"] = eventArgs.StartedAt.ToString("o"),
+                ["AdBreakStartEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(BanEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["User"] = eventArgs.Name ?? string.Empty,
+                ["IsUnBan"] = eventArgs.IsUnBan.ToString(),
+                ["BanEndsAt"] = eventArgs.BanEndsAt?.ToString("o") ?? string.Empty,
+                ["BanEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(BitsUseEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Amount"] = eventArgs.Amount.ToString(),
+                ["Bits"] = eventArgs.Amount.ToString(),
+                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Type"] = eventArgs.Type,
+                ["IsPowerUp"] = eventArgs.IsPowerUp.ToString(),
+                ["PowerUpType"] = eventArgs.PowerUp?.Type ?? string.Empty,
+                ["IsCustomPowerUp"] = eventArgs.IsCustomPowerUp.ToString(),
+                ["CustomPowerUpTitle"] = eventArgs.CustomPowerUp?.Title ?? string.Empty,
+                ["CustomPowerUpRewardId"] = eventArgs.CustomPowerUp?.RewardId ?? string.Empty,
+                ["HasBitsMessage"] = eventArgs.HasBitsMessage.ToString(),
+                ["BitsUseEventArgs"] = JsonSerializer.Serialize(eventArgs)
+            };
+
+            return dictionary;
+        }
+
+        public static ConcurrentDictionary<string, string> ToDictionary(ChatNotificationEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                // Common fields
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
+                ["NoticeType"] = eventArgs.NoticeType,
+                ["SystemMessage"] = eventArgs.SystemMessage,
+                ["Message"] = eventArgs.Message ?? string.Empty,
+                // Sub (notice_type == "sub")
                 ["Sub.SubTier"] = eventArgs.Sub?.SubTier ?? string.Empty,
                 ["Sub.DurationMonths"] = eventArgs.Sub?.DurationMonths.ToString() ?? string.Empty,
                 ["Sub.IsPrime"] = eventArgs.Sub?.IsPrime.ToString() ?? string.Empty,
+                // Resub (notice_type == "resub")
                 ["Resub.CumulativeMonths"] = eventArgs.Resub?.CumulativeMonths.ToString() ?? string.Empty,
                 ["Resub.DurationMonths"] = eventArgs.Resub?.DurationMonths.ToString() ?? string.Empty,
                 ["Resub.StreakMonths"] = eventArgs.Resub?.StreakMonths?.ToString() ?? string.Empty,
@@ -39,6 +262,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["Resub.GifterUserId"] = eventArgs.Resub?.GifterUserId ?? string.Empty,
                 ["Resub.GifterUserName"] = eventArgs.Resub?.GifterUserName ?? string.Empty,
                 ["Resub.GifterUserLogin"] = eventArgs.Resub?.GifterUserLogin ?? string.Empty,
+                // SubGift (notice_type == "sub_gift")
                 ["SubGift.DurationMonths"] = eventArgs.SubGift?.DurationMonths.ToString() ?? string.Empty,
                 ["SubGift.CumulativeTotal"] = eventArgs.SubGift?.CumulativeTotal?.ToString() ?? string.Empty,
                 ["SubGift.RecipientUserId"] = eventArgs.SubGift?.RecipientUserId ?? string.Empty,
@@ -46,20 +270,25 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["SubGift.RecipientUserLogin"] = eventArgs.SubGift?.RecipientUserLogin ?? string.Empty,
                 ["SubGift.SubTier"] = eventArgs.SubGift?.SubTier ?? string.Empty,
                 ["SubGift.CommunityGiftId"] = eventArgs.SubGift?.CommunityGiftId ?? string.Empty,
+                // CommunitySubGift (notice_type == "community_sub_gift")
                 ["CommunitySubGift.Id"] = eventArgs.CommunitySubGift?.Id ?? string.Empty,
                 ["CommunitySubGift.Total"] = eventArgs.CommunitySubGift?.Total.ToString() ?? string.Empty,
                 ["CommunitySubGift.SubTier"] = eventArgs.CommunitySubGift?.SubTier ?? string.Empty,
                 ["CommunitySubGift.CumulativeTotal"] = eventArgs.CommunitySubGift?.CumulativeTotal?.ToString() ?? string.Empty,
+                // GiftPaidUpgrade (notice_type == "gift_paid_upgrade")
                 ["GiftPaidUpgrade.GifterIsAnonymous"] = eventArgs.GiftPaidUpgrade?.GifterIsAnonymous.ToString() ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserId"] = eventArgs.GiftPaidUpgrade?.GifterUserId ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserName"] = eventArgs.GiftPaidUpgrade?.GifterUserName ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserLogin"] = eventArgs.GiftPaidUpgrade?.GifterUserLogin ?? string.Empty,
+                // PrimePaidUpgrade (notice_type == "prime_paid_upgrade")
                 ["PrimePaidUpgrade.SubTier"] = eventArgs.PrimePaidUpgrade?.SubTier ?? string.Empty,
+                // Raid (notice_type == "raid")
                 ["Raid.UserId"] = eventArgs.Raid?.UserId ?? string.Empty,
                 ["Raid.UserName"] = eventArgs.Raid?.UserName ?? string.Empty,
                 ["Raid.UserLogin"] = eventArgs.Raid?.UserLogin ?? string.Empty,
                 ["Raid.ViewerCount"] = eventArgs.Raid?.ViewerCount.ToString() ?? string.Empty,
                 ["Raid.ProfileImageUrl"] = eventArgs.Raid?.ProfileImageUrl ?? string.Empty,
+                // PayItForward (notice_type == "pay_it_forward")
                 ["PayItForward.GifterIsAnonymous"] = eventArgs.PayItForward?.GifterIsAnonymous.ToString() ?? string.Empty,
                 ["PayItForward.GifterUserId"] = eventArgs.PayItForward?.GifterUserId ?? string.Empty,
                 ["PayItForward.GifterUserName"] = eventArgs.PayItForward?.GifterUserName ?? string.Empty,
@@ -67,12 +296,16 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["PayItForward.RecipientUserId"] = eventArgs.PayItForward?.RecipientUserId ?? string.Empty,
                 ["PayItForward.RecipientUserName"] = eventArgs.PayItForward?.RecipientUserName ?? string.Empty,
                 ["PayItForward.RecipientUserLogin"] = eventArgs.PayItForward?.RecipientUserLogin ?? string.Empty,
+                // Announcement (notice_type == "announcement")
                 ["Announcement.Color"] = eventArgs.Announcement?.Color ?? string.Empty,
+                // CharityDonation (notice_type == "charity_donation")
                 ["CharityDonation.CharityName"] = eventArgs.CharityDonation?.CharityName ?? string.Empty,
                 ["CharityDonation.AmountValue"] = eventArgs.CharityDonation?.AmountValue.ToString() ?? string.Empty,
                 ["CharityDonation.AmountDecimalPlaces"] = eventArgs.CharityDonation?.AmountDecimalPlaces.ToString() ?? string.Empty,
                 ["CharityDonation.AmountCurrency"] = eventArgs.CharityDonation?.AmountCurrency ?? string.Empty,
+                // BitsBadgeTier (notice_type == "bits_badge_tier")
                 ["BitsBadgeTier.Tier"] = eventArgs.BitsBadgeTier?.Tier.ToString() ?? string.Empty,
+                // WatchStreak (notice_type == "watch_streak")
                 ["WatchStreak.StreakCount"] = eventArgs.WatchStreak?.StreakCount.ToString() ?? string.Empty,
                 ["WatchStreak.ChannelPointsAwarded"] = eventArgs.WatchStreak?.ChannelPointsAwarded.ToString() ?? string.Empty,
                 ["ChatNotificationEventArgs"] = JsonSerializer.Serialize(eventArgs)
@@ -98,272 +331,6 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             {
                 ["EventType"] = "StreamOffline",
                 ["Timestamp"] = DateTime.UtcNow.ToString("o")
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelRaid eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.FromBroadcasterUserId ?? string.Empty,
-                ["Name"] = eventArgs.FromBroadcasterUserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.FromBroadcasterUserName ?? string.Empty,
-                ["User"] = eventArgs.FromBroadcasterUserName ?? string.Empty,
-                ["NumberOfViewers"] = eventArgs.Viewers.ToString(),
-                ["Viewers"] = eventArgs.Viewers.ToString(),
-                ["RaidEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelFollow eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Username"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["FollowDate"] = eventArgs.FollowedAt.ToString("o"),
-                ["FollowEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelCheer eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.CheererId ?? string.Empty,
-                ["Name"] = eventArgs.CheererLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.CheererName ?? string.Empty,
-                ["User"] = eventArgs.CheererName ?? string.Empty,
-                ["Message"] = eventArgs.Message ?? string.Empty,
-                ["Amount"] = eventArgs.Bits.ToString(),
-                ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
-                ["CheerEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelSubscribe eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["Count"] = string.Empty,
-                ["Streak"] = string.Empty,
-                ["Tier"] = eventArgs.Tier ?? string.Empty,
-                ["IsGift"] = "false",
-                ["IsRenewal"] = "false",
-                ["HadPreviousSub"] = "false",
-                ["Message"] = string.Empty,
-                ["SubscriptionEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelSubscriptionRenewal eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["Count"] = string.Empty,
-                ["Streak"] = eventArgs.StreakMonths.ToString() ?? string.Empty,
-                ["Tier"] = eventArgs.Tier ?? string.Empty,
-                ["IsGift"] = "false",
-                ["IsRenewal"] = "true",
-                ["HadPreviousSub"] = "true",
-                ["Message"] = eventArgs.Message?.Text ?? string.Empty,
-                ["SubscriptionEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelSubscriptionGift eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["GiftAmount"] = eventArgs.Total.ToString(),
-                ["TotalGifted"] = eventArgs.CumulativeTotal?.ToString() ?? string.Empty,
-                ["SubscriptionGiftEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelSubscriptionEnd eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["User"] = eventArgs.UserLogin ?? string.Empty,
-                ["SubscriptionEndEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelBan eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["User"] = eventArgs.UserLogin ?? string.Empty,
-                ["IsUnBan"] = "false",
-                ["BanEndsAt"] = eventArgs.EndsAt?.ToString("o") ?? string.Empty,
-                ["BanEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelUnban eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["User"] = eventArgs.UserLogin ?? string.Empty,
-                ["IsUnBan"] = "true",
-                ["BanEndsAt"] = string.Empty,
-                ["BanEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelBitsUse eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["Amount"] = eventArgs.Bits.ToString(),
-                ["Bits"] = eventArgs.Bits.ToString(),
-                ["Message"] = eventArgs.Message?.Text ?? string.Empty,
-                ["Type"] = string.Empty,
-                ["IsPowerUp"] = "false",
-                ["PowerUpType"] = string.Empty,
-                ["IsCustomPowerUp"] = "false",
-                ["CustomPowerUpTitle"] = string.Empty,
-                ["CustomPowerUpRewardId"] = string.Empty,
-                ["HasBitsMessage"] = (eventArgs.Message != null).ToString(),
-                ["BitsUseEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelAdBreakBegin eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Length"] = eventArgs.DurationSeconds.ToString(),
-                ["Automatic"] = eventArgs.IsAutomatic.ToString(),
-                ["StartedAt"] = eventArgs.StartedAt.ToString("o"),
-                ["AdBreakStartEventArgs"] = JsonSerializer.Serialize(eventArgs)
-            };
-
-            return dictionary;
-        }
-
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelPointRedemption eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                return new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            }
-
-            var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Sender"] = eventArgs.UserName ?? string.Empty,
-                ["Name"] = eventArgs.UserName ?? string.Empty,
-                ["Username"] = eventArgs.UserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.UserName ?? string.Empty,
-                ["User"] = eventArgs.UserName ?? string.Empty,
-                ["Title"] = eventArgs.Reward?.Title ?? string.Empty,
-                ["RewardName"] = eventArgs.Reward?.Title ?? string.Empty,
-                ["UserInput"] = eventArgs.UserInput ?? string.Empty,
-                ["Message"] = eventArgs.UserInput ?? string.Empty,
-                ["ChannelPointRedeemEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
             return dictionary;

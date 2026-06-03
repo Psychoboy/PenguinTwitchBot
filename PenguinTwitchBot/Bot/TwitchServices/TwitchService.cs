@@ -1249,6 +1249,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<bool> SubscribeToAllTheStuffs(string sessionId)
         {
+            // return true;
             if(!await ValidateAndRefreshToken())
             {
                 _logger.LogError("Failed to refresh token");

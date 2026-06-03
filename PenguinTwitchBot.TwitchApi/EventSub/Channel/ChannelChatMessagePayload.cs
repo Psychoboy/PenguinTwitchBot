@@ -28,6 +28,14 @@ public sealed class ChannelChatMessageFragment
     public string Text { get; set; } = string.Empty;
     public ChannelChatMessageFragmentEmote? Emote { get; set; }
     public ChannelChatMessageFragmentCheermote? Cheermote { get; set; }
+    public ChannelChatMessageMention? Mention { get; set; }
+}
+
+public sealed class ChannelChatMessageMention
+{
+    public string UserId { get; set; } = string.Empty;
+    public string UserLogin { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
 }
 
 public sealed class ChannelChatMessageFragmentEmote
@@ -42,4 +50,5 @@ public sealed class ChannelChatMessageFragmentCheermote
 {
     public string Prefix { get; set; } = string.Empty;
     public int Bits { get; set; }
+    public int Tier { get; set; }
 }

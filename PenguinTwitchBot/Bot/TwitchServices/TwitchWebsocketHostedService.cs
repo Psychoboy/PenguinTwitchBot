@@ -87,7 +87,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                    payload.Event.ChatterUserName.ToLower(),
                    channelPoint.Title,
                    messageText);
-                await twitchEventActionHandler.HandleChannelPointRedemptionAsync(pointRedemption);
+                await twitchEventActionHandler.HandleChannelPointRedemptionAsync(channelPointRedeemEventArgs);
                 logger.LogInformation("Channel pointed redeemed: {Title} by {user} userInput: {userInput}", channelPoint.Title, payload.Event.ChatterUserName, messageText);
             }
             else
@@ -111,8 +111,104 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 logger.LogInformation("ChatNotification: {NoticeType} from {User}", payload.Event.NoticeType, payload.Event.ChatterUserName);
+                var e = payload.Event;
+                var eventArgs = new Events.ChatNotificationEventArgs
+                {
+                    UserId = e.ChatterUserId,
+                    Name = e.ChatterUserLogin,
+                    DisplayName = e.ChatterUserName,
+                    IsAnonymous = e.ChatterIsAnonymous,
+                    NoticeType = e.NoticeType,
+                    SystemMessage = e.SystemMessage,
+                    Message = e.Message?.Text,
+                    Sub = e.Sub == null ? null : new Events.ChatNotificationSubInfo
+                    {
+                        SubTier = e.Sub.SubTier,
+                        DurationMonths = e.Sub.DurationMonths,
+                        IsPrime = e.Sub.IsPrime,
+                    },
+                    Resub = e.Resub == null ? null : new Events.ChatNotificationResubInfo
+                    {
+                        CumulativeMonths = e.Resub.CumulativeMonths,
+                        DurationMonths = e.Resub.DurationMonths,
+                        StreakMonths = e.Resub.StreakMonths,
+                        SubTier = e.Resub.SubTier,
+                        IsPrime = e.Resub.IsPrime,
+                        IsGift = e.Resub.IsGift,
+                        GifterIsAnonymous = e.Resub.GifterIsAnonymous,
+                        GifterUserId = e.Resub.GifterUserId,
+                        GifterUserName = e.Resub.GifterUserName,
+                        GifterUserLogin = e.Resub.GifterUserLogin,
+                    },
+                    SubGift = e.SubGift == null ? null : new Events.ChatNotificationSubGiftInfo
+                    {
+                        DurationMonths = e.SubGift.DurationMonths,
+                        CumulativeTotal = e.SubGift.CumulativeTotal,
+                        RecipientUserId = e.SubGift.RecipientUserId,
+                        RecipientUserName = e.SubGift.RecipientUserName,
+                        RecipientUserLogin = e.SubGift.RecipientUserLogin,
+                        SubTier = e.SubGift.SubTier,
+                        CommunityGiftId = e.SubGift.CommunityGiftId,
+                    },
+                    CommunitySubGift = e.CommunitySubGift == null ? null : new Events.ChatNotificationCommunitySubGiftInfo
+                    {
+                        Id = e.CommunitySubGift.Id,
+                        Total = e.CommunitySubGift.Total,
+                        SubTier = e.CommunitySubGift.SubTier,
+                        CumulativeTotal = e.CommunitySubGift.CumulativeTotal,
+                    },
+                    GiftPaidUpgrade = e.GiftPaidUpgrade == null ? null : new Events.ChatNotificationGiftPaidUpgradeInfo
+                    {
+                        GifterIsAnonymous = e.GiftPaidUpgrade.GifterIsAnonymous,
+                        GifterUserId = e.GiftPaidUpgrade.GifterUserId,
+                        GifterUserName = e.GiftPaidUpgrade.GifterUserName,
+                        GifterUserLogin = e.GiftPaidUpgrade.GifterUserLogin,
+                    },
+                    PrimePaidUpgrade = e.PrimePaidUpgrade == null ? null : new Events.ChatNotificationPrimePaidUpgradeInfo
+                    {
+                        SubTier = e.PrimePaidUpgrade.SubTier,
+                    },
+                    Raid = e.Raid == null ? null : new Events.ChatNotificationRaidInfo
+                    {
+                        UserId = e.Raid.UserId,
+                        UserName = e.Raid.UserName,
+                        UserLogin = e.Raid.UserLogin,
+                        ViewerCount = e.Raid.ViewerCount,
+                        ProfileImageUrl = e.Raid.ProfileImageUrl,
+                    },
+                    PayItForward = e.PayItForward == null ? null : new Events.ChatNotificationPayItForwardInfo
+                    {
+                        GifterIsAnonymous = e.PayItForward.GifterIsAnonymous,
+                        GifterUserId = e.PayItForward.GifterUserId,
+                        GifterUserName = e.PayItForward.GifterUserName,
+                        GifterUserLogin = e.PayItForward.GifterUserLogin,
+                        RecipientUserId = e.PayItForward.RecipientUserId,
+                        RecipientUserName = e.PayItForward.RecipientUserName,
+                        RecipientUserLogin = e.PayItForward.RecipientUserLogin,
+                    },
+                    Announcement = e.Announcement == null ? null : new Events.ChatNotificationAnnouncementInfo
+                    {
+                        Color = e.Announcement.Color,
+                    },
+                    // CharityDonation = e.CharityDonation == null ? null : new Events.ChatNotificationCharityDonationInfo
+                    // {
+                    //     CharityName = e.CharityDonation.Name,
+                    //     AmountValue = e.CharityDonation.Amount.Value,
+                    //     AmountDecimalPlaces = e.CharityDonation.Amount.DecimalPlaces,
+                    //     AmountCurrency = e.CharityDonation.Amount.Currency,
+                    // },
+                    BitsBadgeTier = e.BitsBadgeTier == null ? null : new Events.ChatNotificationBitsBadgeTierInfo
+                    {
+                        Tier = e.BitsBadgeTier.Tier,
+                    },
+                    WatchStreak = e.WatchStreak == null ? null : new Events.ChatNotificationWatchStreakInfo
+                    {
+                        StreakCount = e.WatchStreak.StreakCount,
+                        ChannelPointsAwarded = e.WatchStreak.ChannelPointsAwarded,
+                    },
+                };
 
-                await twitchEventActionHandler.HandleChatNotificationAsync(payload.Event);
+                await twitchEventActionHandler.HandleChatNotificationAsync(eventArgs);
             }
             catch (Exception ex)
             {
@@ -266,7 +362,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Length = payload.Event.DurationSeconds,
                     StartedAt = payload.Event.StartedAt
                 };
-                await twitchEventActionHandler.HandleAdBreakBeginAsync(payload.Event);
+                await twitchEventActionHandler.HandleAdBreakBeginAsync(ev);
                 await AdBreak(ev);
             }
             catch (Exception ex)
@@ -287,7 +383,20 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", payload.Event.UserLogin);
                 await eventService.OnViewerBan(payload.Event.UserId, payload.Event.UserLogin, true, null);
-                await twitchEventActionHandler.HandleChannelUnbanAsync(payload.Event);
+                var eventArgs = new BanEventArgs
+                {
+                    UserId = payload.Event.UserId,
+                    Name = payload.Event.UserLogin,
+                    DisplayName = payload.Event.UserName,
+                    UserName = payload.Event.UserName,
+                    UserLogin = payload.Event.UserLogin,
+                    ModeratorUserId = payload.Event.ModeratorUserId,
+                    ModeratorLogin = payload.Event.ModeratorUserLogin,
+                    ModeratorUserName = payload.Event.ModeratorUserName,
+                    IsPermanent = false,
+                    IsUnBan = true
+                };
+                await twitchEventActionHandler.HandleChannelUnbanAsync(eventArgs);
             }
             catch (Exception ex)
             {
@@ -315,7 +424,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 await dispatcher.Publish(new BannedChatUser { UserId = payload.Event.UserId });
                 
                 await eventService.OnViewerBan(payload.Event.UserId, payload.Event.UserLogin, false, payload.Event.EndsAt);
-                await twitchEventActionHandler.HandleChannelBanAsync(payload.Event);
+                var eventArgs = new BanEventArgs
+                {
+                    UserId = payload.Event.UserId,
+                    Name = payload.Event.UserLogin,
+                    DisplayName = payload.Event.UserName,
+                    UserName = payload.Event.UserName,
+                    UserLogin = payload.Event.UserLogin,
+                    ModeratorUserId = payload.Event.ModeratorUserId,
+                    ModeratorLogin = payload.Event.ModeratorUserLogin,
+                    ModeratorUserName = payload.Event.ModeratorUserName,
+                    Reason = payload.Event.Reason,
+                    BannedAt = payload.Event.BannedAt,
+                    IsPermanent = payload.Event.IsPermanent,
+                    IsUnBan = false,
+                    BanEndsAt = payload.Event.EndsAt
+                };
+                await twitchEventActionHandler.HandleChannelBanAsync(eventArgs);
             }
             catch (Exception ex)
             {
@@ -345,7 +470,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnIncomingRaid(raidEventArgs);
-                await twitchEventActionHandler.HandleRaidAsync(payload.Event);
+                await twitchEventActionHandler.HandleRaidAsync(raidEventArgs);
             }
             catch (Exception ex)
             {
@@ -465,7 +590,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnSubscription(subscriptionEventArgs);
-                await twitchEventActionHandler.HandleSubscribeAsync(payload.Event);
+                await twitchEventActionHandler.HandleSubscribeAsync(subscriptionEventArgs);
             }
             catch (Exception ex)
             {
@@ -506,7 +631,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnSubscription(subscriptionEventArgs);
-                await twitchEventActionHandler.HandleSubscriptionRenewalAsync(payload.Event);
+                await twitchEventActionHandler.HandleSubscribeAsync(subscriptionEventArgs);
             }
             catch (Exception ex)
             {
@@ -536,7 +661,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnSubscriptionGift(subscriptionGiftEventArgs);
-                await twitchEventActionHandler.HandleSubscriptionGiftAsync(payload.Event);
+                await twitchEventActionHandler.HandleSubscriptionGiftAsync(subscriptionGiftEventArgs);
             }
             catch (Exception ex)
             {
@@ -564,7 +689,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnSubscriptionEnd(payload.Event.UserLogin, payload.Event.UserId);
-                await twitchEventActionHandler.HandleSubscriptionEndAsync(payload.Event);
+                await twitchEventActionHandler.HandleSubscriptionEndAsync(subscriptionEndEventArgs);
             }
             catch (Exception ex)
             {
@@ -595,7 +720,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnCheer(payload.Event);
-                await twitchEventActionHandler.HandleCheerAsync(payload.Event);
+                await twitchEventActionHandler.HandleCheerAsync(cheerEventArgs);
             }
             catch (Exception ex)
             {
@@ -654,7 +779,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     }
                 };
 
-                await twitchEventActionHandler.HandleBitsUseAsync(payload.Event);
+                await twitchEventActionHandler.HandleBitsUseAsync(bitsUseEventArgs);
             }
             catch (Exception ex)
             {
@@ -688,7 +813,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     payload.Event.UserId,
                     payload.Event.UserName,
                     payload.Event.Reward.Title);
-                await twitchEventActionHandler.HandleChannelPointRedemptionAsync(payload.Event);
+                await twitchEventActionHandler.HandleChannelPointRedemptionAsync(channelPointRedeemEventArgs);
                 logger.LogInformation("Channel pointed redeemed: {Title} by {user} status {status}", payload.Event.Reward.Title, payload.Event.UserName, payload.Event.Status);
             }
             catch (Exception ex)
@@ -718,7 +843,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 };
 
                 await eventService.OnFollow(payload.Event);
-                await twitchEventActionHandler.HandleFollowAsync(payload.Event);
+                await twitchEventActionHandler.HandleFollowAsync(followEventArgs);
             }
             catch (Exception ex)
             {
@@ -808,6 +933,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     try
                     {
                         
+                        //if (await eventSubWebsocketClient.ConnectAsync(new Uri("ws://127.0.0.1:8080/ws"))) return;
                         if (await eventSubWebsocketClient.ConnectAsync()) return;
                     }
                     catch (Exception)
@@ -907,6 +1033,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatMessageDelete += ChannelChatMessageDelete;
             eventSubWebsocketClient.MessageReceived += MessageReceived;
             eventService.IsOnline = await twitchService.IsStreamOnline();
+            
             await Connect();
         }
 
