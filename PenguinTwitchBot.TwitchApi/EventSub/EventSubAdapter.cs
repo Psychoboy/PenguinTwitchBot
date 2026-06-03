@@ -11,7 +11,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub;
 public static class EventSubAdapter
 {
     private static TPayload CreatePayload<TPayload, TEvent>(object metadata, TEvent @event)
-        where TPayload : EventSubPayload<TEvent>, new()
+        where TPayload : EventSub.EventArgs.EventSubEventArgs<TEvent>, new()
         where TEvent : notnull
     {
         return new TPayload
@@ -43,82 +43,115 @@ public static class EventSubAdapter
             MessageTimestamp = DateTime.UtcNow
         };
     }
-    public static Channel.ChannelChatMessagePayload AdaptChannelChatMessage(ChannelChatMessageArgs args)
+    public static EventArgs.Channel.ChannelChatMessageEventArgs AdaptChannelChatMessage(ChannelChatMessageArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelChatMessagePayload, Channel.ChannelChatMessage>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelChatMessageEventArgs, SubscriptionTypes.Channel.ChannelChatMessage>(args.Metadata, new()
         {
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
             MessageId = payload.MessageId,
             ChatterUserId = payload.ChatterUserId,
             ChatterUserLogin = payload.ChatterUserLogin,
             ChatterUserName = payload.ChatterUserName,
-            IsSubscriber = payload.IsSubscriber,
-            IsModerator = payload.IsModerator,
-            IsVip = payload.IsVip,
-            IsBroadcaster = payload.IsBroadcaster,
-            Message = payload.Message.Text,
-            Fragments = payload.Message.Fragments.Select(fragment => new Channel.ChannelChatMessageFragment
+            Message = payload.Message == null ? new Models.Chat.ChatMessage() : new Models.Chat.ChatMessage
             {
-                Type = fragment.Type,
-                Text = fragment.Text,
-                Emote = fragment.Emote == null ? null : new Channel.ChannelChatMessageFragmentEmote
+                Text = payload.Message.Text,
+                Fragments = payload.Message.Fragments == null ? Array.Empty<Models.Chat.ChatMessageFragment>() : [.. payload.Message.Fragments.Select(f => new Models.Chat.ChatMessageFragment
                 {
-                    Id = fragment.Emote.Id,
-                    EmoteSetId = fragment.Emote.EmoteSetId,
-                    OwnerId = fragment.Emote.OwnerId,
-                    Format = fragment.Emote.Format,
-                },
-                Cheermote = fragment.Cheermote == null ? null : new Channel.ChannelChatMessageFragmentCheermote
-                {
-                    Prefix = fragment.Cheermote.Prefix,
-                    Bits = fragment.Cheermote.Bits,
-                },
-            }).ToArray(),
-            Badges = payload.Badges.Select(b => new Channel.ChatBadge
+                    Type = f.Type,
+                    Text = f.Text,
+                    Emote = f.Emote == null ? null : new Models.Chat.ChatEmote
+                    {
+                        Id = f.Emote.Id,
+                        EmoteSetId = f.Emote.EmoteSetId,
+                        OwnerId = f.Emote.OwnerId,
+                        Format = f.Emote.Format,
+                    },
+                    Cheermote = f.Cheermote == null ? null : new Models.Chat.ChatCheermote
+                    {
+                        Prefix = f.Cheermote.Prefix,
+                        Bits = f.Cheermote.Bits,
+                    },
+                })],
+            },
+            Color = payload.Color,
+            Badges = [.. payload.Badges.Select(b => new Models.Chat.ChatBadge
             {
                 SetId = b.SetId,
                 Id = b.Id,
                 Info = b.Info,
-            }).ToArray(),
-            Color = payload.Color,
-            ChannelPointsCustomRewardId = payload.ChannelPointsCustomRewardId ?? string.Empty,
+            })],
+            MessageType = payload.MessageType,
+            Cheer = payload.Cheer == null ? null : new Models.Chat.ChatCheer
+            {
+                Bits = payload.Cheer.Bits,
+            },
+            Reply = payload.Reply == null ? null : new Models.Chat.ChatReply
+            {
+                ParentMessageId = payload.Reply.ParentMessageId,
+                ParentMessageBody = payload.Reply.ParentMessageBody,
+                ParentUserId = payload.Reply.ParentUserId,
+                ParentUserName = payload.Reply.ParentUserName,
+                ParentUserLogin = payload.Reply.ParentUserLogin,
+                ThreadMessageId = payload.Reply.ThreadMessageId,
+                ThreadUserId = payload.Reply.ThreadUserId,
+                ThreadUserName = payload.Reply.ThreadUserName,
+                ThreadUserLogin = payload.Reply.ThreadUserLogin,
+            },
+            ChannelPointsCustomRewardId = payload.ChannelPointsCustomRewardId,
             SourceBroadcasterUserId = payload.SourceBroadcasterUserId,
+            SourceBroadcasterUserName = payload.SourceBroadcasterUserName,
+            SourceBroadcasterUserLogin = payload.SourceBroadcasterUserLogin,
+            SourceMessageId = payload.SourceMessageId,
+            SourceBadges = payload.SourceBadges == null ? null : [.. payload.SourceBadges.Select(b => new Models.Chat.ChatBadge
+            {
+                SetId = b.SetId,
+                Id = b.Id,
+                Info = b.Info,
+            })],
+            IsSourceOnly = payload.IsSourceOnly,
+            ChannelPointsAnimationId = payload.ChannelPointsAnimationId,
         });
     }
 
-    public static Channel.ChannelFollowPayload AdaptChannelFollow(ChannelFollowArgs args)
+    public static EventArgs.Channel.ChannelFollowEventArgs AdaptChannelFollow(ChannelFollowArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelFollowPayload, Channel.ChannelFollow>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelFollowEventArgs, SubscriptionTypes.Channel.ChannelFollow>(args.Metadata, new()
         {
             UserId = payload.UserId,
-            UserLogin = payload.UserLogin,
             UserName = payload.UserName,
-            FollowedAt = payload.FollowedAt.DateTime,
+            UserLogin = payload.UserLogin,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            FollowedAt = payload.FollowedAt,
         });
     }
 
-    public static Channel.ChannelCheerPayload AdaptChannelCheer(ChannelCheerArgs args)
+    public static EventArgs.Channel.ChannelCheerEventArgs AdaptChannelCheer(ChannelCheerArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelCheerPayload, Channel.ChannelCheer>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelCheerEventArgs, SubscriptionTypes.Channel.ChannelCheer>(args.Metadata, new()
         {
             IsAnonymous = payload.IsAnonymous,
-            CheererId = payload.UserId,
-            CheererLogin = payload.UserLogin,
-            CheererName = payload.UserName,
             Bits = payload.Bits,
             Message = payload.Message,
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
         });
     }
 
-    public static Channel.ChannelRaidPayload AdaptChannelRaid(ChannelRaidArgs args)
+    public static EventArgs.Channel.ChannelRaidEventArgs AdaptChannelRaid(ChannelRaidArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelRaidPayload, Channel.ChannelRaid>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelRaidEventArgs, SubscriptionTypes.Channel.ChannelRaid>(args.Metadata, new()
         {
             FromBroadcasterUserId = payload.FromBroadcasterUserId,
             FromBroadcasterUserLogin = payload.FromBroadcasterUserLogin,
@@ -130,74 +163,99 @@ public static class EventSubAdapter
         });
     }
 
-    public static Channel.ChannelBanPayload AdaptChannelBan(ChannelBanArgs args)
+    public static EventArgs.Channel.ChannelBanEventArgs AdaptChannelBan(ChannelBanArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelBanPayload, Channel.ChannelBan>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelBanEventArgs, SubscriptionTypes.Channel.ChannelBan>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             ModeratorUserId = payload.ModeratorUserId,
             ModeratorUserLogin = payload.ModeratorUserLogin,
             ModeratorUserName = payload.ModeratorUserName,
             IsPermanent = payload.IsPermanent,
-            Reason = payload.Reason ?? string.Empty,
+            Reason = payload.Reason,
             EndsAt = payload.EndsAt,
             BannedAt = payload.BannedAt,
         });
     }
 
-    public static Channel.ChannelUnbanPayload AdaptChannelUnban(ChannelUnbanArgs args)
+    public static EventArgs.Channel.ChannelUnbanEventArgs AdaptChannelUnban(ChannelUnbanArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelUnbanPayload, Channel.ChannelUnban>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelUnbanEventArgs, SubscriptionTypes.Channel.ChannelUnban>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             ModeratorUserId = payload.ModeratorUserId,
             ModeratorUserLogin = payload.ModeratorUserLogin,
             ModeratorUserName = payload.ModeratorUserName,
         });
     }
 
-    public static Channel.ChannelSubscribePayload AdaptChannelSubscribe(ChannelSubscribeArgs args)
+    public static EventArgs.Channel.ChannelSubscribeEventArgs AdaptChannelSubscribe(ChannelSubscribeArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelSubscribePayload, Channel.ChannelSubscribe>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSubscribeEventArgs, SubscriptionTypes.Channel.ChannelSubscribe>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             Tier = payload.Tier,
             IsGift = payload.IsGift,
         });
     }
 
-    public static Channel.ChannelSubscriptionRenewalPayload AdaptChannelSubscriptionRenewal(ChannelSubscriptionMessageArgs args)
+    public static EventArgs.Channel.ChannelSubscriptionMessageEventArgs AdaptChannelSubscriptionMessage(ChannelSubscriptionMessageArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelSubscriptionRenewalPayload, Channel.ChannelSubscriptionRenewal>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSubscriptionMessageEventArgs, SubscriptionTypes.Channel.ChannelSubscriptionMessage>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
-            CumulativeMonths = payload.CumulativeMonths,
-            StreakMonths = payload.StreakMonths ?? 0,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             Tier = payload.Tier,
-            Message = payload.Message != null ? new() { Text = payload.Message.Text } : null!,
+            Message = payload.Message == null ? new Models.Subscriptions.SubscriptionMessage() : new Models.Subscriptions.SubscriptionMessage
+            {
+                Text = payload.Message.Text,
+                Emotes = payload.Message.Emotes == null ? Array.Empty<Models.Subscriptions.SubscriptionMessageEmote>() : [.. payload.Message.Emotes.Select(e => new Models.Subscriptions.SubscriptionMessageEmote
+                {
+                    Id = e.Id,
+                    Begin = e.Begin,
+                    End = e.End,
+                })],
+            },
+            CumulativeMonths = payload.CumulativeMonths,
+            StreakMonths = payload.StreakMonths,
+            DurationMonths = payload.DurationMonths,
         });
     }
 
-    public static Channel.ChannelSubscriptionGiftPayload AdaptChannelSubscriptionGift(ChannelSubscriptionGiftArgs args)
+    public static EventArgs.Channel.ChannelSubscriptionGiftEventArgs AdaptChannelSubscriptionGift(ChannelSubscriptionGiftArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelSubscriptionGiftPayload, Channel.ChannelSubscriptionGift>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSubscriptionGiftEventArgs, SubscriptionTypes.Channel.ChannelSubscriptionGift>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             Total = payload.Total,
             CumulativeTotal = payload.CumulativeTotal,
             Tier = payload.Tier,
@@ -205,137 +263,184 @@ public static class EventSubAdapter
         });
     }
 
-    public static Channel.ChannelSubscriptionEndPayload AdaptChannelSubscriptionEnd(ChannelSubscriptionEndArgs args)
+    public static EventArgs.Channel.ChannelSubscriptionEndEventArgs AdaptChannelSubscriptionEnd(ChannelSubscriptionEndArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelSubscriptionEndPayload, Channel.ChannelSubscriptionEnd>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSubscriptionEndEventArgs, SubscriptionTypes.Channel.ChannelSubscriptionEnd>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            Tier = payload.Tier,
+            IsGift = payload.IsGift,
         });
     }
 
-    public static Channel.ChannelPointRedemptionPayload AdaptChannelPointRedemption(ChannelPointsCustomRewardRedemptionArgs args)
+    public static EventArgs.Channel.ChannelPointsCustomRewardRedemptionEventArgs AdaptChannelPointRedemption(ChannelPointsCustomRewardRedemptionArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelPointRedemptionPayload, Channel.ChannelPointRedemption>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelPointsCustomRewardRedemptionEventArgs, SubscriptionTypes.Channel.ChannelPointsCustomRewardRedemption>(args.Metadata, new()
         {
             Id = payload.Id,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
             Status = payload.Status,
             UserInput = payload.UserInput ?? string.Empty,
-            Reward = new() { Id = payload.Reward.Id, Title = payload.Reward.Title },
+            Reward = new() { 
+                Id = payload.Reward.Id, 
+                Title = payload.Reward.Title, 
+                Cost = payload.Reward.Cost, 
+                Prompt = payload.Reward.Prompt 
+            },
             RedeemedAt = payload.RedeemedAt,
         });
     }
 
-    public static Channel.ChannelChatNotificationPayload AdaptChannelChatNotification(ChannelChatNotificationArgs args)
+    public static EventArgs.Channel.ChannelChatNotificationEventArgs AdaptChannelChatNotification(ChannelChatNotificationArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelChatNotificationPayload, Channel.ChannelChatNotification>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelChatNotificationEventArgs, SubscriptionTypes.Channel.ChannelChatNotification>(args.Metadata, new()
         {
             BroadcasterUserId = payload.BroadcasterUserId,
             BroadcasterUserName = payload.BroadcasterUserName,
             BroadcasterUserLogin = payload.BroadcasterUserLogin,
-            MessageId = payload.MessageId,
             ChatterUserId = payload.ChatterUserId,
-            ChatterUserLogin = payload.ChatterUserLogin,
             ChatterUserName = payload.ChatterUserName,
+            ChatterUserLogin = payload.ChatterUserLogin,
             ChatterIsAnonymous = payload.ChatterIsAnonymous,
             Color = payload.Color,
-            Badges = payload.Badges.Select(b => new Channel.ChatBadge
+            Badges = [.. payload.Badges.Select(b => new Models.Chat.ChatBadge
             {
                 SetId = b.SetId,
                 Id = b.Id,
                 Info = b.Info,
-            }).ToArray(),
+            })],
             SystemMessage = payload.SystemMessage,
+            MessageId = payload.MessageId,
+            Message = payload.Message == null ? new Models.Chat.ChatMessage() : new Models.Chat.ChatMessage
+            {
+                Text = payload.Message.Text,
+                Fragments = payload.Message.Fragments == null ? Array.Empty<Models.Chat.ChatMessageFragment>() : [.. payload.Message.Fragments.Select(f => new Models.Chat.ChatMessageFragment
+                {
+                    Type = f.Type,
+                    Text = f.Text,
+                    Emote = f.Emote == null ? null : new Models.Chat.ChatEmote
+                    {
+                        Id = f.Emote.Id,
+                        EmoteSetId = f.Emote.EmoteSetId,
+                        OwnerId = f.Emote.OwnerId,
+                        Format = f.Emote.Format,
+                    },
+                    Cheermote = f.Cheermote == null ? null : new Models.Chat.ChatCheermote
+                    {
+                        Prefix = f.Cheermote.Prefix,
+                        Bits = f.Cheermote.Bits,
+                        Tier = f.Cheermote.Tier,
+                    },
+                    Mention = f.Mention == null ? null : new Models.Chat.ChatMessageMention
+                    {
+                        UserId = f.Mention.UserId,
+                        UserLogin = f.Mention.UserLogin,
+                        UserName = f.Mention.UserName,
+                    },
+                })],
+            },
             NoticeType = payload.NoticeType,
-            Message = payload.Message.Text,
-            Sub = payload.Sub == null ? null : new Channel.ChatNotificationSubInfo
+            Sub = payload.Sub == null ? null : new Models.Chat.ChatSub
             {
                 SubTier = payload.Sub.SubTier,
                 DurationMonths = payload.Sub.DurationMonths,
                 IsPrime = payload.Sub.IsPrime,
             },
-            Resub = payload.Resub == null ? null : new Channel.ChatNotificationResubInfo
+            Resub = payload.Resub == null ? null : new Models.Chat.ChatResub
             {
-                CumulativeMonths = payload.Resub.CumulativeMonths,
-                DurationMonths = payload.Resub.DurationMonths,
-                StreakMonths = payload.Resub.StreakMonths,
                 SubTier = payload.Resub.SubTier,
+                DurationMonths = payload.Resub.DurationMonths,
+                CumulativeMonths = payload.Resub.CumulativeMonths,
+                StreakMonths = payload.Resub.StreakMonths,
                 IsPrime = payload.Resub.IsPrime,
                 IsGift = payload.Resub.IsGift,
                 GifterIsAnonymous = payload.Resub.GifterIsAnonymous,
                 GifterUserId = payload.Resub.GifterUserId,
-                GifterUserName = payload.Resub.GifterUserName,
                 GifterUserLogin = payload.Resub.GifterUserLogin,
+                GifterUserName = payload.Resub.GifterUserName,
             },
-            SubGift = payload.SubGift == null ? null : new Channel.ChatNotificationSubGiftInfo
+            SubGift = payload.SubGift == null ? null : new Models.Chat.ChatSubGift
             {
                 DurationMonths = payload.SubGift.DurationMonths,
                 CumulativeTotal = payload.SubGift.CumulativeTotal,
                 RecipientUserId = payload.SubGift.RecipientUserId,
-                RecipientUserName = payload.SubGift.RecipientUserName,
                 RecipientUserLogin = payload.SubGift.RecipientUserLogin,
+                RecipientUserName = payload.SubGift.RecipientUserName,
                 SubTier = payload.SubGift.SubTier,
                 CommunityGiftId = payload.SubGift.CommunityGiftId,
             },
-            CommunitySubGift = payload.CommunitySubGift == null ? null : new Channel.ChatNotificationCommunitySubGiftInfo
+            CommunitySubGift = payload.CommunitySubGift == null ? null : new Models.Chat.ChatCommunitySubGift
             {
                 Id = payload.CommunitySubGift.Id,
                 Total = payload.CommunitySubGift.Total,
                 SubTier = payload.CommunitySubGift.SubTier,
                 CumulativeTotal = payload.CommunitySubGift.CumulativeTotal,
             },
-            GiftPaidUpgrade = payload.GiftPaidUpgrade == null ? null : new Channel.ChatNotificationGiftPaidUpgradeInfo
+            GiftPaidUpgrade = payload.GiftPaidUpgrade == null ? null : new Models.Chat.ChatGiftPaidUpgrade
             {
                 GifterIsAnonymous = payload.GiftPaidUpgrade.GifterIsAnonymous,
                 GifterUserId = payload.GiftPaidUpgrade.GifterUserId,
-                GifterUserName = payload.GiftPaidUpgrade.GifterUserName,
                 GifterUserLogin = payload.GiftPaidUpgrade.GifterUserLogin,
+                GifterUserName = payload.GiftPaidUpgrade.GifterUserName,
             },
-            PrimePaidUpgrade = payload.PrimePaidUpgrade == null ? null : new Channel.ChatNotificationPrimePaidUpgradeInfo
+            PrimePaidUpgrade = payload.PrimePaidUpgrade == null ? null : new Models.Chat.ChatPrimePaidUpgrade
             {
                 SubTier = payload.PrimePaidUpgrade.SubTier,
             },
-            Raid = payload.Raid == null ? null : new Channel.ChatNotificationRaidInfo
+            Raid = payload.Raid == null ? null : new Models.Chat.ChatRaid
             {
                 UserId = payload.Raid.UserId,
-                UserName = payload.Raid.UserName,
                 UserLogin = payload.Raid.UserLogin,
+                UserName = payload.Raid.UserName,
                 ViewerCount = payload.Raid.ViewerCount,
                 ProfileImageUrl = payload.Raid.ProfileImageUrl,
             },
-            PayItForward = payload.PayItForward == null ? null : new Channel.ChatNotificationPayItForwardInfo
+            Unraid = payload.Unraid == null ? null : new Models.Chat.ChatUnraid
             {
+                // Nothing extra to map for unraid, but keeping the type for consistency
+            },
+            PayItForward = payload.PayItForward == null ? null : new Models.Chat.ChatPayItForward
+            {
+                RecipientUserId = payload.PayItForward.RecipientUserId,
+                RecipientUserLogin = payload.PayItForward.RecipientUserLogin,
+                RecipientUserName = payload.PayItForward.RecipientUserName,
                 GifterIsAnonymous = payload.PayItForward.GifterIsAnonymous,
                 GifterUserId = payload.PayItForward.GifterUserId,
-                GifterUserName = payload.PayItForward.GifterUserName,
                 GifterUserLogin = payload.PayItForward.GifterUserLogin,
-                RecipientUserId = payload.PayItForward.RecipientUserId,
-                RecipientUserName = payload.PayItForward.RecipientUserName,
-                RecipientUserLogin = payload.PayItForward.RecipientUserLogin,
+                GifterUserName = payload.PayItForward.GifterUserName,
             },
-            Announcement = payload.Announcement == null ? null : new Channel.ChatNotificationAnnouncementInfo
+            Announcement = payload.Announcement == null ? null : new Models.Chat.ChatAnnouncement
             {
                 Color = payload.Announcement.Color,
             },
-            CharityDonation = payload.CharityDonation == null ? null : new Channel.ChatNotificationCharityDonationInfo
+            CharityDonation = payload.CharityDonation == null ? null : new Models.Chat.ChatCharityDonation
             {
-                CharityName = payload.CharityDonation.Name,
-                AmountValue = payload.CharityDonation.Amount.Value,
-                AmountDecimalPlaces = payload.CharityDonation.Amount.DecimalPlaces,
-                AmountCurrency = payload.CharityDonation.Amount.Currency,
+                Name = payload.CharityDonation.Name,
+                Amount = payload.CharityDonation.Amount == null ? new Models.Charity.CharityAmount() : new Models.Charity.CharityAmount
+                {
+                    Value = payload.CharityDonation.Amount.Value,
+                    Currency = payload.CharityDonation.Amount.Currency,
+                    DecimalPlaces = payload.CharityDonation.Amount.DecimalPlaces,
+                },
             },
-            BitsBadgeTier = payload.BitsBadgeTier == null ? null : new Channel.ChatNotificationBitsBadgeTierInfo
+            BitsBadgeTier = payload.BitsBadgeTier == null ? null : new Models.Chat.ChannelBitsBadgeTier
             {
                 Tier = payload.BitsBadgeTier.Tier,
             },
-            WatchStreak = payload.WatchStreak == null ? null : new Channel.ChatNotificationWatchStreakInfo
+            WatchStreak = payload.WatchStreak == null ? null : new Models.Chat.WatchStreak
             {
                 StreakCount = payload.WatchStreak.StreakCount,
                 ChannelPointsAwarded = payload.WatchStreak.ChannelPointsAwarded,
@@ -344,160 +449,218 @@ public static class EventSubAdapter
             SourceBroadcasterUserName = payload.SourceBroadcasterUserName,
             SourceBroadcasterUserLogin = payload.SourceBroadcasterUserLogin,
             SourceMessageId = payload.SourceMessageId,
-            SourceBadges = payload.SourceBadges?.Select(b => new Channel.ChatBadge
+            SourceBadges = payload.SourceBadges == null ? null : [.. payload.SourceBadges.Select(b => new Models.Chat.ChatBadge
             {
                 SetId = b.SetId,
                 Id = b.Id,
                 Info = b.Info,
-            }).ToArray(),
-            SharedChatSub = payload.SharedChatSub == null ? null : new Channel.ChatNotificationSubInfo
+            })],
+            IsSourceOnly = payload.IsSourceOnly,
+            SharedChatSub = payload.SharedChatSub == null ? null : new Models.Chat.ChatSub
             {
                 SubTier = payload.SharedChatSub.SubTier,
                 DurationMonths = payload.SharedChatSub.DurationMonths,
                 IsPrime = payload.SharedChatSub.IsPrime,
             },
-            IsSourceOnly = payload.IsSourceOnly,
-            SharedChatResub = payload.SharedChatResub == null ? null : new Channel.ChatNotificationResubInfo
+            SharedChatResub = payload.SharedChatResub == null ? null : new Models.Chat.ChatResub
             {
-                CumulativeMonths = payload.SharedChatResub.CumulativeMonths,
-                DurationMonths = payload.SharedChatResub.DurationMonths,
-                StreakMonths = payload.SharedChatResub.StreakMonths,
                 SubTier = payload.SharedChatResub.SubTier,
+                DurationMonths = payload.SharedChatResub.DurationMonths,
+                CumulativeMonths = payload.SharedChatResub.CumulativeMonths,
+                StreakMonths = payload.SharedChatResub.StreakMonths,
                 IsPrime = payload.SharedChatResub.IsPrime,
                 IsGift = payload.SharedChatResub.IsGift,
                 GifterIsAnonymous = payload.SharedChatResub.GifterIsAnonymous,
                 GifterUserId = payload.SharedChatResub.GifterUserId,
-                GifterUserName = payload.SharedChatResub.GifterUserName,
                 GifterUserLogin = payload.SharedChatResub.GifterUserLogin,
+                GifterUserName = payload.SharedChatResub.GifterUserName,
             },
-            SharedChatSubGift = payload.SharedChatSubGift == null ? null : new Channel.ChatNotificationSubGiftInfo
+            SharedChatSubGift = payload.SharedChatSubGift == null ? null : new Models.Chat.ChatSubGift
             {
                 DurationMonths = payload.SharedChatSubGift.DurationMonths,
                 CumulativeTotal = payload.SharedChatSubGift.CumulativeTotal,
                 RecipientUserId = payload.SharedChatSubGift.RecipientUserId,
-                RecipientUserName = payload.SharedChatSubGift.RecipientUserName,
                 RecipientUserLogin = payload.SharedChatSubGift.RecipientUserLogin,
+                RecipientUserName = payload.SharedChatSubGift.RecipientUserName,
                 SubTier = payload.SharedChatSubGift.SubTier,
                 CommunityGiftId = payload.SharedChatSubGift.CommunityGiftId,
             },
-            SharedChatCommunitySubGift = payload.SharedChatCommunitySubGift == null ? null : new Channel.ChatNotificationCommunitySubGiftInfo
+            SharedChatCommunitySubGift = payload.SharedChatCommunitySubGift == null ? null : new Models.Chat.ChatCommunitySubGift
             {
                 Id = payload.SharedChatCommunitySubGift.Id,
                 Total = payload.SharedChatCommunitySubGift.Total,
                 SubTier = payload.SharedChatCommunitySubGift.SubTier,
                 CumulativeTotal = payload.SharedChatCommunitySubGift.CumulativeTotal,
             },
-            SharedChatGiftPaidUpgrade = payload.SharedChatGiftPaidUpgrade == null ? null : new Channel.ChatNotificationGiftPaidUpgradeInfo
+            SharedChatGiftPaidUpgrade = payload.SharedChatGiftPaidUpgrade == null ? null : new Models.Chat.ChatGiftPaidUpgrade
             {
                 GifterIsAnonymous = payload.SharedChatGiftPaidUpgrade.GifterIsAnonymous,
                 GifterUserId = payload.SharedChatGiftPaidUpgrade.GifterUserId,
-                GifterUserName = payload.SharedChatGiftPaidUpgrade.GifterUserName,
                 GifterUserLogin = payload.SharedChatGiftPaidUpgrade.GifterUserLogin,
+                GifterUserName = payload.SharedChatGiftPaidUpgrade.GifterUserName,
             },
-            SharedChatPrimePaidUpgrade = payload.SharedChatPrimePaidUpgrade == null ? null : new Channel.ChatNotificationPrimePaidUpgradeInfo
+            SharedChatPrimePaidUpgrade = payload.SharedChatPrimePaidUpgrade == null ? null : new Models.Chat.ChatPrimePaidUpgrade
             {
                 SubTier = payload.SharedChatPrimePaidUpgrade.SubTier,
             },
-            SharedChatRaid = payload.SharedChatRaid == null ? null : new Channel.ChatNotificationRaidInfo
+            SharedChatRaid = payload.SharedChatRaid == null ? null : new Models.Chat.ChatRaid
             {
                 UserId = payload.SharedChatRaid.UserId,
-                UserName = payload.SharedChatRaid.UserName,
                 UserLogin = payload.SharedChatRaid.UserLogin,
+                UserName = payload.SharedChatRaid.UserName,
                 ViewerCount = payload.SharedChatRaid.ViewerCount,
                 ProfileImageUrl = payload.SharedChatRaid.ProfileImageUrl,
             },
-            SharedChatPayItForward = payload.SharedChatPayItForward == null ? null : new Channel.ChatNotificationPayItForwardInfo
+            SharedChatPayItForward = payload.SharedChatPayItForward == null ? null : new Models.Chat.ChatPayItForward
             {
+                RecipientUserId = payload.SharedChatPayItForward.RecipientUserId,
+                RecipientUserLogin = payload.SharedChatPayItForward.RecipientUserLogin,
+                RecipientUserName = payload.SharedChatPayItForward.RecipientUserName,
                 GifterIsAnonymous = payload.SharedChatPayItForward.GifterIsAnonymous,
                 GifterUserId = payload.SharedChatPayItForward.GifterUserId,
-                GifterUserName = payload.SharedChatPayItForward.GifterUserName,
                 GifterUserLogin = payload.SharedChatPayItForward.GifterUserLogin,
-                RecipientUserId = payload.SharedChatPayItForward.RecipientUserId,
-                RecipientUserName = payload.SharedChatPayItForward.RecipientUserName,
-                RecipientUserLogin = payload.SharedChatPayItForward.RecipientUserLogin,
+                GifterUserName = payload.SharedChatPayItForward.GifterUserName,
             },
-            SharedChatAnnouncement = payload.SharedChatAnnouncement == null ? null : new Channel.ChatNotificationAnnouncementInfo
+            SharedChatAnnouncement = payload.SharedChatAnnouncement == null ? null : new Models.Chat.ChatAnnouncement
             {
                 Color = payload.SharedChatAnnouncement.Color,
             },
         });
     }
 
-    public static Channel.ChannelChatMessageDeletePayload AdaptChannelChatMessageDelete(ChannelChatMessageDeleteArgs args)
+    public static EventArgs.Channel.ChannelChatMessageDeleteEventArgs AdaptChannelChatMessageDelete(ChannelChatMessageDeleteArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelChatMessageDeletePayload, Channel.ChannelChatMessageDelete>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelChatMessageDeleteEventArgs, SubscriptionTypes.Channel.ChannelChatMessageDelete>(args.Metadata, new()
         {
-            MessageId = payload.MessageId,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            TargetUserId = payload.TargetUserId,
             TargetUserName = payload.TargetUserName,
             TargetUserLogin = payload.TargetUserLogin,
-            TargetUserId = payload.TargetUserId,
+            MessageId = payload.MessageId,
         });
     }
 
-    public static Channel.ChannelSuspiciousUserMessagePayload AdaptChannelSuspiciousUserMessage(ChannelSuspiciousUserMessageArgs args)
+    public static EventArgs.Channel.ChannelSuspiciousUserMessageEventArgs AdaptChannelSuspiciousUserMessage(ChannelSuspiciousUserMessageArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelSuspiciousUserMessagePayload, Channel.ChannelSuspiciousUserMessage>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSuspiciousUserMessageEventArgs, SubscriptionTypes.Channel.ChannelSuspiciousUserMessage>(args.Metadata, new()
         {
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
             UserId = payload.UserId,
-            UserLogin = payload.UserLogin,
             UserName = payload.UserName,
-            Message = new() { MessageId = payload.Message.MessageId, Text = payload.Message.Text },
+            UserLogin = payload.UserLogin,
+            LowTrustStatus = payload.LowTrustStatus,
+            SharedBanChannelIds = payload.SharedBanChannelIds,
+            Types = payload.Types,
+            BanEvasionEvaluation = payload.BanEvasionEvaluation,
+            Message = new Models.ChannelSuspiciousUser.SuspiciousUserMessage
+            {
+                MessageId = payload.Message.MessageId,
+                Text = payload.Message.Text,
+                Fragments = payload.Message.Fragments == null ? Array.Empty<Models.ChannelSuspiciousUser.MessageFragment>()
+                : [.. payload.Message.Fragments.Select(f => new Models.ChannelSuspiciousUser.MessageFragment
+                {
+                    Type = f.Type,
+                    Text = f.Text,
+                    Cheermote = f.Cheermote == null ? null : new Models.ChannelSuspiciousUser.FragmentCheermote
+                    {
+                       Prefix = f.Cheermote.Prefix,
+                       Bits = f.Cheermote.Bits,
+                       Tier = f.Cheermote.Tier,
+                    },
+                    Emote = f.Emote == null ? null : new Models.ChannelSuspiciousUser.FragmentEmote
+                    {
+                        Id = f.Emote.Id,
+                        EmoteSetId = f.Emote.EmoteSetId,
+                    },
+                })],
+            },
         });
     }
 
-    public static Channel.ChannelAdBreakBeginPayload AdaptChannelAdBreakBegin(ChannelAdBreakBeginArgs args)
+    public static EventArgs.Channel.ChannelAdBreakBeginEventArgs AdaptChannelAdBreakBegin(ChannelAdBreakBeginArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelAdBreakBeginPayload, Channel.ChannelAdBreakBegin>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelAdBreakBeginEventArgs, SubscriptionTypes.Channel.ChannelAdBreakBegin>(args.Metadata, new()
         {
             DurationSeconds = payload.DurationSeconds,
-            IsAutomatic = payload.IsAutomatic,
             StartedAt = payload.StartedAt,
+            IsAutomatic = payload.IsAutomatic,
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            RequesterUserId = payload.RequesterUserId,
+            RequesterUserLogin = payload.RequesterUserLogin,
+            RequesterUserName = payload.RequesterUserName,
         });
     }
 
-    public static Channel.ChannelBitsUsePayload AdaptChannelBitsUse(ChannelBitsUseArgs args)
+    public static EventArgs.Channel.ChannelBitsUseEventArgs AdaptChannelBitsUse(ChannelBitsUseArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<Channel.ChannelBitsUsePayload, Channel.ChannelBitsUse>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelBitsUseEventArgs, SubscriptionTypes.Channel.ChannelBitsUse>(args.Metadata, new()
         {
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            BroadcasterUserName = payload.BroadcasterUserName,
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
             UserName = payload.UserName,
             Bits = payload.Bits,
             Type = payload.Type,
-            BroadcasterUserId = payload.BroadcasterUserId,
-            BroadcasterUserLogin = payload.BroadcasterUserLogin,
-            BroadcasterUserName = payload.BroadcasterUserName,
-            Message = payload.Message != null ? new()
+            Message = payload.Message == null ? null : new Models.Bits.BitsMessage
             {
-                Text = payload.Message.Text,
-                Fragments = payload.Message.Fragments?.Select(f => new Channel.BitsChatFragment
-                {
-                    Type = f.Type,
-                    Text = f.Text,
-                    Emote = f.Emote != null ? new() { Id = f.Emote.Id, EmoteSetId = f.Emote.EmoteSetId, OwnerId = f.Emote.OwnerId, Format = f.Emote.Format } : null,
-                }).ToList() ?? [],
-            } : null,
-            PowerUp = payload.PowerUp != null ? new()
+               Text = payload.Message.Text,
+               Fragments = payload.Message.Fragments == null ? [] : [.. payload.Message.Fragments.Select(f => new Models.Bits.BitsMessageFragments
+               {
+                   Text = f.Text,
+                   Type = f.Type,
+                   Emote = f.Emote == null ? null : new Models.Bits.BitsEmote
+                   {
+                       Id = f.Emote.Id,
+                       EmoteSetId = f.Emote.EmoteSetId,
+                       OwnerId = f.Emote.OwnerId,
+                       Format = f.Emote.Format,
+                   },
+                   Cheermote = f.Cheermote == null ? null : new Models.Bits.BitsCheermote
+                   {
+                       Prefix = f.Cheermote.Prefix,
+                       Bits = f.Cheermote.Bits,
+                       Tier = f.Cheermote.Tier,
+                   },
+               })],
+            },
+            PowerUp = payload.PowerUp == null ? null : new Models.Bits.PowerUp
             {
                 Type = payload.PowerUp.Type,
-                Emote = payload.PowerUp.Emote != null ? new() { Id = payload.PowerUp.Emote.Id } : null,
-            } : null,
-            CustomPowerUp = payload.CustomPowerUp != null ? new() { Title = payload.CustomPowerUp.Title, RewardId = payload.CustomPowerUp.RewardId } : null,
+                MessageEffectId = payload.PowerUp.MessageEffectId,
+                Emote = payload.PowerUp.Emote == null ? null : new Models.Bits.PowerUpEmote
+                {
+                    Id = payload.PowerUp.Emote.Id,
+                    Name = payload.PowerUp.Emote.Name,
+                },
+            },
+            CustomPowerUp = payload.CustomPowerUp == null ? null : new Models.Bits.CustomPowerUp
+            {
+                Title = payload.CustomPowerUp.Title,
+                RewardId = payload.CustomPowerUp.RewardId,
+            },
         });
     }
 
-    public static Stream.StreamOnlinePayload AdaptStreamOnline(StreamOnlineArgs args)
+    public static EventArgs.Stream.StreamOnlineEventArgs AdaptStreamOnline(StreamOnlineArgs args)
     {
-        return CreatePayload<Stream.StreamOnlinePayload, Stream.StreamOnline>(args.Metadata, new());
+        return CreatePayload<EventArgs.Stream.StreamOnlineEventArgs, SubscriptionTypes.Stream.StreamOnline>(args.Metadata, new());
     }
 
-    public static Stream.StreamOfflinePayload AdaptStreamOffline(StreamOfflineArgs args)
+    public static EventArgs.Stream.StreamOfflineEventArgs AdaptStreamOffline(StreamOfflineArgs args)
     {
-        return CreatePayload<Stream.StreamOfflinePayload, Stream.StreamOffline>(args.Metadata, new());
+        return CreatePayload<EventArgs.Stream.StreamOfflineEventArgs, SubscriptionTypes.Stream.StreamOffline>(args.Metadata, new());
     }
 }
 

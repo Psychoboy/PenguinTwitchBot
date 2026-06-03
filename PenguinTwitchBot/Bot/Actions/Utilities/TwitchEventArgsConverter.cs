@@ -1,7 +1,6 @@
 ﻿using PenguinTwitchBot.Bot.Events;
 using System.Collections.Concurrent;
 using System.Text.Json;
-using EventSubChannel = PenguinTwitchBot.TwitchApi.EventSub.Channel;
 
 namespace PenguinTwitchBot.Bot.Actions.Utilities
 {
@@ -230,7 +229,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             return dictionary;
         }
 
-        public static ConcurrentDictionary<string, string> ToDictionary(EventSubChannel.ChannelChatNotification eventArgs)
+        public static ConcurrentDictionary<string, string> ToDictionary(ChatNotificationEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
@@ -239,17 +238,20 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["UserId"] = eventArgs.ChatterUserId ?? string.Empty,
-                ["Name"] = eventArgs.ChatterUserLogin ?? string.Empty,
-                ["DisplayName"] = eventArgs.ChatterUserName ?? string.Empty,
-                ["User"] = eventArgs.ChatterUserName ?? string.Empty,
-                ["IsAnonymous"] = eventArgs.ChatterIsAnonymous.ToString(),
-                ["NoticeType"] = eventArgs.NoticeType ?? string.Empty,
-                ["SystemMessage"] = eventArgs.SystemMessage ?? string.Empty,
+                // Common fields
+                ["UserId"] = eventArgs.UserId ?? string.Empty,
+                ["Name"] = eventArgs.Name ?? string.Empty,
+                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
+                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
+                ["NoticeType"] = eventArgs.NoticeType,
+                ["SystemMessage"] = eventArgs.SystemMessage,
                 ["Message"] = eventArgs.Message ?? string.Empty,
+                // Sub (notice_type == "sub")
                 ["Sub.SubTier"] = eventArgs.Sub?.SubTier ?? string.Empty,
                 ["Sub.DurationMonths"] = eventArgs.Sub?.DurationMonths.ToString() ?? string.Empty,
                 ["Sub.IsPrime"] = eventArgs.Sub?.IsPrime.ToString() ?? string.Empty,
+                // Resub (notice_type == "resub")
                 ["Resub.CumulativeMonths"] = eventArgs.Resub?.CumulativeMonths.ToString() ?? string.Empty,
                 ["Resub.DurationMonths"] = eventArgs.Resub?.DurationMonths.ToString() ?? string.Empty,
                 ["Resub.StreakMonths"] = eventArgs.Resub?.StreakMonths?.ToString() ?? string.Empty,
@@ -260,6 +262,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["Resub.GifterUserId"] = eventArgs.Resub?.GifterUserId ?? string.Empty,
                 ["Resub.GifterUserName"] = eventArgs.Resub?.GifterUserName ?? string.Empty,
                 ["Resub.GifterUserLogin"] = eventArgs.Resub?.GifterUserLogin ?? string.Empty,
+                // SubGift (notice_type == "sub_gift")
                 ["SubGift.DurationMonths"] = eventArgs.SubGift?.DurationMonths.ToString() ?? string.Empty,
                 ["SubGift.CumulativeTotal"] = eventArgs.SubGift?.CumulativeTotal?.ToString() ?? string.Empty,
                 ["SubGift.RecipientUserId"] = eventArgs.SubGift?.RecipientUserId ?? string.Empty,
@@ -267,20 +270,25 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["SubGift.RecipientUserLogin"] = eventArgs.SubGift?.RecipientUserLogin ?? string.Empty,
                 ["SubGift.SubTier"] = eventArgs.SubGift?.SubTier ?? string.Empty,
                 ["SubGift.CommunityGiftId"] = eventArgs.SubGift?.CommunityGiftId ?? string.Empty,
+                // CommunitySubGift (notice_type == "community_sub_gift")
                 ["CommunitySubGift.Id"] = eventArgs.CommunitySubGift?.Id ?? string.Empty,
                 ["CommunitySubGift.Total"] = eventArgs.CommunitySubGift?.Total.ToString() ?? string.Empty,
                 ["CommunitySubGift.SubTier"] = eventArgs.CommunitySubGift?.SubTier ?? string.Empty,
                 ["CommunitySubGift.CumulativeTotal"] = eventArgs.CommunitySubGift?.CumulativeTotal?.ToString() ?? string.Empty,
+                // GiftPaidUpgrade (notice_type == "gift_paid_upgrade")
                 ["GiftPaidUpgrade.GifterIsAnonymous"] = eventArgs.GiftPaidUpgrade?.GifterIsAnonymous.ToString() ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserId"] = eventArgs.GiftPaidUpgrade?.GifterUserId ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserName"] = eventArgs.GiftPaidUpgrade?.GifterUserName ?? string.Empty,
                 ["GiftPaidUpgrade.GifterUserLogin"] = eventArgs.GiftPaidUpgrade?.GifterUserLogin ?? string.Empty,
+                // PrimePaidUpgrade (notice_type == "prime_paid_upgrade")
                 ["PrimePaidUpgrade.SubTier"] = eventArgs.PrimePaidUpgrade?.SubTier ?? string.Empty,
+                // Raid (notice_type == "raid")
                 ["Raid.UserId"] = eventArgs.Raid?.UserId ?? string.Empty,
                 ["Raid.UserName"] = eventArgs.Raid?.UserName ?? string.Empty,
                 ["Raid.UserLogin"] = eventArgs.Raid?.UserLogin ?? string.Empty,
                 ["Raid.ViewerCount"] = eventArgs.Raid?.ViewerCount.ToString() ?? string.Empty,
                 ["Raid.ProfileImageUrl"] = eventArgs.Raid?.ProfileImageUrl ?? string.Empty,
+                // PayItForward (notice_type == "pay_it_forward")
                 ["PayItForward.GifterIsAnonymous"] = eventArgs.PayItForward?.GifterIsAnonymous.ToString() ?? string.Empty,
                 ["PayItForward.GifterUserId"] = eventArgs.PayItForward?.GifterUserId ?? string.Empty,
                 ["PayItForward.GifterUserName"] = eventArgs.PayItForward?.GifterUserName ?? string.Empty,
@@ -288,12 +296,16 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["PayItForward.RecipientUserId"] = eventArgs.PayItForward?.RecipientUserId ?? string.Empty,
                 ["PayItForward.RecipientUserName"] = eventArgs.PayItForward?.RecipientUserName ?? string.Empty,
                 ["PayItForward.RecipientUserLogin"] = eventArgs.PayItForward?.RecipientUserLogin ?? string.Empty,
+                // Announcement (notice_type == "announcement")
                 ["Announcement.Color"] = eventArgs.Announcement?.Color ?? string.Empty,
+                // CharityDonation (notice_type == "charity_donation")
                 ["CharityDonation.CharityName"] = eventArgs.CharityDonation?.CharityName ?? string.Empty,
                 ["CharityDonation.AmountValue"] = eventArgs.CharityDonation?.AmountValue.ToString() ?? string.Empty,
                 ["CharityDonation.AmountDecimalPlaces"] = eventArgs.CharityDonation?.AmountDecimalPlaces.ToString() ?? string.Empty,
                 ["CharityDonation.AmountCurrency"] = eventArgs.CharityDonation?.AmountCurrency ?? string.Empty,
+                // BitsBadgeTier (notice_type == "bits_badge_tier")
                 ["BitsBadgeTier.Tier"] = eventArgs.BitsBadgeTier?.Tier.ToString() ?? string.Empty,
+                // WatchStreak (notice_type == "watch_streak")
                 ["WatchStreak.StreakCount"] = eventArgs.WatchStreak?.StreakCount.ToString() ?? string.Empty,
                 ["WatchStreak.ChannelPointsAwarded"] = eventArgs.WatchStreak?.ChannelPointsAwarded.ToString() ?? string.Empty,
                 ["ChatNotificationEventArgs"] = JsonSerializer.Serialize(eventArgs)

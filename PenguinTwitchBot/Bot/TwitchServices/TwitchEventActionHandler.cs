@@ -3,7 +3,6 @@ using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using EventSubChannel = PenguinTwitchBot.TwitchApi.EventSub.Channel;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
@@ -83,7 +82,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await ExecuteActionsForEventAsync("ChannelBitsUse", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
 
-        public async Task HandleChatNotificationAsync(EventSubChannel.ChannelChatNotification eventArgs)
+        public async Task HandleChatNotificationAsync(ChatNotificationEventArgs eventArgs)
         {
             await ExecuteActionsForEventAsync("ChannelChatNotification", TwitchEventArgsConverter.ToDictionary(eventArgs));
         }
@@ -179,6 +178,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task HandleChannelUnbanAsync(BanEventArgs eventArgs);
         Task HandleAdBreakBeginAsync(AdBreakStartEventArgs eventArgs);
         Task HandleBitsUseAsync(BitsUseEventArgs eventArgs);
-        Task HandleChatNotificationAsync(EventSubChannel.ChannelChatNotification eventArgs);
+        Task HandleChatNotificationAsync(ChatNotificationEventArgs eventArgs);
     }
 }
