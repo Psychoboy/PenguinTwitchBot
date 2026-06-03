@@ -2,7 +2,7 @@ using PenguinTwitchBot.TwitchApi.EventSub.Models.ChannelSuspiciousUser;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel
 {
-    public sealed class ChannelSuspiciousUserMessage
+    public sealed class ChannelSuspiciousUserMessage  : ChannelSuspiciousUserBase
     {
         public string[] SharedBanChannelIds { get; init; } = [];
         public string[] Types { get; init; } = [];

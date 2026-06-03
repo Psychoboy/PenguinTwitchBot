@@ -202,13 +202,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return dispatcher.Publish(new DeletedChatMessage { EventArgs = args });
         }
 
-        private Task ChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs args)
+        private async Task ChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs e)
         {
-            if (messageIdTracker.IsSelfMessage(args.Payload.Event.Message.MessageId)) return Task.CompletedTask;
-            if (DidProcessMessage(EventSubAdapter.MapMetadata(args.Metadata))) return Task.CompletedTask;
-            logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Payload.Event.UserName, args.Payload.Event.Message);
-            var e = args.Payload.Event;
-            var messageText = args.Payload.Event.Message.Text;
+            await ChannelSuspiciousUserMessage(EventSubAdapter.AdaptChannelSuspiciousUserMessage(e));
+        }
+
+        private Task ChannelSuspiciousUserMessage(TwitchApi.EventSub.EventArgs.Channel.ChannelSuspiciousUserMessageEventArgs args)
+        {
+            if (messageIdTracker.IsSelfMessage(args.Event.Message.MessageId)) return Task.CompletedTask;
+            if (DidProcessMessage(args.Metadata)) return Task.CompletedTask;
+            logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Event.UserName, args.Event.Message.Text);
+            var e = args.Event;
+            var messageText = args.Event.Message.Text;
             messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
             var chatMessage = new ChatMessageEventArgs
             {
@@ -334,7 +339,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("Ad Begin. Length: {length} Started At: {startedAt} Automatic: {automatic}", payload.Event.DurationSeconds, payload.Event.StartedAt, payload.Event.IsAutomatic);
                 var ev = new AdBreakStartEventArgs
                 {
@@ -360,7 +365,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelUnBan {UserLogin}", payload.Event.UserLogin);
                 await eventService.OnViewerBan(payload.Event.UserId, payload.Event.UserLogin, true, null);
                 var eventArgs = new BanEventArgs
@@ -393,7 +398,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 if (payload.Event.IsPermanent == false)
                 {
                     logger.LogInformation("{UserLogin} timed out by {Moderator}.", payload.Event.UserLogin, payload.Event.ModeratorUserLogin);
@@ -545,7 +550,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("onChannelSubscription: {UserLogin} -- IsGift?: {IsGift} Tier- {Tier}"
                 , payload.Event.UserLogin, payload.Event.IsGift, payload.Event.Tier);
 
@@ -582,7 +587,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionRenewal: {UserLogin}", payload.Event.UserLogin);
                 await subscriptionHistory.AddOrUpdateSubHistory(payload.Event.UserLogin, payload.Event.UserId);
 
@@ -613,11 +618,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await OnChannelSubscriptionGift(EventSubAdapter.AdaptChannelSubscriptionGift(e));
         }
 
-        private async Task OnChannelSubscriptionGift(TwitchApi.EventSub.EventArgs.Channel.ChannelSubsctiptionGiftEventArgs payload)
+        private async Task OnChannelSubscriptionGift(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionGiftEventArgs payload)
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelSubscriptionGift: {UserLogin}", payload.Event.UserLogin);
 
                 var subscriptionGiftEventArgs = new Events.SubscriptionGiftEventArgs
@@ -647,7 +652,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
 
                 logger.LogInformation("OnChannelSubscriptionEnd: {UserLogin}", payload.Event.UserLogin);
 
@@ -706,7 +711,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelBitsUse: {UserLogin}", payload.Event.UserLogin);
 
                 var bitsUseEventArgs = new BitsUseEventArgs
@@ -766,7 +771,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 if (string.IsNullOrWhiteSpace(payload.Event.UserInput) == false) return; //Ignore wait for chat message
 
                 var channelPointRedeemEventArgs = new ChannelPointRedeemEventArgs
@@ -800,7 +805,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                if (DidProcessMessage(EventSubAdapter.MapMetadata(payload.Metadata))) return;
+                if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelFollow: {UserLogin}", payload.Event.UserLogin);
 
                 var followEventArgs = new FollowEventArgs

@@ -245,10 +245,10 @@ public static class EventSubAdapter
         });
     }
 
-    public static EventArgs.Channel.ChannelSubsctiptionGiftEventArgs AdaptChannelSubscriptionGift(ChannelSubscriptionGiftArgs args)
+    public static EventArgs.Channel.ChannelSubscriptionGiftEventArgs AdaptChannelSubscriptionGift(ChannelSubscriptionGiftArgs args)
     {
         var payload = args.Payload.Event;
-        return CreatePayload<EventArgs.Channel.ChannelSubsctiptionGiftEventArgs, SubscriptionTypes.Channel.ChannelSubscriptionGift>(args.Metadata, new()
+        return CreatePayload<EventArgs.Channel.ChannelSubscriptionGiftEventArgs, SubscriptionTypes.Channel.ChannelSubscriptionGift>(args.Metadata, new()
         {
             UserId = payload.UserId,
             UserLogin = payload.UserLogin,
@@ -548,6 +548,13 @@ public static class EventSubAdapter
         var payload = args.Payload.Event;
         return CreatePayload<EventArgs.Channel.ChannelSuspiciousUserMessageEventArgs, SubscriptionTypes.Channel.ChannelSuspiciousUserMessage>(args.Metadata, new()
         {
+            BroadcasterUserId = payload.BroadcasterUserId,
+            BroadcasterUserName = payload.BroadcasterUserName,
+            BroadcasterUserLogin = payload.BroadcasterUserLogin,
+            UserId = payload.UserId,
+            UserName = payload.UserName,
+            UserLogin = payload.UserLogin,
+            LowTrustStatus = payload.LowTrustStatus,
             SharedBanChannelIds = payload.SharedBanChannelIds,
             Types = payload.Types,
             BanEvasionEvaluation = payload.BanEvasionEvaluation,
