@@ -27,7 +27,7 @@ public abstract class TwitchClientRetryBase
             {
                 return await action();
             }
-            catch (Exception ex) when (IsTransient(ex))
+            catch (Exception ex) when (IsTransient(ex) && !(ex is HttpRequestException httpEx && httpEx.StatusCode == System.Net.HttpStatusCode.Unauthorized))
             {
                 if (attempt == MaxAttempts)
                 {
@@ -63,7 +63,7 @@ public abstract class TwitchClientRetryBase
                 await action();
                 return;
             }
-            catch (Exception ex) when (IsTransient(ex))
+            catch (Exception ex) when (IsTransient(ex) && !(ex is HttpRequestException httpEx && httpEx.StatusCode == System.Net.HttpStatusCode.Unauthorized))
             {
                 if (attempt == MaxAttempts)
                 {
