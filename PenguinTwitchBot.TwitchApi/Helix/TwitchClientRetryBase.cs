@@ -54,37 +54,17 @@ public abstract class TwitchClientRetryBase
     /// <summary>
     /// Executes a void operation with exponential backoff retry for transient errors.
     /// </summary>
-    protected async Task ExecuteWithRetryAsync(Func<Task> action, string operation)
+    protected Task ExecuteWithRetryAsync(Func<Task> action, string operation)
     {
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
-        {
-            try
+        
+        return ExecuteWithRetryAsync(
+            async () =>
             {
                 await action();
-                return;
-            }
-            catch (Exception ex) when (IsRetryable(ex))
-            {
-                if (attempt == MaxAttempts)
-                {
-                    Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
-                    throw;
-                }
+                return true;
+            },
+            operation);
 
-                var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
-                Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.",
-                    operation, attempt, MaxAttempts, delay.TotalMilliseconds);
-                await Task.Delay(delay);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message} {failureHint}",
-                    operation, ex.GetType().Name, ex.Message, GetFailureHint(ex));
-                throw;
-            }
-        }
-
-        throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
     }
 
     private static bool IsRetryable(Exception ex)
