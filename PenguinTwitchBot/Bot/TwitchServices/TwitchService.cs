@@ -512,12 +512,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             try
             {
-                await ValidateAndRefreshToken();
                 if (UserCache.TryGetValue(user, out var cachedUser))
                 {
                     return cachedUser;
                 }
-
+                await ValidateAndRefreshToken();
                 var users = await _usersClient.GetUsersAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
