@@ -1,11 +1,11 @@
 ﻿# Database Migration & Debug Helpers
 
-This folder contains batch scripts to simplify database management across all three database providers (MariaDB, PostgreSQL, SQLite).
+This folder contains batch scripts to simplify database management across both database providers (PostgreSQL, SQLite).
 
 ## Quick Migration Scripts
 
 ### `add-migration.bat MigrationName`
-Generates a new migration for all 3 database providers.
+Generates a new migration for both database providers.
 
 **Usage:**
 ```batch
@@ -14,12 +14,11 @@ add-migration.bat CreateProductTable
 ```
 
 This automatically generates migrations in:
-- `PenguinTwitchBot.Migrations.MariaDb/Migrations/`
 - `PenguinTwitchBot.Migrations.Postgres/Migrations/`
 - `PenguinTwitchBot.Migrations.Sqlite/Migrations/`
 
 ### `remove-migration.bat`
-Removes the last migration from all 3 database providers.
+Removes the last migration from both database providers.
 
 **Usage:**
 ```batch
@@ -29,14 +28,14 @@ remove-migration.bat
 âš ï¸ Use with caution - this removes pending migrations from all providers.
 
 ### `update-database.bat`
-Applies all pending migrations to all 3 database providers.
+Applies all pending migrations to both database providers.
 
 **Usage:**
 ```batch
 update-database.bat
 ```
 
-This will update the database schemas in MariaDB, PostgreSQL, and SQLite.
+This will update the database schemas in PostgreSQL and SQLite.
 
 ## Advanced: `manage-migrations.bat`
 
@@ -61,10 +60,9 @@ Navigate using numbered options (1-5).
 ### Launch Profiles in VS Code
 When running in debug mode with F5, you can now select which database provider to use:
 
-1. **PenguinTwitchBot** - Uses config file provider (default: MariaDB)
-2. **PenguinTwitchBot (MariaDB)** - Forces MariaDB
-3. **PenguinTwitchBot (PostgreSQL)** - Forces PostgreSQL
-4. **PenguinTwitchBot (SQLite)** - Forces SQLite
+1. **PenguinTwitchBot** - Uses config file provider (default: SQLite)
+2. **PenguinTwitchBot (PostgreSQL)** - Forces PostgreSQL
+3. **PenguinTwitchBot (SQLite)** - Forces SQLite
 
 These profiles are configured in `PenguinTwitchBot/Properties/launchSettings.json`.
 
@@ -82,7 +80,7 @@ set DATABASE_PROVIDER=postgres
 dotnet run --project PenguinTwitchBot
 ```
 
-Valid values: `mariadb`, `mysql`, `postgres`, `postgresql`, `sqlite`
+Valid values: `postgres`, `postgresql`, `sqlite`
 
 ## Workflow Examples
 
@@ -104,7 +102,7 @@ Then select option "2" for PostgreSQL.
 ```batch
 add-migration.bat TestFeature
 update-database.bat
-REM Verify all 3 databases updated successfully
+REM Verify all 2 databases updated successfully
 remove-migration.bat
 ```
 
@@ -114,10 +112,9 @@ The primary database provider is defined in `PenguinTwitchBot/appsettings.secret
 ```json
 {
   "Database": {
-    "Provider": "mariadb"
+    "Provider": "sqlite"
   },
   "ConnectionStrings": {
-    "MariaDbConnection": "Server=...;",
     "PostgresConnection": "Host=...;",
     "SqliteConnection": "Data Source=..."
   }
@@ -128,7 +125,7 @@ Debug profiles and environment variables override this during development.
 
 ## Notes
 
-- Migrations must be compatible across all 3 database systems
+- Migrations must be compatible across both database systems
 - Keep migrations database-agnostic; use EF Core's provider-agnostic patterns
 - Test migrations on all providers before deployment
 - Each migration project has its own `Migrations/` folder with provider-specific SQL generation
@@ -137,7 +134,7 @@ Debug profiles and environment variables override this during development.
 
 Migration names should match across providers, but generated migration bodies can differ.
 This is expected because provider SQL types and SQL generation differ (for example,
-PostgreSQL uses timezone-aware timestamp handling while SQLite/MariaDB do not).
+PostgreSQL uses timezone-aware timestamp handling while SQLite does not).
 
 ## UTC and Legacy Data
 

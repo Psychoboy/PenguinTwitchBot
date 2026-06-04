@@ -107,7 +107,6 @@ namespace PenguinTwitchBot.Setup.Services
 
             var providerString = model.DatabaseProvider switch
             {
-                DatabaseProviderOption.MariaDb => "mariadb",
                 DatabaseProviderOption.Postgres => "postgres",
                 _ => "sqlite"
             };
@@ -135,7 +134,6 @@ namespace PenguinTwitchBot.Setup.Services
                 ["ConnectionStrings"] = new Dictionary<string, object?>
                 {
                     ["SqliteConnection"] = ToSqliteConnectionString(model.SqliteFilePath.Trim()),
-                    ["MariaDbConnection"] = model.MariaDbConnectionString.Trim(),
                     ["PostgresConnection"] = model.PostgresConnectionString.Trim()
                 },
                 ["Discord"] = new Dictionary<string, object?>
@@ -185,7 +183,6 @@ namespace PenguinTwitchBot.Setup.Services
                     TwitchBotClientSecret = node["twitchBotClientSecret"]?.GetValue<string>() ?? "",
                     YoutubeApiKey = node["youtubeApi"]?.GetValue<string>() ?? "",
                     SqliteFilePath = node["ConnectionStrings"]?["SqliteConnection"]?.GetValue<string>() ?? "",
-                    MariaDbConnectionString = node["ConnectionStrings"]?["MariaDbConnection"]?.GetValue<string>() ?? "",
                     PostgresConnectionString = node["ConnectionStrings"]?["PostgresConnection"]?.GetValue<string>() ?? "",
                     DiscordToken = node["Discord"]?["discordToken"]?.GetValue<string>() ?? "",
                     DiscordServerId = node["Discord"]?["DiscordServerId"]?.ToString() ?? "",
@@ -200,7 +197,6 @@ namespace PenguinTwitchBot.Setup.Services
                 var providerStr = node["Database"]?["Provider"]?.GetValue<string>() ?? "sqlite";
                 model.DatabaseProvider = providerStr switch
                 {
-                    "mariadb" => DatabaseProviderOption.MariaDb,
                     "postgres" => DatabaseProviderOption.Postgres,
                     _ => DatabaseProviderOption.Sqlite
                 };
