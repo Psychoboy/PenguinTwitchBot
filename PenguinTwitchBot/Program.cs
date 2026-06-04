@@ -166,8 +166,8 @@ internal class Program
         });
         builder.Services.AddMudMarkdownServices();
 
-        //Database
-        builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
+        
+        
         builder.Services.AddPenguinDispatcher(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 
@@ -314,7 +314,7 @@ internal class Program
         app.UseForwardedHeaders();
 
         // Always migrate — for SQLite this creates the database file and schema on first run.
-        // For MariaDB/Postgres the server must be reachable before starting the app.
+        // For PostgreSQL the server must be reachable before starting the app.
         {
             using var scope = app.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -628,10 +628,9 @@ internal class Program
             Log.Information("Using database provider {Provider} from environment variable", envProvider);
             return envProvider switch
             {
-                "mariadb" or "mysql" => "mariadb",
                 "postgres" or "postgresql" => "postgres",
                 "sqlite" => "sqlite",
-                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+                _ => throw new InvalidOperationException($"Unsupported database provider '{envProvider}'. Supported values: postgres, postgresql, sqlite.")
             };
         }
 
@@ -640,12 +639,10 @@ internal class Program
         return provider switch
         {
             null or "" => "sqlite",
-            "mariadb" => "mariadb",
-            "mysql" => "mariadb",
             "postgres" => "postgres",
             "postgresql" => "postgres",
             "sqlite" => "sqlite",
-            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: mariadb, mysql, postgres, postgresql, sqlite.")
+            _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'. Supported values: postgres, postgresql, sqlite.")
         };
     }
 
@@ -655,7 +652,6 @@ internal class Program
         string[] migrationDlls =
         [
             "PenguinTwitchBot.Migrations.Postgres.dll",
-            "PenguinTwitchBot.Migrations.MariaDb.dll",
             "PenguinTwitchBot.Migrations.Sqlite.dll",
         ];
         foreach (var dll in migrationDlls)
@@ -670,7 +666,6 @@ internal class Program
     {
         return provider switch
         {
-            "mariadb" => "PenguinTwitchBot.Migrations.MariaDb",
             "postgres" => "PenguinTwitchBot.Migrations.Postgres",
             "sqlite" => "PenguinTwitchBot.Migrations.Sqlite",
             _ => throw new InvalidOperationException($"Unsupported database provider '{provider}'.")
@@ -681,7 +676,6 @@ internal class Program
     {
         var configured = provider switch
         {
-            "mariadb" => configuration.GetConnectionString("MariaDbConnection") ?? configuration.GetConnectionString("DefaultConnection"),
             "postgres" => configuration.GetConnectionString("PostgresConnection"),
             "sqlite" => string.IsNullOrEmpty(configuration.GetConnectionString("SqliteConnection"))
                 ? $"Data Source={Path.Combine(AppContext.BaseDirectory, "Data", "PenguinTwitchBot.sqlite")}"
@@ -703,20 +697,6 @@ internal class Program
 
         switch (provider)
         {
-            case "mariadb":
-                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
-                {
-                    mysqlOptions.MigrationsAssembly(migrationsAssembly)
-                        .EnableRetryOnFailure(
-                            maxRetryCount: 5,
-                            maxRetryDelay: TimeSpan.FromSeconds(15),
-                            errorNumbersToAdd: null
-                        )
-                        .TranslateParameterizedCollectionsToConstants()
-                        .EnablePrimitiveCollectionsSupport();
-                });
-                break;
-
             case "postgres":
                 options.UseNpgsql(connectionString, postgresOptions =>
                 {

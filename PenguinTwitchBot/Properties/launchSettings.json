@@ -9,16 +9,6 @@
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5000"
     },
-    "PenguinTwitchBot (MariaDB)": {
-      "commandName": "Project",
-      "launchBrowser": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "DATABASE_PROVIDER": "mariadb"
-      },
-      "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5000"
-    },
     "PenguinTwitchBot (PostgreSQL)": {
       "commandName": "Project",
       "launchBrowser": true,

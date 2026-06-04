@@ -201,7 +201,7 @@ namespace PenguinTwitchBot.Bot.DatabaseTools
             await actionsRepository.RemapEntityReferencesAfterRestore(logger);
 
             // Post-restore: Reset PostgreSQL sequences that may have de-synced due to explicit ID inserts.
-            // MySQL AUTO_INCREMENT and SQLite ROWID advance automatically on explicit inserts, so this is PostgreSQL-only.
+            // SQLite ROWID advance automatically on explicit inserts, so this is PostgreSQL-only.
             if (context.Database.ProviderName?.Contains("Npgsql") == true)
             {
                 logger?.LogInformation("Resetting PostgreSQL sequences after restore");

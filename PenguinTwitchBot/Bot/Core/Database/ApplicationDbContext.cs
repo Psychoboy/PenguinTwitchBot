@@ -84,7 +84,7 @@ namespace PenguinTwitchBot.Bot.Core.Database
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure DateTime properties for database provider compatibility
-            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : Database.IsMySql() ? "mariadb" : null;
+            var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : null;
             modelBuilder.ConfigureDateTimes(provider);
 
             modelBuilder.Entity<SongRequestViewItem>()
