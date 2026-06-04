@@ -47,6 +47,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
         private TimeSpan _keepAliveTimeout = TimeSpan.Zero;
         private bool _reconnectRequested = false;
         private bool _reconnectComplete = false;
+        private int _websocketDisconnectedInvoked = 0;
         private WebsocketClient _websocketClient;
         private readonly ILogger<EventSubWebsocketClient> _logger;
         private readonly ILoggerFactory? _loggerFactory;
@@ -99,6 +100,8 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 
             if (!success)
                 return false;
+
+            Interlocked.Exchange(ref _websocketDisconnectedInvoked, 0);
 
             var monitorRequired = !wasConnected && _websocketClient.IsConnected;
             if (!monitorRequired)
@@ -241,7 +244,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 
             await DisconnectAsync();
 
-            if (!cancellationToken.IsCancellationRequested)
+            if (!cancellationToken.IsCancellationRequested && Interlocked.CompareExchange(ref _websocketDisconnectedInvoked, 1, 0) == 0)
                 await WebsocketDisconnected.InvokeAsync(this, new());
         }
 
@@ -316,6 +319,8 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             if(_reconnectRequested)
                 _reconnectComplete = true;
 
+            Interlocked.Exchange(ref _websocketDisconnectedInvoked, 0);
+
             SessionId = data.Session.Id;
             var keepAliveTimeout = data.Session.KeepaliveTimeoutSeconds + data.Session.KeepaliveTimeoutSeconds * 0.2;
             _keepAliveTimeout = TimeSpan.FromSeconds(keepAliveTimeout ?? 10);
@@ -329,7 +334,8 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             if(data != null)
                 _logger.LogForceDisconnected(SessionId, data.Session.DisconnectedAt, data.Session.DisconnectReason);
 
-            await WebsocketDisconnected.InvokeAsync(this, new ());
+            if (Interlocked.CompareExchange(ref _websocketDisconnectedInvoked, 1, 0) == 0)
+                await WebsocketDisconnected.InvokeAsync(this, new ());
         }
 
         private void HandleKeepAlive(WebsocketEventSubMetaData metadata, JsonElement payload)
