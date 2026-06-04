@@ -186,6 +186,41 @@ Requires a free **OpenWeatherMap API key** from [openweathermap.org/api](https:/
 ### OpenAI
 Requires an **OpenAI API key** from [platform.openai.com](https://platform.openai.com/api-keys). Enables AI-powered chat responses and automated shoutouts. Usage is billed by token - set spend limits in your OpenAI account dashboard.
 
+### Google Text-to-Speech (TTS)
+Enables the `!say` command and Actions to read messages aloud using Google Cloud's high-quality text-to-speech voices. 
+
+**Setup Instructions:**
+
+1. Create a **Google Cloud Project**:
+   - Go to [console.cloud.google.com](https://console.cloud.google.com/)
+   - Click **Select a Project** → **New Project**
+   - Name it (e.g., `PenguinTwitchBot`) and click **Create**
+
+2. **Enable the Text-to-Speech API**:
+   - Once your project is created, navigate to [APIs & Services](https://console.cloud.google.com/apis/library)
+   - Search for "Text-to-Speech API"
+   - Click on it and press **Enable**
+
+3. **Create a Service Account**:
+   - Go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+   - Click **Create Service Account**
+   - Enter a name (e.g., `PenguinBot`) and click **Create and Continue**
+   - Skip "Grant this service account access to the project" (click **Continue**)
+   - Skip "Grant users access to this service account" (click **Done**)
+
+4. **Generate a JSON Key**:
+   - In the Service Accounts list, find your newly created service account and click on it
+   - Go to the **Keys** tab
+   - Click **Add Key** → **Create new key** → choose **JSON**
+   - A JSON file will download automatically
+
+5. **Add the Key to Your Bot**:
+   - Rename the downloaded JSON file to **`gtts.json`**
+   - Place it in the bot's root directory (same folder as `PenguinTwitchBot.exe` / `PenguinTwitchBot`)
+   - The file will be automatically detected on next startup
+
+> **Cost Note:** Google Cloud Text-to-Speech has a free tier (500,000 characters/month). Check [pricing](https://cloud.google.com/text-to-speech/pricing) for details. Set up billing alerts in your Google Cloud Console to avoid surprises.
+
 ---
 
 ## Web Dashboard
