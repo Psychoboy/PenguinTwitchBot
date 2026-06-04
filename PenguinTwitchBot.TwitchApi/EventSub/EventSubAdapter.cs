@@ -1,6 +1,5 @@
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
-using TwitchLib.EventSub.Websockets.Core.Models;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub;
 
@@ -26,17 +25,20 @@ public static class EventSubAdapter
     /// </summary>
     public static EventSubMetadata MapMetadata(object metadata)
     {
-        if (metadata is WebsocketEventSubMetadata wsMetadata)
+        if (metadata is TwitchLib.EventSub.Websockets.Core.Models.WebsocketEventSubMetadata wsMetadata)
         {
-            return new EventSubMetadata
+            return new Websockets.Models.WebsocketEventSubMetaData
             {
                 MessageId = wsMetadata.MessageId,
                 MessageType = wsMetadata.MessageType,
-                MessageTimestamp = wsMetadata.MessageTimestamp
+                MessageTimestamp = wsMetadata.MessageTimestamp,
+                SubscriptionType = wsMetadata.SubscriptionType,
+                SubscriptionVersion = wsMetadata.SubscriptionVersion,
+                // HasSubscriptionInfo is derived from SubscriptionType and SubscriptionVersion, so no need to set it explicitly
             };
         }
         // Fallback for other metadata types
-        return new EventSubMetadata
+        return new Websockets.Models.WebsocketEventSubMetaData
         {
             MessageId = Guid.NewGuid().ToString(),
             MessageType = "unknown",

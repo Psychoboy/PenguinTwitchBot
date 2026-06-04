@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
+using PenguinTwitchBot.TwitchApi.EventSub;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Features
 {

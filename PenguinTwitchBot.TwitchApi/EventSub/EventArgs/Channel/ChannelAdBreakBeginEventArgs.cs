@@ -2,7 +2,7 @@ using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel
 {
-    public class ChannelAdBreakBeginEventArgs : EventSubEventArgs<ChannelAdBreakBegin>
+    public class ChannelAdBreakBeginEventArgs : EventSubNotificationArgs<ChannelAdBreakBegin>
     {
     }
 }

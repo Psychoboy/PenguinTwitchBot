@@ -1,6 +1,6 @@
 using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
-public sealed class ChannelUnbanEventArgs : EventSubEventArgs<ChannelUnban>
+public sealed class ChannelUnbanEventArgs : EventSubNotificationArgs<ChannelUnban>
 {
 }

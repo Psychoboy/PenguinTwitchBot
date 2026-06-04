@@ -9,6 +9,7 @@ using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using PenguinTwitchBot.TwitchApi.EventSub;
 
 namespace PenguinTwitchBot.Test.Bot.Core.Points
 {

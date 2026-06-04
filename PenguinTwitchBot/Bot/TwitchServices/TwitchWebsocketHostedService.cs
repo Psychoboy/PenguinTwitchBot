@@ -7,13 +7,16 @@ using PenguinTwitchBot.Bot.Services.Chat;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using PenguinTwitchBot.TwitchApi.EventSub.Websockets;
+using PenguinTwitchBot.TwitchApi.EventSub.EventArgs;
+using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Models;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
     public partial class TwitchWebsocketHostedService(
         ILogger<TwitchWebsocketHostedService> logger,
         IServiceBackbone eventService,
-        EventSubWebsocketClient eventSubWebsocketClient,
+        TwitchLib.EventSub.Websockets.EventSubWebsocketClient eventSubWebsocketClient,
         SubscriptionTracker subscriptionHistory,
         ChatMessageIdTracker messageIdTracker,
         IMemoryCache memoryCache,
@@ -463,7 +466,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private bool DidProcessMessage(PenguinTwitchBot.TwitchApi.EventSub.EventSubMetadata eventSubMetadata)
+        private bool DidProcessMessage(TwitchApi.EventSub.EventSubMetadata eventSubMetadata)
         {
             if (memoryCache.TryGetValue(eventSubMetadata.MessageId, out var _))
             {
