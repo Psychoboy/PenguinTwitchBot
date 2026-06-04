@@ -8,7 +8,7 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
-using PenguinTwitchBot.CustomMiddleware;
+// using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.SignalR;
 
 namespace PenguinTwitchBot.Bot.Core

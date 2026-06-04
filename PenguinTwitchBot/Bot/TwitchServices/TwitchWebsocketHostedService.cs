@@ -829,7 +829,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         }
 
 
-        private Task MessageReceived(object? sender, MessageReceivedEventArgs args)
+        private Task MessageReceived(object? sender, TwitchLib.EventSub.Websockets.Core.EventArgs.MessageReceivedEventArgs args)
         {
             LastMessageReceived = timeProvider.GetLocalNow();
             return Task.CompletedTask;

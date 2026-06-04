@@ -5,7 +5,7 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.CustomMiddleware;
+// using PenguinTwitchBot.CustomMiddleware;
 using PenguinTwitchBot.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

@@ -5,7 +5,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Models.Points;
-using PenguinTwitchBot.CustomMiddleware;
+// using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
