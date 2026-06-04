@@ -167,7 +167,7 @@ internal class Program
         builder.Services.AddMudMarkdownServices();
 
         
-        
+        builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddPenguinDispatcher(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 
