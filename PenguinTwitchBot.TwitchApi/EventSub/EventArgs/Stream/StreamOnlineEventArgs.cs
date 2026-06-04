@@ -2,7 +2,7 @@ using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Stream;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Stream
 {
-    public class StreamOnlineEventArgs : EventSubEventArgs<StreamOnline>
+    public class StreamOnlineEventArgs : EventSubNotificationArgs<StreamOnline>
     {
     }
 }

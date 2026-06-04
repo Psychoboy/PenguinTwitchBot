@@ -1,5 +1,5 @@
 using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
-public sealed class ChannelFollowEventArgs : EventSubEventArgs<ChannelFollow>
+public sealed class ChannelFollowEventArgs : EventSubNotificationArgs<ChannelFollow>
 {
 }

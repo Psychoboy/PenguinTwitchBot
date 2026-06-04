@@ -5,7 +5,7 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.CustomMiddleware;
+// using PenguinTwitchBot.CustomMiddleware;
 using PenguinTwitchBot.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
+using PenguinTwitchBot.TwitchApi.EventSub;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Features
 {

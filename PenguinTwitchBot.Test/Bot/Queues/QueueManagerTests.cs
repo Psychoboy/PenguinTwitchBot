@@ -42,7 +42,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             // Arrange
             var logger = Substitute.For<ILogger<QueueManager>>();
             var loggerFactory = Substitute.For<ILoggerFactory>();
+#pragma warning disable NS1000 // Non-virtual setup specification.
             loggerFactory.CreateLogger<ActionQueue>().Returns(Substitute.For<ILogger<ActionQueue>>());
+#pragma warning restore NS1000 // Non-virtual setup specification.
 
             var db = Substitute.For<IUnitOfWork>();
             var queueRepo = Substitute.For<IQueueConfigurationsRepository>();
@@ -76,7 +78,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             // Arrange
             var logger = Substitute.For<ILogger<QueueManager>>();
             var loggerFactory = Substitute.For<ILoggerFactory>();
+#pragma warning disable NS1000 // Non-virtual setup specification.
             loggerFactory.CreateLogger<ActionQueue>().Returns(Substitute.For<ILogger<ActionQueue>>());
+#pragma warning restore NS1000 // Non-virtual setup specification.
 
             var db = Substitute.For<IUnitOfWork>();
             var queueRepo = Substitute.For<IQueueConfigurationsRepository>();

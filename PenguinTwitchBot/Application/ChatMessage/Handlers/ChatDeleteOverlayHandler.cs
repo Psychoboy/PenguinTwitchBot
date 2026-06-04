@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
 
         public async Task Handle(DeletedChatMessage request, CancellationToken cancellationToken)
         {
-            var messageId = request.EventArgs.Payload.Event.MessageId;
+            var messageId = request.EventArgs.Event.MessageId;
             var payload = new { type = "chat_delete", id = messageId };
             var json = JsonSerializer.Serialize(payload, JsonOptions);
             await webSocketMessenger.AddToQueue(json);

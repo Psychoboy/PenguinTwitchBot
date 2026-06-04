@@ -1,7 +1,9 @@
-﻿namespace PenguinTwitchBot.Application.ChatMessage.Notifications
+﻿using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
+
+namespace PenguinTwitchBot.Application.ChatMessage.Notifications
 {
     public class DeletedChatMessage : Application.Notifications.INotification
     {
-        public ChannelChatMessageDeleteArgs EventArgs { get; set; } = new();
+        public required ChannelChatMessageDeleteEventArgs EventArgs { get; set; }
     }
 }

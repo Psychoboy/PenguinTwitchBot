@@ -1,6 +1,0 @@
-[submodule "TwitchLib.EventSub.Websockets"]
-	path = TwitchLib.EventSub.Websockets
-	url = https://github.com/Psychoboy/TwitchLib.EventSub.Websockets
-[submodule "TwitchLib.EventSub.Core"]
-	path = TwitchLib.EventSub.Core
-	url = https://github.com/Psychoboy/TwitchLib.EventSub.Core.git

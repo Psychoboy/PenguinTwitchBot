@@ -21,6 +21,7 @@ using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client;
 
 namespace PenguinTwitchBot.CustomMiddleware
 {
@@ -54,6 +55,9 @@ namespace PenguinTwitchBot.CustomMiddleware
                 MaxConnectionsPerServer = 100,
                 AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
             });
+
+            services.AddTransient<WebsocketClient>();
+            services.AddSingleton(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>()));
 
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();

@@ -1,7 +1,7 @@
 using PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
-public sealed class ChannelSubscribeEventArgs : EventSubEventArgs<ChannelSubscribe>
+public sealed class ChannelSubscribeEventArgs : EventSubNotificationArgs<ChannelSubscribe>
 {
     
 }

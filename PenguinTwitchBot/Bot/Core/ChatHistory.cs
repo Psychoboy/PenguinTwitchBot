@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Models;
 using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -96,13 +97,13 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task DeleteChatMessage(ChannelChatMessageDeleteArgs e)
+        public async Task DeleteChatMessage(ChannelChatMessageDeleteEventArgs e)
         {
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var chatHistory = db.ViewerChatHistories.Find(x => x.MessageId == e.Payload.Event.MessageId).FirstOrDefault();
+                var chatHistory = db.ViewerChatHistories.Find(x => x.MessageId == e.Event.MessageId).FirstOrDefault();
                 if (chatHistory != null)
                 {
                     db.ViewerChatHistories.Remove(chatHistory);

@@ -108,7 +108,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 var broadcasterId = await GetBroadcasterUserId();
-                //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
+                if(string.IsNullOrWhiteSpace(broadcasterId))
+                {
+                    _logger.LogError("Error getting broadcaster id.");
+                    return;
+                }
                 var msg = new SendChatMessageRequest
                 {
                     BroadcasterId = broadcasterId,
@@ -119,41 +123,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _configuration["twitchClientId"]!,
                     _accessToken,
                     msg);
-                if (result.Data.First().IsSent == false)
+                if (result.Data[0].IsSent == false)
                 {
-                    _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send message.");
-            }
-        }
-
-        public async Task SendMessage(string message)
-        {
-            try
-            {
-                var broadcasterId = await GetBroadcasterUserId();
-                //var result = await _twitchApi.Helix.Chat.SendChatMessage(broadcasterId, broadcasterId, message);
-                var msg = new SendChatMessageRequest
-                {
-                    BroadcasterId = broadcasterId,
-                    SenderId = broadcasterId,
-                    Message = message
-                };
-                var result = await _chatClient.SendChatMessageAsync(
-                    _configuration["twitchClientId"]!,
-                    _accessToken,
-                    msg);
-                _messageIdTracker.AddMessageId(result.Data.First().MessageId);
-                if (result.Data.First().IsSent == false)
-                {
-                    _logger.LogWarning("Message failed to send: {reason}", result.Data.First().DropReason.Message);
-                }
-                else
-                {
-                    _logger.LogInformation("STREAMERCHATMSG: {message}", message.Replace(Environment.NewLine, ""));
+                    _logger.LogWarning("Message failed to send: {reason}", result?.Data[0]?.DropReason?.Message);
                 }
             }
             catch (Exception ex)

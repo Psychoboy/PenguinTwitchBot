@@ -15,7 +15,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         ICommandHandler commandHandler,
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
-        Application.Notifications.IPenguinDispatcher dispatcher
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        IWebHostEnvironment environment
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         public override async Task OnCommand(object? sender, CommandEventArgs e)
@@ -74,7 +75,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         public async Task<List<RegisteredVoice>> GetAllVoices()
         {
             List<RegisteredVoice> voiceList = [];
-            var credentials = GoogleCredential.FromFile("gtts.json");
+            var credentials = await environment.LoadGoogleCredentialAsync();
             var builder = new TextToSpeechClientBuilder
             {
                 Credential = credentials
