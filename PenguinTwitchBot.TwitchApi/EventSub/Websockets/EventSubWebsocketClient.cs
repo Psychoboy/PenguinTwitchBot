@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
         public event AsyncEventHandler<WebsocketConnectedEventArgs>? WebsocketConnected;
         public event AsyncEventHandler<MessageReceivedEventArgs>? MessageReceived;
         public event AsyncEventHandler<WebsocketDisconnectedEventArgs>? WebsocketDisconnected;
-        public event AsyncEventHandler<ErrorOccuredEventArgs>? ErrorOccurred;
+        public event AsyncEventHandler<ErrorOccurredEventArgs>? ErrorOccurred;
         public event AsyncEventHandler<WebsocketReconnectedEventArgs>? WebsocketReconnected;
 
         public event AsyncEventHandler<ChannelAdBreakBeginEventArgs>? ChannelAdBreakBegin;
@@ -291,7 +291,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             }
         }
 
-        private async Task OnErrorOccurred(object? sender, ErrorOccuredEventArgs e)
+        private async Task OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
         {
             await ErrorOccurred.InvokeAsync(this, e);
         }
@@ -349,7 +349,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             if(!metadata.HasSubscriptionInfo)
             {
                 await ErrorOccurred.InvokeAsync(this, 
-                new ErrorOccuredEventArgs { Message = "Received notification without subscription info.", Exception = new InvalidOperationException("Received notification without subscription info.") });
+                new ErrorOccurredEventArgs { Message = "Received notification without subscription info.", Exception = new InvalidOperationException("Received notification without subscription info.") });
                 return;
             }
 

@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
         public bool IsConnected => _webSocket.State == WebSocketState.Open;
         public bool IsFaulted => _webSocket.CloseStatus != WebSocketCloseStatus.Empty && _webSocket.CloseStatus != WebSocketCloseStatus.NormalClosure;
         internal event AsyncEventHandler<DataReceivedEventArgs>? OnDataReceived;
-        internal event AsyncEventHandler<ErrorOccuredEventArgs>? OnErrorOccurred;
+        internal event AsyncEventHandler<ErrorOccurredEventArgs>? OnErrorOccurred;
         private ClientWebSocket _webSocket = new();
         private readonly ILogger<WebsocketClient> _logger = logger ?? NullLogger<WebsocketClient>.Instance;
 
@@ -24,7 +24,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
             {
                 if (_webSocket.State is WebSocketState.Open or WebSocketState.Connecting)
                     return true;
-                if (_webSocket.State is WebSocketState.Closed)  //after a socken is closed it cannot be reopened
+                if (_webSocket.State is WebSocketState.Closed)  //after a socket is closed it cannot be reopened
                     _webSocket = new();
                 await _webSocket.ConnectAsync(url, CancellationToken.None);
 #pragma warning disable 4014
@@ -34,7 +34,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
             }
             catch (Exception ex)
             {
-                OnErrorOccurred?.Invoke(this, new ErrorOccuredEventArgs { Exception = ex, Message = ex.Message });
+                OnErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs { Exception = ex, Message = ex.Message });
                 return false;
             }
         }
@@ -50,7 +50,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
             }
             catch (Exception ex)
             {
-                OnErrorOccurred?.Invoke(this, new ErrorOccuredEventArgs { Exception = ex, Message = ex.Message });
+                OnErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs { Exception = ex, Message = ex.Message });
                 return false;
             }
         }
@@ -107,7 +107,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
 
                 } catch (Exception ex)
                 {
-                    OnErrorOccurred?.Invoke(this, new ErrorOccuredEventArgs { Exception = ex, Message = ex.Message });
+                    OnErrorOccurred?.Invoke(this, new ErrorOccurredEventArgs { Exception = ex, Message = ex.Message });
                     break;
                 }
             }

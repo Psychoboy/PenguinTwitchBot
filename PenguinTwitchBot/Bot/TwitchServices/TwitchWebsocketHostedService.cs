@@ -731,7 +731,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Username = e.Event.UserLogin,
                     UserId = e.Event.UserId,
                     DisplayName = e.Event.UserName,
-                    FollowDate = e.Event.FollowedAt.DateTime
+                    FollowDate = e.Event.FollowedAt.UtcDateTime
                 };
 
                 await eventService.OnFollow(e.Event);
@@ -750,7 +750,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return Task.CompletedTask;
         }
 
-        private async Task OnErrorOccurred(object? sender, ErrorOccuredEventArgs e)
+        private async Task OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
         {
             logger.LogInformation(e.Exception, "Websocket error occured: {message}", e.Message);
 
