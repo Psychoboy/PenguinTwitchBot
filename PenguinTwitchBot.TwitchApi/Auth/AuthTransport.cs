@@ -79,6 +79,10 @@ public sealed class AuthTransport : IAuthTransport
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         using var response = await http.SendAsync(request);
+        if(response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return null;
+        }
         response.EnsureSuccessStatusCode();
 
         var result = await DeserializeAsync<ValidateAccessTokenApiResponse>(response);

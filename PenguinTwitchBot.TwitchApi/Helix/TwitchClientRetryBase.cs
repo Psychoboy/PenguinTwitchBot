@@ -27,7 +27,7 @@ public abstract class TwitchClientRetryBase
             {
                 return await action();
             }
-            catch (Exception ex) when (IsTransient(ex))
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 if (attempt == MaxAttempts)
                 {
@@ -54,47 +54,30 @@ public abstract class TwitchClientRetryBase
     /// <summary>
     /// Executes a void operation with exponential backoff retry for transient errors.
     /// </summary>
-    protected async Task ExecuteWithRetryAsync(Func<Task> action, string operation)
+    protected Task ExecuteWithRetryAsync(Func<Task> action, string operation)
     {
-        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
-        {
-            try
+        
+        return ExecuteWithRetryAsync(
+            async () =>
             {
                 await action();
-                return;
-            }
-            catch (Exception ex) when (IsTransient(ex))
-            {
-                if (attempt == MaxAttempts)
-                {
-                    Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
-                    throw;
-                }
+                return true;
+            },
+            operation);
 
-                var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
-                Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.",
-                    operation, attempt, MaxAttempts, delay.TotalMilliseconds);
-                await Task.Delay(delay);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Non-transient error during {operation}: {exceptionType}: {message} {failureHint}",
-                    operation, ex.GetType().Name, ex.Message, GetFailureHint(ex));
-                throw;
-            }
-        }
-
-        throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
     }
 
-    /// <summary>
-    /// Determines if an exception represents a transient error worth retrying.
-    /// </summary>
-    protected static bool IsTransient(Exception ex)
+    private static bool IsRetryable(Exception ex)
     {
-        return ex is HttpRequestException
-            || ex is TaskCanceledException
-            || ex is TimeoutException;
+        return ex switch
+        {
+            TaskCanceledException => true,
+            TimeoutException => true,
+            HttpRequestException {StatusCode: null} => true, // Network errors without HTTP response
+            HttpRequestException {StatusCode: System.Net.HttpStatusCode.TooManyRequests} => true, // Rate limiting
+            HttpRequestException httpEx when (int)(httpEx.StatusCode ?? 0) >= 500 => true, // Server errors
+            _ => false
+        };
     }
 
     private static string GetFailureHint(Exception ex)

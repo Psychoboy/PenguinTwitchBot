@@ -516,7 +516,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 {
                     return cachedUser;
                 }
-
+                await ValidateAndRefreshToken();
                 var users = await _usersClient.GetUsersAsync(
                     _configuration["twitchClientId"]!,
                     _accessToken,
@@ -1397,22 +1397,34 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 {
                     try
                     {
-                        _logger.LogInformation("Refreshing Token");
-
-                        var refreshToken = await _authClient.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"]!, _configuration["twitchClientSecret"]!, _configuration["twitchClientId"]!);
-                        _accessToken = refreshToken.AccessToken;
-                        _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
-                        _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
-                        await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
-                        await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                        await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
-                        serviceUp = true;
+                        serviceUp = await RefreshToken();
                     }
                     catch (Exception e)
                     {
                         _logger.LogError("Error refreshing token: {error}", e.Message);
                         serviceUp = false;
                     }
+                }
+            }
+            catch(HttpRequestException ex)
+            {
+                if(ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    _logger.LogWarning("Unauthorized when validating token, attempting refresh");
+                    try
+                    {
+                        serviceUp = await RefreshToken();
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogError("Error refreshing token: {error}", e.Message);
+                        serviceUp = false;
+                    }
+                }
+                else
+                {
+                    _logger.LogError(ex, "HTTP error when validating/refreshing token");
+                    serviceUp = false;
                 }
             }
             catch (Exception ex)
@@ -1437,6 +1449,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
 
             return serviceUp;
+        }
+
+        public async Task<bool> RefreshToken()
+        {
+            try
+            {
+                _logger.LogInformation("Refreshing Token");
+
+                var refreshToken = await _authClient.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"]!, _configuration["twitchClientSecret"]!, _configuration["twitchClientId"]!);
+                _accessToken = refreshToken.AccessToken;
+                _configuration["twitchAccessToken"] = refreshToken.AccessToken;
+                _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
+                _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
+                await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
+                await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
+                await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
+                return true;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Error refreshing token: {error}", e.Message);
+                return false;
+            }
         }
 
         /// <inheritdoc />
