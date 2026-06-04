@@ -279,7 +279,6 @@ else
                                Label="Database Provider" Variant="Variant.Outlined"
                                Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
                         <MudSelectItem Value="DatabaseProviderOption.Sqlite">SQLite (recommended — no server needed)</MudSelectItem>
-                        <MudSelectItem Value="DatabaseProviderOption.MariaDb">MariaDB / MySQL</MudSelectItem>
                         <MudSelectItem Value="DatabaseProviderOption.Postgres">PostgreSQL</MudSelectItem>
                     </MudSelect>
 
@@ -289,13 +288,6 @@ else
                                       Label="SQLite File Path (optional)"
                                       HelperText="Leave blank to use the default: Data/PenguinTwitchBot.sqlite"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.FolderOpen"
-                                      Variant="Variant.Outlined" />
-                    }
-                    @if (_model.DatabaseProvider == DatabaseProviderOption.MariaDb)
-                    {
-                        <MudTextField @bind-Value="_model.MariaDbConnectionString"
-                                      Label="MariaDB Connection String"
-                                      HelperText="Example: Server=localhost;Database=twitchbot;User=root;Password=secret;"
                                       Variant="Variant.Outlined" />
                     }
                     @if (_model.DatabaseProvider == DatabaseProviderOption.Postgres)
@@ -850,9 +842,6 @@ else
         }
         else if (_step == 6)
         {
-            if (_model.DatabaseProvider == DatabaseProviderOption.MariaDb &&
-                string.IsNullOrWhiteSpace(_model.MariaDbConnectionString))
-                _errors.Add("A MariaDB connection string is required.");
             if (_model.DatabaseProvider == DatabaseProviderOption.Postgres &&
                 string.IsNullOrWhiteSpace(_model.PostgresConnectionString))
                 _errors.Add("A PostgreSQL connection string is required.");

@@ -1,5 +1,5 @@
 ﻿@echo off
-REM Quick migration generator for all 3 database providers
+REM Quick migration generator for PostgreSQL and SQLite
 REM Usage: add-migration.bat MigrationName
 
 if "%~1"=="" (
@@ -20,7 +20,6 @@ if errorlevel 1 (
 
 echo.
 echo Copying migration DLLs to startup project bin...
-copy /Y "PenguinTwitchBot.Migrations.MariaDb\bin\Debug\net10.0\PenguinTwitchBot.Migrations.MariaDb.dll" "PenguinTwitchBot\bin\Debug\net10.0\" >nul
 copy /Y "PenguinTwitchBot.Migrations.Postgres\bin\Debug\net10.0\PenguinTwitchBot.Migrations.Postgres.dll" "PenguinTwitchBot\bin\Debug\net10.0\" >nul
 copy /Y "PenguinTwitchBot.Migrations.Sqlite\bin\Debug\net10.0\PenguinTwitchBot.Migrations.Sqlite.dll" "PenguinTwitchBot\bin\Debug\net10.0\" >nul
 
@@ -29,18 +28,6 @@ echo Generating migration: %migrationName%
 echo.
 
 set ROOT_DIR=%cd%
-
-echo Generating for MariaDB...
-cd PenguinTwitchBot.Migrations.MariaDb
-set DOTNET_TWITCHBOT_ROOT=%ROOT_DIR%
-set DATABASE_PROVIDER=mariadb
-dotnet ef migrations add "%migrationName%" -c ApplicationDbContext -o Migrations --startup-project "%ROOT_DIR%\PenguinTwitchBot"
-if errorlevel 1 (
-    echo Error generating MariaDB migration
-    cd %ROOT_DIR%
-    exit /b 1
-)
-cd %ROOT_DIR%
 
 echo Generating for PostgreSQL...
 cd PenguinTwitchBot.Migrations.Postgres

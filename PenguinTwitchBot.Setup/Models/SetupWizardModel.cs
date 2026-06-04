@@ -3,7 +3,6 @@
     public enum DatabaseProviderOption
     {
         Sqlite,
-        MariaDb,
         Postgres
     }
 
@@ -25,7 +24,6 @@
         // Step 4: Database
         public DatabaseProviderOption DatabaseProvider { get; set; } = DatabaseProviderOption.Sqlite;
         public string SqliteFilePath { get; set; } = "";
-        public string MariaDbConnectionString { get; set; } = "";
         public string PostgresConnectionString { get; set; } = "";
 
         // Step 5: YouTube
