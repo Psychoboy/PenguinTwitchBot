@@ -122,14 +122,17 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             return await _websocketClient.DisconnectAsync().ConfigureAwait(false);
         }
 
-        public Task<bool> ReconnectAsync()
+        public Task<bool> ReconnectAsync(CancellationToken cancellationToken = default)
         {
-            return ReconnectAsync(new Uri(WEBSOCKET_URL));
+            return ReconnectAsync(new Uri(WEBSOCKET_URL), cancellationToken);
         }
 
-        private async Task<bool> ReconnectAsync(Uri url)
+        private async Task<bool> ReconnectAsync(Uri url, CancellationToken cancellationToken = default)
         {
             url ??= new Uri(WEBSOCKET_URL);
+
+            if (cancellationToken.IsCancellationRequested)
+                return false;
 
             if (_reconnectRequested)
             {
@@ -147,7 +150,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 
                 for (var i = 0; i < 200; i++)
                 {
-                    if (_cts == null || _cts.IsCancellationRequested)
+                    if (cancellationToken.IsCancellationRequested)
                         break;
 
                     if (_reconnectComplete)
@@ -167,13 +170,31 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
                         return true;
                     }
 
-                    await Task.Delay(100);
+                    try
+                    {
+                        await Task.Delay(100, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
+
+                reconnectClient.OnDataReceived -= OnDataReceived;
+                reconnectClient.OnErrorOccurred -= OnErrorOccurred;
+
+                if (reconnectClient.IsConnected)
+                    await reconnectClient.DisconnectAsync();
+
+                reconnectClient.Dispose();
 
                 _logger.LogReconnectFailed(SessionId);
 
                 return false;
             }
+
+            if (cancellationToken.IsCancellationRequested)
+                return false;
 
             if (_websocketClient.IsConnected)
                 await DisconnectAsync();

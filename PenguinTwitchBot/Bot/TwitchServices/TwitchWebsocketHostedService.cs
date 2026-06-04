@@ -33,6 +33,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private TimeSpan KeepAliveTimer = TimeSpan.MinValue;
         private ITimer? JoinTimer;
         private DateTimeOffset LastMessageReceived = DateTimeOffset.MinValue;
+        private CancellationTokenSource? _lifetimeCts;
 
         private async Task ChannelChatMessage(object? sender, ChannelChatMessageEventArgs payload)
         {
@@ -753,7 +754,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             logger.LogInformation(e.Exception, "Websocket error occured: {message}", e.Message);
 
-            await Reconnect();
+            await Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
         }
 
         private Task OnWebsocketReconnected(object? sender, EventArgs e)
@@ -764,11 +765,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task OnWebsocketDisconnected(object? sender, EventArgs e)
         {
-            await Reconnect();
+            await Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
         }
 
-        public async Task Reconnect()
+        public Task Reconnect()
         {
+            return Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
+        }
+
+        public async Task Reconnect(CancellationToken cancellationToken = default)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                return;
+
             if (Reconnecting)
             {
                 logger.LogWarning("Already reconnecting, ignoring");
@@ -780,19 +789,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             {
                 logger.LogWarning("Twitch Websocket Disconnected");
                 var delayCounter = 1;
-                while (true)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     try
                     {
                         if(!await twitchService.ValidateAndRefreshToken()) throw new Exception("Failed to refresh token");
 
                         logger.LogWarning("Attempting to reconnect to Twitch Websocket");
-                        if (await eventSubWebsocketClient.ReconnectAsync())
+                        if (await eventSubWebsocketClient.ReconnectAsync(cancellationToken))
                         {
                             logger.LogInformation("Twitch Websocket Reconnected");
                             return;
                         }
                         logger.LogWarning("Twitch Websocket Reconnect failed");
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
                     }
                     catch (Exception ex)
                     {
@@ -801,8 +814,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     delayCounter *= 2;
                     if (delayCounter > 30) delayCounter = 30;
                     logger.LogError("Twitch Websocket reconnection failed! Attempting again in {delayCounter} seconds.", delayCounter);
-                    await Task.Delay(delayCounter * 1000);
+                    await Task.Delay(delayCounter * 1000, cancellationToken);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Expected during shutdown.
             }
             catch (Exception ex)
             {
@@ -814,18 +831,22 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task Connect()
+        private async Task Connect(CancellationToken cancellationToken = default)
         {
             try
             {
                 var delayCounter = 1;
-                while (true)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     try
                     {
                         
                         //if (await eventSubWebsocketClient.ConnectAsync(new Uri("ws://127.0.0.1:8080/ws"))) return;
                         if (await eventSubWebsocketClient.ConnectAsync()) return;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
                     }
                     catch (Exception)
                     {
@@ -836,9 +857,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     {
                         delayCounter = 30;
                     }
-                    await Task.Delay(delayCounter * 1000);
+                    await Task.Delay(delayCounter * 1000, cancellationToken);
                     logger.LogError("Twitch Websocket connected failed! Attempting again in {delayCounter} seconds.", delayCounter);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Expected during shutdown.
             }
             catch (Exception ex)
             {
@@ -863,13 +888,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 else
                 {
                     logger.LogError("Failed to subscribe to events");
-                    await Reconnect();
+                    await Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error subscribing to the events");
-                await Reconnect();
+                await Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
             }
         }
 
@@ -884,7 +909,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     twitchService.IsServiceUp())
                 {
                     logger.LogWarning("Websocket not receiving messages for {KeepAliveTimer} seconds, reconnecting", KeepAliveTimer.TotalSeconds * 2);
-                    await Reconnect();
+                    await Reconnect(_lifetimeCts?.Token ?? CancellationToken.None);
                 }
             }
             catch (Exception ex)
@@ -896,6 +921,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting Twitch Websocket");
+            _lifetimeCts?.Cancel();
+            _lifetimeCts?.Dispose();
+            _lifetimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
             eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
             eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
             eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
@@ -925,12 +954,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.MessageReceived += MessageReceived;
             eventService.IsOnline = await twitchService.IsStreamOnline();
             
-            await Connect();
+            await Connect(_lifetimeCts.Token);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Stopping Twitch Websocket");
+            _lifetimeCts?.Cancel();
+
             await eventSubWebsocketClient.DisconnectAsync();
             eventSubWebsocketClient.WebsocketConnected -= OnWebsocketConnected;
             eventSubWebsocketClient.WebsocketDisconnected -= OnWebsocketDisconnected;
@@ -957,6 +988,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatNotification -= OnChannelChatNotification;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage -= ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete -= ChannelChatMessageDelete;
+
+            _lifetimeCts?.Dispose();
+            _lifetimeCts = null;
         }
 
         [GeneratedRegex(@"[^\u0000-\u00FF]+")]
