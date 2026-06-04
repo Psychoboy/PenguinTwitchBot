@@ -168,12 +168,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             // Legendary Marlin (1500 gold) should be first
             Assert.Equal(1500, leaderboard[0].GoldEarned);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             Assert.Equal("Legendary Marlin", leaderboard[0].FishType.Name);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
             Assert.Equal("Bob", leaderboard[0].Username);
 
             // Rare Salmon (300 gold) should be second
             Assert.Equal(300, leaderboard[1].GoldEarned);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
             Assert.Equal("Rare Salmon", leaderboard[1].FishType.Name);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
             Assert.Equal("Alice", leaderboard[1].Username);
         }
 

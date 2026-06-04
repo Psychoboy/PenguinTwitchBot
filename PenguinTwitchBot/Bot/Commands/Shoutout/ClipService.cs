@@ -1,12 +1,12 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Application.Clips;
 using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
 using PenguinTwitchBot.Extensions;
 using System.Text.RegularExpressions;
-using TwitchLib.Api.Helix.Models.Clips.GetClips;
 
 namespace PenguinTwitchBot.Bot.Commands.Shoutout
 {
@@ -77,10 +77,10 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
                 }
                 string gameUrl = "";
         
-                var gameInfo = await twitchService.GetGameInfo(clip.GameId);
+                var gameInfo = clip.GameId != null ? await twitchService.GetGameInfo(clip.GameId) : null;
                 if (gameInfo != null)
                 {
-                    gameUrl = gameInfo.BoxArtUrl;
+                    gameUrl = gameInfo.BoxArtUrl ?? "";
                     gameUrl = gameUrl.Replace("{width}", "200").Replace("{height}", "200");
                 }
 

@@ -1,5 +1,4 @@
 ﻿ using System.Collections.Concurrent;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.Bot.Markov.Models
 {

@@ -11,8 +11,6 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 
 > **AI Disclosure:** Limited AI assistance was used for small refactors, bug fixes, and this document.
 
-Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/TwitchLib).
-
 ---
 
 ## Table of Contents
@@ -92,6 +90,8 @@ Download the latest release from the [Releases page](https://github.com/Psychobo
 
 Run **`PenguinTwitchBot.Setup.exe`** (Windows) or `PenguinTwitchBot.Setup` (Linux/macOS).
 
+> **Linux/macOS:** You may need to mark the file as executable first: `chmod +x PenguinTwitchBot.Setup`
+
 The setup wizard is a browser-based application that walks you through every required and optional setting. It will open a browser window automatically. If it does not, navigate to `http://localhost:5000`.
 
 The wizard covers the following steps:
@@ -104,7 +104,7 @@ The wizard covers the following steps:
 | 4 | **Twitch Bot App** - can reuse the streamer app or use a separate one |
 | 5 | **Authorize Streamer Account** - OAuth authorization via your browser |
 | 6 | **Authorize Bot Account** *(optional)* - OAuth authorization for your bot account; grants `user:write:chat` and `user:bot` scopes required for sending chat messages |
-| 7 | **Database** - choose SQLite, MariaDB, or PostgreSQL (see [Database Support](#database-support)) |
+| 7 | **Database** - choose SQLite or PostgreSQL (see [Database Support](#database-support)) |
 | 8 | **YouTube API** *(optional)* - enables the song request feature |
 | 9 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
 | 10 | **Weather** *(optional)* - OpenWeatherMap API key and default location |
@@ -145,6 +145,8 @@ Step 6 provides two options:
 
 Once setup is complete, run **`PenguinTwitchBot.exe`** (Windows) or `PenguinTwitchBot` (Linux/macOS).
 
+> **Linux/macOS:** You may need to mark the file as executable first: `chmod +x PenguinTwitchBot`
+
 The bot starts a web server. Open your browser to `http://localhost:5000` (or the port shown in the console) to access the **web dashboard**.
 
 On first launch, the database will be automatically created and migrated. The bot will then connect to Twitch and begin operating.
@@ -157,12 +159,11 @@ OAuth redirects now use the URL/host/port from the request used to access the bo
 
 ## Database Support
 
-The bot supports three database backends. You select your preference during the setup wizard.
+The bot supports two database backends. You select your preference during the setup wizard.
 
 | Database | Notes |
 |----------|-------|
 | **SQLite** *(default)* | No external server required. Stores everything in a single file (`Data/PenguinTwitchBot.sqlite`). Recommended for most users. |
-| **MariaDB / MySQL** | Requires a running MariaDB or MySQL server. Provide a connection string in the wizard. |
 | **PostgreSQL** | Requires a running PostgreSQL server. Provide a connection string in the wizard. |
 
 The database is created and migrated automatically on startup. You can switch databases later by editing `appsettings.secrets.json` and re-running the bot.
@@ -187,6 +188,41 @@ Requires a free **OpenWeatherMap API key** from [openweathermap.org/api](https:/
 
 ### OpenAI
 Requires an **OpenAI API key** from [platform.openai.com](https://platform.openai.com/api-keys). Enables AI-powered chat responses and automated shoutouts. Usage is billed by token - set spend limits in your OpenAI account dashboard.
+
+### Google Text-to-Speech (TTS)
+Enables the `!say` command and Actions to read messages aloud using Google Cloud's high-quality text-to-speech voices. 
+
+**Setup Instructions:**
+
+1. Create a **Google Cloud Project**:
+   - Go to [console.cloud.google.com](https://console.cloud.google.com/)
+   - Click **Select a Project** → **New Project**
+   - Name it (e.g., `PenguinTwitchBot`) and click **Create**
+
+2. **Enable the Text-to-Speech API**:
+   - Once your project is created, navigate to [APIs & Services](https://console.cloud.google.com/apis/library)
+   - Search for "Text-to-Speech API"
+   - Click on it and press **Enable**
+
+3. **Create a Service Account**:
+   - Go to [Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+   - Click **Create Service Account**
+   - Enter a name (e.g., `PenguinBot`) and click **Create and Continue**
+   - Skip "Grant this service account access to the project" (click **Continue**)
+   - Skip "Grant users access to this service account" (click **Done**)
+
+4. **Generate a JSON Key**:
+   - In the Service Accounts list, find your newly created service account and click on it
+   - Go to the **Keys** tab
+   - Click **Add Key** → **Create new key** → choose **JSON**
+   - A JSON file will download automatically
+
+5. **Add the Key to Your Bot**:
+   - Rename the downloaded JSON file to **`gtts.json`**
+   - Place it in the bot's root directory (same folder as `PenguinTwitchBot.exe` / `PenguinTwitchBot`)
+   - The file will be automatically detected on next startup
+
+> **Cost Note:** Google Cloud Text-to-Speech has a free tier (500,000 characters/month). Check [pricing](https://cloud.google.com/text-to-speech/pricing) for details. Set up billing alerts in your Google Cloud Console to avoid surprises.
 
 ---
 
@@ -377,7 +413,6 @@ dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r osx-arm64 
 |---------|-------------|
 | `PenguinTwitchBot/` | Main bot and web dashboard |
 | `PenguinTwitchBot.Setup/` | First-time setup wizard |
-| `PenguinTwitchBot.Migrations.MariaDb/` | EF Core migrations for MariaDB/MySQL |
 | `PenguinTwitchBot.Migrations.Postgres/` | EF Core migrations for PostgreSQL |
 | `PenguinTwitchBot.Test/` | Unit tests |
 

@@ -1,5 +1,5 @@
-﻿using TwitchLib.Api.Helix.Models.Clips.GetClips;
-using TwitchLib.Api.Helix.Models.Users.GetUsers;
+using PenguinTwitchBot.TwitchApi.Models.Clips;
+using PenguinTwitchBot.TwitchApi.Models.Users;
 
 namespace PenguinTwitchBot.Application.Clips
 {

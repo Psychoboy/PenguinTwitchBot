@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot;
+using PenguinTwitchBot.Bot;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Admin;
 using PenguinTwitchBot.Bot.Commands.Ai;
@@ -16,9 +16,12 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Diagnostics;
 using PenguinTwitchBot.Bot.ServiceTools;
 using PenguinTwitchBot.Bot.StreamSchedule;
+using PenguinTwitchBot.TwitchApi.Auth;
+using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client;
 
 namespace PenguinTwitchBot.CustomMiddleware
 {
@@ -26,9 +29,63 @@ namespace PenguinTwitchBot.CustomMiddleware
     {
         public static IServiceCollection AddBotCommands(this IServiceCollection services)
         {
+            const string helixHttpClientName = "TwitchHelix";
+            const string twitchIdHttpClientName = "TwitchId";
+
+            services.AddHttpClient(helixHttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("https://api.twitch.tv/helix/");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+                MaxConnectionsPerServer = 100,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+            });
+
+            services.AddHttpClient(twitchIdHttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("https://id.twitch.tv/");
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+                MaxConnectionsPerServer = 100,
+                AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
+            });
+
+            services.AddTransient<WebsocketClient>();
+            services.AddSingleton(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>()));
+
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
+            services.AddSingleton<IAuthTransport, AuthTransport>();
+            services.AddSingleton<IAuthClient, AuthClient>();
+            services.AddSingleton<IChatTransport, ChatTransport>();
+            services.AddSingleton<IChatClient, ChatClient>();
+            services.AddSingleton<IChannelPointsTransport, ChannelPointsTransport>();
+            services.AddSingleton<IChannelPointsClient, ChannelPointsClient>();
+            services.AddSingleton<IModerationTransport, ModerationTransport>();
+            services.AddSingleton<IModerationClient, ModerationClient>();
+            services.AddSingleton<IChannelsTransport, ChannelsTransport>();
+            services.AddSingleton<IChannelsClient, ChannelsClient>();
+            services.AddSingleton<IStreamsTransport, StreamsTransport>();
+            services.AddSingleton<IStreamsClient, StreamsClient>();
+            services.AddSingleton<IClipsTransport, ClipsTransport>();
+            services.AddSingleton<IClipsClient, ClipsClient>();
+            services.AddSingleton<IGamesTransport, GamesTransport>();
+            services.AddSingleton<IGamesClient, GamesClient>();
+            services.AddSingleton<ISubscriptionsTransport, SubscriptionsTransport>();
+            services.AddSingleton<ISubscriptionsClient, SubscriptionsClient>();
+            services.AddSingleton<IRaidsTransport, RaidsTransport>();
+            services.AddSingleton<IRaidsClient, RaidsClient>();
+            services.AddSingleton<IUsersTransport, UsersTransport>();
+            services.AddSingleton<IUsersClient, UsersClient>();
+            services.AddSingleton<IScheduleTransport, ScheduleTransport>();
+            services.AddSingleton<IScheduleClient, ScheduleClient>();
             services.AddSingleton<ITwitchEventActionHandler, TwitchEventActionHandler>();
             services.AddTransient<ISchedule, Schedule>();
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.ICommandHandler, PenguinTwitchBot.Bot.Commands.CommandHandler>();
@@ -141,7 +198,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Global concurrency limiter — shared SemaphoreSlim across all non-blocking queues
+            // Global concurrency limiter � shared SemaphoreSlim across all non-blocking queues
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager

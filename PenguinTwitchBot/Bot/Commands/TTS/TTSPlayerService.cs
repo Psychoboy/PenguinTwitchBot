@@ -1,9 +1,10 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
+using PenguinTwitchBot.Extensions;
 
 namespace PenguinTwitchBot.Bot.Commands.TTS
 {
-    public class TTSPlayerService(ILogger<TTSPlayerService> logger) : ITTSPlayerService
+    public class TTSPlayerService(ILogger<TTSPlayerService> logger, IWebHostEnvironment environment) : ITTSPlayerService
     {
         private string LastFileName = string.Empty;
         public async Task<string> CreateTTSFile(TTSRequest request)
@@ -27,7 +28,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         {
             try
             {
-                var credentials = GoogleCredential.FromFile("gtts.json");
+                var credentials = await environment.LoadGoogleCredentialAsync();
                 var builder = new TextToSpeechClientBuilder
                 {
                     Credential = credentials

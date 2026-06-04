@@ -775,7 +775,7 @@ public class ChannelBitsUseTriggerTests
 }
 
 /// <summary>
-/// Tests for TwitchEventArgsConverter.ToDictionary(ChatNotificationEventArgs) — verifies that all
+/// Tests for TwitchEventArgsConverter.ToDictionary(ChannelChatNotification) — verifies that all
 /// expected dot-notation keys are produced and null sub-objects emit empty strings (not exceptions).
 /// </summary>
 public class ChatNotificationConverterTests
@@ -783,7 +783,7 @@ public class ChatNotificationConverterTests
     [Fact]
     public void NullArgs_ReturnsEmptyDictionary()
     {
-        var dict = TwitchEventArgsConverter.ToDictionary((ChatNotificationEventArgs)null!);
+        var dict = TwitchEventArgsConverter.ToDictionary((PenguinTwitchBot.Bot.Events.ChatNotificationEventArgs)null!);
         Assert.NotNull(dict);
         Assert.Empty(dict);
     }
@@ -791,7 +791,7 @@ public class ChatNotificationConverterTests
     [Fact]
     public void CommonFields_ArePopulated()
     {
-        var args = new ChatNotificationEventArgs
+        var args = new PenguinTwitchBot.Bot.Events.ChatNotificationEventArgs
         {
             UserId = "123",
             Name = "testlogin",
@@ -817,7 +817,7 @@ public class ChatNotificationConverterTests
     [Fact]
     public void SubObject_PopulatesDotNotationKeys()
     {
-        var args = new ChatNotificationEventArgs
+         var args = new ChatNotificationEventArgs
         {
             NoticeType = "sub",
             Sub = new ChatNotificationSubInfo { SubTier = "1000", DurationMonths = 1, IsPrime = false }
@@ -897,7 +897,11 @@ public class ChatNotificationConverterTests
     [Fact]
     public void NullSubObject_EmitsEmptyStringsForItsKeys()
     {
-        var args = new ChatNotificationEventArgs { NoticeType = "raid", Sub = null };
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "raid",
+            Sub = null
+        };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
@@ -934,7 +938,10 @@ public class ChatNotificationConverterTests
     public void AllExpectedKeysArePresent()
     {
         // Verify that every documented key is emitted even with a default (all-null) args object
-        var args = new ChatNotificationEventArgs { NoticeType = "sub" };
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "sub"
+        };
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
         var expectedKeys = new[]

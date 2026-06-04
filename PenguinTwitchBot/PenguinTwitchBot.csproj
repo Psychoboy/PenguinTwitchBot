@@ -81,9 +81,7 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
-    <PackageReference Include="Microting.EntityFrameworkCore.MySql" Version="10.0.7" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-    <PackageReference Include="MySqlBackup.NET.MySqlConnector" Version="2.7.0" />
     <PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
     <PackageReference Include="prometheus-net.DotNetRuntime" Version="4.4.1" />
     <PackageReference Include="Quartz" Version="3.18.1" />
@@ -113,8 +111,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="TwitchLib.Api" Version="3.11.0" />
-    <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.8.0" />
+    <ProjectReference Include="..\PenguinTwitchBot.TwitchApi\PenguinTwitchBot.TwitchApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -133,10 +130,6 @@
           DestinationFolder="$(OutputPath)"
           SkipUnchangedFiles="true"
           Condition="Exists('$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Postgres\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.Postgres.dll')" />
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.MariaDb\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.MariaDb.dll"
-          DestinationFolder="$(OutputPath)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.MariaDb\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.MariaDb.dll')" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Sqlite\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.Sqlite.dll"
           DestinationFolder="$(OutputPath)"
           SkipUnchangedFiles="true"
@@ -145,12 +138,8 @@
 
   <Target Name="PublishMigrationAssemblies" AfterTargets="Publish">
     <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Postgres\PenguinTwitchBot.Migrations.Postgres.csproj&quot; -c $(Configuration)" />
-    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.MariaDb\PenguinTwitchBot.Migrations.MariaDb.csproj&quot; -c $(Configuration)" />
     <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Sqlite\PenguinTwitchBot.Migrations.Sqlite.csproj&quot; -c $(Configuration)" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Postgres\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.Postgres.dll"
-          DestinationFolder="$(PublishDir)"
-          SkipUnchangedFiles="true" />
-    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.MariaDb\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.MariaDb.dll"
           DestinationFolder="$(PublishDir)"
           SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)..\PenguinTwitchBot.Migrations.Sqlite\bin\$(Configuration)\net10.0\PenguinTwitchBot.Migrations.Sqlite.dll"

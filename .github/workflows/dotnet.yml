@@ -5,9 +5,9 @@ name: .NET Linux
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   build:
@@ -17,28 +17,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: checkout all the submodules
-      uses: actions/checkout@v2
-      with:
-        submodules: recursive
     - uses: actions/checkout@v3
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 10.0.x
-        submodules: recursive
-    - name: Pack TwitchLib local packages
-      run: |
-        OUTPUT="LocalPackages"
-        dotnet pack TwitchLib.EventSub.Core/TwitchLib.EventSub.Core/TwitchLib.EventSub.Core.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Enums/TwitchLib.Api.Core.Enums.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Interfaces/TwitchLib.Api.Core.Interfaces.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core.Models/TwitchLib.Api.Core.Models.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Core/TwitchLib.Api.Core.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Helix.Models/TwitchLib.Api.Helix.Models.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api.Helix/TwitchLib.Api.Helix.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.Api/TwitchLib.Api/TwitchLib.Api.csproj -o "$OUTPUT" -c Release
-        dotnet pack TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets/TwitchLib.EventSub.Websockets.csproj -o "$OUTPUT" -c Release
+        
     - name: Restore dependencies
       run: dotnet restore
     - name: Build

@@ -8,9 +8,8 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
-using PenguinTwitchBot.CustomMiddleware;
+// using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.SignalR;
-using TwitchLib.EventSub.Core.SubscriptionTypes.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -172,23 +171,29 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task OnCheer(ChannelCheer ev)
+        public async Task OnCheer(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelCheer ev)
         {
             if (CheerEvent != null)
             {
+                string message = "";
+                if(ev != null && !string.IsNullOrWhiteSpace(ev.Message))
+                {
+                    message = ev.Message;
+                }
                 await CheerEvent(this, new CheerEventArgs
                 {
-                    Name = ev.UserLogin,
-                    DisplayName = ev.UserName,
-                    Amount = ev.Bits,
-                    Message = ev.Message,
-                    IsAnonymous = ev.IsAnonymous,
-                    UserId = ev.UserId
+                    Name = ev?.UserLogin,
+                    DisplayName = ev?.UserName,
+                    Amount = ev?.Bits ?? 0,
+                    Message = message,
+                    IsAnonymous = ev?.IsAnonymous ?? false,
+                    UserId = ev?.UserId
+
                 });
             }
         }
 
-        public async Task OnFollow(ChannelFollow ev)
+        public async Task OnFollow(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelFollow ev)
         {
             if (FollowEvent != null)
             {

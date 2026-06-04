@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.TwitchServices;
+using PenguinTwitchBot.TwitchApi.Models.Schedule;
 using PenguinTwitchBot.Repository;
-using TwitchLib.Api.Helix.Models.Schedule;
 
 namespace PenguinTwitchBot.Bot.StreamSchedule
 {
@@ -20,8 +20,8 @@ namespace PenguinTwitchBot.Bot.StreamSchedule
             foreach (var stream in result.Segments)
             {
                 if (stream.CanceledUntil.HasValue) continue;
-                if(vacation != null && vacation.StartTime < stream.StartTime && vacation.EndTime > stream.EndTime) continue;
-                streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
+                if(vacation != null && vacation.StartTime < stream.StartTime && stream.EndTime.HasValue && vacation.EndTime > stream.EndTime.Value) continue;
+                streams.Add(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime ?? DateTime.MinValue, Title = stream.Title, TwitchEventId = stream.Id });
             }
             return streams;
         }
@@ -60,7 +60,7 @@ namespace PenguinTwitchBot.Bot.StreamSchedule
                                 discordEvent.StartTime.ToUniversalTime().Equals(stream.StartTime) == false)
                             {
                                 logger.LogInformation("Updating discord event {title}", stream.Title);
-                                await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime);
+                                await discordService.UpdateEvent(discordEvent, stream.Title, stream.StartTime, stream.EndTime ?? DateTime.MinValue);
                                 anyUpdates = true;
                             }
                         }
@@ -155,7 +155,7 @@ namespace PenguinTwitchBot.Bot.StreamSchedule
             }
         }
 
-        private async Task<ulong> CreateEvent(Segment stream)
+        private async Task<ulong> CreateEvent(StreamScheduleSegment stream)
         {
             //Check if event exists
             var existingDiscordEvents = await discordService.GetEvents();
@@ -171,7 +171,7 @@ namespace PenguinTwitchBot.Bot.StreamSchedule
             if (stream.IsRecurring == false)
             {
                 //Create one off
-                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
+                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime ?? DateTime.MinValue, Title = stream.Title, TwitchEventId = stream.Id });
             }
             else if (stream.StartTime > DateTime.UtcNow.AddDays(7))
             {
@@ -179,7 +179,7 @@ namespace PenguinTwitchBot.Bot.StreamSchedule
             }
             else
             {
-                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime, Title = stream.Title, TwitchEventId = stream.Id });
+                return await discordService.CreateScheduledEvent(new ScheduledStream { Start = stream.StartTime, End = stream.EndTime ?? DateTime.MinValue, Title = stream.Title, TwitchEventId = stream.Id });
             }
         }
     }

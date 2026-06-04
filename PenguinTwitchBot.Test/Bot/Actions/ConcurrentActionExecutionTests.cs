@@ -161,7 +161,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         // Test SubAction type for our concurrent execution test
         public class TestSubActionType : SubActionType
         {
+#pragma warning disable CS0108 // Member hides inherited member; missing new keyword
             public int Id { get; set; }
+#pragma warning restore CS0108 // Member hides inherited member; missing new keyword
         }
 
         // Test handler that logs messages with the action's text to verify proper attribution

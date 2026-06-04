@@ -1,7 +1,7 @@
 ﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Bot.TwitchServices;
-using TwitchLib.Api.Helix.Models.ChannelPoints.UpdateCustomReward;
+using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
