@@ -47,7 +47,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> WillBePermittedByAutomod(string message);
         Task<ChannelPointReward?> GetCustomReward(string id);
         void SetAccessToken(string accessToken);
-        Task SendMessage(string message);
         Task<ChannelStreamSchedule?> GetStreamSchedule();
         Task<List<Clip>> GetFeaturedClips(string user);
         Task<List<Clip>> GetClips(string user);

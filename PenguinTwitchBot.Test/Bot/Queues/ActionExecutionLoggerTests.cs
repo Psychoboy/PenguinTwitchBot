@@ -80,7 +80,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             Assert.NotNull(logs[0].StartedAt);
             Assert.NotNull(logs[0].CompletedAt);
             Assert.NotNull(logs[0].ExecutionDuration);
+#pragma warning disable CS8629 // Nullable value type may be null.
             Assert.True(logs[0].ExecutionDuration.Value.TotalMilliseconds >= 0);
+#pragma warning restore CS8629 // Nullable value type may be null.
         }
 
         [Fact]
