@@ -93,15 +93,24 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             url ??= new Uri(WEBSOCKET_URL);
             _lastReceived = DateTimeOffset.MinValue;
 
+            var wasConnected = _websocketClient.IsConnected;
+
             var success = await _websocketClient.ConnectAsync(url).ConfigureAwait(false);
 
             if (!success)
                 return false;
 
+            var monitorRequired = !wasConnected && _websocketClient.IsConnected;
+            if (!monitorRequired)
+                return true;
+
+            _cts?.Cancel();
+
             _cts = new CancellationTokenSource();
+            var connectionCheckToken = _cts.Token;
 
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Factory.StartNew(ConnectionCheckAsync, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            Task.Factory.StartNew(() => ConnectionCheckAsync(connectionCheckToken), connectionCheckToken, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
             return true;
@@ -178,29 +187,41 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             _websocketClient.OnDataReceived += OnDataReceived;
             _websocketClient.OnErrorOccurred += OnErrorOccurred;
 
-            if (!await ConnectAsync())
-                return false;
+            if(!_websocketClient.IsConnected)
+                if (!await ConnectAsync())
+                    return false;
 
             await WebsocketReconnected.InvokeAsync(this, new());
 
             return true;
         }
 
-        private async Task ConnectionCheckAsync()
+        private async Task ConnectionCheckAsync(CancellationToken cancellationToken)
         {
-            while (_cts != null && _websocketClient.IsConnected && !_cts.IsCancellationRequested)
+            while (_websocketClient.IsConnected && !cancellationToken.IsCancellationRequested)
             {
                 if (_lastReceived != DateTimeOffset.MinValue)
                     if (_keepAliveTimeout != TimeSpan.Zero)
                         if (_lastReceived.Add(_keepAliveTimeout) < DateTimeOffset.Now)
                             break;
 
-                await Task.Delay(TimeSpan.FromSeconds(1), _cts.Token);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
             }
+
+            if (cancellationToken.IsCancellationRequested)
+                return;
 
             await DisconnectAsync();
 
-            await WebsocketDisconnected.InvokeAsync(this, new());
+            if (!cancellationToken.IsCancellationRequested)
+                await WebsocketDisconnected.InvokeAsync(this, new());
         }
 
         private async Task OnDataReceived(object? sender, DataReceivedEventArgs e)
