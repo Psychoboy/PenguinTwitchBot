@@ -90,6 +90,8 @@ Download the latest release from the [Releases page](https://github.com/Psychobo
 
 Run **`PenguinTwitchBot.Setup.exe`** (Windows) or `PenguinTwitchBot.Setup` (Linux/macOS).
 
+> **Linux/macOS:** You may need to mark the file as executable first: `chmod +x PenguinTwitchBot.Setup`
+
 The setup wizard is a browser-based application that walks you through every required and optional setting. It will open a browser window automatically. If it does not, navigate to `http://localhost:5000`.
 
 The wizard covers the following steps:
@@ -142,6 +144,8 @@ Step 6 provides two options:
 ### Step 2: Run the Bot
 
 Once setup is complete, run **`PenguinTwitchBot.exe`** (Windows) or `PenguinTwitchBot` (Linux/macOS).
+
+> **Linux/macOS:** You may need to mark the file as executable first: `chmod +x PenguinTwitchBot`
 
 The bot starts a web server. Open your browser to `http://localhost:5000` (or the port shown in the console) to access the **web dashboard**.
 
