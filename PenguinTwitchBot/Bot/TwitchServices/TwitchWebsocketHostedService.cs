@@ -10,13 +10,14 @@ using System.Text.RegularExpressions;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Models;
+using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
     public partial class TwitchWebsocketHostedService(
         ILogger<TwitchWebsocketHostedService> logger,
         IServiceBackbone eventService,
-        TwitchLib.EventSub.Websockets.EventSubWebsocketClient eventSubWebsocketClient,
+        TwitchApi.EventSub.Websockets.EventSubWebsocketClient eventSubWebsocketClient,
         SubscriptionTracker subscriptionHistory,
         ChatMessageIdTracker messageIdTracker,
         IMemoryCache memoryCache,
@@ -33,12 +34,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private ITimer? JoinTimer;
         private DateTimeOffset LastMessageReceived = DateTimeOffset.MinValue;
 
-        private async Task ChannelChatMessage(object? sender, ChannelChatMessageArgs args)
-        {
-            await ChannelChatMessage(EventSubAdapter.AdaptChannelChatMessage(args));
-        }
-
-        private async Task ChannelChatMessage(TwitchApi.EventSub.EventArgs.Channel.ChannelChatMessageEventArgs payload)
+        private async Task ChannelChatMessage(object? sender, ChannelChatMessageEventArgs payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
@@ -80,13 +76,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        
-        private async Task OnChannelChatNotification(object? sender, ChannelChatNotificationArgs args)
-        {
-            await OnChannelChatNotification(EventSubAdapter.AdaptChannelChatNotification(args));
-        }
-
-        private async Task OnChannelChatNotification(TwitchApi.EventSub.EventArgs.Channel.ChannelChatNotificationEventArgs payload)
+        private async Task OnChannelChatNotification(object? sender, ChannelChatNotificationEventArgs payload)
         {
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
@@ -199,18 +189,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private Task ChannelChatMessageDelete(object? sender, ChannelChatMessageDeleteArgs args)
+        private Task ChannelChatMessageDelete(object? sender, ChannelChatMessageDeleteEventArgs args)
         {
-            logger.LogInformation("CHATMSG DELETE: MessageId: {messageId} User: {userName}", args.Payload.Event.MessageId, args.Payload.Event.TargetUserName);
+            logger.LogInformation("CHATMSG DELETE: MessageId: {messageId} User: {userName}", args.Event.MessageId, args.Event.TargetUserName);
             return dispatcher.Publish(new DeletedChatMessage { EventArgs = args });
         }
 
-        private async Task ChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs e)
-        {
-            await ChannelSuspiciousUserMessage(EventSubAdapter.AdaptChannelSuspiciousUserMessage(e));
-        }
-
-        private Task ChannelSuspiciousUserMessage(TwitchApi.EventSub.EventArgs.Channel.ChannelSuspiciousUserMessageEventArgs args)
+        private Task ChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageEventArgs args)
         {
             if (messageIdTracker.IsSelfMessage(args.Event.Message.MessageId)) return Task.CompletedTask;
             if (DidProcessMessage(args.Metadata)) return Task.CompletedTask;
@@ -333,12 +318,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await eventService.OnAdBreakStartEvent(e);
         }
 
-        private async Task ChannelAdBreakBegin(object? sender, ChannelAdBreakBeginArgs e)
-        {
-            await ChannelAdBreakBegin(EventSubAdapter.AdaptChannelAdBreakBegin(e));
-        }
-
-        private async Task ChannelAdBreakBegin(TwitchApi.EventSub.EventArgs.Channel.ChannelAdBreakBeginEventArgs payload)
+        private async Task ChannelAdBreakBegin(object? sender, TwitchApi.EventSub.EventArgs.Channel.ChannelAdBreakBeginEventArgs payload)
         {
             try
             {
@@ -359,12 +339,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelUnBan(object? sender, ChannelUnbanArgs e)
-        {
-            await OnChannelUnBan(EventSubAdapter.AdaptChannelUnban(e));
-        }
-
-        private async Task OnChannelUnBan(TwitchApi.EventSub.EventArgs.Channel.ChannelUnbanEventArgs payload)
+        private async Task OnChannelUnBan(object? sender, ChannelUnbanEventArgs payload)
         {
             try
             {
@@ -392,12 +367,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelBan(object? sender, ChannelBanArgs e)
-        {
-            await OnChannelBan(EventSubAdapter.AdaptChannelBan(e));
-        }
-
-        private async Task OnChannelBan(TwitchApi.EventSub.EventArgs.Channel.ChannelBanEventArgs payload)
+        private async Task OnChannelBan(object? sender, ChannelBanEventArgs payload)
         {
             try
             {
@@ -436,12 +406,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelRaid(object? sender, ChannelRaidArgs e)
-        {
-            await OnChannelRaid(EventSubAdapter.AdaptChannelRaid(e));
-        }
-
-        private async Task OnChannelRaid(TwitchApi.EventSub.EventArgs.Channel.ChannelRaidEventArgs payload)
+        private async Task OnChannelRaid(object? sender, ChannelRaidEventArgs payload)
         {
             try
             {
@@ -493,12 +458,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnStreamOffline(object? sender, StreamOfflineArgs e)
-        {
-            await OnStreamOffline(EventSubAdapter.AdaptStreamOffline(e));
-        }
-
-        private async Task OnStreamOffline(TwitchApi.EventSub.EventArgs.Stream.StreamOfflineEventArgs payload)
+        private async Task OnStreamOffline(object? sender, TwitchApi.EventSub.EventArgs.Stream.StreamOfflineEventArgs payload)
         {
             try
             {
@@ -526,12 +486,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnStreamOnline(object? sender, StreamOnlineArgs e)
-        {
-            await OnStreamOnline(EventSubAdapter.AdaptStreamOnline(e));
-        }
-
-        private async Task OnStreamOnline(TwitchApi.EventSub.EventArgs.Stream.StreamOnlineEventArgs payload)
+        private async Task OnStreamOnline(object? sender, TwitchApi.EventSub.EventArgs.Stream.StreamOnlineEventArgs payload)
         {
             try
             {
@@ -544,12 +499,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelSubscription(object? sender, ChannelSubscribeArgs e)
-        {
-            await OnChannelSubscription(EventSubAdapter.AdaptChannelSubscribe(e));
-        }
-
-        private async Task OnChannelSubscription(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscribeEventArgs payload)
+        private async Task OnChannelSubscription(object? sender, ChannelSubscribeEventArgs payload)
         {
             try
             {
@@ -581,12 +531,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return subscriptionHistory.ExistingSub(userLogin);
         }
 
-        private async Task OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageArgs e)
-        {
-            await OnChannelSubscriptionRenewal(EventSubAdapter.AdaptChannelSubscriptionMessage(e));
-        }
-
-        private async Task OnChannelSubscriptionRenewal(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionMessageEventArgs payload)
+        private async Task OnChannelSubscriptionRenewal(object? sender, ChannelSubscriptionMessageEventArgs payload)
         {
             try
             {
@@ -615,13 +560,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 logger.LogError(ex, "Error in websocket message");
             }
         }
-
-        private async Task OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs e)
-        {
-            await OnChannelSubscriptionGift(EventSubAdapter.AdaptChannelSubscriptionGift(e));
-        }
-
-        private async Task OnChannelSubscriptionGift(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionGiftEventArgs payload)
+        private async Task OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftEventArgs payload)
         {
             try
             {
@@ -646,12 +585,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs e)
-        {
-            await OnChannelSubscriptionEnd(EventSubAdapter.AdaptChannelSubscriptionEnd(e));
-        }
-
-        private async Task OnChannelSubscriptionEnd(TwitchApi.EventSub.EventArgs.Channel.ChannelSubscriptionEndEventArgs payload)
+        private async Task OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndEventArgs payload)
         {
             try
             {
@@ -674,12 +608,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelCheer(object? sender, ChannelCheerArgs e)
-        {
-            await OnChannelCheer(EventSubAdapter.AdaptChannelCheer(e));
-        }
 
-        private async Task OnChannelCheer(TwitchApi.EventSub.EventArgs.Channel.ChannelCheerEventArgs payload)
+        private async Task OnChannelCheer(object? sender, ChannelCheerEventArgs payload)
         {
             try
             {
@@ -705,12 +635,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelBitsUse(object? sender, ChannelBitsUseArgs e)
-        {
-            await OnChannelBitsUse(EventSubAdapter.AdaptChannelBitsUse(e));
-        }
-
-        private async Task OnChannelBitsUse(TwitchApi.EventSub.EventArgs.Channel.ChannelBitsUseEventArgs payload)
+        private async Task OnChannelBitsUse(object? sender, ChannelBitsUseEventArgs payload)
         {
             try
             {
@@ -764,13 +689,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-
-        private async Task OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionArgs e)
-        {
-            await OnChannelPointRedeemed(EventSubAdapter.AdaptChannelPointRedemption(e));
-        }
-
-        private async Task OnChannelPointRedeemed(TwitchApi.EventSub.EventArgs.Channel.ChannelPointsCustomRewardRedemptionEventArgs payload)
+        private async Task OnChannelPointRedeemed(object? sender, ChannelPointsCustomRewardRedemptionEventArgs payload)
         {
             try
             {
@@ -799,27 +718,22 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             }
         }
 
-        private async Task OnChannelFollow(object? sender, ChannelFollowArgs e)
-        {
-            await OnChannelFollow(EventSubAdapter.AdaptChannelFollow(e));
-        }
-
-        private async Task OnChannelFollow(TwitchApi.EventSub.EventArgs.Channel.ChannelFollowEventArgs payload)
+        private async Task OnChannelFollow(object? sender, ChannelFollowEventArgs e)
         {
             try
             {
-                if (DidProcessMessage(payload.Metadata)) return;
-                logger.LogInformation("OnChannelFollow: {UserLogin}", payload.Event.UserLogin);
+                if (DidProcessMessage(e.Metadata)) return;
+                logger.LogInformation("OnChannelFollow: {UserLogin}", e.Event.UserLogin);
 
                 var followEventArgs = new FollowEventArgs
                 {
-                    Username = payload.Event.UserLogin,
-                    UserId = payload.Event.UserId,
-                    DisplayName = payload.Event.UserName,
-                    FollowDate = payload.Event.FollowedAt.DateTime
+                    Username = e.Event.UserLogin,
+                    UserId = e.Event.UserId,
+                    DisplayName = e.Event.UserName,
+                    FollowDate = e.Event.FollowedAt.DateTime
                 };
 
-                await eventService.OnFollow(payload.Event);
+                await eventService.OnFollow(e.Event);
                 await twitchEventActionHandler.HandleFollowAsync(followEventArgs);
             }
             catch (Exception ex)
@@ -829,13 +743,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         }
 
 
-        private Task MessageReceived(object? sender, TwitchLib.EventSub.Websockets.Core.EventArgs.MessageReceivedEventArgs args)
+        private Task MessageReceived(object? sender, TwitchApi.EventSub.EventArgs.MessageReceivedEventArgs args)
         {
             LastMessageReceived = timeProvider.GetLocalNow();
             return Task.CompletedTask;
         }
 
-        private async Task OnErrorOccurred(object? sender, ErrorOccuredArgs e)
+        private async Task OnErrorOccurred(object? sender, ErrorOccuredEventArgs e)
         {
             logger.LogInformation(e.Exception, "Websocket error occured: {message}", e.Message);
 
@@ -933,7 +847,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         }
 
 
-        private async Task OnWebsocketConnected(object? sender, WebsocketConnectedArgs e)
+        private async Task OnWebsocketConnected(object? sender, WebsocketConnectedEventArgs e)
         {
             logger.LogInformation("Twitch Websocket connected");
             if (e.IsRequestedReconnect) return;
@@ -1013,7 +927,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             
             await Connect();
         }
-
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
