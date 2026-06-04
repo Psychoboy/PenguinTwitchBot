@@ -77,7 +77,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return await pointsSystem.GetPointTypeForGame(GAMENAME);
         }
 
-        private async Task OnCheer(object sender, CheerEventArgs e)
+        private async Task OnCheer(object? sender, CheerEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(e.Name) || e.IsAnonymous || string.IsNullOrWhiteSpace(e.UserId))
             {
@@ -109,7 +109,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        private async Task OnSubScriptionGift(object sender, SubscriptionGiftEventArgs args)
+        private async Task OnSubScriptionGift(object? sender, SubscriptionGiftEventArgs args)
         {
             if (string.IsNullOrWhiteSpace(args.Name) || string.IsNullOrWhiteSpace(args.UserId)) return;
             try
@@ -160,7 +160,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
-        private async Task OnSubscription(object sender, SubscriptionEventArgs e)
+        private async Task OnSubscription(object? sender, SubscriptionEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(e.Name) || string.IsNullOrWhiteSpace(e.UserId)) return;
             if (e.IsGift) return;

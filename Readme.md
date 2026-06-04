@@ -11,8 +11,6 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 
 > **AI Disclosure:** Limited AI assistance was used for small refactors, bug fixes, and this document.
 
-Twitch connectivity is powered by [TwitchLib](https://github.com/TwitchLib/TwitchLib).
-
 ---
 
 ## Table of Contents

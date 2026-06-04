@@ -35,7 +35,6 @@ using System.Collections;
 using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
-using PenguinTwitchBot.TwitchApi.Extensions;
 internal class Program
 {
     private static ILogger<Program>? logger;
@@ -169,7 +168,6 @@ internal class Program
 
         //Database
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
-        builder.Services.AddPenguinTwitchApiEventSub();
         builder.Services.AddPenguinDispatcher(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 

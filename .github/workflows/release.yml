@@ -18,19 +18,13 @@ jobs:
       contents: write
 
     steps:
-    - name: Checkout with submodules
+    - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-
-    - name: Pack TwitchLib local packages
-      run: pack-twitchlib.bat
-      shell: cmd
 
     - name: Restore dependencies
       run: dotnet restore

@@ -163,7 +163,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             UpdateLastActive(e.Username);
         }
 
-        private async Task OnChannelPointRedeem(object sender, ChannelPointRedeemEventArgs args)
+        private async Task OnChannelPointRedeem(object? sender, ChannelPointRedeemEventArgs args)
         {
             UpdateLastActive(args.Sender);
             await Task.CompletedTask;
