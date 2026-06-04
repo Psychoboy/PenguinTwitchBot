@@ -35,19 +35,6 @@ if "!migrationName!"=="" (
     goto menu
 )
 
-echo.
-echo Generating migration for MariaDB...
-cd PenguinTwitchBot.Migrations.MariaDb
-dotnet ef migrations add "!migrationName!" -c ApplicationDbContext -o Migrations --startup-project "%ROOT_DIR%\PenguinTwitchBot"
-if errorlevel 1 (
-    echo Error generating MariaDB migration
-    cd %ROOT_DIR%
-    timeout /t 3
-    goto menu
-)
-cd ..
-
-echo.
 echo Generating migration for PostgreSQL...
 cd PenguinTwitchBot.Migrations.Postgres
 dotnet ef migrations add "!migrationName!" -c ApplicationDbContext -o Migrations --startup-project "%ROOT_DIR%\PenguinTwitchBot"
@@ -72,23 +59,11 @@ if errorlevel 1 (
 cd ..
 
 echo.
-echo Migrations generated successfully for all 3 providers!
+echo Migrations generated successfully for both providers!
 timeout /t 3
 goto menu
 
 :remove
-echo.
-echo Removing last migration from MariaDB...
-cd PenguinTwitchBot.Migrations.MariaDb
-dotnet ef migrations remove -c ApplicationDbContext --startup-project "%ROOT_DIR%\PenguinTwitchBot"
-if errorlevel 1 (
-    echo Error removing MariaDB migration
-    cd %ROOT_DIR%
-    timeout /t 3
-    goto menu
-)
-cd ..
-
 echo.
 echo Removing last migration from PostgreSQL...
 cd PenguinTwitchBot.Migrations.Postgres
@@ -114,23 +89,11 @@ if errorlevel 1 (
 cd ..
 
 echo.
-echo Last migration removed from all 3 providers!
+echo Last migration removed from both providers!
 timeout /t 3
 goto menu
 
 :update
-echo.
-echo Updating database for MariaDB...
-cd PenguinTwitchBot.Migrations.MariaDb
-dotnet ef database update -c ApplicationDbContext --startup-project "%ROOT_DIR%\PenguinTwitchBot"
-if errorlevel 1 (
-    echo Error updating MariaDB database
-    cd %ROOT_DIR%
-    timeout /t 3
-    goto menu
-)
-cd ..
-
 echo.
 echo Updating database for PostgreSQL...
 cd PenguinTwitchBot.Migrations.Postgres
@@ -161,18 +124,6 @@ timeout /t 3
 goto menu
 
 :status
-echo.
-echo MariaDB Migrations:
-cd PenguinTwitchBot.Migrations.MariaDb
-dotnet ef migrations list -c ApplicationDbContext --startup-project "%ROOT_DIR%\PenguinTwitchBot"
-if errorlevel 1 (
-    echo Error listing MariaDB migrations
-    cd %ROOT_DIR%
-    timeout /t 3
-    goto menu
-)
-cd ..
-
 echo.
 echo PostgreSQL Migrations:
 cd PenguinTwitchBot.Migrations.Postgres

@@ -102,7 +102,7 @@ The wizard covers the following steps:
 | 4 | **Twitch Bot App** - can reuse the streamer app or use a separate one |
 | 5 | **Authorize Streamer Account** - OAuth authorization via your browser |
 | 6 | **Authorize Bot Account** *(optional)* - OAuth authorization for your bot account; grants `user:write:chat` and `user:bot` scopes required for sending chat messages |
-| 7 | **Database** - choose SQLite, MariaDB, or PostgreSQL (see [Database Support](#database-support)) |
+| 7 | **Database** - choose SQLite or PostgreSQL (see [Database Support](#database-support)) |
 | 8 | **YouTube API** *(optional)* - enables the song request feature |
 | 9 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
 | 10 | **Weather** *(optional)* - OpenWeatherMap API key and default location |
@@ -155,12 +155,11 @@ OAuth redirects now use the URL/host/port from the request used to access the bo
 
 ## Database Support
 
-The bot supports three database backends. You select your preference during the setup wizard.
+The bot supports two database backends. You select your preference during the setup wizard.
 
 | Database | Notes |
 |----------|-------|
 | **SQLite** *(default)* | No external server required. Stores everything in a single file (`Data/PenguinTwitchBot.sqlite`). Recommended for most users. |
-| **MariaDB / MySQL** | Requires a running MariaDB or MySQL server. Provide a connection string in the wizard. |
 | **PostgreSQL** | Requires a running PostgreSQL server. Provide a connection string in the wizard. |
 
 The database is created and migrated automatically on startup. You can switch databases later by editing `appsettings.secrets.json` and re-running the bot.
@@ -410,7 +409,6 @@ dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r osx-arm64 
 |---------|-------------|
 | `PenguinTwitchBot/` | Main bot and web dashboard |
 | `PenguinTwitchBot.Setup/` | First-time setup wizard |
-| `PenguinTwitchBot.Migrations.MariaDb/` | EF Core migrations for MariaDB/MySQL |
 | `PenguinTwitchBot.Migrations.Postgres/` | EF Core migrations for PostgreSQL |
 | `PenguinTwitchBot.Test/` | Unit tests |
 

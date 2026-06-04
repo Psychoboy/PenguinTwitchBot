@@ -8,23 +8,19 @@ echo ========================================
 echo   Select Database Provider
 echo ========================================
 echo.
-echo 1. MariaDB (default)
+echo 1. SQLite (default)
 echo 2. PostgreSQL
-echo 3. SQLite
-echo 4. Exit
+echo 3. Exit
 echo.
-set /p choice="Select database provider (1-4): "
+set /p choice="Select database provider (1-3): "
 
 if "!choice!"=="1" (
-    set DATABASE_PROVIDER=mariadb
-    echo Selected: MariaDB
+    set DATABASE_PROVIDER=sqlite
+    echo Selected: SQLite
 ) else if "!choice!"=="2" (
     set DATABASE_PROVIDER=postgres
     echo Selected: PostgreSQL
 ) else if "!choice!"=="3" (
-    set DATABASE_PROVIDER=sqlite
-    echo Selected: SQLite
-) else if "!choice!"=="4" (
     exit /b 0
 ) else (
     echo Invalid choice. Please try again.

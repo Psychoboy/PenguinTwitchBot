@@ -16,9 +16,8 @@ namespace PenguinTwitchBot.Bot.Core.Database
 		public static void ConfigureDateTimes(this ModelBuilder modelBuilder, string? provider)
 		{
 			// Apply datetime configuration for all providers that don't store timezone info natively.
-			// MariaDB stores datetime without Kind; Postgres/SQLite also need Kind tagging on reads.
-			// Note: "mariadb" is passed from ApplicationDbContext when Database.IsMySql() is true.
-			if (provider != "postgres" && provider != "sqlite" && provider != "mariadb")
+			// PostgreSQL/SQLite also need Kind tagging on reads.
+			if (provider != "postgres" && provider != "sqlite")
 				return;
 
 			foreach (var entityType in modelBuilder.Model.GetEntityTypes())
