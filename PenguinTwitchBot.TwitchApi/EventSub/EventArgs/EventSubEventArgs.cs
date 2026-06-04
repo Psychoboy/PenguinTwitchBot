@@ -9,14 +9,12 @@ public abstract class EventSubEventArgs<TEvent> : System.EventArgs
     /// <summary>
     /// Metadata for deduplication and event routing.
     /// </summary>
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-    public EventSubMetadata Metadata { get; set; }
+    public required EventSubMetadata Metadata { get; set; }
 
     /// <summary>
     /// The event-specific data payload.
     /// </summary>
-    public TEvent Event { get; set; }
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+    public required TEvent Event { get; set; }
 }
 
 /// <summary>

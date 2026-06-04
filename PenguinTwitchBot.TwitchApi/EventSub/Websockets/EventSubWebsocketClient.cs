@@ -300,7 +300,8 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
         {
             if(!metadata.HasSubscriptionInfo)
             {
-                await ErrorOccurred.InvokeAsync(this, new ErrorOccuredEventArgs { Message = "Received notification without subscription info." });
+                await ErrorOccurred.InvokeAsync(this, 
+                new ErrorOccuredEventArgs { Message = "Received notification without subscription info.", Exception = new InvalidOperationException("Received notification without subscription info.") });
                 return;
             }
 
@@ -330,10 +331,13 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             await task;
 
             async Task InvokeEventSubEvent<TEvent, TModel>(AsyncEventHandler<TEvent>? asyncEventHandler)
-                where TEvent : EventSubEventArgs<TModel>, new()
+                where TEvent : EventSubEventArgs<TModel>
             {
                 var notification = JsonSerializer.Deserialize<EventSubNotificationPayload<TModel>>(payload, _jsonSerializerOptions);
-                await asyncEventHandler.InvokeAsync(this, new TEvent { Metadata = metadata, Event = notification!.Event });
+                var eventArgs = Activator.CreateInstance<TEvent>();
+                eventArgs.Metadata = metadata;
+                eventArgs.Event = notification!.Event;
+                await asyncEventHandler.InvokeAsync(this, eventArgs);
             }
         }
 

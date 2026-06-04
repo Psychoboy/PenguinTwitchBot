@@ -94,10 +94,12 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
                             break;
                         case WebSocketMessageType.Binary:
                             _logger.LogWarning("Received binary message, which is not supported. Ignoring.");
+                            payloadSize = 0;
                             break;
                         case WebSocketMessageType.Close:
                             var logLevel = _webSocket.CloseStatus is WebSocketCloseStatus.NormalClosure ? LogLevel.Information : LogLevel.Critical;
                             _logger.LogWebsocketClosed(logLevel, (WebSocketCloseStatus)_webSocket.CloseStatus!, _webSocket.CloseStatusDescription!);
+                            payloadSize = 0;
                             break;
                         default:
                             throw new ArgumentOutOfRangeException($"Unknown WebSocket message type: {receiveResult.MessageType}");
