@@ -81,7 +81,9 @@ internal class Program
             typeof(ConsoleLoggerConfigurationExtensions).Assembly,
             typeof(Serilog.Expressions.SerilogExpression).Assembly,
             typeof(Serilog.RollingInterval).Assembly,
-            typeof(Serilog.Sinks.OpenTelemetry.OtlpProtocol).Assembly
+            typeof(Serilog.Sinks.OpenTelemetry.OtlpProtocol).Assembly,
+            typeof(Serilog.Sinks.File.FileSink).Assembly,
+            typeof(Serilog.Log).Assembly
         );
         var loggerConfiguration = new LoggerConfiguration()
            .ReadFrom.Configuration(builder.Configuration, readerOptions)
@@ -439,11 +441,8 @@ internal class Program
 
         try
         {
-            if (!File.Exists("yt-dlp.exe"))
-            {
-                await YoutubeDLSharp.Utils.DownloadYtDlp();
-                await YoutubeDLSharp.Utils.DownloadFFmpeg();
-            }
+            await YoutubeDLSharp.Utils.DownloadYtDlp();
+            await YoutubeDLSharp.Utils.DownloadFFmpeg();
         }
         catch (Exception) { }
 

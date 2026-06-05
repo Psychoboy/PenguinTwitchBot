@@ -11,20 +11,31 @@ namespace PenguinTwitchBot.Application.Clips
         {
             try
             {
-                if (!File.Exists("wwwroot/clips/" + request.Clip.Id + ".mp4"))
+                var clipsDir = "wwwroot/clips/";
+                var absoluteClipsDir = Path.GetFullPath(clipsDir);
+                logger.LogInformation("Clip directory: {absoluteClipsDir} (cwd: {cwd})", absoluteClipsDir, Directory.GetCurrentDirectory());
+                Directory.CreateDirectory(clipsDir);
+                var clipPath = clipsDir + request.Clip.Id + ".mp4";
+
+                if (!File.Exists(clipPath))
                 {
-                    logger.LogInformation("Downloading clip: {clipUrl}", request.Clip.Url);
+                    logger.LogInformation("Downloading clip: {clipUrl}, AbsolutePath: {path}", request.Clip.Url, Path.GetFullPath(clipPath));
                     var ytdl = new YoutubeDLSharp.YoutubeDL();
                     var options = new OptionSet()
                     {
-                        Output = "wwwroot/clips/" + request.Clip.Id + ".mp4"
+                        Output = clipPath
                     };
                     var res = await ytdl.RunVideoDownload(request.Clip.Url, overrideOptions: options);
-                    logger.LogInformation("Downloaded clip: {clipUrl}, Path: {path}", request.Clip.Url, res.Data);
+                    logger.LogInformation("Download result — Success: {success}, Data: {data}, Errors: {errors}", res.Success, res.Data, string.Join("; ", res.ErrorOutput ?? []));
+                    if (!res.Success || !File.Exists(clipPath))
+                    {
+                        logger.LogError("Clip download failed, skipping playback.");
+                        return;
+                    }
                 }
                 else
                 {
-                    logger.LogInformation("Clip already exists: {clipUrl}", request.Clip.Url);
+                    logger.LogInformation("Clip already exists: {clipUrl}, Path: {path}", request.Clip.Url, Path.GetFullPath(clipPath));
                 }
 
                 var playClip = new ClipAlert
@@ -35,7 +46,7 @@ namespace PenguinTwitchBot.Application.Clips
                     StreamerAvatarUrl = request.User.ProfileImageUrl ?? "",
                     GameImageUrl = request.GameUrl
                 };
-                File.SetLastWriteTime("wwwroot/clips/" + request.Clip.Id + ".mp4", DateTime.Now);
+                File.SetLastWriteTime(clipPath, DateTime.Now);
                 var alert = new QueueAlert(playClip.Generate());
                 await webSocketMessenger.AddToQueue(alert.Alert);
             }
