@@ -40,7 +40,7 @@ namespace PenguinTwitchBot.Bot.Notifications
                 await _semaphoreSlim.WaitAsync();
                 if(websocketConnections.Count == 0)
                 {
-                    _logger.LogWarning("No websockets connected. Not adding message to queue.");
+                    _logger.LogDebug("No websockets connected. Not adding message to queue.");
                     return;
                 }
                 if (_queue.Count > 100)
