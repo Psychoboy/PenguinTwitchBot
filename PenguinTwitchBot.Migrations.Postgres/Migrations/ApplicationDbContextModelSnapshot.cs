@@ -1449,6 +1449,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("OverlayLayoutId")
                         .HasColumnType("integer");
 

@@ -162,7 +162,7 @@
                  @onclick="() => _selected = null">
                 @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
                 {
-                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
                          data-widget-id="@w.TempId"
                          data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
                          data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
@@ -170,6 +170,10 @@
                          @key="w.TempId"
                          @onclick:stopPropagation="true"
                          @onclick="() => SelectWidget(w)">
+                        @if (w.IsLocked)
+                        {
+                            <span class="widget-lock-badge" title="Locked — click-through enabled">🔒</span>
+                        }
                         @if (w.WidgetType == "chat")
                         {
                             var preview = GetPreviewChatSettings(w);
@@ -240,6 +244,14 @@
                     <span class="widget-list-dot" style="background:@GetWidgetColor(wi.WidgetType);"></span>
                     <span class="widget-list-name">@wi.DisplayName</span>
                     <span class="widget-list-z">z:@wi.ZIndex</span>
+                    <span @onclick:stopPropagation="true" style="flex-shrink:0; margin-left:2px;">
+                        <MudTooltip Text="@(wi.IsLocked ? "Unlock widget" : "Lock widget")">
+                            <MudIconButton Icon="@(wi.IsLocked ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                           Size="Size.Small"
+                                           Color="@(wi.IsLocked ? Color.Warning : Color.Default)"
+                                           OnClick="() => wi.IsLocked = !wi.IsLocked" />
+                        </MudTooltip>
+                    </span>
                 </div>
             }
             <MudDivider Class="my-2" />
@@ -626,6 +638,7 @@
                 WidgetType = w.WidgetType,
                 DisplayName = def?.DisplayName ?? w.WidgetType,
                 IsEnabled = w.IsEnabled,
+                IsLocked = w.IsLocked,
                 X = w.X,
                 Y = w.Y,
                 Width = w.Width,
@@ -666,6 +679,7 @@
                     OverlayLayoutId = _currentLayoutId.Value,
                     WidgetType      = w.WidgetType,
                     IsEnabled       = w.IsEnabled,
+                    IsLocked        = w.IsLocked,
                     X               = w.X,
                     Y               = w.Y,
                     Width           = w.Width,
@@ -765,6 +779,7 @@
             {
                 WidgetType     = w.WidgetType,
                 IsEnabled      = w.IsEnabled,
+                IsLocked       = w.IsLocked,
                 X              = w.X,
                 Y              = w.Y,
                 Width          = w.Width,
@@ -1058,6 +1073,7 @@
         public string WidgetType  { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public bool   IsEnabled   { get; set; } = true;
+        public bool   IsLocked    { get; set; } = false;
         public int    X           { get; set; }
         public int    Y           { get; set; }
         public int    Width       { get; set; }
