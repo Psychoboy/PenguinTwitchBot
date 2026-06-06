@@ -25,6 +25,8 @@ namespace PenguinTwitchBot.Bot.Models.Overlay
 
         public bool IsEnabled { get; set; } = true;
 
+        public bool IsLocked { get; set; } = false;
+
         /// <summary>X position in pixels on a 1920x1080 canvas.</summary>
         public int X { get; set; } = 0;
 

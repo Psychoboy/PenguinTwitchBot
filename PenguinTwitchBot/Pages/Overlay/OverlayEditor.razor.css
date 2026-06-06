@@ -115,7 +115,7 @@
     cursor: move;
     border-radius: 4px;
     border: 2px solid rgba(255, 255, 255, 0.35);
-    opacity: 0.82;
+    opacity: 0.55;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -128,7 +128,7 @@
 
 .widget-tile:hover {
     border-color: rgba(255, 255, 255, 0.7);
-    opacity: 0.9;
+    opacity: 0.75;
 }
 
 .widget-tile--selected {
@@ -140,6 +140,25 @@
 .widget-tile--disabled {
     opacity: 0.3 !important;
     filter: grayscale(50%);
+}
+
+.widget-tile--locked {
+    pointer-events: none;
+    border-style: dashed !important;
+    border-color: rgba(255, 200, 50, 0.55) !important;
+    cursor: default;
+}
+
+.widget-lock-badge {
+    position: absolute;
+    left: 4px;
+    top: 4px;
+    font-size: 0.68rem;
+    line-height: 1;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 3px;
+    padding: 1px 3px;
 }
 
 .widget-tile--chat-preview {

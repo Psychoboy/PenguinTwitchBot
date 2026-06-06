@@ -431,7 +431,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 </head>
 
 <body>
-	<div id="ws-status">Disconnected</div>
+	<div id="ws-status" data-overlay="🎆 Fireworks">Disconnected</div>
 	<!-- partial:index.partial.html -->
 	<!-- SVG Spritesheet -->
 	<div style="height: 0; width: 0; position: absolute; visibility: hidden;">
@@ -542,6 +542,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/fscreen%401.0.1.js'></script>
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/Stage%400.1.4.js'></script>
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/MyMath.js'></script>
+	<script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
 	<script src="js/ws-status.js"></script>
 	<script>
 		'use strict';
@@ -2867,52 +2868,46 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		
 		
-		function wsconnect()
-		{
-		if ("WebSocket" in window) {
-			const ws = new WebSocket("ws://127.0.0.1:5000/ws/events");
-			ws.onclose = function () {
-				// "connectws" is the function we defined previously
-				setTimeout("wsconnect()", 10000);
-				wsStatusShow(false);
-				
-			};
+		var scheme = document.location.protocol === "https:" ? "wss" : "ws";
+		var port = document.location.port ? (":" + document.location.port) : "";
+		var socketUri = scheme + "://" + document.location.hostname + port + "/ws";
+		var ws = new ReconnectingWebSocket(socketUri, null, { reconnectInterval: 5000 });
 
-
-
-
-			ws.onopen = function () {
-				wsStatusShow(true);
-				ws.send(JSON.stringify(
-					{
-						"request": "Subscribe",
-						"events": {
-							"Raw": [
-								"Action"
-							]
-						},
-						"id": "123"
-					}
-				));
-			};
-			ws.onmessage = function (event) {
-				// grab message and parse JSON
-				const msg = event.data;
-				const wsdata = JSON.parse(msg);
-				if (typeof wsdata.event != "undefined") {
-					if (typeof wsdata.event.type != "undefined") {
-						if (typeof wsdata.data.name != "undefined") {
-							if (wsdata.data.name == "Fireworks") {
-								clearTimeout(timer);
-								timer = setTimeout(cleancanvas,15000);
-								fireRandom();
-							}
+		ws.onopen = function () {
+			wsStatusShow(true);
+			ws.send(JSON.stringify(
+				{
+					"request": "Subscribe",
+					"events": {
+						"Raw": [
+							"Action"
+						]
+					},
+					"id": "123"
+				}
+			));
+		};
+		ws.onclose = function () {
+			wsStatusShow(false);
+		};
+		ws.onmessage = function (event) {
+			// grab message and parse JSON
+			const msg = event.data;
+			if (msg === "ping") return;
+			const wsdata = JSON.parse(msg);
+			if (typeof wsdata.event != "undefined") {
+				if (typeof wsdata.event.type != "undefined") {
+					if (typeof wsdata.data.name != "undefined") {
+						if (wsdata.data.name == "Fireworks") {
+							clearTimeout(timer);
+							timer = setTimeout(cleancanvas, 15000);
+							fireRandom();
 						}
 					}
 				}
-			};
-		}
-	}
+			}
+		};
+
 	setLoadingStatus('Lighting Fuses');
 		setTimeout(() => {
 			soundManager.preload()
@@ -2926,7 +2921,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 				);
 		}, 0);
-	wsconnect();
 	</script>
 
 </body>
