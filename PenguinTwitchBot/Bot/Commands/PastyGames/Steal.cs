@@ -44,10 +44,12 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 throw new SkipCooldownException();
             }
 
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
+
             var userPasties = await pointsSystem.GetUserPointsByUserIdAndGame(e.UserId, ModuleName);
             if (userPasties.Points < StealMax)
             {
-                await ServiceBackbone.ResponseWithMessage(e, string.Format("you don't have enough pasties to steal, you need a minimum of {0}", StealMax));
+                await ServiceBackbone.ResponseWithMessage(e, string.Format("you don't have enough {0} to steal, you need a minimum of {1}", pointType.Name, StealMax));
                 throw new SkipCooldownException();
             }
 
@@ -59,10 +61,11 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var targetPasties = await pointsSystem.GetUserPointsByUsernameAndGame(e.TargetUser, ModuleName);
             var targetDisplayName = await viewerFeature.GetNameWithTitle(e.TargetUser);
             var amount = StaticTools.Next(StealMin, StealMax + 1);
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             if (targetPasties.Points < StealMax)
             {
                 await ServiceBackbone.ResponseWithMessage(e,
-                string.Format("{0} is to poor for you to steal from them, instead you give them {1} pasties.", targetDisplayName, amount.ToString("N0")));
+                string.Format("{0} is too poor for you to steal from them, instead you give them {1} {2}.", targetDisplayName, amount.ToString("N0"), pointType.Name));
                 await MovePoints(e.Name, e.TargetUser, amount);
 
                 // Trigger default command event for too poor
@@ -81,8 +84,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var rand = StaticTools.Next(1, 12 + 1);
             if (rand <= 4) // success
             {
-                await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} pasties from {2}",
-                e.DisplayName, amount, targetDisplayName));
+                await ServiceBackbone.SendChatMessage(string.Format("{0} successfully stole {1} {2} from {3}",
+                e.DisplayName, amount, pointType.Name, targetDisplayName));
 
                 await MovePoints(e.TargetUser, e.Name, amount);
 
@@ -100,8 +103,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             }
             else
             {
-                await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} pasties from {2}, {2} gets {1} pasties from {0} instead",
-               e.DisplayName, amount, targetDisplayName));
+                await ServiceBackbone.SendChatMessage(string.Format("{0} failed to steal {1} {2} from {3}, {3} gets {1} {2} from {0} instead",
+               e.DisplayName, amount, pointType.Name, targetDisplayName));
                 await MovePoints(e.Name, e.TargetUser, amount);
 
                 // Trigger default command event for failed

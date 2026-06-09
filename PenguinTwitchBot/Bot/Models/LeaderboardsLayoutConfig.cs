@@ -88,14 +88,13 @@ public static class LeaderboardsWidgetCatalog
         };
     }
 
-    public static LeaderboardsLayoutConfig CreateDefaultLayout(int? ticketPointTypeId = null, int? pastiesPointTypeId = 1)
+    public static LeaderboardsLayoutConfig CreateDefaultLayout(int? defaultPointTypeId = null)
     {
         return new LeaderboardsLayoutConfig
         {
             Widgets =
             [
-                CreateDefaultWidget(PointLeaderboard, ticketPointTypeId, "Tickets"),
-                CreateDefaultWidget(PointLeaderboard, pastiesPointTypeId, "Pasties"),
+                CreateDefaultWidget(PointLeaderboard, defaultPointTypeId),
                 CreateDefaultWidget(Loudest),
                 CreateDefaultWidget(WatchedTime),
             ]

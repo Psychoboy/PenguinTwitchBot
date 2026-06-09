@@ -39,8 +39,10 @@ else
                             <MudTextField @bind-Value="viewer.DateCreated" Label="Account Created" ReadOnly="true" Variant="Variant.Text" />
                             <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
                             <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
-                            <MudText>Pasties Rank: #@viewer.Pasties?.Ranking Total: @viewer.Pasties?.Points</MudText>
-                            <MudText>Tickets Rank: #@viewer.Tickets?.Ranking Total: @viewer.Tickets?.Points</MudText>
+                            @foreach (var pr in viewer.PointRankings)
+                            {
+                                <MudText>@pr.PointTypeName Rank: #@pr.Ranking?.Ranking Total: @pr.Ranking?.Points</MudText>
+                            }
                             <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
 
                             <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
@@ -152,6 +154,12 @@ else
     private string username { get; set; } = "";
     private bool includeCommands { get; set; } = false;
 
+    public class ViewerPointRanking
+    {
+        public string PointTypeName { get; set; } = "";
+        public UserPointsWithRank? Ranking { get; set; }
+    }
+
     private EventCallback<bool> CommandsViewChanged { get; set; }
     public class ViewViewer
     {
@@ -160,8 +168,7 @@ else
         public DateTime? LastSub { get; set; }
         public DateTime? DateCreated { get; set; }
         public ViewerMessageCountWithRank? Messages { get; set; }
-        public UserPointsWithRank? Pasties { get; set; }
-        public UserPointsWithRank? Tickets { get; set; }
+        public List<ViewerPointRanking> PointRankings { get; set; } = [];
         public ViewerTimeWithRank? Time { get; set; }
         public string WatchedTime { get; set; } = "";
 
@@ -185,9 +192,13 @@ else
             {
                 viewer.FollowDated = follower.FollowDate;
             }
-            var giveawayPointsSystem = await pointSystem.GetPointTypeForGame("giveawayfeature");
-            viewer.Tickets = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, giveawayPointsSystem.Id.GetValueOrDefault());
-            viewer.Pasties = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, 1);
+            var allPointTypes = await pointSystem.GetPointTypes();
+            viewer.PointRankings = [];
+            foreach (var pt in allPointTypes)
+            {
+                var rank = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, pt.Id.GetValueOrDefault());
+                viewer.PointRankings.Add(new ViewerPointRanking { PointTypeName = pt.Name, Ranking = rank });
+            }
             viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
             viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
             viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);

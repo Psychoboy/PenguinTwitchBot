@@ -464,6 +464,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return broadcasterId;
         }
 
+        public async Task<string?> GetBroadcasterProfileImageUrl()
+        {
+            var broadcaster = _configuration["broadcaster"];
+            if (string.IsNullOrWhiteSpace(broadcaster)) return null;
+            var user = await GetUserByName(broadcaster);
+            return user?.ProfileImageUrl;
+        }
+
         public async Task<string?> GetBotUserId()
         {
             var bot = _configuration["botName"];

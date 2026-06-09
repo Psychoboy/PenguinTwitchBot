@@ -22,7 +22,7 @@ public class HeistSettingsProvider : IGameSettingsFormProvider
             [Heist.JOINTIME]        = await svc.GetIntSetting(Heist.GAMENAME, Heist.JOINTIME, 300),
             [Heist.MINBET]          = await svc.GetIntSetting(Heist.GAMENAME, Heist.MINBET, 100),
             [Heist.WIN_MULTIPLIER]  = await svc.GetDoubleSetting(Heist.GAMENAME, Heist.WIN_MULTIPLIER, 1.5),
-            [Heist.STAGEONE]        = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGEONE, "The crew gets ready to steal some pasties!"),
+            [Heist.STAGEONE]        = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGEONE, "The crew gets ready to steal some points!"),
             [Heist.STAGETWO]        = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGETWO, "Everyone sharpens their beaks and sneaks in!"),
             [Heist.STAGETHREE]      = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGETHREE, "Look out! {Caught} got caught!"),
             [Heist.STAGEFOUR]       = await svc.GetStringSetting(Heist.GAMENAME, Heist.STAGEFOUR, "{Survivors} managed to escape with the loot!"),
