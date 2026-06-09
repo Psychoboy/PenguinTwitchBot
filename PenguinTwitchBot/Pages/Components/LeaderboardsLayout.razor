@@ -134,16 +134,12 @@ else
     private bool isEditing;
     private string selectedWidgetType = LeaderboardsWidgetCatalog.PointLeaderboard;
     private IReadOnlyList<PointType> PointTypes { get; set; } = [];
-    private int? defaultTicketsPointTypeId;
-    private int? defaultPastiesPointTypeId = 1;
-
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isStreamer = authState.User.IsInRole("Streamer");
 
         PointTypes = (await PointsSystem.GetPointTypes()).ToList();
-        defaultTicketsPointTypeId = (await PointsSystem.GetPointTypeForGame("giveawayfeature")).GetId();
 
         await ReloadSavedLayoutAsync();
         isLoaded = true;
@@ -152,7 +148,7 @@ else
     private async Task ReloadSavedLayoutAsync()
     {
         var savedLayout = await LeaderboardsLayoutService.GetLayoutAsync();
-        layout = savedLayout ?? LeaderboardsWidgetCatalog.CreateDefaultLayout(defaultTicketsPointTypeId, defaultPastiesPointTypeId);
+        layout = savedLayout ?? LeaderboardsWidgetCatalog.CreateDefaultLayout(PointTypes.FirstOrDefault()?.Id);
         layout = LeaderboardsWidgetCatalog.Normalize(layout);
         editableWidgets.Clear();
         editableWidgets.AddRange(layout.Widgets.Select(LeaderboardsWidgetCatalog.Normalize));
@@ -206,7 +202,7 @@ else
         try
         {
             await LeaderboardsLayoutService.ResetLayoutAsync();
-            layout = LeaderboardsWidgetCatalog.CreateDefaultLayout(defaultTicketsPointTypeId, defaultPastiesPointTypeId);
+            layout = LeaderboardsWidgetCatalog.CreateDefaultLayout(PointTypes.FirstOrDefault()?.Id);
             layout = LeaderboardsWidgetCatalog.Normalize(layout);
             ReloadWorkingLayout();
             Snackbar.Add("Leaderboards layout reset to the default.", Severity.Success);
@@ -236,7 +232,7 @@ else
     {
         editableWidgets.Add(LeaderboardsWidgetCatalog.Normalize(LeaderboardsWidgetCatalog.CreateDefaultWidget(
             selectedWidgetType,
-            defaultTicketsPointTypeId,
+            PointTypes.FirstOrDefault()?.Id,
             selectedWidgetType == LeaderboardsWidgetCatalog.PointLeaderboard ? "" : null)));
     }
 
