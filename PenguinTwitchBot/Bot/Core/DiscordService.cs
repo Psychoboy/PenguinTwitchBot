@@ -112,12 +112,13 @@ namespace PenguinTwitchBot.Bot.Core
 
                 var channel = (IMessageChannel)await guild.GetChannelAsync(_settings.BroadcastChannel);
                 var imageUrl = await _twitchService.GetStreamThumbnail();
+                var profileImageUrl = await _twitchService.GetBroadcasterProfileImageUrl();
 
                 imageUrl = imageUrl.Replace("{width}", "400").Replace("{height}", "225");
                 _logger.LogInformation("Thumbnail Url: {imageUrl}", imageUrl);
                 var embed = new EmbedBuilder()
                     .WithColor(100, 65, 164)
-                    .WithThumbnailUrl("https://static-cdn.jtvnw.net/jtv_user_pictures/7397d16d-a2ff-4835-8f63-249b4738581b-profile_image-300x300.png")
+                    .WithThumbnailUrl(profileImageUrl ?? string.Empty)
                     .WithTitle($"{_broadcaster} has just went live on Twitch!")
                     .AddField("Now Playing", await _twitchService.GetCurrentGame())
                     .AddField("Stream Title", await _twitchService.GetStreamTitle())

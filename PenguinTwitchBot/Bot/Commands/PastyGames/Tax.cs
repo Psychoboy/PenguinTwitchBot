@@ -67,6 +67,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     return;
                 }
                 long totalRemoved = 0;
+                var pointType = await _pointSystem.GetPointTypeForGame(ModuleName);
                 foreach (var viewer in viewers)
                 {
                     //await using var scope = _scopeFactory.CreateAsyncScope();
@@ -83,7 +84,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     //db.ViewerPoints.Update(viewerPoints);
                     //await db.SaveChangesAsync();
                 }
-                _logger.LogInformation("Removed {totalRemoved} pasties via taxes", totalRemoved);
+                _logger.LogInformation("Removed {totalRemoved} {pointType} via taxes", totalRemoved, pointType.Name);
             }
             catch (Exception ex)
             {

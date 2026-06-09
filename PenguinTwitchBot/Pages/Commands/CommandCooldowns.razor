@@ -20,9 +20,9 @@
                         context.UserName)
                 </MudTd>
                 <MudTd DataLabel="Cooldown">
-                    @(context.NextUserCooldownTime == DateTime.MinValue ?
+                    <ToLocal DateTime="context.NextUserCooldownTime == DateTime.MinValue ?
                         context.NextGlobalCooldownTime :
-                        context.NextUserCooldownTime)
+                        context.NextUserCooldownTime" Format="dddd, mmmm d h:MM:ss TT"></ToLocal>
                 </MudTd>
                 <MudTd DataLabel="Edit">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" 

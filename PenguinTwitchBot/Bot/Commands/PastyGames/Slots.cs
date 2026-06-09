@@ -60,7 +60,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var e2 = GetEmoteKey();
             var e3 = GetEmoteKey();
             var message = string.Format("{0}: [ {1} {2} {3} ] ", e.DisplayName, Emotes[e1], Emotes[e2], Emotes[e3]);
-
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             if (e1 == e2 && e2 == e3) // 3 of a kind
             {
                 var prizeWinnings = Prizes[e1];
@@ -69,7 +69,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     prizeWinnings = Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_3_OF_A_KIND, 3.5));
                 }
 
-                message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
+                message += string.Format("{0} {1}. ", prizeWinnings.ToString("N0"), pointType.Name);
                 var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 
@@ -101,8 +101,8 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                         Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_FIRST_2_MULTIPLIER, 2.5)) : 
                         Convert.ToInt64(amount * await gameSettingsService.GetDoubleSetting(ModuleName, GAMESETTING_LAST_2_MULTIPLIER, 1.5));
                 }
-
-                message += string.Format("{0} pasties. ", prizeWinnings.ToString("N0"));
+                
+                message += string.Format("{0} {1}. ", prizeWinnings.ToString("N0"), pointType.Name);
                 var randomMessage = WinMessages[StaticTools.Next(0, WinMessages.Count)];
                 message += randomMessage.Replace("{NAME_HERE}", e.DisplayName);
 

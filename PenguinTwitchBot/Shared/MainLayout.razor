@@ -35,7 +35,7 @@
         <MudAppBar>
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
             OnClick="@((e) => DrawerToggle())" />
-            Super Waffle Bot
+            @(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")
             <MudSpacer />
             @if(StreamOnline)
             {

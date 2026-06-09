@@ -59,33 +59,34 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             var dice1 = StaticTools.RandomRange(1, 6);
             var dice2 = StaticTools.RandomRange(1, 6);
             var resultMessage = string.Format("{0} rolls a [{1}] and [{2}]. ", e.DisplayName, dice1, dice2);
+            var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             if (dice1 == dice2)
             {
                 string prizeName = "";
                 switch (dice1)
                 {
                     case 1:
-                        resultMessage += string.Format("Snake eyes for {0} pasties! ", prizes[0]);
+                        resultMessage += string.Format("Snake eyes for {0} {1}! ", prizes[0], pointType.Name);
                         prizeName = "Snake eyes";
                         break;
                     case 2:
-                        resultMessage += string.Format("Hard four for {0} pasties! ", prizes[1]);
+                        resultMessage += string.Format("Hard four for {0} {1}! ", prizes[1], pointType.Name);
                         prizeName = "Hard four";
                         break;
                     case 3:
-                        resultMessage += string.Format("Hard six for {0} pasties! ", prizes[2]);
+                        resultMessage += string.Format("Hard six for {0} {1}! ", prizes[2], pointType.Name);
                         prizeName = "Hard six";
                         break;
                     case 4:
-                        resultMessage += string.Format("Hard eight for {0} pasties! ", prizes[3]);
+                        resultMessage += string.Format("Hard eight for {0} {1}! ", prizes[3], pointType.Name);
                         prizeName = "Hard eight";
                         break;
                     case 5:
-                        resultMessage += string.Format("Hard ten for {0} pasties! ", prizes[4]);
+                        resultMessage += string.Format("Hard ten for {0} {1}! ", prizes[4], pointType.Name);
                         prizeName = "Hard ten";
                         break;
                     case 6:
-                        resultMessage += string.Format("Boxcars to the max!!! {0} pasties! ", prizes[5]);
+                        resultMessage += string.Format("Boxcars to the max!!! {0} {1}! ", prizes[5], pointType.Name);
                         prizeName = "Boxcars";
                         break;
                 }

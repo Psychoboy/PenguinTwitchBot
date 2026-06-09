@@ -64,5 +64,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         /// Combines global and channel-specific badges; channel badges override globals.
         /// </summary>
         Task<Dictionary<string, string>> GetChatBadgesAsync();
+        Task<string?> GetBroadcasterProfileImageUrl();
     }
 }
