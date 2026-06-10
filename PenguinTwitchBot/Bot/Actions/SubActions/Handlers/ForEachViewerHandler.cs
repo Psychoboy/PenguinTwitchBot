@@ -31,20 +31,36 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 ?? throw new SubActionHandlerException(subAction, "No action found with ID: {ActionId}", forEachViewer.ActionId);
 
             List<string> viewers = [];
-            switch (forEachViewer.ViewerScope)
+            switch (forEachViewer.ViewerScope.ToLower())
             {
-                case "ActiveViewers":
+                case "activeviewers":
                     viewers = viewerFeature.GetActiveViewers();
                     break;
-                case "Subscribers":
+                case "subscribers":
                     var allViewers = viewerFeature.GetCurrentViewers();
-                    var viewerTasks = allViewers.Select(async v => (Viewer: v, IsSub: await viewerFeature.IsSubscriber(v)));
-                    var viewerResults = await Task.WhenAll(viewerTasks);
-                    viewers = [.. viewerResults.Where(r => r.IsSub).Select(r => r.Viewer)];
+                    {
+                        using var gate = new SemaphoreSlim(25); // Limit concurrency to avoid overwhelming Twitch API
+                        var viewerTasks = allViewers.Select(async v =>
+                        {
+                            await gate.WaitAsync();
+                            try
+                            {
+                                return (Viewer: v, IsSub: await viewerFeature.IsSubscriber(v));
+                            }
+                            finally
+                            {
+                                gate.Release();
+                            }
+                        });
+                        var viewerResults = await Task.WhenAll(viewerTasks);
+                        viewers = [.. viewerResults.Where(r => r.IsSub).Select(r => r.Viewer)];
+                    }
                     break;
-                default:
+                case "allviewers":
                     viewers = viewerFeature.GetCurrentViewers();
                     break;
+                default:
+                    throw new SubActionHandlerException(subAction, $"Unsupported viewer scope: {forEachViewer.ViewerScope}");
             }
 
             context?.LogMessage(subActionIndex, $"Running action '{actionName}' for {viewers.Count} viewers (scope: {forEachViewer.ViewerScope})");
