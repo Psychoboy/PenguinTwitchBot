@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public string ActionName { get; set; } = string.Empty;
 
         /// <summary>
-        /// "AllViewers" = everyone currently in chat, "ActiveViewers" = recently active viewers.
+        /// "AllViewers" = everyone currently in chat, "ActiveViewers" = recently active viewers, "Subscribers" = viewers who are subscribed to the channel current in chat.
         /// </summary>
         public string ViewerScope { get; set; } = "AllViewers";
 
@@ -58,7 +58,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.Select,
                     Options = ["AllViewers", "ActiveViewers", "Subscribers"],
                     Required = true,
-                    HelperText = "AllViewers: everyone currently in chat. ActiveViewers: viewers who have interacted recently. Subscribers: viewers who are subscribed to the channel."
+                    HelperText = "AllViewers: everyone currently in chat. ActiveViewers: viewers who have interacted recently. Subscribers: viewers who are subscribed to the channel currently in chat."
                 },
                 new SubActionUIField
                 {
