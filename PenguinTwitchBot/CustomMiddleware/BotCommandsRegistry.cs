@@ -228,7 +228,6 @@ namespace PenguinTwitchBot.CustomMiddleware
         private static void RegisterCommandServices(IServiceCollection services)
         {
             services.AddHostedApiService<Bot.Commands.Features.IViewerFeature, Bot.Commands.Features.ViewerFeature>();
-            services.AddHostedApiService<Bot.Commands.Features.ITicketsFeature, Bot.Commands.Features.TicketsFeature>();
             services.AddHostedApiService<Bot.Commands.Features.ILoyaltyFeature, Bot.Commands.Features.LoyaltyFeature>();
         }
     }

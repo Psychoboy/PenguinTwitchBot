@@ -53,6 +53,7 @@
         RaffleEnd,
         RaffleSetWinnerCount,
         RaffleSetTotalAward,
-        RaffleGetEntryCount
+        RaffleGetEntryCount,
+        ForEachViewer
     }
 }
