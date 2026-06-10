@@ -33,18 +33,18 @@ public class HomeControllerTests
     }
 
     [Fact]
-    public async Task RedirectFromTwitch_ShouldReturnRoot_WhenStateIsMissing()
+    public async Task OAuthRedirect_ShouldReturnRoot_WhenStateIsMissing()
     {
         var (sut, _, _, _) = CreateSut();
 
-        var result = await sut.RedirectFromTwitch("test-code", "missing-state");
+        var result = await sut.OAuthRedirect("test-code", "missing-state", null);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/", redirect.Url);
     }
 
     [Fact]
-    public async Task RedirectFromTwitch_ShouldSignInAndRedirect_WhenStateAndUserAreValid()
+    public async Task OAuthRedirect_ShouldSignInAndRedirect_WhenStateAndUserAreValid()
     {
         var (sut, authClient, viewerFeature, fakeAuthService) = CreateSut();
 
@@ -77,7 +77,7 @@ public class HomeControllerTests
             isEditor = true,
         });
 
-        var result = await sut.RedirectFromTwitch("test-code", state);
+        var result = await sut.OAuthRedirect("test-code", state, null);
 
         var redirect = Assert.IsType<LocalRedirectResult>(result);
         Assert.Equal("/dashboard", redirect.Url);
@@ -97,7 +97,8 @@ public class HomeControllerTests
     private static void SetState(HomeController controller, string state, string redirect)
     {
         var memoryCache = controller.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
-        memoryCache.Set(state, redirect);
+        memoryCache.Set(state, new PenguinTwitchBot.Controllers.HomeController.OAuthStateEntry(
+            PenguinTwitchBot.Controllers.HomeController.OAuthIntent.User, redirect));
     }
 
     private static (HomeController sut, IAuthClient authClient, IViewerFeature viewerFeature, FakeAuthenticationService fakeAuthService) CreateSut()

@@ -66,83 +66,20 @@ namespace PenguinTwitchBot.Controllers
         [Authorize(Roles = "Streamer")]
         public IActionResult StreamerSignin()
         {
-            logger.LogInformation("{ipAddress} accessed /streamersign.", HttpContext.Connection?.RemoteIpAddress);
+            logger.LogInformation("{ipAddress} accessed /streamersignin.", HttpContext.Connection?.RemoteIpAddress);
             var origin = GetRequestOrigin();
-            var url = GetBotScopeUrl($"{origin}/streamerredirect", configuration["twitchClientId"]);
+            var url = GetOAuthUrl($"{origin}/redirect", configuration["twitchClientId"], OAuthIntent.Streamer);
             return Redirect(url);
-        }
-        [HttpGet("streamerredirect")]
-        public async Task<IActionResult> StreamerRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
-        {
-            logger.LogInformation("{ipAddress} accessed /streamerredirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (stateCache.TryGetValue(state, out var val))
-            {
-                stateCache.Remove(state);
-            }
-            else
-            {
-                return Redirect("/");
-            }
-            var origin = GetRequestOrigin();
-            var resp = await authClient.ExchangeCodeAsync(
-                configuration["twitchClientId"]!,
-                configuration["twitchClientSecret"]!,
-                code,
-                $"{origin}/streamerredirect");
-
-            if (resp == null) { return Redirect("/"); }
-
-            configuration["twitchAccessToken"] = resp.AccessToken;
-            configuration["expiresIn"] = resp.ExpiresIn.ToString();
-            configuration["twitchRefreshToken"] = resp.RefreshToken;
-            twitchService.SetAccessToken(resp.AccessToken);
-
-            await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
-            await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
-            await settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
-
-            return Redirect("/botauth");
         }
 
         [HttpGet("/botsignin")]
         [Authorize(Roles = "Streamer")]
-        public async Task<IActionResult> BotSignin()
+        public IActionResult BotSignin()
         {
             logger.LogInformation("{ipAddress} accessed /botsignin.", HttpContext.Connection?.RemoteIpAddress);
-            return Redirect("/botauth");
-        }
-        [HttpGet("botredirect")]
-        public async Task<IActionResult> BotRedirect([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
-        {
-            logger.LogInformation("{ipAddress} accessed /botredirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (stateCache.TryGetValue(state, out var val))
-            {
-                stateCache.Remove(state);
-            }
-            else
-            {
-                return Redirect("/");
-            }
-
             var origin = GetRequestOrigin();
-            var resp = await authClient.ExchangeCodeAsync(
-                configuration["twitchBotClientId"]!,
-                configuration["twitchBotClientSecret"]!,
-                code,
-                $"{origin}/botredirect");
-
-            if (resp == null) { return Redirect("/"); }
-
-            configuration["twitchBotAccessToken"] = resp.AccessToken;
-            configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
-            configuration["twitchBotRefreshToken"] = resp.RefreshToken;
-            twitchChatBot.SetAccessToken(resp.AccessToken);
-
-            await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
-            await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
-            await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
-
-            return Redirect("/botauth");
+            var url = GetOAuthUrl($"{origin}/redirect", configuration["twitchClientId"], OAuthIntent.Bot);
+            return Redirect(url);
         }
 
         [HttpGet("/signin")]
@@ -158,27 +95,90 @@ namespace PenguinTwitchBot.Controllers
 
 
         [HttpGet("/redirect")]
-        public async Task<IActionResult> RedirectFromTwitch([FromQuery(Name = "code")] string code, [FromQuery(Name = "state")] string state)
+        public async Task<IActionResult> OAuthRedirect(
+            [FromQuery(Name = "code")] string? code,
+            [FromQuery(Name = "state")] string? state,
+            [FromQuery(Name = "error")] string? error)
         {
             logger.LogInformation("{ipAddress} accessed /redirect.", HttpContext.Connection?.RemoteIpAddress);
-            if (stateCache.TryGetValue(state, out string? redirect))
+
+            if (!string.IsNullOrEmpty(error))
             {
-                stateCache.Remove(state);
-            }
-            else
-            {
+                logger.LogWarning("OAuth authorization denied: {Error}", error.Replace("\r", "").Replace("\n", ""));
                 return Redirect("/");
             }
+
+            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
+                return Redirect("/");
+
+            if (!stateCache.TryGetValue(state, out OAuthStateEntry? entry) || entry is null)
+                return Redirect("/");
+
+            stateCache.Remove(state);
             var origin = GetRequestOrigin();
+
+            return entry.Intent switch
+            {
+                OAuthIntent.Streamer => await HandleStreamerCallback(code, origin),
+                OAuthIntent.Bot => await HandleBotCallback(code, origin),
+                _ => await HandleUserCallback(code, entry.Redirect, origin)
+            };
+        }
+
+        private async Task<IActionResult> HandleStreamerCallback(string code, string origin)
+        {
             var resp = await authClient.ExchangeCodeAsync(
                 configuration["twitchClientId"]!,
                 configuration["twitchClientSecret"]!,
                 code,
                 $"{origin}/redirect");
-            if (resp == null)
-            {
-                return Redirect("/");
-            }
+
+            if (resp == null) return Redirect("/");
+
+            configuration["twitchAccessToken"] = resp.AccessToken;
+            configuration["expiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchRefreshToken"] = resp.RefreshToken;
+            twitchService.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
+
+            return Redirect("/botauth");
+        }
+
+        private async Task<IActionResult> HandleBotCallback(string code, string origin)
+        {
+            var resp = await authClient.ExchangeCodeAsync(
+                configuration["twitchClientId"]!,
+                configuration["twitchClientSecret"]!,
+                code,
+                $"{origin}/redirect");
+
+            if (resp == null) return Redirect("/");
+
+            configuration["twitchBotAccessToken"] = resp.AccessToken;
+            configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
+            configuration["twitchBotRefreshToken"] = resp.RefreshToken;
+            twitchChatBot.SetAccessToken(resp.AccessToken);
+
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
+            await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
+            await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
+
+            return Redirect("/botauth");
+        }
+
+        private async Task<IActionResult> HandleUserCallback(string code, string? redirect, string origin)
+        {
+            var resp = await authClient.ExchangeCodeAsync(
+                configuration["twitchClientId"]!,
+                configuration["twitchClientSecret"]!,
+                code,
+                $"{origin}/redirect");
+
+            if (resp == null) return Redirect("/");
+
             var broadcaster = configuration["broadcaster"];
             if (broadcaster == null)
             {
@@ -199,61 +199,45 @@ namespace PenguinTwitchBot.Controllers
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.Login),
-                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login, StringComparison.OrdinalIgnoreCase) || botName.Equals(user.Login, StringComparison.OrdinalIgnoreCase) ? "Streamer": "Viewer"),
+                    new Claim(ClaimTypes.Role, broadcaster.Equals(user.Login, StringComparison.OrdinalIgnoreCase) || botName.Equals(user.Login, StringComparison.OrdinalIgnoreCase) ? "Streamer" : "Viewer"),
                     new Claim("ProfilePicture", user.ProfileImageUrl),
                     new Claim("DisplayName", user.DisplayName),
                     new Claim("UserId", user.Id),
                     new Claim(ClaimTypes.NameIdentifier, user.Id)
                 };
 
-
                 if (await viewerFeature.IsFollowerByUsername(user.Login))
                 {
                     claims.Add(new Claim(ClaimTypes.Role, "Follower"));
                 }
+
                 var viewer = await viewerFeature.GetViewerByUserId(user.Id);
                 if (viewer != null)
                 {
                     if (viewer.isMod)
-                    {
                         claims.Add(new Claim(ClaimTypes.Role, "Moderator"));
-                    }
 
                     if (viewer.isSub)
-                    {
                         claims.Add(new Claim(ClaimTypes.Role, "Subscriber"));
-                    }
 
                     if (viewer.isVip)
-                    {
                         claims.Add(new Claim(ClaimTypes.Role, "VIP"));
-                    }
 
-                    if(viewer.isEditor)
-                    {
+                    if (viewer.isEditor)
                         claims.Add(new Claim(ClaimTypes.Role, "Editor"));
-                    }
                 }
 
-                var claimsIdentity = new ClaimsIdentity(
-                    claims, CookieAuthenticationDefaults.AuthenticationScheme
-                );
-
-                var authProperties = new AuthenticationProperties
-                {
-
-                };
-
+                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
                 await HttpContext.SignInAsync(
                     CookieAuthenticationDefaults.AuthenticationScheme,
                     new ClaimsPrincipal(claimsIdentity),
-                    authProperties
-                );
+                    new AuthenticationProperties());
+
                 logger.LogInformation("{login} logged in to web interface", user.Login);
             }
-            var redirectTarget = NormalizeLocalRedirect(redirect);
-            return LocalRedirect(redirectTarget);
+
+            return LocalRedirect(NormalizeLocalRedirect(redirect));
         }
 
         [HttpGet("/signout")]
@@ -270,7 +254,7 @@ namespace PenguinTwitchBot.Controllers
         {
             var stateString = Guid.NewGuid().ToString();
             var safeRedirect = NormalizeLocalRedirect(redirect);
-            stateCache.Set(stateString, safeRedirect, DateTimeOffset.Now.AddMinutes(60));
+            stateCache.Set(stateString, new OAuthStateEntry(OAuthIntent.User, safeRedirect), DateTimeOffset.UtcNow.AddMinutes(10));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={configuration["twitchClientId"]}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
@@ -290,7 +274,7 @@ namespace PenguinTwitchBot.Controllers
             return Url.IsLocalUrl(candidate) ? candidate : "/";
         }
 
-        private string GetBotScopeUrl(string redirectUri, string? clientId)
+        private string GetOAuthUrl(string redirectUri, string? clientId, OAuthIntent intent)
         {
             var scopes = new List<string>()
             {
@@ -364,9 +348,9 @@ namespace PenguinTwitchBot.Controllers
                 "user:write:chat",
                 "moderator:read:suspicious_users"
             };
-            var scopeStr = String.Join("+", scopes);
+            var scopeStr = string.Join("+", scopes);
             var stateString = Guid.NewGuid().ToString();
-            stateCache.Set(stateString, stateString, DateTimeOffset.Now.AddMinutes(60));
+            stateCache.Set(stateString, new OAuthStateEntry(intent), DateTimeOffset.UtcNow.AddMinutes(10));
             return "https://id.twitch.tv/oauth2/authorize?" +
                    $"client_id={clientId}&" +
                    $"redirect_uri={System.Web.HttpUtility.UrlEncode(redirectUri)}&" +
@@ -374,5 +358,8 @@ namespace PenguinTwitchBot.Controllers
                    "response_type=code&" +
                    $"scope={scopeStr}&" + "force_verify=true";
         }
+
+        internal enum OAuthIntent { User, Streamer, Bot }
+        internal sealed record OAuthStateEntry(OAuthIntent Intent, string? Redirect = null);
     }
 }
