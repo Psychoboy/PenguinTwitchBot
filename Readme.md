@@ -101,19 +101,18 @@ The wizard covers the following steps:
 | 1 | **Welcome** - overview of what you need |
 | 2 | **Bot Identity** - your bot's Twitch username and your channel name |
 | 3 | **Twitch Streamer App** - Client ID and Secret from [dev.twitch.tv](https://dev.twitch.tv/console/apps/create) |
-| 4 | **Twitch Bot App** - can reuse the streamer app or use a separate one |
-| 5 | **Authorize Streamer Account** - OAuth authorization via your browser |
-| 6 | **Authorize Bot Account** *(optional)* - OAuth authorization for your bot account; grants `user:write:chat` and `user:bot` scopes required for sending chat messages |
-| 7 | **Database** - choose SQLite or PostgreSQL (see [Database Support](#database-support)) |
-| 8 | **YouTube API** *(optional)* - enables the song request feature |
-| 9 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
-| 10 | **Weather** *(optional)* - OpenWeatherMap API key and default location |
-| 11 | **OpenAI** *(optional)* - API key for AI-powered chat features |
-| 12 | **Review & Save** - review all settings (secrets masked) and write `appsettings.secrets.json` |
+| 4 | **Authorize Streamer Account** - OAuth authorization via your browser |
+| 5 | **Authorize Bot Account** *(optional)* - OAuth authorization for your bot account; grants `user:write:chat` and `user:bot` scopes required for sending chat messages |
+| 6 | **Database** - choose SQLite or PostgreSQL (see [Database Support](#database-support)) |
+| 7 | **YouTube API** *(optional)* - enables the song request feature |
+| 8 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
+| 9 | **Weather** *(optional)* - OpenWeatherMap API key and default location |
+| 10 | **OpenAI** *(optional)* - API key for AI-powered chat features |
+| 11 | **Review & Save** - review all settings (secrets masked) and write `appsettings.secrets.json` |
 
 When the wizard finishes, it saves your configuration to `appsettings.secrets.json` in the bot's directory and shuts itself down automatically.
 
-#### Authorizing the bot account (Step 6)
+#### Authorizing the bot account (Step 5)
 
 The bot account requires a **user access token** with the `user:write:chat` and `user:bot` scopes — a plain app token is not sufficient.
 
@@ -128,12 +127,10 @@ Step 6 provides two options:
 
 1. Go to [dev.twitch.tv/console/apps/create](https://dev.twitch.tv/console/apps/create) and log in with your **streamer** account.
 2. Give the app a name (e.g. `MyBot`).
-3. Add the following OAuth Redirect URLs:
-   - `http://localhost:5000/streamerredirect`
-   - `http://localhost:5000/botredirect`
+3. Add the following OAuth Redirect URL:
    - `http://localhost:5000/redirect`
 
-  > **Running on a different host or port?** Use your actual bot URL and port in the redirect URLs above.
+  > **Running on a different host or port?** Use your actual bot URL and port in the redirect URL above.
 
 4. Set the category to **Chat Bot** and click **Create**.
 5. Click **Manage** → **New Secret** to generate your Client Secret.

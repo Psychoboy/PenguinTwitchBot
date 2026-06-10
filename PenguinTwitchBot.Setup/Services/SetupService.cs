@@ -7,12 +7,14 @@ using PenguinTwitchBot.Setup.Models;
 
 namespace PenguinTwitchBot.Setup.Services
 {
+    public enum OAuthIntent { Streamer, Bot }
+
     public class SetupService(
         string secretsFilePath,
         IHostApplicationLifetime lifetime,
         ILogger<SetupService> logger)
     {
-        private readonly ConcurrentDictionary<string, byte> _pendingStates = new();
+        private readonly ConcurrentDictionary<string, (OAuthIntent Intent, DateTimeOffset Expiry)> _pendingStates = new();
 
         public string SecretsFilePath => secretsFilePath;
 
@@ -27,15 +29,19 @@ namespace PenguinTwitchBot.Setup.Services
         }
 
         // -- OAuth state tokens --------------------------------------------
-        public string BeginAuth()
+        public string BeginAuth(OAuthIntent intent)
         {
             var state = Guid.NewGuid().ToString("N");
-            _pendingStates[state] = 0;
+            _pendingStates[state] = (intent, DateTimeOffset.UtcNow.AddMinutes(10));
             return state;
         }
 
-        public bool ValidateAndConsumeState(string state)
-            => _pendingStates.TryRemove(state, out _);
+        public OAuthIntent? ValidateAndConsumeState(string state)
+        {
+            if (_pendingStates.TryRemove(state, out var entry))
+                return entry.Expiry > DateTimeOffset.UtcNow ? entry.Intent : null;
+            return null;
+        }
 
         // -- Stored tokens -------------------------------------------------
         public string? TwitchAccessToken { get; private set; }
@@ -119,8 +125,6 @@ namespace PenguinTwitchBot.Setup.Services
                 ["twitchClientSecret"] = model.TwitchClientSecret.Trim(),
                 ["twitchAccessToken"] = TwitchAccessToken ?? "",
                 ["twitchRefreshToken"] = TwitchRefreshToken ?? "",
-                ["twitchBotClientId"] = model.TwitchBotClientId.Trim(),
-                ["twitchBotClientSecret"] = model.TwitchBotClientSecret.Trim(),
                 ["twitchBotAccessToken"] = TwitchBotAccessToken ?? "",
                 ["twitchBotRefreshToken"] = TwitchBotRefreshToken ?? "",
                 ["botExpiresIn"] = (object)TwitchBotExpiresIn,
@@ -179,8 +183,6 @@ namespace PenguinTwitchBot.Setup.Services
                     Broadcaster = node["broadcaster"]?.GetValue<string>() ?? "",
                     TwitchClientId = node["twitchClientId"]?.GetValue<string>() ?? "",
                     TwitchClientSecret = node["twitchClientSecret"]?.GetValue<string>() ?? "",
-                    TwitchBotClientId = node["twitchBotClientId"]?.GetValue<string>() ?? "",
-                    TwitchBotClientSecret = node["twitchBotClientSecret"]?.GetValue<string>() ?? "",
                     YoutubeApiKey = node["youtubeApi"]?.GetValue<string>() ?? "",
                     SqliteFilePath = node["ConnectionStrings"]?["SqliteConnection"]?.GetValue<string>() ?? "",
                     PostgresConnectionString = node["ConnectionStrings"]?["PostgresConnection"]?.GetValue<string>() ?? "",
@@ -200,10 +202,6 @@ namespace PenguinTwitchBot.Setup.Services
                     "postgres" => DatabaseProviderOption.Postgres,
                     _ => DatabaseProviderOption.Sqlite
                 };
-
-                model.BotUseSameApp = model.TwitchBotClientId == model.TwitchClientId &&
-                                      model.TwitchBotClientSecret == model.TwitchClientSecret &&
-                                      !string.IsNullOrEmpty(model.TwitchClientId);
 
                 model.DiscordEnabled = !string.IsNullOrEmpty(model.DiscordToken);
                 model.WeatherEnabled = !string.IsNullOrEmpty(model.WeatherApiKey);
