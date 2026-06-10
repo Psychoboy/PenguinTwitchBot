@@ -18,7 +18,7 @@ public class AuthController(SetupService setupService, ILogger<AuthController> l
         {
             var safeError = error.Replace("\r", "").Replace("\n", "");
             logger.LogWarning("OAuth authorization denied: {Error}", safeError);
-            var failParam = setupService.PendingStep == 5 ? "botAuthFailed" : "streamerAuthFailed";
+            var failParam = setupService.PendingStep == 4 ? "botAuthFailed" : "streamerAuthFailed";
             return Redirect($"/?{failParam}=1");
         }
 
@@ -30,7 +30,7 @@ public class AuthController(SetupService setupService, ILogger<AuthController> l
         {
             logger.LogWarning("Invalid or expired OAuth state token");
             // PendingStep tells us which step to return to
-            var failParam = setupService.PendingStep == 5 ? "botAuthFailed" : "streamerAuthFailed";
+            var failParam = setupService.PendingStep == 4 ? "botAuthFailed" : "streamerAuthFailed";
             return Redirect($"/?{failParam}=1");
         }
 
