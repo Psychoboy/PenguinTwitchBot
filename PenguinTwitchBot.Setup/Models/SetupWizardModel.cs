@@ -16,12 +16,7 @@
         public string TwitchClientId { get; set; } = "";
         public string TwitchClientSecret { get; set; } = "";
 
-        // Step 3: Twitch Bot App
-        public bool BotUseSameApp { get; set; } = false;
-        public string TwitchBotClientId { get; set; } = "";
-        public string TwitchBotClientSecret { get; set; } = "";
-
-        // Step 4: Database
+        // Step 3: Database
         public DatabaseProviderOption DatabaseProvider { get; set; } = DatabaseProviderOption.Sqlite;
         public string SqliteFilePath { get; set; } = "";
         public string PostgresConnectionString { get; set; } = "";

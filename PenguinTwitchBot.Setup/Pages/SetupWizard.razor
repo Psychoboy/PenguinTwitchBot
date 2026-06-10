@@ -113,7 +113,7 @@ else
                             <li>Go to <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink></li>
                             <li>Log in with your <strong>streamer</strong> account</li>
                             <li>Set the name to something like "MyBot Streamer"</li>
-                            <li>Add the OAuth Redirect URL: <code>@StreamerRedirectUri</code></li>
+                            <li>Add the OAuth Redirect URL: <code>@RedirectUri</code></li>
                             <li>Set Category to "Chat Bot" and click Create</li>
                             <li>Click "Manage" â†’ "New Secret" to generate a client secret</li>
                         </ol>
@@ -130,55 +130,13 @@ else
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
                                   Variant="Variant.Outlined" />
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        You will authorize your Twitch streamer account in Step 4 of this wizard.
+                        You will authorize your Twitch streamer account in Step 3 of this wizard.
                     </MudText>
                 </MudStack>
             }
 
-            <!-- -- Step 3: Twitch Bot App ----------------------------------- -->
+            <!-- -- Step 3: Authorize Streamer Account ---------------------- -->
             @if (_step == 3)
-            {
-                <MudStack Spacing="3">
-                    <MudText Typo="Typo.h6">Twitch Bot Application</MudText>
-                    <MudText>
-                        The bot also needs credentials for the account it will <em>chat from</em>.
-                        This can be the same application as the streamer app, or a separate one.
-                    </MudText>
-                    <MudSwitch @bind-Value="_model.BotUseSameApp" Color="Color.Primary"
-                               Label="Use the same Twitch app as the streamer (simplest setup)"
-                               @bind-Value:after="OnBotUseSameAppChanged" />
-
-                    @if (!_model.BotUseSameApp)
-                    {
-                        <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                            Create a second application at
-                            <MudLink Href="https://dev.twitch.tv/console/apps/create" Target="_blank">dev.twitch.tv/console/apps/create</MudLink>
-                            — this time log in with your <strong>bot</strong> account and add redirect URL
-                            <code>@BotRedirectUri</code>.
-                        </MudAlert>
-                        <MudTextField @bind-Value="_model.TwitchBotClientId"
-                                      Label="Bot Client ID"
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.VpnKey"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_model.TwitchBotClientSecret"
-                                      Label="Bot Client Secret"
-                                      InputType="InputType.Password"
-                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
-                                      Variant="Variant.Outlined" />
-                    }
-                    else
-                    {
-                        <MudAlert Severity="Severity.Success">
-                            The streamer app credentials will be reused for the bot. Make sure the redirect URL
-                            <code>@BotRedirectUri</code> is also added to the application's
-                            OAuth Redirect URLs.
-                        </MudAlert>
-                    }
-                </MudStack>
-            }
-
-            <!-- -- Step 4: Authorize Streamer Account ---------------------- -->
-            @if (_step == 4)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Authorize Streamer Account</MudText>
@@ -195,7 +153,7 @@ else
                             and grant the bot access. Your browser will open the Twitch authorization page.
                         </MudText>
                         <MudAlert Severity="Severity.Warning">
-                            Make sure <code>@StreamerRedirectUri</code> is listed as an
+                            Make sure <code>@RedirectUri</code> is listed as an
                             OAuth Redirect URL in your Twitch application (configured in Step 2).
                         </MudAlert>
                         @if (_streamerAuthFailed)
@@ -213,8 +171,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 5: Get Bot Token ------------------------------------ -->
-            @if (_step == 5)
+            <!-- -- Step 4: Authorize Bot Account ------------------------------------ -->
+            @if (_step == 4)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Authorize Bot Account <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
@@ -233,8 +191,8 @@ else
                             and open it in a browser where you are signed in as the bot account.
                         </MudText>
                         <MudAlert Severity="Severity.Warning">
-                            Make sure <code>@BotRedirectUri</code> is listed as an
-                            OAuth Redirect URL in your Twitch bot application (configured in Step 3).
+                            Make sure <code>@RedirectUri</code> is listed as an
+                            OAuth Redirect URL in your Twitch application (configured in Step 2).
                         </MudAlert>
                         @if (_botAuthFailed)
                         {
@@ -267,7 +225,7 @@ else
                     }
                 </MudStack>
             }
-            @if (_step == 6)
+            @if (_step == 5)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Database</MudText>
@@ -300,8 +258,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 7: YouTube API ---------------------------------------------- -->
-            @if (_step == 7)
+            <!-- -- Step 6: YouTube API ---------------------------------------------- -->
+            @if (_step == 6)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">YouTube API <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
@@ -325,8 +283,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 6: Discord ------------------------------------------ -->
-            @if (_step == 8)
+            <!-- -- Step 7: Discord ------------------------------------------ -->
+            @if (_step == 7)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Discord Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
@@ -451,8 +409,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 7: Weather ------------------------------------------ -->
-            @if (_step == 9)
+            <!-- -- Step 8: Weather ------------------------------------------ -->
+            @if (_step == 8)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Weather Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
@@ -478,8 +436,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 8: OpenAI ------------------------------------------- -->
-            @if (_step == 10)
+            <!-- -- Step 9: OpenAI ------------------------------------------- -->
+            @if (_step == 9)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">OpenAI Integration <MudChip T="string" Size="Size.Small" Color="Color.Default">Optional</MudChip></MudText>
@@ -501,8 +459,8 @@ else
                 </MudStack>
             }
 
-            <!-- -- Step 11: Review & Save -------------------------------------------- -->
-            @if (_step == 11)
+            <!-- -- Step 10: Review & Save -------------------------------------------- -->
+            @if (_step == 10)
             {
                 <MudStack Spacing="3">
                     <MudText Typo="Typo.h6">Review &amp; Save</MudText>
@@ -517,8 +475,6 @@ else
                             <tr><td>Broadcaster</td><td>@_model.Broadcaster</td></tr>
                             <tr><td>Twitch Client ID</td><td>@Mask(_model.TwitchClientId)</td></tr>
                             <tr><td>Twitch Client Secret</td><td>@Mask(_model.TwitchClientSecret)</td></tr>
-                            <tr><td>Bot Client ID</td><td>@Mask(_model.TwitchBotClientId)</td></tr>
-                            <tr><td>Bot Client Secret</td><td>@Mask(_model.TwitchBotClientSecret)</td></tr>
                             <tr><td>Database</td><td>@_model.DatabaseProvider</td></tr>
                             @if (_model.DatabaseProvider == DatabaseProviderOption.Sqlite)
                             {
@@ -587,14 +543,13 @@ else
 }
 
 @code {
-    private const int TotalSteps = 12;
+    private const int TotalSteps = 11;
 
     private readonly string[] _stepTitles =
     [
         "Welcome",
         "Bot Identity",
         "Twitch Streamer App",
-        "Twitch Bot App",
         "Authorize Streamer Account",
         "Authorize Bot Account",
         "Database",
@@ -605,7 +560,7 @@ else
         "Review & Save"
     ];
 
-    private static readonly HashSet<int> OptionalSteps = [5, 7, 8, 9, 10];
+    private static readonly HashSet<int> OptionalSteps = [4, 6, 7, 8, 9];
 
     private static readonly string[] Scopes =
     [
@@ -663,8 +618,7 @@ else
     private string StepTitle => _stepTitles[_step];
     private bool IsOptionalStep => OptionalSteps.Contains(_step);
     private string SetupOrigin => NavManager.BaseUri.TrimEnd('/');
-    private string StreamerRedirectUri => $"{SetupOrigin}/streamerredirect";
-    private string BotRedirectUri => $"{SetupOrigin}/botredirect";
+    private string RedirectUri => $"{SetupOrigin}/redirect";
 
     protected override void OnInitialized()
     {
@@ -682,17 +636,17 @@ else
         var query = QueryHelpers.ParseQuery(uri.Query);
 
         if (query.ContainsKey("streamerAuthed"))
-            _step = 4;
+            _step = 3;
         else if (query.ContainsKey("streamerAuthFailed"))
         {
-            _step = 4;
+            _step = 3;
             _streamerAuthFailed = true;
         }
         else if (query.ContainsKey("botAuthed"))
-            _step = 5;
+            _step = 4;
         else if (query.ContainsKey("botAuthFailed"))
         {
-            _step = 5;
+            _step = 4;
             _botAuthFailed = true;
         }
     }
@@ -760,24 +714,17 @@ else
         if (_step < TotalSteps - 1) _step++;
     }
 
-    private void OnBotUseSameAppChanged()
-    {
-        if (_model.BotUseSameApp)
-        {
-            _model.TwitchBotClientId = _model.TwitchClientId;
-            _model.TwitchBotClientSecret = _model.TwitchClientSecret;
-        }
-    }
+    private void OnBotUseSameAppChanged() { }
 
     private void BeginStreamerAuth()
     {
         _streamerAuthFailed = false;
-        SetupSvc.SavePendingModel(_model, 4);
-        var state = SetupSvc.BeginAuth();
+        SetupSvc.SavePendingModel(_model, 3);
+        var state = SetupSvc.BeginAuth(OAuthIntent.Streamer);
         var scopeStr = string.Join("+", Scopes);
         var url = "https://id.twitch.tv/oauth2/authorize" +
                   $"?client_id={Uri.EscapeDataString(_model.TwitchClientId)}" +
-                  $"&redirect_uri={Uri.EscapeDataString(StreamerRedirectUri)}" +
+                  $"&redirect_uri={Uri.EscapeDataString(RedirectUri)}" +
                   "&response_type=code" +
                   $"&scope={scopeStr}" +
                   $"&state={state}" +
@@ -794,13 +741,13 @@ else
     private void PrepareBotAuthUrl()
     {
         _botAuthFailed = false;
-        SetupSvc.SavePendingModel(_model, 5);
-        var state = SetupSvc.BeginAuth();
-        var clientId = _model.BotUseSameApp ? _model.TwitchClientId : _model.TwitchBotClientId;
+        SetupSvc.SavePendingModel(_model, 4);
+        var state = SetupSvc.BeginAuth(OAuthIntent.Bot);
+        var clientId = _model.TwitchClientId;
         var scopeStr = string.Join("+", BotScopes);
         _botAuthUrl = "https://id.twitch.tv/oauth2/authorize" +
                   $"?client_id={Uri.EscapeDataString(clientId)}" +
-                  $"&redirect_uri={Uri.EscapeDataString(BotRedirectUri)}" +
+                  $"&redirect_uri={Uri.EscapeDataString(RedirectUri)}" +
                   "&response_type=code" +
                   $"&scope={scopeStr}" +
                   $"&state={state}" +
@@ -827,20 +774,10 @@ else
         }
         else if (_step == 3)
         {
-            if (!_model.BotUseSameApp)
-            {
-                if (string.IsNullOrWhiteSpace(_model.TwitchBotClientId))
-                    _errors.Add("Twitch Bot Client ID is required (or enable 'Use the same app').");
-                if (string.IsNullOrWhiteSpace(_model.TwitchBotClientSecret))
-                    _errors.Add("Twitch Bot Client Secret is required (or enable 'Use the same app').");
-            }
-        }
-        else if (_step == 4)
-        {
             if (!SetupSvc.StreamerAuthed)
                 _errors.Add("You must authorize your streamer account before continuing.");
         }
-        else if (_step == 6)
+        else if (_step == 5)
         {
             if (_model.DatabaseProvider == DatabaseProviderOption.Postgres &&
                 string.IsNullOrWhiteSpace(_model.PostgresConnectionString))
@@ -855,12 +792,6 @@ else
         if (!ValidateCurrentStep()) return;
         _saving = true;
         StateHasChanged();
-
-        if (_model.BotUseSameApp)
-        {
-            _model.TwitchBotClientId = _model.TwitchClientId;
-            _model.TwitchBotClientSecret = _model.TwitchClientSecret;
-        }
 
         await SetupSvc.SaveSetupAsync(_model);
         _done = true;

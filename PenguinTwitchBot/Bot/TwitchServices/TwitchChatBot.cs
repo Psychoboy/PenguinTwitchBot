@@ -68,7 +68,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     };
 
                     var result = await chatClient.SendChatMessageAsync(
-                        configuration["twitchBotClientId"]!,
+                        configuration["twitchClientId"]!,
                         _accessToken,
                         request);
 
@@ -122,7 +122,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     };
 
                     var result = await chatClient.SendChatMessageAsync(
-                        configuration["twitchBotClientId"]!,
+                        configuration["twitchClientId"]!,
                         _accessToken,
                         request);
 
@@ -189,8 +189,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         public async Task<bool> RefreshAccessToken()
         {
             var url = "https://id.twitch.tv/oauth2/token";
-            var clientId = configuration["twitchBotClientId"] ?? throw new InvalidOperationException("Missing configuration value: twitchBotClientId");
-            var clientSecret = configuration["twitchBotClientSecret"] ?? throw new InvalidOperationException("Missing configuration value: twitchBotClientSecret");
+            var clientId = configuration["twitchClientId"] ?? throw new InvalidOperationException("Missing configuration value: twitchClientId");
+            var clientSecret = configuration["twitchClientSecret"] ?? throw new InvalidOperationException("Missing configuration value: twitchClientSecret");
             var formData = new List<KeyValuePair<string, string>>
             {
                 new("client_id", clientId),
