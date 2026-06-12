@@ -2870,7 +2870,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		
 		var scheme = document.location.protocol === "https:" ? "wss" : "ws";
 		var port = document.location.port ? (":" + document.location.port) : "";
-		var socketUri = scheme + "://" + document.location.hostname + port + "/ws";
+		var socketUri = scheme + "://" + document.location.hostname + port + "/ws/events";
 		var ws = new ReconnectingWebSocket(socketUri, null, { reconnectInterval: 5000 });
 
 		ws.onopen = function () {
