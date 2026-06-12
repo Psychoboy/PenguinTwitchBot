@@ -107,6 +107,29 @@
         </MudCardActions>
     </MudCard>
 
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Passive Earnings</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown. Describes how viewers earn points passively. Leave empty to hide the section on the viewer page.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudTextField Label="Passive Earnings (Markdown)" @bind-Value="@PassiveEarnings" Lines="6" Variant="Variant.Outlined" />
+                @if (!string.IsNullOrEmpty(PassiveEarnings))
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
+                    <MudMarkdown Value="@PassiveEarnings" />
+                }
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SavePassiveEarnings" StartIcon="@Icons.Material.Filled.Save">Save Passive Earnings</MudButton>
+        </MudCardActions>
+    </MudCard>
+
 </MudStack>
 
 @code {
@@ -117,6 +140,7 @@
     private string Rules { get; set; } = "";
     private string Cooldowns { get; set; } = "";
     private string Terms { get; set; } = "";
+    private string PassiveEarnings { get; set; } = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,6 +151,7 @@
         Rules = await GiveawayFeature.GetRules();
         Cooldowns = await GiveawayFeature.GetCooldowns();
         Terms = await GiveawayFeature.GetTerms();
+        PassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
     }
 
     public async Task OnPrizeSubmit()
@@ -155,6 +180,12 @@
     {
         await GiveawayFeature.SetTerms(Terms);
         Snackbar.Add("Terms saved.", Severity.Success);
+    }
+
+    public async Task SavePassiveEarnings()
+    {
+        await GiveawayFeature.SetPassiveEarnings(PassiveEarnings);
+        Snackbar.Add("Passive Earnings saved.", Severity.Success);
     }
 
     public async Task Reset()

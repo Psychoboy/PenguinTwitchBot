@@ -9,7 +9,6 @@
 @inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject PenguinTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
-@inject PenguinTwitchBot.Bot.Commands.Features.ITicketsFeature ticketsFeature;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
@@ -219,38 +218,16 @@
                             </MudStack>
                         </MudStack>
 
-                        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Passive Earnings (Every 5 Minutes)</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Default">Earn @pointTypeName automatically while watching the stream:</MudText>
-                        <MudStack Spacing="2">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Info" />
-                                <MudText><strong>+@pointsForEveryone @pointTypeName</strong> - Everyone watching</MudText>
-                            </MudStack>
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Forum" Color="Color.Success" />
-                                <MudText><strong>+@pointsForActive @pointTypeName</strong> - Active viewers (chatting recently)</MudText>
-                            </MudStack>
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" />
-                                <MudText><strong>+@pointsForSubs @pointTypeName</strong> - Subscribers</MudText>
-                            </MudStack>
-                        </MudStack>
-
-                        <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.TrendingUp">
-                            <strong>Subscribers earn @(pointsForActive + pointsForEveryone + pointsForSubs) @pointTypeName every 5 minutes!</strong>
-                            <MudLink Href="@($"https://twitch.tv/subs/{ServiceBackbone.BroadcasterName}")" Target="_blank" Style="color: white; text-decoration: underline;">
-                                Subscribe today
-                            </MudLink>
-                        </MudAlert>
-
-                        <MudAlert Severity="Severity.Info" Variant="Variant.Text">
-                            <MudText Typo="Typo.body2">
-                                <strong>What is an Active Viewer?</strong> Someone who has participated in chat within the last 15 minutes through messages, commands, follows, subs, bits, or channel point redemptions. Subscribers are always considered active.
-                            </MudText>
-                        </MudAlert>
+                        @if (!string.IsNullOrWhiteSpace(passiveEarnings))
+                        {
+                            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Passive Earnings</MudText>
+                            <MudMarkdown Value="@passiveEarnings" />
+                        }
                     </MudStack>
                 </MudPaper>
             </Bookmark>
+            @if (!string.IsNullOrWhiteSpace(rules) || !string.IsNullOrWhiteSpace(cooldowns))
+            {
             <MudPaper Class="pa-5 mb-3" Elevation="3">
                 <MudStack Spacing="3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -258,11 +235,20 @@
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Giveaway Rules</MudText>
                     </MudStack>
                     <MudDivider />
-                    <MudMarkdown Value="@rules" />
-                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers &amp; Cooldowns</MudText>
-                    <MudMarkdown Value="@cooldowns" />
+                    @if (!string.IsNullOrWhiteSpace(rules))
+                    {
+                        <MudMarkdown Value="@rules" />
+                    }
+                    @if (!string.IsNullOrWhiteSpace(cooldowns))
+                    {
+                        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers &amp; Cooldowns</MudText>
+                        <MudMarkdown Value="@cooldowns" />
+                    }
                 </MudStack>
             </MudPaper>
+            }
+            @if (!string.IsNullOrWhiteSpace(terms))
+            {
             <MudPaper Class="pa-5 mb-3" Elevation="3">
                 <MudStack Spacing="3">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -273,6 +259,7 @@
                     <MudMarkdown Value="@terms" />
                 </MudStack>
             </MudPaper>
+            }
         </MudItem>
     </MudGrid>
 
@@ -296,9 +283,7 @@
     private bool isSubmitting;
     private int TicketsPerSub;
     private double BitsPerPoint;
-    private int pointsForEveryone { get; set; }
-    private int pointsForActive { get; set; }
-    private int pointsForSubs { get; set; }
+    private string passiveEarnings = "";
 
     private bool isClosed { get; set; } = false;
     private string pointTypeName = "Tickets";
@@ -337,9 +322,7 @@
         entrants = await GiveawayFeature.GetEntrantsCount();
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
         BitsPerPoint = await twitchEventsBonus.GetBitsPerPoint();
-        pointsForEveryone = await ticketsFeature.GetPointsForEveryone();
-        pointsForActive = await ticketsFeature.GetPointsForActiveUsers();
-        pointsForSubs = await ticketsFeature.GetPointsForSubs();
+        passiveEarnings = await GiveawayFeature.GetPassiveEarnings();
         rules = await GiveawayFeature.GetRules();
         cooldowns = await GiveawayFeature.GetCooldowns();
         terms = await GiveawayFeature.GetTerms();

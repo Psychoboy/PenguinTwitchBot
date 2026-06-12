@@ -33,6 +33,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly string GiveawayRulesSettingName = "GiveawayRules";
         private readonly string GiveawayCooldownsSettingName = "GiveawayCooldowns";
         private readonly string GiveawayTermsSettingName = "GiveawayTerms";
+        private readonly string GiveawayPassiveEarningsSettingName = "GiveawayPassiveEarnings";
 
         private static readonly string DefaultRulesMarkdown =
             "- Winners do **NOT** need to be present during the drawing\n" +
@@ -294,6 +295,16 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task SetTerms(string value)
         {
             await gameSettingsService.SetStringSetting(ModuleName, GiveawayTermsSettingName, value);
+        }
+
+        public async Task<string> GetPassiveEarnings()
+        {
+            return await gameSettingsService.GetStringSetting(ModuleName, GiveawayPassiveEarningsSettingName, "");
+        }
+
+        public async Task SetPassiveEarnings(string value)
+        {
+            await gameSettingsService.SetStringSetting(ModuleName, GiveawayPassiveEarningsSettingName, value);
         }
 
         public async Task SetPrizeTier(string? arg)

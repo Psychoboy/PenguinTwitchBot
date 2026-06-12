@@ -518,7 +518,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                             //await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
                             variables["AmountAdded"] = amount.ToString();
                             variables["TotalPoints"] = userPoints.Points.ToString();
-                            logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+                            logger.LogDebug("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 
                         }
                         break;
@@ -532,7 +532,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
-                            logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+                            logger.LogDebug("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
                         }
                         break;
                     }
@@ -588,7 +588,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                             var userPoints = await GetUserPointsByUsername(e.TargetUser, pointCommand.PointType.GetId());    
                             await SendChatMessage(e.TargetUser, $"Gave you {amount:N0} {pointCommand.PointType.Name}, you now have {userPoints.Points:N0} {pointCommand.PointType.Name}");
                             
-                            logger.LogInformation("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+                            logger.LogDebug("Added {amount} {pointType} to {username}", amount, pointCommand.PointType.Name, e.TargetUser);
 
                         }
                         break;
@@ -602,7 +602,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
                             var userId = await viewerFeature.GetViewerId(e.TargetUser);
                             if (userId == null) return;
                             await RemovePointsFromUserByUsername(e.Name, pointCommand.PointType.GetId(), amount);
-                            logger.LogInformation("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
+                            logger.LogDebug("Removed {amount} {pointType} from {username}", amount, pointCommand.PointType.Name, e.TargetUser);
                         }
                         break;
                     }

@@ -1,5 +1,4 @@
 ﻿using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models;
@@ -16,8 +15,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        Application.Notifications.IPenguinDispatcher dispatcher,
-        IPointsSystem pointsSystem
+        Application.Notifications.IPenguinDispatcher dispatcher
             ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature", dispatcher), ILoyaltyFeature, IHostedService
     {
         private readonly Timer _intervalTimer = new Timer(60000);
@@ -95,14 +93,6 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 if (ServiceBackbone.IsKnownBot(viewerName)) continue;
                 var userId = await viewerFeature.GetViewerId(viewerName);
                 if(userId == null) continue;
-                try
-                {
-                    await pointsSystem.AddPointsByUserIdAndGame(userId, ModuleName, 5);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Couldn't add points");
-                }
 
                 try
                 {
@@ -113,21 +103,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     logger.LogError(ex, "Couldn't add time");
                 }
             }
-            var activeViewers = viewerFeature.GetActiveViewers();
-            foreach (var viewerName in activeViewers)
-            {
-                if (ServiceBackbone.IsKnownBot(viewerName)) continue;
-                var userId = await viewerFeature.GetViewerId(viewerName);
-                if (userId == null) continue;
-                await AddTimeToViewerByUserId(userId, 10);
-            }
         }
 
         public override Task Register()
         {
-            var moduleName = "LoyaltyFeature";
-            logger.LogInformation("Registered commands for {moduleName}", moduleName);
-            return pointsSystem.RegisterDefaultPointForGame(ModuleName);
+            return Task.CompletedTask;
         }
 
         public override Task OnCommand(object? sender, CommandEventArgs e)

@@ -2346,6 +2346,24 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_followage", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Bot.Actions.SubActions.Types.ForEachViewerType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int?>("ActionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ActionName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ViewerScope")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_foreachviewer", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Bot.Actions.SubActions.Types.GiftPointsType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
