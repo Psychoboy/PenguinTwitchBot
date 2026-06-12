@@ -1,0 +1,48 @@
+{
+  "Version": "1.0",
+  "ExportedAt": "2026-06-12T13:03:09.086178Z",
+  "Actions": [
+    {
+      "Name": "Passive Earnings",
+      "Group": "Tickets",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": true,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "ForEachViewer",
+          "ActionId": 192,
+          "ActionName": "",
+          "ViewerScope": "AllViewers",
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 52
+        },
+        {
+          "$type": "ForEachViewer",
+          "ActionId": 193,
+          "ActionName": "",
+          "ViewerScope": "ActiveViewers",
+          "Index": 1,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 52
+        },
+        {
+          "$type": "ForEachViewer",
+          "ActionId": 194,
+          "ActionName": "",
+          "ViewerScope": "Subscribers",
+          "Index": 2,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 52
+        }
+      ],
+      "Triggers": []
+    }
+  ]
+}
