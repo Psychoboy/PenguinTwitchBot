@@ -1,0 +1,29 @@
+{
+  "Version": "1.0",
+  "ExportedAt": "2026-06-12T13:03:26.4632647Z",
+  "Actions": [
+    {
+      "Name": "Passive 1x Tickets",
+      "Group": "Tickets",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "PointCommand",
+          "Arguments": "%user% 1",
+          "RespondToChat": false,
+          "ElevatedCommand": true,
+          "RankToExecuteAs": "Streamer",
+          "Index": 0,
+          "Text": "addtickets",
+          "Enabled": true,
+          "SubActionTypes": 34
+        }
+      ],
+      "Triggers": []
+    }
+  ]
+}
