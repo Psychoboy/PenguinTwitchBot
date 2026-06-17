@@ -9,6 +9,7 @@ using PenguinTwitchBot.Repository;
 using Microsoft.AspNetCore.SignalR;
 using System.Text;
 using Timer = System.Timers.Timer;
+using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Commands.Features
 {
@@ -56,7 +57,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             "- The streamer reserves the right to change giveaways at any time\n" +
             "- Must be **18+** to participate\n" +
             "- Void where prohibited by law";
-        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private static readonly ConcurrentDictionary<string, Lazy<SemaphoreSlim>> UserLocks = new();
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
 
@@ -478,13 +479,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public async Task<string> Enter(string sender, string amount, bool fromUi)
         {
+            var userLock = UserLocks.GetOrAdd(sender, _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
+            await userLock.WaitAsync();
             try
             {
-                if (await _semaphoreSlim.WaitAsync(500) == false)
-                {
-                    logger.LogWarning("Lock expired while waiting...");
-                }
-
                 if (isClosed) 
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.closed", "the giveaway is closed and not accepting entries."); 
@@ -521,24 +519,15 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     throw new SkipCooldownException(message);
                 }
 
-                var enteredTickets = await GetEntriesCount(sender);
-                if (points + enteredTickets > 1000000)
+                if(viewerPoints - points < 0)
                 {
-                    points = 1000000 - points;
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.max", "Max entries is (maxallowed), so entering (amount) instead to max you out."); //language.Get("giveawayfeature.enter.max").Replace("(maxallowed)", "1,000,000").Replace("(amount)", points.ToString());
-                    message = message.Replace("(maxallowed)", "1,000,000", StringComparison.OrdinalIgnoreCase).Replace("(amount)", points.ToString(), StringComparison.OrdinalIgnoreCase);
-                    if (!fromUi)
-                    {
-                        await ServiceBackbone.SendChatMessage(displayName, message);
-                    }
+                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
+                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
-                    if (points == 0)
-                    {
-                        throw new SkipCooldownException("Unknown error, try via chat.");
-                    }
+                    throw new SkipCooldownException(message);
                 }
-
-                //if (!(await ticketsFeature.RemoveTicketsFromViewerByUsername(sender, points)))
+                
+                
                 if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
                 {
                     var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
@@ -572,7 +561,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
             finally
             {
-                _semaphoreSlim.Release();
+                userLock.Release();
             }
         }
         public async Task<long> GetEntriesCount(string sender)
