@@ -39,6 +39,13 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     logger.LogWarning("Viewer not found for user {userId}", userId);
                     return 0;
                 }
+
+                if(points < 0)
+                {
+                    logger.LogWarning("Attempted to add negative points for user {userId}", userId);
+                    return 0;
+                }
+
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
