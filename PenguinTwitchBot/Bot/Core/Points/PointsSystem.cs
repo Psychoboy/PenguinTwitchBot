@@ -52,6 +52,10 @@ namespace PenguinTwitchBot.Bot.Core.Points
                 }
                 else
                 {
+                    if(!userPoints.Username.Equals(viewer.Username, StringComparison.OrdinalIgnoreCase))
+                    {
+                        userPoints.Username = viewer.Username;
+                    }
                     userPoints.Points += points;
                     db.UserPoints.Update(userPoints);
                 }
