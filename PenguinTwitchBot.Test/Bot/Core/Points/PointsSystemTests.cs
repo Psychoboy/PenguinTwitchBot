@@ -460,11 +460,11 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var gameName = "game1";
             var points = 100;
             var pointType = new PointType { Id = 1 };
-            var viewer = new Viewer { UserId = "user1" };
-            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var viewer = new Viewer { UserId = "user1", Username = "TestUser" };
+            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = (int)pointType.Id, Points = 100 };
 
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
 
             // Act
@@ -483,13 +483,13 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             var gameName = "game1";
             var points = 100;
             var pointType = new PointType { Id = 1 };
-            var viewer = new Viewer { UserId = "user1" };
+            var viewer = new Viewer { UserId = "user1", Username = username };
             var userId = "user1";
-            var userPoints = new UserPoints { UserId = viewer.UserId, PointTypeId = (int)pointType.Id, Points = 100 };
+            var userPoints = new UserPoints { UserId = viewer.UserId, Username = viewer.Username, PointTypeId = (int)pointType.Id, Points = 100 };
 
             _viewerFeatureMock.GetViewerByUserName(username).Returns(viewer);
             _gameSettingsServiceMock.GetPointTypeForGame(gameName).Returns(pointType);
-            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
             _unitOfWorkMock.UserPoints.GetUserPointsByUserId(viewer.UserId, (int)pointType.Id).Returns(userPoints);
 
             // Act
