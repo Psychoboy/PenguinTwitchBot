@@ -24,10 +24,13 @@ namespace PenguinTwitchBot.Bot.Core.Points
     {
         public static Int64 MaxBet { get; } = 200000069;
         public static bool IncludeSubsInActive = true;
+        private static readonly ConcurrentDictionary<string, Lazy<SemaphoreSlim>> UserLocks = new();
         private static readonly Prometheus.Gauge NumberOfPoints = Prometheus.Metrics.CreateGauge("points", "Number of points", ["username", "pointTypeId"]);
         private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
         public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
+            var userLock = UserLocks.GetOrAdd(userId + pointType.ToString(), _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
+            await userLock.WaitAsync();
             try
             {
                 var viewer = await viewerFeature.GetViewerByUserId(userId);
@@ -74,6 +77,10 @@ namespace PenguinTwitchBot.Bot.Core.Points
             {
                 logger.LogError(ex, "Error adding points to user {userId}", userId);
                 return 0;
+            }
+            finally
+            {
+                userLock.Release();
             }
         }
 
@@ -308,29 +315,37 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         public async Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points)
         {
-            var userPoints = await GetUserPointsByUserId(userId, pointType);
-            if (userPoints == null)
-            {
-                return false;
+            var userLock = UserLocks.GetOrAdd(userId + pointType.ToString(), _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
+            await userLock.WaitAsync();
+            try{
+                var userPoints = await GetUserPointsByUserId(userId, pointType);
+                if (userPoints == null)
+                {
+                    return false;
+                }
+                if (userPoints.Points < points)
+                {
+                    return false;
+                }
+                userPoints.Points -= points;
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                db.UserPoints.Update(userPoints);
+                await db.SaveChangesAsync();
+                try
+                {
+                    NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error updating metric");
+                }
+                return true;
             }
-            if (userPoints.Points < points)
+            finally
             {
-                return false;
+                userLock.Release();
             }
-            userPoints.Points -= points;
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.UserPoints.Update(userPoints);
-            await db.SaveChangesAsync();
-            try
-            {
-                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(points);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error updating metric");
-            }
-            return true;
         }
 
         public async Task<bool> RemovePointsFromUserByUsername(string username, int pointType, long points)
