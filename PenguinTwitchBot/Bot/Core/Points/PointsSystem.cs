@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
         private static readonly Prometheus.Gauge NumberOfPointsByGame = Prometheus.Metrics.CreateGauge("points_by_game", "Number of points by game", ["game", "pointTypeId"]);
         public async Task<long> AddPointsByUserId(string userId, int pointType, long points)
         {
-            var userLock = UserLocks.GetOrAdd(userId + pointType.ToString(), _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
+            var userLock = UserLocks.GetOrAdd($"{userId}:{pointType}", _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
             await userLock.WaitAsync();
             try
             {
@@ -315,7 +315,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         public async Task<bool> RemovePointsFromUserByUserId(string userId, int pointType, long points)
         {
-            var userLock = UserLocks.GetOrAdd(userId + pointType.ToString(), _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
+            var userLock = UserLocks.GetOrAdd($"{userId}:{pointType}", _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
             await userLock.WaitAsync();
             try{
                 var userPoints = await GetUserPointsByUserId(userId, pointType);
