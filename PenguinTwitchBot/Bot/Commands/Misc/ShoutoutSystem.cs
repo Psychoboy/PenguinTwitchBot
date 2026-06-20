@@ -100,19 +100,25 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             var message = "";
             if((autoShoutout != null && autoShoutout.UseAi) || useAi)
             {
-                await using var scope = _scopeFactory.CreateAsyncScope();
-                var streamTitle = await _twitchService.GetUserStreamTitle(userId);
-                var bio = await _twitchService.GetUserBio(userId);
-                var shoutoutAi = scope.ServiceProvider.GetService<IShoutoutAi>();
-                if (shoutoutAi != null)
+                try
                 {
-                    message = await shoutoutAi.GetShoutoutForStreamer(
-                        name,
-                        game ?? "Unknown Game",
-                        streamTitle ?? "No Title",
-                        bio ?? "No Bio",
-                        autoShoutout?.AdditionalPrompt ?? string.Empty
-                    );
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var streamTitle = await _twitchService.GetUserStreamTitle(userId);
+                    var bio = await _twitchService.GetUserBio(userId);
+                    var shoutoutAi = scope.ServiceProvider.GetService<IShoutoutAi>();
+                    if (shoutoutAi != null)
+                    {
+                        message = await shoutoutAi.GetShoutoutForStreamer(
+                            name,
+                            game ?? "Unknown Game",
+                            streamTitle ?? "No Title",
+                            bio ?? "No Bio",
+                            autoShoutout?.AdditionalPrompt ?? string.Empty
+                        );
+                    }
+                } catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error generating AI shoutout for {name}", name);
                 }
             }
 
