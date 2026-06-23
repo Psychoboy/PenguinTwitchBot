@@ -217,6 +217,7 @@
                     } else
                     {
                         await JsRuntime.InvokeAsync<string>("playVideo", await YtPlayer.GetNextSong());
+                        currentSong = YtPlayer.GetCurrentSong();
                     }
 
                     _timer?.Dispose();
@@ -260,6 +261,12 @@
         });
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+
+        currentSong = YtPlayer.GetCurrentSong();
+        if (currentSong != null)
+        {
+            StateHasChanged();
+        }
     }
 
     private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)
