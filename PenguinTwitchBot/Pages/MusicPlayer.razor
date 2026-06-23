@@ -184,11 +184,8 @@
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
-        if (currentPlayList != null && currentPlayList.Id.HasValue)
-        {
-            defaultPlaylistId = currentPlayList.Id.Value;
-            additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
-        }
+        defaultPlaylistId = await YtPlayer.GetDefaultPlaylistId();
+        additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

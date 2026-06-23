@@ -207,7 +207,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                     }
                     if (allSongs.Count > 0)
                     {
-                        BackupPlaylist = new MusicPlaylist { Name = "Multi Playlist", Songs = [.. allSongs.Values] };
+                        BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId, Name = "Multi Playlist", Songs = [.. allSongs.Values] };
                         await UpdateRequestedSongsState();
                         await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
                         UpdateUnplayedSongs();
@@ -414,6 +414,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 return new List<int>();
             return setting.StringSetting.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Select(s => int.Parse(s)).ToList();
+        }
+
+        public async Task<int?> GetDefaultPlaylistId()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
+            return setting?.IntSetting;
         }
 
         public async Task<MusicPlaylist> GetPlayList(int id)
