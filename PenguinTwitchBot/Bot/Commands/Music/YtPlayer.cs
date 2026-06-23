@@ -405,6 +405,25 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
         }
 
+        public async Task<Dictionary<int, string>> GetPlaylistsContainingSong(string songId, List<int> playlistIds)
+        {
+            var result = new Dictionary<int, string>();
+            if (string.IsNullOrEmpty(songId) || playlistIds == null || playlistIds.Count == 0)
+                return result;
+
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            foreach (var playlistId in playlistIds.Distinct())
+            {
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+                if (playList != null && playList.Songs != null && playList.Songs.Any(s => s.SongId.Equals(songId)))
+                {
+                    result[playlistId] = playList.Name;
+                }
+            }
+            return result;
+        }
+
         public async Task<List<int>> GetAdditionalPlaylistIds()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();

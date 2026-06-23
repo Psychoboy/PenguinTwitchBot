@@ -1,5 +1,6 @@
 @using MudBlazor
 @using PenguinTwitchBot.Bot.Models
+@using System.Collections.Generic
 
 <MudPaper Elevation="3">
     <MudTable Items="@AllSongs" Filter="new Func<Song,bool>(FilterSong)" Dense="true" Hover="true">
@@ -32,13 +33,6 @@
                         <MudTooltip Text="Add to Queue">
                             <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
                                            OnClick="() => OnQueueSong.InvokeAsync(context)" />
-                        </MudTooltip>
-                    }
-                    @if (OnRemoveSong.HasDelegate && !OnRemoveSongFrom.HasDelegate)
-                    {
-                        <MudTooltip Text="Remove from Playlist">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                           OnClick="() => OnRemoveSong.InvokeAsync(context)" />
                         </MudTooltip>
                     }
                     @if (OnRemoveSongFrom.HasDelegate)
@@ -86,10 +80,8 @@
 @code {
     [Parameter] public MusicPlaylist? Playlist { get; set; }
     [Parameter] public EventCallback<Song> OnQueueSong { get; set; }
-    [Parameter] public EventCallback<Song> OnRemoveSong { get; set; }
     [Parameter] public EventCallback<(Song song, int playlistId)> OnRemoveSongFrom { get; set; }
-    [Parameter] public List<int> SelectedPlaylistIds { get; set; } = new();
-    [Parameter] public Dictionary<int, string> SelectedPlaylistNames { get; set; } = new();
+    [Parameter] public Func<Song, Task<Dictionary<int, string>>>? OnGetPlaylistsForSong { get; set; }
 
     private string _searchString = string.Empty;
     private string SearchString
@@ -117,13 +109,18 @@
     private readonly DialogOptions _removeDialogOptions = new() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
     private List<PlaylistCheckItem> _selectedPlaylists = new();
 
-    private void OpenRemoveDialog(Song song)
+    private async void OpenRemoveDialog(Song song)
     {
         _removingSong = song;
-        _selectedPlaylists = SelectedPlaylistIds
-            .Where(id => SelectedPlaylistNames.ContainsKey(id))
-            .Select(id => new PlaylistCheckItem { Id = id, Name = SelectedPlaylistNames[id], IsChecked = false })
-            .ToList();
+        if (OnGetPlaylistsForSong != null)
+        {
+            var matched = await OnGetPlaylistsForSong(song);
+            _selectedPlaylists = matched.Select(kvp => new PlaylistCheckItem { Id = kvp.Key, Name = kvp.Value, IsChecked = false }).ToList();
+        }
+        else
+        {
+            _selectedPlaylists = _selectedPlaylists.ToList();
+        }
         _removeDialogVisible = true;
     }
 

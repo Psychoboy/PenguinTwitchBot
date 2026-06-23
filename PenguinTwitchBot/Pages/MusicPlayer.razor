@@ -148,19 +148,9 @@
 
             @if (currentPlayList != null)
             {
-                var selectedNames = new Dictionary<int, string>();
-                if (defaultPlaylistId.HasValue)
-                {
-                    selectedNames[defaultPlaylistId.Value] = musicPlaylists?.FirstOrDefault(p => p.Id == defaultPlaylistId)?.Name ?? $"Playlist {defaultPlaylistId}";
-                }
-                foreach (var id in additionalPlaylistIds)
-                {
-                    selectedNames[id] = musicPlaylists?.FirstOrDefault(p => p.Id == id)?.Name ?? $"Playlist {id}";
-                }
                 <MudItem xs="12" md="8">
                     <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSongFrom="RemoveSongFromPlaylist"
-                                     SelectedPlaylistIds="(defaultPlaylistId.HasValue ? new[] { defaultPlaylistId.Value } : Enumerable.Empty<int>()).Concat(additionalPlaylistIds).ToList()"
-                                     SelectedPlaylistNames="selectedNames" />
+                                     OnGetPlaylistsForSong="GetPlaylistsForSong" />
                 </MudItem>
             }
         </MudGrid>
@@ -333,6 +323,16 @@
     private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
     {
         await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
+    }
+
+    private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
+    {
+        var allIds = new List<int>();
+        if (defaultPlaylistId.HasValue)
+            allIds.Add(defaultPlaylistId.Value);
+        allIds.AddRange(additionalPlaylistIds);
+        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, allIds);
+        return result;
     }
 
     private async Task QueueSong(Song song)
