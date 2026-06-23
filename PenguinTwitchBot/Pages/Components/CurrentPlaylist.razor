@@ -1,0 +1,83 @@
+@using MudBlazor
+@using PenguinTwitchBot.Bot.Models
+
+<MudPaper Elevation="3">
+    <MudTable Items="@AllSongs" Filter="new Func<Song,bool>(FilterSong)" Dense="true" Hover="true">
+        <ToolBarContent>
+            <MudIcon Icon="@Icons.Material.Filled.Album" Color="Color.Tertiary" Class="mr-2" />
+            <MudText Typo="Typo.h6">@Playlist?.Name</MudText>
+            <MudSpacer />
+            <MudTextField DebounceInterval="300" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="SearchString" Placeholder="Search songs" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 200px;"></MudTextField>
+            <MudBadge Content="@(Playlist?.Songs.Count ?? 0)" Color="Color.Info" Overlap="true">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
+            </MudBadge>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Title</MudTh>
+            <MudTh>Length</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Title">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
+                    <MudText>@context.Title</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Duration">@context.Duration</MudTd>
+            <MudTd DataLabel="Actions">
+                <MudStack Row="true" Spacing="1">
+                    @if (OnQueueSong.HasDelegate)
+                    {
+                        <MudTooltip Text="Add to Queue">
+                            <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
+                                           OnClick="() => OnQueueSong.InvokeAsync(context)" />
+                        </MudTooltip>
+                    }
+                    @if (OnRemoveSong.HasDelegate)
+                    {
+                        <MudTooltip Text="Remove from Playlist">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="() => OnRemoveSong.InvokeAsync(context)" />
+                        </MudTooltip>
+                    }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PlaylistRemove">
+                Playlist is empty
+            </MudAlert>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    [Parameter] public MusicPlaylist? Playlist { get; set; }
+    [Parameter] public EventCallback<Song> OnQueueSong { get; set; }
+    [Parameter] public EventCallback<Song> OnRemoveSong { get; set; }
+
+    private string _searchString = string.Empty;
+    private string SearchString
+    {
+        get => _searchString;
+        set
+        {
+            _searchString = value;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<Song> AllSongs => Playlist?.Songs ?? Enumerable.Empty<Song>();
+
+    private bool FilterSong(Song song)
+    {
+        if (string.IsNullOrWhiteSpace(SearchString))
+            return true;
+        var search = SearchString.Trim().ToLower();
+        return song.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -141,86 +141,15 @@
             @if (musicPlaylists != null)
             {
                 <MudItem xs="12" md="4">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@musicPlaylists" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Color="Color.Secondary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">Playlists</MudText>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Name</MudTh>
-                                <MudTh>Load</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Name">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.PlaylistPlay" Size="Size.Small" Color="Color.Primary" />
-                                        <MudText>@context.Name</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Load">
-                                    <MudTooltip Text="Load Playlist">
-                                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
-                                                       OnClick="() => StartPlaylist(context)" />
-                                    </MudTooltip>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
-                                    No playlists available
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
+                    <AvailablePlaylists Playlists="musicPlaylists" DefaultPlaylistId="defaultPlaylistId" AdditionalPlaylistIds="additionalPlaylistIds"
+                                       OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnRefresh="RefreshUnplayedSongs" />
                 </MudItem>
             }
 
             @if (currentPlayList != null)
             {
                 <MudItem xs="12" md="8">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@currentPlayList.Songs" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.Album" Color="Color.Tertiary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">@currentPlayList.Name</MudText>
-                                <MudSpacer />
-                                <MudBadge Content="@currentPlayList.Songs.Count" Color="Color.Info" Overlap="true">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
-                                </MudBadge>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Title</MudTh>
-                                <MudTh>Length</MudTh>
-                                <MudTh>Actions</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Title">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
-                                        <MudText>@context.Title</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Duration">@context.Duration</MudTd>
-                                <MudTd DataLabel="Actions">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudTooltip Text="Add to Queue">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Queue" Color="Color.Primary" Size="Size.Small"
-                                                           OnClick="() => QueueSong(context)" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Remove from Playlist">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                           OnClick="() => RemoveSong(context)" />
-                                        </MudTooltip>
-                                    </MudStack>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PlaylistRemove">
-                                    Playlist is empty
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
+                    <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSong="RemoveSong" />
                 </MudItem>
             }
         </MudGrid>
@@ -239,6 +168,8 @@
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
     private string? addSongUrl;
+    private int? defaultPlaylistId;
+    private List<int> additionalPlaylistIds = new();
     [Inject]
     private IJSRuntime JsRuntime { get; set; } = default!;
 
@@ -253,7 +184,11 @@
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
-
+        if (currentPlayList != null && currentPlayList.Id.HasValue)
+        {
+            defaultPlaylistId = currentPlayList.Id.Value;
+            additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -327,12 +262,40 @@
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
     }
 
-    private async Task StartPlaylist(MusicPlaylist musicPlaylist)
+    private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)
     {
         if (musicPlaylist != null && musicPlaylist.Id != null)
         {
-            await YtPlayer.LoadPlayList((int)musicPlaylist.Id);
+            await YtPlayer.SetPlaylists(musicPlaylist.Id, additionalPlaylistIds);
+            defaultPlaylistId = musicPlaylist.Id.Value;
+            currentPlayList = await YtPlayer.CurrentPlaylist();
+            StateHasChanged();
         }
+    }
+
+    private async Task ToggleAdditionalPlaylist((MusicPlaylist, bool) args)
+    {
+        var (playlist, isChecked) = args;
+        if (playlist == null || playlist.Id == null || defaultPlaylistId == playlist.Id) return;
+        if (isChecked)
+        {
+            if (!additionalPlaylistIds.Contains(playlist.Id.Value))
+                additionalPlaylistIds.Add(playlist.Id.Value);
+        }
+        else
+        {
+            additionalPlaylistIds.Remove(playlist.Id.Value);
+        }
+        await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+        StateHasChanged();
+    }
+
+    private async Task RefreshUnplayedSongs()
+    {
+        await YtPlayer.RefreshUnplayedSongs();
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+        StateHasChanged();
     }
 
     private async Task Priority(Song song)
