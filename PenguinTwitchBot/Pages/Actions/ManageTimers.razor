@@ -66,7 +66,8 @@
                                         @if (timerGroup.Id.HasValue)
                                         {
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                Next: @timerGroup.NextRun.ToString("g")
+                                                Next: <ToLocal DateTime="timerGroup.NextRun" Format="shortTime"  />
+                                                
                                             </MudText>
                                         }
                                     </MudStack>
