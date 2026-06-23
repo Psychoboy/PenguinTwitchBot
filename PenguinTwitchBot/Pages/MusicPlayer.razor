@@ -148,8 +148,19 @@
 
             @if (currentPlayList != null)
             {
+                var selectedNames = new Dictionary<int, string>();
+                if (defaultPlaylistId.HasValue)
+                {
+                    selectedNames[defaultPlaylistId.Value] = musicPlaylists?.FirstOrDefault(p => p.Id == defaultPlaylistId)?.Name ?? $"Playlist {defaultPlaylistId}";
+                }
+                foreach (var id in additionalPlaylistIds)
+                {
+                    selectedNames[id] = musicPlaylists?.FirstOrDefault(p => p.Id == id)?.Name ?? $"Playlist {id}";
+                }
                 <MudItem xs="12" md="8">
-                    <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSong="RemoveSong" />
+                    <CurrentPlaylist Playlist="currentPlayList" OnQueueSong="QueueSong" OnRemoveSongFrom="RemoveSongFromPlaylist"
+                                     SelectedPlaylistIds="(defaultPlaylistId.HasValue ? new[] { defaultPlaylistId.Value } : Enumerable.Empty<int>()).Concat(additionalPlaylistIds).ToList()"
+                                     SelectedPlaylistNames="selectedNames" />
                 </MudItem>
             }
         </MudGrid>
@@ -270,8 +281,10 @@
     {
         if (musicPlaylist != null && musicPlaylist.Id != null)
         {
-            await YtPlayer.SetPlaylists(musicPlaylist.Id, additionalPlaylistIds);
-            defaultPlaylistId = musicPlaylist.Id.Value;
+            var newDefaultId = musicPlaylist.Id.Value;
+            additionalPlaylistIds.Remove(newDefaultId);
+            await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
+            defaultPlaylistId = newDefaultId;
             currentPlayList = await YtPlayer.CurrentPlaylist();
             StateHasChanged();
         }
@@ -281,6 +294,11 @@
     {
         var (playlist, isChecked) = args;
         if (playlist == null || playlist.Id == null || defaultPlaylistId == playlist.Id) return;
+        if (defaultPlaylistId == null)
+        {
+            Snackbar.Add("Set a default playlist before enabling additional playlists.", Severity.Warning);
+            return;
+        }
         if (isChecked)
         {
             if (!additionalPlaylistIds.Contains(playlist.Id.Value))
@@ -310,6 +328,11 @@
     private async Task RemoveSong(Song song)
     {
         await YtPlayer.RemoveSong(song);
+    }
+
+    private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
+    {
+        await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
     }
 
     private async Task QueueSong(Song song)

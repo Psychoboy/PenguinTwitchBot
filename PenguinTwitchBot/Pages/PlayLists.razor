@@ -116,8 +116,10 @@
     {
         if (musicPlaylist != null && musicPlaylist.Id != null)
         {
-            await YtPlayer.SetPlaylists(musicPlaylist.Id, additionalPlaylistIds);
-            defaultPlaylistId = musicPlaylist.Id.Value;
+            var newDefaultId = musicPlaylist.Id.Value;
+            additionalPlaylistIds.Remove(newDefaultId);
+            await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
+            defaultPlaylistId = newDefaultId;
             currentPlayList = await YtPlayer.CurrentPlaylist();
             StateHasChanged();
         }
@@ -127,6 +129,11 @@
     {
         var (playlist, isChecked) = args;
         if (playlist == null || playlist.Id == null || defaultPlaylistId == playlist.Id) return;
+        if (defaultPlaylistId == null)
+        {
+            Snackbar.Add("Set a default playlist before enabling additional playlists.", Severity.Warning);
+            return;
+        }
         if (isChecked)
         {
             if (!additionalPlaylistIds.Contains(playlist.Id.Value))

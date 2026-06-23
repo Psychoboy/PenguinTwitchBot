@@ -34,11 +34,18 @@
                                            OnClick="() => OnQueueSong.InvokeAsync(context)" />
                         </MudTooltip>
                     }
-                    @if (OnRemoveSong.HasDelegate)
+                    @if (OnRemoveSong.HasDelegate && !OnRemoveSongFrom.HasDelegate)
                     {
                         <MudTooltip Text="Remove from Playlist">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
                                            OnClick="() => OnRemoveSong.InvokeAsync(context)" />
+                        </MudTooltip>
+                    }
+                    @if (OnRemoveSongFrom.HasDelegate)
+                    {
+                        <MudTooltip Text="Remove from Playlist(s)">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="() => OpenRemoveDialog(context)" />
                         </MudTooltip>
                     }
                 </MudStack>
@@ -55,10 +62,34 @@
     </MudTable>
 </MudPaper>
 
+@if (OnRemoveSongFrom.HasDelegate)
+{
+    <MudDialog @bind-Visible="_removeDialogVisible" Options="_removeDialogOptions">
+        <DialogContent>
+            <MudText Typo="Typo.h6">Remove "@_removingSong?.Title" from:</MudText>
+            <MudStack Spacing="2" Class="mt-4">
+                @foreach (var pl in _selectedPlaylists)
+                {
+                    <MudCheckBox T="bool" Value="pl.IsChecked" ValueChanged="(bool c) => pl.IsChecked = c" Label="@pl.Name" />
+                }
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseRemoveDialog">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmRemove" Disabled="@(!_selectedPlaylists.Any(p => p.IsChecked))">
+                Remove
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
 @code {
     [Parameter] public MusicPlaylist? Playlist { get; set; }
     [Parameter] public EventCallback<Song> OnQueueSong { get; set; }
     [Parameter] public EventCallback<Song> OnRemoveSong { get; set; }
+    [Parameter] public EventCallback<(Song song, int playlistId)> OnRemoveSongFrom { get; set; }
+    [Parameter] public List<int> SelectedPlaylistIds { get; set; } = new();
+    [Parameter] public Dictionary<int, string> SelectedPlaylistNames { get; set; } = new();
 
     private string _searchString = string.Empty;
     private string SearchString
@@ -79,5 +110,44 @@
             return true;
         var search = SearchString.Trim().ToLower();
         return song.Title.Contains(search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool _removeDialogVisible;
+    private Song? _removingSong;
+    private readonly DialogOptions _removeDialogOptions = new() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+    private List<PlaylistCheckItem> _selectedPlaylists = new();
+
+    private void OpenRemoveDialog(Song song)
+    {
+        _removingSong = song;
+        _selectedPlaylists = SelectedPlaylistIds
+            .Where(id => SelectedPlaylistNames.ContainsKey(id))
+            .Select(id => new PlaylistCheckItem { Id = id, Name = SelectedPlaylistNames[id], IsChecked = false })
+            .ToList();
+        _removeDialogVisible = true;
+    }
+
+    private void CloseRemoveDialog()
+    {
+        _removeDialogVisible = false;
+        _removingSong = null;
+        _selectedPlaylists.Clear();
+    }
+
+    private async Task ConfirmRemove()
+    {
+        if (_removingSong == null) return;
+        foreach (var pl in _selectedPlaylists.Where(p => p.IsChecked))
+        {
+            await OnRemoveSongFrom.InvokeAsync((_removingSong, pl.Id));
+        }
+        CloseRemoveDialog();
+    }
+
+    private class PlaylistCheckItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public bool IsChecked { get; set; }
     }
 }

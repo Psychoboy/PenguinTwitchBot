@@ -163,10 +163,10 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         private async Task LoadBackupList()
         {
-            var defaultPlaylistId = BackupPlaylist?.Id;
+            var defaultPlaylistId = BackupPlaylist?.Id ?? await GetDefaultPlaylistId();
             var additionalIds = await GetAdditionalPlaylistIds();
             var selectedPlaylistIds = new HashSet<int>();
-            if (defaultPlaylistId.HasValue)
+            if (defaultPlaylistId.HasValue && defaultPlaylistId.Value > 0)
                 selectedPlaylistIds.Add(defaultPlaylistId.Value);
             foreach (var id in additionalIds)
                 selectedPlaylistIds.Add(id);
@@ -576,6 +576,24 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             }
         }
 
+        public async Task RemoveSongFromPlaylist(Song requestedSong, int playlistId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+            if (playList == null || playList.Songs == null) return;
+            var song = playList.Songs.Where(x => x.SongId.Equals(requestedSong.SongId)).FirstOrDefault();
+            if (song == null) return;
+            playList.Songs.Remove(song);
+            db.Songs.Remove(song);
+            await db.SaveChangesAsync();
+            if (BackupPlaylist.Songs.Contains(requestedSong))
+            {
+                BackupPlaylist.Songs.Remove(requestedSong);
+            }
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+        }
+
         public async Task RemoveSong(Song requestedSong)
         {
             if (BackupPlaylist.Songs.Count == 0) return;
@@ -586,12 +604,10 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 return;
             }
 
-
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 BackupPlaylist.Songs.Remove(song);
-                db.Playlists.Update(BackupPlaylist);
                 db.Songs.Remove(song);
                 await db.SaveChangesAsync();
             }
@@ -616,11 +632,12 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var songToSteel = CurrentSong.CreateDeepCopy();
             songToSteel.Id = null;
             songToSteel.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
+            songToSteel.MusicPlaylistId = BackupPlaylist.Id ?? default;
             BackupPlaylist.Songs.Add(songToSteel);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.Playlists.Update(BackupPlaylist);
+                db.Songs.Add(songToSteel);
                 await db.SaveChangesAsync();
             }
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
