@@ -20,11 +20,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public float Volume { get; set; } = 0.8f;
         public string CSS { get; set; } = "";
         public string File { get; set; } = "";
+        public string AlertChannel { get; set; } = "";
 
         public string Generate()
         {
-            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false}}",
-            File, Duration, Volume, CSS, Text);
+            var channelSuffix = string.IsNullOrWhiteSpace(AlertChannel) ? "" : $",\"alertChannel\":\"{AlertChannel}\"";
+            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false{5}}}",
+            File, Duration, Volume, CSS, Text, channelSuffix);
         }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
@@ -75,6 +77,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
                     SwitchColor = "Success"
+                },
+                new()
+                {
+                    PropertyName = nameof(AlertChannel),
+                    Label = "Alert channel",
+                    FieldType = UIFieldType.Text,
+                    HelperText = "Optional channel name to route this alert to a specific overlay; leave blank for default"
                 }
             };
         }
@@ -88,7 +97,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                 { nameof(Duration), Duration },
                 { nameof(Volume), Volume },
                 { nameof(CSS), CSS },
-                { nameof(Enabled), Enabled }
+                { nameof(Enabled), Enabled },
+                { nameof(AlertChannel), AlertChannel }
             };
         }
 
@@ -106,6 +116,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
                 CSS = css as string ?? "";
             if (values.TryGetValue(nameof(Enabled), out var enabled))
                 Enabled = enabled as bool? ?? true;
+            if (values.TryGetValue(nameof(AlertChannel), out var alertChannel))
+                AlertChannel = alertChannel as string ?? "";
         }
 
         public string? Validate(Dictionary<string, object?> values)

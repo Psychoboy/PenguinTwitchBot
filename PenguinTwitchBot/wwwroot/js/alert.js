@@ -509,9 +509,30 @@ socket.onmessage = function (event) {
             return;
         }
         let message = JSON.parse(rawMessage);
-        queue.push(message);
+
+        if (message.alert_image !== undefined) {
+            const myChannel = queryMap.has('alertChannel') ? queryMap.get('alertChannel') : null;
+            const msgChannel = message.alertChannel;
+            const msgHasChannel = msgChannel !== undefined && msgChannel !== null && msgChannel !== '';
+
+            if (msgHasChannel) {
+                if (myChannel === msgChannel) {
+                    queue.push(message);
+                } else {
+                    printDebug('Discarded alert_image for channel "' + msgChannel + '" (listening on "' + (myChannel || 'default') + '")');
+                }
+            } else {
+                if (myChannel === null || myChannel === '') {
+                    queue.push(message);
+                } else {
+                    printDebug('Discarded default alert_image (listening on channel "' + myChannel + '")');
+                }
+            }
+        } else {
+            queue.push(message);
+        }
     } catch (ex) {
-        console.log('Failed to parse socket message [' + event.data + ']: ' + event.stack)
+        console.log('Failed to parse socket message [' + event.data + ']: ' + ex.stack)
     }
 };
 
