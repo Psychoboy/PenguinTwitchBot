@@ -50,23 +50,24 @@
 
   <ItemGroup>
     <PackageReference Include="BlazorTime" Version="1.0.3" />
-    <PackageReference Include="Discord.Net" Version="3.19.1" />
+    <PackageReference Include="Discord.Net" Version="3.20.1" />
     <PackageReference Include="EFCore.BulkExtensions" Version="10.0.1" />
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.74.0.4137" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.18.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
-    <PackageReference Include="linq2db" Version="6.2.1" />
+    <PackageReference Include="linq2db" Version="6.3.0" />
     <PackageReference Include="linq2db.EntityFrameworkCore" Version="10.3.0" />
-    <PackageReference Include="MathParser.org-mXparser" Version="6.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="10.0.7" />
+    <PackageReference Include="MathParser.org-mXparser" Version="6.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="10.0.9" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.7">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.9">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
@@ -81,7 +82,7 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     <PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
     <PackageReference Include="prometheus-net.DotNetRuntime" Version="4.4.1" />
     <PackageReference Include="Quartz" Version="3.18.1" />

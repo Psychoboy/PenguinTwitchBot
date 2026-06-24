@@ -32,6 +32,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private readonly TimeLeft timeLeft = new();
 
         private static readonly string LastSongList = "LastSongList";
+        private const string AdditionalPlaylistsSetting = "AdditionalPlaylists";
         enum PlayerState
         {
             UnStarted = -1,
@@ -162,24 +163,19 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         private async Task LoadBackupList()
         {
+            var defaultPlaylistId = BackupPlaylist?.Id ?? await GetDefaultPlaylistId();
+            var additionalIds = await GetAdditionalPlaylistIds();
+            var selectedPlaylistIds = new HashSet<int>();
+            if (defaultPlaylistId.HasValue && defaultPlaylistId.Value > 0)
+                selectedPlaylistIds.Add(defaultPlaylistId.Value);
+            foreach (var id in additionalIds)
+                selectedPlaylistIds.Add(id);
 
-            await using (var scope = _scopeFactory.CreateAsyncScope())
+            if (selectedPlaylistIds.Count == 0)
             {
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var lastPlaylist = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
-                if (lastPlaylist != null)
+                await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var playList = (await db.Playlists.GetAsync(filter: x => x.Id == lastPlaylist.IntSetting, includeProperties: "Songs")).FirstOrDefault();
-                    if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
-                    {
-                        BackupPlaylist = playList;
-                        await UpdateRequestedSongsState();
-                        await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
-                        UpdateUnplayedSongs();
-                        return;
-                    }
-                }
-                {
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var playList = (await db.Playlists.GetAsync(orderBy: x => x.OrderBy(y => y.Id), includeProperties: "Songs")).FirstOrDefault();
                     if (playList != null && playList.Songs != null && playList.Songs.Count > 0)
                     {
@@ -191,13 +187,41 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                     }
                 }
             }
+            else
+            {
+                await using (var scope = _scopeFactory.CreateAsyncScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                    var allSongs = new Dictionary<string, Song>();
+                    foreach (var playlistId in selectedPlaylistIds)
+                    {
+                        var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+                        if (playList != null && playList.Songs != null)
+                        {
+                            foreach (var s in playList.Songs)
+                            {
+                                if (!allSongs.ContainsKey(s.SongId))
+                                    allSongs.Add(s.SongId, s);
+                            }
+                        }
+                    }
+                    if (allSongs.Count > 0)
+                    {
+                        BackupPlaylist = new MusicPlaylist { Id = defaultPlaylistId, Name = "Multi Playlist", Songs = [.. allSongs.Values] };
+                        await UpdateRequestedSongsState();
+                        await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+                        UpdateUnplayedSongs();
+                        return;
+                    }
+                }
+            }
 
             var song = await GetSong("ZyhrYis509A");
             if (song != null)
-                BackupPlaylist.Songs.Add(song);
+                BackupPlaylist?.Songs.Add(song);
             song = await GetSong("EAwWPadFsOA");
             if (song != null)
-                BackupPlaylist.Songs.Add(song);
+                BackupPlaylist?.Songs.Add(song);
             UpdateUnplayedSongs();
         }
 
@@ -213,7 +237,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             SongsInBackupQueueMetric.IncTo(UnplayedSongs.Count);
         }
 
-        public async void UpdateState(int state)
+        public async Task UpdateState(int state)
         {
             this.State = (PlayerState)state;
             _logger.LogDebug("Player State {this.State}", state);
@@ -303,6 +327,122 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             return [.. await db.Playlists.GetAllAsync()];
         }
 
+        public async Task SetPlaylists(int? defaultPlaylistId, List<int> additionalPlaylistIds)
+        {
+            await using (var scope = _scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == defaultPlaylistId, includeProperties: "Songs")).FirstOrDefault();
+                if (playList != null)
+                {
+                    BackupPlaylist = playList;
+                    var lastPlaylist = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
+                    lastPlaylist ??= new Setting { Name = LastSongList };
+                    lastPlaylist.IntSetting = playList.Id ?? default;
+                    db.Settings.Update(lastPlaylist);
+
+                    var additionalSetting = await db.Settings.Find(x => x.Name.Equals(AdditionalPlaylistsSetting)).FirstOrDefaultAsync();
+                    additionalSetting ??= new Setting { Name = AdditionalPlaylistsSetting, DataType = Setting.DataTypeEnum.String };
+                    additionalSetting.StringSetting = string.Join(",", additionalPlaylistIds.Distinct().Where(id => id != defaultPlaylistId));
+                    db.Settings.Update(additionalSetting);
+
+                    await db.SaveChangesAsync();
+                }
+            }
+
+            if (additionalPlaylistIds != null && additionalPlaylistIds.Count > 0)
+            {
+                BackupPlaylist.Name = "Multi Playlist";
+                await MergeAdditionalPlaylistsAsync(additionalPlaylistIds);
+            }
+
+            UpdateUnplayedSongs();
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+            await UpdateRequestedSongsState();
+        }
+
+        private async Task MergeAdditionalPlaylistsAsync(List<int> additionalPlaylistIds)
+        {
+            if (additionalPlaylistIds == null || additionalPlaylistIds.Count == 0) return;
+
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var allSongs = new Dictionary<string, Song>();
+            if (BackupPlaylist != null && BackupPlaylist.Songs != null)
+            {
+                foreach (var s in BackupPlaylist.Songs)
+                {
+                    if (!allSongs.ContainsKey(s.SongId))
+                        allSongs.Add(s.SongId, s);
+                }
+            }
+            foreach (var playlistId in additionalPlaylistIds.Distinct())
+            {
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+                if (playList != null && playList.Songs != null)
+                {
+                    foreach (var s in playList.Songs)
+                    {
+                        if (!allSongs.ContainsKey(s.SongId))
+                            allSongs.Add(s.SongId, s);
+                    }
+                }
+            }
+            if (BackupPlaylist == null)
+                BackupPlaylist = new MusicPlaylist();
+            BackupPlaylist.Songs = [.. allSongs.Values];
+        }
+
+        public async Task RefreshUnplayedSongs()
+        {
+            var additionalIds = await GetAdditionalPlaylistIds();
+            if (additionalIds != null && additionalIds.Count > 0)
+            {
+                BackupPlaylist.Name = "Multi Playlist";
+                await MergeAdditionalPlaylistsAsync(additionalIds);
+            }
+            UpdateUnplayedSongs();
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+        }
+
+        public async Task<Dictionary<int, string>> GetPlaylistsContainingSong(string songId, List<int> playlistIds)
+        {
+            var result = new Dictionary<int, string>();
+            if (string.IsNullOrEmpty(songId) || playlistIds == null || playlistIds.Count == 0)
+                return result;
+
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            foreach (var playlistId in playlistIds.Distinct())
+            {
+                var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+                if (playList != null && playList.Songs != null && playList.Songs.Any(s => s.SongId.Equals(songId)))
+                {
+                    result[playlistId] = playList.Name;
+                }
+            }
+            return result;
+        }
+
+        public async Task<List<int>> GetAdditionalPlaylistIds()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = await db.Settings.Find(x => x.Name.Equals(AdditionalPlaylistsSetting)).FirstOrDefaultAsync();
+            if (setting == null || string.IsNullOrEmpty(setting.StringSetting))
+                return new List<int>();
+            return setting.StringSetting.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => int.Parse(s)).ToList();
+        }
+
+        public async Task<int?> GetDefaultPlaylistId()
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = await db.Settings.Find(x => x.Name.Equals(LastSongList)).FirstOrDefaultAsync();
+            return setting?.IntSetting;
+        }
+
         public async Task<MusicPlaylist> GetPlayList(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -317,6 +457,15 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var playList = (await db.Playlists.GetAsync(x => x.Id == id, includeProperties: "Songs")).FirstOrDefault();
             if (playList == null) return;
             db.Playlists.Remove(playList);
+            await db.SaveChangesAsync();
+        }
+
+        public async Task CreatePlaylist(string name)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var playList = new MusicPlaylist { Name = name };
+            db.Playlists.Add(playList);
             await db.SaveChangesAsync();
         }
 
@@ -446,6 +595,28 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             }
         }
 
+        public async Task RemoveSongFromPlaylist(Song requestedSong, int playlistId)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var playList = (await db.Playlists.GetAsync(filter: x => x.Id == playlistId, includeProperties: "Songs")).FirstOrDefault();
+           
+            if (playList == null || playList.Songs == null) return;
+
+            var song = playList.Songs.Where(x => x.SongId.Equals(requestedSong.SongId)).FirstOrDefault();
+            if (song == null) return;
+            
+            playList.Songs.Remove(song);
+            db.Songs.Remove(song);
+            await db.SaveChangesAsync();
+            if (BackupPlaylist.Songs.Any(x => x.SongId.Equals(requestedSong.SongId)))
+            {
+                var inMemorySong = BackupPlaylist.Songs.First(x => x.SongId.Equals(requestedSong.SongId));
+                BackupPlaylist.Songs.Remove(inMemorySong);
+            }
+            await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);
+        }
+
         public async Task RemoveSong(Song requestedSong)
         {
             if (BackupPlaylist.Songs.Count == 0) return;
@@ -456,12 +627,10 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 return;
             }
 
-
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 BackupPlaylist.Songs.Remove(song);
-                db.Playlists.Update(BackupPlaylist);
                 db.Songs.Remove(song);
                 await db.SaveChangesAsync();
             }
@@ -478,6 +647,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         {
             if (BackupPlaylist.Songs.Count == 0) return;
             if (CurrentSong == null) return;
+            if (!BackupPlaylist.Id.HasValue || BackupPlaylist.Id.Value <= 0) return;
             if (BackupPlaylist.Songs.Where(x => x.SongId.Equals(CurrentSong.SongId)).Any())
             {
                 await ServiceBackbone.SendChatMessage("Song is already in the list.");
@@ -486,11 +656,12 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var songToSteel = CurrentSong.CreateDeepCopy();
             songToSteel.Id = null;
             songToSteel.RequestedBy = ServiceBackbone.BotName ?? "TheBot";
+            songToSteel.MusicPlaylistId = BackupPlaylist.Id.Value;
             BackupPlaylist.Songs.Add(songToSteel);
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.Playlists.Update(BackupPlaylist);
+                db.Songs.Add(songToSteel);
                 await db.SaveChangesAsync();
             }
             await _hubContext.Clients.All.SendAsync("UpdateCurrentPlaylist", BackupPlaylist);

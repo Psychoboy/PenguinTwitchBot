@@ -25,9 +25,9 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         }
 
         [Authorize(Roles = "Streamer")]
-        public void UpdateState(int state)
+        public async Task UpdateState(int state)
         {
-            _ytPlayer.UpdateState(state);
+            await _ytPlayer.UpdateState(state);
         }
 
         [Authorize(Roles = "Streamer")]
