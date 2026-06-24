@@ -48,7 +48,7 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Size="Size.Small" Disabled="true" />
                         </MudTooltip>
                     }
-                    @if (OnToggleAdditional.HasDelegate && DefaultPlaylistId != context.Id)
+                    @if (OnToggleAdditional.HasDelegate && DefaultPlaylistId != context.Id && context.Id is not null)
                     {
                         var isChecked = AdditionalPlaylistIds.Contains(context.Id.Value);
                         <MudTooltip Text="@(isChecked ? "Remove from Additional" : "Add to Additional")">
