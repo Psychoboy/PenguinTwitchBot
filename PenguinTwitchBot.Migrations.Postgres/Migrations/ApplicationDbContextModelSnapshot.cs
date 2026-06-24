@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -2205,6 +2205,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Bot.Actions.SubActions.Types.AlertType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("AlertChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("CSS")
                         .IsRequired()

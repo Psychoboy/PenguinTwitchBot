@@ -511,3 +511,4 @@ PenguinTwitchBot/Data/counters/shots.txt
 PenguinTwitchBot/Data/*.sqlite
 PenguinTwitchBot/Data/*.sqlite*
 PenguinTwitchBot/appsettings.secrets - Copy.json
+.kilo/*

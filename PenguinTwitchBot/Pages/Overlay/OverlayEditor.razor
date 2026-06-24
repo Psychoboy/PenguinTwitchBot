@@ -77,7 +77,7 @@
                 <MudMenu Label="Add Widget" StartIcon="@Icons.Material.Filled.Add"
                          Variant="Variant.Filled" Color="Color.Secondary" Dense="true"
                          Class="mr-2">
-                    @foreach (var def in WidgetRegistry.All.Where(d => _widgets.All(w => w.WidgetType != d.Type)))
+                    @foreach (var def in WidgetRegistry.All)
                     {
                         <MudMenuItem OnClick="() => AddWidget(def)">@def.DisplayName</MudMenuItem>
                     }
@@ -278,6 +278,18 @@
             <MudNumericField T="int" Label="Z-Index" @bind-Value="_selected.ZIndex"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-4"
                              Min="1" />
+
+            @* ── Alerts widget configuration ── *@
+            @if (_selected.WidgetType == "alerts")
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Alert Settings</b></MudText>
+                <MudTextField Label="Alert channel"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Optional channel name to route this alert to a specific overlay; leave blank for default"
+                              Value="_alertChannel"
+                              ValueChanged="@((string v) => { _alertChannel = v; SaveAlertChannel(); })" />
+            }
 
             @* ── Chat widget configuration ── *@
             @if (_selected.WidgetType == "chat" && _chatSettings != null)
@@ -633,19 +645,34 @@
         _widgets = layout.Widgets.Select(w =>
         {
             var def = WidgetRegistry.Find(w.WidgetType);
-            return new WidgetModel
+            var model = new WidgetModel
             {
-                WidgetType = w.WidgetType,
+                WidgetType  = w.WidgetType,
                 DisplayName = def?.DisplayName ?? w.WidgetType,
-                IsEnabled = w.IsEnabled,
-                IsLocked = w.IsLocked,
-                X = w.X,
-                Y = w.Y,
-                Width = w.Width,
-                Height = w.Height,
-                ZIndex = w.ZIndex,
+                IsEnabled   = w.IsEnabled,
+                IsLocked    = w.IsLocked,
+                X           = w.X,
+                Y           = w.Y,
+                Width       = w.Width,
+                Height      = w.Height,
+                ZIndex      = w.ZIndex,
                 CustomSettings = w.CustomSettings
             };
+
+            if (w.WidgetType == "alerts" && !string.IsNullOrWhiteSpace(w.CustomSettings))
+            {
+                try
+                {
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, string?>>(w.CustomSettings, _chatJsonOptions);
+                    if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string.IsNullOrWhiteSpace(channel))
+                    {
+                        model.DisplayName = $"{model.DisplayName} ({channel})";
+                    }
+                }
+                catch { }
+            }
+
+            return model;
         }).ToList();
     }
 
@@ -825,6 +852,7 @@
     {
         _selected = (w == _selected ? null : w);
         LoadChatSettings();
+        LoadAlertChannel();
     }
 
     private void RemoveSelectedWidget()
@@ -960,6 +988,7 @@
     // ── Chat settings helpers ───────────────────────────────────────────────────
 
     private ChatSettings? _chatSettings;
+    private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
     [
@@ -1061,6 +1090,53 @@
     {
         if (_selected != null && _chatSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_chatSettings, _chatJsonOptions);
+    }
+
+    private void LoadAlertChannel()
+    {
+        if (_selected?.WidgetType == "alerts")
+        {
+            try
+            {
+                _alertChannel = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? ""
+                    : JsonSerializer.Deserialize<Dictionary<string, string?>>(_selected.CustomSettings, _chatJsonOptions) is var dict && dict != null && dict.TryGetValue("alertChannel", out var val)
+                        ? val ?? ""
+                        : "";
+            }
+            catch
+            {
+                _alertChannel = "";
+            }
+
+            var def = WidgetRegistry.Find("alerts");
+            var baseName = def?.DisplayName ?? "Alerts";
+            _selected.DisplayName = string.IsNullOrWhiteSpace(_alertChannel)
+                ? baseName
+                : $"{baseName} ({_alertChannel})";
+        }
+        else
+        {
+            _alertChannel = "";
+        }
+    }
+
+    private void SaveAlertChannel()
+    {
+        if (_selected == null) return;
+        var dict = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(_alertChannel))
+            dict["alertChannel"] = _alertChannel;
+        _selected.CustomSettings = JsonSerializer.Serialize(dict, _chatJsonOptions);
+
+        if (_selected.WidgetType == "alerts")
+        {
+            var def = WidgetRegistry.Find("alerts");
+            var baseName = def?.DisplayName ?? "Alerts";
+            _selected.DisplayName = string.IsNullOrWhiteSpace(_alertChannel)
+                ? baseName
+                : $"{baseName} ({_alertChannel})";
+        }
     }
 
     // ── Inner types ─────────────────────────────────────────────────────────────

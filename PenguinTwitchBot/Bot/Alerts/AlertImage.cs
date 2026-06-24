@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Bot.Alerts
 
         public override string Generate()
         {
-            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false}}",
+            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false,\"alertChannel\":\"\"}}",
             FileName, Duration, Volume, CSS, Message);
         }
 
