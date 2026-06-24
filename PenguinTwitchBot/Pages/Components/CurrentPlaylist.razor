@@ -109,7 +109,7 @@
     private readonly DialogOptions _removeDialogOptions = new() { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
     private List<PlaylistCheckItem> _selectedPlaylists = new();
 
-    private async void OpenRemoveDialog(Song song)
+    private async Task OpenRemoveDialog(Song song)
     {
         _removingSong = song;
         if (OnGetPlaylistsForSong != null)

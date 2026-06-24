@@ -8,6 +8,7 @@
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<MusicPlayer> logger
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Player</PageTitle>
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
@@ -322,7 +323,14 @@
 
     private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
     {
-        await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
+        bool? result = await DialogService.ShowMessageBoxAsync(
+        "Warning",
+        "Deleting can not be undone!",
+        yesText: "Delete!", cancelText: "Cancel");
+        if (result != null)
+        {
+            await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
+        }
     }
 
     private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
