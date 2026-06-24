@@ -18,208 +18,29 @@
         </MudText>
 
         <MudGrid Spacing="3">
-            @if (currentSong != null)
-            {
-                <MudItem xs="12" md="4">
-                    <MudPaper Elevation="3" Class="pa-4">
-                        <MudStack Spacing="2">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
-                                <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
-                            </MudStack>
-                            <MudDivider />
-                            <MudStack Spacing="1">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Primary" />
-                                    <MudText Typo="Typo.subtitle1"><strong>@currentSong.Title</strong></MudText>
-                                </MudStack>
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Secondary" />
-                                    <MudText Typo="Typo.body2">Requested by <strong>@currentSong.RequestedBy</strong></MudText>
-                                </MudStack>
-                            </MudStack>
-                            <MudDivider />
-                            @if (YtPlayer.SongExistsInBackupList(currentSong))
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Default" Disabled="true" StartIcon="@Icons.Material.Filled.CheckCircle">
-                                    Already in Playlist
-                                </MudButton>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StealSong" StartIcon="@Icons.Material.Filled.LibraryAdd">
-                                    Steal Song
-                                </MudButton>
-                            }
-                        </MudStack>
-                    </MudPaper>
-                </MudItem>
-            }
-
             @if (musicPlaylists != null)
             {
-                <MudItem xs="12" md="@(currentSong != null ? 8 : 12)">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@musicPlaylists" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Color="Color.Secondary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">Available Playlists</MudText>
-                                <MudSpacer />
-                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                                           StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" Class="mr-2">
-                                    Import from YouTube
-                                </MudButton>
-                                <MudBadge Content="@musicPlaylists.Count" Color="Color.Info" Overlap="true">
-                                    <MudIcon Icon="@Icons.Material.Filled.PlaylistPlay" Color="Color.Default" />
-                                </MudBadge>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Playlist Name</MudTh>
-                                <MudTh>Actions</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Name">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.PlaylistPlay" Size="Size.Small" Color="Color.Primary" />
-                                        <MudText><strong>@context.Name</strong></MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Actions">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.PlayArrow"
-                                                   OnClick="() => StartPlaylist(context)">
-                                            Load
-                                        </MudButton>
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.Visibility"
-                                                   OnClick="() => ViewList(context)">
-                                            View
-                                        </MudButton>
-                                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.Delete"
-                                                   OnClick="() => DeletePlaylist(context)">
-                                            Delete
-                                        </MudButton>
-                                    </MudStack>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PlaylistRemove">
-                                    No playlists available
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
+                <MudItem xs="12" md="4">
+                    <AvailablePlaylists Playlists="musicPlaylists" DefaultPlaylistId="defaultPlaylistId" AdditionalPlaylistIds="additionalPlaylistIds"
+                                       OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnView="ViewList" OnDelete="DeletePlaylist" OnRefresh="RefreshUnplayedSongs">
+                        <ToolBarContent>
+                            <MudSpacer />
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" Class="mr-2">
+                                Import from YouTube
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Add" OnClick="CreateBlankPlaylist">
+                                New Playlist
+                            </MudButton>
+                        </ToolBarContent>
+                    </AvailablePlaylists>
                 </MudItem>
             }
-
-            @if (songRequests != null)
-            {
-                <MudItem xs="12" md="8">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@songRequests" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Color="Color.Primary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">Song Requests</MudText>
-                                <MudSpacer />
-                                <MudBadge Content="@songRequests.Count" Color="Color.Info" Overlap="true">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
-                                </MudBadge>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Title</MudTh>
-                                <MudTh>Length</MudTh>
-                                <MudTh>Requested By</MudTh>
-                                <MudTh>Actions</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Title">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
-                                        <MudText>@context.Title</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Duration">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
-                                        <MudText>@context.Duration</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Requested By">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Success" />
-                                        <MudText>@context.RequestedBy</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Actions">
-                                    <MudStack Row="true" Spacing="1">
-                                        <MudTooltip Text="Move to Next">
-                                            <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small"
-                                                           OnClick="() => Priority(context)" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Remove Request">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                           OnClick="() => RemoveSongRequest(context)" />
-                                        </MudTooltip>
-                                    </MudStack>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
-                                    No song requests in queue
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
-                </MudItem>
-            }
-
             @if (currentPlayList != null)
             {
-                <MudItem xs="12" md="@(songRequests != null ? 12 : 8)">
-                    <MudPaper Elevation="3">
-                        <MudTable Items="@currentPlayList.Songs" Dense="true" Hover="true">
-                            <ToolBarContent>
-                                <MudIcon Icon="@Icons.Material.Filled.Album" Color="Color.Tertiary" Class="mr-2" />
-                                <MudText Typo="Typo.h6">Current Playlist: @currentPlayList.Name</MudText>
-                                <MudSpacer />
-                                <MudBadge Content="@currentPlayList.Songs.Count" Color="Color.Info" Overlap="true">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Default" />
-                                </MudBadge>
-                            </ToolBarContent>
-                            <HeaderContent>
-                                <MudTh>Title</MudTh>
-                                <MudTh>Length</MudTh>
-                                <MudTh>Actions</MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd DataLabel="Title">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Secondary" />
-                                        <MudText>@context.Title</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Duration">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Info" />
-                                        <MudText>@context.Duration</MudText>
-                                    </MudStack>
-                                </MudTd>
-                                <MudTd DataLabel="Actions">
-                                    <MudTooltip Text="Remove from Playlist">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                       OnClick="() => RemoveSong(context)" />
-                                    </MudTooltip>
-                                </MudTd>
-                            </RowTemplate>
-                            <NoRecordsContent>
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PlaylistRemove">
-                                    Playlist is empty
-                                </MudAlert>
-                            </NoRecordsContent>
-                        </MudTable>
-                    </MudPaper>
+                <MudItem xs="12" md="8">
+                    <CurrentPlaylist Playlist="currentPlayList" OnRemoveSongFrom="RemoveSongFromPlaylist" OnGetPlaylistsForSong="GetPlaylistsForSong" />
                 </MudItem>
             }
         </MudGrid>
@@ -233,6 +54,8 @@
     private List<Song>? songRequests;
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
+    private int? defaultPlaylistId;
+    private List<int> additionalPlaylistIds = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -240,6 +63,8 @@
         musicPlaylists = await YtPlayer.Playlists();
         currentPlayList = await YtPlayer.CurrentPlaylist();
         currentSong = YtPlayer.GetCurrentSong();
+        defaultPlaylistId = await YtPlayer.GetDefaultPlaylistId();
+        additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -287,12 +112,69 @@
         navigationManager.NavigateTo($"/viewplaylist/{musicPlaylist.Id}");
     }
 
-    private async Task StartPlaylist(MusicPlaylist musicPlaylist)
+    private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)
     {
         if (musicPlaylist != null && musicPlaylist.Id != null)
         {
-            await YtPlayer.LoadPlayList((int)musicPlaylist.Id);
+            var newDefaultId = musicPlaylist.Id.Value;
+            additionalPlaylistIds.Remove(newDefaultId);
+            await YtPlayer.SetPlaylists(newDefaultId, additionalPlaylistIds);
+            defaultPlaylistId = newDefaultId;
+            currentPlayList = await YtPlayer.CurrentPlaylist();
             StateHasChanged();
+        }
+    }
+
+    private async Task ToggleAdditionalPlaylist((MusicPlaylist, bool) args)
+    {
+        var (playlist, isChecked) = args;
+        if (playlist == null || playlist.Id == null || defaultPlaylistId == playlist.Id) return;
+        if (defaultPlaylistId == null)
+        {
+            Snackbar.Add("Set a default playlist before enabling additional playlists.", Severity.Warning);
+            return;
+        }
+        if (isChecked)
+        {
+            if (!additionalPlaylistIds.Contains(playlist.Id.Value))
+                additionalPlaylistIds.Add(playlist.Id.Value);
+        }
+        else
+        {
+            additionalPlaylistIds.Remove(playlist.Id.Value);
+        }
+        await YtPlayer.SetPlaylists(defaultPlaylistId, additionalPlaylistIds);
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+        StateHasChanged();
+    }
+
+    private async Task RefreshUnplayedSongs()
+    {
+        await YtPlayer.RefreshUnplayedSongs();
+        currentPlayList = await YtPlayer.CurrentPlaylist();
+        StateHasChanged();
+    }
+
+    private async Task CreateBlankPlaylist()
+    {
+        var parameters = new DialogParameters<CreatePlaylistDialog>();
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePlaylistDialog>("Create New Playlist", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled && result.Data is string playlistName)
+        {
+            try
+            {
+                await YtPlayer.CreatePlaylist(playlistName);
+                musicPlaylists = await YtPlayer.Playlists();
+                Snackbar.Add($"Playlist '{playlistName}' created.", Severity.Success);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create playlist");
+                Snackbar.Add("Failed to create playlist.", Severity.Error);
+            }
         }
     }
     private async Task Priority(Song song)
@@ -300,7 +182,7 @@
         await YtPlayer.MoveSongToNext(song.SongId);
     }
 
-    private async Task RemoveSong(Song song)
+    private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
@@ -308,8 +190,18 @@
         yesText: "Delete!", cancelText: "Cancel");
         if (result != null)
         {
-            await YtPlayer.RemoveSong(song);
+            await YtPlayer.RemoveSongFromPlaylist(args.song, args.playlistId);
         }
+    }
+
+    private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
+    {
+        var allIds = new List<int>();
+        if (defaultPlaylistId.HasValue)
+            allIds.Add(defaultPlaylistId.Value);
+        allIds.AddRange(additionalPlaylistIds);
+        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, allIds);
+        return result;
     }
 
     private async Task RemoveSongRequest(Song song)
