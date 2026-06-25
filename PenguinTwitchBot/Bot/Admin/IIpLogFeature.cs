@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Models;
 
 namespace PenguinTwitchBot.Bot.Admin

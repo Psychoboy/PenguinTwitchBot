@@ -2,9 +2,10 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.CustomMiddleware;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;

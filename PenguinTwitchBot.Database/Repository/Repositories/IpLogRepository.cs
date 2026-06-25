@@ -1,11 +1,11 @@
 
 
-using PenguinTwitchBot.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class IpLogRepository(ApplicationDbContext context) : GenericRepository<IpLogEntry>(context), IIpLogRepository
     {

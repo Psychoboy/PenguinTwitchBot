@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Pages.Actions
 @inject IDialogService DialogService
 @inject MudBlazor.ISnackbar Snackbar
@@ -14,7 +14,7 @@
             <MudPaper Class="pa-3" Outlined="true">
                 <MudStack Spacing="2">
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.h6" Color="Color.Success">✔ If True - Execute These</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Success">âœ” If True - Execute These</MudText>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Success" Size="Size.Small" 
                                    OnClick="AddTrueSubAction" Variant="Variant.Filled">
                             Add SubAction
@@ -74,7 +74,7 @@
             <MudPaper Class="pa-3" Outlined="true">
                 <MudStack Spacing="2">
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.h6" Color="Color.Error">❌ If False - Execute These</MudText>
+                        <MudText Typo="Typo.h6" Color="Color.Error">âŒ If False - Execute These</MudText>
                         <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Error" Size="Size.Small" 
                                    OnClick="AddFalseSubAction" Variant="Variant.Filled">
                             Add SubAction

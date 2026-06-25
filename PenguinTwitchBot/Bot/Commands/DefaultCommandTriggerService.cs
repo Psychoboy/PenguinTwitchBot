@@ -1,11 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Actions;
-using PenguinTwitchBot.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using PenguinTwitchBot.Repository;
-using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Concurrent;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Commands
 {

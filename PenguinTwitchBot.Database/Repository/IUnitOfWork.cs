@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IUnitOfWork : IDisposable
     {

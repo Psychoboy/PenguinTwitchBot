@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Timers;
+using PenguinTwitchBot.Database.Bot.Models.Timers;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface ITimerGroupsRepository : IGenericRepository<TimerGroup>
     {

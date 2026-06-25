@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Wheel;
+using PenguinTwitchBot.Database.Bot.Models.Wheel;
 
 namespace PenguinTwitchBot.Bot.Commands.WheelSpin
 {

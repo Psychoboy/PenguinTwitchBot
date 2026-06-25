@@ -57,8 +57,8 @@
 </MudContainer>
 
 @code {
-    private List<PenguinTwitchBot.Bot.Models.AliasModel>? aliases;
-    private PenguinTwitchBot.Bot.Models.AliasModel? theAlias { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.AliasModel>? aliases;
+    private PenguinTwitchBot.Database.Bot.Models.AliasModel? theAlias { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     protected override async Task OnInitializedAsync()
     {
@@ -85,12 +85,12 @@
         StateHasChanged();
     }
 
-    private void Edit(PenguinTwitchBot.Bot.Models.AliasModel item)
+    private void Edit(PenguinTwitchBot.Database.Bot.Models.AliasModel item)
     {
         navigationManager.NavigateTo($"/aliases/{item.Id}");
     }
 
-    private async Task Delete(PenguinTwitchBot.Bot.Models.AliasModel item)
+    private async Task Delete(PenguinTwitchBot.Database.Bot.Models.AliasModel item)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",

@@ -1,7 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace PenguinTwitchBot.Bot.Models.Obs
+namespace PenguinTwitchBot.Database.Bot.Models.Obs
 {
     /// <summary>
     /// Represents an OBS WebSocket connection configuration

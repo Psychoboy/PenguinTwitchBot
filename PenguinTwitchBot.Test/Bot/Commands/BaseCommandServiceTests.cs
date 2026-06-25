@@ -1,7 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using NSubstitute;
 
 namespace PenguinTwitchBot.Tests.Bot.Commands

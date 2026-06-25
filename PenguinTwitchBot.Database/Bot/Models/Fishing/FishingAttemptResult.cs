@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Fishing
+namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 {
     public class FishingAttemptResult
     {

@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface ICooldownsRepository : IGenericRepository<CurrentCooldowns>
     {

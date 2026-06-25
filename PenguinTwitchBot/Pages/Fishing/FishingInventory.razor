@@ -1,6 +1,6 @@
-﻿@page "/fishing/inventory"
+@page "/fishing/inventory"
 @using PenguinTwitchBot.Bot.Commands.Fishing
-@using PenguinTwitchBot.Bot.Models.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Components.Fishing
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
@@ -95,7 +95,7 @@
                                                         var fishType = fishTypes.FirstOrDefault(f => f.Id == equippedItem.ShopItem!.TargetFishTypeId.Value);
                                                         if (fishType != null)
                                                         {
-                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                                            <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
                                                         }
                                                     }
                                                     <MudStack Row="true" Spacing="1">
@@ -259,7 +259,7 @@
                                             var fishType = fishTypes.FirstOrDefault(f => f.Id == context.ShopItem!.TargetFishTypeId.Value);
                                             if (fishType != null)
                                             {
-                                                <MudText Typo="Typo.caption" Color="Color.Secondary">→ Targets: @fishType.Name</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ Targets: @fishType.Name</MudText>
                                             }
                                         }
                                     </MudStack>
@@ -413,7 +413,7 @@
                                         var fishType = fishTypes.FirstOrDefault(f => f.Id == item.ShopItem!.TargetFishTypeId.Value);
                                         if (fishType != null)
                                         {
-                                            <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
                                         }
                                     }
                                 </MudStack>
@@ -425,7 +425,7 @@
                                     }
                                     else
                                     {
-                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">∞</MudChip>
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">âˆž</MudChip>
                                     }
                                 </MudStack>
                             </MudStack>

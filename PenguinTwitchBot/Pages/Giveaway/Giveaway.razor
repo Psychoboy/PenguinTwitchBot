@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
-@using PenguinTwitchBot.Bot.Models.Giveaway
+@using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar

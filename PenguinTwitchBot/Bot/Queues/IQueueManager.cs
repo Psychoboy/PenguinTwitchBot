@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 
 namespace PenguinTwitchBot.Bot.Queues
 {

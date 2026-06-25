@@ -1,6 +1,6 @@
 @page "/actions/queues"
 @using PenguinTwitchBot.Bot.Queues
-@using PenguinTwitchBot.Bot.Models.Queues
+@using PenguinTwitchBot.Database.Bot.Models.Queues
 @using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager

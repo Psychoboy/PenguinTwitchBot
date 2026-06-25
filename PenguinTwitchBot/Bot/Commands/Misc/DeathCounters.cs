@@ -1,9 +1,10 @@
-﻿using PenguinTwitchBot.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Misc
 {
@@ -150,19 +151,19 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
         }
 
-        private async Task<Models.DeathCounter> GetCounter(string counterName)
+        private async Task<DeathCounter> GetCounter(string counterName)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var counter = await db.DeathCounters.Find(x => x.Game.Equals(counterName)).FirstOrDefaultAsync();
-            counter ??= new Models.DeathCounter
+            counter ??= new DeathCounter
             {
                 Game = counterName
             };
             return counter;
         }
 
-        private async Task UpdateCounter(Models.DeathCounter counter)
+        private async Task UpdateCounter(DeathCounter counter)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

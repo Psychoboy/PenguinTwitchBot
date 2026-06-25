@@ -1,9 +1,8 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notification;
 using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Commands
 {

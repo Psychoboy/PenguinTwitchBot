@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using System;
 
-namespace PenguinTwitchBot.Bot.Core.Database
+namespace PenguinTwitchBot.Database.Bot.Core.Database
 {
 	/// <summary>
 	/// Helper class to configure DateTime properties for multi-database support.

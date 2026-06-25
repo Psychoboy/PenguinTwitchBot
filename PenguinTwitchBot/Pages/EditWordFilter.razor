@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
-@using PenguinTwitchBot.Bot.Models;
+@using PenguinTwitchBot.Database.Bot.Models;
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist Blacklist
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

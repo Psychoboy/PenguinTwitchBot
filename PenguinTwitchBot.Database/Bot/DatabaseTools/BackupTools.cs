@@ -1,11 +1,9 @@
-﻿using PenguinTwitchBot.Bot.Models.Points;
-using PenguinTwitchBot.Repository;
-using EFCore.BulkExtensions;
-using LinqToDB.EntityFrameworkCore;
-using System.IO.Compression;
+﻿using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
+using System.IO.Compression;
 
-namespace PenguinTwitchBot.Bot.DatabaseTools
+namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 {
     public class BackupTools
     {

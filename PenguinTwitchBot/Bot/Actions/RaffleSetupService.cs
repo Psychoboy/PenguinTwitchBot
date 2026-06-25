@@ -1,11 +1,9 @@
 using System.Text.Json;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Actions
 {

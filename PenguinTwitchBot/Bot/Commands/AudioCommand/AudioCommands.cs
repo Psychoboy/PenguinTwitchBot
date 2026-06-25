@@ -1,12 +1,13 @@
 ﻿using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Bot.Actions;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -20,7 +21,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
         ILanguage language,
         ICommandHandler commandHandler) : BaseCommandService(eventService, commandHandler, "AudioHooks", dispatcher), IHostedService
     {
-        readonly ConcurrentDictionary<string, Models.Commands.AudioCommand> Commands = [];
+        readonly ConcurrentDictionary<string, PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand> Commands = [];
 
         private async Task LoadAudioCommands()
         {
@@ -40,7 +41,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
             logger.LogInformation("Finished loading Audio Hooks: {count}", count);
         }
 
-        public async Task AddAudioCommand(Models.Commands.AudioCommand audioCommand)
+        public async Task AddAudioCommand(PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -57,7 +58,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
             await LoadAudioCommands();
         }
 
-        public async Task SaveAudioCommand(Models.Commands.AudioCommand audioCommand)
+        public async Task SaveAudioCommand(PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -68,7 +69,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
             await LoadAudioCommands();
         }
 
-        public async Task DeleteAudioCommand(Models.Commands.AudioCommand audioCommand)
+        public async Task DeleteAudioCommand(PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand audioCommand)
         {
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
@@ -86,19 +87,19 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
             return await db.AudioCommands.Find(x => x.CommandName == command).AnyAsync();
         }
 
-        public Dictionary<string, Models.Commands.AudioCommand> GetAudioCommands()
+        public Dictionary<string, PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand> GetAudioCommands()
         {
             return Commands.ToDictionary();
         }
 
-        public async Task<List<Models.Commands.AudioCommand>> GetAllAsync()
+        public async Task<List<PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand>> GetAllAsync()
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return (await db.AudioCommands.GetAllAsync()).ToList();
         }
 
-        public async Task<Models.Commands.AudioCommand?> GetAudioCommand(int id)
+        public async Task<PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand?> GetAudioCommand(int id)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -176,7 +177,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
 
         }
 
-        private async Task RunCommand(Models.Commands.AudioCommand audioCommand, CommandEventArgs e)
+        private async Task RunCommand(PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand audioCommand, CommandEventArgs e)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
@@ -215,7 +216,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
 
         private async Task ToggleAudioCommandDisable(CommandEventArgs e, bool disabled)
         {
-            if (!Commands.TryGetValue(e.Arg, out Models.Commands.AudioCommand? value)) return;
+            if (!Commands.TryGetValue(e.Arg, out PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand? value)) return;
             await using (var scope = scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -242,7 +243,7 @@ namespace PenguinTwitchBot.Bot.Commands.AudioCommand
         {
             try
             {
-                var newAudioCommand = JsonSerializer.Deserialize<Models.Commands.AudioCommand>(e.Arg);
+                var newAudioCommand = JsonSerializer.Deserialize<PenguinTwitchBot.Database.Bot.Models.Commands.AudioCommand>(e.Arg);
                 if (newAudioCommand != null)
                 {
                     await AddAudioCommand(newAudioCommand);

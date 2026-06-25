@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core.Points;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;

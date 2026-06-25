@@ -1,4 +1,5 @@
-﻿using Quartz;
+﻿using PenguinTwitchBot.Bot.Core.Database;
+using Quartz;
 
 namespace PenguinTwitchBot.Bot.ScheduledJobs
 {

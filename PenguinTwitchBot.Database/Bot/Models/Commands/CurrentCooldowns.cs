@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Commands
+namespace PenguinTwitchBot.Database.Bot.Models.Commands
 {
     [IndexAttribute(nameof(CommandName), nameof(UserName))]
     [IndexAttribute(nameof(CommandName), nameof(IsGlobal))]

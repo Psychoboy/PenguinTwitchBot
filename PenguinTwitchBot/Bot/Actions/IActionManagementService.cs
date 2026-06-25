@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Actions
 {

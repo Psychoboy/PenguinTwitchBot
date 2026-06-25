@@ -1,6 +1,6 @@
-﻿@page "/fishing/balance-analysis"
+@page "/fishing/balance-analysis"
 @using PenguinTwitchBot.Bot.Commands.Fishing
-@using PenguinTwitchBot.Bot.Models.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using System.Text.Json
 @inject IFishingShopService ShopService
 @inject IFishingAnalyticsService AnalyticsService
@@ -218,7 +218,7 @@
 
                     <MudAlert Severity="Severity.Success" Dense="true">
                         <MudText Typo="Typo.body2">
-                            <strong>✔ Pricing Calculation:</strong> Using <strong>@GetPricingGoldSourceDisplay(pricingGoldSource)</strong> with <strong>@GetPricingScopeDisplay(pricingScope)</strong> scope.
+                            <strong>âœ” Pricing Calculation:</strong> Using <strong>@GetPricingGoldSourceDisplay(pricingGoldSource)</strong> with <strong>@GetPricingScopeDisplay(pricingScope)</strong> scope.
                         </MudText>
                     </MudAlert>
 
@@ -345,7 +345,7 @@
                                             @pricePreview.GoldPerCatch.ToString("F2")g
                                         </MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                            ~@pricePreview.AttemptsPerSession.ToString("F1") attempts/session × @pricePreview.StreamsPerWeek.ToString("F2") streams/wk = @pricePreview.WeeklyIncome.ToString("F0")g/week
+                                            ~@pricePreview.AttemptsPerSession.ToString("F1") attempts/session Ã— @pricePreview.StreamsPerWeek.ToString("F2") streams/wk = @pricePreview.WeeklyIncome.ToString("F0")g/week
                                         </MudText>
                                     </MudStack>
                                 </MudPaper>

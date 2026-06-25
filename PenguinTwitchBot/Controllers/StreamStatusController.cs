@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using Microsoft.AspNetCore.Mvc;
 
 namespace PenguinTwitchBot.Controllers

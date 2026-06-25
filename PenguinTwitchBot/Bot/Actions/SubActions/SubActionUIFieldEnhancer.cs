@@ -1,12 +1,9 @@
-using Microsoft.Extensions.DependencyInjection;
-using PenguinTwitchBot.Bot.ObsConnector;
-using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions;
 

@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Metrics;
+using PenguinTwitchBot.Database.Bot.Models.Metrics;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class SongRequestHistoryRepository(ApplicationDbContext context) : GenericRepository<SongRequestHistory>(context), ISongRequestHistoryRepository
     {

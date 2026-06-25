@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Actions.SubActions
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 {
     /// <summary>
     /// Attribute to provide metadata for SubAction types.

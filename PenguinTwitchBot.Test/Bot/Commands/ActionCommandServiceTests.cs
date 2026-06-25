@@ -1,8 +1,10 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Text.Json;

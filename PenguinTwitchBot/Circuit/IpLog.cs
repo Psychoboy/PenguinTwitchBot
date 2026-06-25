@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Models.IpLogs;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Repository;
 using System.Net;
 using System.Net.Sockets;
 
@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Circuit
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
             if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
-            var normalizedUsername = Bot.Core.UsernameNormalizer.Normalize(username);
+            var normalizedUsername = Database.Bot.Core.UsernameNormalizer.Normalize(username);
             await Task.WhenAll(
                 AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
                 CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)

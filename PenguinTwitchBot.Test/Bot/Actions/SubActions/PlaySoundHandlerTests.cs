@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using NSubstitute;
 using System.Collections.Concurrent;
 

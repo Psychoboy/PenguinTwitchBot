@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Models.Overlay
+namespace PenguinTwitchBot.Database.Bot.Models.Overlay
 {
     /// <summary>
     /// Describes a single available overlay widget type.

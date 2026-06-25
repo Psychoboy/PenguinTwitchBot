@@ -1,11 +1,11 @@
 @page "/keywords"
 @page "/actions/keywords"
-@using PenguinTwitchBot.Bot.Models.Commands
-@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Commands
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @using PenguinTwitchBot.Bot.Commands
 @using PenguinTwitchBot.Pages.Components
 @using PenguinTwitchBot.Bot.Actions
-@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IActionKeywordService KeywordService

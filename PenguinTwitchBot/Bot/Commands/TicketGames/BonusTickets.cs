@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notification;
+using PenguinTwitchBot.Application.ChatMessage.Notification;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;

@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Commands
+namespace PenguinTwitchBot.Database.Bot.Models.Commands
 {
     public class ExternalCommands : BaseCommandProperties
     {

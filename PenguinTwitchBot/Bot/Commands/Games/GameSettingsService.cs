@@ -1,7 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Bot.Models.Games;
-using PenguinTwitchBot.Bot.Models.Points;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Database.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Models.Games;
+using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace PenguinTwitchBot.Bot.Commands.Games
@@ -14,7 +15,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     {
         private static string NormalizeKey(string value)
         {
-            return Core.UsernameNormalizer.Normalize(value);
+            return UsernameNormalizer.Normalize(value);
         }
 
         private static string NormalizeGameName(string gameName)

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core.Points;
 
 namespace PenguinTwitchBot.Bot.Commands.PastyGames

@@ -1,10 +1,10 @@
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using LinqToDB;
 using LinqToDB.EntityFrameworkCore;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class UserPointsRepository(ApplicationDbContext context) :
         GenericRepository<UserPoints>(context), IUserPointsRepository

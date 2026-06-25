@@ -1,11 +1,11 @@
-﻿using PenguinTwitchBot.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.PastyGames
 {

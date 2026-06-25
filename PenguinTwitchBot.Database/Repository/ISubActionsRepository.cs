@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface ISubActionsRepository : IGenericRepository<SubActionType>
     {

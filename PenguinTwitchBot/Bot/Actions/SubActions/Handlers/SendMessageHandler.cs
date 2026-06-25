@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notification;
+using PenguinTwitchBot.Application.ChatMessage.Notification;
 using PenguinTwitchBot.Bot.Queues;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.TwitchServices;
 using System.Collections.Concurrent;
 

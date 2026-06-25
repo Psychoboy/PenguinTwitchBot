@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Points
+namespace PenguinTwitchBot.Database.Bot.Models.Points
 {
     [IndexAttribute(nameof(UserId))]
     [IndexAttribute(nameof(Username))]

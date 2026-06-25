@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;

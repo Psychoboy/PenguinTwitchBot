@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
 {
     /// <summary>
     /// Interface for SubActions to provide their own UI configuration.

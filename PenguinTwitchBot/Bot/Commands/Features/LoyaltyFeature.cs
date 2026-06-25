@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Repository;
 using LinqToDB.EntityFrameworkCore;
 using System.Timers;
 using Timer = System.Timers.Timer;

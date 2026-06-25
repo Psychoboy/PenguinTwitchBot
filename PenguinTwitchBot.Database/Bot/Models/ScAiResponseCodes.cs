@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Models
+namespace PenguinTwitchBot.Database.Bot.Models
 {
     [IndexAttribute(nameof(UserId), IsUnique = true)]
     public class ScAiResponseCodes

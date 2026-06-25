@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace PenguinTwitchBot.Bot.Models
+namespace PenguinTwitchBot.Database.Bot.Models
 {
     [IndexAttribute(nameof(Username))]
     public class SubscriptionHistory

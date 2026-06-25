@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Commands.Fishing;
-using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

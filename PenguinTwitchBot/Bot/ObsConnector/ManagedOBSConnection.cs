@@ -1,7 +1,7 @@
-﻿using OBSWebsocketDotNet;
+using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
 using OBSWebsocketDotNet.Types.Events;
-using PenguinTwitchBot.Bot.Models.Obs;
+using PenguinTwitchBot.Database.Bot.Models.Obs;
 
 namespace PenguinTwitchBot.Bot.ObsConnector
 {

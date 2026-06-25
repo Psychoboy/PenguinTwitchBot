@@ -1,20 +1,20 @@
-﻿using PenguinTwitchBot.Bot.Actions;
-using PenguinTwitchBot.Bot.Actions.SubActions;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Bot.Models.Giveaway;
-using PenguinTwitchBot.Bot.Models.IpLogs;
-using PenguinTwitchBot.Bot.Models.Points;
-using PenguinTwitchBot.Bot.Models.Timers;
-using PenguinTwitchBot.Bot.Models.Wheel;
-using PenguinTwitchBot.Bot.Models.Obs;
-using PenguinTwitchBot.Bot.Models.Fishing;
-using PenguinTwitchBot.Bot.Models.Overlay;
-using PenguinTwitchBot.Bot.Core;
+﻿using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Giveaway;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Timers;
+using PenguinTwitchBot.Database.Bot.Models.Wheel;
+using PenguinTwitchBot.Database.Bot.Models.Obs;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Bot.Core;
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Bot.Core.Database
+namespace PenguinTwitchBot.Database.Bot.Core.Database
 {
     public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
     {

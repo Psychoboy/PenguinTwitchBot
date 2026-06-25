@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Models;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Models;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

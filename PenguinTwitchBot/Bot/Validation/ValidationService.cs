@@ -1,10 +1,10 @@
 ﻿using PenguinTwitchBot.Bot.Actions;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Bot.Models.Timers;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Timers;
+using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Validation

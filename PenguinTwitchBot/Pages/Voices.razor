@@ -99,10 +99,10 @@
 </MudContainer>
 
     @code {
-    private List<PenguinTwitchBot.Bot.Models.RegisteredVoice> AvailableVoices { get; set; } = new();
-    private List<PenguinTwitchBot.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
-    private List<PenguinTwitchBot.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
-    private PenguinTwitchBot.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> AvailableVoices { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
+    private PenguinTwitchBot.Database.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
     private CustomVoice customVoice { get; set; } = new();
 
     public class CustomVoice

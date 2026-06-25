@@ -1,11 +1,11 @@
-﻿using PenguinTwitchBot.Bot;
-using PenguinTwitchBot.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Bot;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Wheel;
+using PenguinTwitchBot.Database.Bot.Models.Wheel;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Quartz.Core;
 using System.Security.Cryptography;
 using System.Text.Json;

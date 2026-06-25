@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Metrics
+namespace PenguinTwitchBot.Database.Bot.Models.Metrics
 {
     public class SongRequestMetricsWithRank
     {

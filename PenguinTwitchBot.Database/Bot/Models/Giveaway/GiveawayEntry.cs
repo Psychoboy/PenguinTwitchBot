@@ -1,6 +1,6 @@
 using Newtonsoft.Json;
 
-namespace PenguinTwitchBot.Bot.Models.Giveaway
+namespace PenguinTwitchBot.Database.Bot.Models.Giveaway
 {
     [IndexAttribute(nameof(Username), IsUnique = true)]
     public class GiveawayEntry

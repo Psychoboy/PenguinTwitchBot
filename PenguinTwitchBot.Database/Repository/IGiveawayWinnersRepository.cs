@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Giveaway;
+using PenguinTwitchBot.Database.Bot.Models.Giveaway;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IGiveawayWinnersRepository : IGenericRepository<GiveawayWinner>
     {

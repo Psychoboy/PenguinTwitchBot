@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Queues

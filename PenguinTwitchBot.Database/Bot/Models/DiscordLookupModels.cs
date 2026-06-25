@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Models;
+namespace PenguinTwitchBot.Database.Bot.Models;
 
 public record DiscordGuildInfo(ulong Id, string Name);
 public record DiscordChannelInfo(ulong Id, string Name);

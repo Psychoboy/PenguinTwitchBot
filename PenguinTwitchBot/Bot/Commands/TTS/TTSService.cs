@@ -1,10 +1,10 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Application.TTS;
 using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
 

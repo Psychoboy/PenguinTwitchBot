@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     public abstract class SubActionType
     {

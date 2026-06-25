@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using LinqToDB.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Commands.Misc

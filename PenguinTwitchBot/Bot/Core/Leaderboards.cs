@@ -1,6 +1,7 @@
-﻿using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Models;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Metrics;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using LinqToDB.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Core
@@ -13,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Core
         {
             _scopeFactory = scopeFactory;
         }
-        public async Task<PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>> GetSongs(int numberOfMonths, PaginationFilter filter)
+        public async Task<PagedDataResponse<SongRequestHistoryWithRank>> GetSongs(int numberOfMonths, PaginationFilter filter)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -26,7 +27,7 @@ namespace PenguinTwitchBot.Bot.Core
             // This count must remain semantically aligned with QuerySongRequestHistoryLimitedByMonths,
             // which groups by SongId and returns one row per distinct song.
             var totalRecords = await unitOfWork.SongRequestHistory.CountDistinctSongsLimitedByMonths(numberOfMonths);
-            return new PagedDataResponse<Models.Metrics.SongRequestHistoryWithRank>
+            return new PagedDataResponse<SongRequestHistoryWithRank>
             {
                 Data = pagedData,
                 TotalItems = totalRecords

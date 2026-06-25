@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     /// <summary>
     /// Base class for runtime-only SubActions that are never persisted to the database.

@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Actions;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IActionsRepository : IGenericRepository<ActionType>
     {

@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Actions.Triggers
+namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 {
     public class TriggerType
     {

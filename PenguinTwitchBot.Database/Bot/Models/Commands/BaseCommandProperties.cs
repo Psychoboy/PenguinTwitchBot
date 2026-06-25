@@ -1,7 +1,7 @@
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Commands
+namespace PenguinTwitchBot.Database.Bot.Models.Commands
 {
     [IndexAttribute(nameof(CommandName))]
     public class BaseCommandProperties

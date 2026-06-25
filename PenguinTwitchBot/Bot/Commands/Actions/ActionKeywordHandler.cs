@@ -1,5 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Utilities;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Events.Chat;
 using System.Text.RegularExpressions;
@@ -115,7 +117,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                     var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
                     var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
-                        Models.Actions.Triggers.TriggerTypes.Keyword,
+                         TriggerTypes.Keyword,
                         keyword.CommandName);
 
                     var dictionary = CommandEventArgsConverter.ToDictionary(commandEventArgs);

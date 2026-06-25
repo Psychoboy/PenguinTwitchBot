@@ -1,6 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Actions.Triggers;
-using PenguinTwitchBot.Repository;
-using Microsoft.Extensions.DependencyInjection;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Actions
 {

@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Commands.Features;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using NSubstitute;
 using System.Collections.Concurrent;
 

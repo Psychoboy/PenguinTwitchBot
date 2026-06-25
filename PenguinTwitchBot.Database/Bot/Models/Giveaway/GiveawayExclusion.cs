@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Giveaway
+namespace PenguinTwitchBot.Database.Bot.Models.Giveaway
 {
     public class GiveawayExclusion
     {

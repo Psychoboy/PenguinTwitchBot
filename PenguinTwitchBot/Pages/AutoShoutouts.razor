@@ -71,8 +71,8 @@
     }
 </MudContainer>
 @code {
-    private List<PenguinTwitchBot.Bot.Models.AutoShoutout>? autoShoutouts;
-    private PenguinTwitchBot.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.AutoShoutout>? autoShoutouts;
+    private PenguinTwitchBot.Database.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -91,7 +91,7 @@
         if (autoShoutout == null) return;
         if(autoShoutouts == null)
         {
-            autoShoutouts = new List<PenguinTwitchBot.Bot.Models.AutoShoutout>();
+            autoShoutouts = new List<PenguinTwitchBot.Database.Bot.Models.AutoShoutout>();
         }
         if(autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)) && autoShoutout.Id == 0)
         {
@@ -116,7 +116,7 @@
         }
     }
 
-    private void Edit(PenguinTwitchBot.Bot.Models.AutoShoutout shoutout)
+    private void Edit(PenguinTwitchBot.Database.Bot.Models.AutoShoutout shoutout)
     {
         // navigationManager.NavigateTo($"/autoshoutouts/{id}");
         autoShoutout = shoutout;

@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Models
+@using PenguinTwitchBot.Models
 @inject PenguinTwitchBot.Bot.Core.Leaderboards leaderBoards
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
@@ -86,7 +86,7 @@
 </MudPaper>
 
 @code {
-    private MudTable<Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
+    private MudTable<Database.Bot.Models.Metrics.SongRequestHistoryWithRank>? historyTable;
     private int numberOfMonths = 3;
 
     [Parameter]
@@ -101,13 +101,13 @@
     private bool dataLoaded = false;
 
 
-    private async Task<TableData<Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
+    private async Task<TableData<Database.Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
     {
         var pageFilter = new PaginationFilter();
         pageFilter.Page = IsPreview ? 0 : state.Page;
         pageFilter.Count = IsPreview ? 5 : state.PageSize;
         var response = await leaderBoards.GetSongs(numberOfMonths, pageFilter);
-        return new TableData<Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
+        return new TableData<Database.Bot.Models.Metrics.SongRequestHistoryWithRank> { TotalItems = response.TotalItems, Items = response.Data };
     }
 
 

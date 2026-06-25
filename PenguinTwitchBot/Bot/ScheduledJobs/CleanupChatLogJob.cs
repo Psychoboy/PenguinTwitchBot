@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Circuit;
 using Quartz;
 

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notifications;
+using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Core;
 using Prometheus;
 

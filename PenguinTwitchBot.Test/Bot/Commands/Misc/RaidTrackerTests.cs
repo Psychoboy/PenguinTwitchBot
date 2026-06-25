@@ -1,9 +1,10 @@
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Misc;
-using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;

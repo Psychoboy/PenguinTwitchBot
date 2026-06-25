@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Queues
+namespace PenguinTwitchBot.Database.Bot.Models.Queues
 {
     public class QueueConfiguration
     {

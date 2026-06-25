@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Wheel;
+using PenguinTwitchBot.Database.Bot.Models.Wheel;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IWheelRepository : IGenericRepository<Wheel>
     {

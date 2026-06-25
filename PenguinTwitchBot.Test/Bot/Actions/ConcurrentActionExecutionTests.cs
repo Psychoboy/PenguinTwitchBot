@@ -1,7 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+﻿using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Queues;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,4 @@
-﻿using Discord;
+using Discord;
 using PenguinTwitchBot.Bot.Core;
 
 namespace PenguinTwitchBot.Application.Discord

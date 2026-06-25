@@ -1,5 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Utilities;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 
 namespace PenguinTwitchBot.Bot.Commands.Actions
 {
@@ -64,7 +65,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
 
                 // Get and execute actions
                 var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
-                    Models.Actions.Triggers.TriggerTypes.Command,
+                     TriggerTypes.Command,
                     "!" + notification.EventArgs.Command);
 
                 var dictionary = CommandEventArgsConverter.ToDictionary(notification.EventArgs);

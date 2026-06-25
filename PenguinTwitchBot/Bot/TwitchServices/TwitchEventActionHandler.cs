@@ -1,8 +1,9 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.TwitchServices

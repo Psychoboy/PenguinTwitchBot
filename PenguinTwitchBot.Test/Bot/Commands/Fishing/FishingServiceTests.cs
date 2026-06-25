@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Commands.Fishing;
-using PenguinTwitchBot.Bot.Core.Database;
+using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

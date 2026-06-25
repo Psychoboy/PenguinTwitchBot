@@ -1,10 +1,10 @@
 
-using PenguinTwitchBot.Bot.DatabaseTools;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class PointTypesRepository(ApplicationDbContext context) : 
         GenericRepository<PointType>(context), IPointTypesRepository

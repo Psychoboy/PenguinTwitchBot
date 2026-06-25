@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Commands.Actions

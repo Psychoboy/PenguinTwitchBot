@@ -1,4 +1,3 @@
-﻿using PenguinTwitchBot.Repository;
 using OpenAI;
 using OpenAI.Responses;
 using System.Text.RegularExpressions;
@@ -86,7 +85,7 @@ namespace PenguinTwitchBot.Bot.Ai
                 .FirstOrDefaultAsync();
             if (previousResponse == null)
             {
-                previousResponse = new Models.ScAiResponseCodes
+                previousResponse = new ScAiResponseCodes
                 {
                     UserId = userId,
                     PreviousResponseId = responseId

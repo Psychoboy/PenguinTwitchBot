@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Commands.Games;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Core.Points

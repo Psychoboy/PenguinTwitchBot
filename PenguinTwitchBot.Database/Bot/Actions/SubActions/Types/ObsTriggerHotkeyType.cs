@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using PenguinTwitchBot.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 using OBSWebsocketDotNet.Types;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "OBS - Trigger Hotkey",

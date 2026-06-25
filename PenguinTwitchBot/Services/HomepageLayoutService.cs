@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Services;
 

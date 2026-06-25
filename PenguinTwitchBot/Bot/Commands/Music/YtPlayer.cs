@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;

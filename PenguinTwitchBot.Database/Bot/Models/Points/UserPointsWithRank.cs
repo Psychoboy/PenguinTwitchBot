@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Points
+namespace PenguinTwitchBot.Database.Bot.Models.Points
 {
     public class UserPointsWithRank : UserPoints
     {

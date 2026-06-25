@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core.Points;
 using System.Linq.Expressions;
 using static PenguinTwitchBot.Bot.Commands.PastyGames.MaxBet;

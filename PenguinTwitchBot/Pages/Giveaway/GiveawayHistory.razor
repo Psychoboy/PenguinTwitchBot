@@ -1,5 +1,5 @@
 @page "/giveawayhistory"
-@using PenguinTwitchBot.Bot.Models.Giveaway
+@using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway History</PageTitle>
@@ -60,7 +60,7 @@
 </MudContainer>
 
 @code {
-    private List<Bot.Models.Giveaway.GiveawayWinner>? pastWinners;
+    private List<Database.Bot.Models.Giveaway.GiveawayWinner>? pastWinners;
     [Inject]
     private PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature giveawayFeature { get; set; } = default!;
 
@@ -83,7 +83,7 @@
 
     private async void ItemHasBeenCommitted(object element)
     {
-        var winner = (Bot.Models.Giveaway.GiveawayWinner)element;
+        var winner = (Database.Bot.Models.Giveaway.GiveawayWinner)element;
         await giveawayFeature.UpdateWinner(winner);
     }
 }

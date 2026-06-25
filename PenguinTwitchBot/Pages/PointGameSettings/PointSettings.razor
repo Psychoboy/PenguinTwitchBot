@@ -1,6 +1,6 @@
 @page "/pointsettings"
 @using PenguinTwitchBot.Bot.Core.Points
-@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Point Settings</PageTitle>

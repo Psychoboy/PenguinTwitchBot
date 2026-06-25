@@ -1,9 +1,9 @@
-﻿using PenguinTwitchBot.Bot.Ai;
+using PenguinTwitchBot.Bot.Ai;
 using PenguinTwitchBot.Bot.Commands.Shoutout;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Misc
 {

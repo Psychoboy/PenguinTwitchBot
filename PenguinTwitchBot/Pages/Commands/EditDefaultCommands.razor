@@ -1,9 +1,9 @@
 @page "/defaultcommands/{id:int}"
 @using PenguinTwitchBot.Bot.Core.Points
-@using PenguinTwitchBot.Bot.Models.Commands
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
-@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper

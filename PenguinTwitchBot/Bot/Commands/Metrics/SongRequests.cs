@@ -1,6 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Metrics;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Metrics
 {
@@ -26,7 +27,7 @@ namespace PenguinTwitchBot.Bot.Commands.Metrics
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await db.SongRequestHistory.AddAsync(new Models.Metrics.SongRequestHistory
+            await db.SongRequestHistory.AddAsync(new SongRequestHistory
             {
                 SongId = song.SongId,
                 Title = song.Title,
@@ -54,14 +55,14 @@ namespace PenguinTwitchBot.Bot.Commands.Metrics
             return await db.SongRequestHistory.GetRequestedCountForSong(song.SongId);
         }
 
-        private async Task<Models.Metrics.SongRequestHistory?> GetLastRequestForSong(Song song)
+        private async Task<SongRequestHistory?> GetLastRequestForSong(Song song)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             return await db.SongRequestHistory.Find(x => x.SongId == song.SongId).OrderByDescending(x => x.RequestDate).FirstOrDefaultAsync();
         }
 
-        public async Task<List<Models.Metrics.SongRequestHistoryWithRank>> GetTopN(int topN)
+        public async Task<List<SongRequestHistoryWithRank>> GetTopN(int topN)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

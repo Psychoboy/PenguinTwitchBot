@@ -1,10 +1,10 @@
-using PenguinTwitchBot.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     /// <summary>
     /// FishType repository - This is a master table that must be restored FIRST

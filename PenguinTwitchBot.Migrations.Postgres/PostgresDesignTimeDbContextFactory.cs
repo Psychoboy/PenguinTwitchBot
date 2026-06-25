@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Core.Database;
+﻿using PenguinTwitchBot.Database.Bot.Core.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
