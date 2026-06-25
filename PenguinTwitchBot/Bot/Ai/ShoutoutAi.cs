@@ -44,17 +44,27 @@ namespace PenguinTwitchBot.Bot.Ai
             }
             responseOptions.Model = "gpt-5.1";
 
-            var response = await respClient.CreateResponseAsync(responseOptions);
-            foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
-            {
-                if (output is MessageResponseItem messageItem &&
-                    messageItem.Content != null && messageItem.Content.Count > 0)
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try {
+                var response = await respClient.CreateResponseAsync(responseOptions, cts.Token);
+                foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
                 {
-                    var result = messageItem.Content.First().Text;
-                    result = LinkPatternRegex().Replace(result, "").Trim();
-                    result = result.ReplaceLineEndings(" ");
-                    return result;
+                    if (output is MessageResponseItem messageItem &&
+                        messageItem.Content != null && messageItem.Content.Count > 0)
+                    {
+                        var result = messageItem.Content.First().Text;
+                        result = LinkPatternRegex().Replace(result, "").Trim();
+                        result = result.ReplaceLineEndings(" ");
+                        return result;
+                    }
                 }
+            } catch (OperationCanceledException)
+            {
+                logger.LogWarning("OpenAI request timed out generating shoutout.");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while getting shoutout from OpenAI.");
             }
             return "";
         }
