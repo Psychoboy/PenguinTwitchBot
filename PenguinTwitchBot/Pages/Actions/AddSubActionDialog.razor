@@ -318,7 +318,7 @@
         // Check if any field declares a dependency on the changed property
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
-            var fields = uiProvider.GetUIFields(ServiceProvider);
+            var fields = SubActionUIFieldEnhancer.GetEnhancedFields(_currentSubAction, ServiceProvider);
             return fields.Any(f => f.DependsOn != null && f.DependsOn.Contains(propertyName));
         }
 

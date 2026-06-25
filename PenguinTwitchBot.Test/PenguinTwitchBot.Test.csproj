@@ -41,5 +41,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PenguinTwitchBot\PenguinTwitchBot.csproj" />
+    <ProjectReference Include="..\PenguinTwitchBot.Database\PenguinTwitchBot.Database.csproj" />
   </ItemGroup>
 </Project>
