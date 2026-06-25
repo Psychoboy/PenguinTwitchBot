@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Core
+﻿namespace PenguinTwitchBot.Database.Bot.Core
 {
     public static class UsernameNormalizer
     {

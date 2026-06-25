@@ -1,13 +1,14 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.AudioCommand;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Moderation;
-using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
@@ -369,7 +370,7 @@ namespace PenguinTwitchBot.Tests
             await audioCommands.RunCommand(new() { Command = "testCommand" });
 
             // Assert
-            await actionService.Received(1).EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<PenguinTwitchBot.Bot.Actions.ActionType>());
+            await actionService.Received(1).EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<PenguinTwitchBot.Database.Bot.Actions.ActionType>());
         }
     }
 }

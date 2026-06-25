@@ -1,6 +1,6 @@
 @page "/viewers"
-@using PenguinTwitchBot.Bot.Models.Giveaway
-@using PenguinTwitchBot.Bot.Models.IpLogs
+@using PenguinTwitchBot.Database.Bot.Models.Giveaway
+@using PenguinTwitchBot.Database.Bot.Models.IpLogs
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -144,7 +144,7 @@
                 })
             .ToList();
 
-        // Only show a pair if at least one user is new � skip pairs where both users
+        // Only show a pair if at least one user is new Ã¢â‚¬â€ skip pairs where both users
         // already appeared in an earlier pair (redundant connections).
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         data = data.Where(x =>
@@ -158,7 +158,7 @@
         return new TableData<DupeIps> { TotalItems = data.Count, Items = data };
     }
 
-    private void Edit(PenguinTwitchBot.Bot.Models.Viewer item)
+    private void Edit(PenguinTwitchBot.Database.Bot.Models.Viewer item)
     {
         navigationManager.NavigateTo($"/editviewer/{item.Id}");
     }

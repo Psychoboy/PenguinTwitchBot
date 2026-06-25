@@ -1,6 +1,6 @@
 @page "/blacklist"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Bot.Models;
+@using PenguinTwitchBot.Database.Bot.Models;
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist BlacklistApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 

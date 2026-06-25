@@ -1,12 +1,13 @@
-﻿using PenguinTwitchBot.Bot.Commands;
-using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
-// using PenguinTwitchBot.CustomMiddleware;
-using PenguinTwitchBot.Repository;
+// using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -206,7 +207,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
 
             //Act
-            serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, new SubscriptionEventArgs { Name = "test" });
+            serviceBackbone.SubscriptionEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<SubscriptionEventArgs>>(this, new SubscriptionEventArgs { Name = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());
@@ -221,7 +222,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
             testViewer.isSub = false;
             //Act
-            serviceBackbone.SubscriptionEndEvent += Raise.Event<AsyncEventHandler<SubscriptionEndEventArgs>>(this, new SubscriptionEndEventArgs { Name = "test" });
+            serviceBackbone.SubscriptionEndEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<SubscriptionEndEventArgs>>(this, new SubscriptionEndEventArgs { Name = "test" });
 
             //Assert
             dbContext.Viewers.Received(1).Update(Arg.Any<Viewer>());
@@ -235,7 +236,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             //Arrange
             dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
             //Act
-            serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, new CheerEventArgs { Name = "test", IsAnonymous = false });
+            serviceBackbone.CheerEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<CheerEventArgs>>(this, new CheerEventArgs { Name = "test", IsAnonymous = false });
 
             //Assert
             Assert.Contains(testViewer.Username, viewerFeature.GetCurrentViewers());

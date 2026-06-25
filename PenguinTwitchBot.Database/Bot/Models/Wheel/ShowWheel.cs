@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Wheel
+namespace PenguinTwitchBot.Database.Bot.Models.Wheel
 {
     public class ShowWheel : WheelBase
     {

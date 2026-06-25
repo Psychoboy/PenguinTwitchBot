@@ -1,7 +1,7 @@
-using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Points
+namespace PenguinTwitchBot.Database.Bot.Models.Points
 {
     [IndexAttribute(nameof(Name))]
     public class PointType

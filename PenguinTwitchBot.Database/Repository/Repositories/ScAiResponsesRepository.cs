@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class ScAiResponsesRepository : GenericRepository<ScAiResponseCodes>, IScAiResponsesRepository
     {

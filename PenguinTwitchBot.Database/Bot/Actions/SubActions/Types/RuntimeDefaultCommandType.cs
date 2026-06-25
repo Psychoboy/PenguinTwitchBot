@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     /// <summary>
     /// Example: Runtime-only SubAction for executing commands programmatically.

@@ -1,6 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Timers
+namespace PenguinTwitchBot.Database.Bot.Models.Timers
 {
     public class TimerGroup
     {

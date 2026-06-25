@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Models.Games;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Games;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 
 namespace PenguinTwitchBot.Bot.Core.Points
 {

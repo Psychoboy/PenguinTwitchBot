@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.IpLogs
+namespace PenguinTwitchBot.Database.Bot.Models.IpLogs
 {
     public class IpLogsForUser
     {

@@ -1,11 +1,11 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Models;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using LinqToDB.Internal.SqlQuery;
 using System.Collections.Concurrent;
 

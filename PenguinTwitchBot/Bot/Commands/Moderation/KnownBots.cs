@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Commands.Moderation

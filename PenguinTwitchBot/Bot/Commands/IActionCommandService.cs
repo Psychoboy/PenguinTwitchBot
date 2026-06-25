@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Commands
 {

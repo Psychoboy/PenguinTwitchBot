@@ -1,4 +1,4 @@
-﻿@*
+@*
     KeywordEditor - A reusable component for editing keyword details with all available options
 
     Usage:
@@ -16,8 +16,8 @@
     - IsNewKeyword: Whether this is a new keyword being created
     - ShowActions: Whether to show Save/Delete/Cancel buttons (default: true)
 *@
-@using PenguinTwitchBot.Bot.Models.Commands
-@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Commands
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Bot.Commands
 @inject IPointsSystem PointSystem
@@ -226,7 +226,7 @@
                             @if (_testResult.HasValue)
                             {
                                 <MudChip T="string" Color="@(_testResult.Value ? Color.Success : Color.Default)" Size="Size.Medium">
-                                    @(_testResult.Value ? "✔ Match!" : "❌ No Match")
+                                    @(_testResult.Value ? "âœ” Match!" : "âŒ No Match")
                                 </MudChip>
                             }
                         </MudStack>

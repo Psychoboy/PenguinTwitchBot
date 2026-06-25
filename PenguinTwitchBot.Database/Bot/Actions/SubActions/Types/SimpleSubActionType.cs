@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     /// <summary>
     /// Base class for simple SubActions that only need Text and Enabled fields.

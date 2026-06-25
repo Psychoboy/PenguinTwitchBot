@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
 {
     /// <summary>
     /// Helper class to get available audio files for PlaySound SubAction.

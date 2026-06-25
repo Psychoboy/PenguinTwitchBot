@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Actions
+namespace PenguinTwitchBot.Database.Bot.Actions
 {
     public class ActionType
     {

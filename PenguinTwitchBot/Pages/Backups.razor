@@ -1,6 +1,6 @@
 @page "/backups"
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
-@using PenguinTwitchBot.Bot.DatabaseTools
+@using PenguinTwitchBot.Database.Bot.DatabaseTools
 @attribute [Authorize(Roles = "Streamer")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Backups</PageTitle>

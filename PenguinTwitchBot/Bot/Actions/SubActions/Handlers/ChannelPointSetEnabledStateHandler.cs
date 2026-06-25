@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;

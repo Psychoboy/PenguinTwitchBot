@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Bot.Models.Overlay
+namespace PenguinTwitchBot.Database.Bot.Models.Overlay
 {
     [Table("overlay_widgets")]
     public class OverlayWidget

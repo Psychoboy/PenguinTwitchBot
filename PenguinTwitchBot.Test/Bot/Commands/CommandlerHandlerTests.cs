@@ -1,9 +1,9 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Moderation;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable;

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PenguinTwitchBot.Bot.Models.Overlay;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Controllers

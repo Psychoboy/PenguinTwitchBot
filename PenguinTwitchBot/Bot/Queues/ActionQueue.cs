@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.WebSocketEvents;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
@@ -135,7 +135,7 @@ namespace PenguinTwitchBot.Bot.Queues
             {
                 Interlocked.Decrement(ref _pendingCount);
                 _logger.LogError(
-                    "Queue {QueueName} is saturated — action {ActionName} dropped after {TimeoutMs}ms wait.",
+                    "Queue {QueueName} is saturated � action {ActionName} dropped after {TimeoutMs}ms wait.",
                     Name, action.Name, EnqueueTimeout.TotalMilliseconds);
                 _executionLogger.UpdateActionFailed(logId, "Enqueue timed out: queue is saturated.", variables);
                 return;

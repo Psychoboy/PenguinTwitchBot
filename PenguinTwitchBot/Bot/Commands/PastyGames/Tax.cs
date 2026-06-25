@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using System.Timers;
 using Timer = System.Timers.Timer;
 

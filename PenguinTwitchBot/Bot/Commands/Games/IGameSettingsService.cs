@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Bot.Models.Games;
-using PenguinTwitchBot.Bot.Models.Points;
+using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Database.Bot.Models.Games;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.Runtime.CompilerServices;
 
 namespace PenguinTwitchBot.Bot.Commands.Games

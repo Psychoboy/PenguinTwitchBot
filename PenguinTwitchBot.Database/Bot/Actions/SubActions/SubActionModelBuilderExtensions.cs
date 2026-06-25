@@ -1,11 +1,11 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Repository.Repositories;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Repository.Repositories;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 {
     /// <summary>
     /// Extension methods for automatically configuring SubActions in EF Core.

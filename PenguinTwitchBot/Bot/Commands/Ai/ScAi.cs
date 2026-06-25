@@ -1,5 +1,3 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notification;
-using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Ai;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;

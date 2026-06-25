@@ -1,5 +1,5 @@
-ï»¿using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Generic;
@@ -156,20 +156,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             
             section.GoldRangePerStar = new Dictionary<int, string>
             {
-                { 3, "1.25â€“1.41x gold multiplier (3-star)" },
-                { 2, "1.0â€“1.25x gold multiplier (2-star)" },
-                { 1, "0.75â€“1.0x gold multiplier (1-star)" }
+                { 3, "1.25–1.41x gold multiplier (3-star)" },
+                { 2, "1.0–1.25x gold multiplier (2-star)" },
+                { 1, "0.75–1.0x gold multiplier (1-star)" }
             };
 
-            section.WeightMultiplierNote = "Final gold = fish base gold Ã— star multiplier Ã— weight multiplier. " +
+            section.WeightMultiplierNote = "Final gold = fish base gold × star multiplier × weight multiplier. " +
                 "Weight ranges from 0.9x to 1.065x of base weight, providing -10% to +6.5% gold bonus. " +
                 "Example: A 100 base gold fish with 3-star (1.41x max) and heavy weight (1.065x) yields ~150g.";
 
             section.ValueExamples = new List<string>
             {
-                "3-star at max weight: base gold Ã— 1.41 Ã— 1.065 = +50% total",
-                "2-star at average: base gold Ã— 1.125 Ã— 1.0 = +12.5% total",
-                "1-star at light: base gold Ã— 0.875 Ã— 0.9 = -21.25% total"
+                "3-star at max weight: base gold × 1.41 × 1.065 = +50% total",
+                "2-star at average: base gold × 1.125 × 1.0 = +12.5% total",
+                "1-star at light: base gold × 0.875 × 0.9 = -21.25% total"
             };
 
             return section;
@@ -182,14 +182,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             // Equipment slot descriptions
             section.SlotDescriptions = new Dictionary<string, string>
             {
-                { "Rod", "Main fishing rod â€” provides general rarity boost" },
-                { "Reel", "Fishing reel â€” provides star boost" },
-                { "Line", "Fishing line â€” provides weight boost" },
-                { "Hook", "Fish hook â€” provides star boost" },
-                { "Bait", "Consumable bait â€” targets specific fish types" },
-                { "Lure", "Consumable lure â€” targets specific fish + boosts rarity" },
-                { "TackleBox", "Permanent accessory â€” multiple small boosts" },
-                { "Net", "Permanent accessory â€” weight bonus" },
+                { "Rod", "Main fishing rod — provides general rarity boost" },
+                { "Reel", "Fishing reel — provides star boost" },
+                { "Line", "Fishing line — provides weight boost" },
+                { "Hook", "Fish hook — provides star boost" },
+                { "Bait", "Consumable bait — targets specific fish types" },
+                { "Lure", "Consumable lure — targets specific fish + boosts rarity" },
+                { "TackleBox", "Permanent accessory — multiple small boosts" },
+                { "Net", "Permanent accessory — weight bonus" },
                 { "Special", "Reserved for special event items" }
             };
 

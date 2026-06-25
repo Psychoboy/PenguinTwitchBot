@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using PenguinTwitchBot.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Bot.Models.Overlay;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class OverlayLayoutRepository(ApplicationDbContext context)
         : GenericRepository<OverlayLayout>(context), IOverlayLayoutRepository

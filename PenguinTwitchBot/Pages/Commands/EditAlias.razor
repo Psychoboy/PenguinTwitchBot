@@ -30,7 +30,7 @@ else
     [Parameter]
     public int id { get; set; }
 
-    private PenguinTwitchBot.Bot.Models.AliasModel? theAlias { get; set; }
+    private PenguinTwitchBot.Database.Bot.Models.AliasModel? theAlias { get; set; }
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async void OnParametersSet()

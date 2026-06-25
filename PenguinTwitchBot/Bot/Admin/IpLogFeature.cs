@@ -1,7 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Models;
-using PenguinTwitchBot.Repository;
 
 namespace PenguinTwitchBot.Bot.Admin
 {

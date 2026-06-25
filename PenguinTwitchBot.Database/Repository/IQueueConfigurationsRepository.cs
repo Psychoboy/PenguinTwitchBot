@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IQueueConfigurationsRepository : IGenericRepository<QueueConfiguration>
     {

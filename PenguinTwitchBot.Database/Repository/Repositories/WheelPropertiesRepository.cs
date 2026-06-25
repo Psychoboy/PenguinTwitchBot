@@ -1,9 +1,9 @@
 
-using PenguinTwitchBot.Bot.Models.Wheel;
+using PenguinTwitchBot.Database.Bot.Models.Wheel;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class WheelPropertiesRepository(ApplicationDbContext context) : GenericRepository<WheelProperty>(context), IWheelPropertiesRepository
     {

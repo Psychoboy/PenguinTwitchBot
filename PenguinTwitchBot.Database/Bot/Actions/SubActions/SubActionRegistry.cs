@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using System.Reflection;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 {
     /// <summary>
     /// Central registry that automatically discovers all SubAction types and their metadata.

@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Commands.Fishing;
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;

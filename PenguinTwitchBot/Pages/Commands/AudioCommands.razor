@@ -1,5 +1,5 @@
-@page "/audiocommands"
-@using PenguinTwitchBot.Bot.Models.Commands
+﻿@page "/audiocommands"
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager

@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Bot.Models.Actions;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Database.Bot.Models.Actions;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.Queues;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Models;
 using Microsoft.EntityFrameworkCore;
 

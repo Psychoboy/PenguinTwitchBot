@@ -1,7 +1,7 @@
-﻿using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Timer = System.Timers.Timer;
 
 namespace PenguinTwitchBot.Bot.Commands.Moderation

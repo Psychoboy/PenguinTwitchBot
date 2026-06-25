@@ -2,7 +2,7 @@
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Models;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.Core

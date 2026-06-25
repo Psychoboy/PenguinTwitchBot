@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace PenguinTwitchBot.Bot.Models.Commands
+namespace PenguinTwitchBot.Database.Bot.Models.Commands
 {
     public class DefaultCommand : BaseCommandProperties
     {

@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Obs;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Obs;
 using Microsoft.EntityFrameworkCore;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;

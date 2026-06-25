@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace PenguinTwitchBot.Bot.Models.Fishing
+namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 {
     public class UserFishingBoost
     {

@@ -1,11 +1,11 @@
-﻿using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Bot.Models.Giveaway;
+using PenguinTwitchBot.Database.Bot.Models.Giveaway;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.SignalR;
 using System.Text;
 using Timer = System.Timers.Timer;

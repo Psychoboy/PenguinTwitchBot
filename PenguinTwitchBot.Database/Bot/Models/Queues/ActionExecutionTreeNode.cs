@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
-namespace PenguinTwitchBot.Bot.Models.Queues
+namespace PenguinTwitchBot.Database.Bot.Models.Queues
 {
     /// <summary>
     /// Represents a node in the action execution tree for hierarchical display

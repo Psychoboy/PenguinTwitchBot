@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands.Alias.Requests;
+using PenguinTwitchBot.Bot.Commands.Alias.Requests;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 

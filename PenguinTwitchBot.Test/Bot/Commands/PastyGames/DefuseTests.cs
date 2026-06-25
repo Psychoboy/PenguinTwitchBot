@@ -1,13 +1,16 @@
-﻿using PenguinTwitchBot.Application.Alert.Notification;
+using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Application.Alert.Notification;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core.Points;
-using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Security.Cryptography;
@@ -39,7 +42,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands.PastyGames
             _defaultCommandTriggerService = Substitute.For<IDefaultCommandTriggerService>();
             _randomNumberGenerator = Substitute.For<RandomNumberGenerator>();
 
-            _pointsSystem.GetPointTypeForGame("Defuse").Returns(new PenguinTwitchBot.Bot.Models.Points.PointType { Name = "Points"});
+            _pointsSystem.GetPointTypeForGame("Defuse").Returns(new PenguinTwitchBot.Database.Bot.Models.Points.PointType { Name = "Points"});
 
             _defuse = new Defuse(_pointsSystem, _serviceBackbone, _gameSettingsService, _viewerFeature, _dispatcher, _logger, _commandHandler, _defaultCommandTriggerService);
         }

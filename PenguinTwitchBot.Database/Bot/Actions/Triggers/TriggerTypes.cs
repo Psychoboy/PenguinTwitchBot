@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Actions.Triggers
+namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 {
     public enum TriggerTypes
     {

@@ -1,10 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Bot.Actions.SubActions;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Queues;
-using PenguinTwitchBot.Bot.WebSocketEvents;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Actions

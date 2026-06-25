@@ -1,6 +1,6 @@
-﻿@page "/fishing/shop"
+@page "/fishing/shop"
 @using PenguinTwitchBot.Bot.Commands.Fishing
-@using PenguinTwitchBot.Bot.Models.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Components.Fishing
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
@@ -174,7 +174,7 @@
                                 {
                                     if (fishTypeLookup.TryGetValue(context.TargetFishTypeId.Value, out var fishName))
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishName</MudText>
                                     }
                                 }
                             </MudStack>
@@ -279,7 +279,7 @@
                                 <MudText><strong>@shopItem?.Name</strong></MudText>
                                 @if (fishType != null)
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">â†’ @fishType.Name</MudText>
                                 }
                             </MudStack>
                         </MudTd>
@@ -328,7 +328,7 @@
                             }
                             else
                             {
-                                <MudText Typo="Typo.body2" Color="Color.Success">∞</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Success">âˆž</MudText>
                             }
                         </MudTd>
                         <MudTd DataLabel="Status">

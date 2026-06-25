@@ -1,11 +1,11 @@
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using LinqToDB;
 using LinqToDB.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class ViewerMessageCountsRepository : GenericRepository<ViewerMessageCount>, IViewerMessageCountsRepository
     {

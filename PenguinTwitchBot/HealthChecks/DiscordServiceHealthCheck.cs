@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Models;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace PenguinTwitchBot.HealthChecks

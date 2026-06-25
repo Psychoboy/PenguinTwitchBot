@@ -1,10 +1,10 @@
-﻿using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class TriggersRepository : GenericRepository<TriggerType>, ITriggersRepository
     {

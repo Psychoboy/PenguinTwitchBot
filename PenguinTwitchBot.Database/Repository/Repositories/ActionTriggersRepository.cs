@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Core.Database;
-using PenguinTwitchBot.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     // DEPRECATED: ActionTriggers junction table removed. Triggers now have direct one-to-many relationship with Actions.
     // This repository is kept for compatibility but should not be used.

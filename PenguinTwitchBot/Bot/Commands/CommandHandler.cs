@@ -1,8 +1,8 @@
-﻿using PenguinTwitchBot.Bot.Commands.Moderation;
+using PenguinTwitchBot.Bot.Commands.Moderation;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Commands;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Extensions;
-using PenguinTwitchBot.Repository;
 using System.Collections.Concurrent;
 namespace PenguinTwitchBot.Bot.Commands
 {

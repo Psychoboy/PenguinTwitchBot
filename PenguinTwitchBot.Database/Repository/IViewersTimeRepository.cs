@@ -1,9 +1,9 @@
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using System.Linq.Expressions;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IViewersTimeRepository : IGenericRepository<ViewerTime>
     {

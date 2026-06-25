@@ -1,13 +1,13 @@
-﻿using Discord;
+using Discord;
 using Discord.Net;
 using Discord.Rest;
 using Discord.WebSocket;
 using PenguinTwitchBot.Application.Discord;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.StreamSchedule;
 using PenguinTwitchBot.Bot.TwitchServices;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -710,7 +710,7 @@ namespace PenguinTwitchBot.Bot.Core
 
             if (string.IsNullOrWhiteSpace(_settings.DiscordToken))
             {
-                _logger.LogInformation("Discord token is not configured — Discord service will not start.");
+                _logger.LogInformation("Discord token is not configured � Discord service will not start.");
                 return;
             }
 

@@ -16,6 +16,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Diagnostics;
 using PenguinTwitchBot.Bot.ServiceTools;
 using PenguinTwitchBot.Bot.StreamSchedule;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.TwitchApi.Auth;
 using PenguinTwitchBot.TwitchApi.Helix;
 using PenguinTwitchBot.Bot.TwitchServices;
@@ -105,8 +106,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Core.SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
-            services.AddScoped(typeof(Repository.IGenericRepository<>), typeof(Repository.Repositories.GenericRepository<>));
-            services.AddScoped<Repository.IUnitOfWork, Repository.UnitOfWork>();
+            services.AddScoped(typeof(PenguinTwitchBot.Database.Repository.IGenericRepository<>), typeof(PenguinTwitchBot.Database.Repository.Repositories.GenericRepository<>));
+            services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();

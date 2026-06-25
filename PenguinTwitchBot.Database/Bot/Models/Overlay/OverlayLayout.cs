@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace PenguinTwitchBot.Bot.Models.Overlay
+namespace PenguinTwitchBot.Database.Bot.Models.Overlay
 {
     [Table("overlay_layouts")]
     [IndexAttribute(nameof(Name), IsUnique = true)]

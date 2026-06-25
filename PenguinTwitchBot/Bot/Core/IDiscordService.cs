@@ -1,5 +1,5 @@
-﻿using Discord;
-using PenguinTwitchBot.Bot.Models;
+using Discord;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.StreamSchedule;
 
 namespace PenguinTwitchBot.Bot.Core

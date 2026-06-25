@@ -1,7 +1,7 @@
-﻿@using PenguinTwitchBot.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Actions.Triggers
-@using PenguinTwitchBot.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 @using TwitchEventConfig = PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig
 @using PenguinTwitchBot.Pages.Actions
 @using System.Text.Json
@@ -571,7 +571,7 @@
             filters.Add($"Colors: {string.Join(", ", config.AnnouncementColors)}");
         }
 
-        return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";
+        return filters.Count > 0 ? string.Join(" â€¢ ", filters) : "No filters";
     }
 
     private string GetDefaultCommandEventSummary(string configurationJson)

@@ -1,4 +1,4 @@
-namespace PenguinTwitchBot.Bot.Actions.Triggers.Configurations
+namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 {
     public class DefaultCommandTriggerConfiguration
     {

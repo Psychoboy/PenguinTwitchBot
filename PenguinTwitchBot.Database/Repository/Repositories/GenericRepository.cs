@@ -1,11 +1,11 @@
 
-using PenguinTwitchBot.Bot.DatabaseTools;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq.Expressions;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository.Repositories
+namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class GenericRepository<T>(ApplicationDbContext context) : IGenericRepository<T> where T : class
     {

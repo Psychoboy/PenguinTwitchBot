@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Bot.Models.Queues;
+using PenguinTwitchBot.Bot.Hubs;
+using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.Queues;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Core
 {

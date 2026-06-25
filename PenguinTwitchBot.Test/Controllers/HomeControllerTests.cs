@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using PenguinTwitchBot.Bot.Commands.Features;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.TwitchApi.Auth;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Controllers;

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.TwitchServices;
 

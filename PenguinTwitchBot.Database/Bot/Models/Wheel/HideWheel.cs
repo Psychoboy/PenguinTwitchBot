@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Bot.Models.Wheel
+namespace PenguinTwitchBot.Database.Bot.Models.Wheel
 {
     public class HideWheel : WheelBase
     {

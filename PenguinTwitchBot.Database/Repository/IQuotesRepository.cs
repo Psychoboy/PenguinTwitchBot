@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IQuotesRepository : IGenericRepository<QuoteType>
     {

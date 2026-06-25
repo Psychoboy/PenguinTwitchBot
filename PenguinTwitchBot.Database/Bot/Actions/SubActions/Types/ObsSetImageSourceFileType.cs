@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using PenguinTwitchBot.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "OBS - Set Image Source File",

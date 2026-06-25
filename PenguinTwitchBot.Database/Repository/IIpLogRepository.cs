@@ -1,8 +1,8 @@
-using PenguinTwitchBot.Bot.Models.IpLogs;
+using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public interface IIpLogRepository : IGenericRepository<IpLogEntry>
     {

@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
-using PenguinTwitchBot.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
 using Moq;
 using System.Diagnostics;

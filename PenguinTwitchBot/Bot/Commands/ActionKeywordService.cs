@@ -1,7 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands.Actions;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Repository;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 
 namespace PenguinTwitchBot.Bot.Commands
 {

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Extensions;
 

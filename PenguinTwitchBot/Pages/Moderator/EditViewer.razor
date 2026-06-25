@@ -3,7 +3,7 @@
 @using PenguinTwitchBot.Bot;
 
 @using System.ComponentModel.DataAnnotations
-@using PenguinTwitchBot.Bot.Models.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject PenguinTwitchBot.Bot.Commands.Features.ILoyaltyFeature loyaltyFeature
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem pointSystem
@@ -148,8 +148,8 @@ else
 
     private MudTable<ViewerChatHistory>? messagesTable;
 
-    private List<Bot.Models.IpLogs.IpLogEntry> IpLogs = new();
-    private List<Bot.Models.IpLogs.IpLogEntry> OtherIpLogs = new();
+    private List<Database.Bot.Models.IpLogs.IpLogEntry> IpLogs = new();
+    private List<Database.Bot.Models.IpLogs.IpLogEntry> OtherIpLogs = new();
     private ViewViewer viewer { get; set; } = new();
     private string username { get; set; } = "";
     private bool includeCommands { get; set; } = false;
@@ -163,7 +163,7 @@ else
     private EventCallback<bool> CommandsViewChanged { get; set; }
     public class ViewViewer
     {
-        public PenguinTwitchBot.Bot.Models.Viewer? Viewer { get; set; }
+        public PenguinTwitchBot.Database.Bot.Models.Viewer? Viewer { get; set; }
         public DateTime FollowDated { get; set; }
         public DateTime? LastSub { get; set; }
         public DateTime? DateCreated { get; set; }

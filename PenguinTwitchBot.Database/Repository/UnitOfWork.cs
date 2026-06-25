@@ -1,9 +1,9 @@
-using PenguinTwitchBot.Repository.Repositories;
+using PenguinTwitchBot.Database.Repository.Repositories;
 using Microsoft.EntityFrameworkCore.Storage;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace PenguinTwitchBot.Repository
+namespace PenguinTwitchBot.Database.Repository
 {
     public class UnitOfWork : IUnitOfWork
     {

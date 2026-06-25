@@ -1,5 +1,5 @@
-@page "/defaultcommands"
-@using PenguinTwitchBot.Bot.Models.Commands
+﻿@page "/defaultcommands"
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager

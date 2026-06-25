@@ -1,11 +1,12 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
-using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events;
-using PenguinTwitchBot.Bot.Models.Points;
-// using PenguinTwitchBot.CustomMiddleware;
+using PenguinTwitchBot.Database.Bot.Models.Points;
+// using PenguinTwitchBot.Bot.Core;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -67,7 +68,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
             await _twitchEventsBonus.StartAsync(default);
 
-            _serviceBackbone.CheerEvent += Raise.Event<AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
+            _serviceBackbone.CheerEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<CheerEventArgs>>(this, cheerEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 100);
             await _serviceBackbone.Received(1).SendChatMessage("TestUser just cheered 100 bits! sptvHype", false);
@@ -92,7 +93,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
 
             await _twitchEventsBonus.StartAsync(default);
 
-            _serviceBackbone.SubscriptionEvent += Raise.Event<AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEventArgs);
+            _serviceBackbone.SubscriptionEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<SubscriptionEventArgs>>(this, subscriptionEventArgs);
             //await _twitchEventsBonus.OnSubscription(this, subscriptionEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 500);
@@ -117,7 +118,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             _pointsSystem.GetPointTypeForGame("TwitchEventBonus").Returns(new PointType { Name = "Points" });
             await _twitchEventsBonus.StartAsync(default);
 
-            _serviceBackbone.SubscriptionGiftEvent += Raise.Event<AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionGiftEventArgs);
+            _serviceBackbone.SubscriptionGiftEvent += Raise.Event<PenguinTwitchBot.TwitchApi.EventSub.AsyncEventHandler<SubscriptionGiftEventArgs>>(this, subscriptionGiftEventArgs);
             //await _twitchEventsBonus.OnSubScriptionGift(this, subscriptionGiftEventArgs);
 
             await _pointsSystem.Received(1).AddPointsByUserIdAndGame("user123", "TwitchEventBonus", 2500);

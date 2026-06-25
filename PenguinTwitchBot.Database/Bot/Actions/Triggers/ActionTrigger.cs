@@ -1,6 +1,6 @@
-﻿using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 
-namespace PenguinTwitchBot.Bot.Models.Actions.Triggers
+namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 {
     /// <summary>
     /// Junction table for many-to-many relationship between Actions and Triggers

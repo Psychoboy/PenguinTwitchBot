@@ -1,8 +1,9 @@
-﻿using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Alias;
 using PenguinTwitchBot.Bot.Commands.Alias.Requests;
-using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Models;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 

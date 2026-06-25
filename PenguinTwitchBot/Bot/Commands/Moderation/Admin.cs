@@ -1,5 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.DatabaseTools;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using System.IO.Compression;
