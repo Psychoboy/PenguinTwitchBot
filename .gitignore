@@ -512,3 +512,5 @@ PenguinTwitchBot/Data/*.sqlite
 PenguinTwitchBot/Data/*.sqlite*
 PenguinTwitchBot/appsettings.secrets - Copy.json
 .kilo/*
+PenguinTwitchBot.Migrations.Sqlite/appsettings.json
+PenguinTwitchBot.Migrations.Postgres/appsettings.json
