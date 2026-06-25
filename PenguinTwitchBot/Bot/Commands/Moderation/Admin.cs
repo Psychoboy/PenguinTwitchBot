@@ -17,19 +17,25 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
     {
         public async Task BackupDatabase()
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await BackupTools.BackupDatabase(db, BackupTools.BACKUP_DIRECTORY, logger);
-            var files = Directory.GetFiles(BackupTools.BACKUP_DIRECTORY);
-            logger.LogInformation("Deleting old backups > 30 days");
-            foreach (var file in files)
+            try
             {
-                FileInfo fi = new(file);
-                if (fi.CreationTime < DateTime.Now.AddDays(-30))
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await BackupTools.BackupDatabase(db, BackupTools.BACKUP_DIRECTORY, logger);
+                var files = Directory.GetFiles(BackupTools.BACKUP_DIRECTORY);
+                logger.LogInformation("Deleting old backups > 30 days");
+                foreach (var file in files)
                 {
-                    logger.LogInformation("Deleting backup: {name}", fi.Name);
-                    fi.Delete();
+                    FileInfo fi = new(file);
+                    if (fi.CreationTime < DateTime.Now.AddDays(-30))
+                    {
+                        logger.LogInformation("Deleting backup: {name}", fi.Name);
+                        fi.Delete();
+                    }
                 }
+            } catch (Exception ex)
+            {
+                logger.LogCritical(ex, "ERROR ERROR Error backing up database! ERROR ERROR");
             }
         }
 
