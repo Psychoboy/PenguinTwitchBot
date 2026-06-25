@@ -286,7 +286,8 @@
     {
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
-            return SubActionUIRenderer.RenderFields(uiProvider, _fieldValues, this, OnFieldValueChanged, ServiceProvider);
+            var enhancedFields = SubActionUIFieldEnhancer.GetEnhancedFields(_currentSubAction, ServiceProvider);
+            return SubActionUIRenderer.RenderFields(enhancedFields, _fieldValues, this, OnFieldValueChanged);
         }
         else
         {
@@ -318,7 +319,7 @@
         // Check if any field declares a dependency on the changed property
         if (_currentSubAction is ISubActionUIProvider uiProvider)
         {
-            var fields = uiProvider.GetUIFields(ServiceProvider);
+            var fields = SubActionUIFieldEnhancer.GetEnhancedFields(_currentSubAction, ServiceProvider);
             return fields.Any(f => f.DependsOn != null && f.DependsOn.Contains(propertyName));
         }
 
