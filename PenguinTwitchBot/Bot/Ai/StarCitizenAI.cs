@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Ai
 {
-    public partial class StarCitizenAI(OpenAIClient openAIClient, IUnitOfWork unitOfWork) : IStarCitizenAI
+    public partial class StarCitizenAI(OpenAIClient openAIClient, IUnitOfWork unitOfWork, ILogger<StarCitizenAI> logger) : IStarCitizenAI
     {
         private readonly OpenAIClient client = openAIClient;
         [GeneratedRegex(@"\(\s*\[[^\]]+\]\([^)]+\)\s*\)",
@@ -67,11 +67,11 @@ namespace PenguinTwitchBot.Bot.Ai
                 }
             } catch (OperationCanceledException)
             {
-                return "OpenAI request timed out generating response.";
+                logger.LogWarning("OpenAI request timed out generating response for user {UserId}.", userId);
             }
             catch (Exception ex)
             {
-                return $"Error generating response: {ex.Message}";
+                logger.LogError(ex, "Error generating response for user {UserId}.", userId);
             }
 
             return "";
