@@ -1,4 +1,3 @@
-using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types

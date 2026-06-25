@@ -89,10 +89,12 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 Directory.CreateDirectory(backupDirectory);
             }
 
-            if (!Directory.Exists(tempDirectory))
+            if(Directory.Exists(tempDirectory))
             {
-                Directory.CreateDirectory(tempDirectory);
+                Directory.Delete(tempDirectory, true);
             }
+            Directory.CreateDirectory(tempDirectory);
+            
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
             .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);

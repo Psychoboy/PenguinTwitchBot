@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.TwitchApi"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PenguinTwitchBot.TwitchApi.Test", "PenguinTwitchBot.TwitchApi.Test\PenguinTwitchBot.TwitchApi.Test.csproj", "{5C4C6887-7098-454E-A372-B572DA86BDC4}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PenguinTwitchBot.Database", "PenguinTwitchBot.Database\PenguinTwitchBot.Database.csproj", "{B6D2A781-F372-4712-B6E9-90FA1C9F4E34}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
