@@ -122,7 +122,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(message.Trim()))
+            if (string.IsNullOrWhiteSpace(message))
             {
 
                 message = "Go give (name) a follow at https://twitch.tv/(name) - They were last seen playing (game)!";
