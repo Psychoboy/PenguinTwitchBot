@@ -94,6 +94,8 @@
   <ItemGroup>
     <ProjectReference Include="..\PenguinTwitchBot.TwitchApi\PenguinTwitchBot.TwitchApi.csproj" />
     <ProjectReference Include="..\PenguinTwitchBot.Database\PenguinTwitchBot.Database.csproj" />
+    <ProjectReference Include="..\PenguinTwitchBot.Migrations.Sqlite\PenguinTwitchBot.Migrations.Sqlite.csproj" />
+    <ProjectReference Include="..\PenguinTwitchBot.Migrations.Postgres\PenguinTwitchBot.Migrations.Postgres.csproj" />
   </ItemGroup>
 
   <ItemGroup>
