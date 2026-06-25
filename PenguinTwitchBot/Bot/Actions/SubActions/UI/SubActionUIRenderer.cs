@@ -22,9 +22,17 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
             Action<string, object?> onValueChanged,
             IServiceProvider? serviceProvider = null)
         {
+            return RenderFields(uiProvider.GetUIFields(serviceProvider), values, receiver, onValueChanged);
+        }
+
+        public static RenderFragment RenderFields(
+            List<SubActionUIField> fields,
+            Dictionary<string, object?> values,
+            object receiver,
+            Action<string, object?> onValueChanged)
+        {
             return builder =>
             {
-                var fields = uiProvider.GetUIFields(serviceProvider);
                 int sequence = 0;
 
                 foreach (var field in fields)
