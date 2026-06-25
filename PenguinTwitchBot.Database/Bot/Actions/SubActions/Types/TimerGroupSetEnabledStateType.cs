@@ -17,7 +17,32 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new SubActionUIField
+                {
+                    Label = "Timer Group",
+                    PropertyName = nameof(TimerGroupId),
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions = []
+                },
+                new SubActionUIField
+                {
+                    Label = "Enable Timer Group",
+                    PropertyName = nameof(IsEnabled),
+                    FieldType = UIFieldType.Switch,
+                    Required = true,
+                    DefaultValue = true,
+                    SwitchColor = "Success"
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                }
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

@@ -16,7 +16,48 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public string Amount { get; set; } = "%Args_1%";
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new()
+                {
+                    PropertyName = nameof(Text),
+                    Label = "Point Name",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    Options = [],
+                    HelperText = "The type of points to gift."
+                },
+                new()
+                {
+                    PropertyName = nameof(FromUsername),
+                    Label = "From Username",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Who the points are gifted from. You can use variables like %user%."
+                },
+                new()
+                {
+                    PropertyName = nameof(TargetName),
+                    Label = "Target Username",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Who the user is gifting to. You can use variables like %target%."
+                },
+                new()
+                {
+                    PropertyName = nameof(Amount),
+                    Label = "Amount",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "The amount of points to gift. You can use variables like %Args_1%."
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "Whether this sub-action is enabled or not."
+                }
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

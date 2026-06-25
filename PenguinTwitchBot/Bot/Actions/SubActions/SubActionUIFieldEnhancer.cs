@@ -176,6 +176,17 @@ public static class SubActionUIFieldEnhancer
             Options = pointNames
         });
 
+        var rankNames = Enum.GetNames<Rank>();
+        fields.RemoveAll(f => f.PropertyName == nameof(PointCommandType.RankToExecuteAs));
+        fields.Insert(1, new SubActionUIField
+        {
+            PropertyName = nameof(PointCommandType.RankToExecuteAs),
+            Label = "Rank Level to Run At",
+            FieldType = UIFieldType.Select,
+            Options = [.. rankNames],
+            HelperText = "If elevated rank is enabled, execute the command at the selected level."
+        });
+
         return fields;
     }
 
@@ -238,6 +249,16 @@ public static class SubActionUIFieldEnhancer
             FieldType = UIFieldType.Select,
             Required = true,
             SelectOptions = [.. commands]
+        });
+
+        fields.RemoveAll(f => f.PropertyName == nameof(ExecuteDefaultCommandType.RankToExecuteAs));
+        fields.Insert(1, new SubActionUIField
+        {
+            PropertyName = nameof(ExecuteDefaultCommandType.RankToExecuteAs),
+            Label = "Rank Level to Run At",
+            FieldType = UIFieldType.Select,
+            Options = [.. Enum.GetNames<Rank>()],
+            HelperText = "If elevated rank is enabled, execute the command at the selected level."
         });
 
         return fields;

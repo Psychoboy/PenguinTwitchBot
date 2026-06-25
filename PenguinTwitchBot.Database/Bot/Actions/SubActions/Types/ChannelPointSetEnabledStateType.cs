@@ -18,7 +18,33 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return
+            [
+                new SubActionUIField
+                {
+                    PropertyName = nameof(Text),
+                    Label = "Reward Name",
+                    FieldType = UIFieldType.Select,
+                    Options = [],
+                    Required = true,
+                    HelperText = "The name of the channel point reward to enable or disable"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(EnablePoint),
+                    Label = "Enable Point?",
+                    FieldType = UIFieldType.Switch,
+                    Required = true,
+                    HelperText = "Whether to enable or disable the channel point reward"
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                }
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

@@ -16,7 +16,38 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public string TargetUser { get; set; } = "%TargetUser%";
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new()
+                {
+                    PropertyName = nameof(PointTypeName),
+                    Label = "Point Type",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    Options = []
+                },
+                new()
+                {
+                    PropertyName = nameof(TargetUser),
+                    Label = "Target User",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "The user to check points for. You can use variables here, such as %TargetUser% or %User%."
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                },
+                new()
+                {
+                    PropertyName = "Info1",
+                    Label = "Info",
+                    FieldType = UIFieldType.Info,
+                    DefaultValue = "This will check targets points and populate %TargetPoints% and %TargetPointsFormatted%."
+                }
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

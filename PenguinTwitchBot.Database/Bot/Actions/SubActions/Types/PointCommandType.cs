@@ -17,7 +17,52 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public string? RankToExecuteAs { get; set; }
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new()
+                {
+                    PropertyName = nameof(Text),
+                    Label = "Point Command Name",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    Options = []
+                },
+                new()
+                {
+                    PropertyName = nameof(Arguments),
+                    Label = "Command Arguments",
+                    FieldType = UIFieldType.Text,
+                    HelperText = "Optional arguments to pass to the command. Separate multiple arguments with spaces. Typical usage is %user% AMOUNT."
+                },
+                new()
+                {
+                    PropertyName = nameof(RespondToChat),
+                    Label = "Respond to Chat?",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "If enabled, the bot will respond in chat with the result of the command execution."
+                },
+                new()
+                {
+                    PropertyName = nameof(ElevatedCommand),
+                    Label = "Run with Elevated Rank?",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "If enabled, the command will run with elevated rank, allowing it to bypass cooldowns and user level requirements. Use with caution."
+                },
+                new()
+                {
+                    PropertyName = nameof(RankToExecuteAs),
+                    Label = "Rank Level to Run At",
+                    FieldType = UIFieldType.Select,
+                    Options = [],
+                    HelperText = "If elevated rank is enabled, execute the command at the selected level."
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                },
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

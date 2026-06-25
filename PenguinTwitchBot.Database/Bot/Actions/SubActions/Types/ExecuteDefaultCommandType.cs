@@ -18,7 +18,54 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public ExecuteDefaultCommandType() { SubActionTypes = SubActionTypes.ExecuteDefaultCommand; }
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new()
+                {
+                    PropertyName = nameof(CommandName),
+                    Label = "Command",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions = []
+                },
+                new()
+                {
+                    PropertyName = nameof(Text),
+                    Label = "Command Parameters",
+                    FieldType = UIFieldType.Text,
+                    Required = false,
+                    HelperText = "Optional parameters to pass to the command. Separate multiple parameters with spaces. Can use variables like %user%."
+                },
+                new()
+                {
+                    PropertyName = nameof(ElevatedCommand),
+                    Label = "Run with Elevated Rank?",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "If enabled, the command will run with elevated rank, allowing it to bypass cooldowns and user level requirements. Use with caution."
+                },
+                new()
+                {
+                    PropertyName = nameof(RankToExecuteAs),
+                    Label = "Rank Level to Run At",
+                    FieldType = UIFieldType.Select,
+                    Options = [],
+                    HelperText = "If elevated rank is enabled, execute the command at the selected level."
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                },
+                new()
+                {
+                    PropertyName = "info_hint",
+                    Label = "If this is not executed from another command, default values will be set.",
+                    FieldType = UIFieldType.Info,
+                    Severity = "Info",
+                    Dense = true
+                },
+            ];
         }
 
         public Dictionary<string, object?> GetValues()

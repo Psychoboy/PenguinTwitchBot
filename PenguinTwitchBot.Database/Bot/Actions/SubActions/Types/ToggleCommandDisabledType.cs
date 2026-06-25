@@ -15,7 +15,32 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Types
         public bool IsDisabled { get; set; } = false;
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            return [];
+            return [
+                new SubActionUIField
+                {
+                    Label = "Command",
+                    PropertyName = nameof(CommandName),
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions = []
+                },
+                new SubActionUIField
+                {
+                    Label = "Disable Command",
+                    PropertyName = nameof(IsDisabled),
+                    FieldType = UIFieldType.Switch,
+                    Required = true,
+                    DefaultValue = false,
+                    SwitchColor = "Error"
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                }
+            ];
         }
 
         public Dictionary<string, object?> GetValues()
