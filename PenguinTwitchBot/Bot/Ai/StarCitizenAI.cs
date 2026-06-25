@@ -1,4 +1,4 @@
-using OpenAI;
+﻿using OpenAI;
 using OpenAI.Responses;
 using System.Text.RegularExpressions;
 
@@ -49,20 +49,29 @@ namespace PenguinTwitchBot.Bot.Ai
                 Model = "gpt-5.1"
             };
             responseOptions.InputItems.Add(ResponseItem.CreateUserMessageItem(prompt));
-            var response = await respClient.CreateResponseAsync(responseOptions);
 
-
-            foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
-            {
-                if (output is MessageResponseItem messageItem &&
-                    messageItem.Content != null && messageItem.Content.Count > 0)
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            try {
+                var response = await respClient.CreateResponseAsync(responseOptions, cts.Token);
+                foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
                 {
-                    var result = messageItem.Content.First().Text;
-                    result = LinkPatternRegex().Replace(result, "").Trim();
-                    result = result.ReplaceLineEndings(" ");
-                    await SavePreviousResponseCode(userId, response.Value.Id);
-                    return result;
+                    if (output is MessageResponseItem messageItem &&
+                        messageItem.Content != null && messageItem.Content.Count > 0)
+                    {
+                        var result = messageItem.Content.First().Text;
+                        result = LinkPatternRegex().Replace(result, "").Trim();
+                        result = result.ReplaceLineEndings(" ");
+                        await SavePreviousResponseCode(userId, response.Value.Id);
+                        return result;
+                    }
                 }
+            } catch (OperationCanceledException)
+            {
+                return "OpenAI request timed out generating response.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error generating response: {ex.Message}";
             }
 
             return "";
