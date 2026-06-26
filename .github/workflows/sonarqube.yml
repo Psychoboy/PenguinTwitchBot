@@ -42,6 +42,6 @@ jobs:
         shell: powershell
         run: |
           ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"Psychoboy_PenguinTwitchBot" /o:"psychoboy" /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-          dotnet build --configuration Debug --no-restore
+          dotnet build --configuration Debug
           dotnet test PenguinTwitchBot.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
