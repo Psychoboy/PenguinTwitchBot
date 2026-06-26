@@ -294,38 +294,35 @@
                     <MudGrid>
                         <MudItem xs="6" sm="3">
                             <MudNumericField @bind-Value="settings.RarityUncommonThreshold" 
-                                             Label="Uncommon (â‰¥)" 
+                                             Label="Uncommon (≥)" 
                                              Min="1"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Uncommon</MudChip>
+                                
                             </MudNumericField>
                         </MudItem>
                         <MudItem xs="6" sm="3">
                             <MudNumericField @bind-Value="settings.RarityRareThreshold" 
-                                             Label="Rare (â‰¥)" 
+                                             Label="Rare (≥)" 
                                              Min="1"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Rare</MudChip>
                             </MudNumericField>
                         </MudItem>
                         <MudItem xs="6" sm="3">
                             <MudNumericField @bind-Value="settings.RarityEpicThreshold" 
-                                             Label="Epic (â‰¥)" 
+                                             Label="Epic (≥)" 
                                              Min="1"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
-                                <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Epic</MudChip>
                             </MudNumericField>
                         </MudItem>
                         <MudItem xs="6" sm="3">
                             <MudNumericField @bind-Value="settings.RarityLegendaryThreshold" 
-                                             Label="Legendary (â‰¥)" 
+                                             Label="Legendary (≥)" 
                                              Min="1"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
-                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="position: absolute; right: 8px; top: 8px;">Legendary</MudChip>
                             </MudNumericField>
                         </MudItem>
                     </MudGrid>
@@ -468,7 +465,7 @@
                                     </MudAlert>
 
                                     <MudExpansionPanels>
-                                        <MudExpansionPanel Text="Rarity Distribution" IsInitiallyExpanded="true">
+                                        <MudExpansionPanel Text="Rarity Distribution" Expanded="true">
                                             <MudSimpleTable Dense="true" Striped="true">
                                                 <thead>
                                                     <tr>
