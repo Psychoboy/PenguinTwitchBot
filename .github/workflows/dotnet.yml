@@ -36,5 +36,5 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       with:
         args: >
-          -Dsonar.projectKey=Psychoboy
-          -Dsonar.organization=Psychoboy_PenguinTwitchBot
+          -Dsonar.projectKey=Psychoboy_PenguinTwitchBot
+          -Dsonar.organization=Psychoboy
