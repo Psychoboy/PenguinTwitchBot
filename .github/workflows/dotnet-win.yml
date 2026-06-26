@@ -11,10 +11,11 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -25,6 +26,4 @@ jobs:
     - name: Build
       run: dotnet build --configuration Debug --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
-    - name: Build Release
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet test PenguinTwitchBot.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
