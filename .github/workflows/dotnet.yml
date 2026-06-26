@@ -14,10 +14,14 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      id-token: write
+
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
@@ -28,4 +32,10 @@ jobs:
     - name: Build
       run: dotnet build --configuration Debug --no-restore
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test PenguinTwitchBot.sln --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput=coverage/
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@v2
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        organization: Psychoboy
