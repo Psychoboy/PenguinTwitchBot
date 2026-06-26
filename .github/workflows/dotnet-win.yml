@@ -27,7 +27,3 @@ jobs:
       run: dotnet build --configuration Debug --no-restore
     - name: Test
       run: dotnet test PenguinTwitchBot.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v2
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
