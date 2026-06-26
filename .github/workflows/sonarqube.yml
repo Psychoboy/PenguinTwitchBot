@@ -43,10 +43,11 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"Psychoboy_PenguinTwitchBot" /o:"psychoboy" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="${{ github.workspace }}/TestResults/coverage.xml"
+          ${{ runner.temp }}\scanner\dotnet-sonarscanner begin /k:"Psychoboy_PenguinTwitchBot" /o:"psychoboy" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="TestResults/coverage.opencover.xml"
 
           dotnet build PenguinTwitchBot.sln --configuration Debug
-          dotnet test PenguinTwitchBot.sln --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory "${{ github.workspace }}/TestResults" -- DataCollectionFormat=opencover CoverletOutputFormat=opencover CoverletOutput="${{ github.workspace }}/TestResults/coverage.xml"
-          
+          dotnet test PenguinTwitchBot.sln --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=opencover /p:CoverletOutput="TestResults/"
+
           ${{ runner.temp }}\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
 
