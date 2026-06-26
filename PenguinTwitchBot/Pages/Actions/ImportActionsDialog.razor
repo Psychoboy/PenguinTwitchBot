@@ -26,11 +26,11 @@
                 </MudText>
 
                 <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
-                    <ActivatorContent>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen">
+                    <CustomContent>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">
                             Select File
                         </MudButton>
-                    </ActivatorContent>
+                    </CustomContent>
                 </MudFileUpload>
 
                 @if (!string.IsNullOrEmpty(_parseError))
