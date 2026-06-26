@@ -34,7 +34,3 @@ jobs:
       uses: SonarSource/sonarcloud-github-action@v2
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        organization: Psychoboy
-    - name: Build Release
-      run: dotnet build --configuration Release --no-restore
