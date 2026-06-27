@@ -15,7 +15,7 @@
                 
                 <MudTextField @bind-Value="_searchText" Placeholder="Search subactions..." 
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                              Immediate="true" Margin="Margin.Dense" />
+                              Immediate="true" Margin="Margin.Dense" Class="subaction-search" />
 
                 <div style="max-height: 400px; overflow-y: auto;">
                     <MudList T="string">
@@ -23,7 +23,7 @@
                         {
                             @if (item.IsObsCategory)
                             {
-                                <MudListItem T="string" OnClick="SelectObsCategory">
+                                 <MudListItem T="string" class="subaction-item subaction-obs-category" OnClick="SelectObsCategory">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                         <MudIcon Icon="@Icons.Material.Filled.Videocam" Color="Color.Warning" />
                                         <MudStack Spacing="0">
@@ -37,7 +37,7 @@
                             }
                             else
                             {
-                                <MudListItem T="string" OnClick="@(() => SelectType(item.Type))">
+                                 <MudListItem T="string" class="@($"subaction-item subaction-{item.Type.ToString().ToLower()}")" OnClick="@(() => SelectType(item.Type))">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                         <MudIcon Icon="@GetIconForType(item.Type)" Color="@GetColorForType(item.Type)" />
                                         <MudStack Spacing="0">
@@ -63,7 +63,7 @@
                     <MudList T="string">
                         @foreach (var type in GetObsSubActionTypes())
                         {
-                            <MudListItem T="string" OnClick="@(() => SelectType(type))">
+                             <MudListItem T="string" class="@($"subaction-item subaction-obs-type subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                     <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
                                     <MudStack Spacing="0">
@@ -79,15 +79,15 @@
             }
             else if (_currentStep == WizardStep.Configure)
             {
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3 configure-step">
                     <MudIcon Icon="@GetIconForType(_selectedType)" Color="@GetColorForType(_selectedType)" />
                     <MudText Typo="Typo.h6">Configure @GetDisplayName(_selectedType)</MudText>
                 </MudStack>
 
-                @if (_validationError != null)
-                {
-                    <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
-                }
+                 @if (_validationError != null)
+                 {
+                     <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
+                 }
 
                 @RenderConfiguration()
             }
@@ -201,32 +201,6 @@
         return result;
     }
 
-    private List<SubActionTypes> GetFilteredSubActionTypes()
-    {
-        var types = SubActionRegistry.Metadata.Keys
-            .Where(t => t != SubActionTypes.None)
-            .ToList();
-
-        if (!string.IsNullOrWhiteSpace(_searchText))
-        {
-            types = types.Where(t =>
-            {
-                var metadata = SubActionRegistry.GetMetadata(t);
-                if (metadata == null) return false;
-
-                return metadata.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-                       metadata.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
-            }).ToList();
-        }
-        else
-        {
-            // When not searching, OBS types are grouped under the OBS category entry
-            types = types.Where(t => !IsObsType(t)).ToList();
-        }
-
-        return types;
-    }
-
     private List<SubActionTypes> GetObsSubActionTypes()
     {
         return SubActionRegistry.Metadata.Keys
@@ -277,11 +251,6 @@
         {
             _currentStep = WizardStep.SelectType;
         }
-    }
-
-    private void BackToTypeSelection()
-    {
-        GoBack();
     }
 
     private RenderFragment RenderConfiguration()
