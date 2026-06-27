@@ -1,92 +1,118 @@
 using Xunit;
 using Moq;
+using Moq.Protected;
 using System;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using PenguinTwitchBot.Bot.Hubs;
-using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Test.Bot.Hubs
 {
     public class SignalRHubConnectionWrapperTests
     {
-        /// <summary>
-        /// Creates a real HubConnection using the official framework builder pattern.
-        /// This cleanly bypasses internal parameter constructor mismatches.
-        /// </summary>
-        private HubConnection CreateTestHubConnection()
+        private (HubConnection Connection, Mock<HttpMessageHandler> Handler) CreateConfigurableHubConnection()
         {
-            return new HubConnectionBuilder()
-                .WithUrl("http://localhost/dummyHub") // Dummy location endpoint to satisfy configuration requirements
+            var mockHandler = new Mock<HttpMessageHandler>(MockBehavior.Loose);
+            var capturedHandler = mockHandler.Object;
+
+            var connection = new HubConnectionBuilder()
+                .WithUrl("http://localhost/dummyHub", options =>
+                {
+                    options.HttpMessageHandlerFactory = _ => capturedHandler;
+                })
+                .AddJsonProtocol() 
                 .Build();
+
+            return (connection, mockHandler);
+        }
+
+        [Fact]
+        public async Task StartAsync_ShouldReturnEarly_IfAlreadyStarted()
+        {
+            // Arrange
+            var (connection, mockHandler) = CreateConfigurableHubConnection();
+            var wrapper = new SignalRHubConnectionWrapper(connection);
+
+            // Force private '_started' field to true to target the early exit condition
+            var startedField = typeof(SignalRHubConnectionWrapper)
+                .GetField("_started", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            startedField.SetValue(wrapper, true);
+
+            // Act
+            var exception = await Record.ExceptionAsync(async () => await wrapper.StartAsync());
+
+            // Assert - Confirms it exited instantly with 0 network calls
+            Assert.Null(exception);
+
+            mockHandler.Protected().Verify(
+                "SendAsync", 
+                Times.Never(),
+                ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.ToString().Contains("negotiate")), 
+                ItExpr.IsAny<CancellationToken>()
+            );
+        }
+
+        [Fact]
+        public async Task StartAsync_ShouldRetryAndRethrowFinalException_WhenMaxRetriesExceeded()
+        {
+            // Arrange
+            var (connection, mockHandler) = CreateConfigurableHubConnection();
+            
+            mockHandler.Protected()
+                .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.InternalServerError)); // Force network drops
+
+            var wrapper = new SignalRHubConnectionWrapper(connection);
+
+            // Act & Assert - Verifies that the loop exhausts all 5 attempts and bubbles up the exception
+            await Assert.ThrowsAsync<HttpRequestException>(async () => await wrapper.StartAsync());
+            
+            mockHandler.Protected().Verify(
+                "SendAsync", 
+                Times.Exactly(5), 
+                ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.ToString().Contains("negotiate")), 
+                ItExpr.IsAny<CancellationToken>()
+            );
         }
 
         [Fact]
         public void Constructor_WithNullConnection_ShouldThrowArgumentNullException()
         {
-            // Arrange & Act & Assert
             var exception = Assert.Throws<ArgumentNullException>(() => new SignalRHubConnectionWrapper(null!));
             Assert.Equal("connection", exception.ParamName);
         }
 
         [Fact]
-        public void Constructor_WithValidConnection_ShouldInitializeSuccessfully()
+        public void On_ShouldInvokeUnderlyingOnMethodAndReturnDisposable()
         {
             // Arrange
-            var connection = CreateTestHubConnection();
+            var (connection, _) = CreateConfigurableHubConnection();
+            var wrapper = new SignalRHubConnectionWrapper(connection);
+            Func<string, Task> handler = (msg) => Task.CompletedTask;
 
             // Act
-            var wrapper = new SignalRHubConnectionWrapper(connection);
+            var disposable = wrapper.On<string>("TestEvent", handler);
 
             // Assert
-            Assert.NotNull(wrapper);
+            Assert.NotNull(disposable);
+            disposable.Dispose();
         }
 
         [Fact]
-        public void On_ShouldRegisterHandlerWithoutThrowing()
+        public async Task DisposeAsync_ShouldInvokeUnderlyingDispose()
         {
             // Arrange
-            var connection = CreateTestHubConnection();
-            var wrapper = new SignalRHubConnectionWrapper(connection);
-            var eventName = "TestEvent";
-            Func<string, Task> dummyHandler = (msg) => Task.CompletedTask;
-
-            // Act & Assert
-            var exception = Record.Exception(() => wrapper.On<string>(eventName, dummyHandler));
-            Assert.Null(exception);
-        }
-
-        [Fact]
-        public async Task StartAsync_ShouldInvokeUnderlyingStartSequence()
-        {
-            // Arrange
-            var connection = CreateTestHubConnection();
+            var (connection, _) = CreateConfigurableHubConnection();
             var wrapper = new SignalRHubConnectionWrapper(connection);
 
-            // Act & Assert
-            // Since there's no actual running host at our dummy address, StartAsync executes 
-            // the wrapper block entirely and fails on transport fallback negotiation loops.
-            // Catching this specific exception provides 100% statement execution validation.
-            await Assert.ThrowsAsync<System.Net.Http.HttpRequestException>(async () =>
-            {
-                await wrapper.StartAsync();
-            });
-        }
+            // Act
+            var exception = await Record.ExceptionAsync(async () => await wrapper.DisposeAsync());
 
-        [Fact]
-        public async Task DisposeAsync_ShouldTeardownConnectionCleanly()
-        {
-            // Arrange
-            var connection = CreateTestHubConnection();
-            var wrapper = new SignalRHubConnectionWrapper(connection);
-
-            // Act & Assert
-            var exception = await Record.ExceptionAsync(async () =>
-            {
-                await wrapper.DisposeAsync();
-            });
-            
+            // Assert
             Assert.Null(exception);
         }
     }

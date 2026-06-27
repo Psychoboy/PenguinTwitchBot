@@ -7,25 +7,56 @@ namespace PenguinTwitchBot.Bot.Hubs
     public class SignalRHubConnectionWrapper : ISignalRHubConnection
     {
         private readonly HubConnection _connection;
+        private bool _started;
 
         public SignalRHubConnectionWrapper(HubConnection connection)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         }
 
-        public void On<T>(string eventName, Func<T, Task> handler)
+        public IDisposable On<T>(string eventName, Func<T, Task> handler)
         {
-            _connection.On<T>(eventName, handler);
+            return _connection.On<T>(eventName, handler);
         }
 
-        public Task StartAsync()
+        public async Task StartAsync()
         {
-            return _connection.StartAsync();
+            if (_started) return;
+
+            const int maxRetries = 5;
+            var delay = TimeSpan.FromMilliseconds(500);
+
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                try
+                {
+                    await _connection.StartAsync();
+                    _started = true;
+                    return;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    // Fix: Check if this was the last allowed attempt
+                    if (attempt >= maxRetries - 1)
+                    {
+                        throw; // Rethrow the final exception to notify the caller immediately
+                    }
+
+                    await Task.Delay(delay);
+                    delay = TimeSpan.FromTicks(delay.Ticks * 2);
+                }
+            }
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            return _connection.DisposeAsync();
+            // Note: Components using '.On()' should dispose of their returned IDisposable 
+            // tokens individually in their own Dispose/DisposeAsync lifecycles.
+            await _connection.DisposeAsync();
         }
     }
 }
