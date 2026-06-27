@@ -222,7 +222,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!test", page.Markup);
             });
 
-            var testCommand = page.Find(".mud-list-item:contains('!test')");
+            var testCommand = page.Find(".command-item:contains('!test')");
             testCommand.Click();
 
             await page.WaitForAssertionAsync(() =>
@@ -244,7 +244,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!test", page.Markup);
             });
 
-            var testCommand = page.Find(".mud-list-item:contains('!test')");
+            var testCommand = page.Find(".command-item:contains('!test')");
             testCommand.Click();
 
             await page.WaitForAssertionAsync(() =>
@@ -299,7 +299,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!test", page.Markup);
             });
 
-            var testCommand = page.Find(".mud-list-item:contains('!test')");
+            var testCommand = page.Find(".command-item:contains('!test')");
             testCommand.Click();
 
             await page.WaitForAssertionAsync(() =>
@@ -321,7 +321,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!hello", page.Markup);
             });
 
-            var helloCommand = page.Find(".mud-list-item:contains('!hello')");
+            var helloCommand = page.Find(".command-item:contains('!hello')");
             helloCommand.Click();
 
             await page.WaitForAssertionAsync(() =>
@@ -410,7 +410,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 Assert.Contains("!test", page.Markup);
             });
 
-            var testCommand = page.Find(".mud-list-item:contains('!test')");
+            var testCommand = page.Find(".command-item:contains('!test')");
             testCommand.Click();
 
             await page.WaitForAssertionAsync(() =>
