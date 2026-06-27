@@ -34,15 +34,15 @@
             <MudStack Row="true" Spacing="1">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 
                            OnClick="SaveCommand" StartIcon="@Icons.Material.Filled.Save"
-                           Disabled="@(!CanSave())">
+                           Disabled="@(!CanSave())" Class="save-command-btn">
                     Save
                 </MudButton>
                 @if (!IsNewCommand && OnDelete.HasDelegate)
                 {
-                    <MudButton Variant="Variant.Filled" Color="Color.Error" 
-                               OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete">
-                        Delete
-                    </MudButton>
+                     <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                                OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete" Class="delete-command-btn">
+                         Delete
+                     </MudButton>
                 }
                 @if (OnCancel.HasDelegate)
                 {
@@ -65,7 +65,7 @@
             <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="Command.CommandName" Label="Command Name" 
                               Required="true" Variant="Variant.Outlined" 
-                              HelperText="Do not include the ! prefix" />
+                              HelperText="Do not include the ! prefix" Class="command-name-input" />
             </MudItem>
             <MudItem xs="12" md="6">
                 <MudAutocomplete T="string" @bind-Value="Command.Category" Label="Category" 
