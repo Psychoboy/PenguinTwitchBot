@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
-@inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 @inject PenguinTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject NavigationManager Navigation

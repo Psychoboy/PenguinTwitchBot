@@ -7,7 +7,7 @@
 @using PenguinTwitchBot.Pages.Components
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@inject AutoTimers TimerService
+@inject IAutoTimers TimerService
 @inject IActionManagementService ActionService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar

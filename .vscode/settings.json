@@ -1,7 +1,15 @@
-﻿{
+{
     "search.exclude": {
         "**/.git": true,
         "**/Data": true,
     },
-    "dotnet.defaultSolution": "PenguinTwitchBot.sln"
+    "dotnet.defaultSolution": "PenguinTwitchBot.sln",
+    "sonarlint.connectedMode.project": {
+        "connectionId": "psychoboy",
+        "projectKey": "Psychoboy_PenguinTwitchBot"
+    },
+    "cSpell.words": [
+        "cooldowns",
+        "Shoutout"
+    ]
 }

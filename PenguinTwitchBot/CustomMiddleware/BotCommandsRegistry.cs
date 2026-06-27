@@ -126,7 +126,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IRaffleRuntimeService, RaffleRuntimeService>();
 
 
-            services.AddHostedApiService<GiveawayFeature>();
+            services.AddHostedApiService<IGiveawayFeature, GiveawayFeature>();
             services.AddHostedApiService<Roulette>();
             services.AddHostedApiService<DuelGame>();
             services.AddHostedApiService<ModSpam>();
@@ -140,7 +140,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
             services.AddHostedApiService<Bot.Commands.Misc.Weather>();
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
-            services.AddHostedApiService<Bot.Commands.Misc.AutoTimers>();
+            services.AddHostedApiService<IAutoTimers, AutoTimers>();
             services.AddHostedApiService<AudioCommands>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();

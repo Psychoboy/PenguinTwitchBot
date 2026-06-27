@@ -3,7 +3,7 @@
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
-@inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject ILogger<Giveaway> logger

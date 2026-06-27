@@ -219,7 +219,7 @@
     [Parameter] public int ActionId { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
-    [Inject] private PenguinTwitchBot.Bot.Commands.Misc.AutoTimers TimersService { get; set; } = null!;
+    [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;
     [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
 
     private bool _showTypeSelection = true;

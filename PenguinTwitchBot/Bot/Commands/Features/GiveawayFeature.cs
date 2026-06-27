@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService
-            ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature", dispatcher), IHostedService
+            ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature", dispatcher), IHostedService, IGiveawayFeature
     {
         private readonly List<string> Tickets = new();
         private readonly List<GiveawayWinner> Winners = new();
