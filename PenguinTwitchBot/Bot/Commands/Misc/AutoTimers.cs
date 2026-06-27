@@ -12,7 +12,7 @@ using Timer = System.Timers.Timer;
 
 namespace PenguinTwitchBot.Bot.Commands.Misc
 {
-    public class AutoTimers : BaseCommandService, IHostedService
+    public class AutoTimers : BaseCommandService, IHostedService, IAutoTimers
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AutoTimers> _logger;
@@ -65,7 +65,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             return await db.TimerGroups.GetAsync();
         }
 
-        public async Task<TimerGroup?> GetTimerGroupAsync(int id)
+        public virtual async Task<TimerGroup?> GetTimerGroupAsync(int id)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -100,7 +100,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
         }
 
-        public async Task UpdateTimerGroup(TimerGroup group)
+        public virtual async Task UpdateTimerGroup(TimerGroup group)
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -201,7 +201,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await UpdateNextRun(group);
         }
 
-        public async Task<TimerGroup> UpdateNextRun(TimerGroup group)
+        public virtual async Task<TimerGroup> UpdateNextRun(TimerGroup group)
         {
             try
             {

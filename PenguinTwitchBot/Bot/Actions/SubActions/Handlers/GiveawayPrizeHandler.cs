@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class GiveawayPrizeHandler(GiveawayFeature giveawayFeature) : ISubActionHandler
+    public class GiveawayPrizeHandler(IGiveawayFeature giveawayFeature) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.GiveawayPrize;
 
@@ -21,4 +21,3 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
-

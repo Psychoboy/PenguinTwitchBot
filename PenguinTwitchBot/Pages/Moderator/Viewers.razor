@@ -5,7 +5,7 @@
 @inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
-@inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Viewers</PageTitle>
 <MudContainer MaxWidth="MaxWidth.False">

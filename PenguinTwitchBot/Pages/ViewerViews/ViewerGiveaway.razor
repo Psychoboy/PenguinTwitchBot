@@ -6,7 +6,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature GiveawayFeature;
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject PenguinTwitchBot.Bot.Core.Points.ITwitchEventsBonus twitchEventsBonus
 @inject NavigationManager Navigation

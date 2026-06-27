@@ -6,7 +6,7 @@ using System.Collections.Concurrent;
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class TimerGroupSetEnabledStateHandler(
-        AutoTimers timerService) : ISubActionHandler
+        IAutoTimers timerService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.TimerGroupSetEnabledState;
 

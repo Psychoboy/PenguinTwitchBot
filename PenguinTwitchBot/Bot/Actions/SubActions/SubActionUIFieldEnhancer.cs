@@ -114,7 +114,7 @@ public static class SubActionUIFieldEnhancer
 
     private static List<SubActionUIField> EnhanceTimerGroupSetEnabledState(List<SubActionUIField> fields, TimerGroupSetEnabledStateType timer, IServiceProvider serviceProvider)
     {
-        var timerService = serviceProvider.GetRequiredService<AutoTimers>();
+        var timerService = serviceProvider.GetRequiredService<IAutoTimers>();
         var timerGroups = Task.Run(async () => await timerService.GetTimerGroupsAsync()).GetAwaiter().GetResult();
         var timerGroupOptions = timerGroups
             .Where(tg => tg.Id.HasValue)
