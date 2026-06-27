@@ -597,6 +597,160 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
         [Fact]
+        public async Task ViewDetails_OpensDialog()
+        {
+            SetupContext();
+            var logs = CreateTestLogs();
+            var mockLogger = new Mock<IActionExecutionLogger>();
+            mockLogger.Setup(l => l.GetRecentLogs(It.IsAny<int>())).Returns(logs);
+            mockLogger.Setup(l => l.GetLogCount()).Returns(logs.Count);
+            mockLogger.Setup(l => l.MaxLogCount()).Returns(1000);
+
+            var mockQueueManager = new Mock<IQueueManager>();
+            mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockLogger.Object);
+
+            var mockDialogService = new Mock<IDialogService>();
+            var mockDialogReference = new Mock<IDialogReference>();
+            mockDialogReference.SetupGet(r => r.Result).Returns(Task.FromResult<DialogResult?>(DialogResult.Ok(true)));
+            mockDialogService
+                .Setup(s => s.ShowAsync<ActionVariablesDialog>(It.IsAny<string>(), It.IsAny<DialogParameters<ActionVariablesDialog>>(), It.IsAny<DialogOptions>()))
+                .ReturnsAsync(mockDialogReference.Object);
+
+            _ctx!.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
+            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
+            _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
+            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
+            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("TestAction1", page.Markup);
+            });
+
+            var viewButton = page.Find(".view-details-btn");
+            viewButton.Click();
+
+            mockDialogService.Verify(s => s.ShowAsync<ActionVariablesDialog>(
+                "Action Execution Details",
+                It.IsAny<DialogParameters<ActionVariablesDialog>>(),
+                It.IsAny<DialogOptions>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task OnFilterStateChanged_FiltersByState()
+        {
+            SetupContext();
+            var logs = CreateTestLogs();
+            var mockLogger = new Mock<IActionExecutionLogger>();
+            mockLogger.Setup(l => l.GetRecentLogs(It.IsAny<int>())).Returns(logs);
+            mockLogger.Setup(l => l.GetLogCount()).Returns(logs.Count);
+            mockLogger.Setup(l => l.MaxLogCount()).Returns(1000);
+
+            var mockQueueManager = new Mock<IQueueManager>();
+            mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockLogger.Object);
+
+            _ctx!.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
+            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
+            _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
+            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
+            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("TestAction1", page.Markup);
+                Assert.Contains("TestAction2", page.Markup);
+            });
+
+            var component = page.Instance;
+            var method = typeof(ActionHistory).GetMethod("OnFilterStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => method.Invoke(component, new object[] { ActionExecutionState.Failed }));
+            page.Render();
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("TestAction2", page.Markup);
+                Assert.DoesNotContain("TestAction1", page.Markup);
+            });
+        }
+
+        [Fact]
+        public async Task TogglePauseUpdates_TogglesState()
+        {
+            SetupContext();
+            SetupServices();
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("TestAction1", page.Markup);
+            });
+
+            var component = page.Instance;
+            var pausedField = typeof(ActionHistory).GetField("_updatesPaused", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            Assert.False((bool)pausedField.GetValue(component)!);
+
+            var toggleMethod = typeof(ActionHistory).GetMethod("TogglePauseUpdates", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            page.Render();
+
+            Assert.True((bool)pausedField.GetValue(component)!);
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("Resume", page.Markup);
+            });
+
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            page.Render();
+            Assert.False((bool)pausedField.GetValue(component)!);
+        }
+
+        [Fact]
+        public async Task ResumeUpdates_ClearsPendingAndReloads()
+        {
+            SetupContext();
+            var logs = CreateTestLogs();
+            var mockLogger = new Mock<IActionExecutionLogger>();
+            mockLogger.Setup(l => l.GetRecentLogs(It.IsAny<int>())).Returns(logs);
+            mockLogger.Setup(l => l.GetLogCount()).Returns(logs.Count);
+            mockLogger.Setup(l => l.MaxLogCount()).Returns(1000);
+
+            var mockQueueManager = new Mock<IQueueManager>();
+            mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockLogger.Object);
+
+            var mockDialogService = new Mock<IDialogService>();
+
+            _ctx!.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
+            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockLogger.Object);
+            _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
+            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
+            _ctx.Services.AddSingleton<ISignalRHubConnectionFactory>(new Mock<ISignalRHubConnectionFactory>().Object);
+
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("TestAction1", page.Markup);
+            });
+
+            var component = page.Instance;
+            var pausedField = typeof(ActionHistory).GetField("_updatesPaused", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var pendingField = typeof(ActionHistory).GetField("_pendingUpdatesCount", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            pausedField.SetValue(component, true);
+            pendingField.SetValue(component, 5);
+            page.Render();
+
+            mockLogger.Invocations.Clear();
+            var toggleMethod = typeof(ActionHistory).GetMethod("TogglePauseUpdates", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            page.Render();
+
+            Assert.False((bool)pausedField.GetValue(component)!);
+            Assert.Equal(0, (int)pendingField.GetValue(component)!);
+            mockLogger.Verify(l => l.GetRecentLogs(It.IsAny<int>()), Times.Once);
+        }
+
+        [Fact]
         public async Task SignalR_WhenNotPaused_ShouldInsertNewLogIntoUI()
         {
             // 1. Arrange: Context & Required page dependencies setup
