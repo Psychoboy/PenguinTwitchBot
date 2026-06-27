@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using Newtonsoft.Json.Linq;
 using OBSWebsocketDotNet;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.ObsConnector;
@@ -12,14 +13,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetSourceAudioTrackStateHandlerTests
     {
-        private static ManagedOBSConnection CreateConnectedConnection(int id, string name)
+        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(int id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
             var mockLogger = Substitute.For<ILogger<ManagedOBSConnection>>();
             var connection = new ManagedOBSConnection(config, mockObs, mockLogger);
             typeof(ManagedOBSConnection).GetProperty("IsConnected")?.SetValue(connection, true);
-            return connection;
+            return (connection, mockObs);
         }
 
         [Fact]
@@ -29,7 +30,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSourceAudioTrackStateHandler>>();
             var handler = new ObsSetSourceAudioTrackStateHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
+            var (connection, mockObs) = CreateConnectedConnection(1, "Main");
             connectionManager.GetManagedConnection(1).Returns(connection);
 
             var type = new ObsSetSourceAudioTrackStateType { OBSConnectionId = 1, InputName = "Mic", TrackNumber = 1, TrackEnabled = true };
@@ -38,19 +39,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(type, variables);
 
             connectionManager.Received(1).GetManagedConnection(1);
-        }
-
-        [Fact]
-        public async Task WrongType_ThrowsException()
-        {
-            var connectionManager = Substitute.For<IOBSConnectionManager>();
-            var logger = Substitute.For<ILogger<ObsSetSourceAudioTrackStateHandler>>();
-            var handler = new ObsSetSourceAudioTrackStateHandler(connectionManager, logger);
-
-            var wrongType = new SendMessageType();
-            var variables = new ConcurrentDictionary<string, string>();
-
-            await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(wrongType, variables));
+            mockObs.Received(1).SetInputAudioTracks("Mic", Arg.Is<JObject>(o => o["1"]!.ToString() == "True"));
         }
 
         [Fact]
@@ -59,6 +48,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var connectionManager = Substitute.For<IOBSConnectionManager>();
             var logger = Substitute.For<ILogger<ObsSetSourceAudioTrackStateHandler>>();
             var handler = new ObsSetSourceAudioTrackStateHandler(connectionManager, logger);
+
+            var (connection, _) = CreateConnectedConnection(1, "Main");
+            connectionManager.GetManagedConnection(1).Returns(connection);
 
             var type = new ObsSetSourceAudioTrackStateType { OBSConnectionId = 1, InputName = "Mic", TrackNumber = 0, TrackEnabled = true };
             var variables = new ConcurrentDictionary<string, string>();

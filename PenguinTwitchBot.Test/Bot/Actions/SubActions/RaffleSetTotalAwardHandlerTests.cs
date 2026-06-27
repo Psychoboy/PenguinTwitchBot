@@ -48,5 +48,17 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
         }
+
+        [Fact]
+        public async Task NegativeTotalAward_ThrowsException()
+        {
+            var raffleService = Substitute.For<IRaffleRuntimeService>();
+            var handler = new RaffleSetTotalAwardHandler(raffleService);
+
+            var type = new RaffleSetTotalAwardType { RaffleKey = "testraffle", TotalAward = "-1" };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
+        }
     }
 }

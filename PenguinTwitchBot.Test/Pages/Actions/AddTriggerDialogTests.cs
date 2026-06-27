@@ -9,6 +9,7 @@ using PenguinTwitchBot.Pages.Actions;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Timers;
 using System.Collections.Generic;
@@ -49,6 +50,10 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var mockPointsSystem = new Mock<IPointsSystem>();
             _ctx.Services.AddSingleton<IPointsSystem>(mockPointsSystem.Object);
+            
+            var mockTwitchService = new Mock<ITwitchService>();
+            mockTwitchService.Setup(x => x.GetChannelPointRewards()).ReturnsAsync(new List<PenguinTwitchBot.TwitchApi.Models.ChannelPoints.ChannelPointReward>());
+            _ctx.Services.AddSingleton<ITwitchService>(mockTwitchService.Object);
             
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
@@ -151,6 +156,24 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             {
                 var finalMarkup = dialogProvider.Markup;
                 Assert.Contains("Configure Manual Trigger", finalMarkup);
+            });
+        }
+
+        [Fact]
+        public async Task ClickTriggerTwitchEvent_ShowsTwitchEventConfiguration()
+        {
+            SetupContext();
+            var dialogProvider = _ctx!.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddTriggerDialog>("Test Title"));
+
+            var twitchEventItem = dialogProvider.Find(".trigger-twitchevent");
+            twitchEventItem.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var finalMarkup = dialogProvider.Markup;
+                Assert.Contains("Configure Twitch Event Trigger", finalMarkup);
             });
         }
 

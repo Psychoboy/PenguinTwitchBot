@@ -12,14 +12,14 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class ObsSetSceneHandlerTests
     {
-        private static ManagedOBSConnection CreateConnectedConnection(int id, string name)
+        private static (ManagedOBSConnection Connection, IOBSWebsocket MockObs) CreateConnectedConnection(int id, string name)
         {
             var config = new OBSConnection { Id = id, Name = name, Url = "ws://localhost:4455", Password = "test", Enabled = true };
             var mockObs = Substitute.For<IOBSWebsocket>();
             var mockLogger = Substitute.For<ILogger<ManagedOBSConnection>>();
             var connection = new ManagedOBSConnection(config, mockObs, mockLogger);
             typeof(ManagedOBSConnection).GetProperty("IsConnected")?.SetValue(connection, true);
-            return connection;
+            return (connection, mockObs);
         }
 
         [Fact]
@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var logger = Substitute.For<ILogger<ObsSetSceneHandler>>();
             var handler = new ObsSetSceneHandler(connectionManager, logger);
 
-            var connection = CreateConnectedConnection(1, "Main");
+            var (connection, mockObs) = CreateConnectedConnection(1, "Main");
             connectionManager.GetManagedConnection(1).Returns(connection);
 
             var type = new ObsSetSceneType { OBSConnectionId = 1, SceneName = "Gaming" };
@@ -38,6 +38,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(type, variables);
 
             connectionManager.Received(1).GetManagedConnection(1);
+            mockObs.Received(1).SetCurrentProgramScene("Gaming");
         }
 
         [Fact]
