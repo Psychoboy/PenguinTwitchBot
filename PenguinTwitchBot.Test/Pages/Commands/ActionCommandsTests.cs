@@ -36,10 +36,10 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
         }
 
-        private List<ActionCommand> CreateTestCommands()
+        private static List<ActionCommand> CreateTestCommands()
         {
-            return new List<ActionCommand>
-            {
+            return
+            [
                 new ActionCommand
                 {
                     Id = 1,
@@ -88,7 +88,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                     ExcludeFromUi = false,
                     SourceOnly = true
                 }
-            };
+            ];
         }
 
         private void SetupServices(List<ActionCommand>? commands = null, List<TriggerType>? triggers = null, List<ActionType>? actions = null)
