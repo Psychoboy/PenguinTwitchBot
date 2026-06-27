@@ -26,7 +26,7 @@ using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Test.Pages.Commands
 {
-    public class ActionCommandsSmokeTests : IAsyncLifetime
+    public class ActionCommandsTests : IAsyncLifetime
     {
         private BunitContext? _ctx;
 
@@ -120,7 +120,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             mockPointSystem.Setup(s => s.GetPointTypes()).ReturnsAsync(new List<PointType>());
 
             var mockDialogService = new Mock<IDialogService>();
-            mockDialogService.Setup(s => s.ShowMessageBoxAsync(It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
+            mockDialogService.Setup(s => s.ShowMessageBoxAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
                 .Returns(Task.FromResult<bool?>(true));
 
             var mockSnackbar = new Mock<ISnackbar>();
@@ -375,6 +375,106 @@ namespace PenguinTwitchBot.Test.Pages.Commands
             {
                 Assert.Contains("Edit Command: !hello", page.Markup);
                 Assert.Contains("Say hello", page.Markup);
+            });
+        }
+
+        [Fact]
+        public async Task DeleteCommand_Click_TriggersServiceCall()
+        {
+            SetupContext();
+            var commands = CreateTestCommands();
+            var deleteCalled = false;
+            var deletedId = 0;
+            var commandService = new Mock<IActionCommandService>();
+            commandService.Setup(s => s.GetAllAsync()).ReturnsAsync(commands);
+            commandService.Setup(s => s.DeleteAsync(It.IsAny<int>())).Callback<int>(id =>
+            {
+                deleteCalled = true;
+                deletedId = id;
+            }).Returns(Task.CompletedTask);
+
+            var mockDialogService = new Mock<IDialogService>();
+            mockDialogService.Setup(s => s.ShowMessageBoxAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
+                .Returns((string title, string message, string yesText, string? noText, string? cancelText, DialogOptions? options) => 
+                    Task.FromResult<bool?>(true));
+
+            _ctx!.Services.AddSingleton<IActionCommandService>(commandService.Object);
+            _ctx.Services.AddSingleton<IActionManagementService>(new Mock<IActionManagementService>().Object);
+            _ctx.Services.AddSingleton<IPointsSystem>(new Mock<IPointsSystem>().Object);
+            _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
+            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
+
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("!test", page.Markup);
+            });
+
+            var testCommand = page.Find(".mud-list-item:contains('!test')");
+            testCommand.Click();
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("Edit Command: !test", page.Markup);
+            });
+
+            var deleteButton = page.Find(".delete-command-btn");
+            deleteButton.Click();
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.True(deleteCalled);
+                Assert.Equal(1, deletedId);
+            });
+        }
+
+        [Fact]
+        public async Task CreateNewCommand_DuplicateName_ShowsWarning()
+        {
+            SetupContext();
+            var commands = CreateTestCommands();
+            var commandService = new Mock<IActionCommandService>();
+            commandService.Setup(s => s.GetAllAsync()).ReturnsAsync(commands);
+            commandService.Setup(s => s.CommandExistsAsync("test")).ReturnsAsync(true);
+
+            var mockDialogService = new Mock<IDialogService>();
+            mockDialogService.Setup(s => s.ShowMessageBoxAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DialogOptions?>()))
+                .Returns((string title, string message, string yesText, string? noText, string? cancelText, DialogOptions? options) => 
+                    Task.FromResult<bool?>(null));
+
+            _ctx!.Services.AddSingleton<IActionCommandService>(commandService.Object);
+            _ctx.Services.AddSingleton<IActionManagementService>(new Mock<IActionManagementService>().Object);
+            _ctx.Services.AddSingleton<IPointsSystem>(new Mock<IPointsSystem>().Object);
+            _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
+            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
+
+            var page = RenderPage();
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("Commands (3)", page.Markup);
+            });
+
+            var addButton = page.Find(".add-command-btn");
+            addButton.Click();
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                Assert.Contains("New Command", page.Markup);
+            });
+
+            var nameInput = page.Find(".command-name-input input");
+            nameInput.Change("test");
+
+            var saveButton = page.Find(".save-command-btn");
+            saveButton.Click();
+
+            await page.WaitForAssertionAsync(() =>
+            {
+                mockDialogService.Verify(s => s.ShowMessageBoxAsync(
+                    "Warning",
+                    "This command already exists. Continue?",
+                    "Yes", null, "Cancel", null), Times.Once);
+                commandService.Verify(s => s.AddAsync(It.IsAny<ActionCommand>()), Times.Never);
             });
         }
 
