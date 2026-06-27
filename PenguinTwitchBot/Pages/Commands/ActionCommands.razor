@@ -28,15 +28,15 @@
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.h6">Commands (@_commands.Count)</MudText>
                         <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
-                                       OnClick="CreateNewCommand" />
+                                       OnClick="CreateNewCommand" Class="add-command-btn" />
                     </MudStack>
 
                     <MudTextField @bind-Value="_searchString" Placeholder="Search commands" 
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
-                                  OnDebounceIntervalElapsed="FilterCommands" />
+                                  OnDebounceIntervalElapsed="FilterCommands" Class="command-search" />
 
-                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true">
+                    <MudSelect T="string" Value="@_filterCategory" ValueChanged="OnCategoryFilterChanged" Label="Filter by Category" Dense="true" Class="category-filter">
                         <MudSelectItem T="string" Value="@("")">All Categories</MudSelectItem>
                         @foreach (var category in _categories)
                         {
@@ -61,7 +61,7 @@
                                     <NestedList>
                                         @foreach (var command in _filteredCommands.Where(c => (c.Category ?? string.Empty).Trim() == category))
                                         {
-                                            <MudListItem T="ActionCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))">
+                                             <MudListItem T="ActionCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))" Class="command-item">
                                                 <MudStack Spacing="0">
                                                     <MudText Typo="Typo.body1">!@command.CommandName</MudText>
                                                     <MudStack Row="true" Spacing="1">
@@ -86,7 +86,7 @@
         <MudItem xs="12" md="8">
             @if (_isLoading)
             {
-                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
+                <MudPaper Class="pa-4 loading-spinner" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
                     <MudStack AlignItems="AlignItems.Center" Spacing="2">
                         <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
                         <MudText Typo="Typo.h6" Color="Color.Secondary">Loading commands...</MudText>
