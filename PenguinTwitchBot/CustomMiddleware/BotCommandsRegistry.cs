@@ -204,6 +204,7 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             // Register Queue Manager
             services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
+            services.AddTransient<Bot.Hubs.ISignalRHubConnectionFactory, Bot.Hubs.SignalRHubConnectionFactory>();
             services.AddHostedApiService<RuntimeHealthSnapshotService>();
 
             // Register Validation Service (Singleton for cross-scope result caching)

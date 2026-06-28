@@ -62,7 +62,7 @@
 @code {
     private List<Database.Bot.Models.Giveaway.GiveawayWinner>? pastWinners;
     [Inject]
-    private PenguinTwitchBot.Bot.Commands.Features.GiveawayFeature giveawayFeature { get; set; } = default!;
+    private PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature giveawayFeature { get; set; } = default!;
 
     bool isVisible = false;
     InputType inputType = InputType.Password;
