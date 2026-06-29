@@ -1,158 +1,165 @@
-using PenguinTwitchBot.Bot.Core;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NSubstitute;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Metrics;
-using PenguinTwitchBot.Database.Bot.Core;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Metrics;
 using PenguinTwitchBot.Database.Repository;
-using Microsoft.Extensions.DependencyInjection;
-using MockQueryable.NSubstitute;
-using NSubstitute;
+using PenguinTwitchBot.Database.Repository.Repositories;
+using PenguinTwitchBot.Database.Bot.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Metrics
 {
-    public class SongRequestsTests
+    public class SongRequestsTests : IDisposable
     {
-        //[Fact]
-        //public async Task IncrementSongCount_NewMetric()
-        //{
-        //    //Arrange
-        //    var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        //    var dbContext = Substitute.For<IUnitOfWork>();
-        //    var serviceProvider = Substitute.For<IServiceProvider>();
-        //    var scope = Substitute.For<IServiceScope>();
+        private readonly SqliteConnection _connection;
+        private readonly ApplicationDbContext _context;
 
-        //    scopeFactory.CreateScope().Returns(scope);
-        //    scope.ServiceProvider.Returns(serviceProvider);
+        public SongRequestsTests()
+        {
+            _connection = new SqliteConnection("DataSource=:memory:");
+            _connection.Open();
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(_connection)
+                .Options;
+            _context = new ApplicationDbContext(options);
+            _context.Database.EnsureCreated();
+        }
 
-        //    serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+        public void Dispose()
+        {
+            _context.Dispose();
+            _connection.Close();
+            _connection.Dispose();
+        }
 
-        //    var queryable = new List<SongRequestMetric> { }.AsQueryable().BuildMockDbSet();
-        //    dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
+        private SongRequests CreateSongRequests()
+        {
+            var logger = Substitute.For<ILogger<SongRequests>>();
+            var dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var commandHandler = Substitute.For<ICommandHandler>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            var scopeFactory = new TestServiceScopeFactory(_context);
+            return new SongRequests(scopeFactory, serviceBackbone, commandHandler, dispatcher, logger);
+        }
 
-        //    var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+        [Fact]
+        public async Task IncrementSongCount_AddsNewHistoryEntry()
+        {
+            var songRequests = CreateSongRequests();
+            var song = new Song { SongId = "testSongId", Title = "Test Song", Duration = TimeSpan.FromMinutes(3) };
+
+            await songRequests.IncrementSongCount(song);
+
+            var historyCount = await _context.SongRequestHistories.CountAsync();
+            Assert.Equal(1, historyCount);
             
-        //    //Act
-        //    await songRequests.IncrementSongCount(new PenguinTwitchBot.Bot.Models.Song());
+            var history = await _context.SongRequestHistories.FirstAsync();
+            Assert.Equal("testSongId", history.SongId);
+            Assert.Equal("Test Song", history.Title);
+        }
 
-        //    //Assert
-        //    await dbContext.SongRequestMetrics.Received(1).AddAsync(Arg.Any<SongRequestMetric>());
-        //    await dbContext.Received(1).SaveChangesAsync();
-        //}
+        [Fact]
+        public async Task GetRequestedCount_ReturnsZero_WhenNoHistory()
+        {
+            var songRequests = CreateSongRequests();
+            var result = await songRequests.GetRequestedCount(new Song { SongId = "nonexistent" });
+            Assert.Equal(0, result);
+        }
 
-        //[Fact]
-        //public async Task IncrementSongCount_ExistingMetric()
-        //{
-        //    //Arrange
-        //    var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        //    var dbContext = Substitute.For<IUnitOfWork>();
-        //    var serviceProvider = Substitute.For<IServiceProvider>();
-        //    var scope = Substitute.For<IServiceScope>();
+        [Fact]
+        public async Task GetRequestedCount_ReturnsCorrectCount()
+        {
+            var songId = "popularSong";
+            _context.SongRequestHistories.AddRange(
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Popular Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Popular Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Popular Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = "otherSong", Title = "Other Song", Duration = TimeSpan.FromMinutes(4), RequestDate = DateTime.UtcNow }
+            );
+            await _context.SaveChangesAsync();
 
-        //    scopeFactory.CreateScope().Returns(scope);
-        //    scope.ServiceProvider.Returns(serviceProvider);
+            var songRequests = CreateSongRequests();
+            var result = await songRequests.GetRequestedCount(new Song { SongId = songId });
+            Assert.Equal(3, result);
+        }
 
-        //    serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+        [Fact]
+        public async Task GetRequestedCount_AllTimeReturnsAllRecords()
+        {
+            var songId = "recentSong";
+            _context.SongRequestHistories.AddRange(
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow.AddDays(-10) },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow.AddDays(-20) },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow.AddDays(-200) }
+            );
+            await _context.SaveChangesAsync();
 
-        //    var testMetric = new SongRequestMetric { RequestedCount = 1};
-        //    var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-        //    dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
+            var songRequests = CreateSongRequests();
+            var allTime = await songRequests.GetRequestedCount(new Song { SongId = songId });
 
-        //    var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            Assert.Equal(3, allTime);
+        }
 
-        //    //Act
-        //    await songRequests.IncrementSongCount(new PenguinTwitchBot.Bot.Models.Song());
+        private class TestServiceScopeFactory : IServiceScopeFactory
+        {
+            private readonly ApplicationDbContext _context;
 
-        //    //Assert
-        //    dbContext.SongRequestMetrics.Received(1).Update(Arg.Any<SongRequestMetric>());
-        //    await dbContext.Received(1).SaveChangesAsync();
-        //    Assert.Equal(2, testMetric.RequestedCount);
-        //}
+            public TestServiceScopeFactory(ApplicationDbContext context)
+            {
+                _context = context;
+            }
 
-        //[Fact]
-        //public async Task DecrementSongCount_ExistingMetric()
-        //{
-        //    //Arrange
-        //    var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        //    var dbContext = Substitute.For<IUnitOfWork>();
-        //    var serviceProvider = Substitute.For<IServiceProvider>();
-        //    var scope = Substitute.For<IServiceScope>();
+            public IServiceScope CreateScope()
+            {
+                return new TestServiceScope(_context);
+            }
 
-        //    scopeFactory.CreateScope().Returns(scope);
-        //    scope.ServiceProvider.Returns(serviceProvider);
+            public IServiceScope CreateAsyncScope()
+            {
+                return new TestServiceScope(_context);
+            }
+        }
 
-        //    serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+        private class TestServiceScope : IServiceScope
+        {
+            private readonly ApplicationDbContext _context;
+            private readonly UnitOfWork _unitOfWork;
+            private readonly IServiceProvider _serviceProvider;
 
-        //    var testMetric = new SongRequestMetric { RequestedCount = 1 };
-        //    var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-        //    dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
+            public TestServiceScope(ApplicationDbContext context)
+            {
+                _context = context;
+                _unitOfWork = new UnitOfWork(_context);
+                _serviceProvider = new TestServiceProvider(_unitOfWork);
+            }
 
-        //    var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
+            public IServiceProvider ServiceProvider => _serviceProvider;
 
-        //    //Act
-        //    await songRequests.DecrementSongCount(new PenguinTwitchBot.Bot.Models.Song());
+            public void Dispose() { }
+        }
 
-        //    //Assert
-        //    dbContext.SongRequestMetrics.Received(1).Update(Arg.Any<SongRequestMetric>());
-        //    await dbContext.Received(1).SaveChangesAsync();
-        //    Assert.Equal(0, testMetric.RequestedCount);
-        //}
+        private class TestServiceProvider : IServiceProvider
+        {
+            private readonly UnitOfWork _unitOfWork;
 
-        //[Fact]
-        //public async Task GetRequestedCount_NewMetric()
-        //{
-        //    //Arrange
-        //    var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        //    var dbContext = Substitute.For<IUnitOfWork>();
-        //    var serviceProvider = Substitute.For<IServiceProvider>();
-        //    var scope = Substitute.For<IServiceScope>();
+            public TestServiceProvider(UnitOfWork unitOfWork)
+            {
+                _unitOfWork = unitOfWork;
+            }
 
-        //    scopeFactory.CreateScope().Returns(scope);
-        //    scope.ServiceProvider.Returns(serviceProvider);
-
-        //    serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-        //    var queryable = new List<SongRequestMetric> {}.AsQueryable().BuildMockDbSet();
-        //    dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
-
-        //    var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
-
-        //    //Act
-        //    var result = await songRequests.GetRequestedCount(new PenguinTwitchBot.Bot.Models.Song());
-
-        //    //Assert
-        //    Assert.Equal(0, result);
-        //}
-
-        //[Fact]
-        //public async Task GetRequestedCount_ExistingMetric()
-        //{
-        //    //Arrange
-        //    var scopeFactory = Substitute.For<IServiceScopeFactory>();
-        //    var dbContext = Substitute.For<IUnitOfWork>();
-        //    var serviceProvider = Substitute.For<IServiceProvider>();
-        //    var scope = Substitute.For<IServiceScope>();
-
-        //    scopeFactory.CreateScope().Returns(scope);
-        //    scope.ServiceProvider.Returns(serviceProvider);
-
-        //    serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
-
-        //    var testMetric = new SongRequestMetric { RequestedCount = 1 };
-        //    var queryable = new List<SongRequestMetric> { testMetric }.AsQueryable().BuildMockDbSet();
-        //    dbContext.SongRequestMetrics.Find(x => true).ReturnsForAnyArgs(queryable);
-
-        //    var songRequests = new SongRequests(scopeFactory, Substitute.For<IServiceBackbone>(), Substitute.For<ICommandHandler>());
-
-        //    //Act
-        //    var result = await songRequests.GetRequestedCount(new PenguinTwitchBot.Bot.Models.Song());
-
-        //    //Assert
-        //    Assert.Equal(1, result);
-        //}
+            public object? GetService(Type serviceType)
+            {
+                if (serviceType == typeof(IUnitOfWork))
+                    return _unitOfWork;
+                return null;
+            }
+        }
     }
 }

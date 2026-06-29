@@ -199,6 +199,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
 
+            modelBuilder.Entity<Models.Metrics.SongRequestHistory>()
+                .HasIndex(e => new { e.SongId, e.RequestDate })
+                .HasDatabaseName("IX_SongRequestHistories_SongId_RequestDate");
+
             modelBuilder.Entity<OverlayLayout>()
                 .HasMany(l => l.Widgets)
                 .WithOne(w => w.Layout)
