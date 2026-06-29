@@ -80,9 +80,12 @@ public static class SubActionUIFieldEnhancer
                             sceneField.HelperText = "Select the OBS scene to switch to";
                         }
                     }
+}
+                catch (Exception)
+                {
+                    // Ignore OBS scene list errors - connection may be temporarily unavailable
                 }
-                catch { }
-            }
+             }
         }
 
         return fields;

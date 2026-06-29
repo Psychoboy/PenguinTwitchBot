@@ -2,3 +2,39 @@
 
 # CS0067: The event 'EventSubWebsocketClient.StreamOnline' is never used
 dotnet_diagnostic.CS0067.severity = suggestion
+
+# SonarAnalyzer suppressions for lower-priority style warnings
+# These are formatting/style preferences that don''t affect correctness
+
+# S6678: Use PascalCase for named placeholders in logging (Serilog accepts both)
+dotnet_diagnostic.S6678.severity = none
+
+# S1125: Remove unnecessary Boolean literal(s) - harmless
+dotnet_diagnostic.S1125.severity = none
+
+# S1066: Merge this if statement with the enclosing one - readability preference
+dotnet_diagnostic.S1066.severity = none
+
+# S2971: Drop Where and move condition into method - performance micro-optimization
+dotnet_diagnostic.S2971.severity = none
+
+# S6966: Await async method instead of non-async - many false positives
+dotnet_diagnostic.S6966.severity = none
+
+# S3267: Loops should be simplified using Where LINQ - style preference
+dotnet_diagnostic.S3267.severity = none
+
+# S6610: StartsWith with char overload - not always applicable
+dotnet_diagnostic.S6610.severity = none
+
+# S927: Rename parameter to match base class - not always applicable
+dotnet_diagnostic.S927.severity = none
+
+# S3358: Extract this nested ternary operation - readability preference
+dotnet_diagnostic.S3358.severity = none
+
+# S2094: Classes should not be empty
+dotnet_diagnostic.S2094.severity = none
+
+# S3376: Attribute, EventArgs, and Exception type names should end with the type being extended
+dotnet_diagnostic.S3376.severity = none

@@ -664,13 +664,16 @@
                 try
                 {
                     var dict = JsonSerializer.Deserialize<Dictionary<string, string?>>(w.CustomSettings, _chatJsonOptions);
-                    if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string.IsNullOrWhiteSpace(channel))
+if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string.IsNullOrWhiteSpace(channel))
                     {
                         model.DisplayName = $"{model.DisplayName} ({channel})";
                     }
                 }
-                catch { }
-            }
+                catch (Exception)
+                {
+                    // Ignore JSON deserialization errors - alert channel is optional
+                }
+             }
 
             return model;
         }).ToList();

@@ -25,7 +25,11 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
                 if (_webSocket.State is WebSocketState.Open or WebSocketState.Connecting)
                     return true;
                 if (_webSocket.State is WebSocketState.Closed)  //after a socket is closed it cannot be reopened
+                {
+                    var oldSocket = _webSocket;
                     _webSocket = new();
+                    oldSocket.Dispose();
+                }
                 await _webSocket.ConnectAsync(url, CancellationToken.None);
 #pragma warning disable 4014
                 Task.Run(async () => await ProcessDataAsync());
@@ -129,8 +133,16 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
 
         public void Dispose()
         {
+            Dispose(true);
             GC.SuppressFinalize(this);
-            _webSocket.Dispose();
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _webSocket.Dispose();
+            }
         }
     }
 }

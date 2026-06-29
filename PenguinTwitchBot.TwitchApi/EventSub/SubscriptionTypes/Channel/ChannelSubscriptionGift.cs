@@ -13,6 +13,6 @@ public sealed class ChannelSubscriptionGift
     public int Total { get; set; }
     public string Tier { get; set; } = string.Empty;
     public int? CumulativeTotal { get; set; }
-    [MemberNotNullWhen(false, ["UserId", "UserLogin", "UserName"])]
+    [MemberNotNullWhen(false, nameof(UserId), nameof(UserLogin), nameof(UserName))]
     public bool IsAnonymous { get; set; }
 }

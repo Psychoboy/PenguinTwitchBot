@@ -12,11 +12,10 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
             logger.LogInformation("{username} caught a {fish} worth {gold} gold with {catchRating} stars and rarity of {rarity}",
                 lbtrigger.Username.Replace(Environment.NewLine, ""), 
                 lbtrigger.CatchName?.Replace(Environment.NewLine, ""), 
-                lbtrigger.CatchValue, 
-                lbtrigger.CatchRating, 
+                lbtrigger.CatchValue,
+                lbtrigger.CatchRating,
                 lbtrigger.CatchRarity?.Replace(Environment.NewLine, ""));
 
-            //await pointsSystem.AddPointsByUsernameAndGame(lbtrigger.Username, "lurkbait", lbtrigger.CatchValue * lbtrigger.CatchRating * 1000);
             switch(lbtrigger.CatchRating)
             {
                 case 3:

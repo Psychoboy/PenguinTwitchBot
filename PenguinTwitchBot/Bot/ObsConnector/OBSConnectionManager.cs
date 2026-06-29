@@ -158,7 +158,10 @@ namespace PenguinTwitchBot.Bot.ObsConnector
                     {
                         testObs.Disconnect();
                     }
-                    catch { }
+                    catch
+                    {
+                        // Ignore - connection may already be disconnected or closing
+                    }
                     tcs.TrySetResult(true);
                 };
 
@@ -186,7 +189,10 @@ namespace PenguinTwitchBot.Bot.ObsConnector
                     {
                         testObs.Disconnect();
                     }
-                    catch { }
+                    catch
+                    {
+                        // Ignore - connection may already be disconnected or closing
+                    }
                     return false;
                 }
 

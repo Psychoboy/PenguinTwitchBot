@@ -70,10 +70,7 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 var pointType = await _pointSystem.GetPointTypeForGame(ModuleName);
                 foreach (var viewer in viewers)
                 {
-                    //await using var scope = _scopeFactory.CreateAsyncScope();
-                    //var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                     var viewerPoints = await _pointSystem.GetUserPointsByUserIdAndGame(viewer.UserId, ModuleName);
-                    //var viewerPoints = await db.ViewerPoints.Find(x => x.Username.Equals(viewer.Username)).FirstOrDefaultAsync();
                     if (viewerPoints == null) continue;
                     if (viewerPoints.Points <= 25000) continue;
                     var toRemove = (long)Math.Floor(viewerPoints.Points * 0.01);
@@ -81,8 +78,6 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                     totalRemoved += toRemove;
                     viewerPoints.Points -= toRemove;
                     await _pointSystem.RemovePointsFromUserByUserIdAndGame(viewer.UserId, ModuleName, toRemove);
-                    //db.ViewerPoints.Update(viewerPoints);
-                    //await db.SaveChangesAsync();
                 }
                 _logger.LogInformation("Removed {totalRemoved} {pointType} via taxes", totalRemoved, pointType.Name);
             }

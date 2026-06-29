@@ -44,10 +44,8 @@ namespace PenguinTwitchBot.Bot.Commands.Ai
                 {
                     logger.LogWarning("Received empty response from StarCitizenAI.");
                     await RespondWithMessage(e, "Sorry, I couldn't get a response right now.");
-                    //await dispatcher.Publish(new ReplyToMessage(e.MessageId, ));
                     return;
                 }
-                //await dispatcher.Publish(new ReplyToMessage(e.MessageId, response));
                 await RespondWithMessage(e, response);
             }
             catch (Exception ex)

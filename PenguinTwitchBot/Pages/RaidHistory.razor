@@ -143,14 +143,17 @@
         return raidHistory;
     }
 
-    private async Task Raid(RaidHistoryEntry item)
+private async Task Raid(RaidHistoryEntry item)
     {
         try
         {
             await RaidTracker.Raid(item.Name);
         }
-        catch (Exception)
-        { }
+        catch (Exception ex)
+        {
+            // Ignore raid execution errors - UI will show appropriate state
+            Console.WriteLine($"Error executing raid: {ex.Message}");
+        }
     }
     private async Task Remove(RaidHistoryEntry item)
     {
@@ -159,9 +162,12 @@
             await RaidTracker.RemoveRaidHistory(item);
             raidHistory = await RaidTracker.GetHistory();
             StateHasChanged();
+}
+        catch (Exception ex)
+        {
+            // Ignore remove errors - UI will show appropriate state
+            Console.WriteLine($"Error removing raid history: {ex.Message}");
         }
-        catch (Exception)
-        { }
     }
 
 

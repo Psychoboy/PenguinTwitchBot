@@ -643,7 +643,9 @@ namespace PenguinTwitchBot.Bot.Core
                 _logger.LogInformation("Event Updated: {EventName}", @event.Name);
             }
             catch (Exception)
-            { }
+            {
+                // Ignore logging failures - not critical to event handling
+            }
             return Task.CompletedTask;
         }
 
@@ -655,6 +657,7 @@ namespace PenguinTwitchBot.Bot.Core
             }
             catch (Exception)
             {
+                // Ignore logging failures - not critical to event handling
             }
             return Task.CompletedTask;
         }
@@ -667,6 +670,7 @@ namespace PenguinTwitchBot.Bot.Core
             }
             catch (Exception)
             {
+                // Ignore logging failures - not critical to event handling
             }
             return Task.CompletedTask;
         }

@@ -42,7 +42,6 @@ namespace PenguinTwitchBot.Bot.Commands.Alias
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
-                //e.SkipLock = true;
                 await ServiceBackbone.RunCommand(e);
                 return true;
             }

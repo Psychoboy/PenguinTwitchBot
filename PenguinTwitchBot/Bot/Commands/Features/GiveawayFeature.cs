@@ -491,7 +491,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 }
 
                 amount = amount.ToLower();
-                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points; //await ticketsFeature.GetViewerTickets(sender);
+                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points;
                 if (amount == "max" || amount == "all")
                 {
                     amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points.ToString();

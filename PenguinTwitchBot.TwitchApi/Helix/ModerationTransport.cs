@@ -8,12 +8,10 @@ namespace PenguinTwitchBot.TwitchApi.Helix;
 public sealed class ModerationTransport : IModerationTransport
 {
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<ModerationTransport> _logger;
 
-    public ModerationTransport(IHttpClientFactory httpClientFactory, ILogger<ModerationTransport> logger)
+    public ModerationTransport(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
-        _logger = logger;
     }
 
     public async Task<CheckAutoModStatusResponse> CheckAutoModStatusAsync(string clientId, string? accessToken, List<AutoModMessage> messages, string broadcasterId)
