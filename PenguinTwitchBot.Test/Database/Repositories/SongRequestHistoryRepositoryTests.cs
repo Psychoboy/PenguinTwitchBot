@@ -104,7 +104,6 @@ namespace PenguinTwitchBot.Test.Database.Repositories
                 new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = "song1", Title = "Song One", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
                 new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = "song1", Title = "Song One", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
                 new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = "song2", Title = "Song Two", Duration = TimeSpan.FromMinutes(4), RequestDate = DateTime.UtcNow },
-                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = "song3", Title = "Song Three", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
             };
 
             _context.SongRequestHistories.AddRange(histories);
@@ -132,9 +131,10 @@ namespace PenguinTwitchBot.Test.Database.Repositories
             _context.SongRequestHistories.AddRange(histories);
             await _context.SaveChangesAsync();
 
-            var result = await _repository.QuerySongRequestHistoryLimitedByMonths(limit: 10, offset: 0);
+            var result = await _repository.QuerySongRequestHistoryLimitedByMonths(numberOfMonths: 12, limit: 1, offset: 1);
 
-            Assert.True(result.Count > 0);
+            Assert.Single(result);
+            Assert.Equal(2, result[0].Ranking);
         }
 
         [Fact]
