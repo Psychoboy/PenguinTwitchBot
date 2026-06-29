@@ -25,7 +25,7 @@
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.h6">Audio Commands (@_commands.Count)</MudText>
                         <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
-                                       OnClick="CreateNewCommand" />
+                                       OnClick="CreateNewCommand" Class="add-audio-command-btn" />
                     </MudStack>
 
                     <MudTextField @bind-Value="_searchString" Placeholder="Search commands" 
@@ -58,7 +58,7 @@
                                     <NestedList>
                                         @foreach (var command in _filteredCommands.Where(c => (c.Category ?? string.Empty).Trim() == category))
                                         {
-                                            <MudListItem T="AudioCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))">
+                                            <MudListItem T="AudioCommand" Value="@command" OnClick="@(() => OnCommandSelected(command))" Class="audio-command-item">
                                                 <MudStack Spacing="0">
                                                     <MudText Typo="Typo.body1">!@command.CommandName</MudText>
                                                     <MudStack Row="true" Spacing="1">
