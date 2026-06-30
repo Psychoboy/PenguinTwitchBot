@@ -1,0 +1,16 @@
+name: Codacy-Coverage
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Run Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Codacy Coverage Reporter
+        uses: codacy/codacy-coverage-reporter-action@v1.3.0
