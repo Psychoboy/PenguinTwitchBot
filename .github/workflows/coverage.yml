@@ -5,12 +5,30 @@ on:
     branches: [ "main", "develop" ]
   pull_request:
     types: [opened, synchronize, reopened]
+
 permissions:
   contents: read
+
 jobs:
   build:
     name: Run Coverage
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Debug --no-restore
+      - name: Test PenguinTwitchBot.Test
+        run: dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
+      - name: Test PenguinTwitchBot.TwitchApi.Test
+        run: dotnet test PenguinTwitchBot.TwitchApi.Test/PenguinTwitchBot.TwitchApi.Test.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
       - name: Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@v1.3.0
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: '**/coverage.opencover.xml'
