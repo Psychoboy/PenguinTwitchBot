@@ -15,11 +15,14 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 {
     public class EventSubWebsocketClient
     {
+#pragma warning disable S3264 // Events should be invoked
         public event AsyncEventHandler<WebsocketConnectedEventArgs>? WebsocketConnected;
+
         public event AsyncEventHandler<MessageReceivedEventArgs>? MessageReceived;
         public event AsyncEventHandler<WebsocketDisconnectedEventArgs>? WebsocketDisconnected;
         public event AsyncEventHandler<ErrorOccurredEventArgs>? ErrorOccurred;
         public event AsyncEventHandler<WebsocketReconnectedEventArgs>? WebsocketReconnected;
+#pragma warning restore S3264 // Events should be invoked
 
         public event AsyncEventHandler<ChannelAdBreakBeginEventArgs>? ChannelAdBreakBegin;
         public event AsyncEventHandler<ChannelBanEventArgs>? ChannelBan;
@@ -60,7 +63,9 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             DictionaryKeyPolicy = JsonNamingPolicy.SnakeCaseLower
         };
 
+#pragma warning disable S1075 // URIs should not be hardcoded
         private const string WEBSOCKET_URL = "wss://eventsub.wss.twitch.tv/ws";
+#pragma warning restore S1075 // URIs should not be hardcoded
 
         public EventSubWebsocketClient(ILogger<EventSubWebsocketClient> logger, IServiceProvider serviceProvider, WebsocketClient websocketClient)
         {
@@ -107,8 +112,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             if (!monitorRequired)
                 return true;
 
-            _cts?.Cancel();
-
+            _cts?.Dispose();
             _cts = new CancellationTokenSource();
             var connectionCheckToken = _cts.Token;
 
@@ -338,7 +342,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
                 await WebsocketDisconnected.InvokeAsync(this, new ());
         }
 
-        private void HandleKeepAlive(WebsocketEventSubMetaData metadata, JsonElement payload)
+        private static void HandleKeepAlive(WebsocketEventSubMetaData metadata, JsonElement payload)
         {
             _ = metadata;
             _ = payload;

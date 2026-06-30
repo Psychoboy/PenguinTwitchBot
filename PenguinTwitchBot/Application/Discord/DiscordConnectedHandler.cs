@@ -7,7 +7,7 @@ namespace PenguinTwitchBot.Application.Discord
     {
         public async Task Handle(DiscordConnectedNotification notification, CancellationToken cancellationToken)
         {
-            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new Exception("Invalid Configuration. Discord settings missing.");
+            var settings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? throw new InvalidOperationException("Invalid Configuration. Discord settings missing.");
             IGuild guild = notification.Client.GetGuild(settings.DiscordServerId);
             await guild.DownloadUsersAsync(); //Load all users
             var users = await guild.GetUsersAsync();

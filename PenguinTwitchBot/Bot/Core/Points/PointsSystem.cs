@@ -205,7 +205,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+#pragma warning disable RCS1155 // Use StringComparison when comparing strings
+#pragma warning disable CA1862 // Use the 'StringComparison' method overloads to perform case-insensitive string comparisons
             return (await db.PointTypes.GetAsync(x => x.Name.ToLower() == name.ToLower())).FirstOrDefault();
+#pragma warning restore CA1862 // Use the 'StringComparison' method overloads to perform case-insensitive string comparisons
+#pragma warning restore RCS1155 // Use StringComparison when comparing strings
         }
 
         public async Task<IEnumerable<PointType>> GetPointTypes()

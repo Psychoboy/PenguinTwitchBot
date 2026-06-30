@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Models.Chat;
 
 public sealed class ChatGiftPaidUpgrade
 {
-    [MemberNotNullWhen(false, ["GifterUserId", "GifterUserLogin", "GifterUserName"])]
+    [MemberNotNullWhen(false, nameof(GifterUserId), nameof(GifterUserLogin), nameof(GifterUserName))]
     public bool GifterIsAnonymous { get; set; }
     public string? GifterUserId { get; set; }
     public string? GifterUserName { get; set; }

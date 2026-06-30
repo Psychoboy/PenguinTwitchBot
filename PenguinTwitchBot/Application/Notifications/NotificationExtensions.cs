@@ -19,11 +19,7 @@ namespace PenguinTwitchBot.Application.Notifications
                     if (@interface.IsGenericType)
                     {
                         var genericTypeDef = @interface.GetGenericTypeDefinition();
-                        if (genericTypeDef == typeof(INotificationHandler<>))
-                        {
-                            services.AddTransient(@interface, type);
-                        }
-                        else if (genericTypeDef == typeof(IRequestHandler<,>))
+                        if (genericTypeDef == typeof(INotificationHandler<>) || genericTypeDef == typeof(IRequestHandler<,>))
                         {
                             services.AddTransient(@interface, type);
                         }

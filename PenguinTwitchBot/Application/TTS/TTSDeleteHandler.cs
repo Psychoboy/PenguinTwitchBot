@@ -1,7 +1,9 @@
 ﻿
 namespace PenguinTwitchBot.Application.TTS
 {
+#pragma warning disable S101 // Types should be named in PascalCase
     public class TTSDeleteHandler(ILogger<TTSDeleteHandler> logger) : Application.Notifications.INotificationHandler<TTSDeleteNotification>
+#pragma warning restore S101 // Types should be named in PascalCase
     {
         public Task Handle(TTSDeleteNotification notification, CancellationToken cancellationToken)
         {

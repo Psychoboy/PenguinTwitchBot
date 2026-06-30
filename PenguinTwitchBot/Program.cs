@@ -350,13 +350,11 @@ internal class Program
         {
             app.UseExceptionHandler("/Error");
             // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-            //app.UseHsts();
 
         }
 
         app.UseStatusCodePagesWithReExecute("/NotFoundItem", "?statusCode={0}");
 
-        //app.UseHttpsRedirection();
         app.UseStaticFiles();
 
         app.UseRouting();
@@ -445,12 +443,15 @@ internal class Program
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
 
-        try
-        {
-            await YoutubeDLSharp.Utils.DownloadYtDlp();
-            await YoutubeDLSharp.Utils.DownloadFFmpeg();
-        }
-        catch (Exception) { }
+try
+            {
+                await YoutubeDLSharp.Utils.DownloadYtDlp();
+                await YoutubeDLSharp.Utils.DownloadFFmpeg();
+            }
+            catch (Exception)
+            {
+                // Ignore download failures - yt-dlp/ffmpeg fallback handled elsewhere or not critical for startup
+            }
 
         LinqToDBForEFTools.Initialize();
 

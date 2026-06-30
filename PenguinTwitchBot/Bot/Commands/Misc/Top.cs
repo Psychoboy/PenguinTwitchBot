@@ -45,9 +45,6 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 case "toptime":
                     await SayTimeTopN(5);
                     break;
-                //case "toptickets":
-                //    await SayTicketsTopN(10);
-                //    break;
                 case "loudest":
                     await SayLoudestTopN(10);
                     break;
@@ -71,9 +68,6 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            //var top = await db.ViewerPointWithRanks.GetAsync(filter: x => !broadcasterName.Equals(x.Username) && !botName.Equals(x.Username), orderBy: y => y.OrderBy(z => z.Ranking), limit: topN);
-            //var rank = 1;
-            //var names = string.Join(", ", top.Select(x => (rank++).ToString() + ". " + x.Username + " " + x.Points.ToString("N0")));
             var pointType = await pointsSystem.GetPointTypeForGame(ModuleName);
             var top = await db.UserPoints.GetRankedPoints(pointType.Id.GetValueOrDefault(), limit: topN).ToListAsync();
             var names = string.Join(", ", top.Select(x => x.Ranking + ". " + x.Username + " " + x.Points.ToString("N0")));

@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.SubscriptionTypes.Channel;
 
 public sealed class ChannelCheer
 {
-    [MemberNotNullWhen(false, ["UserId", "UserLogin", "UserName"])]
+    [MemberNotNullWhen(false, nameof(UserId), nameof(UserLogin), nameof(UserName))]
     public bool IsAnonymous { get; set; }
     public int Bits { get; set; }
     public string Message { get; set; } = string.Empty;

@@ -5,5 +5,16 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
     /// </summary>
     public class BreakException : Exception
     {
+        public BreakException()
+        {
+        }
+
+        public BreakException(string message) : base(message)
+        {
+        }
+
+        public BreakException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
     }
 }

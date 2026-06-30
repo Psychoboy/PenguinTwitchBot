@@ -8,6 +8,7 @@
         "connectionId": "psychoboy",
         "projectKey": "Psychoboy_PenguinTwitchBot"
     },
+    "csharp.omnisharpUsesRoslynAnalyzers": true,
     "cSpell.words": [
         "cooldowns",
         "Shoutout"

@@ -5,7 +5,9 @@ using PenguinTwitchBot.Bot.Notifications;
 
 namespace PenguinTwitchBot.Application.TTS
 {
+#pragma warning disable S101 // Types should be named in PascalCase
     public class TTSCreateHandler(ITTSPlayerService ttsPlayerService, IWebSocketMessenger webSocketMessenger, ILogger<TTSCreateHandler> logger) : Application.Notifications.INotificationHandler<TTSCreateNotification>
+#pragma warning restore S101 // Types should be named in PascalCase
     {
         public async Task Handle(TTSCreateNotification notification, CancellationToken cancellationToken)
         {

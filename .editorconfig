@@ -1,4 +1,31 @@
-﻿[*.cs]
+﻿root = true
 
-# CS0067: The event 'EventSubWebsocketClient.StreamOnline' is never used
-dotnet_diagnostic.CS0067.severity = suggestion
+# 1. Main Project Scanning Rules (Aggressive but Silent)
+[*.{cs,razor}]
+# 1. Unlock all hidden, deactivated Roslynator rules
+roslynator_analyzers.enabled_by_default = true
+
+# 2. Force the entire rule matrix down to clean, silent inline text hints
+dotnet_analyzer_diagnostic.category-roslynator.severity = hint
+dotnet_analyzer_diagnostic.severity = hint
+dotnet_diagnostic.RCS1075.severity = none
+
+
+# 2. EXCLUSIONS: Turn off ALL analyzer diagnostics for the Migrations project
+[**/PenguinTwitchBot.Migrations*/**]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+dotnet_compiler_diagnostic.severity = none
+
+# 3. EXCLUSIONS: Turn off ALL analyzer diagnostics for the Test project
+[**/PenguinTwitchBot.Test*/**]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+dotnet_compiler_diagnostic.severity = none
+
+# 4. Standard Build Cache Exclusions
+[**/obj/**]
+generated_code = true
+
+[**/bin/**]
+generated_code = true

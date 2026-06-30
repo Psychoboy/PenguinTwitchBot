@@ -23,6 +23,7 @@ public abstract class TwitchClientRetryBase
     {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
+#pragma warning disable S2139 // Exceptions should be either logged or rethrown but not both
             try
             {
                 return await action();
@@ -46,6 +47,7 @@ public abstract class TwitchClientRetryBase
                     operation, ex.GetType().Name, ex.Message, GetFailureHint(ex));
                 throw;
             }
+#pragma warning restore S2139 // Exceptions should be either logged or rethrown but not both
         }
 
         throw new InvalidOperationException($"Retry loop exited unexpectedly for operation '{operation}'.");
