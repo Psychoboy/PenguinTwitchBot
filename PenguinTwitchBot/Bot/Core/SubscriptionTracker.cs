@@ -2,7 +2,7 @@ using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Core
 {
-    public class SubscriptionTracker(ILogger<SubscriptionTracker> logger, IServiceScopeFactory scopeFactory)
+    public class SubscriptionTracker(ILogger<SubscriptionTracker> logger, IServiceScopeFactory scopeFactory) : ISubscriptionTracker
     {
         public async Task<bool> ExistingSub(string name)
         {

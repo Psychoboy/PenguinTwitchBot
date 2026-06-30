@@ -40,7 +40,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly IUsersClient _usersClient;
         private readonly IScheduleClient _scheduleClient;
         private readonly SettingsFileManager _settingsFileManager;
-        private readonly ChatMessageIdTracker _messageIdTracker;
+        private readonly IChatMessageIdTracker _messageIdTracker;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private bool serviceUp = false;
         private string? broadcasterId = string.Empty;
@@ -65,7 +65,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             IScheduleClient scheduleClient,
             SettingsFileManager settingsFileManager,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ChatMessageIdTracker messageIdTracker)
+            IChatMessageIdTracker messageIdTracker)
         {
 
             _logger = logger;

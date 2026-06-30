@@ -431,7 +431,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
-                    var subTracker = scope.ServiceProvider.GetRequiredService<SubscriptionTracker>();
+                    var subTracker = scope.ServiceProvider.GetRequiredService<ISubscriptionTracker>();
                     var missingNames = await subTracker.MissingSubs(subscribers.Select(x => UsernameNormalizer.Normalize(x.UserLogin)));
                     foreach (var missingName in missingNames)
                     {

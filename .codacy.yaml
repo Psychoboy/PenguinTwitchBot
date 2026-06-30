@@ -5,3 +5,21 @@ exclude_paths:
   - 'PenguinTwitchBot.Test/**'
   - 'PenguinTwitchBot.Migrations.*/**'
   - 'PenguinTwitchBot.TwitchApi.Test/**'
+  - '.github/**'
+  - '.*/**'
+  - '*.*'
+
+include_paths:
+  - '*.sln'
+
+engines:
+  metric:
+    patterns:
+      - id: "Lizard_file-nloc-medium"
+        parameters:
+          - name: "threshold"
+            value: 1000
+      - id: "Lizard_nloc-medium"
+        parameters:
+          - name: "threshold"
+            value: 200

@@ -21,7 +21,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
          ITwitchService twitchService,
          IAuthClient authClient,
          IChatClient chatClient,
-         ChatMessageIdTracker messageIdTracker,
+         IChatMessageIdTracker messageIdTracker,
          SettingsFileManager settingsFileManager) : ITwitchChatBot
     {
         private readonly Timer HealthStatusTimer = new();

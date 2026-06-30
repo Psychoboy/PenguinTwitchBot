@@ -13,7 +13,7 @@ using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Models;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 {
-    public class EventSubWebsocketClient
+    public class EventSubWebsocketClient : IEventSubWebsocketClient
     {
 #pragma warning disable S3264 // Events should be invoked
         public event AsyncEventHandler<WebsocketConnectedEventArgs>? WebsocketConnected;

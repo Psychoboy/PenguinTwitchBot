@@ -2,7 +2,7 @@
 
 namespace PenguinTwitchBot.Bot.TwitchServices
 {
-    public class ChatMessageIdTracker(IMemoryCache MessageIdCache)
+    public class ChatMessageIdTracker(IMemoryCache MessageIdCache) : IChatMessageIdTracker
     {
         public void AddMessageId(string messageId)
         {
