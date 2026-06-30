@@ -385,14 +385,16 @@ namespace PenguinTwitchBot.Test.Bot.Utilities
         [Fact]
         public void ToDictionary_ChannelPointRedeemEventArgs_NullValues_ReturnsEmptyStrings()
         {
+            #pragma warning disable CS8625
             var eventArgs = new ChannelPointRedeemEventArgs
             {
-                UserId = "",
-                Sender = "",
-                Username = "",
-                Title = "",
-                UserInput = ""
+                UserId = null,
+                Sender = null,
+                Username = null,
+                Title = null,
+                UserInput = null
             };
+            #pragma warning restore CS8625
 
             var result = TwitchEventArgsConverter.ToDictionary(eventArgs);
 

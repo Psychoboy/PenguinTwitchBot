@@ -22,6 +22,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
 
             cache.InvalidateCache();
 
+            var field = typeof(ActionKeywordCache).GetField("_lastCacheUpdate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.Equal(DateTime.MinValue, field!.GetValue(cache)!);
+
             logger.Received().Log(
                 LogLevel.Information,
                 Arg.Any<EventId>(),
@@ -37,12 +40,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             var logger = Substitute.For<ILogger<ActionKeywordCache>>();
 
             var cache = new ActionKeywordCache(scopeFactory, logger);
-            // Set internal cache manually (simulating previous load)
-            var field = typeof(ActionKeywordCache).GetField("_cachedKeywords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            field!.SetValue(cache, new System.Collections.Generic.List<KeywordWithCompiledRegex> 
+            var keywordsField = typeof(ActionKeywordCache).GetField("_cachedKeywords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            keywordsField!.SetValue(cache, new System.Collections.Generic.List<KeywordWithCompiledRegex> 
             { 
                 new(new ActionKeyword { CommandName = "test" }) 
             });
+
+            var timeField = typeof(ActionKeywordCache).GetField("_lastCacheUpdate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            timeField!.SetValue(cache, DateTime.UtcNow);
 
             var result = await cache.GetKeywordsAsync();
 
@@ -56,11 +61,21 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var logger = Substitute.For<ILogger<ActionKeywordCache>>();
 
-            // Create a keyword with invalid regex - it should handle the exception
+            var cache = new ActionKeywordCache(scopeFactory, logger);
             var keyword = new ActionKeyword { CommandName = "[invalid", IsRegex = true };
             var keywordEntry = new KeywordWithCompiledRegex(keyword);
 
-            Assert.Null(keywordEntry.CompiledRegex);
+            var keywordsField = typeof(ActionKeywordCache).GetField("_cachedKeywords", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            keywordsField!.SetValue(cache, new System.Collections.Generic.List<KeywordWithCompiledRegex> { keywordEntry });
+
+            var timeField = typeof(ActionKeywordCache).GetField("_lastCacheUpdate", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            timeField!.SetValue(cache, DateTime.UtcNow);
+
+            var result = await cache.GetKeywordsAsync();
+
+            Assert.Single(result);
+            Assert.Equal("[invalid", result[0].Keyword.CommandName);
+            Assert.Null(result[0].CompiledRegex);
         }
     }
 
@@ -97,7 +112,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
         [Fact]
         public void Constructor_WithRegexAndCaseSensitiveFalse_ShouldUseIgnoreCase()
         {
-            var keyword = new ActionKeyword { CommandName = @"(?i)test\d+", IsRegex = true, IsCaseSensitive = false };
+            var keyword = new ActionKeyword { CommandName = @"test\d+", IsRegex = true, IsCaseSensitive = false };
             var keywordEntry = new KeywordWithCompiledRegex(keyword);
 
             Assert.NotNull(keywordEntry.CompiledRegex);

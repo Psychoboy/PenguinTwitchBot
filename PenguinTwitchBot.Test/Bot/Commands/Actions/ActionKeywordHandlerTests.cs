@@ -134,8 +134,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             _keywordCache.GetKeywordsAsync().Returns(new List<KeywordWithCompiledRegex> { new(keyword) });
             _commandHandler.CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>()).Returns(Task.FromResult(true));
             _commandHandler.IsCoolDownExpired(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
+            _actionManagement.GetActionsByTriggerTypeAndNameAsync(TriggerTypes.Keyword, keyword.CommandName)
+                .Returns(Task.FromResult(new List<ActionType>()));
 
             await _handler.Handle(notification, CancellationToken.None);
+
+            await _actionManagement.Received(1).GetActionsByTriggerTypeAndNameAsync(TriggerTypes.Keyword, keyword.CommandName);
+            await _commandHandler.Received(1).CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>());
         }
 
         [Fact]
@@ -156,8 +161,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             _keywordCache.GetKeywordsAsync().Returns(new List<KeywordWithCompiledRegex> { new(keyword) });
             _commandHandler.CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>()).Returns(Task.FromResult(true));
             _commandHandler.IsCoolDownExpired(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
+            _actionManagement.GetActionsByTriggerTypeAndNameAsync(TriggerTypes.Keyword, keyword.CommandName)
+                .Returns(Task.FromResult(new List<ActionType>()));
 
             await _handler.Handle(notification, CancellationToken.None);
+
+            await _actionManagement.Received(1).GetActionsByTriggerTypeAndNameAsync(TriggerTypes.Keyword, keyword.CommandName);
+            await _commandHandler.Received(1).CheckPermission(Arg.Any<BaseCommandProperties>(), Arg.Any<CommandEventArgs>());
         }
 
         [Fact]
@@ -321,7 +331,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
                 SourceOnly = false,
                 SayCooldown = false
             };
-            var regex = new Regex(@"(a+)+b", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(1));
+            var regex = new Regex(@"(a+)+b", RegexOptions.Compiled | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(500));
 
             var notification = new ReceivedChatMessage
             {
@@ -338,6 +348,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             _commandHandler.IsCoolDownExpired(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(true));
 
             await _handler.Handle(notification, CancellationToken.None);
+
+            _logger.Received(1).Log(
+                LogLevel.Warning,
+                Arg.Any<EventId>(),
+                Arg.Is<object>(v => v!.ToString()!.Contains("Regex timeout")),
+                null,
+                Arg.Any<Func<object, Exception?, string>>());
+
+            await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+            await _actionService.DidNotReceive().EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>());
         }
 
         [Fact]
@@ -493,6 +513,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             var exception = await Record.ExceptionAsync(() => _handler.Handle(notification, CancellationToken.None));
 
             Assert.Null(exception);
+
+            _logger.Received(1).Log(
+                LogLevel.Error,
+                Arg.Any<EventId>(),
+                Arg.Is<object>(v => v!.ToString()!.Contains("Error handling keyword triggers")),
+                Arg.Any<Exception>(),
+                Arg.Any<Func<object, Exception?, string>>());
         }
 
         [Fact]
@@ -557,6 +584,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
                 .Returns(Task.FromResult(false));
 
             await _handler.Handle(notification, CancellationToken.None);
+
+            await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+            await _actionService.DidNotReceive().EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>());
+            await _commandHandler.DidNotReceive().AddGlobalCooldown(Arg.Any<string>(), Arg.Any<int>());
+            await _commandHandler.DidNotReceive().AddCoolDown(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>());
         }
 
         [Fact]
@@ -579,6 +611,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Actions
             _commandHandler.IsCoolDownExpired(Arg.Any<string>(), Arg.Any<string>()).Returns(Task.FromResult(false));
 
             await _handler.Handle(notification, CancellationToken.None);
+
+            await _actionManagement.DidNotReceive().GetActionsByTriggerTypeAndNameAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>());
+            await _actionService.DidNotReceive().EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>());
+            await _commandHandler.DidNotReceive().AddGlobalCooldown(Arg.Any<string>(), Arg.Any<int>());
+            await _commandHandler.DidNotReceive().AddCoolDown(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>());
         }
     }
 }
