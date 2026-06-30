@@ -199,6 +199,11 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var searchInput = page.Find(".search-log-input input");
             searchInput.Input("TestAction1");
 
+            var component = page.Instance;
+            var filterLogsMethod = typeof(ActionHistory).GetMethod("FilterLogs", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            filterLogsMethod.Invoke(component, null);
+            page.Render();
+
             await page.WaitForAssertionAsync(() =>
             {
                 Assert.Contains("TestAction1", page.Markup);
