@@ -1,6 +1,6 @@
 namespace PenguinTwitchBot.Bot.Alerts
 {
-    public class AlertImage : BaseAlert
+    public class AlertImage : IBaseAlert
     {
 
         public string FileName { get; set; } = "";
@@ -9,13 +9,13 @@ namespace PenguinTwitchBot.Bot.Alerts
         public string CSS { get; set; } = "";
         public string Message { get; set; } = "";
 
-        public override string Generate()
+        public string Generate()
         {
             return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false,\"alertChannel\":\"\"}}",
             FileName, Duration, Volume, CSS, Message);
         }
 
-        public override string Generate(string fullConfig)
+        public string Generate(string fullConfig)
         {
             return string.Format("{{\"alert_image\":\"{0}\",\"ignoreIsPlaying\":false}}", fullConfig);
         }

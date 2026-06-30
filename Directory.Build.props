@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>true</RunAnalyzersDuringLiveAnalysis>
+    
+    <!-- This stops MSBuild from forcing things to warnings -->
+    <ReportAnalyzerDiagnosticsAsWarnings>true</ReportAnalyzerDiagnosticsAsWarnings>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    
+    <!-- This ensures native C# rules don't throw nullable spam across generated test paths -->
+    <NoWarn>$(NoWarn);8669</NoWarn>
+  </PropertyGroup>
+
+  <!-- This block automatically installs these NuGet packages to ALL projects in your solution -->
+  <ItemGroup>
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
+</Project>

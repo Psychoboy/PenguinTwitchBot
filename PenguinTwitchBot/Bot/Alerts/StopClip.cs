@@ -1,15 +1,16 @@
 ﻿namespace PenguinTwitchBot.Bot.Alerts
 {
-    public class StopClip : BaseAlert
+    public class StopClip : IBaseAlert
     {
-        public override string Generate()
+        public string Generate()
         {
-            return string.Format("{{\"stopclip\":\"\"}}");
+            return "{\"stopclip\":\"\"}";
         }
 
-        public override string Generate(string fullConfig)
+        public string Generate(string fullConfig)
         {
             throw new NotImplementedException();
         }
     }
 }
+

@@ -5,7 +5,7 @@ using System.IO.Compression;
 
 namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 {
-    public class BackupTools
+    public static class BackupTools
     {
         public static string BACKUP_DIRECTORY = Path.Combine(Directory.GetCurrentDirectory(), "Data", "backups");
         public static List<FileInfo> GetBackupFiles(string backupDirectory)

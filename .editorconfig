@@ -1,40 +1,31 @@
-﻿[*.cs]
+﻿root = true
 
-# CS0067: The event 'EventSubWebsocketClient.StreamOnline' is never used
-dotnet_diagnostic.CS0067.severity = suggestion
+# 1. Main Project Scanning Rules (Aggressive but Silent)
+[*.{cs,razor}]
+# 1. Unlock all hidden, deactivated Roslynator rules
+roslynator_analyzers.enabled_by_default = true
 
-# SonarAnalyzer suppressions for lower-priority style warnings
-# These are formatting/style preferences that don''t affect correctness
+# 2. Force the entire rule matrix down to clean, silent inline text hints
+dotnet_analyzer_diagnostic.category-roslynator.severity = hint
+dotnet_analyzer_diagnostic.severity = hint
+dotnet_diagnostic.RCS1075.severity = none
 
-# S6678: Use PascalCase for named placeholders in logging (Serilog accepts both)
-dotnet_diagnostic.S6678.severity = none
 
-# S1125: Remove unnecessary Boolean literal(s) - harmless
-dotnet_diagnostic.S1125.severity = none
+# 2. EXCLUSIONS: Turn off ALL analyzer diagnostics for the Migrations project
+[**/PenguinTwitchBot.Migrations*/**]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+dotnet_compiler_diagnostic.severity = none
 
-# S1066: Merge this if statement with the enclosing one - readability preference
-dotnet_diagnostic.S1066.severity = none
+# 3. EXCLUSIONS: Turn off ALL analyzer diagnostics for the Test project
+[**/PenguinTwitchBot.Test*/**]
+generated_code = true
+dotnet_analyzer_diagnostic.severity = none
+dotnet_compiler_diagnostic.severity = none
 
-# S2971: Drop Where and move condition into method - performance micro-optimization
-dotnet_diagnostic.S2971.severity = none
+# 4. Standard Build Cache Exclusions
+[**/obj/**]
+generated_code = true
 
-# S6966: Await async method instead of non-async - many false positives
-dotnet_diagnostic.S6966.severity = none
-
-# S3267: Loops should be simplified using Where LINQ - style preference
-dotnet_diagnostic.S3267.severity = none
-
-# S6610: StartsWith with char overload - not always applicable
-dotnet_diagnostic.S6610.severity = none
-
-# S927: Rename parameter to match base class - not always applicable
-dotnet_diagnostic.S927.severity = none
-
-# S3358: Extract this nested ternary operation - readability preference
-dotnet_diagnostic.S3358.severity = none
-
-# S2094: Classes should not be empty
-dotnet_diagnostic.S2094.severity = none
-
-# S3376: Attribute, EventArgs, and Exception type names should end with the type being extended
-dotnet_diagnostic.S3376.severity = none
+[**/bin/**]
+generated_code = true
