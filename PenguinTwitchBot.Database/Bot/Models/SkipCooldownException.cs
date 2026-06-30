@@ -4,5 +4,9 @@ namespace PenguinTwitchBot.Database.Bot.Models
     {
         public SkipCooldownException() { }
         public SkipCooldownException(string message) : base(message) { }
+
+        public SkipCooldownException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace PenguinTwitchBot.Bot.WebSocketEvents
 {
-    public class WsSubscriptionTypes
+    public static class WsSubscriptionTypes
     {
         public enum Raw { Action }
     }

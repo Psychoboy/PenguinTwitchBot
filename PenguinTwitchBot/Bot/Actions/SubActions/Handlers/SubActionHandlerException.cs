@@ -12,6 +12,21 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         public SubActionHandlerException(SubActionType subActionType, string message, params object[] args) :  base(SafeFormat(message, args)) { SubActionType = subActionType; Args = args ?? []; }
         public SubActionHandlerException(SubActionType subActionType, Exception innerException, string message, params object[] args) : base(SafeFormat(message, args), innerException) { SubActionType = subActionType; Args = args ?? []; }
 
+        public SubActionHandlerException() : base()
+        {
+            Args = [];
+        }
+
+        public SubActionHandlerException(string? message) : base(message)
+        {
+            Args = [];
+        }
+
+        public SubActionHandlerException(string? message, Exception? innerException) : base(message, innerException)
+        {
+            Args = [];
+        }
+
         private static string SafeFormat(string message, object[] args)
         {
             if (args == null || args.Length == 0)

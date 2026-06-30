@@ -665,7 +665,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var component = page.Instance;
             var method = typeof(ActionHistory).GetMethod("OnFilterStateChanged", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            await _ctx.Renderer.Dispatcher.InvokeAsync(() => method.Invoke(component, new object[] { ActionExecutionState.Failed }));
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(() => method.Invoke(component, new object[] { ActionExecutionState.Failed }));
             page.Render();
 
             await page.WaitForAssertionAsync(() =>
@@ -691,7 +691,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             Assert.False((bool)pausedField.GetValue(component)!);
 
             var toggleMethod = typeof(ActionHistory).GetMethod("TogglePauseUpdates", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
             page.Render();
 
             Assert.True((bool)pausedField.GetValue(component)!);
@@ -701,7 +701,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 Assert.Contains("Resume", page.Markup);
             });
 
-            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
             page.Render();
             Assert.False((bool)pausedField.GetValue(component)!);
         }
@@ -742,7 +742,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             mockLogger.Invocations.Clear();
             var toggleMethod = typeof(ActionHistory).GetMethod("TogglePauseUpdates", BindingFlags.Instance | BindingFlags.NonPublic)!;
-            await _ctx.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(() => toggleMethod.Invoke(component, null));
             page.Render();
 
             Assert.False((bool)pausedField.GetValue(component)!);
@@ -810,7 +810,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             };
 
             // Execute the intercepted callback handler directly on bUnit's UI thread
-            await _ctx.Renderer.Dispatcher.InvokeAsync(async () =>
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
             {
                 if (attachedActionLogUpdatedHandler != null)
                 {
@@ -863,7 +863,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var incomingLog = new ActionExecutionLog { Id = Guid.NewGuid(), ActionName = "NewPausedLog" };
 
-            await _ctx.Renderer.Dispatcher.InvokeAsync(async () =>
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
             {
                 if (attachedHandler != null) await attachedHandler(incomingLog);
             });
@@ -915,7 +915,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var updateLog = new ActionExecutionLog { Id = existingLog.Id, ActionName = "UpdatedLog" };
 
-            await _ctx.Renderer.Dispatcher.InvokeAsync(async () =>
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
             {
                 if (attachedHandler != null) await attachedHandler(updateLog);
             });
@@ -963,7 +963,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var updatedLog = new ActionExecutionLog { Id = existingLog.Id, ActionName = "UpdatedName", State = ActionExecutionState.Completed };
 
-            await _ctx.Renderer.Dispatcher.InvokeAsync(async () =>
+            await _ctx!.Renderer.Dispatcher.InvokeAsync(async () =>
             {
                 if (attachedHandler != null) await attachedHandler(updatedLog);
             });
