@@ -540,7 +540,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
                 CommandType = PointCommandType.Get,
             });
 
-            await _serviceBackbone.Received(1).SendChatMessage("NonExistentUser", Arg.Is<string>(s => s.Contains("You are ranked #N/A and have 0")));
+            await _serviceBackbone.Received(1).SendChatMessage("NonExistentUser", Arg.Is<string>(s => s.Contains("You are ranked #N/A and have 0")), true);
         }
 
     }

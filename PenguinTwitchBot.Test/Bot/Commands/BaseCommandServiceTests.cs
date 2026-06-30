@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands
             await baseCommandService.SendChatMessage("Test Message");
 
             // Assert
-            await serviceBackboneSubstitute.Received(1).SendChatMessage("Test Message");
+            await serviceBackboneSubstitute.Received(1).SendChatMessage("Test Message", true);
         }
 
         [Fact]
@@ -87,7 +87,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands
             await baseCommandService.SendChatMessage("Test Message");
 
             // Assert
-            await serviceBackboneSubstitute.Received(1).SendChatMessage("Test Message");
+            await serviceBackboneSubstitute.Received(1).SendChatMessage("Test Message", true);
         }
 
         [Fact]
@@ -104,7 +104,7 @@ namespace PenguinTwitchBot.Tests.Bot.Commands
             await baseCommandService.SendChatMessage("TestName", "Test Message");
 
             // Assert
-            await serviceBackboneSubstitute.Received(1).SendChatMessage("TestName", "Test Message");
+            await serviceBackboneSubstitute.Received(1).SendChatMessage("TestName", "Test Message", true);
         }
     }
 
