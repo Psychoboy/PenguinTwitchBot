@@ -27,15 +27,28 @@ jobs:
         run: dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
       - name: Test PenguinTwitchBot.TwitchApi.Test
         run: dotnet test PenguinTwitchBot.TwitchApi.Test/PenguinTwitchBot.TwitchApi.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
-      - name: Find coverage files
+      - name: Copy coverage files to standard names
         run: |
-          echo "=== Searching for coverage.opencover.xml files ==="
-          find . -type f -name "coverage.opencover.xml" 2>/dev/null || echo "No coverage.opencover.xml files found"
-          echo "=== All XML files in TestResults ==="
-          find . -type d -name "TestResults" -exec find {} -type f -name "*.xml" \; 2>/dev/null || echo "No TestResults/XML files found"
+          find PenguinTwitchBot.Test -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) -exec dirname {} \; | sort -u | while read dir; do
+            f=$(find "$dir" -maxdepth 1 -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) | head -n 1)
+            if [ -n "$f" ]; then
+              cp "$f" "$dir/opencover.xml"
+              echo "Copied $f -> $dir/opencover.xml"
+            fi
+          done
+          find PenguinTwitchBot.TwitchApi.Test -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) -exec dirname {} \; | sort -u | while read dir; do
+            f=$(find "$dir" -maxdepth 1 -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) | head -n 1)
+            if [ -n "$f" ]; then
+              cp "$f" "$dir/opencover.xml"
+              echo "Copied $f -> $dir/opencover.xml"
+            fi
+          done
+      - name: Verify opencover.xml files
+        run: |
+          echo "=== opencover.xml files ==="
+          find . -name "opencover.xml"
       - name: Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
-          coverage-reports: '**/coverage.opencover.xml'
-          verbose: true
+          coverage-reports: '**/opencover.xml'
