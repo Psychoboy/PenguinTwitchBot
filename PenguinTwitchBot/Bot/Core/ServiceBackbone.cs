@@ -8,7 +8,6 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
-// using PenguinTwitchBot.CustomMiddleware;
 using Microsoft.AspNetCore.SignalR;
 
 namespace PenguinTwitchBot.Bot.Core
@@ -40,7 +39,7 @@ namespace PenguinTwitchBot.Bot.Core
         public event AsyncEventHandler<BanEventArgs>? BanEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
-        public bool IsOnline { get; set; } = false;
+        public bool IsOnline { get; set; }
         public string BroadcasterName { get { return RawBroadcasterName ?? ""; } }
         public bool IsBroadcasterOrBot(string name)
         {
@@ -105,12 +104,15 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public Task SendChatMessage(string message, bool sourceOnly = true)
+        public Task SendChatMessage(string message) => SendChatMessage(message, true);
+        public Task SendChatMessage(string message, bool sourceOnly)
         {
             return dispatcher.Publish(new SendBotMessage(message, sourceOnly));
         }
 
-        public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly = true)
+        public async Task ResponseWithMessage(CommandEventArgs e, string message) =>
+            await ResponseWithMessage(e, message, true);
+        public async Task ResponseWithMessage(CommandEventArgs e, string message, bool sourceOnly)
         {
             message = message.TrimStart('!').Trim();
 
@@ -124,11 +126,17 @@ namespace PenguinTwitchBot.Bot.Core
             }
         }
 
-        public async Task SendChatMessage(string name, string message, bool sourceOnly = true)
+
+        public async Task SendChatMessage(string name, string message) =>
+            await SendChatMessage(name, message, true);
+
+        public async Task SendChatMessage(string name, string message, bool sourceOnly)
         {
-            await SendChatMessage(string.Format("@{0}, {1}", name, message));
+            await SendChatMessage(string.Format("@{0}, {1}", name, message), sourceOnly);
         }
-        public async Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly = true)
+        public async Task SendChatMessageWithTitle(string viewerName, string message) =>
+            await SendChatMessageWithTitle(viewerName, message, true);
+        public async Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly)
         {
             using var scope = scopeFactory.CreateAsyncScope();
             var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
@@ -173,22 +181,21 @@ namespace PenguinTwitchBot.Bot.Core
 
         public async Task OnCheer(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelCheer ev)
         {
-            if (CheerEvent != null)
+            if (ev != null && CheerEvent != null)
             {
                 string message = "";
-                if(ev != null && !string.IsNullOrWhiteSpace(ev.Message))
+                if(!string.IsNullOrWhiteSpace(ev.Message))
                 {
                     message = ev.Message;
                 }
                 await CheerEvent(this, new CheerEventArgs
                 {
-                    Name = ev?.UserLogin,
-                    DisplayName = ev?.UserName,
-                    Amount = ev?.Bits ?? 0,
+                    Name = ev.UserLogin,
+                    DisplayName = ev.UserName,
+                    Amount = ev.Bits,
                     Message = message,
-                    IsAnonymous = ev?.IsAnonymous ?? false,
-                    UserId = ev?.UserId
-
+                    IsAnonymous = ev.IsAnonymous,
+                    UserId = ev.UserId
                 });
             }
         }
@@ -221,11 +228,6 @@ namespace PenguinTwitchBot.Bot.Core
                 }
             }
         }
-
-        //public async Task OnChatMessage(ChatMessageEventArgs message)
-        //{
-        //    await mediator.Publish(new ReceivedChatMessage { EventArgs = message });
-        //}
 
         public async Task OnSubscription(SubscriptionEventArgs eventArgs)
         {
