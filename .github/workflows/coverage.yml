@@ -24,11 +24,18 @@ jobs:
       - name: Build
         run: dotnet build --configuration Debug --no-restore
       - name: Test PenguinTwitchBot.Test
-        run: dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
+        run: dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
       - name: Test PenguinTwitchBot.TwitchApi.Test
-        run: dotnet test PenguinTwitchBot.TwitchApi.Test/PenguinTwitchBot.TwitchApi.Test.csproj --no-build --verbosity normal --collect:"XPlat Code Coverage" -- DataCollectionFormat=opencover
+        run: dotnet test PenguinTwitchBot.TwitchApi.Test/PenguinTwitchBot.TwitchApi.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
+      - name: Find coverage files
+        run: |
+          echo "=== Searching for coverage.opencover.xml files ==="
+          find . -type f -name "coverage.opencover.xml" 2>/dev/null || echo "No coverage.opencover.xml files found"
+          echo "=== All XML files in TestResults ==="
+          find . -type d -name "TestResults" -exec find {} -type f -name "*.xml" \; 2>/dev/null || echo "No TestResults/XML files found"
       - name: Codacy Coverage Reporter
         uses: codacy/codacy-coverage-reporter-action@v1.3.0
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: '**/coverage.opencover.xml'
+          verbose: true
