@@ -1,0 +1,54 @@
+name: Codacy-Coverage
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Run Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Debug --no-restore
+      - name: Test PenguinTwitchBot.Test
+        run: dotnet test PenguinTwitchBot.Test/PenguinTwitchBot.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
+      - name: Test PenguinTwitchBot.TwitchApi.Test
+        run: dotnet test PenguinTwitchBot.TwitchApi.Test/PenguinTwitchBot.TwitchApi.Test.csproj --configuration Debug --verbosity normal --settings coverlet.runsettings
+      - name: Copy coverage files to standard names
+        run: |
+          find PenguinTwitchBot.Test -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) -exec dirname {} \; | sort -u | while read dir; do
+            f=$(find "$dir" -maxdepth 1 -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) | head -n 1)
+            if [ -n "$f" ]; then
+              cp "$f" "$dir/opencover.xml"
+              echo "Copied $f -> $dir/opencover.xml"
+            fi
+          done
+          find PenguinTwitchBot.TwitchApi.Test -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) -exec dirname {} \; | sort -u | while read dir; do
+            f=$(find "$dir" -maxdepth 1 -type f \( -name "coverage.opencover.xml" -o -name "coverage.cobertura.xml" -o -name "coverage.xml" \) | head -n 1)
+            if [ -n "$f" ]; then
+              cp "$f" "$dir/opencover.xml"
+              echo "Copied $f -> $dir/opencover.xml"
+            fi
+          done
+      - name: Verify opencover.xml files
+        run: |
+          echo "=== opencover.xml files ==="
+          find . -name "opencover.xml"
+      - name: Codacy Coverage Reporter
+        uses: codacy/codacy-coverage-reporter-action@89d6c85cfafaec52c72b6c5e8b2878d33104c699
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: '**/opencover.xml'

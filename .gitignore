@@ -515,3 +515,8 @@ PenguinTwitchBot/appsettings.secrets - Copy.json
 PenguinTwitchBot.Migrations.Sqlite/appsettings.json
 PenguinTwitchBot.Migrations.Postgres/appsettings.json
 coveragereport/Cobertura.xml
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
+.github/instructions/codacy.instructions.md
