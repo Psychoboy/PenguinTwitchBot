@@ -1,0 +1,5 @@
+exclude_paths:
+  - '**/bin/**'
+  - '**/obj/**'
+  - '**/PenguinTwitchBot.Test/**'
+  - '**/PenguinTwitchBot.Migrations.*/**'

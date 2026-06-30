@@ -1,8 +1,3 @@
-exclude_paths:
-    - '**/bin/**'
-    - '**/obj/**'
-    - '**/PenguinTwitchBot.Test/**'
-    - '**/PenguinTwitchBot.Migrations.*/**'
 runtimes:
     - dart@3.7.2
     - go@1.24.13
