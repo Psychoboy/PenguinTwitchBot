@@ -335,6 +335,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async Task AddSubscription(string username)
         {
+            _viewerCache.TryRemove(username, out _);
             var viewer = await GetViewerByUserName(username);
             if (viewer == null) return;
             viewer.isSub = true;
@@ -344,6 +345,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async Task RemoveSubscription(string username)
         {
+            _viewerCache.TryRemove(username, out _);
             var viewer = await GetViewerByUserName(username);
             if (viewer == null) return;
             viewer.isSub = false;

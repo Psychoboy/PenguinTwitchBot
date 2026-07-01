@@ -9,6 +9,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Bot.Notifications;
 using Microsoft.AspNetCore.SignalR;
+using System.Diagnostics;
 
 namespace PenguinTwitchBot.Bot.Core
 {
@@ -138,10 +139,18 @@ namespace PenguinTwitchBot.Bot.Core
             await SendChatMessageWithTitle(viewerName, message, true);
         public async Task SendChatMessageWithTitle(string viewerName, string message, bool sourceOnly)
         {
+            var start = Stopwatch.GetTimestamp();
             using var scope = scopeFactory.CreateAsyncScope();
             var viewerService = scope.ServiceProvider.GetRequiredService<Commands.Features.IViewerFeature>();
             var nameWithTitle = await viewerService.GetNameWithTitle(viewerName);
+            var titleLookupMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
             await SendChatMessage(string.Format("{0}, {1}", string.IsNullOrWhiteSpace(nameWithTitle) ? viewerName : nameWithTitle, message));
+            var totalMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            logger.LogDebug("SendChatMessageWithTitle timing for {Viewer}: titleLookup={TitleLookupMs}ms send={SendMs}ms total={TotalMs}ms",
+                viewerName,
+                Math.Round(titleLookupMs, 2),
+                Math.Round(totalMs - titleLookupMs, 2),
+                Math.Round(totalMs, 2));
         }
 
         public async Task OnStreamStarted()
