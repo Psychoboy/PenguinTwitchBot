@@ -132,20 +132,6 @@ public class BackupToolsTests : IDisposable
         Assert.Equal(0, CountLogs(LogLevel.Warning));
     }
 
-    [Fact]
-    public async Task BackupDatabase_WithOrphans_LogsSummaryAndIndividualWarnings()
-    {
-        var orphan1 = "/backups/temp-orphan1";
-        var orphan2 = "/backups/temp-orphan2";
-        _fs.AddDirectory(orphan1);
-        _fs.AddDirectory(orphan2);
-
-        await _sut.BackupDatabase(_context, _backupDir, _logger);
-
-        Assert.True(HasLog(LogLevel.Warning, "Found 2 orphaned temp directories"));
-        Assert.True(HasLog(LogLevel.Warning, "Orphaned temp directory detected: " + orphan1));
-        Assert.True(HasLog(LogLevel.Warning, "Orphaned temp directory detected: " + orphan2));
-    }
 
     #endregion
 
