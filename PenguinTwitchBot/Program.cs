@@ -37,6 +37,7 @@ using Serilog;
 using Serilog.Enrichers.Span;
 using Serilog.Events;
 using Serilog.Sinks.OpenTelemetry;
+using System.IO.Abstractions;
 using System.Collections;
 using System.Diagnostics;
 using System.Net;
@@ -174,8 +175,10 @@ internal class Program
         });
         builder.Services.AddMudMarkdownServices();
 
-        
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
+        builder.Services.AddSingleton<IFileSystem>(sp => new System.IO.Abstractions.FileSystem());
+        builder.Services.AddSingleton<IBackupTools, BackupTools>();
+        builder.Services.AddSingleton<IZipService, ZipService>();
         builder.Services.AddPenguinDispatcher(typeof(Program).Assembly);
         builder.Services.AddBotCommands();
 
