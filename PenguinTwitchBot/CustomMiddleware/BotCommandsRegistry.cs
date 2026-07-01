@@ -57,8 +57,8 @@ namespace PenguinTwitchBot.CustomMiddleware
                 AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
             });
 
-            services.AddTransient<WebsocketClient>();
-            services.AddSingleton(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>()));
+            services.AddTransient<IWebsocketClient, WebsocketClient>();
+            services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<IWebsocketClient>()));
 
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
@@ -103,7 +103,7 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
 
-            services.AddSingleton<Bot.Core.SubscriptionTracker>();
+            services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
             services.AddScoped(typeof(PenguinTwitchBot.Database.Repository.IGenericRepository<>), typeof(PenguinTwitchBot.Database.Repository.Repositories.GenericRepository<>));
@@ -178,7 +178,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
-            services.AddSingleton<ChatMessageIdTracker>();
+            services.AddSingleton<IChatMessageIdTracker, ChatMessageIdTracker>();
             services.AddSingleton<IServiceMaintenance, ServiceMaintenance>();
 
             services.AddHostedApiService<IChatHistory, ChatHistory>();
