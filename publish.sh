@@ -1,12 +1,16 @@
-#!/bin/bash
+#!/bin/sh
 
-read -p "Enter version number (e.g. 1.2.3 or v1.2.3): " INPUT_TAG
+printf "Enter version number (e.g. 1.2.3 or v1.2.3): "
+read -r INPUT_TAG
 
-if [[ "$INPUT_TAG" =~ ^v[0-9] ]]; then
-    VERSION="${INPUT_TAG#v}"
-else
-    VERSION="$INPUT_TAG"
-fi
+case "$INPUT_TAG" in
+    v[0-9]*)
+        VERSION=${INPUT_TAG#v}
+        ;;
+    *)
+        VERSION=$INPUT_TAG
+        ;;
+esac
 
 dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
 
