@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 
 namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client
 {
-    public class WebsocketClient(ILogger<WebsocketClient>? logger = null) : IDisposable
+    public class WebsocketClient(ILogger<WebsocketClient>? logger = null) : IWebsocketClient
     {
         public bool IsConnected => _webSocket.State == WebSocketState.Open;
         public bool IsFaulted => _webSocket.CloseStatus != WebSocketCloseStatus.Empty && _webSocket.CloseStatus != WebSocketCloseStatus.NormalClosure;
-        internal event AsyncEventHandler<DataReceivedEventArgs>? OnDataReceived;
-        internal event AsyncEventHandler<ErrorOccurredEventArgs>? OnErrorOccurred;
+        public event AsyncEventHandler<DataReceivedEventArgs>? OnDataReceived;
+        public event AsyncEventHandler<ErrorOccurredEventArgs>? OnErrorOccurred;
         private ClientWebSocket _webSocket = new();
         private readonly ILogger<WebsocketClient> _logger = logger ?? NullLogger<WebsocketClient>.Instance;
 

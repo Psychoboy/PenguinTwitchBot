@@ -7,9 +7,11 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
     public interface IEventSubWebsocketClient
     {
         string SessionId { get; }
-        Task<bool> ConnectAsync(Uri? url = null);
+        Task<bool> ConnectAsync();
+        Task<bool> ConnectAsync(Uri? url);
         Task<bool> DisconnectAsync();
-        Task<bool> ReconnectAsync(CancellationToken cancellationToken = default);
+        Task<bool> ReconnectAsync();
+        Task<bool> ReconnectAsync(CancellationToken cancellationToken);
 
         event AsyncEventHandler<WebsocketConnectedEventArgs>? WebsocketConnected;
         event AsyncEventHandler<MessageReceivedEventArgs>? MessageReceived;

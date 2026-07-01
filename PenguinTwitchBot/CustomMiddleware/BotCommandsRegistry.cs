@@ -58,7 +58,8 @@ namespace PenguinTwitchBot.CustomMiddleware
             });
 
             services.AddTransient<WebsocketClient>();
-            services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<WebsocketClient>()));
+            services.AddSingleton<IWebsocketClient, WebsocketClient>();
+            services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<IWebsocketClient>()));
 
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();

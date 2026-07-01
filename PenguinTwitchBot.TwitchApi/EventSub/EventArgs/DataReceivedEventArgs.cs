@@ -1,7 +1,7 @@
 namespace PenguinTwitchBot.TwitchApi.EventSub.EventArgs
 {
-    internal class DataReceivedEventArgs : System.EventArgs
+    public class DataReceivedEventArgs : System.EventArgs
     {
-        public required byte[] Bytes { get; internal set; }
+        public required byte[] Bytes { get; set; }
     }
 }
