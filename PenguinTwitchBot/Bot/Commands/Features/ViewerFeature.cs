@@ -14,6 +14,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly ConcurrentDictionary<string, DateTime> _usersLastActive = new();
         private ConcurrentBag<string> _users = new();
         private readonly ConcurrentDictionary<string, DateTime> _lurkers = new();
+        private readonly ConcurrentDictionary<string, (Viewer Viewer, DateTime CachedAt)> _viewerCache = new();
+        private static readonly TimeSpan ViewerCacheTtl = TimeSpan.FromMinutes(5);
 
         private readonly ITwitchService _twitchService;
         private readonly ILogger<ViewerFeature> _logger;
@@ -144,10 +146,13 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
             else
             {
-
                 db.Viewers.Update(viewer);
             }
             await db.SaveChangesAsync();
+            if (!string.IsNullOrEmpty(viewer.Username))
+            {
+                _viewerCache.TryRemove(viewer.Username, out _);
+            }
         }
 
         private async Task UpdateLastSeen(Viewer viewer)
@@ -221,10 +226,14 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task<Viewer?> GetViewerByUserName(string username)
         {
             var normalizedUsername = UsernameNormalizer.Normalize(username);
+            if (_viewerCache.TryGetValue(normalizedUsername, out var cached) && DateTime.UtcNow - cached.CachedAt < ViewerCacheTtl)
+            {
+                return cached.Viewer;
+            }
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var viewer = await db.Viewers.Find(x => x.Username.Equals(normalizedUsername)).FirstOrDefaultAsync();
-            if(viewer == null)
+            if (viewer == null)
             {
                 var twitchViewer = await _twitchService.GetUserByName(username);
                 if (twitchViewer != null)
@@ -232,7 +241,10 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     await AddOrUpdateLastSeen(twitchViewer.Id);
                     viewer = await GetViewerByUserId(twitchViewer.Id);
                 }
-
+            }
+            if (viewer != null)
+            {
+                _viewerCache[normalizedUsername] = (viewer, DateTime.UtcNow);
             }
             return viewer;
         }
@@ -323,6 +335,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async Task AddSubscription(string username)
         {
+            _viewerCache.TryRemove(username, out _);
             var viewer = await GetViewerByUserName(username);
             if (viewer == null) return;
             viewer.isSub = true;
@@ -332,6 +345,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         private async Task RemoveSubscription(string username)
         {
+            _viewerCache.TryRemove(username, out _);
             var viewer = await GetViewerByUserName(username);
             if (viewer == null) return;
             viewer.isSub = false;
@@ -465,6 +479,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             {
                 _logger.LogError(ex, "Error updating subscribers");
             }
+            _viewerCache.Clear();
         }
 
         public async Task UpdateEditors()
@@ -516,6 +531,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             {
                 _logger.LogError(ex, "Error updating editors");
             }
+            _viewerCache.Clear();
         }
 
         public override async Task Register()

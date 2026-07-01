@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Bot.Commands.Metrics
             return Task.CompletedTask;
         }
 
-        public async Task IncrementSongCount(Song song)
+        public async Task<int> IncrementSongCount(Song song)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -34,6 +34,7 @@ namespace PenguinTwitchBot.Bot.Commands.Metrics
                 Duration = song.Duration
             });
             await db.SaveChangesAsync();
+            return await db.SongRequestHistory.GetRequestedCountForSong(song.SongId);
         }
 
         public async Task DecrementSongCount(Song song)

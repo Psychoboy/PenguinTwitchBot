@@ -331,5 +331,67 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.True(result);
         }
 
+        [Fact]
+        public async Task GetViewerByUserName_SecondCall_DoesNotHitDatabase()
+        {
+            // Arrange
+            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
+
+            // Act
+            await viewerFeature.GetViewerByUserName("test");
+            await viewerFeature.GetViewerByUserName("test");
+
+            // Assert — DB should only be queried once; second call served from cache
+            dbContext.Viewers.Received(1).Find(Arg.Any<System.Linq.Expressions.Expression<Func<Viewer, bool>>>());
+        }
+
+        [Fact]
+        public async Task GetViewerByUserName_ReturnsCachedViewer_OnSecondCall()
+        {
+            // Arrange
+            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
+
+            // Act
+            var first = await viewerFeature.GetViewerByUserName("test");
+            var second = await viewerFeature.GetViewerByUserName("test");
+
+            // Assert
+            Assert.Equal(first, second);
+        }
+
+        [Fact]
+        public async Task GetViewerByUserName_CacheIsInvalidated_AfterSaveViewer()
+        {
+            // Arrange
+            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
+
+            // Prime the cache
+            await viewerFeature.GetViewerByUserName("test");
+
+            // Invalidate via SaveViewer (calls UpdateViewer internally)
+            testViewer.Username = "test";
+            await viewerFeature.SaveViewer(testViewer);
+
+            // Act — should hit DB again after cache invalidation
+            await viewerFeature.GetViewerByUserName("test");
+
+            // Assert — DB queried twice: once before save, once after invalidation
+            dbContext.Viewers.Received(2).Find(Arg.Any<System.Linq.Expressions.Expression<Func<Viewer, bool>>>());
+        }
+
+        [Fact]
+        public async Task GetNameWithTitle_SecondCall_DoesNotHitDatabase()
+        {
+            // Arrange
+            dbContext.Viewers.Find(x => true).ReturnsForAnyArgs(viewerQueryable);
+
+            // Act
+            await viewerFeature.GetNameWithTitle("test");
+            await viewerFeature.GetNameWithTitle("test");
+
+            // Assert — viewer lookup cached; DB only hit once across both calls
+            dbContext.Viewers.Received(1).Find(Arg.Any<System.Linq.Expressions.Expression<Func<Viewer, bool>>>());
+        }
+
     }
 }
