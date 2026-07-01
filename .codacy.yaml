@@ -1,4 +1,27 @@
 ---
+engines:
+  metric:
+    patterns:
+      - id: "Lizard_file-nloc-medium"
+        parameters:
+          - name: "threshold"
+            value: 1000
+      - id: "Lizard_nloc-medium"
+        parameters:
+          - name: "threshold"
+            value: 200
+  sonar-csharp:
+    enabled: true
+    exclude_paths:
+      - "**/obj/**"
+      - "**/bin/**"
+      - "*.Designer.cs"
+      - "**/Migrations/**" # Prevents scanning massive EF Core migration files
+  duplication:
+    enabled: true
+    exclude_paths:
+      - "**/obj/**"
+      - "**/bin/**"
 exclude_paths:
   - '**/bin/**'
   - '**/obj/**'
@@ -11,15 +34,3 @@ exclude_paths:
 
 include_paths:
   - '*.sln'
-
-engines:
-  metric:
-    patterns:
-      - id: "Lizard_file-nloc-medium"
-        parameters:
-          - name: "threshold"
-            value: 1000
-      - id: "Lizard_nloc-medium"
-        parameters:
-          - name: "threshold"
-            value: 200

@@ -7,6 +7,8 @@ using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 using Xunit;
 
+#pragma warning disable NS1000, NS1001, NS1004, NS5000
+
 namespace PenguinTwitchBot.Test.Bot.Core;
 
 public class SubscriptionTrackerTests
@@ -243,3 +245,5 @@ public class SubscriptionTrackerTests
         _logger.Received(1).LogError(Arg.Any<Exception>(), "Error Adding or Updating sub history");
     }
 }
+
+#pragma warning restore NS1000, NS1001, NS1004, NS5000
