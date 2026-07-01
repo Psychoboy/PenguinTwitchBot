@@ -83,16 +83,12 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
         public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
         {
             logger.LogInformation("Backing up database");
-            var tempDirectory = Path.Combine(backupDirectory, "temp");
+            var tempDirectory = Path.Combine(backupDirectory, $"temp-{Guid.NewGuid():N}");
             if (!Directory.Exists(backupDirectory))
             {
                 Directory.CreateDirectory(backupDirectory);
             }
 
-            if(Directory.Exists(tempDirectory))
-            {
-                Directory.Delete(tempDirectory, true);
-            }
             Directory.CreateDirectory(tempDirectory);
             
             var handlers = AppDomain.CurrentDomain.GetAssemblies()

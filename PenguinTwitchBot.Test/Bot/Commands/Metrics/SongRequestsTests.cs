@@ -66,6 +66,49 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Metrics
         }
 
         [Fact]
+        public async Task IncrementSongCount_ReturnsOne_OnFirstRequest()
+        {
+            var songRequests = CreateSongRequests();
+            var song = new Song { SongId = "newSong", Title = "New Song", Duration = TimeSpan.FromMinutes(3) };
+
+            var count = await songRequests.IncrementSongCount(song);
+
+            Assert.Equal(1, count);
+        }
+
+        [Fact]
+        public async Task IncrementSongCount_ReturnsIncrementedCount_OnSubsequentRequests()
+        {
+            var songId = "repeatedSong";
+            _context.SongRequestHistories.AddRange(
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Repeated Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow },
+                new SongRequestHistory { Id = Guid.NewGuid().ToString(), SongId = songId, Title = "Repeated Song", Duration = TimeSpan.FromMinutes(3), RequestDate = DateTime.UtcNow }
+            );
+            await _context.SaveChangesAsync();
+
+            var songRequests = CreateSongRequests();
+            var song = new Song { SongId = songId, Title = "Repeated Song", Duration = TimeSpan.FromMinutes(3) };
+
+            var count = await songRequests.IncrementSongCount(song);
+
+            Assert.Equal(3, count);
+        }
+
+        [Fact]
+        public async Task IncrementSongCount_CountIsIndependentPerSong()
+        {
+            var songRequests = CreateSongRequests();
+            var songA = new Song { SongId = "songA", Title = "Song A", Duration = TimeSpan.FromMinutes(3) };
+            var songB = new Song { SongId = "songB", Title = "Song B", Duration = TimeSpan.FromMinutes(3) };
+
+            await songRequests.IncrementSongCount(songA);
+            await songRequests.IncrementSongCount(songA);
+            var countB = await songRequests.IncrementSongCount(songB);
+
+            Assert.Equal(1, countB);
+        }
+
+        [Fact]
         public async Task GetRequestedCount_ReturnsZero_WhenNoHistory()
         {
             var songRequests = CreateSongRequests();

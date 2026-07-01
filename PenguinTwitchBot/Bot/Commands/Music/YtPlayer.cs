@@ -6,6 +6,7 @@ using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
 using Prometheus;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace PenguinTwitchBot.Bot.Commands.Music
 {
@@ -1084,6 +1085,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         private async Task SongRequest(CommandEventArgs e)
         {
+            long startTime = Stopwatch.GetTimestamp();
             var songsInQueue = 0;
             try
             {
@@ -1120,7 +1122,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.ResponseWithMessage(e, $"That song is already in the queue.");
                 throw new SkipCooldownException();
             }
-
+            Console.WriteLine($"1. Elapsed time: {Stopwatch.GetElapsedTime(startTime).TotalMilliseconds} ms");
             var song = await GetSong(searchResult, e.DisplayName);
             if (song == null)
             {
@@ -1144,16 +1146,17 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
             var timeToWait = new TimeSpan(currentRequestedSongs.Sum(r => r.Duration.Ticks));
             timeToWait += GetCurrentSongTimeLeft();
-
-            await AddSongToRequests(song);
+            Console.WriteLine($"2. Elapsed time: {Stopwatch.GetElapsedTime(startTime).TotalMilliseconds} ms");
+            var songRequestedCount = await AddSongToRequests(song);
+            Console.WriteLine($"3. Elapsed time: {Stopwatch.GetElapsedTime(startTime).TotalMilliseconds} ms");
             if (e.IsWhisper) return;
 
             requestCount++;
-
-            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), await GetSongRequestedCount(song)));
+            await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), songRequestedCount));
+            Console.WriteLine($"4. Elapsed time: {Stopwatch.GetElapsedTime(startTime).TotalMilliseconds} ms");
         }
 
-        private async Task AddSongToRequests(Song song)
+        private async Task<int> AddSongToRequests(Song song)
         {
             try
             {
@@ -1166,7 +1169,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             NextSong ??= song;
             await using var scope = _scopeFactory.CreateAsyncScope();
             var SongRequestMetrics = scope.ServiceProvider.GetRequiredService<Metrics.SongRequests>();
-            await SongRequestMetrics.IncrementSongCount(song);
+            return await SongRequestMetrics.IncrementSongCount(song);
         }
 
         private static async Task<string> GetSongId(string searchTerm)
