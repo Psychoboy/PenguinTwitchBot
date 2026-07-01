@@ -16,6 +16,8 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
         public string BackupDirectory { get; }
 
+        private static readonly string[] WwwrootSubdirectories = ["audio", "fishes", "gifs", "sfx"];
+
         public BackupTools(IFileSystem fileSystem, ILogger<BackupTools> logger, IZipService zipService)
         {
             _fs = fileSystem;
@@ -154,6 +156,8 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 }
             }
 
+            BackupWwwrootDirectories(tempDirectory, logger);
+
             var startPath = tempDirectory;
             var zipPath = _fs.Path.Combine(backupDirectory, string.Format("backup-{0}.zip", DateTime.Now.ToString("yyyy-MM-dd--HH-mm-ss")));
             _zipService.CreateFromDirectory(startPath, zipPath);
@@ -280,7 +284,82 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             {
                 logger?.LogError("Errors occurred during restore:\n{Errors}", errors);
             }
+            RestoreWwwrootDirectories(backupDirectory, logger);
+
             logger?.LogInformation("Database restored");
+        }
+
+        private void BackupWwwrootDirectories(string tempDirectory, ILogger? logger)
+        {
+            var wwwrootSource = _fs.Path.Combine(_fs.Directory.GetCurrentDirectory(), "wwwroot");
+            foreach (var subDir in WwwrootSubdirectories)
+            {
+                try
+                {
+                    var sourcePath = _fs.Path.Combine(wwwrootSource, subDir);
+                    if (!_fs.Directory.Exists(sourcePath))
+                    {
+                        logger?.LogDebug("Skipping wwwroot/{SubDir} (does not exist)", subDir);
+                        continue;
+                    }
+                    var destPath = _fs.Path.Combine(tempDirectory, "wwwroot", subDir);
+                    CopyDirectory(sourcePath, destPath, logger);
+                    logger?.LogDebug("Backed up wwwroot/{SubDir}", subDir);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to backup wwwroot/{SubDir}", subDir);
+                }
+            }
+        }
+
+        private void RestoreWwwrootDirectories(string backupDirectory, ILogger? logger)
+        {
+            var wwwrootBackup = _fs.Path.Combine(backupDirectory, "wwwroot");
+            if (!_fs.Directory.Exists(wwwrootBackup))
+            {
+                logger?.LogDebug("No wwwroot directory found in backup, skipping media restore");
+                return;
+            }
+            var wwwrootDest = _fs.Path.Combine(_fs.Directory.GetCurrentDirectory(), "wwwroot");
+            foreach (var subDir in WwwrootSubdirectories)
+            {
+                try
+                {
+                    var sourcePath = _fs.Path.Combine(wwwrootBackup, subDir);
+                    if (!_fs.Directory.Exists(sourcePath))
+                    {
+                        logger?.LogDebug("No wwwroot/{SubDir} found in backup, skipping", subDir);
+                        continue;
+                    }
+                    var destPath = _fs.Path.Combine(wwwrootDest, subDir);
+                    if (_fs.Directory.Exists(destPath))
+                        _fs.Directory.Delete(destPath, true);
+                    CopyDirectory(sourcePath, destPath, logger);
+                    logger?.LogDebug("Restored wwwroot/{SubDir}", subDir);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to restore wwwroot/{SubDir}", subDir);
+                }
+            }
+        }
+
+        private void CopyDirectory(string sourceDir, string destDir, ILogger? logger)
+        {
+            _fs.Directory.CreateDirectory(destDir);
+            foreach (var file in _fs.Directory.GetFiles(sourceDir))
+            {
+                try
+                {
+                    var destFile = _fs.Path.Combine(destDir, _fs.Path.GetFileName(file));
+                    _fs.File.Copy(file, destFile, overwrite: true);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to copy file {File}, skipping", file);
+                }
+            }
         }
 
         private static async Task ResetPostgresSequencesAsync(DbContext context, ILogger? logger)
