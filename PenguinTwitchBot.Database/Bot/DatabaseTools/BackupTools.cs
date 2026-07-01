@@ -1,28 +1,43 @@
-﻿using PenguinTwitchBot.Database.Bot.Models.Points;
+﻿using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Repository;
-using System.Text.Json;
+using System.IO.Abstractions;
 using System.IO.Compression;
+using System.Reflection;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 {
-    public static class BackupTools
+    public class BackupTools : IBackupTools
     {
-        public static string BACKUP_DIRECTORY = Path.Combine(Directory.GetCurrentDirectory(), "Data", "backups");
-        public static List<FileInfo> GetBackupFiles(string backupDirectory)
+        private readonly IFileSystem _fs;
+        private readonly ILogger _logger;
+        private readonly IZipService _zipService;
+
+        public string BackupDirectory { get; }
+
+        public BackupTools(IFileSystem fileSystem, ILogger<BackupTools> logger, IZipService zipService)
         {
-            return Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
+            _fs = fileSystem;
+            _logger = logger;
+            _zipService = zipService;
+            BackupDirectory = _fs.Path.Combine(_fs.Directory.GetCurrentDirectory(), "Data", "backups");
         }
 
-        public static async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public List<FileInfo> GetBackupFiles(string backupDirectory)
         {
-            var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
+            return _fs.Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
+        }
+
+        public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
+        {
+            var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
             var options = new JsonSerializerOptions
             {
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
                 WriteIndented = true
             };
-            await using var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
-                FileShare.None, bufferSize: 65536, useAsync: true);
+            await using var fileStream = _fs.File.Open(fileName, FileMode.Create, FileAccess.Write, FileShare.None);
             await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
             writer.WriteStartArray();
             var count = 0;
@@ -38,34 +53,32 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             logger?.LogDebug("Backed up {Count} records to {Name}", count, typeof(T).Name);
         }
 
-        public static async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger = null)
+        public async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger)
         {
             var options = new JsonSerializerOptions
             {
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
                 WriteIndented = true
             };
-            var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
-            await using var fileStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
-                FileShare.None, bufferSize: 65536, useAsync: true);
+            var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
+            await using var fileStream = _fs.File.Open(fileName, FileMode.Create, FileAccess.Write, FileShare.None);
             await JsonSerializer.SerializeAsync(fileStream, records, options);
             logger?.LogDebug("Backed up {Count} records to {Name}", records.Count, typeof(T).Name);
         }
 
-        public static async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
         {
             try
             {
-                var fileName = $"{backupDirectory}/{typeof(T).Name}.json";
-                if (!File.Exists(fileName)) return;
+                var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
+                if (!_fs.File.Exists(fileName)) return;
 
                 var options = new JsonSerializerOptions
                 {
                     ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
                 };
 
-                await using var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
-                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                await using var fileStream = _fs.File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                 var records = await JsonSerializer.DeserializeAsync<List<T>>(fileStream, options);
                 if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
 
@@ -80,41 +93,86 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
         }
 
-        public static async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
+        public async Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger)
         {
             logger.LogInformation("Backing up database");
-            var tempDirectory = Path.Combine(backupDirectory, $"temp-{Guid.NewGuid():N}");
-            if (!Directory.Exists(backupDirectory))
+            var tempDirectory = _fs.Path.Combine(backupDirectory, $"temp-{Guid.NewGuid():N}");
+            if (!_fs.Directory.Exists(backupDirectory))
             {
-                Directory.CreateDirectory(backupDirectory);
+                _fs.Directory.CreateDirectory(backupDirectory);
             }
 
-            Directory.CreateDirectory(tempDirectory);
+            _fs.Directory.CreateDirectory(tempDirectory);
             
             var handlers = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(s => s.GetTypes())
-            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false);
+            .SelectMany(s =>
+            {
+                try { return s.GetTypes(); }
+                catch (ReflectionTypeLoadException) { return Array.Empty<Type>(); }
+            })
+            .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false)
+            .Where(p => p.GetConstructors().Any(c =>
+            {
+                var parameters = c.GetParameters();
+                return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
+            }));
 
             foreach (var handler in handlers)
             {
-                var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
+                IBackupDb? handlerInstance = null;
+                try
+                {
+                    var ctor = handler.GetConstructors().First(c =>
+                    {
+                        var parameters = c.GetParameters();
+                        return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
+                    });
+                    handlerInstance = (IBackupDb?)ctor.Invoke(new object[] { context });
+                }
+                catch (MissingMethodException)
+                {
+                    logger.LogWarning("Skipping backup handler {Name}: incompatible constructor", handler.Name);
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to instantiate backup handler {Name}", handler.Name);
+                    continue;
+                }
                 if (handlerInstance == null)
                 {
                     logger.LogError("Failed to create instance of {Name}", handler.Name);
                     continue;
                 }
-                await handlerInstance.BackupTable(context, tempDirectory, logger);
-
+                try
+                {
+                    await handlerInstance.BackupTable(context, tempDirectory, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to backup {Name}", handler.Name);
+                }
             }
 
             var startPath = tempDirectory;
-            var zipPath = Path.Combine(backupDirectory, string.Format("backup-{0}.zip", DateTime.Now.ToString("yyyy-MM-dd--HH-mm-ss")));
-            ZipFile.CreateFromDirectory(startPath, zipPath);
-            Directory.Delete(tempDirectory, true);
+            var zipPath = _fs.Path.Combine(backupDirectory, string.Format("backup-{0}.zip", DateTime.Now.ToString("yyyy-MM-dd--HH-mm-ss")));
+            _zipService.CreateFromDirectory(startPath, zipPath);
+            _fs.Directory.Delete(tempDirectory, true);
             logger?.LogInformation($"Backup created at {zipPath}");
+
+            var orphaned = _fs.Directory.GetDirectories(backupDirectory, "temp-*");
+            if (orphaned.Length > 0)
+            {
+                logger?.LogWarning("Found {Count} orphaned temp directories in {BackupDirectory}. Manually delete them to conserve disk space. Paths: {Paths}",
+                    orphaned.Length, backupDirectory, string.Join("; ", orphaned));
+                foreach (var leftover in orphaned)
+                {
+                    logger?.LogWarning("Orphaned temp directory detected: {Path}", leftover);
+                }
+            }
         }
 
-        public static async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger = null)
+        public async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger)
         {
             logger?.LogInformation("Restoring database");
 
@@ -123,8 +181,17 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
             // Get all handler types
             var allHandlers = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(s => s.GetTypes())
+                .SelectMany(s =>
+                {
+                    try { return s.GetTypes(); }
+                    catch (ReflectionTypeLoadException) { return Array.Empty<Type>(); }
+                })
                 .Where(p => typeof(IBackupDb).IsAssignableFrom(p) && p.IsClass && p.FullName?.Contains("GenericRepository") == false)
+                .Where(p => p.GetConstructors().Any(c =>
+                {
+                    var parameters = c.GetParameters();
+                    return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
+                }))
                 .ToList();
 
             // Define restore order priority (lower number = restore first)
@@ -160,7 +227,12 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             {
                 try
                 {
-                    var handlerInstance = (IBackupDb?)Activator.CreateInstance(handler, context);
+                    var ctor = handler.GetConstructors().First(c =>
+                    {
+                        var parameters = c.GetParameters();
+                        return parameters.Length == 1 && typeof(DbContext).IsAssignableFrom(parameters[0].ParameterType);
+                    });
+                    var handlerInstance = (IBackupDb?)ctor.Invoke(new object[] { context });
                     if (handlerInstance == null)
                     {
                         logger?.LogError("Failed to create instance of {Name}", handler.Name);
@@ -213,10 +285,6 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
         private static async Task ResetPostgresSequencesAsync(DbContext context, ILogger? logger)
         {
-            // These tables use GENERATED BY DEFAULT AS IDENTITY but are restored with explicit IDs,
-            // which bypasses the sequence counter. Reset each sequence to MAX(Id) so new inserts don't conflict.
-            // Note: Triggers and QueueConfigurations are excluded — their IDs are [JsonIgnore]'d so they
-            // always get fresh sequence-generated IDs on restore and never de-sync.
             var tables = new[]
             {
                 "PointTypes",

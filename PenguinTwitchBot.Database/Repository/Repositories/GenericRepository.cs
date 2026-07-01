@@ -7,9 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Repository.Repositories
 {
-    public class GenericRepository<T>(ApplicationDbContext context) : IGenericRepository<T> where T : class
+    public class GenericRepository<T>(ApplicationDbContext context, IBackupTools? backupTools = null) : IGenericRepository<T> where T : class
     {
         protected readonly ApplicationDbContext _context = context;
+        private readonly IBackupTools? _backupTools = backupTools;
 
         public void Add(T entity)
         {
@@ -161,14 +162,67 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return _context.Set<T>().CountAsync();
         }
 
-        public virtual Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        public virtual async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
-            return BackupTools.BackupTable<T>(context, backupDirectory, logger);
+            if (_backupTools != null)
+            {
+                await _backupTools.BackupTable<T>(context, backupDirectory, logger);
+                return;
+            }
+
+            var fileName = System.IO.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                WriteIndented = true
+            };
+            await using var fileStream = new System.IO.FileStream(fileName, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None, bufferSize: 65536, useAsync: true);
+            await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
+            writer.WriteStartArray();
+            var count = 0;
+            await foreach (var record in context.Set<T>().AsNoTracking().AsAsyncEnumerable())
+            {
+                System.Text.Json.JsonSerializer.Serialize(writer, record, options);
+                count++;
+                if (count % 500 == 0)
+                    await writer.FlushAsync();
+            }
+            writer.WriteEndArray();
+            await writer.FlushAsync();
+            logger?.LogDebug("Backed up {Count} records to {Name}", count, typeof(T).Name);
         }
 
-        public virtual Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        public virtual async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
-            return BackupTools.RestoreTable<T>(context, backupDirectory, logger);
+            if (_backupTools != null)
+            {
+                await _backupTools.RestoreTable<T>(context, backupDirectory, logger);
+                return;
+            }
+
+            try
+            {
+                var fileName = System.IO.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
+                if (!System.IO.File.Exists(fileName)) return;
+
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                };
+
+                await using var fileStream = new System.IO.FileStream(fileName, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await System.Text.Json.JsonSerializer.DeserializeAsync<List<T>>(fileStream, options);
+                if (records == null) throw new Exception($"{typeof(T).Name}.json was null");
+
+                await context.Set<T>().ExecuteDeleteAsync();
+                context.Set<T>().AddRange(records);
+                logger?.LogDebug("Restored {Count} records from {Name}", records.Count, typeof(T).Name);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to restore {Name}", typeof(T).Name);
+                throw;
+            }
         }
     }
 }

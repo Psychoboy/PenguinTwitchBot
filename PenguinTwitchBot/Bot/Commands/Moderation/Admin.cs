@@ -2,6 +2,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
+using System.IO.Abstractions;
 using System.IO.Compression;
 
 namespace PenguinTwitchBot.Bot.Commands.Moderation
@@ -12,7 +13,9 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        IServiceScopeFactory scopeFactory
+        IServiceScopeFactory scopeFactory,
+        IBackupTools backupTools,
+        IFileSystem fileSystem
             ) : BaseCommandService(serviceBackbone, commandHandler, "Admin", dispatcher), IHostedService
     {
         public async Task BackupDatabase()
@@ -21,8 +24,8 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             {
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await BackupTools.BackupDatabase(db, BackupTools.BACKUP_DIRECTORY, logger);
-                var files = Directory.GetFiles(BackupTools.BACKUP_DIRECTORY);
+                await backupTools.BackupDatabase(db, backupTools.BackupDirectory, logger);
+                var files = fileSystem.Directory.GetFiles(backupTools.BackupDirectory);
                 logger.LogInformation("Deleting old backups > 30 days");
                 foreach (var file in files)
                 {
@@ -30,7 +33,7 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
                     if (fi.CreationTime < DateTime.Now.AddDays(-30))
                     {
                         logger.LogInformation("Deleting backup: {name}", fi.Name);
-                        fi.Delete();
+                        fileSystem.File.Delete(file);
                     }
                 }
             } catch (Exception ex)
@@ -45,7 +48,7 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             ZipFile.ExtractToDirectory(fileName, backupDirectory);
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await BackupTools.RestoreDatabase(db, backupDirectory, logger);
+            await backupTools.RestoreDatabase(db, backupDirectory, logger);
             Directory.Delete(backupDirectory, true);
         }
 
