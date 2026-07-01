@@ -11,7 +11,6 @@
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => RefreshBotAuth()">Bot Auth</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => TestAlert()">Test Alert</MudButton>
         @if(twitchService.IsServiceUp())
         {
             <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>
@@ -24,11 +23,6 @@
 </MudContainer>
 
 @code {
-    private void TestAlert()
-    {
-        Snackbar.Add("Error connecting to bot. Please refresh. If error persist check your browser version and for any OS updates.", Severity.Error);
-    }
-
     private async Task RefreshBotAuth()
     {
         var result = await twitchChatBot.RefreshAccessToken();
