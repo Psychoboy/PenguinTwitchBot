@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
         event AsyncEventHandler<ChannelCheerEventArgs>? ChannelCheer;
         event AsyncEventHandler<ChannelFollowEventArgs>? ChannelFollow;
         event AsyncEventHandler<ChannelPointsCustomRewardRedemptionEventArgs>? ChannelPointsCustomRewardRedemptionAdd;
-        event AsyncEventHandler<ChannelPointsCustomRewardRedemptionEventArgs>? ChannelPointsCustomRewardRedemptionUpdate;
+        event AsyncEventHandler<ChannelPointsCustomRewardRedemptionEventArgs>? ChannelPointsCustomRewardRedemptionAdd;
         event AsyncEventHandler<ChannelRaidEventArgs>? ChannelRaid;
         event AsyncEventHandler<ChannelSubscribeEventArgs>? ChannelSubscribe;
         event AsyncEventHandler<ChannelSubscriptionEndEventArgs>? ChannelSubscriptionEnd;
