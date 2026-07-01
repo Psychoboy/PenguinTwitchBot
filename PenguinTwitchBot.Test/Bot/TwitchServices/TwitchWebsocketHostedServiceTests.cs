@@ -25,6 +25,8 @@ using PenguinTwitchBot.TwitchApi.EventSub.Websockets;
 using PenguinTwitchBot.TwitchApi.Models.ChannelPoints;
 using Xunit;
 
+#pragma warning disable NS1001, NS1004, NS5000
+
 namespace PenguinTwitchBot.Test.Bot.TwitchServices;
 
 public class TwitchWebsocketHostedServiceTests
@@ -101,7 +103,7 @@ public class TwitchWebsocketHostedServiceTests
                 ChatterUserId = "uid-1",
                 ChatterUserName = "TestUser",
                 ChatterUserLogin = "testuser",
-                Message = null,
+                Message = null!,
                 NoticeType = "sub",
                 Sub = populateOptionals ? new ChatSub { SubTier = "1000", DurationMonths = 3, IsPrime = true } : null,
                 Resub = populateOptionals ? new ChatResub { CumulativeMonths = 12, DurationMonths = 3, StreakMonths = 6, SubTier = "2000", IsPrime = true, IsGift = false, GifterIsAnonymous = false, GifterUserId = "gifter-1", GifterUserName = "Gifter", GifterUserLogin = "gifter" } : null,
@@ -260,7 +262,7 @@ public class TwitchWebsocketHostedServiceTests
         };
     }
 
-    private static ChannelPointsCustomRewardRedemptionEventArgs CreateChannelPointRedeemedArgs(string userInput = null!)
+    private static ChannelPointsCustomRewardRedemptionEventArgs CreateChannelPointRedeemedArgs(string? userInput = null)
     {
         return new ChannelPointsCustomRewardRedemptionEventArgs
         {
@@ -268,7 +270,7 @@ public class TwitchWebsocketHostedServiceTests
             Event = new ChannelPointsCustomRewardRedemption
             {
                 UserId = "uid-1", UserLogin = "testuser", UserName = "TestUser",
-                UserInput = userInput,
+                UserInput = userInput ?? string.Empty,
                 Reward = new RedemptionReward { Id = "reward-1", Title = "Test Reward" },
                 Status = "fulfilled"
             }
@@ -386,7 +388,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task DidProcessMessage_WhenCacheMiss_AddsToCacheAndReturnsFalse()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         bool result = _service.DidProcessMessage(CreateMetadata("msg-1"));
         Assert.False(result);
         _memoryCache.Received(1).Set("msg-1", "msg-1", TimeSpan.FromMinutes(10));
@@ -395,7 +397,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task DidProcessMessage_WhenCacheHit_ReturnsTrue()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -416,7 +418,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task ChannelChatMessage_WithChannelPointReward_CallsRewardAndPublishes()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _twitchService.GetCustomReward("reward-1").Returns(new ChannelPointReward("reward-1", "Test Reward", true, false, 100, null, true, null, false, false, 1, false, 0, false, 1));
         await _service.ChannelChatMessage(this, CreateChannelChatMessageArgs("msg-1", rewardId: "reward-1"));
         await _twitchService.Received(1).GetCustomReward("reward-1");
@@ -429,7 +431,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task ChannelChatMessage_WithChannelPointReward_NullReward_Returns()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _twitchService.GetCustomReward("reward-1").Returns((ChannelPointReward?)null!);
         await _service.ChannelChatMessage(this, CreateChannelChatMessageArgs("msg-1", rewardId: "reward-1"));
 
@@ -439,7 +441,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task ChannelChatMessage_NormalChat_PublishesChatMessage()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.ChannelChatMessage(this, CreateChannelChatMessageArgs("msg-1", "!hello"));
         await _eventService.Received(1).OnCommand(Arg.Any<CommandEventArgs>());
         await _dispatcher.Received(1).Publish(Arg.Is<ReceivedChatMessage>(m =>
@@ -459,7 +461,7 @@ public class TwitchWebsocketHostedServiceTests
     {
         var args = CreateSuspiciousUserMessageArgs("msg-1");
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.ChannelSuspiciousUserMessage(this, args);
         await _dispatcher.Received(1).Publish(Arg.Is<ReceivedChatMessage>(m =>
             m.EventArgs != null && m.EventArgs.UserId == "uid-1" && m.EventArgs.Name == "testuser"));
@@ -468,7 +470,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task ChannelAdBreakBegin_WhenValid_CallsHandlerAndEventService()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.ChannelAdBreakBegin(this, CreateChannelAdBreakBeginArgs());
         await _twitchEventActionHandler.Received(1).HandleAdBreakBeginAsync(Arg.Is<AdBreakStartEventArgs>(e =>
             e.Automatic == true && e.Length == 30));
@@ -479,7 +481,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelUnBan_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelUnBan(this, CreateChannelUnbanArgs());
         await _eventService.Received(1).OnViewerBan("uid-1", "testuser", true, null);
         await _twitchEventActionHandler.Received(1).HandleChannelUnbanAsync(Arg.Is<BanEventArgs>(e =>
@@ -489,7 +491,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBan_WithTimeout_PublishesBanned()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelBan(this, CreateChannelBanArgs(isPermanent: false));
         await _dispatcher.Received(1).Publish(Arg.Is<BannedChatUser>(m => m.UserId == "uid-1"));
         await _eventService.DidNotReceive().OnViewerBan(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<DateTimeOffset?>());
@@ -498,7 +500,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBan_WithPermanentBan_CallsHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelBan(this, CreateChannelBanArgs(isPermanent: true));
         await _dispatcher.Received(1).Publish(Arg.Is<BannedChatUser>(m => m.UserId == "uid-1"));
         await _eventService.Received(1).OnViewerBan("uid-1", "testuser", false, Arg.Any<DateTimeOffset?>());
@@ -509,7 +511,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelRaid_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelRaid(this, CreateChannelRaidArgs());
         await _eventService.Received(1).OnIncomingRaid(Arg.Is<RaidEventArgs>(e =>
             e.Name == "raider" && e.UserId == "uid-raider" && e.DisplayName == "Raider" && e.NumberOfViewers == 42));
@@ -519,7 +521,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelFollow_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelFollow(this, CreateChannelFollowArgs());
         await _eventService.Received(1).OnFollow(Arg.Any<ChannelFollow>());
         await _twitchEventActionHandler.Received(1).HandleFollowAsync(Arg.Is<FollowEventArgs>(e =>
@@ -529,7 +531,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelSubscription_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _subscriptionHistory.ExistingSub("testuser").Returns(false);
         await _service.OnChannelSubscription(this, CreateChannelSubscribeArgs());
         await _eventService.Received(1).OnSubscription(Arg.Is<SubscriptionEventArgs>(e =>
@@ -540,7 +542,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelSubscriptionRenewal_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _subscriptionHistory.ExistingSub("testuser").Returns(false);
         await _service.OnChannelSubscriptionRenewal(this, CreateChannelSubscriptionRenewalArgs());
         await _subscriptionHistory.Received(1).AddOrUpdateSubHistory("testuser", "uid-1");
@@ -552,7 +554,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelSubscriptionGift_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelSubscriptionGift(this, CreateChannelSubscriptionGiftArgs());
         await _eventService.Received(1).OnSubscriptionGift(Arg.Is<SubscriptionGiftEventArgs>(e =>
             e.Name == "testuser" && e.UserId == "uid-1" && e.GiftAmount == 5));
@@ -562,7 +564,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelSubscriptionEnd_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelSubscriptionEnd(this, CreateChannelSubscriptionEndArgs());
         await _eventService.Received(1).OnSubscriptionEnd("testuser", "uid-1");
         await _twitchEventActionHandler.Received(1).HandleSubscriptionEndAsync(Arg.Is<SubscriptionEndEventArgs>(e =>
@@ -572,7 +574,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelCheer_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelCheer(this, CreateChannelCheerArgs());
         await _eventService.Received(1).OnCheer(Arg.Any<ChannelCheer>());
         await _twitchEventActionHandler.Received(1).HandleCheerAsync(Arg.Is<CheerEventArgs>(e =>
@@ -582,7 +584,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBitsUse_WhenAlreadyProcessed_ReturnsEarly()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -594,7 +596,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBitsUse_WhenValid_CallsHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelBitsUse(this, CreateChannelBitsUseArgs("msg-1", populateOptionals: true));
         await _twitchEventActionHandler.Received(1).HandleBitsUseAsync(Arg.Is<BitsUseEventArgs>(e =>
             e.UserId == "uid-1" && e.Name == "testuser" && e.Amount == 100 &&
@@ -606,7 +608,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBitsUse_WithNullOptionals_CallsHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelBitsUse(this, CreateChannelBitsUseArgs("msg-1", populateOptionals: false));
         await _twitchEventActionHandler.Received(1).HandleBitsUseAsync(Arg.Is<BitsUseEventArgs>(e =>
             e.IsPowerUp == false && e.PowerUp == null &&
@@ -617,7 +619,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelBitsUse_WhenThrows_LogsError()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _twitchEventActionHandler.When(x => x.HandleBitsUseAsync(Arg.Any<BitsUseEventArgs>())).Do(x => throw new InvalidOperationException("test"));
         await _service.OnChannelBitsUse(this, CreateChannelBitsUseArgs("msg-1"));
         _logger.Received(1).LogError(Arg.Any<Exception>(), "Error in websocket message");
@@ -626,7 +628,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelPointRedeemed_WhenHasUserInput_ReturnsEarly()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         var args = CreateChannelPointRedeemedArgs("some input");
         await _service.OnChannelPointRedeemed(this, args);
         await _eventService.DidNotReceive().OnChannelPointRedeem(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
@@ -635,7 +637,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnChannelPointRedeemed_WhenValid_CallsEventServiceAndHandler()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         var args = CreateChannelPointRedeemedArgs(null);
         await _service.OnChannelPointRedeemed(this, args);
         await _eventService.Received(1).OnChannelPointRedeem("uid-1", "TestUser", "Test Reward");
@@ -655,7 +657,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task OnChannelChatNotification_WhenAlreadyProcessed_ReturnsEarly()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -668,7 +670,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task OnChannelChatNotification_WhenValid_CallsHandler()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnChannelChatNotification(this, CreateChannelChatNotificationArgs("msg-1"));
         await _twitchEventActionHandler.Received(1).HandleChatNotificationAsync(Arg.Is<ChatNotificationEventArgs>(e =>
             e.UserId == "uid-1" && e.Name == "testuser" && e.DisplayName == "TestUser" && e.NoticeType == "sub"));
@@ -678,7 +680,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task OnChannelChatNotification_WhenThrows_LogsError()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         _twitchEventActionHandler.When(x => x.HandleChatNotificationAsync(Arg.Any<ChatNotificationEventArgs>())).Do(x => throw new InvalidOperationException("test"));
         await _service.OnChannelChatNotification(this, CreateChannelChatNotificationArgs("msg-1"));
         _logger.Received(1).LogError(Arg.Any<Exception>(), "Error processing chat notification");
@@ -688,7 +690,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task OnChannelChatNotification_AllOptionalFieldsNull_CallsHandler()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         var args = CreateChannelChatNotificationArgs("msg-1", populateOptionals: false);
         await _service.OnChannelChatNotification(this, args);
         await _twitchEventActionHandler.Received(1).HandleChatNotificationAsync(Arg.Is<ChatNotificationEventArgs>(e =>
@@ -703,7 +705,7 @@ public class TwitchWebsocketHostedServiceTests
     public async Task OnChannelChatNotification_AllOptionalFieldsPopulated_CallsHandler()
     {
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         var args = CreateChannelChatNotificationArgs("msg-1", populateOptionals: true);
         await _service.OnChannelChatNotification(this, args);
         await _twitchEventActionHandler.Received(1).HandleChatNotificationAsync(Arg.Is<ChatNotificationEventArgs>(e =>
@@ -728,7 +730,7 @@ public class TwitchWebsocketHostedServiceTests
     {
         var args = CreateSuspiciousUserMessageArgs("msg-1");
         _messageIdTracker.IsSelfMessage("msg-1").Returns(false);
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -892,7 +894,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnStreamOffline_WhenAlreadyProcessed_ReturnsEarly()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -905,7 +907,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnStreamOffline_WhenValid_CallsStreamOffline()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnStreamOffline(this, CreateStreamOfflineArgs("msg-1"));
         await _eventService.Received(1).OnStreamEnded();
         await _twitchEventActionHandler.Received(1).HandleStreamOfflineAsync();
@@ -914,7 +916,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnStreamOnline_WhenAlreadyProcessed_ReturnsEarly()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached";
             return true;
@@ -927,7 +929,7 @@ public class TwitchWebsocketHostedServiceTests
     [Fact]
     public async Task OnStreamOnline_WhenValid_CallsStreamOnline()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
         await _service.OnStreamOnline(this, CreateStreamOnlineArgs("msg-1"));
         await _eventService.Received(1).OnStreamStarted();
         await _twitchEventActionHandler.Received(1).HandleStreamOnlineAsync();
@@ -1116,4 +1118,5 @@ public class TwitchWebsocketHostedServiceTests
     }
 }
 
+#pragma warning restore NS1001, NS1004, NS5000
 

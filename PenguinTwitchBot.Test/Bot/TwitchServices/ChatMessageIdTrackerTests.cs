@@ -25,7 +25,7 @@ public class ChatMessageIdTrackerTests
     [Fact]
     public void IsSelfMessage_WhenCacheHit_ReturnsTrue()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(x =>
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(x =>
         {
             x[1] = "cached-value";
             return true;
@@ -39,7 +39,7 @@ public class ChatMessageIdTrackerTests
     [Fact]
     public void IsSelfMessage_WhenCacheMiss_ReturnsFalse()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
 
         bool result = _tracker.IsSelfMessage("msg-123");
 
@@ -49,7 +49,7 @@ public class ChatMessageIdTrackerTests
     [Fact]
     public void IsSelfMessage_WithNullMessageId_ReturnsFalse()
     {
-        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()).Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
 
         bool result = _tracker.IsSelfMessage(null!);
 
