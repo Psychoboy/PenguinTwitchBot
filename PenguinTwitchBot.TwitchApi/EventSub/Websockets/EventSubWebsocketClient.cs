@@ -144,87 +144,89 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             if (cancellationToken.IsCancellationRequested)
                 return false;
 
-            if (_reconnectRequested)
+            return _reconnectRequested
+                ? await HandleRequestedReconnectAsync(url, cancellationToken).ConfigureAwait(false)
+                : await HandleNormalReconnectAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task<bool> HandleRequestedReconnectAsync(Uri url, CancellationToken cancellationToken)
+        {
+            var reconnectClient = CreateWebsocketClient();
+            reconnectClient.OnDataReceived += OnDataReceived;
+            reconnectClient.OnErrorOccurred += OnErrorOccurred;
+
+            if (!await reconnectClient.ConnectAsync(url))
+                return false;
+
+            for (var i = 0; i < 200; i++)
             {
+                if (cancellationToken.IsCancellationRequested)
+                    break;
 
-                var reconnectClient = _serviceProvider != null
-                    ? _serviceProvider.GetRequiredService<IWebsocketClient>()
-                    : new WebsocketClient((_loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WebsocketClient>());
-
-                reconnectClient.OnDataReceived += OnDataReceived;
-                reconnectClient.OnErrorOccurred += OnErrorOccurred;
-
-                if (!await reconnectClient.ConnectAsync(url))
-                    return false;
-
-
-                for (var i = 0; i < 200; i++)
+                if (_reconnectComplete)
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
+                    var oldRunningClient = _websocketClient;
+                    _websocketClient = reconnectClient;
 
-                    if (_reconnectComplete)
-                    {
-                        var oldRunningClient = _websocketClient;
-                        _websocketClient = reconnectClient;
+                    if (oldRunningClient.IsConnected)
+                        await oldRunningClient.DisconnectAsync();
+                    oldRunningClient.Dispose();
 
-                        if (oldRunningClient.IsConnected)
-                            await oldRunningClient.DisconnectAsync();
-                        oldRunningClient.Dispose();
+                    await WebsocketReconnected.InvokeAsync(this, new());
 
-                        await WebsocketReconnected.InvokeAsync(this, new());
+                    _reconnectRequested = false;
+                    _reconnectComplete = false;
 
-                        _reconnectRequested = false;
-                        _reconnectComplete = false;
-
-                        return true;
-                    }
-
-                    try
-                    {
-                        await Task.Delay(100, cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        break;
-                    }
+                    return true;
                 }
 
-                reconnectClient.OnDataReceived -= OnDataReceived;
-                reconnectClient.OnErrorOccurred -= OnErrorOccurred;
-
-                if (reconnectClient.IsConnected)
-                    await reconnectClient.DisconnectAsync();
-
-                reconnectClient.Dispose();
-
-                _logger.LogReconnectFailed(SessionId);
-
-                return false;
+                try
+                {
+                    await Task.Delay(100, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
 
-            if (cancellationToken.IsCancellationRequested)
-                return false;
+            reconnectClient.OnDataReceived -= OnDataReceived;
+            reconnectClient.OnErrorOccurred -= OnErrorOccurred;
 
+            if (reconnectClient.IsConnected)
+                await reconnectClient.DisconnectAsync();
+
+            reconnectClient.Dispose();
+
+            _logger.LogReconnectFailed(SessionId);
+
+            return false;
+        }
+
+        private async Task<bool> HandleNormalReconnectAsync(CancellationToken cancellationToken)
+        {
             if (_websocketClient.IsConnected)
                 await DisconnectAsync();
 
             _websocketClient.Dispose();
-
-            _websocketClient = _serviceProvider != null
-                ? _serviceProvider.GetRequiredService<IWebsocketClient>()
-                : new WebsocketClient((_loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WebsocketClient>());
-
+            _websocketClient = CreateWebsocketClient();
             _websocketClient.OnDataReceived += OnDataReceived;
             _websocketClient.OnErrorOccurred += OnErrorOccurred;
 
-            if(!_websocketClient.IsConnected)
+            if (!_websocketClient.IsConnected)
                 if (!await ConnectAsync())
                     return false;
 
             await WebsocketReconnected.InvokeAsync(this, new());
 
             return true;
+        }
+
+        private IWebsocketClient CreateWebsocketClient()
+        {
+            return _serviceProvider != null
+                ? _serviceProvider.GetRequiredService<IWebsocketClient>()
+                : new WebsocketClient((_loggerFactory ?? NullLoggerFactory.Instance).CreateLogger<WebsocketClient>());
         }
 
         private async Task ConnectionCheckAsync(CancellationToken cancellationToken)

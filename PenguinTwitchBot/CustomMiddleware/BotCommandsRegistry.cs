@@ -57,8 +57,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate,
             });
 
-            services.AddTransient<WebsocketClient>();
-            services.AddSingleton<IWebsocketClient, WebsocketClient>();
+            services.AddTransient<IWebsocketClient, WebsocketClient>();
             services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<IWebsocketClient>()));
 
             
