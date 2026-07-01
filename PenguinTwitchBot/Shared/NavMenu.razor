@@ -1,7 +1,9 @@
 ﻿@inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @using PenguinTwitchBot.Helpers
 @using PenguinTwitchBot.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 
 <div style="height:100%; display:flex; flex-direction:column;">
@@ -127,7 +129,16 @@
         <MudLink Href="@StarCitizenReferralUrl" Target="_blank">
             <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-2" />Star Citizen Referral
         </MudLink>
-        <MudText Typo="Typo.caption" Class="mud-text-gray">v@(VersionCheck.CurrentVersion)</MudText>
+        @if (_showUpgradeLink)
+        {
+            <MudLink Href="https://github.com/Psychoboy/PenguinTwitchBot/releases" Target="_blank" Typo="Typo.caption">
+                v@(VersionCheck.CurrentVersion) - <strong>Upgrade available</strong>
+            </MudLink>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-gray">v@(VersionCheck.CurrentVersion)</MudText>
+        }
     </MudStack>
 </div>
 </div>
@@ -137,6 +148,8 @@
     private Dictionary<string, bool> _groupExpandedState = new();
     private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
+    private bool _isStreamer;
+    private bool _showUpgradeLink => _isStreamer && !VersionCheck.IsUpToDate && !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)
     {
@@ -156,9 +169,20 @@
         Navigation.NavigateToSigninWithReturnUrl();
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if(authState != null)
+        {
+            _isStreamer = authState.User.IsInRole("Streamer");
+        }
+        VersionCheck.VersionStatusChanged += HandleVersionStatusChanged;
         Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void HandleVersionStatusChanged()
+    {
+        InvokeAsync(StateHasChanged);
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
@@ -168,6 +192,7 @@
 
     public void Dispose()
     {
+        VersionCheck.VersionStatusChanged -= HandleVersionStatusChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }
