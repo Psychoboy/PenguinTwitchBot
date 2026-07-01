@@ -334,7 +334,11 @@ public class TestLogger : ILogger<BackupTools>
 {
     public List<LogEntry> Entries { get; } = new();
 
+#pragma warning disable CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
+#pragma warning disable CS8603 // Possible null reference return.
     public IDisposable BeginScope<TState>(TState state) => null;
+#pragma warning restore CS8603 // Possible null reference return.
+#pragma warning restore CS8633 // Nullability in constraints for type parameter doesn't match the constraints for type parameter in implicitly implemented interface method'.
     public bool IsEnabled(LogLevel logLevel) => true;
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {

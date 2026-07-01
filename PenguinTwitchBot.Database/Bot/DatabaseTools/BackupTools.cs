@@ -29,7 +29,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             return _fs.Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
         }
 
-        public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
         {
             var fileName = _fs.Path.Combine(backupDirectory, $"{typeof(T).Name}.json");
             var options = new JsonSerializerOptions
@@ -53,7 +53,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             logger?.LogDebug("Backed up {Count} records to {Name}", count, typeof(T).Name);
         }
 
-        public async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger = null)
+        public async Task WriteData<T>(string backupDirectory, List<T> records, ILogger? logger)
         {
             var options = new JsonSerializerOptions
             {
@@ -66,7 +66,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             logger?.LogDebug("Backed up {Count} records to {Name}", records.Count, typeof(T).Name);
         }
 
-        public async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger = null) where T : class
+        public async Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class
         {
             try
             {
@@ -172,7 +172,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
         }
 
-        public async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger = null)
+        public async Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger)
         {
             logger?.LogInformation("Restoring database");
 
