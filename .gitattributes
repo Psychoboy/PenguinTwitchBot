@@ -2,3 +2,6 @@
 # GitHub collapses these in PR diffs and Copilot skips them during code review
 **/Migrations/*.Designer.cs linguist-generated=true
 **/Migrations/*Snapshot.cs linguist-generated=true
+
+# Force LF line endings for shell scripts
+*.sh text eol=lf
