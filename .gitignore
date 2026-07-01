@@ -520,3 +520,8 @@ coveragereport/Cobertura.xml
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
 .github/instructions/codacy.instructions.md
+.codacy/cli.sh
+.codacy/codacy.yaml
+.codacy\codacy.yaml
+ffmpeg
+yt-dlp
