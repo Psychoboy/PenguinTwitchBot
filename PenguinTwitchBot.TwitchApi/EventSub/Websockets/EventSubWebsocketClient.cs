@@ -146,7 +146,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
 
             return _reconnectRequested
                 ? await HandleRequestedReconnectAsync(url, cancellationToken).ConfigureAwait(false)
-                : await HandleNormalReconnectAsync(cancellationToken).ConfigureAwait(false);
+                : await HandleNormalReconnectAsync().ConfigureAwait(false);
         }
 
         private async Task<bool> HandleRequestedReconnectAsync(Uri url, CancellationToken cancellationToken)
@@ -203,7 +203,7 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             return false;
         }
 
-        private async Task<bool> HandleNormalReconnectAsync(CancellationToken cancellationToken)
+        private async Task<bool> HandleNormalReconnectAsync()
         {
             if (_websocketClient.IsConnected)
                 await DisconnectAsync();
