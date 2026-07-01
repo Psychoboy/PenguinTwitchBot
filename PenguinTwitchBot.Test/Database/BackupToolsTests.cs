@@ -12,6 +12,7 @@ using System.Text.Json;
 
 namespace PenguinTwitchBot.Test.Database;
 
+[Collection("BackupTools")]
 public class BackupToolsTests : IDisposable
 {
     private readonly MockFileSystem _fs;
@@ -329,6 +330,9 @@ public class BackupToolsTests : IDisposable
 
     #endregion
 }
+
+[CollectionDefinition("BackupTools", DisableParallelization = true)]
+public class BackupToolsCollection : ICollectionFixture<object> { }
 
 public class TestLogger : ILogger<BackupTools>
 {
