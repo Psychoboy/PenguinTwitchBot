@@ -1,6 +1,8 @@
 ﻿@inject NavigationManager Navigation
-@implements IDisposable
+@inject IVersionCheckService VersionCheck
 @using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Services
+@implements IDisposable
 
 <div style="height:100%; display:flex; flex-direction:column;">
 <MudNavMenu Style="flex:1; overflow:auto;">
@@ -125,6 +127,7 @@
         <MudLink Href="@StarCitizenReferralUrl" Target="_blank">
             <MudIcon Icon="@Icons.Material.Filled.RocketLaunch" Class="mr-2" />Star Citizen Referral
         </MudLink>
+        <MudText Typo="Typo.caption" Class="mud-text-gray">v@(VersionCheck.CurrentVersion)</MudText>
     </MudStack>
 </div>
 </div>
