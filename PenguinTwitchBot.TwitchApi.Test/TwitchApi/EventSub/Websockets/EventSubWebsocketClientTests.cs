@@ -156,6 +156,21 @@ public class EventSubWebsocketClientTests
     }
 
     [Fact]
+    public async Task ReconnectAsync_WhenReconnectRequestedAndConnectFails_CleansUpClient()
+    {
+        var client = CreateClient();
+        SetPrivateField(client, "_reconnectRequested", true);
+        _websocketClient.IsConnected.Returns(true);
+        _websocketClient.ConnectAsync(Arg.Any<Uri>()).Returns(false);
+
+        var result = await client.ReconnectAsync();
+
+        Assert.False(result);
+        await _websocketClient.Received(1).DisconnectAsync();
+        _websocketClient.Received(1).Dispose();
+    }
+
+    [Fact]
     public async Task ReconnectAsync_WhenNotReconnectRequested_DisconnectsAndReconnects()
     {
         var secondClient = Substitute.For<IWebsocketClient>();

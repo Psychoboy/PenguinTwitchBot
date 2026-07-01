@@ -156,7 +156,17 @@ namespace PenguinTwitchBot.TwitchApi.EventSub.Websockets
             reconnectClient.OnErrorOccurred += OnErrorOccurred;
 
             if (!await reconnectClient.ConnectAsync(url))
+            {
+                reconnectClient.OnDataReceived -= OnDataReceived;
+                reconnectClient.OnErrorOccurred -= OnErrorOccurred;
+
+                if (reconnectClient.IsConnected)
+                    await reconnectClient.DisconnectAsync();
+
+                reconnectClient.Dispose();
+
                 return false;
+            }
 
             for (var i = 0; i < 200; i++)
             {
