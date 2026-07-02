@@ -63,12 +63,12 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Name">
-                            <MudLink Href=@LinkBuilder("/editviewer/", context.User1)>
+                            <MudLink Href=@LinkBuilder(context.User1)>
                                 @context.User1
                             </MudLink>
                         </MudTd>
                         <MudTd DataLabel="Name">
-                            <MudLink Href=@LinkBuilder("/editviewer/", context.User2)>
+                            <MudLink Href=@LinkBuilder(context.User2)>
                                 @context.User2
                             </MudLink>
                         </MudTd>
@@ -160,7 +160,7 @@
 
     private void Edit(PenguinTwitchBot.Database.Bot.Models.Viewer item)
     {
-        navigationManager.NavigateTo($"/editviewer/{item.Id}");
+        navigationManager.NavigateTo($"/viewers/edit?id={item.Id}");
     }
     private async Task Search()
     {
@@ -168,8 +168,8 @@
         StateHasChanged();
     }
 
-    private string LinkBuilder(string _route, string _parameter)
+    private string LinkBuilder(string _parameter)
     {
-        return _route + _parameter;
+        return $"/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
     }
 }
