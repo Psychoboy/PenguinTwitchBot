@@ -1,5 +1,6 @@
 namespace PenguinTwitchBot.Database.Bot.Models
 {
+    [IndexAttribute(nameof(Username), IsUnique = false)]
     [IndexAttribute(nameof(CreatedAt), IsUnique = false)]
     [IndexAttribute(nameof(Username), nameof(CreatedAt), IsUnique = false)]
     [IndexAttribute(nameof(MessageId), IsUnique = false)]

@@ -38,24 +38,26 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
             try
             {
-                await using var fileStream = new System.IO.FileStream(tempFileName, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None, bufferSize: 65536, useAsync: true);
-                await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
-                writer.WriteStartArray();
-
                 var count = 0;
-                await foreach (var record in query.AsAsyncEnumerable())
                 {
-                    JsonSerializer.Serialize(writer, record, options);
-                    count++;
-                    if (count % 500 == 0)
-                    {
-                        await writer.FlushAsync();
-                    }
-                }
+                    await using var fileStream = new System.IO.FileStream(tempFileName, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None, bufferSize: 65536, useAsync: true);
+                    await using var writer = new System.Text.Json.Utf8JsonWriter(fileStream);
+                    writer.WriteStartArray();
 
-                writer.WriteEndArray();
-                await writer.FlushAsync();
-                await fileStream.FlushAsync();
+                    await foreach (var record in query.AsAsyncEnumerable())
+                    {
+                        JsonSerializer.Serialize(writer, record, options);
+                        count++;
+                        if (count % 500 == 0)
+                        {
+                            await writer.FlushAsync();
+                        }
+                    }
+
+                    writer.WriteEndArray();
+                    await writer.FlushAsync();
+                    await fileStream.FlushAsync();
+                }
 
                 if (System.IO.File.Exists(fileName))
                 {
