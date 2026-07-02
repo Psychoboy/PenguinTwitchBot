@@ -35,6 +35,9 @@
                     <MudItem xs="12" md="6">
                         <MudNumericField @bind-Value="_maxDays" Label="Max days to keep" Min="1" Max="3650" Immediate="true" Variant="Variant.Outlined" />
                     </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="_chatHistoryMonthsToBackup" Label="Chat history months to include in backup" Min="0" Max="120" Immediate="true" Variant="Variant.Outlined" />
+                    </MudItem>
                 </MudGrid>
                 <MudStack Row="true" Spacing="2">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveSettingsAsync" Disabled="_saving">
@@ -92,6 +95,7 @@
     private List<FileInfo> _backups = new();
     private int _maxBackups = 15;
     private int _maxDays = 15;
+    private int _chatHistoryMonthsToBackup = 12;
     private bool _saving;
 
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -106,6 +110,7 @@
     {
         _maxBackups = await BackupSettings.GetBackupCountToKeepAsync();
         _maxDays = await BackupSettings.GetBackupDaysToKeepAsync();
+        _chatHistoryMonthsToBackup = await BackupSettings.GetBackupChatHistoryMonthsToKeepAsync();
     }
 
     private async Task SaveSettingsAsync()
@@ -115,9 +120,11 @@
         {
             _maxBackups = _maxBackups < 1 ? 1 : _maxBackups;
             _maxDays = _maxDays < 1 ? 1 : _maxDays;
+            _chatHistoryMonthsToBackup = _chatHistoryMonthsToBackup < 0 ? 0 : _chatHistoryMonthsToBackup;
 
             await BackupSettings.SetBackupCountToKeepAsync(_maxBackups);
             await BackupSettings.SetBackupDaysToKeepAsync(_maxDays);
+            await BackupSettings.SetBackupChatHistoryMonthsToKeepAsync(_chatHistoryMonthsToBackup);
 
             Snackbar.Add("Backup retention settings saved successfully.", Severity.Success);
         }
@@ -135,6 +142,7 @@
     {
         _maxBackups = 15;
         _maxDays = 15;
+        _chatHistoryMonthsToBackup = 12;
         await SaveSettingsAsync();
     }
 

@@ -20,7 +20,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="Name">
-                                <MudLink Href=@LinkBuilder("/editviewer/", context.Username)>
+                                <MudLink Href=@LinkBuilder(context.Username)>
                                     @context.Username
                                 </MudLink>
                             </MudTd>
@@ -100,8 +100,8 @@
             StateHasChanged();
         }
     }
-    private string LinkBuilder(string _route, string _parameter)
+    private string LinkBuilder(string _parameter)
     {
-        return _route + _parameter;
+        return $"/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
     }
 }

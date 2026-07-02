@@ -1,4 +1,4 @@
-@page "/editviewer/{id}"
+@page "/viewers/edit"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @using PenguinTwitchBot.Bot;
 
@@ -8,7 +8,7 @@
 @inject PenguinTwitchBot.Bot.Commands.Features.ILoyaltyFeature loyaltyFeature
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem pointSystem
 @inject PenguinTwitchBot.Bot.Admin.IIpLogFeature ipLogFeature
-@inject PenguinTwitchBot.Bot.Core.SubscriptionTracker subTracker
+@inject PenguinTwitchBot.Bot.Core.ISubscriptionTracker subTracker
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Core.IChatHistory chatHistory
 
@@ -119,7 +119,7 @@ else
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Name">
-                            <MudLink Href=@LinkBuilder("/editviewer/", context.Username)>
+                            <MudLink Href=@LinkBuilder(context.Username)>
                                 @context.Username
                             </MudLink>
                         </MudTd>
@@ -144,7 +144,12 @@ else
 
 @code {
     [Parameter]
-    public string? id { get; set; }
+    [SupplyParameterFromQuery(Name = "id")]
+    public int? ViewerId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "name")]
+    public string? ViewerName { get; set; }
 
     private MudTable<ViewerChatHistory>? messagesTable;
 
@@ -174,17 +179,24 @@ else
 
     }
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if(int.TryParse(id, out var realId)){
-            viewer.Viewer = await viewerFeature.GetViewerById(realId);
-        } 
-        else if (!string.IsNullOrEmpty(id))
+        viewer.Viewer = null;
+        username = "";
+        IpLogs = [];
+        OtherIpLogs = [];
+
+        if (ViewerId.HasValue)
         {
-            viewer.Viewer = await viewerFeature.GetViewerByUserName(id);
+            viewer.Viewer = await viewerFeature.GetViewerById(ViewerId.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(ViewerName))
+        {
+            var normalizedName = Database.Bot.Core.UsernameNormalizer.Normalize(ViewerName);
+            viewer.Viewer = await viewerFeature.GetViewerByUserName(normalizedName);
         }
 
-        if(viewer.Viewer != null)
+        if (viewer.Viewer != null)
         {
             username = viewer.Viewer.Username;
             var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
@@ -211,7 +223,10 @@ else
             OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username);
         }
 
-        StateHasChanged();
+        if (messagesTable != null)
+        {
+            await messagesTable.ReloadServerData();
+        }
     }
 
 
@@ -242,8 +257,8 @@ else
         return new TableData<ViewerChatHistory>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    private string LinkBuilder(string _route, string _parameter)
+    private string LinkBuilder(string _parameter)
     {
-        return _route + _parameter;
+        return $"/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
     }
 }

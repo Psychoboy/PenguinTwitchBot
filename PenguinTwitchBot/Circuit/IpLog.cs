@@ -1,11 +1,12 @@
 using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Services;
 using System.Net;
 using System.Net.Sockets;
 
 namespace PenguinTwitchBot.Circuit
 {
-    public class IpLog(ILogger<IpLog> logger, IServiceScopeFactory scopeFactory)
+    public class IpLog(ILogger<IpLog> logger, IServiceScopeFactory scopeFactory, IIpLogRetentionSettingsService ipLogRetentionSettingsService)
     {
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
@@ -22,11 +23,11 @@ namespace PenguinTwitchBot.Circuit
             logger.LogInformation("Starting cleanup of old IP log entries.");
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var cutoffDate = DateTime.UtcNow.AddMonths(-6);
-            var oldEntries = db.IpLogs.Find(x => x.ConnectedDate < cutoffDate);
-            db.IpLogs.RemoveRange(oldEntries);
-            var removedLogs = await db.SaveChangesAsync();
-            logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries.", removedLogs);
+            var monthsToKeep = await ipLogRetentionSettingsService.GetIpLogMonthsToKeepAsync(6);
+            monthsToKeep = Math.Max(0, monthsToKeep);
+            var cutoffDate = DateTime.UtcNow.AddMonths(-monthsToKeep);
+            var removedLogs = await db.IpLogs.Find(x => x.ConnectedDate < cutoffDate).ExecuteDeleteAsync();
+            logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries using retention of {monthsToKeep} months.", removedLogs, monthsToKeep);
         }
 
         private async Task AddOrUpdateIpEntry(string username, string userId, string ipAddress)

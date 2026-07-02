@@ -59,7 +59,6 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<Models.Points.PointType> PointTypes { get; set; }
         public DbSet<Models.Points.UserPoints> UserPoints { get; set; }
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
-        public DbSet<Models.MarkovValue> MarkovValues { get; set; }
 
         public DbSet<Models.ScAiResponseCodes> ScAiResponseCodes { get; set; }
 

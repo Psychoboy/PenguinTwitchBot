@@ -155,7 +155,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Moderation.Admin>();
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
-            services.AddHostedApiService<Bot.Commands.Markov.IMarkovChat, Bot.Commands.Markov.MarkovChat>();
             services.AddHostedApiService<PenguinTwitchBot.Bot.Core.IDiscordService, PenguinTwitchBot.Bot.Core.DiscordService>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
@@ -188,8 +187,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IGameSettingsService, GameSettingsService>();
             services.AddSingleton<ITools, Tools>();
             //services.AddSingleton<ITimer, Timer>();
-
-            services.AddSingleton<Bot.Markov.TokenisationStrategies.StringMarkov>();
 
             services.AddScoped<Bot.Actions.IAction, Bot.Actions.Action>();
 
