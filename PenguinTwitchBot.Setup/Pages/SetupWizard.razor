@@ -115,7 +115,7 @@ else
                             <li>Set the name to something like "MyBot Streamer"</li>
                             <li>Add the OAuth Redirect URL: <code>@RedirectUri</code></li>
                             <li>Set Category to "Chat Bot" and click Create</li>
-                            <li>Click "Manage" â†’ "New Secret" to generate a client secret</li>
+                            <li>Click "Manage" -> "New Secret" to generate a client secret</li>
                         </ol>
                     </MudAlert>
                     <MudTextField @bind-Value="_model.TwitchClientId"
@@ -272,7 +272,7 @@ else
                         <ol style="margin: 8px 0 0 16px; padding: 0;">
                             <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console — YouTube Data API v3</MudLink></li>
                             <li>Enable the API for your project</li>
-                            <li>Go to Credentials â†’ Create Credentials â†’ API Key</li>
+                            <li>Go to Credentials -> Create Credentials -> API Key</li>
                         </ol>
                     </MudAlert>
                     <MudTextField @bind-Value="_model.YoutubeApiKey"
@@ -498,7 +498,7 @@ else
                     @if (_saving)
                     {
                         <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configurationâ¦</MudText>
+                        <MudText Align="Align.Center" Color="Color.Secondary">Saving configuration...</MudText>
                     }
                 </MudStack>
             }

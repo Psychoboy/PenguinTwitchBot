@@ -315,7 +315,7 @@
                         }
                         else
                         {
-                            // TwitchEvent, Manual ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no IDs, portable as-is
+                            // TwitchEvent, Manual - no IDs, portable as-is
                             triggers.Add(new TriggerType
                             {
                                 Name = t.Name,
@@ -353,7 +353,7 @@
         // Pass 2: relink ExecuteAction sub-actions by ActionName
         if (createdActions.Count > 0)
         {
-            // Build nameÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ID map: imported batch takes priority, then fall back to pre-existing
+            // Build name->ID map: imported batch takes priority, then fall back to pre-existing
             var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (var created in createdActions.Where(a => a.Id.HasValue))
                 nameToId[created.Name] = created.Id!.Value;
@@ -452,7 +452,7 @@
     private void Cancel() => MudDialog.Cancel();
     private void Done() => MudDialog.Close(DialogResult.Ok(_importedCount));
 
-    // DTOs ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â must match ExportActionsDialog serialization format
+    // DTOs - must match ExportActionsDialog serialization format
     public class ActionsImportPackage
     {
         public string Version { get; set; } = "1.0";

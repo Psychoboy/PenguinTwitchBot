@@ -25,7 +25,7 @@ Removes the last migration from both database providers.
 remove-migration.bat
 ```
 
-âš ï¸ Use with caution - this removes pending migrations from all providers.
+WARNING: Use with caution - this removes pending migrations from all providers.
 
 ### `update-database.bat`
 Applies all pending migrations to both database providers.

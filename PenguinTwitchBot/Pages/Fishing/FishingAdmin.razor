@@ -1979,8 +1979,8 @@
                 {
                     <MudPaper Class="pa-3" Elevation="1" Style="background-color: var(--mud-palette-info-lighten);">
                         <MudText Typo="Typo.caption" Color="Color.Info">
-                            <strong>ðŸ” Debug Info:</strong> Pricing calculated from current player data. 
-                            If these prices seem wrong, check the Output window (View â†’ Output â†’ select ".NET App Modernization" or "Build") for detailed [PRICING] logs showing the calculation breakdown.
+                            <strong>Debug Debug Info:</strong> Pricing calculated from current player data. 
+                            If these prices seem wrong, check the Output window (View -> Output -> select ".NET App Modernization" or "Build") for detailed [PRICING] logs showing the calculation breakdown.
                         </MudText>
                     </MudPaper>
 
@@ -2001,13 +2001,13 @@
                                 var sampleEntry = entryItems.First();
                                 var currentEntry = shopItems.FirstOrDefault(i => i.Name == sampleEntry.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Entry Tier (~2 weeks):</strong> @minEntry - @maxEntry gold
+                                    - <strong>Entry Tier (~2 weeks):</strong> @minEntry - @maxEntry gold
                                     @if (currentEntry != null)
                                     {
                                         var change = sampleEntry.Value - currentEntry.Cost;
                                         var changePercent = currentEntry.Cost > 0 ? (change / (double)currentEntry.Cost * 100) : 0;
                                         <span style="color: @(change > 0 ? "green" : "red");">
-                                            (e.g., @sampleEntry.Key: @currentEntry.Cost â†’ @sampleEntry.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                            (e.g., @sampleEntry.Key: @currentEntry.Cost -> @sampleEntry.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
                                         </span>
                                     }
                                 </MudText>
@@ -2020,13 +2020,13 @@
                                 var sampleMid = midItems.First();
                                 var currentMid = shopItems.FirstOrDefault(i => i.Name == sampleMid.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Mid Tier (~6 weeks):</strong> @minMid - @maxMid gold
+                                    - <strong>Mid Tier (~6 weeks):</strong> @minMid - @maxMid gold
                                     @if (currentMid != null)
                                     {
                                         var change = sampleMid.Value - currentMid.Cost;
                                         var changePercent = currentMid.Cost > 0 ? (change / (double)currentMid.Cost * 100) : 0;
                                         <span style="color: @(change > 0 ? "green" : "red");">
-                                            (e.g., @sampleMid.Key: @currentMid.Cost â†’ @sampleMid.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                            (e.g., @sampleMid.Key: @currentMid.Cost -> @sampleMid.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
                                         </span>
                                     }
                                 </MudText>
@@ -2039,13 +2039,13 @@
                                 var sampleHigh = highItems.First();
                                 var currentHigh = shopItems.FirstOrDefault(i => i.Name == sampleHigh.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>High Tier (~12 weeks):</strong> @minHigh - @maxHigh gold
+                                    - <strong>High Tier (~12 weeks):</strong> @minHigh - @maxHigh gold
                                     @if (currentHigh != null)
                                     {
                                         var change = sampleHigh.Value - currentHigh.Cost;
                                         var changePercent = currentHigh.Cost > 0 ? (change / (double)currentHigh.Cost * 100) : 0;
                                         <span style="color: @(change > 0 ? "green" : "red");">
-                                            (e.g., @sampleHigh.Key: @currentHigh.Cost â†’ @sampleHigh.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                            (e.g., @sampleHigh.Key: @currentHigh.Cost -> @sampleHigh.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
                                         </span>
                                     }
                                 </MudText>
@@ -2058,13 +2058,13 @@
                                 var sampleTop = topItems.First();
                                 var currentTop = shopItems.FirstOrDefault(i => i.Name == sampleTop.Key);
                                 <MudText Typo="Typo.body2">
-                                    â€¢ <strong>Top Tier (~@targetWeeksForEndgame weeks):</strong> @minTop - @maxTop gold
+                                    - <strong>Top Tier (~@targetWeeksForEndgame weeks):</strong> @minTop - @maxTop gold
                                     @if (currentTop != null)
                                     {
                                         var change = sampleTop.Value - currentTop.Cost;
                                         var changePercent = currentTop.Cost > 0 ? (change / (double)currentTop.Cost * 100) : 0;
                                         <span style="color: @(change > 0 ? "green" : "red");">
-                                            (e.g., @sampleTop.Key: @currentTop.Cost â†’ @sampleTop.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
+                                            (e.g., @sampleTop.Key: @currentTop.Cost -> @sampleTop.Value, @(change > 0 ? "+" : "")@change gold, @changePercent.ToString("F0")%)
                                         </span>
                                     }
                                 </MudText>
@@ -2072,7 +2072,7 @@
 
                             <MudDivider Class="my-2" />
                             <MudText Typo="Typo.caption" Color="Color.Info">
-                                ðŸ’¡ Green = price increase (fixes "too cheap" items), Red = price decrease. Click "Apply Price Updates" to use these values.
+                                Tip: Green = price increase (fixes "too cheap" items), Red = price decrease. Click "Apply Price Updates" to use these values.
                             </MudText>
                         </MudStack>
                     </MudPaper>
