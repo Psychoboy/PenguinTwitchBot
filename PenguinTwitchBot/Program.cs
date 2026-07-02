@@ -191,13 +191,13 @@ internal class Program
         {
             var backupDbJobKey = new JobKey(IScheduledJobSettingsService.TriggerBackupJobName);
             var cleanupClipsJobKey = new JobKey(IScheduledJobSettingsService.CleanupClipsJobName);
-            var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
-            var postScheduleKey = new JobKey("PostSchedule");
+            var updateDiscordEventsKey = new JobKey(IScheduledJobSettingsService.UpdateDiscordEventsJobName);
+            var postScheduleKey = new JobKey(IScheduledJobSettingsService.PostScheduleJobName);
             var cleanupChatLogs = new JobKey(IScheduledJobSettingsService.CleanupChatLogsJobName);
             var cleanupIpLogs = new JobKey(IScheduledJobSettingsService.CleanupIpLogsJobName);
             var ttsCleanup = new JobKey(IScheduledJobSettingsService.TtsCleanupJobName);
-            var updatePostedSchedulekey = new JobKey("UpdatePostedSchedule");
-            var validationSanityCheckKey = new JobKey("ValidationSanityCheck");
+            var updatePostedSchedulekey = new JobKey(IScheduledJobSettingsService.UpdatePostedScheduleJobName);
+            var validationSanityCheckKey = new JobKey(IScheduledJobSettingsService.ValidationSanityCheckJobName);
 
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TriggerBackupJob>(opts => opts.WithIdentity(backupDbJobKey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupClipsJob>(opts => opts.WithIdentity(cleanupClipsJobKey).StoreDurably());
@@ -582,28 +582,32 @@ try
         var ipLog = scope.ServiceProvider.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>();
 
         stoppingToken.ThrowIfCancellationRequested();
-        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true))
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true) &&
+            await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true))
         {
             programLogger?.LogInformation("Running startup cleanup: chat logs");
             await chatHistory.CleanOldLogs();
         }
 
         stoppingToken.ThrowIfCancellationRequested();
-        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true))
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true) &&
+            await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true))
         {
             programLogger?.LogInformation("Running startup cleanup: IP logs");
             await ipLog.CleanupOldIpLogs();
         }
 
         stoppingToken.ThrowIfCancellationRequested();
-        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, true))
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.TtsCleanupJobName, true) &&
+            await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, true))
         {
             programLogger?.LogInformation("Running startup cleanup: TTS files");
             await fileCleanupService.CleanupTtsAsync();
         }
 
         stoppingToken.ThrowIfCancellationRequested();
-        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupClipsJobName, true))
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupClipsJobName, true) &&
+            await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupClipsJobName, true))
         {
             programLogger?.LogInformation("Running startup cleanup: clip files");
             await fileCleanupService.CleanupClipsAsync();

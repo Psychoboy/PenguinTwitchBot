@@ -13,16 +13,18 @@ public interface IChatHistoryRetentionSettingsService
 
 public class ChatHistoryRetentionSettingsService(IServiceScopeFactory scopeFactory) : IChatHistoryRetentionSettingsService
 {
+    private const string SettingName = "ChatHistoryMonthsToKeep";
+
     public async Task<int> GetChatHistoryMonthsToKeepAsync(int defaultValue)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == "ChatHistoryMonthsToKeep")).FirstOrDefault();
+        var setting = (await db.Settings.GetAsync(x => x.Name == SettingName)).FirstOrDefault();
         if (setting == null)
         {
             var newSetting = new Setting
             {
-                Name = "ChatHistoryMonthsToKeep",
+                Name = SettingName,
                 DataType = Setting.DataTypeEnum.Int,
                 IntSetting = defaultValue
             };
@@ -37,12 +39,12 @@ public class ChatHistoryRetentionSettingsService(IServiceScopeFactory scopeFacto
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == "ChatHistoryMonthsToKeep")).FirstOrDefault();
+        var setting = (await db.Settings.GetAsync(x => x.Name == SettingName)).FirstOrDefault();
         if (setting == null)
         {
             var newSetting = new Setting
             {
-                Name = "ChatHistoryMonthsToKeep",
+                Name = SettingName,
                 DataType = Setting.DataTypeEnum.Int,
                 IntSetting = value
             };

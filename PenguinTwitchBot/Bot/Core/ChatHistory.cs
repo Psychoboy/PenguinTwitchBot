@@ -92,6 +92,11 @@ namespace PenguinTwitchBot.Bot.Core
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 var monthsToKeep = await chatHistoryRetentionSettings.GetChatHistoryMonthsToKeepAsync();
+                if (monthsToKeep < 0)
+                {
+                    _logger.LogWarning("Invalid chat history retention value {Months}. Falling back to default 12 months.", monthsToKeep);
+                    monthsToKeep = 12;
+                }
                 var cutoffUtc = DateTime.UtcNow.AddMonths(-monthsToKeep);
                 var totalDeleted = 0;
 

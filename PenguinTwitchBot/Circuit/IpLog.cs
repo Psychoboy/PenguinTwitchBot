@@ -26,9 +26,7 @@ namespace PenguinTwitchBot.Circuit
             var monthsToKeep = await ipLogRetentionSettingsService.GetIpLogMonthsToKeepAsync(6);
             monthsToKeep = Math.Max(0, monthsToKeep);
             var cutoffDate = DateTime.UtcNow.AddMonths(-monthsToKeep);
-            var oldEntries = db.IpLogs.Find(x => x.ConnectedDate < cutoffDate);
-            db.IpLogs.RemoveRange(oldEntries);
-            var removedLogs = await db.SaveChangesAsync();
+            var removedLogs = await db.IpLogs.Find(x => x.ConnectedDate < cutoffDate).ExecuteDeleteAsync();
             logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries using retention of {monthsToKeep} months.", removedLogs, monthsToKeep);
         }
 

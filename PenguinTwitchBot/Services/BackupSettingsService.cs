@@ -19,6 +19,8 @@ public interface IBackupSettingsService
 
 public class BackupSettingsService(IServiceScopeFactory scopeFactory) : IBackupSettingsService
 {
+    public const string BackupChatHistoryMonthsToKeepSettingName = "BackupChatHistoryMonthsToKeep";
+
     public async Task<int> GetBackupCountToKeepAsync(int defaultValue)
     {
         using var scope = scopeFactory.CreateScope();
@@ -61,12 +63,12 @@ public class BackupSettingsService(IServiceScopeFactory scopeFactory) : IBackupS
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == "BackupChatHistoryMonthsToKeep")).FirstOrDefault();
+        var setting = (await db.Settings.GetAsync(x => x.Name == BackupChatHistoryMonthsToKeepSettingName)).FirstOrDefault();
         if (setting == null)
         {
             var newSetting = new Setting
             {
-                Name = "BackupChatHistoryMonthsToKeep",
+                Name = BackupChatHistoryMonthsToKeepSettingName,
                 DataType = Setting.DataTypeEnum.Int,
                 IntSetting = defaultValue
             };
@@ -126,12 +128,12 @@ public class BackupSettingsService(IServiceScopeFactory scopeFactory) : IBackupS
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == "BackupChatHistoryMonthsToKeep")).FirstOrDefault();
+        var setting = (await db.Settings.GetAsync(x => x.Name == BackupChatHistoryMonthsToKeepSettingName)).FirstOrDefault();
         if (setting == null)
         {
             var newSetting = new Setting
             {
-                Name = "BackupChatHistoryMonthsToKeep",
+                Name = BackupChatHistoryMonthsToKeepSettingName,
                 DataType = Setting.DataTypeEnum.Int,
                 IntSetting = value
             };

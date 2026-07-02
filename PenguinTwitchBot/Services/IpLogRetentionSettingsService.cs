@@ -20,7 +20,19 @@ public class IpLogRetentionSettingsService(IServiceScopeFactory scopeFactory) : 
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
         var setting = (await db.Settings.GetAsync(x => x.Name == SettingName)).FirstOrDefault();
-        return setting?.IntSetting ?? defaultValue;
+        if (setting == null)
+        {
+            setting = new Setting
+            {
+                Name = SettingName,
+                DataType = Setting.DataTypeEnum.Int,
+                IntSetting = defaultValue
+            };
+            await db.Settings.AddAsync(setting);
+            await db.SaveChangesAsync();
+        }
+
+        return setting.IntSetting;
     }
 
     public async Task SetIpLogMonthsToKeepAsync(int value)

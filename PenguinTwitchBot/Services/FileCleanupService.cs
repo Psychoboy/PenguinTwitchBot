@@ -10,53 +10,50 @@ public interface IFileCleanupService
 
 public class FileCleanupService(
     IScheduledJobSettingsService scheduledJobSettingsService,
+    IWebHostEnvironment webHostEnvironment,
     ILogger<FileCleanupService> logger) : IFileCleanupService
 {
     public async Task CleanupTtsAsync()
     {
         var maxAgeHours = await scheduledJobSettingsService.GetTtsCleanupMaxAgeHoursAsync(1);
         maxAgeHours = Math.Max(0, maxAgeHours);
-
-        var directoryPath = "wwwroot/tts/";
-        if (!Directory.Exists(directoryPath))
-        {
-            Directory.CreateDirectory(directoryPath);
-        }
-
-        var files = Directory.GetFiles(directoryPath);
         var cutoff = DateTime.Now.AddHours(-maxAgeHours);
-        foreach (var file in files)
-        {
-            var fileInfo = new FileInfo(file);
-            if (maxAgeHours == 0 || fileInfo.LastWriteTime < cutoff)
-            {
-                logger.LogInformation("Deleting TTS file {FileName}; LastWriteTime={LastWriteTime}", fileInfo.Name, fileInfo.LastWriteTime);
-                fileInfo.Delete();
-            }
-        }
+        await CleanupDirectoryAsync(Path.Combine(webHostEnvironment.WebRootPath, "tts"), cutoff, maxAgeHours == 0, "TTS");
     }
 
     public async Task CleanupClipsAsync()
     {
         var maxAgeDays = await scheduledJobSettingsService.GetClipsCleanupMaxAgeDaysAsync(30);
         maxAgeDays = Math.Max(0, maxAgeDays);
+        var cutoff = DateTime.Now.AddDays(-maxAgeDays);
+        await CleanupDirectoryAsync(Path.Combine(webHostEnvironment.WebRootPath, "clips"), cutoff, maxAgeDays == 0, "clip");
+    }
 
-        var directoryPath = "wwwroot/clips/";
+    private Task CleanupDirectoryAsync(string directoryPath, DateTime cutoff, bool deleteAll, string label)
+    {
         if (!Directory.Exists(directoryPath))
         {
             Directory.CreateDirectory(directoryPath);
         }
 
         var files = Directory.GetFiles(directoryPath);
-        var cutoff = DateTime.Now.AddDays(-maxAgeDays);
         foreach (var file in files)
         {
             var fileInfo = new FileInfo(file);
-            if (maxAgeDays == 0 || fileInfo.LastWriteTime < cutoff)
+            if (deleteAll || fileInfo.LastWriteTime < cutoff)
             {
-                logger.LogInformation("Deleting clip file {FileName}; LastWriteTime={LastWriteTime}", fileInfo.Name, fileInfo.LastWriteTime);
-                fileInfo.Delete();
+                try
+                {
+                    logger.LogInformation("Deleting {Label} file {FileName}; LastWriteTime={LastWriteTime}", label, fileInfo.Name, fileInfo.LastWriteTime);
+                    fileInfo.Delete();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete {Label} file {FileName}; skipping.", label, fileInfo.Name);
+                }
             }
         }
+
+        return Task.CompletedTask;
     }
 }
