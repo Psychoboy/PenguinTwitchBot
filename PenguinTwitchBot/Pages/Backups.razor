@@ -104,8 +104,8 @@
 
     private async Task LoadSettingsAsync()
     {
-        _maxBackups = await BackupSettings.GetBackupCountToKeepAsync(15);
-        _maxDays = await BackupSettings.GetBackupDaysToKeepAsync(15);
+        _maxBackups = await BackupSettings.GetBackupCountToKeepAsync();
+        _maxDays = await BackupSettings.GetBackupDaysToKeepAsync();
     }
 
     private async Task SaveSettingsAsync()

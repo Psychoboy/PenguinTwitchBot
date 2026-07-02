@@ -26,12 +26,10 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await backupTools.BackupDatabase(db, backupTools.BackupDirectory, logger);
-
-                var settings = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 
                 var backupSettings = scope.ServiceProvider.GetRequiredService<IBackupSettingsService>();
-                var maxCount = await backupSettings.GetBackupCountToKeepAsync(15);
-                var maxDays = await backupSettings.GetBackupDaysToKeepAsync(15);
+                var maxCount = await backupSettings.GetBackupCountToKeepAsync();
+                var maxDays = await backupSettings.GetBackupDaysToKeepAsync();
                 await backupTools.DeleteOldBackupsAsync(backupTools.BackupDirectory, maxCount, maxDays, logger);
             }
             catch (Exception ex)

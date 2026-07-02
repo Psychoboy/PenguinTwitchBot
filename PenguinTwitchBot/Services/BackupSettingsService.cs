@@ -6,15 +6,17 @@ namespace PenguinTwitchBot.Services;
 
 public interface IBackupSettingsService
 {
-    Task<int> GetBackupCountToKeepAsync(int defaultValue = 15);
-    Task<int> GetBackupDaysToKeepAsync(int defaultValue = 15);
+    Task<int> GetBackupCountToKeepAsync() => GetBackupCountToKeepAsync(15);
+    Task<int> GetBackupDaysToKeepAsync() => GetBackupDaysToKeepAsync(15);
+    Task<int> GetBackupCountToKeepAsync(int defaultValue);
+    Task<int> GetBackupDaysToKeepAsync(int defaultValue);
     Task SetBackupCountToKeepAsync(int value);
     Task SetBackupDaysToKeepAsync(int value);
 }
 
 public class BackupSettingsService(IServiceScopeFactory scopeFactory) : IBackupSettingsService
 {
-    public async Task<int> GetBackupCountToKeepAsync(int defaultValue = 15)
+    public async Task<int> GetBackupCountToKeepAsync(int defaultValue)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -33,7 +35,7 @@ public class BackupSettingsService(IServiceScopeFactory scopeFactory) : IBackupS
         return setting?.IntSetting ?? defaultValue;
     }
 
-    public async Task<int> GetBackupDaysToKeepAsync(int defaultValue = 15)
+    public async Task<int> GetBackupDaysToKeepAsync(int defaultValue)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
