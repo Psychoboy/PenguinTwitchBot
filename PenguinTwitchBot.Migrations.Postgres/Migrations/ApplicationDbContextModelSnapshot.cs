@@ -1269,29 +1269,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("KnownBots");
                 });
 
-            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.MarkovValue", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("KeyIndex")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("KeyIndex");
-
-                    b.ToTable("MarkovValues");
-                });
-
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Metrics.SongRequestHistory", b =>
                 {
                     b.Property<string>("Id")
@@ -2031,7 +2008,13 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("MessageId");
+
                     b.HasIndex("Username");
+
+                    b.HasIndex("Username", "CreatedAt");
 
                     b.ToTable("ViewerChatHistories");
                 });

@@ -6,6 +6,7 @@ using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.CustomMiddleware;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -19,6 +20,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICommandHandler _commandHandler;
         private readonly ITwitchService _twitchService;
+        private readonly IChatHistoryRetentionSettingsService _chatHistoryRetentionSettingsService;
         private readonly PenguinTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly ChatHistory _chatHistory;
 
@@ -30,6 +32,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _commandHandler = Substitute.For<ICommandHandler>();
             _twitchService = Substitute.For<ITwitchService>();
+            _chatHistoryRetentionSettingsService = Substitute.For<IChatHistoryRetentionSettingsService>();
             dispatcherSubstitute = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
 
             var scope = Substitute.For<IServiceScope>();
@@ -39,7 +42,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
-            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, dispatcherSubstitute, _logger);
+            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, _chatHistoryRetentionSettingsService, dispatcherSubstitute, _logger);
         }
 
 
@@ -65,6 +68,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
             {
                 new ViewerChatHistory { CreatedAt = DateTime.Now.AddMonths(-7) }
             };
+            _chatHistoryRetentionSettingsService.GetChatHistoryMonthsToKeepAsync().Returns(6);
             _unitOfWork.ViewerChatHistories.Find(Arg.Any<System.Linq.Expressions.Expression< Func<ViewerChatHistory, bool>>>()).Returns(oldLogs.AsQueryable());
 
             // Act

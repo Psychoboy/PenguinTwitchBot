@@ -43,6 +43,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Collections.Generic;
 internal class Program
 {
     private static ILogger<Program>? logger;
@@ -188,59 +189,25 @@ internal class Program
 
         builder.Services.AddQuartz(q =>
         {
-            var backupDbJobKey = new JobKey("BackupDbJob");
+            var backupDbJobKey = new JobKey(IScheduledJobSettingsService.TriggerBackupJobName);
+            var cleanupClipsJobKey = new JobKey(IScheduledJobSettingsService.CleanupClipsJobName);
             var updateDiscordEventsKey = new JobKey("UpdateDiscordEvents");
             var postScheduleKey = new JobKey("PostSchedule");
-            var cleanupChatLogs = new JobKey("CleanUpChatLogs");
-            var hourlyCLeanup = new JobKey("HourlyCleanup");
+            var cleanupChatLogs = new JobKey(IScheduledJobSettingsService.CleanupChatLogsJobName);
+            var cleanupIpLogs = new JobKey(IScheduledJobSettingsService.CleanupIpLogsJobName);
+            var ttsCleanup = new JobKey(IScheduledJobSettingsService.TtsCleanupJobName);
             var updatePostedSchedulekey = new JobKey("UpdatePostedSchedule");
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.BackupDbJob>(opts => opts.WithIdentity(backupDbJobKey));
-            q.AddTrigger(opts => opts
-                .ForJob(backupDbJobKey)
-                .WithIdentity("BackupDb-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(12, 00)) //Every day at noon
-            );
-
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdateDiscordEvents>(opts => opts.WithIdentity(updateDiscordEventsKey));
-            q.AddTrigger(opts => opts
-                .ForJob(updateDiscordEventsKey)
-                .WithIdentity("UpdateDiscord-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.CronSchedule("0 0/5 * * * ?"))
-            );
-
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.PostSchedule>(opts => opts.WithIdentity(postScheduleKey));
-            q.AddTrigger(opts => opts
-                .ForJob(postScheduleKey)
-                .WithIdentity("UpdateDiscordSchedule-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 9, 0))
-                );
-
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupChatLogJob>(opts => opts.WithIdentity(cleanupChatLogs));
-            q.AddTrigger(opts => opts
-                .ForJob(cleanupChatLogs)
-                .WithIdentity("CleanUpChatLogs-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(13, 00)) //Every day at 1PM
-            );
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.HourlyCleanupJob>(opts => opts.WithIdentity(hourlyCLeanup));
-            q.AddTrigger(opts => opts
-                .ForJob(hourlyCLeanup)
-                .WithIdentity("HourlyCleanup-Trigger")
-                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever().Build()) //Every Hour
-            );
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey));
-            q.AddTrigger(opts => opts
-                .ForJob(updatePostedSchedulekey)
-                .WithIdentity("UpdatePostedSchedule-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 00)) //Every day at 10AM
-            );
-
             var validationSanityCheckKey = new JobKey("ValidationSanityCheck");
-            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey));
-            q.AddTrigger(opts => opts
-                .ForJob(validationSanityCheckKey)
-                .WithIdentity("ValidationSanityCheck-Trigger")
-                .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(5, 00)) //Every day at 5AM
-            );
+
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TriggerBackupJob>(opts => opts.WithIdentity(backupDbJobKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupClipsJob>(opts => opts.WithIdentity(cleanupClipsJobKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdateDiscordEvents>(opts => opts.WithIdentity(updateDiscordEventsKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.PostSchedule>(opts => opts.WithIdentity(postScheduleKey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupChatLogJob>(opts => opts.WithIdentity(cleanupChatLogs).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupIpLogsJob>(opts => opts.WithIdentity(cleanupIpLogs).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TtsCleanupJob>(opts => opts.WithIdentity(ttsCleanup).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
         });
         builder.Services.AddQuartzServer(
             q => q.WaitForJobsToComplete = true
@@ -292,6 +259,10 @@ internal class Program
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
+        builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
+        builder.Services.AddSingleton<IIpLogRetentionSettingsService, IpLogRetentionSettingsService>();
+        builder.Services.AddSingleton<IScheduledJobSettingsService, ScheduledJobSettingsService>();
+        builder.Services.AddSingleton<IFileCleanupService, FileCleanupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>
@@ -347,6 +318,7 @@ internal class Program
         }
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
+        await ConfigureQuartzTriggersAsync(app.Services);
 
         app.UseMiddleware<PenguinTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 
@@ -394,21 +366,7 @@ internal class Program
         var lifetime = app.Lifetime;
         lifetime.ApplicationStarted.Register(() =>
         {
-            var url = app.Urls.FirstOrDefault()?.TrimEnd('/')
-                ?? app.Configuration["Kestrel:Endpoints:Http:Url"]?.TrimEnd('/')
-                ?? "http://localhost:5000";
-
-            if (Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
-            {
-                if (parsedUrl.Host == "0.0.0.0" || parsedUrl.Host == "[::]" || parsedUrl.Host == "::")
-                {
-                    var port = parsedUrl.IsDefaultPort ? "" : $":{parsedUrl.Port}";
-                    url = $"{parsedUrl.Scheme}://localhost{port}";
-                }
-            }
-
-            logger?.LogInformation("Bot Started");
-            logger?.LogInformation("Connect to the bot at {Url}", url);
+            _ = RunStartupInitializationAsync(app, logger);
         });
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
@@ -570,6 +528,150 @@ try
         }
 
         return false;
+    }
+
+    private static async Task RunStartupInitializationAsync(WebApplication app, ILogger<Program>? programLogger)
+    {
+        var url = app.Urls.FirstOrDefault()?.TrimEnd('/')
+            ?? app.Configuration["Kestrel:Endpoints:Http:Url"]?.TrimEnd('/')
+            ?? "http://localhost:5000";
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var parsedUrl))
+        {
+            if (parsedUrl.Host == "0.0.0.0" || parsedUrl.Host == "[::]" || parsedUrl.Host == "::")
+            {
+                var port = parsedUrl.IsDefaultPort ? "" : $":{parsedUrl.Port}";
+                url = $"{parsedUrl.Scheme}://localhost{port}";
+            }
+        }
+
+        programLogger?.LogInformation("Bot Started");
+        programLogger?.LogInformation("Connect to the bot at {Url}", url);
+
+        var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+        _ = Task.Factory.StartNew(async () =>
+        {
+            try
+            {
+                // Defer optional startup cleanup so the bot can become responsive first.
+                await Task.Delay(TimeSpan.FromSeconds(10), appLifetime.ApplicationStopping);
+                await RunConfiguredStartupCleanupJobsAsync(app.Services, programLogger, appLifetime.ApplicationStopping);
+            }
+            catch (OperationCanceledException)
+            {
+                // App is stopping; no cleanup needed.
+            }
+            catch (Exception ex)
+            {
+                programLogger?.LogError(ex, "Startup cleanup task failed.");
+            }
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+
+        await Task.CompletedTask;
+    }
+
+    private static async Task RunConfiguredStartupCleanupJobsAsync(
+        IServiceProvider serviceProvider,
+        ILogger<Program>? programLogger,
+        CancellationToken stoppingToken)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<IScheduledJobSettingsService>();
+        var fileCleanupService = scope.ServiceProvider.GetRequiredService<IFileCleanupService>();
+        var chatHistory = scope.ServiceProvider.GetRequiredService<IChatHistory>();
+        var ipLog = scope.ServiceProvider.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>();
+
+        stoppingToken.ThrowIfCancellationRequested();
+        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true))
+        {
+            programLogger?.LogInformation("Running startup cleanup: chat logs");
+            await chatHistory.CleanOldLogs();
+        }
+
+        stoppingToken.ThrowIfCancellationRequested();
+        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true))
+        {
+            programLogger?.LogInformation("Running startup cleanup: IP logs");
+            await ipLog.CleanupOldIpLogs();
+        }
+
+        stoppingToken.ThrowIfCancellationRequested();
+        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, true))
+        {
+            programLogger?.LogInformation("Running startup cleanup: TTS files");
+            await fileCleanupService.CleanupTtsAsync();
+        }
+
+        stoppingToken.ThrowIfCancellationRequested();
+        if (await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupClipsJobName, true))
+        {
+            programLogger?.LogInformation("Running startup cleanup: clip files");
+            await fileCleanupService.CleanupClipsAsync();
+        }
+        programLogger?.LogInformation("Startup cleanup completed.");
+    }
+
+    private static async Task ConfigureQuartzTriggersAsync(IServiceProvider serviceProvider)
+    {
+        using var scope = serviceProvider.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<IScheduledJobSettingsService>();
+        var schedulerFactory = scope.ServiceProvider.GetRequiredService<ISchedulerFactory>();
+        var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var scheduler = await schedulerFactory.GetScheduler();
+
+        var defaultCronByJob = new Dictionary<string, string>
+        {
+            [IScheduledJobSettingsService.TriggerBackupJobName] = "0 0 12 * * ?",
+            [IScheduledJobSettingsService.CleanupClipsJobName] = "0 0 12 * * ?",
+            [IScheduledJobSettingsService.CleanupChatLogsJobName] = "0 0 13 * * ?",
+            [IScheduledJobSettingsService.CleanupIpLogsJobName] = "0 30 13 * * ?",
+            [IScheduledJobSettingsService.TtsCleanupJobName] = "0 0 * * * ?",
+            [IScheduledJobSettingsService.UpdateDiscordEventsJobName] = "0 0/5 * * * ?",
+            [IScheduledJobSettingsService.PostScheduleJobName] = "0 0 9 ? * MON",
+            [IScheduledJobSettingsService.UpdatePostedScheduleJobName] = "0 0 10 * * ?",
+            [IScheduledJobSettingsService.ValidationSanityCheckJobName] = "0 0 5 * * ?"
+        };
+
+        foreach (var kvp in defaultCronByJob)
+        {
+            var enabled = await settings.GetJobEnabledAsync(kvp.Key, true);
+            var configuredCron = await settings.GetJobCronAsync(kvp.Key, kvp.Value);
+            var cronToUse = CronExpression.IsValidExpression(configuredCron) ? configuredCron : kvp.Value;
+            if (!CronExpression.IsValidExpression(configuredCron))
+            {
+                scopedLogger.LogWarning("Invalid cron '{Cron}' for job {JobName}. Falling back to default '{DefaultCron}'.", configuredCron, kvp.Key, kvp.Value);
+                await settings.SetJobCronAsync(kvp.Key, kvp.Value);
+            }
+
+            await UpsertCronTriggerAsync(scheduler, new JobKey(kvp.Key), new TriggerKey($"{kvp.Key}-Trigger"), enabled, cronToUse);
+        }
+    }
+
+    private static async Task UpsertCronTriggerAsync(
+        IScheduler scheduler,
+        JobKey jobKey,
+        TriggerKey triggerKey,
+        bool enabled,
+        string cronExpression)
+    {
+        var existingTrigger = await scheduler.GetTrigger(triggerKey);
+        if (existingTrigger != null)
+        {
+            await scheduler.UnscheduleJob(triggerKey);
+        }
+
+        if (!enabled)
+        {
+            return;
+        }
+
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .WithCronSchedule(cronExpression)
+            .Build();
+
+        await scheduler.ScheduleJob(trigger);
     }
 
     private static bool IsExpectedTransientBlazorException(Exception? exception, IReadOnlyDictionary<string, LogEventPropertyValue> properties)

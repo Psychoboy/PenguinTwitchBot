@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Models;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Services;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
 
 namespace PenguinTwitchBot.Bot.Core
@@ -12,10 +13,14 @@ namespace PenguinTwitchBot.Bot.Core
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         ITwitchService twitchService,
+        IChatHistoryRetentionSettingsService chatHistoryRetentionSettings,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<ChatHistory> logger
         ) : BaseCommandService(serviceBackbone, commandHandler, "ChatHistory", dispatcher), IChatHistory, IHostedService
     {
+        private const int CleanupBatchSize = 500;
+        private static readonly TimeSpan CleanupBatchPause = TimeSpan.FromMilliseconds(25);
+
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
         private readonly IServiceBackbone _serviceBackbone = serviceBackbone;
         private readonly ILogger<ChatHistory> _logger = logger;
@@ -86,10 +91,35 @@ namespace PenguinTwitchBot.Bot.Core
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var logs = db.ViewerChatHistories.Find(x => x.CreatedAt < DateTime.UtcNow.AddMonths(-12));
-                db.ViewerChatHistories.RemoveRange(logs);
-                var result = await db.SaveChangesAsync();
-                _logger.LogInformation("Removed {amount} chat histories", result);
+                var monthsToKeep = await chatHistoryRetentionSettings.GetChatHistoryMonthsToKeepAsync();
+                var cutoffUtc = DateTime.UtcNow.AddMonths(-monthsToKeep);
+                var totalDeleted = 0;
+
+                while (true)
+                {
+                    var ids = await db.ViewerChatHistories
+                        .Find(x => x.CreatedAt < cutoffUtc)
+                        .OrderBy(x => x.Id)
+                        .Select(x => x.Id)
+                        .Take(CleanupBatchSize)
+                        .ToListAsync();
+
+                    if (ids.Count == 0)
+                    {
+                        break;
+                    }
+
+                    var deleted = await db.ViewerChatHistories
+                        .Find(x => ids.Contains(x.Id))
+                        .ExecuteDeleteAsync();
+
+                    totalDeleted += deleted;
+
+                    // Yield between batches so other SQLite writers can acquire the lock.
+                    await Task.Delay(CleanupBatchPause);
+                }
+
+                _logger.LogInformation("Removed {amount} chat histories using retention of {months} months in batches of {batchSize}", totalDeleted, monthsToKeep, CleanupBatchSize);
             }
             catch (Exception ex)
             {

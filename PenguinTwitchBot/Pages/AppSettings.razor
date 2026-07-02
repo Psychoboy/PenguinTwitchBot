@@ -1,98 +1,346 @@
 @page "/settings/app"
 @attribute [Authorize(Roles = "Streamer")]
 @using PenguinTwitchBot.Bot.TwitchServices
+@using PenguinTwitchBot.Services
+@using Quartz
 @inject IConfiguration Configuration
 @inject SettingsFileManager SettingsFileManager
+@inject IChatHistoryRetentionSettingsService ChatHistoryRetentionSettings
+@inject IIpLogRetentionSettingsService IpLogRetentionSettings
+@inject IScheduledJobSettingsService ScheduledJobSettings
 @inject ISnackbar Snackbar
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - App Settings</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Settings</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="pa-6">
-    <MudText Typo="Typo.h5" Class="mb-2">App Settings</MudText>
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudText Typo="Typo.h5" Class="mb-2">Bot Settings</MudText>
     <MudText Class="mb-4">
-        Configure non-secret application settings.
+        Configure bot-wide settings for behavior, branding, and defaults.
     </MudText>
 
-    <MudPaper Elevation="2" Class="pa-4">
-        <MudStack Spacing="3">
-            <MudText Typo="Typo.h6">Application Branding</MudText>
-            <MudText>
-                This title is used as the app name in browser page titles.
-            </MudText>
-            <MudAlert Severity="Severity.Info" Class="mb-1">
-                Saved to <code>appsettings.json</code> as <code>ApplicationTitle</code>. Restart the bot after saving.
-            </MudAlert>
-            <MudTextField @bind-Value="_applicationTitle"
-                          Label="Application Title"
-                          HelperText="Default: Penguin Twitch Bot"
-                          Immediate="true"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Title"
-                          Variant="Variant.Outlined" />
-            <div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="SaveApplicationTitleAsync"
-                           Disabled="_saving">
-                    Save Application Title
-                </MudButton>
-            </div>
-        </MudStack>
-    </MudPaper>
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Application Branding</MudText>
+                    <MudText>
+                        This title is used as the app name in browser page titles.
+                    </MudText>
+                    <MudTextField @bind-Value="_applicationTitle"
+                                  Label="Application Title"
+                                  HelperText="Default: Penguin Twitch Bot"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Title"
+                                  Variant="Variant.Outlined" />
+                    <div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveApplicationTitleAsync"
+                                   Disabled="_saving">
+                            Save Application Title
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
 
-    <MudPaper Elevation="2" Class="pa-4 mt-4">
-        <MudStack Spacing="3">
-            <MudText Typo="Typo.h6">Weather Defaults</MudText>
-            <MudText>
-                Configure the default weather location used by weather commands.
-            </MudText>
-            <MudAlert Severity="Severity.Info" Class="mb-1">
-                Saved to <code>appsettings.json</code> as <code>Weather:DefaultLocation</code>.
-                The weather API key is a secret and should be configured in
-                <MudLink Href="/settings/integrations">Integration Settings</MudLink>.
-            </MudAlert>
-            <MudTextField @bind-Value="_weatherDefaultLocation"
-                          Label="Default Location"
-                          HelperText="ZIP code or city name (e.g. 85234)"
-                          Immediate="true"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
-                          Variant="Variant.Outlined" />
-            <div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="SaveWeatherDefaultLocationAsync"
-                           Disabled="_saving">
-                    Save Weather Location
-                </MudButton>
-            </div>
-        </MudStack>
-    </MudPaper>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Data Retention</MudText>
+                    <MudText>
+                        Configure retention for chat logs and cleanup-related data.
+                    </MudText>
 
-    <MudPaper Elevation="2" Class="pa-4 mt-4">
-        <MudStack Spacing="3">
-            <MudText Typo="Typo.h6">Support Links</MudText>
-            <MudText>
-                Configure the Star Citizen referral URL shown in the navigation Support section. Leave default to support the Developer, or change to your own referral link if you like.
-            </MudText>
-            <MudAlert Severity="Severity.Info" Class="mb-1">
-                Saved to <code>appsettings.json</code> as <code>SupportLinks:StarCitizenReferral</code>.
-                Default: <code>https://www.robertsspaceindustries.com/enlist?referral=STAR-6564-JQ7N</code>
-            </MudAlert>
-            <MudTextField @bind-Value="_starCitizenReferralUrl"
-                          Label="Star Citizen Referral URL"
-                          HelperText="Full URL used by the Support link in navigation"
-                          Immediate="true"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.RocketLaunch"
-                          Variant="Variant.Outlined" />
-            <div>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.Save"
-                           OnClick="SaveSupportLinksAsync"
-                           Disabled="_saving">
-                    Save Support Links
-                </MudButton>
-            </div>
-        </MudStack>
-    </MudPaper>
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_chatHistoryMonthsToKeepInDb"
+                                             Label="Chat History Months To Keep"
+                                             Min="0"
+                                             Max="120"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_ipLogMonthsToKeep"
+                                             Label="IP Log Cleanup Months To Keep"
+                                             Min="0"
+                                             Max="120"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_ttsCleanupMaxAgeHours"
+                                             Label="TTS Max Age Hours"
+                                             Min="0"
+                                             Max="720"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField @bind-Value="_clipsCleanupMaxAgeDays"
+                                             Label="Clips Max Age Days"
+                                             Min="0"
+                                             Max="3650"
+                                             Immediate="true"
+                                             Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                    <div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveChatHistoryRetentionAsync"
+                                   Disabled="_saving">
+                            Save Retention Settings
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4 mt-4 mt-md-0">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Weather Defaults</MudText>
+                    <MudText>
+                        Configure the default weather location used by weather commands.
+                    </MudText>
+                    <MudTextField @bind-Value="_weatherDefaultLocation"
+                                  Label="Default Location"
+                                  HelperText="ZIP code or city name (e.g. 85234)"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                  Variant="Variant.Outlined" />
+                    <div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveWeatherDefaultLocationAsync"
+                                   Disabled="_saving">
+                            Save Weather Location
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4 mt-4 mt-md-0">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Support Links</MudText>
+                    <MudText>
+                        Configure the Star Citizen referral URL shown in the navigation Support section. Leave default to support the Developer, or change to your own referral link if you like.
+                    </MudText>
+                    <MudTextField @bind-Value="_starCitizenReferralUrl"
+                                  Label="Star Citizen Referral URL"
+                                  HelperText="Full URL used by the Support link in navigation"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.RocketLaunch"
+                                  Variant="Variant.Outlined" />
+                    <div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveSupportLinksAsync"
+                                   Disabled="_saving">
+                            Save Support Links
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4 mt-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Scheduled Jobs</MudText>
+                    <MudText>
+                        Configure cron schedules, enable or disable jobs, and control startup cleanup behavior.
+                    </MudText>
+
+                    <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>Job</th>
+                                <th>Enabled</th>
+                                <th>Cron</th>
+                                <th>Run On Startup</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Trigger Backup</td>
+                                <td><MudSwitch @bind-Value="_backupEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_backupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudText>-</MudText></td>
+                            </tr>
+                            <tr>
+                                <td>Cleanup Clips</td>
+                                <td><MudSwitch @bind-Value="_cleanupClipsEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_cleanupClipsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudSwitch @bind-Value="_cleanupClipsRunOnStartup" Color="Color.Primary" /></td>
+                            </tr>
+                            <tr>
+                                <td>Cleanup Chat Logs</td>
+                                <td><MudSwitch @bind-Value="_cleanupChatLogsEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_cleanupChatLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudSwitch @bind-Value="_cleanupChatLogsRunOnStartup" Color="Color.Primary" /></td>
+                            </tr>
+                            <tr>
+                                <td>Cleanup IP Logs</td>
+                                <td><MudSwitch @bind-Value="_cleanupIpLogsEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_cleanupIpLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudSwitch @bind-Value="_cleanupIpLogsRunOnStartup" Color="Color.Primary" /></td>
+                            </tr>
+                            <tr>
+                                <td>TTS Cleanup</td>
+                                <td><MudSwitch @bind-Value="_ttsCleanupEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_ttsCleanupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudSwitch @bind-Value="_ttsCleanupRunOnStartup" Color="Color.Primary" /></td>
+                            </tr>
+                            <tr>
+                                <td>Update Discord Events</td>
+                                <td><MudSwitch @bind-Value="_updateDiscordEventsEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_updateDiscordEventsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudText>-</MudText></td>
+                            </tr>
+                            <tr>
+                                <td>Post Schedule</td>
+                                <td><MudSwitch @bind-Value="_postScheduleEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_postScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudText>-</MudText></td>
+                            </tr>
+                            <tr>
+                                <td>Update Posted Schedule</td>
+                                <td><MudSwitch @bind-Value="_updatePostedScheduleEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_updatePostedScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudText>-</MudText></td>
+                            </tr>
+                            <tr>
+                                <td>Validation Sanity Check</td>
+                                <td><MudSwitch @bind-Value="_validationSanityCheckEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_validationSanityCheckCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudText>-</MudText></td>
+                            </tr>
+                        </tbody>
+                    </MudSimpleTable>
+
+                    <MudDivider Class="my-2" />
+
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1">Cron Helper</MudText>
+                            <MudText>
+                                Generate a Quartz cron expression and apply it to a selected job.
+                            </MudText>
+
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="string" Label="Target Job" Value="@_cronBuilderTargetJob" ValueChanged="OnCronBuilderTargetJobChanged" Variant="Variant.Outlined">
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.TriggerBackupJobName">Trigger Backup</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupClipsJobName">Cleanup Clips</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupChatLogsJobName">Cleanup Chat Logs</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupIpLogsJobName">Cleanup IP Logs</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.TtsCleanupJobName">TTS Cleanup</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.UpdateDiscordEventsJobName">Update Discord Events</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.PostScheduleJobName">Post Schedule</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.UpdatePostedScheduleJobName">Update Posted Schedule</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.ValidationSanityCheckJobName">Validation Sanity Check</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="string" Label="Pattern" @bind-Value="_cronBuilderPattern" Variant="Variant.Outlined">
+                                        <MudSelectItem Value="@CronBuilderPatternEveryNMinutes">Every N Minutes</MudSelectItem>
+                                        <MudSelectItem Value="@CronBuilderPatternHourly">Hourly (at minute)</MudSelectItem>
+                                        <MudSelectItem Value="@CronBuilderPatternDaily">Daily</MudSelectItem>
+                                        <MudSelectItem Value="@CronBuilderPatternWeekly">Weekly</MudSelectItem>
+                                        <MudSelectItem Value="@CronBuilderPatternMonthly">Monthly</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+
+                            @if (_cronBuilderPattern == CronBuilderPatternEveryNMinutes)
+                            {
+                                <MudNumericField @bind-Value="_cronBuilderIntervalMinutes" Label="Every (minutes)" Min="1" Max="59" Variant="Variant.Outlined" />
+                            }
+                            else if (_cronBuilderPattern == CronBuilderPatternHourly)
+                            {
+                                <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
+                            }
+                            else if (_cronBuilderPattern == CronBuilderPatternDaily)
+                            {
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                            else if (_cronBuilderPattern == CronBuilderPatternWeekly)
+                            {
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudSelect T="string" Label="Day" @bind-Value="_cronBuilderDayOfWeek" Variant="Variant.Outlined">
+                                            <MudSelectItem T="string" Value='@("MON")'>Monday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("TUE")'>Tuesday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("WED")'>Wednesday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("THU")'>Thursday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("FRI")'>Friday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("SAT")'>Saturday</MudSelectItem>
+                                            <MudSelectItem T="string" Value='@("SUN")'>Sunday</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                            else if (_cronBuilderPattern == CronBuilderPatternMonthly)
+                            {
+                                <MudGrid>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderDayOfMonth" Label="Day of Month" Min="1" Max="31" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                </MudGrid>
+                            }
+
+                            <MudGrid>
+                                <MudItem xs="12" md="8">
+                                    <MudTextField Value="@_cronBuilderOutput" ReadOnly="true" Label="Generated Quartz Cron" Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" md="4" Class="d-flex align-center gap-2">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GenerateCronFromHelper">
+                                        Generate
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ApplyGeneratedCronToTarget">
+                                        Apply to Job
+                                    </MudButton>
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+
+                    <div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="SaveScheduledJobsAsync"
+                                   Disabled="_saving">
+                            Save Scheduled Job Settings
+                        </MudButton>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 </MudContainer>
 
 @code {
@@ -100,15 +348,206 @@
     private string _applicationTitle = "Penguin Twitch Bot";
     private string _weatherDefaultLocation = "";
     private string _starCitizenReferralUrl = DefaultStarCitizenReferralUrl;
+    private int _chatHistoryMonthsToKeepInDb = 12;
+
+    private bool _backupEnabled = true;
+    private string _backupCron = DefaultBackupCron;
+    private bool _cleanupClipsEnabled = true;
+    private string _cleanupClipsCron = DefaultCleanupClipsCron;
+    private bool _cleanupClipsRunOnStartup = true;
+    private bool _cleanupChatLogsEnabled = true;
+    private string _cleanupChatLogsCron = DefaultCleanupChatLogsCron;
+    private bool _cleanupChatLogsRunOnStartup = true;
+    private bool _cleanupIpLogsEnabled = true;
+    private string _cleanupIpLogsCron = DefaultCleanupIpLogsCron;
+    private bool _cleanupIpLogsRunOnStartup = true;
+    private bool _ttsCleanupEnabled = true;
+    private string _ttsCleanupCron = DefaultTtsCleanupCron;
+    private bool _ttsCleanupRunOnStartup = true;
+    private bool _updateDiscordEventsEnabled = true;
+    private string _updateDiscordEventsCron = DefaultUpdateDiscordEventsCron;
+    private bool _postScheduleEnabled = true;
+    private string _postScheduleCron = DefaultPostScheduleCron;
+    private bool _updatePostedScheduleEnabled = true;
+    private string _updatePostedScheduleCron = DefaultUpdatePostedScheduleCron;
+    private bool _validationSanityCheckEnabled = true;
+    private string _validationSanityCheckCron = DefaultValidationSanityCheckCron;
+
+    private int _ttsCleanupMaxAgeHours = 1;
+    private int _clipsCleanupMaxAgeDays = 30;
+    private int _ipLogMonthsToKeep = 6;
 
     private const string DefaultStarCitizenReferralUrl = "https://www.robertsspaceindustries.com/enlist?referral=STAR-6564-JQ7N";
+    private const string DefaultBackupCron = "0 0 12 * * ?";
+    private const string DefaultCleanupClipsCron = "0 0 12 * * ?";
+    private const string DefaultCleanupChatLogsCron = "0 0 13 * * ?";
+    private const string DefaultCleanupIpLogsCron = "0 30 13 * * ?";
+    private const string DefaultTtsCleanupCron = "0 0 * * * ?";
+    private const string DefaultUpdateDiscordEventsCron = "0 0/5 * * * ?";
+    private const string DefaultPostScheduleCron = "0 0 9 ? * MON";
+    private const string DefaultUpdatePostedScheduleCron = "0 0 10 * * ?";
+    private const string DefaultValidationSanityCheckCron = "0 0 5 * * ?";
 
-    protected override Task OnInitializedAsync()
+    private const string CronBuilderPatternEveryNMinutes = "every-n-minutes";
+    private const string CronBuilderPatternHourly = "hourly";
+    private const string CronBuilderPatternDaily = "daily";
+    private const string CronBuilderPatternWeekly = "weekly";
+    private const string CronBuilderPatternMonthly = "monthly";
+
+    private string _cronBuilderTargetJob = IScheduledJobSettingsService.CleanupChatLogsJobName;
+    private string _cronBuilderPattern = CronBuilderPatternDaily;
+    private int _cronBuilderIntervalMinutes = 5;
+    private int _cronBuilderMinute;
+    private int _cronBuilderHour = 12;
+    private int _cronBuilderDayOfMonth = 1;
+    private string _cronBuilderDayOfWeek = "MON";
+    private string _cronBuilderOutput = DefaultCleanupChatLogsCron;
+
+    protected override async Task OnInitializedAsync()
     {
         _applicationTitle = Configuration["ApplicationTitle"] ?? "Penguin Twitch Bot";
         _weatherDefaultLocation = Configuration["Weather:DefaultLocation"] ?? "";
         _starCitizenReferralUrl = Configuration["SupportLinks:StarCitizenReferral"] ?? DefaultStarCitizenReferralUrl;
-        return Task.CompletedTask;
+        _chatHistoryMonthsToKeepInDb = await ChatHistoryRetentionSettings.GetChatHistoryMonthsToKeepAsync();
+        await LoadScheduledJobSettingsAsync();
+    }
+
+    private async Task LoadScheduledJobSettingsAsync()
+    {
+        _backupEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.TriggerBackupJobName, true);
+        _backupCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.TriggerBackupJobName, DefaultBackupCron);
+
+        _cleanupClipsEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupClipsJobName, true);
+        _cleanupClipsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.CleanupClipsJobName, DefaultCleanupClipsCron);
+        _cleanupClipsRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupClipsJobName, true);
+
+        _cleanupChatLogsEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true);
+        _cleanupChatLogsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, DefaultCleanupChatLogsCron);
+        _cleanupChatLogsRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true);
+
+        _cleanupIpLogsEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true);
+        _cleanupIpLogsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, DefaultCleanupIpLogsCron);
+        _cleanupIpLogsRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true);
+
+        _ttsCleanupEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.TtsCleanupJobName, true);
+        _ttsCleanupCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.TtsCleanupJobName, DefaultTtsCleanupCron);
+        _ttsCleanupRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, true);
+
+        _updateDiscordEventsEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.UpdateDiscordEventsJobName, true);
+        _updateDiscordEventsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.UpdateDiscordEventsJobName, DefaultUpdateDiscordEventsCron);
+
+        _postScheduleEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.PostScheduleJobName, true);
+        _postScheduleCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.PostScheduleJobName, DefaultPostScheduleCron);
+
+        _updatePostedScheduleEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.UpdatePostedScheduleJobName, true);
+        _updatePostedScheduleCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.UpdatePostedScheduleJobName, DefaultUpdatePostedScheduleCron);
+
+        _validationSanityCheckEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, true);
+        _validationSanityCheckCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, DefaultValidationSanityCheckCron);
+
+        _ttsCleanupMaxAgeHours = await ScheduledJobSettings.GetTtsCleanupMaxAgeHoursAsync(1);
+        _clipsCleanupMaxAgeDays = await ScheduledJobSettings.GetClipsCleanupMaxAgeDaysAsync(30);
+        _ipLogMonthsToKeep = await IpLogRetentionSettings.GetIpLogMonthsToKeepAsync(6);
+
+        SyncCronHelperFromTargetJob();
+    }
+
+    private async Task SaveScheduledJobsAsync()
+    {
+        _saving = true;
+        try
+        {
+            _backupCron = _backupCron.Trim();
+            _cleanupClipsCron = _cleanupClipsCron.Trim();
+            _cleanupChatLogsCron = _cleanupChatLogsCron.Trim();
+            _cleanupIpLogsCron = _cleanupIpLogsCron.Trim();
+            _ttsCleanupCron = _ttsCleanupCron.Trim();
+            _updateDiscordEventsCron = _updateDiscordEventsCron.Trim();
+            _postScheduleCron = _postScheduleCron.Trim();
+            _updatePostedScheduleCron = _updatePostedScheduleCron.Trim();
+            _validationSanityCheckCron = _validationSanityCheckCron.Trim();
+
+            if (!ValidateCronSetting("Trigger Backup", _backupCron) ||
+                !ValidateCronSetting("Cleanup Clips", _cleanupClipsCron) ||
+                !ValidateCronSetting("Cleanup Chat Logs", _cleanupChatLogsCron) ||
+                !ValidateCronSetting("Cleanup IP Logs", _cleanupIpLogsCron) ||
+                !ValidateCronSetting("TTS Cleanup", _ttsCleanupCron) ||
+                !ValidateCronSetting("Update Discord Events", _updateDiscordEventsCron) ||
+                !ValidateCronSetting("Post Schedule", _postScheduleCron) ||
+                !ValidateCronSetting("Update Posted Schedule", _updatePostedScheduleCron) ||
+                !ValidateCronSetting("Validation Sanity Check", _validationSanityCheckCron))
+            {
+                return;
+            }
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.TriggerBackupJobName, _backupEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.TriggerBackupJobName, _backupCron);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.CleanupClipsJobName, _cleanupClipsEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.CleanupClipsJobName, _cleanupClipsCron);
+            await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.CleanupClipsJobName, _cleanupClipsRunOnStartup);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, _cleanupChatLogsEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, _cleanupChatLogsCron);
+            await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, _cleanupChatLogsRunOnStartup);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsCron);
+            await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsRunOnStartup);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.TtsCleanupJobName, _ttsCleanupEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.TtsCleanupJobName, _ttsCleanupCron);
+            await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, _ttsCleanupRunOnStartup);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.UpdateDiscordEventsJobName, _updateDiscordEventsEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.UpdateDiscordEventsJobName, _updateDiscordEventsCron);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.PostScheduleJobName, _postScheduleEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.PostScheduleJobName, _postScheduleCron);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.UpdatePostedScheduleJobName, _updatePostedScheduleEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.UpdatePostedScheduleJobName, _updatePostedScheduleCron);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, _validationSanityCheckEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.ValidationSanityCheckJobName, _validationSanityCheckCron);
+
+            Snackbar.Add("Scheduled job settings saved successfully. Restart the bot to apply changes.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save scheduled job settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveChatHistoryRetentionAsync()
+    {
+        _saving = true;
+        try
+        {
+            _chatHistoryMonthsToKeepInDb = _chatHistoryMonthsToKeepInDb < 0 ? 0 : _chatHistoryMonthsToKeepInDb;
+            _ttsCleanupMaxAgeHours = _ttsCleanupMaxAgeHours < 0 ? 0 : _ttsCleanupMaxAgeHours;
+            _clipsCleanupMaxAgeDays = _clipsCleanupMaxAgeDays < 0 ? 0 : _clipsCleanupMaxAgeDays;
+            _ipLogMonthsToKeep = _ipLogMonthsToKeep < 0 ? 0 : _ipLogMonthsToKeep;
+
+            await ChatHistoryRetentionSettings.SetChatHistoryMonthsToKeepAsync(_chatHistoryMonthsToKeepInDb);
+            await ScheduledJobSettings.SetTtsCleanupMaxAgeHoursAsync(_ttsCleanupMaxAgeHours);
+            await ScheduledJobSettings.SetClipsCleanupMaxAgeDaysAsync(_clipsCleanupMaxAgeDays);
+            await IpLogRetentionSettings.SetIpLogMonthsToKeepAsync(_ipLogMonthsToKeep);
+
+            Snackbar.Add("Retention settings saved successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save retention settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task SaveApplicationTitleAsync()
@@ -172,5 +611,203 @@
         {
             _saving = false;
         }
+    }
+
+    private static int Clamp(int value, int min, int max)
+    {
+        return value < min ? min : value > max ? max : value;
+    }
+
+    private void OnCronBuilderTargetJobChanged(string value)
+    {
+        _cronBuilderTargetJob = value;
+        SyncCronHelperFromTargetJob();
+    }
+
+    private void SyncCronHelperFromTargetJob()
+    {
+        var cron = GetCronForJob(_cronBuilderTargetJob);
+        _cronBuilderOutput = cron;
+        ParseCronIntoHelper(cron);
+    }
+
+    private string GetCronForJob(string jobName)
+    {
+        return jobName switch
+        {
+            IScheduledJobSettingsService.TriggerBackupJobName => _backupCron,
+            IScheduledJobSettingsService.CleanupClipsJobName => _cleanupClipsCron,
+            IScheduledJobSettingsService.CleanupChatLogsJobName => _cleanupChatLogsCron,
+            IScheduledJobSettingsService.CleanupIpLogsJobName => _cleanupIpLogsCron,
+            IScheduledJobSettingsService.TtsCleanupJobName => _ttsCleanupCron,
+            IScheduledJobSettingsService.UpdateDiscordEventsJobName => _updateDiscordEventsCron,
+            IScheduledJobSettingsService.PostScheduleJobName => _postScheduleCron,
+            IScheduledJobSettingsService.UpdatePostedScheduleJobName => _updatePostedScheduleCron,
+            IScheduledJobSettingsService.ValidationSanityCheckJobName => _validationSanityCheckCron,
+            _ => DefaultCleanupChatLogsCron
+        };
+    }
+
+    private void ParseCronIntoHelper(string cron)
+    {
+        var parts = cron.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 6)
+        {
+            return;
+        }
+
+        if (parts[1].StartsWith("0/", StringComparison.Ordinal))
+        {
+            if (int.TryParse(parts[1].AsSpan(2), out var everyMinutes))
+            {
+                _cronBuilderPattern = CronBuilderPatternEveryNMinutes;
+                _cronBuilderIntervalMinutes = Clamp(everyMinutes, 1, 59);
+            }
+            return;
+        }
+
+        if (parts[2] == "*" && parts[3] == "*" && parts[4] == "*" && parts[5] == "?")
+        {
+            _cronBuilderPattern = CronBuilderPatternHourly;
+            if (int.TryParse(parts[1], out var hourlyMinute))
+            {
+                _cronBuilderMinute = Clamp(hourlyMinute, 0, 59);
+            }
+            return;
+        }
+
+        if (parts[3] == "*" && parts[4] == "*" && parts[5] == "?")
+        {
+            _cronBuilderPattern = CronBuilderPatternDaily;
+            if (int.TryParse(parts[1], out var dailyMinute))
+            {
+                _cronBuilderMinute = Clamp(dailyMinute, 0, 59);
+            }
+            if (int.TryParse(parts[2], out var dailyHour))
+            {
+                _cronBuilderHour = Clamp(dailyHour, 0, 23);
+            }
+            return;
+        }
+
+        if (parts[3] == "?" && parts[4] == "*")
+        {
+            _cronBuilderPattern = CronBuilderPatternWeekly;
+            if (int.TryParse(parts[1], out var weeklyMinute))
+            {
+                _cronBuilderMinute = Clamp(weeklyMinute, 0, 59);
+            }
+            if (int.TryParse(parts[2], out var weeklyHour))
+            {
+                _cronBuilderHour = Clamp(weeklyHour, 0, 23);
+            }
+
+            var dayOfWeek = parts[5].ToUpperInvariant();
+            _cronBuilderDayOfWeek = dayOfWeek switch
+            {
+                "MON" or "TUE" or "WED" or "THU" or "FRI" or "SAT" or "SUN" => dayOfWeek,
+                _ => _cronBuilderDayOfWeek
+            };
+            return;
+        }
+
+        if (parts[4] == "*" && parts[5] == "?")
+        {
+            _cronBuilderPattern = CronBuilderPatternMonthly;
+            if (int.TryParse(parts[1], out var monthlyMinute))
+            {
+                _cronBuilderMinute = Clamp(monthlyMinute, 0, 59);
+            }
+            if (int.TryParse(parts[2], out var monthlyHour))
+            {
+                _cronBuilderHour = Clamp(monthlyHour, 0, 23);
+            }
+            if (int.TryParse(parts[3], out var monthlyDay))
+            {
+                _cronBuilderDayOfMonth = Clamp(monthlyDay, 1, 31);
+            }
+        }
+    }
+
+    private void GenerateCronFromHelper()
+    {
+        _cronBuilderOutput = BuildCronFromHelper();
+    }
+
+    private string BuildCronFromHelper()
+    {
+        var minute = Clamp(_cronBuilderMinute, 0, 59);
+        var hour = Clamp(_cronBuilderHour, 0, 23);
+        var intervalMinutes = Clamp(_cronBuilderIntervalMinutes, 1, 59);
+        var dayOfMonth = Clamp(_cronBuilderDayOfMonth, 1, 31);
+
+        return _cronBuilderPattern switch
+        {
+            CronBuilderPatternEveryNMinutes => $"0 0/{intervalMinutes} * * * ?",
+            CronBuilderPatternHourly => $"0 {minute} * * * ?",
+            CronBuilderPatternDaily => $"0 {minute} {hour} * * ?",
+            CronBuilderPatternWeekly => $"0 {minute} {hour} ? * {_cronBuilderDayOfWeek}",
+            CronBuilderPatternMonthly => $"0 {minute} {hour} {dayOfMonth} * ?",
+            _ => DefaultCleanupChatLogsCron
+        };
+    }
+
+    private void ApplyGeneratedCronToTarget()
+    {
+        var generatedCron = BuildCronFromHelper();
+        if (!CronExpression.IsValidExpression(generatedCron))
+        {
+            Snackbar.Add($"Generated cron is invalid: {generatedCron}", Severity.Error);
+            return;
+        }
+
+        _cronBuilderOutput = generatedCron;
+
+        switch (_cronBuilderTargetJob)
+        {
+            case IScheduledJobSettingsService.TriggerBackupJobName:
+                _backupCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.CleanupClipsJobName:
+                _cleanupClipsCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.CleanupChatLogsJobName:
+                _cleanupChatLogsCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.CleanupIpLogsJobName:
+                _cleanupIpLogsCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.TtsCleanupJobName:
+                _ttsCleanupCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.UpdateDiscordEventsJobName:
+                _updateDiscordEventsCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.PostScheduleJobName:
+                _postScheduleCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.UpdatePostedScheduleJobName:
+                _updatePostedScheduleCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.ValidationSanityCheckJobName:
+                _validationSanityCheckCron = generatedCron;
+                break;
+            default:
+                Snackbar.Add("Please choose a target job.", Severity.Warning);
+                return;
+        }
+
+        Snackbar.Add("Cron applied to selected job field.", Severity.Success);
+    }
+
+    private bool ValidateCronSetting(string label, string cronExpression)
+    {
+        if (string.IsNullOrWhiteSpace(cronExpression) || !CronExpression.IsValidExpression(cronExpression))
+        {
+            Snackbar.Add($"Invalid cron for {label}: {cronExpression}", Severity.Error);
+            return false;
+        }
+
+        return true;
     }
 }
