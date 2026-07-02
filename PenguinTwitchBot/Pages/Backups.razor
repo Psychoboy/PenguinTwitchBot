@@ -1,52 +1,166 @@
 @page "/backups"
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Database.Repository
+@using System.IO
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject PenguinTwitchBot.Database.Bot.DatabaseTools.IBackupTools BackupTools
+@inject IServiceScopeFactory ScopeFactory
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "Streamer")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Backups</PageTitle>
 
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="BackupDatabase">Backup Database</MudButton>
-    <MudTable Items="@DatabaseBackups">
-        <HeaderContent>
-            <MudTh>File Name</MudTh>
-            <MudTh>Creation Time</MudTh>
-            <MudTh>Size</MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.Name</MudTd>
-            <MudTd>@context.CreationTime</MudTd>
-            <MudTh>@FormatBytes(@context.Length)</MudTh>
-            <MudTd>
-                <MudButton Variant="Variant.Filled" Color="Color.Secondary" 
-                @onclick="() => RestoreBackup(context)">Restore Backup</MudButton></MudTd>
-        </RowTemplate>
-     </MudTable>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Spacing="4">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h4">Backup Management</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Backup" OnClick="BackupDatabase">
+                Create Backup
+            </MudButton>
+        </MudStack>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudText Typo="Typo.h6">Backup Retention Settings</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Configure how many backups to keep and for how long. Both constraints are applied together when cleaning up old backups.
+                </MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                    Saved to the database <code>Setting</code> table.
+                </MudAlert>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="_maxBackups" Label="Max backups to keep" Min="1" Max="1000" Immediate="true" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="_maxDays" Label="Max days to keep" Min="1" Max="3650" Immediate="true" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveSettingsAsync" Disabled="_saving">
+                        Save Settings
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="ResetSettingsAsync">
+                        Reset to Defaults
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <MudText Typo="Typo.h6">Existing Backups (@_backups.Count)</MudText>
+
+        @if (_backups.Count == 0)
+        {
+            <MudPaper Elevation="0" Outlined="true" Class="pa-6" Style="text-align: center;">
+                <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Secondary" />
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">No backups found</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Create your first backup to get started.</MudText>
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudTable Items="@_backups" Dense="true" Hover="true" Bordered="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>File Name</MudTh>
+                    <MudTh>Creation Time</MudTh>
+                    <MudTh>Size</MudTh>
+                    <MudTh Style="text-align: right;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="File Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Creation Time">@context.CreationTime.ToString("yyyy-MM-dd HH:mm")</MudTd>
+                    <MudTd DataLabel="Size">@FormatBytes(context.Length)</MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align: right;">
+                        <MudStack Row="true" Style="justify-content: flex-end;" Spacing="1">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" OnClick="() => RestoreBackup(context)" StartIcon="@Icons.Material.Filled.Restore">
+                                Restore
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => DownloadBackup(context)" StartIcon="@Icons.Material.Filled.Download">
+                                Download
+                            </MudButton>
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
 </MudContainer>
 
 @code {
+    private List<FileInfo> _backups = new();
+    private int _maxBackups = 15;
+    private int _maxDays = 15;
+    private bool _saving;
 
-    private List<FileInfo> DatabaseBackups = [];
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BackupDirectory).OrderByDescending(x => x.CreationTime).ToList();
+        await LoadSettingsAsync();
+        await RefreshBackupsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _maxBackups = await ReadSettingAsync("BackupCountToKeep", 15);
+        _maxDays = await ReadSettingAsync("BackupDaysToKeep", 15);
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        _saving = true;
+        try
+        {
+            _maxBackups = _maxBackups < 1 ? 1 : _maxBackups;
+            _maxDays = _maxDays < 1 ? 1 : _maxDays;
+
+            await WriteSettingAsync("BackupCountToKeep", _maxBackups);
+            await WriteSettingAsync("BackupDaysToKeep", _maxDays);
+
+            Snackbar.Add("Backup retention settings saved successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ResetSettingsAsync()
+    {
+        _maxBackups = 15;
+        _maxDays = 15;
+        await SaveSettingsAsync();
     }
 
     private async Task BackupDatabase()
     {
+        Snackbar.Add("Database backup started...", Severity.Info);
         await Admin.BackupDatabase();
-        DatabaseBackups = BackupTools.GetBackupFiles(BackupTools.BackupDirectory).OrderByDescending(x => x.CreationTime).ToList();
+        await RefreshBackupsAsync();
+        Snackbar.Add("Database backup completed.", Severity.Success);
+    }
+
+    private async Task RefreshBackupsAsync()
+    {
+        _backups = BackupTools.GetBackupFiles(BackupTools.BackupDirectory)
+            .OrderByDescending(x => x.CreationTime)
+            .ToList();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task RestoreBackup(FileInfo fileInfo)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Are you sure you want to restore this database? Doing so will wipe current data!",
-        yesText: "Restore!", cancelText: "Cancel");
+            "Warning",
+            "Are you sure you want to restore this database? Doing so will wipe current data!",
+            yesText: "Restore!", cancelText: "Cancel");
         if (result != null)
         {
             try
@@ -60,7 +174,67 @@
             }
         }
     }
-    private static string FormatBytes(Int64 bytes)
+
+    private async Task DownloadBackup(FileInfo fileInfo)
+    {
+        try
+        {
+            var fileBytes = await File.ReadAllBytesAsync(fileInfo.FullName);
+            var fileName = Path.GetFileName(fileInfo.FullName);
+            var base64 = Convert.ToBase64String(fileBytes);
+            await JS.InvokeVoidAsync("downloadFile", fileName, base64, true);
+            Snackbar.Add("Download started.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to download backup: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<int> ReadSettingAsync(string name, int defaultValue)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var setting = (await db.Settings.GetAsync(x => x.Name == name)).FirstOrDefault();
+        if (setting == null)
+        {
+            var newSetting = new Setting
+            {
+                Name = name,
+                DataType = Setting.DataTypeEnum.Int,
+                IntSetting = defaultValue
+            };
+            await db.Settings.AddAsync(newSetting);
+            await db.SaveChangesAsync();
+            return defaultValue;
+        }
+        return setting.IntSetting;
+    }
+
+    private async Task WriteSettingAsync(string name, int value)
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var setting = (await db.Settings.GetAsync(x => x.Name == name)).FirstOrDefault();
+        if (setting == null)
+        {
+            var newSetting = new Setting
+            {
+                Name = name,
+                DataType = Setting.DataTypeEnum.Int,
+                IntSetting = value
+            };
+            await db.Settings.AddAsync(newSetting);
+        }
+        else
+        {
+            setting.IntSetting = value;
+            db.Settings.Update(setting);
+        }
+        await db.SaveChangesAsync();
+    }
+
+    private static string FormatBytes(long bytes)
     {
         if (bytes >= 0x1000000000000000) { return ((double)(bytes >> 50) / 1024).ToString("0.### EB"); }
         if (bytes >= 0x4000000000000) { return ((double)(bytes >> 40) / 1024).ToString("0.### PB"); }

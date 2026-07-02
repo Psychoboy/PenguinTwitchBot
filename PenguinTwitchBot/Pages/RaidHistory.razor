@@ -14,7 +14,7 @@
             <MudText Typo="Typo.body2" Color="Color.Secondary">@GetFilteredContent()?.Count creator(s)</MudText>
         </MudStack>
         <MudPaper Elevation="1">
-            <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true" Height="65vh">
+            <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true">
                 <ToolBarContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2">
                         <MudText Typo="Typo.subtitle1">Raid Statistics</MudText>

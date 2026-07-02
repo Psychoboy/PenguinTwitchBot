@@ -13,5 +13,6 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
         Task RestoreTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class;
         Task BackupDatabase(DbContext context, string backupDirectory, ILogger logger);
         Task RestoreDatabase(DbContext context, string backupDirectory, ILogger? logger);
+        Task DeleteOldBackupsAsync(string directory, int maxCount, int maxDays, ILogger? logger);
     }
 }

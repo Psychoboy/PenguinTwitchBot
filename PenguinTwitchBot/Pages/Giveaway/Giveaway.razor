@@ -217,6 +217,7 @@
 
     private async Task Draw()
     {
+        Snackbar.Add("Giveaway is drawing...", Severity.Info);
         await GiveawayFeature.Draw();
         pastWinners = await GiveawayFeature.PastWinners();
         StateHasChanged();
@@ -224,6 +225,7 @@
 
     private async Task Close()
     {
+        Snackbar.Add("Giveaway closing...", Severity.Info);
         await GiveawayFeature.Close();
     }
 
@@ -235,6 +237,7 @@
         yesText: "Delete!", cancelText: "Cancel");
         if (result != null)
         {
+            Snackbar.Add("Resetting giveaway...", Severity.Info);
             await GiveawayFeature.Reset();
             await pointsSystem.RemoveAllPointsForGame("GiveawayFeature");
         }

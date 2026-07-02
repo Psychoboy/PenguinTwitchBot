@@ -4,8 +4,18 @@
 // Write your JavaScript code.
 
 // Download file helper function
-window.downloadFile = function (filename, content) {
-    const blob = new Blob([content], { type: 'application/json' });
+window.downloadFile = function(filename, content, isBase64) {
+    let blob;
+    if (isBase64) {
+        const binaryString = atob(content);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        blob = new Blob([bytes], { type: 'application/zip' });
+    } else {
+        blob = new Blob([content], { type: 'application/json' });
+    }
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
