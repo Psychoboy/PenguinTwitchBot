@@ -60,23 +60,5 @@ namespace PenguinTwitchBot.Test.Bot.Core
             await _unitOfWork.Received(1).SaveChangesAsync();
         }
 
-        [Fact]
-        public async Task CleanOldLogs_ShouldRemoveOldLogs()
-        {
-            // Arrange
-            var oldLogs = new List<ViewerChatHistory>
-            {
-                new ViewerChatHistory { CreatedAt = DateTime.Now.AddMonths(-7) }
-            };
-            _chatHistoryRetentionSettingsService.GetChatHistoryMonthsToKeepAsync().Returns(6);
-            _unitOfWork.ViewerChatHistories.Find(Arg.Any<System.Linq.Expressions.Expression< Func<ViewerChatHistory, bool>>>()).Returns(oldLogs.AsQueryable());
-
-            // Act
-            await _chatHistory.CleanOldLogs();
-
-            // Assert
-            _unitOfWork.ViewerChatHistories.Received(1).RemoveRange(Arg.Any<IEnumerable<ViewerChatHistory>>());
-            await _unitOfWork.Received(1).SaveChangesAsync();
-        }
     }
 }

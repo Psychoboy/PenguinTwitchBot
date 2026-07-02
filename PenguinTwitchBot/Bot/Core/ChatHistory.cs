@@ -97,23 +97,19 @@ namespace PenguinTwitchBot.Bot.Core
 
                 while (true)
                 {
-                    var ids = await db.ViewerChatHistories
+                    var logs = db.ViewerChatHistories
                         .Find(x => x.CreatedAt < cutoffUtc)
                         .OrderBy(x => x.Id)
-                        .Select(x => x.Id)
                         .Take(CleanupBatchSize)
-                        .ToListAsync();
+                        .ToList();
 
-                    if (ids.Count == 0)
+                    if (logs.Count == 0)
                     {
                         break;
                     }
 
-                    var deleted = await db.ViewerChatHistories
-                        .Find(x => ids.Contains(x.Id))
-                        .ExecuteDeleteAsync();
-
-                    totalDeleted += deleted;
+                    db.ViewerChatHistories.RemoveRange(logs);
+                    totalDeleted += await db.SaveChangesAsync();
 
                     // Yield between batches so other SQLite writers can acquire the lock.
                     await Task.Delay(CleanupBatchPause);
