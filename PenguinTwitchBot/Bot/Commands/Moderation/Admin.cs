@@ -2,6 +2,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.DatabaseTools;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Services;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using System.IO.Compression;
@@ -28,22 +29,10 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
 
                 var settings = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 
-                var countSetting = (await settings.Settings.GetAsync(x => x.Name == "BackupCountToKeep")).FirstOrDefault();
-                if (countSetting == null)
-                {
-                    countSetting = new Setting { Name = "BackupCountToKeep", DataType = Setting.DataTypeEnum.Int, IntSetting = 15 };
-                    await settings.Settings.AddAsync(countSetting);
-                }
-
-                var daysSetting = (await settings.Settings.GetAsync(x => x.Name == "BackupDaysToKeep")).FirstOrDefault();
-                if (daysSetting == null)
-                {
-                    daysSetting = new Setting { Name = "BackupDaysToKeep", DataType = Setting.DataTypeEnum.Int, IntSetting = 15 };
-                    await settings.Settings.AddAsync(daysSetting);
-                }
-
-                await settings.SaveChangesAsync();
-                await backupTools.DeleteOldBackupsAsync(backupTools.BackupDirectory, countSetting.IntSetting, daysSetting.IntSetting, logger);
+                var backupSettings = scope.ServiceProvider.GetRequiredService<IBackupSettingsService>();
+                var maxCount = await backupSettings.GetBackupCountToKeepAsync(15);
+                var maxDays = await backupSettings.GetBackupDaysToKeepAsync(15);
+                await backupTools.DeleteOldBackupsAsync(backupTools.BackupDirectory, maxCount, maxDays, logger);
             }
             catch (Exception ex)
             {

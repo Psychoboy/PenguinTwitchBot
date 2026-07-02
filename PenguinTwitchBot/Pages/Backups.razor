@@ -1,10 +1,9 @@
 @page "/backups"
-@using PenguinTwitchBot.Database.Bot.Models
-@using PenguinTwitchBot.Database.Repository
+@using PenguinTwitchBot.Services
 @using System.IO
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject PenguinTwitchBot.Database.Bot.DatabaseTools.IBackupTools BackupTools
-@inject IServiceScopeFactory ScopeFactory
+@inject IBackupSettingsService BackupSettings
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "Streamer")]
@@ -105,8 +104,8 @@
 
     private async Task LoadSettingsAsync()
     {
-        _maxBackups = await ReadSettingAsync("BackupCountToKeep", 15);
-        _maxDays = await ReadSettingAsync("BackupDaysToKeep", 15);
+        _maxBackups = await BackupSettings.GetBackupCountToKeepAsync(15);
+        _maxDays = await BackupSettings.GetBackupDaysToKeepAsync(15);
     }
 
     private async Task SaveSettingsAsync()
@@ -117,8 +116,8 @@
             _maxBackups = _maxBackups < 1 ? 1 : _maxBackups;
             _maxDays = _maxDays < 1 ? 1 : _maxDays;
 
-            await WriteSettingAsync("BackupCountToKeep", _maxBackups);
-            await WriteSettingAsync("BackupDaysToKeep", _maxDays);
+            await BackupSettings.SetBackupCountToKeepAsync(_maxBackups);
+            await BackupSettings.SetBackupDaysToKeepAsync(_maxDays);
 
             Snackbar.Add("Backup retention settings saved successfully.", Severity.Success);
         }
@@ -179,59 +178,16 @@
     {
         try
         {
-            var fileBytes = await File.ReadAllBytesAsync(fileInfo.FullName);
             var fileName = Path.GetFileName(fileInfo.FullName);
-            var base64 = Convert.ToBase64String(fileBytes);
-            await JS.InvokeVoidAsync("downloadFile", fileName, base64, true);
+            var stream = File.OpenRead(fileInfo.FullName);
+            var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFile", fileName, streamRef);
             Snackbar.Add("Download started.", Severity.Success);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to download backup: {ex.Message}", Severity.Error);
         }
-    }
-
-    private async Task<int> ReadSettingAsync(string name, int defaultValue)
-    {
-        await using var scope = ScopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == name)).FirstOrDefault();
-        if (setting == null)
-        {
-            var newSetting = new Setting
-            {
-                Name = name,
-                DataType = Setting.DataTypeEnum.Int,
-                IntSetting = defaultValue
-            };
-            await db.Settings.AddAsync(newSetting);
-            await db.SaveChangesAsync();
-            return defaultValue;
-        }
-        return setting.IntSetting;
-    }
-
-    private async Task WriteSettingAsync(string name, int value)
-    {
-        await using var scope = ScopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == name)).FirstOrDefault();
-        if (setting == null)
-        {
-            var newSetting = new Setting
-            {
-                Name = name,
-                DataType = Setting.DataTypeEnum.Int,
-                IntSetting = value
-            };
-            await db.Settings.AddAsync(newSetting);
-        }
-        else
-        {
-            setting.IntSetting = value;
-            db.Settings.Update(setting);
-        }
-        await db.SaveChangesAsync();
     }
 
     private static string FormatBytes(long bytes)
