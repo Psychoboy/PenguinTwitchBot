@@ -29,7 +29,7 @@
 
         @if (_layouts.Count == 0)
         {
-            <MudText Typo="Typo.caption" Class="pa-2 text-disabled">No layouts yet Ã¢â‚¬â€ click + to create one.</MudText>
+            <MudText Typo="Typo.caption" Class="pa-2 text-disabled">No layouts yet - click + to create one.</MudText>
         }
 
         @foreach (var layoutItem in _layouts)
@@ -86,17 +86,17 @@
                 <MudButton StartIcon="@Icons.Material.Filled.Save"
                            Variant="Variant.Filled" Color="Color.Success"
                            OnClick="SaveLayout" Disabled="_saving">
-                    @(_saving ? "SavingÃ¢â‚¬Â¦" : "Save")
+                    @(_saving ? "Saving..." : "Save")
                 </MudButton>
 
-                <MudTooltip Text="Opens overlay.html in a new tab Ã¢â‚¬â€ save first!">
+                <MudTooltip Text="Opens overlay.html in a new tab - save first!">
                     <MudButton StartIcon="@Icons.Material.Filled.OpenInNew"
                                Variant="Variant.Outlined"
                                OnClick="OpenPreview" Class="ml-2">
                         Preview
                     </MudButton>
                 </MudTooltip>
-                <MudTooltip Text="Copy OBS browser source URL to clipboard Ã¢â‚¬â€ save first!">
+                <MudTooltip Text="Copy OBS browser source URL to clipboard - save first!">
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Variant="Variant.Outlined"
                                    OnClick="CopyUrl" Class="ml-1" />
@@ -152,7 +152,7 @@
             }
             else
             {
-                <MudText Typo="Typo.body2" Class="ml-2 text-disabled">Ã¢â€ Â Select or create a layout</MudText>
+                <MudText Typo="Typo.body2" Class="ml-2 text-disabled">&larr; Select or create a layout</MudText>
             }
         </div>
 
@@ -172,7 +172,7 @@
                          @onclick="() => SelectWidget(w)">
                         @if (w.IsLocked)
                         {
-                            <span class="widget-lock-badge" title="Locked Ã¢â‚¬â€ click-through enabled">Ã°Å¸â€â€™</span>
+                            <span class="widget-lock-badge" title="Locked - click-through enabled">LOCK</span>
                         }
                         @if (w.WidgetType == "chat")
                         {
@@ -225,7 +225,7 @@
             </div>
         </div>
 
-        <MudText Typo="Typo.caption" Class="canvas-hint">@_canvasWidth Ãƒâ€” @_canvasHeight (fit: @((int)(FitScale * 100))% | zoom: @_zoomPercent% | display: @((int)(Scale * 100))%)</MudText>
+        <MudText Typo="Typo.caption" Class="canvas-hint">@_canvasWidth x @_canvasHeight (fit: @((int)(FitScale * 100))% | zoom: @_zoomPercent% | display: @((int)(Scale * 100))%)</MudText>
     </div>
 
     <!-- ===================== RIGHT: Properties panel ===================== -->
@@ -279,7 +279,7 @@
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-4"
                              Min="1" />
 
-            @* Ã¢â€â‚¬Ã¢â€â‚¬ Alerts widget configuration Ã¢â€â‚¬Ã¢â€â‚¬ *@
+            @* ---- Alerts widget configuration ---- *@
             @if (_selected.WidgetType == "alerts")
             {
                 <MudDivider Class="mb-3" />
@@ -291,7 +291,7 @@
                               ValueChanged="@((string v) => { _alertChannel = v; SaveAlertChannel(); })" />
             }
 
-            @* Ã¢â€â‚¬Ã¢â€â‚¬ Chat widget configuration Ã¢â€â‚¬Ã¢â€â‚¬ *@
+            @* ---- Chat widget configuration ---- *@
             @if (_selected.WidgetType == "chat" && _chatSettings != null)
             {
                 <MudDivider Class="mb-3" />
@@ -422,7 +422,7 @@
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2" Min="100" />
             <MudNumericField T="int" Label="Height (px)" @bind-Value="_canvasHeight"
                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-1" Min="100" />
-            <MudText Typo="Typo.caption" Class="mb-4" Style="color: var(--mud-palette-text-secondary);">Display scale: @((int)(Scale * 100))% (fit @((int)(FitScale * 100))% Ãƒâ€” zoom @_zoomPercent%)</MudText>
+            <MudText Typo="Typo.caption" Class="mb-4" Style="color: var(--mud-palette-text-secondary);">Display scale: @((int)(Scale * 100))% (fit @((int)(FitScale * 100))% x zoom @_zoomPercent%)</MudText>
             <MudDivider Class="mb-3" />
             <div class="props-empty">
                 <MudIcon Icon="@Icons.Material.Filled.TouchApp"
@@ -531,8 +531,7 @@
     private double _wheelOldScale;
     private double _wheelNewScale;
     private DotNetObjectReference<OverlayEditor>? _dotNetRef;
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Lifecycle Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- Lifecycle ----
 
     protected override async Task OnInitializedAsync()
     {
@@ -572,11 +571,10 @@
         {
             await JS.InvokeVoidAsync("overlayEditor.destroy");
         }
-        catch (JSDisconnectedException) { /* circuit already gone Ã¢â‚¬â€ safe to ignore */ }
+        catch (JSDisconnectedException) { /* circuit already gone - safe to ignore */ }
         _dotNetRef?.Dispose();
     }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ JS callbacks Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- JS callbacks ----
 
     [JSInvokable]
     public void OnWidgetMoved(string tempId, int x, int y)
@@ -619,8 +617,7 @@
         _jsNeedsReinit = true;
         await InvokeAsync(StateHasChanged);
     }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Data Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- Data ----
 
     private async Task RefreshLayouts()
     {
@@ -836,8 +833,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         await RefreshLayouts();
         Snackbar.Add("Layout deleted.", Severity.Warning);
     }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Widget management Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- Widget management ----
 
     private void AddWidget(WidgetDefinition def)
     {
@@ -864,8 +860,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         _widgets.Remove(_selected);
         _selected = null;
     }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ UI helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- UI helpers ----
 
     private void SetCanvasSize(int w, int h)
     {
@@ -987,8 +982,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "chat"      => "#00838F",
         _           => "#455A64"
     };
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Chat settings helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- Chat settings helpers ----
 
     private ChatSettings? _chatSettings;
     private string _alertChannel = "";
@@ -1141,8 +1135,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
                 : $"{baseName} ({_alertChannel})";
         }
     }
-
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Inner types Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
 

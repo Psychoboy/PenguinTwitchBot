@@ -571,7 +571,7 @@
             filters.Add($"Colors: {string.Join(", ", config.AnnouncementColors)}");
         }
 
-        return filters.Count > 0 ? string.Join(" â€¢ ", filters) : "No filters";
+        return filters.Count > 0 ? string.Join(" • ", filters) : "No filters";
     }
 
     private string GetDefaultCommandEventSummary(string configurationJson)
