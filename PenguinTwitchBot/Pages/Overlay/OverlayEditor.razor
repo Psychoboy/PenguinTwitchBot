@@ -291,6 +291,104 @@
                               ValueChanged="@((string v) => { _alertChannel = v; SaveAlertChannel(); })" />
             }
 
+            @if (_selected.WidgetType == "fireworks" && _fireworksSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Fireworks Settings</b></MudText>
+
+                <MudSelect T="string" Label="Quality mode"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           HelperText="Overall graphics quality. If the animation is not running smoothly, try lowering the quality. High quality greatly increases the amount of sparks rendered and may cause lag."
+                           Value="_fireworksSettings.QualityMode"
+                           ValueChanged="@(v => { _fireworksSettings.QualityMode = v; SaveFireworksSettings(); })">
+                    <MudSelectItem Value="@("auto")">Auto (device-based default)</MudSelectItem>
+                    <MudSelectItem Value="@("low")">Low</MudSelectItem>
+                    <MudSelectItem Value="@("normal")">Normal</MudSelectItem>
+                    <MudSelectItem Value="@("high")">High</MudSelectItem>
+                </MudSelect>
+
+                <MudSelect T="string" Label="Shell type"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                  HelperText="The type of firework that will be launched. Select Random for a nice assortment!"
+                           Value="_fireworksSettings.Shell"
+                           ValueChanged="@(v => { _fireworksSettings.Shell = v; SaveFireworksSettings(); })">
+                    <MudSelectItem Value="@("Random")">Random</MudSelectItem>
+                    <MudSelectItem Value="@("Crackle")">Crackle</MudSelectItem>
+                    <MudSelectItem Value="@("Crossette")">Crossette</MudSelectItem>
+                    <MudSelectItem Value="@("Crysanthemum")">Crysanthemum</MudSelectItem>
+                    <MudSelectItem Value="@("Falling Leaves")">Falling Leaves</MudSelectItem>
+                    <MudSelectItem Value="@("Floral")">Floral</MudSelectItem>
+                    <MudSelectItem Value="@("Ghost")">Ghost</MudSelectItem>
+                    <MudSelectItem Value="@("Horse Tail")">Horse Tail</MudSelectItem>
+                    <MudSelectItem Value="@("Palm")">Palm</MudSelectItem>
+                    <MudSelectItem Value="@("Ring")">Ring</MudSelectItem>
+                    <MudSelectItem Value="@("Strobe")">Strobe</MudSelectItem>
+                    <MudSelectItem Value="@("Willow")">Willow</MudSelectItem>
+                </MudSelect>
+
+                <MudNumericField T="int" Label="Shell size index"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="The size of the fireworks. Larger shells have bigger bursts with more stars, and sometimes more complex effects. However, larger shells also require more processing power and may cause lag."
+                                 Min="0" Max="5"
+                                 Value="_fireworksSettings.Size"
+                                 ValueChanged="@(v => { _fireworksSettings.Size = v; SaveFireworksSettings(); })" />
+
+                <MudNumericField T="double" Label="Scale factor"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 HelperText="Allows scaling the size of all fireworks, essentially moving you closer or farther away."
+                                 Min="0.5" Max="2" Step="0.01"
+                                 Value="_fireworksSettings.ScaleFactor"
+                                 ValueChanged="@(v => { _fireworksSettings.ScaleFactor = v; SaveFireworksSettings(); })" />
+
+                <MudSwitch Value="_fireworksSettings.LongExposure"
+                           Label="Long exposure"
+                           Color="Color.Primary"
+                           Class="mb-1"
+                           ValueChanged="@((bool v) => { _fireworksSettings.LongExposure = v; SaveFireworksSettings(); })" />
+                <MudText Typo="Typo.caption" Class="mb-2" Style="color: var(--mud-palette-text-secondary);">
+                    Experimental effect that preserves long streaks of light, similar to leaving a camera shutter open.
+                </MudText>
+
+                <MudSwitch Value="_fireworksSettings.AutoLaunch"
+                           Label="Auto launch"
+                           Color="Color.Primary"
+                           Class="mb-1"
+                           ValueChanged="@((bool v) => { _fireworksSettings.AutoLaunch = v; SaveFireworksSettings(); })" />
+                <MudText Typo="Typo.caption" Class="mb-2" Style="color: var(--mud-palette-text-secondary);">
+                    Launches sequences of fireworks automatically. Sit back and enjoy the show, or disable to have full control.
+                </MudText>
+
+                <MudNumericField T="int" Label="Min launch gap (ms)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="50" Max="3000"
+                                 Value="_fireworksSettings.MinLaunchGapMs"
+                                 ValueChanged="@(v => { _fireworksSettings.MinLaunchGapMs = v; SaveFireworksSettings(); })" />
+
+                <MudNumericField T="int" Label="High particle threshold"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="10000"
+                                 Value="_fireworksSettings.HighParticleCount"
+                                 ValueChanged="@(v => { _fireworksSettings.HighParticleCount = v; SaveFireworksSettings(); })" />
+
+                <MudNumericField T="int" Label="Critical particle threshold"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="200" Max="15000"
+                                 Value="_fireworksSettings.CriticalParticleCount"
+                                 ValueChanged="@(v => { _fireworksSettings.CriticalParticleCount = v; SaveFireworksSettings(); })" />
+
+                <MudSwitch Value="_fireworksSettings.ForceLowEnd"
+                           Label="Force low-end runtime mode"
+                           Color="Color.Warning"
+                           Class="mb-2"
+                           ValueChanged="@((bool v) => { _fireworksSettings.ForceLowEnd = v; SaveFireworksSettings(); })" />
+
+                <MudNumericField T="int" Label="Canvas auto-clear delay (ms)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="1000" Max="120000"
+                                 Value="_fireworksSettings.ClearCanvasDelayMs"
+                                 ValueChanged="@(v => { _fireworksSettings.ClearCanvasDelayMs = v; SaveFireworksSettings(); })" />
+            }
+
             @* ---- Chat widget configuration ---- *@
             @if (_selected.WidgetType == "chat" && _chatSettings != null)
             {
@@ -852,6 +950,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         _selected = (w == _selected ? null : w);
         LoadChatSettings();
         LoadAlertChannel();
+        LoadFireworksSettings();
     }
 
     private void RemoveSelectedWidget()
@@ -985,6 +1084,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     // ---- Chat settings helpers ----
 
     private ChatSettings? _chatSettings;
+    private FireworksSettings? _fireworksSettings;
     private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
@@ -1135,6 +1235,33 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
                 : $"{baseName} ({_alertChannel})";
         }
     }
+
+    private void LoadFireworksSettings()
+    {
+        if (_selected?.WidgetType == "fireworks")
+        {
+            try
+            {
+                _fireworksSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new FireworksSettings()
+                    : (JsonSerializer.Deserialize<FireworksSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new FireworksSettings());
+            }
+            catch
+            {
+                _fireworksSettings = new FireworksSettings();
+            }
+        }
+        else
+        {
+            _fireworksSettings = null;
+        }
+    }
+
+    private void SaveFireworksSettings()
+    {
+        if (_selected != null && _fireworksSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_fireworksSettings, _chatJsonOptions);
+    }
     // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
@@ -1169,5 +1296,20 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         public int    Timeout       { get; set; } = 0;
         public bool   HideCommands  { get; set; } = false;
         public string IgnoredUsers  { get; set; } = "";
+    }
+
+    private sealed class FireworksSettings
+    {
+        public string QualityMode { get; set; } = "auto";
+        public string Shell { get; set; } = "Random";
+        public int Size { get; set; } = 3;
+        public double ScaleFactor { get; set; } = 1;
+        public bool LongExposure { get; set; } = false;
+        public bool AutoLaunch { get; set; } = false;
+        public int MinLaunchGapMs { get; set; } = 240;
+        public int HighParticleCount { get; set; } = 1400;
+        public int CriticalParticleCount { get; set; } = 2200;
+        public bool ForceLowEnd { get; set; } = false;
+        public int ClearCanvasDelayMs { get; set; } = 15000;
     }
 }
