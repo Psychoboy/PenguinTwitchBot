@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Repository;
+using System;
 using System.IO.Abstractions;
 using System.IO.Compression;
 using System.Reflection;
@@ -29,6 +30,51 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
         public List<FileInfo> GetBackupFiles(string backupDirectory)
         {
             return _fs.Directory.GetFiles(backupDirectory, "*.zip").Select(x => new FileInfo(x)).ToList();
+        }
+
+        public Task DeleteOldBackupsAsync(string directory, int maxCount, int maxDays, ILogger? logger)
+        {
+            if (!_fs.Directory.Exists(directory))
+                return Task.CompletedTask;
+
+            var files = _fs.Directory.GetFiles(directory, "*.zip")
+                .Select(x => new FileInfo(x))
+                .OrderBy(f => f.CreationTime)
+                .ToList();
+
+            var now = DateTime.Now;
+            var toDelete = new List<FileInfo>();
+            var remaining = new List<FileInfo>();
+
+            foreach (var f in files)
+            {
+                if (f.CreationTime < now.AddDays(-maxDays))
+                    toDelete.Add(f);
+                else
+                    remaining.Add(f);
+            }
+
+            while (remaining.Count > maxCount)
+            {
+                var oldest = remaining.MinBy(f => f.CreationTime)!;
+                toDelete.Add(oldest);
+                remaining.Remove(oldest);
+            }
+
+            foreach (var file in toDelete)
+            {
+                try
+                {
+                    _fs.File.Delete(file.FullName);
+                    logger?.LogInformation("Deleted old backup: {Name} ({Date})", file.Name, file.CreationTime);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to delete old backup: {Name}", file.Name);
+                }
+            }
+
+            return Task.CompletedTask;
         }
 
         public async Task BackupTable<T>(DbContext context, string backupDirectory, ILogger? logger) where T : class

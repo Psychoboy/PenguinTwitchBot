@@ -7,6 +7,7 @@ global using PenguinTwitchBot.Database.Bot.Actions;
 global using PenguinTwitchBot.Database.Bot.DatabaseTools;
 global using PenguinTwitchBot.Database.Repository;
 global using PenguinTwitchBot.Database.Repository.Repositories;
+global using PenguinTwitchBot.Services;
 global using Microsoft.EntityFrameworkCore;
 global using System.ComponentModel.DataAnnotations;
 global using System.ComponentModel.DataAnnotations.Schema;
@@ -290,6 +291,7 @@ internal class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
+        builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>

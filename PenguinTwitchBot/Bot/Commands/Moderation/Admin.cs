@@ -1,8 +1,10 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.DatabaseTools;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Services;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
-using System.IO.Abstractions;
 using System.IO.Compression;
 
 namespace PenguinTwitchBot.Bot.Commands.Moderation
@@ -14,8 +16,7 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
         IServiceScopeFactory scopeFactory,
-        IBackupTools backupTools,
-        IFileSystem fileSystem
+        IBackupTools backupTools
             ) : BaseCommandService(serviceBackbone, commandHandler, "Admin", dispatcher), IHostedService
     {
         public async Task BackupDatabase()
@@ -25,18 +26,13 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await backupTools.BackupDatabase(db, backupTools.BackupDirectory, logger);
-                var files = fileSystem.Directory.GetFiles(backupTools.BackupDirectory);
-                logger.LogInformation("Deleting old backups > 30 days");
-                foreach (var file in files)
-                {
-                    FileInfo fi = new(file);
-                    if (fi.CreationTime < DateTime.Now.AddDays(-30))
-                    {
-                        logger.LogInformation("Deleting backup: {name}", fi.Name);
-                        fileSystem.File.Delete(file);
-                    }
-                }
-            } catch (Exception ex)
+                
+                var backupSettings = scope.ServiceProvider.GetRequiredService<IBackupSettingsService>();
+                var maxCount = await backupSettings.GetBackupCountToKeepAsync();
+                var maxDays = await backupSettings.GetBackupDaysToKeepAsync();
+                await backupTools.DeleteOldBackupsAsync(backupTools.BackupDirectory, maxCount, maxDays, logger);
+            }
+            catch (Exception ex)
             {
                 logger.LogCritical(ex, "ERROR ERROR Error backing up database! ERROR ERROR");
             }

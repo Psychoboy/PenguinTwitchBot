@@ -4,8 +4,14 @@
 // Write your JavaScript code.
 
 // Download file helper function
-window.downloadFile = function (filename, content) {
-    const blob = new Blob([content], { type: 'application/json' });
+window.downloadFile = async function(filename, content) {
+    let blob;
+    if (content && typeof content.arrayBuffer === 'function') {
+        const buffer = await content.arrayBuffer();
+        blob = new Blob([buffer], { type: 'application/zip' });
+    } else if (typeof content === 'string') {
+        blob = new Blob([content], { type: 'application/json' });
+    }
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.style.display = 'none';
