@@ -834,7 +834,9 @@
             _selectedAction.ConcurrentAction,
             _selectedAction.OnlineOnly,
             _selectedAction.QueueName,
-            SubActions = _selectedAction.SubActions,
+            SubActions = _selectedAction.SubActions
+                .Select(subAction => JsonSerializer.SerializeToElement(subAction, subAction.GetType()))
+                .ToList(),
             Triggers = _actionTriggers
         };
 
