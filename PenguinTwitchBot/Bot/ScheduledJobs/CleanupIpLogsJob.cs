@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         {
             logger.LogInformation("Scheduled Job to clean old IP logs started.");
             await ipLog.CleanupOldIpLogs();
+            logger.LogInformation("Scheduled Job to clean old IP logs completed.");
         }
     }
 }

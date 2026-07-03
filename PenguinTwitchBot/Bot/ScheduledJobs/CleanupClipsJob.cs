@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         {
             logger.LogInformation("Scheduled clips cleanup job started.");
             await fileCleanupService.CleanupClipsAsync();
+            logger.LogInformation("Scheduled clips cleanup job completed.");
         }
     }
 }

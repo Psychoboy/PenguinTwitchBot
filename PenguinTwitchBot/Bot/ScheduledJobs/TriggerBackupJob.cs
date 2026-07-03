@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         {
             logger.LogInformation("Scheduled backup job started.");
             await databaseTools.Backup();
+            logger.LogInformation("Scheduled backup job completed.");
         }
     }
 }
