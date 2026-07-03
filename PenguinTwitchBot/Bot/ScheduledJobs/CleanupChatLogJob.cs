@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
         {
             logger.LogInformation("Scheduled Job to clean old chat history started.");
             await chatHistory.CleanOldLogs();
+            logger.LogInformation("Scheduled Job to clean old chat history completed.");
         }
     }
 }
