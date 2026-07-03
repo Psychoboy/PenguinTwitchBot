@@ -1,4 +1,5 @@
 @page "/actions/manage"
+@using System.Text.Json
 @using PenguinTwitchBot.Database.Bot.Models.Actions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
@@ -15,6 +16,9 @@
 @inject PenguinTwitchBot.Bot.Actions.IAction ActionExecutor
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Actions</PageTitle>
+
+<NavigationLock ConfirmExternalNavigation="HasUnsavedChanges"
+                OnBeforeInternalNavigation="ConfirmInternalNavigation" />
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-4">
@@ -69,14 +73,14 @@
                     }
                     else
                     {
-                        <MudList T="ActionType" @bind-SelectedValue="_selectedAction" Dense="true">
+                        <MudList T="int?" SelectedValue="_selectedActionIdInList" Dense="true" @key="_actionsListRenderVersion">
                             @foreach (var group in _filteredActions.Select(a => (a.Group ?? string.Empty).Trim()).Distinct().Order())
                             {
-                                <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)">
+                                <MudListItem Text="@(string.IsNullOrWhiteSpace(group) ? Ungrouped : group)" Expanded="@(GetNormalizedGroup(group) == _expandedGroupInList)">
                                     <NestedList>
                                 @foreach (var action in _filteredActions.Where(a => (a.Group ?? string.Empty) == group))
                                 {
-                                    <MudListItem T="ActionType" Value="@action" OnClick="@(() => OnActionSelected(action))">
+                                    <MudListItem T="int?" Value="@action.Id" OnClick="@(() => OnActionSelected(action))">
                                         <MudStack Spacing="0">
                                             <MudText Typo="Typo.body1">@action.Name</MudText>
                                             <MudStack Row="true" Spacing="1">
@@ -226,9 +230,18 @@
     private bool _isNewAction = false;
     private bool _isLoading = true;
     private bool _isNavigating = false;
+    private bool _skipNextNavigationPrompt = false;
+    private int? _selectedActionIdInList;
+    private int _actionsListRenderVersion;
+    private string _expandedGroupInList = string.Empty;
     private string _searchString = "";
     private string _filterGroup = "";
+    private string _originalActionSnapshot = string.Empty;
     private const string Ungrouped = "None";
+
+    private bool HasUnsavedChanges =>
+        _selectedAction != null &&
+        (_isNewAction || !string.Equals(_originalActionSnapshot, CreateCurrentSnapshot(), StringComparison.Ordinal));
 
     protected override async Task OnInitializedAsync()
     {
@@ -238,7 +251,7 @@
         await LoadActions();
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         // Skip if we're already handling a navigation
         if (_isNavigating) return;
@@ -251,15 +264,21 @@
         if (int.TryParse(actionIdStr, out var actionId))
         {
             // Select the action from the URL
-            var actionToSelect = _actions.FirstOrDefault(a => a.Id == actionId);
-            if (actionToSelect != null && actionToSelect.Id != _selectedAction?.Id)
+            if (actionId != _selectedAction?.Id)
             {
                 _isNavigating = true;
-                _selectedAction = actionToSelect;
-                _isNewAction = false;
-                _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+                var reloadedAction = await ActionService.GetActionByIdAsync(actionId);
+                if (reloadedAction != null)
+                {
+                    _selectedAction = reloadedAction;
+                    _isNewAction = false;
+                    _selectedActionIdInList = _selectedAction.Id;
+                    _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
+                    _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+                    CaptureOriginalSnapshot();
+                }
                 _isNavigating = false;
-                InvokeAsync(StateHasChanged);
+                await InvokeAsync(StateHasChanged);
             }
         }
         else
@@ -270,10 +289,38 @@
                 _isNavigating = true;
                 _selectedAction = null;
                 _isNewAction = false;
+                _selectedActionIdInList = null;
+                _expandedGroupInList = string.Empty;
                 _actionTriggers = new List<TriggerType>();
+                _originalActionSnapshot = string.Empty;
                 _isNavigating = false;
-                InvokeAsync(StateHasChanged);
+                await InvokeAsync(StateHasChanged);
             }
+        }
+    }
+
+    private async Task ConfirmInternalNavigation(LocationChangingContext context)
+    {
+        if (_skipNextNavigationPrompt)
+        {
+            _skipNextNavigationPrompt = false;
+            return;
+        }
+
+        if (!HasUnsavedChanges)
+        {
+            return;
+        }
+
+        bool? discardChanges = await DialogService.ShowMessageBoxAsync(
+            "Unsaved Changes",
+            "You have unsaved changes. Leave this page and discard those changes?",
+            yesText: "Discard",
+            cancelText: "Stay");
+
+        if (discardChanges != true)
+        {
+            context.PreventNavigation();
         }
     }
 
@@ -370,15 +417,42 @@
     {
         if (action == null) return;
 
-        _selectedAction = action;
-        _isNewAction = false;
+        if (!_isNewAction && _selectedAction?.Id == action.Id)
+        {
+            return;
+        }
+
+        if (!await ConfirmDiscardChangesAsync())
+        {
+            ResetActionsListSelectionVisual();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        ActionType? actionToEdit = action;
+        if (action.Id.HasValue)
+        {
+            actionToEdit = await ActionService.GetActionByIdAsync(action.Id.Value);
+            if (actionToEdit == null)
+            {
+                Snackbar.Add("Unable to load action details.", Severity.Error);
+                return;
+            }
+        }
+
+        _selectedAction = actionToEdit;
+        _isNewAction = !_selectedAction.Id.HasValue;
+        _selectedActionIdInList = _selectedAction.Id;
+        _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
 
         // Triggers are already loaded by GetAllWithDetailsAsync, no need to query again
         _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
+        CaptureOriginalSnapshot();
 
         // Update URL with actionId for browser history support (only if not already navigating via back/forward)
         if (action.Id.HasValue && !_isNavigating)
         {
+            _skipNextNavigationPrompt = true;
             NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}", false);
         }
 
@@ -398,8 +472,13 @@
         }
     }
 
-    private void CreateNewAction()
+    private async Task CreateNewAction()
     {
+        if (!await ConfirmDiscardChangesAsync())
+        {
+            return;
+        }
+
         _selectedAction = new ActionType
         {
             Name = "New Action",
@@ -410,9 +489,13 @@
         };
         _actionTriggers = new List<TriggerType>();
         _isNewAction = true;
+        _selectedActionIdInList = null;
+        _expandedGroupInList = string.Empty;
+        _originalActionSnapshot = string.Empty;
 
         // Clear URL parameter when creating a new action
         _isNavigating = true;
+        _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
         _isNavigating = false;
     }
@@ -532,6 +615,8 @@
 
         try
         {
+            var savedGroup = GetNormalizedGroup(_selectedAction.Group);
+
             // Ensure Group is never null (convert to empty string)
             _selectedAction.Group = _selectedAction.Group ?? string.Empty;
 
@@ -554,8 +639,12 @@
 
             // Clear selection and URL after successful save
             _selectedAction = null;
+            _selectedActionIdInList = null;
+            _expandedGroupInList = savedGroup;
             _actionTriggers = new List<TriggerType>();
             _isNewAction = false;
+            _originalActionSnapshot = string.Empty;
+            _skipNextNavigationPrompt = true;
             NavigationManager.NavigateTo("/actions/manage", false);
         }
         catch (Exception ex)
@@ -630,9 +719,13 @@
         _selectedAction = duplicatedAction;
         _actionTriggers = duplicatedTriggers;
         _isNewAction = true;
+        _selectedActionIdInList = null;
+        _expandedGroupInList = string.Empty;
+        _originalActionSnapshot = string.Empty;
 
         // Clear URL when duplicating (creating new action)
         _isNavigating = true;
+        _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
         _isNavigating = false;
 
@@ -656,10 +749,14 @@
                 await ActionService.DeleteActionAsync(_selectedAction.Id.Value);
                 Snackbar.Add($"Action '{_selectedAction.Name}' deleted successfully", Severity.Success);
                 _selectedAction = null;
+                _selectedActionIdInList = null;
+                _expandedGroupInList = string.Empty;
                 _actionTriggers = new List<TriggerType>();
+                _originalActionSnapshot = string.Empty;
                 await LoadActions();
 
                 // Clear URL after delete
+                _skipNextNavigationPrompt = true;
                 NavigationManager.NavigateTo("/actions/manage", false);
             }
             catch (Exception ex)
@@ -669,13 +766,78 @@
         }
     }
 
-    private void CancelEdit()
+    private async Task CancelEdit()
     {
+        if (!await ConfirmDiscardChangesAsync())
+        {
+            return;
+        }
+
         _selectedAction = null;
+        _selectedActionIdInList = null;
+        _expandedGroupInList = string.Empty;
         _actionTriggers = new List<TriggerType>();
         _isNewAction = false;
+        _originalActionSnapshot = string.Empty;
 
         // Clear URL when canceling
+        _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
+    }
+
+    private async Task<bool> ConfirmDiscardChangesAsync()
+    {
+        if (!HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        bool? discardChanges = await DialogService.ShowMessageBoxAsync(
+            "Unsaved Changes",
+            "You have unsaved changes. Discard them?",
+            yesText: "Discard",
+            cancelText: "Stay");
+
+        return discardChanges == true;
+    }
+
+    private void CaptureOriginalSnapshot()
+    {
+        _originalActionSnapshot = CreateCurrentSnapshot();
+    }
+
+    private void ResetActionsListSelectionVisual()
+    {
+        _selectedActionIdInList = _selectedAction?.Id;
+        _expandedGroupInList = GetNormalizedGroup(_selectedAction?.Group);
+        _actionsListRenderVersion++;
+    }
+
+    private static string GetNormalizedGroup(string? group)
+    {
+        return (group ?? string.Empty).Trim();
+    }
+
+    private string CreateCurrentSnapshot()
+    {
+        if (_selectedAction == null)
+        {
+            return string.Empty;
+        }
+
+        var snapshot = new
+        {
+            _selectedAction.Name,
+            _selectedAction.Group,
+            _selectedAction.Enabled,
+            _selectedAction.RandomAction,
+            _selectedAction.ConcurrentAction,
+            _selectedAction.OnlineOnly,
+            _selectedAction.QueueName,
+            SubActions = _selectedAction.SubActions,
+            Triggers = _actionTriggers
+        };
+
+        return JsonSerializer.Serialize(snapshot);
     }
 }
