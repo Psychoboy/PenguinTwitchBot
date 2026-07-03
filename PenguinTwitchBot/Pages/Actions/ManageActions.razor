@@ -1,11 +1,9 @@
 @page "/actions/manage"
 @using System.Text.Json
-@using PenguinTwitchBot.Database.Bot.Models.Actions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Pages.Components
-@using PenguinTwitchBot.Pages.Actions
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IActionManagementService ActionService
@@ -245,7 +243,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to location changes for browser back/forward button support
         NavigationManager.LocationChanged += OnLocationChanged;
         await LoadAvailableQueues();
         await LoadActions();
@@ -253,17 +250,14 @@
 
     private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        // Skip if we're already handling a navigation
         if (_isNavigating) return;
 
-        // Parse the new URL to get the actionId parameter
         var uri = new Uri(e.Location);
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var actionIdStr = query["actionId"];
 
         if (int.TryParse(actionIdStr, out var actionId))
         {
-            // Select the action from the URL
             if (actionId != _selectedAction?.Id)
             {
                 _isNavigating = true;
@@ -283,7 +277,6 @@
         }
         else
         {
-            // No actionId in URL, clear selection only if not creating a new action
             if (_selectedAction != null && !_isNewAction)
             {
                 _isNavigating = true;
@@ -334,7 +327,6 @@
         var queueConfigs = await QueueManager.GetAllQueuesAsync();
         _availableQueues = queueConfigs.Select(q => q.Name).OrderBy(n => n).ToList();
 
-        // Ensure "Default" is always in the list and at the top
         if (!_availableQueues.Contains("Default"))
         {
             _availableQueues.Insert(0, "Default");
@@ -355,7 +347,6 @@
             _groups = _actions.Select(a => a.Group).Where(g => !string.IsNullOrEmpty(g)).Distinct().OrderBy(g => g).ToList();
             FilterActions();
 
-            // If actionId is provided in query string, select that action
             if (ActionIdFromQuery.HasValue)
             {
                 var actionToSelect = _actions.FirstOrDefault(a => a.Id == ActionIdFromQuery.Value);
@@ -391,7 +382,6 @@
 
     private Task<IEnumerable<string>> SearchGroups(string value, CancellationToken cancellationToken)
     {
-        // If no search value, return all groups
         if (string.IsNullOrWhiteSpace(value))
         {
             return Task.FromResult<IEnumerable<string>>(_groups);
@@ -399,12 +389,10 @@
 
         value = value.Trim();
 
-        // Filter groups by search value
         var filteredGroups = _groups
             .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // If the typed value doesn't exist in the list, add it as the first option
         if (!string.IsNullOrWhiteSpace(value) && !filteredGroups.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
         {
             filteredGroups.Insert(0, value);
@@ -445,18 +433,14 @@
         _selectedActionIdInList = _selectedAction.Id;
         _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
 
-        // Triggers are already loaded by GetAllWithDetailsAsync, no need to query again
         _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
         CaptureOriginalSnapshot();
 
-        // Update URL with actionId for browser history support (only if not already navigating via back/forward)
         if (action.Id.HasValue && !_isNavigating)
         {
             _skipNextNavigationPrompt = true;
             NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}", false);
         }
-
-        await Task.CompletedTask; // Keep async signature for consistency
     }
 
     private void OnActionTriggersChanged(List<TriggerType> triggers)
@@ -493,7 +477,6 @@
         _expandedGroupInList = string.Empty;
         _originalActionSnapshot = string.Empty;
 
-        // Clear URL parameter when creating a new action
         _isNavigating = true;
         _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
@@ -590,7 +573,6 @@
         if (_selectedAction == null || !_selectedAction.Id.HasValue) return;
         try
         {
-            // Create default variables for manual execution
             var variables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>
             {
                 ["user"] = "Manual Trigger",
@@ -617,10 +599,8 @@
         {
             var savedGroup = GetNormalizedGroup(_selectedAction.Group);
 
-            // Ensure Group is never null (convert to empty string)
             _selectedAction.Group = _selectedAction.Group ?? string.Empty;
 
-            // Sync triggers from the separate list back to the action
             _selectedAction.Triggers = _actionTriggers;
 
             if (_isNewAction || !_selectedAction.Id.HasValue)
@@ -637,7 +617,6 @@
 
             await LoadActions();
 
-            // Clear selection and URL after successful save
             _selectedAction = null;
             _selectedActionIdInList = null;
             _expandedGroupInList = savedGroup;
@@ -657,7 +636,6 @@
     {
         if (_selectedAction == null) return;
 
-        // Create a deep copy of the action
         var duplicatedAction = new ActionType
         {
             Name = $"Copy of {_selectedAction.Name}",
@@ -670,21 +648,17 @@
             Triggers = new List<TriggerType>()
         };
 
-        // Deep copy SubActions
         foreach (var subAction in _selectedAction.SubActions)
         {
-            // Use reflection to create a new instance of the same type
             var subActionType = subAction.GetType();
             var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
 
-            // Copy common properties
-            duplicatedSubAction.Id = 0; // New ID will be assigned on save
+            duplicatedSubAction.Id = 0;
             duplicatedSubAction.Index = subAction.Index;
             duplicatedSubAction.Text = subAction.Text;
             duplicatedSubAction.Enabled = subAction.Enabled;
             duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
 
-            // Copy all other properties using reflection
             foreach (var prop in subActionType.GetProperties())
             {
                 if (prop.CanWrite && prop.CanRead && 
@@ -699,23 +673,21 @@
             duplicatedAction.SubActions.Add(duplicatedSubAction);
         }
 
-        // Deep copy Triggers
         var duplicatedTriggers = new List<TriggerType>();
         foreach (var trigger in _actionTriggers)
         {
             var duplicatedTrigger = new TriggerType
             {
-                Id = 0, // New ID will be assigned on save
+                Id = 0,
                 Name = trigger.Name,
                 Type = trigger.Type,
                 Configuration = trigger.Configuration,
                 Enabled = trigger.Enabled,
-                ActionId = null // Will be set when the action is saved
+                ActionId = null
             };
             duplicatedTriggers.Add(duplicatedTrigger);
         }
 
-        // Set the duplicated action as the current selection
         _selectedAction = duplicatedAction;
         _actionTriggers = duplicatedTriggers;
         _isNewAction = true;
@@ -723,7 +695,6 @@
         _expandedGroupInList = string.Empty;
         _originalActionSnapshot = string.Empty;
 
-        // Clear URL when duplicating (creating new action)
         _isNavigating = true;
         _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
@@ -755,7 +726,6 @@
                 _originalActionSnapshot = string.Empty;
                 await LoadActions();
 
-                // Clear URL after delete
                 _skipNextNavigationPrompt = true;
                 NavigationManager.NavigateTo("/actions/manage", false);
             }
@@ -780,7 +750,6 @@
         _isNewAction = false;
         _originalActionSnapshot = string.Empty;
 
-        // Clear URL when canceling
         _skipNextNavigationPrompt = true;
         NavigationManager.NavigateTo("/actions/manage", false);
     }
