@@ -27,6 +27,8 @@ namespace PenguinTwitchBot.Pages.Components
                 BreakType => "Breaks from current Action",
                 DelayType delay => $"Delay: {delay.Duration}ms",
                 ExecuteDefaultCommandType execCmd => $"Execute Command: {execCmd.CommandName}",
+                FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: #{tournamentStart.TournamentId}",
+                FishingTournamentEndType tournamentEnd => $"Fishing Tournament End: #{tournamentEnd.TournamentId}",
                 ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
                 ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
                 ObsSetSourceVisibilityType obsVis => $"OBS Visibility: {obsVis.SceneName}/{obsVis.SourceName} {(obsVis.Visible ? "Visible" : "Hidden")}",

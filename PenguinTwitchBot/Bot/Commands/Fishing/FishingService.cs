@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +13,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingService> _logger;
+        private readonly IPointsSystem _pointsSystem;
 
-        public FishingService(IServiceScopeFactory scopeFactory, ILogger<FishingService> logger)
+        public FishingService(IServiceScopeFactory scopeFactory, ILogger<FishingService> logger, IPointsSystem pointsSystem)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _pointsSystem = pointsSystem;
         }
 
         #region Fish Type Management
@@ -153,6 +156,409 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToListAsync();
 
             return counts.ToDictionary(c => c.FishTypeId, c => c.Count);
+        }
+
+        public async Task<List<FishingTournament>> GetAllFishingTournaments(int count = 100)
+        {
+            count = Math.Max(1, Math.Min(count, 500));
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            return await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .OrderByDescending(t => t.StartsAtUtc)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        public async Task<List<FishingTournament>> GetCurrentFishingTournaments()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            return await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .Where(t => t.Enabled && (t.Status == FishingTournamentStatus.Active || t.Status == FishingTournamentStatus.Scheduled))
+                .OrderBy(t => t.Status)
+                .ThenBy(t => t.StartsAtUtc)
+                .ToListAsync();
+        }
+
+        public async Task<List<FishingTournament>> GetPastFishingTournaments(int count = 25)
+        {
+            count = Math.Max(1, Math.Min(count, 100));
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            return await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .Where(t => t.Status == FishingTournamentStatus.Completed || t.Status == FishingTournamentStatus.Cancelled)
+                .OrderByDescending(t => t.EndsAtUtc ?? t.StartsAtUtc)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        public async Task<FishingTournament?> GetFishingTournamentById(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            return await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .FirstOrDefaultAsync(t => t.Id == id);
+        }
+
+        public async Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10)
+        {
+            count = Math.Max(1, Math.Min(count, 100));
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .FirstOrDefaultAsync(t => t.Id == tournamentId);
+
+            if (tournament == null)
+            {
+                return [];
+            }
+
+            var catches = await GetTournamentCatches(context, tournament, null, useLinkedCatchesOnly: true);
+            if (catches.Count == 0)
+            {
+                return [];
+            }
+
+            var targetFishTypeId = tournament.PrimaryScoreCategory == FishingTournamentScoreCategory.SpecificFish && tournament.EligibleFish.Count == 1
+                ? (int?)tournament.EligibleFish.First().FishTypeId
+                : null;
+
+            return CalculateStandings(catches, tournament.PrimaryScoreCategory, targetFishTypeId)
+                .Take(count)
+                .Select((standing, index) => new FishingTournamentStanding
+                {
+                    Rank = index + 1,
+                    UserId = standing.UserId,
+                    Username = standing.Username,
+                    Score = standing.Score,
+                    CatchCount = standing.CatchCount,
+                    LastCaughtAtUtc = standing.LastCaughtAtUtc
+                })
+                .ToList();
+        }
+
+        public async Task<FishingTournament?> StartFishingTournament(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (tournament == null)
+            {
+                return null;
+            }
+
+            if (tournament.Status is FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled)
+            {
+                return tournament;
+            }
+
+            var now = DateTime.UtcNow;
+            tournament.Enabled = true;
+            tournament.Status = FishingTournamentStatus.Active;
+            tournament.StartsAtUtc ??= now;
+            tournament.EndsAtUtc ??= tournament.StartsAtUtc.Value.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
+
+            await context.SaveChangesAsync();
+            return tournament;
+        }
+
+        public async Task<FishingTournament> SaveFishingTournament(FishingTournament tournament)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var persistedTournament = await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EligibleFish)
+                .Include(t => t.RewardRules)
+                .FirstOrDefaultAsync(t => t.Id == tournament.Id);
+
+            if (persistedTournament == null)
+            {
+                context.FishingTournaments.Add(tournament);
+                await context.SaveChangesAsync();
+                return tournament;
+            }
+
+            persistedTournament.Name = tournament.Name;
+            persistedTournament.Description = tournament.Description;
+            persistedTournament.Enabled = tournament.Enabled;
+            persistedTournament.Status = tournament.Status;
+            persistedTournament.PrimaryScoreCategory = tournament.PrimaryScoreCategory;
+            persistedTournament.StartsAtUtc = tournament.StartsAtUtc;
+            persistedTournament.EndsAtUtc = tournament.EndsAtUtc;
+            persistedTournament.AutoScheduleEnabled = tournament.AutoScheduleEnabled;
+            persistedTournament.AutoScheduleCron = tournament.AutoScheduleCron;
+            persistedTournament.RunDurationMinutes = tournament.RunDurationMinutes;
+            persistedTournament.EntryFeeAmount = tournament.EntryFeeAmount;
+            persistedTournament.EntryFeePointTypeId = tournament.EntryFeePointTypeId;
+
+            context.FishingTournamentFishTypes.RemoveRange(persistedTournament.EligibleFish);
+            context.FishingTournamentRewardRules.RemoveRange(persistedTournament.RewardRules);
+
+            persistedTournament.EligibleFish = tournament.EligibleFish
+                .Select(fish => new FishingTournamentFishType
+                {
+                    FishTypeId = fish.FishTypeId
+                })
+                .ToList();
+
+            persistedTournament.RewardRules = tournament.RewardRules
+                .Select(rule => new FishingTournamentRewardRule
+                {
+                    ScoreCategory = rule.ScoreCategory,
+                    TargetFishTypeId = rule.TargetFishTypeId,
+                    Placement = rule.Placement,
+                    Points = rule.Points,
+                    PointTypeId = rule.PointTypeId,
+                    Enabled = rule.Enabled
+                })
+                .ToList();
+
+            await context.SaveChangesAsync();
+            return persistedTournament;
+        }
+
+        public async Task<FishingTournament?> EndFishingTournament(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (tournament == null)
+            {
+                return null;
+            }
+
+            await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
+
+            tournament.Status = FishingTournamentStatus.Completed;
+            tournament.Enabled = false;
+            tournament.EndsAtUtc = DateTime.UtcNow;
+
+            await context.SaveChangesAsync();
+            return tournament;
+        }
+
+        private async Task SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
+        {
+            if (tournament.RewardRules.Count == 0)
+            {
+                return;
+            }
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var catches = await GetTournamentCatches(context, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
+
+            if (catches.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var rewardRule in tournament.RewardRules.Where(rule => rule.Enabled).OrderBy(rule => rule.Placement))
+            {
+                var standings = CalculateStandings(catches, rewardRule)
+                    .Take(rewardRule.Placement)
+                    .ToList();
+
+                var winner = standings.LastOrDefault();
+                if (winner == null)
+                {
+                    continue;
+                }
+
+                var rewardAmount = rewardRule.RewardKind == FishingTournamentRewardKind.EntryFeePercentage
+                    ? Math.Max(0, (int)Math.Round((tournament.EntryFeeAmount ?? 0) * ((rewardRule.EntryFeePercentage ?? 0) / 100.0), MidpointRounding.AwayFromZero))
+                    : Math.Max(0, rewardRule.Points);
+
+                if (rewardAmount <= 0)
+                {
+                    continue;
+                }
+
+                await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
+
+                _logger.LogInformation(
+                    "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}",
+                    tournament.Id,
+                    winner.Username,
+                    rewardRule.Placement,
+                    rewardRule.ScoreCategory,
+                    rewardAmount,
+                    rewardRule.PointTypeId);
+            }
+        }
+
+        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentRewardRule rewardRule)
+        {
+            return CalculateStandings(catches, rewardRule.ScoreCategory, rewardRule.TargetFishTypeId);
+        }
+
+        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentScoreCategory scoreCategory, int? targetFishTypeId = null)
+        {
+            IEnumerable<FishCatch> scopedCatches = catches;
+
+            if (scoreCategory == FishingTournamentScoreCategory.SpecificFish && targetFishTypeId.HasValue)
+            {
+                scopedCatches = scopedCatches.Where(c => c.FishTypeId == targetFishTypeId.Value);
+            }
+
+            var grouped = scopedCatches
+                .GroupBy(c => new { c.UserId, c.Username })
+                .Select(group => new TournamentStanding
+                {
+                    UserId = group.Key.UserId,
+                    Username = group.Key.Username,
+                    CatchCount = group.Count(),
+                    LastCaughtAtUtc = group.Max(c => c.CaughtAt),
+                    Score = scoreCategory switch
+                    {
+                        FishingTournamentScoreCategory.Largest or FishingTournamentScoreCategory.SpecificFish => group.Max(c => c.Weight),
+                        FishingTournamentScoreCategory.MostValuable => group.Max(c => c.GoldEarned),
+                        FishingTournamentScoreCategory.Smallest => group.Min(c => c.Weight),
+                        FishingTournamentScoreCategory.Average => group.Average(c => c.Weight),
+                        FishingTournamentScoreCategory.MostCatches => group.Count(),
+                        FishingTournamentScoreCategory.TotalWeight => group.Sum(c => c.Weight),
+                        _ => 0
+                    }
+                });
+
+            return scoreCategory == FishingTournamentScoreCategory.Smallest
+                ? grouped.OrderBy(x => x.Score).ThenBy(x => x.Username).ToList()
+                : grouped.OrderByDescending(x => x.Score).ThenBy(x => x.Username).ToList();
+        }
+
+        private static async Task<List<FishCatch>> GetTournamentCatches(ApplicationDbContext context, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
+        {
+            var linkedCatchIds = await context.FishingTournamentCatches
+                .AsNoTracking()
+                .Where(link => link.FishingTournamentId == tournament.Id)
+                .Select(link => link.FishCatchId)
+                .ToListAsync();
+
+            if (linkedCatchIds.Count > 0)
+            {
+                return await context.FishCatches
+                    .AsNoTracking()
+                    .Include(c => c.FishType)
+                    .Where(c => linkedCatchIds.Contains(c.Id))
+                    .ToListAsync();
+            }
+
+            if (useLinkedCatchesOnly)
+            {
+                return [];
+            }
+
+            var startUtc = tournament.StartsAtUtc ?? DateTime.MinValue;
+            var endUtc = settlementEndUtc ?? tournament.EndsAtUtc ?? DateTime.UtcNow;
+            var eligibleFishTypeIds = tournament.EligibleFish.Select(e => e.FishTypeId).ToHashSet();
+
+            var query = context.FishCatches
+                .AsNoTracking()
+                .Include(c => c.FishType)
+                .Where(c => c.CaughtAt >= startUtc && c.CaughtAt <= endUtc);
+
+            if (eligibleFishTypeIds.Count > 0)
+            {
+                query = query.Where(c => eligibleFishTypeIds.Contains(c.FishTypeId));
+            }
+
+            return await query.ToListAsync();
+        }
+
+        private sealed class TournamentStanding
+        {
+            public string UserId { get; set; } = string.Empty;
+            public string Username { get; set; } = string.Empty;
+            public int CatchCount { get; set; }
+            public DateTime? LastCaughtAtUtc { get; set; }
+            public double Score { get; set; }
+        }
+
+        public async Task DeleteFishingTournament(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments.FindAsync(id);
+            if (tournament == null)
+            {
+                return;
+            }
+
+            context.FishingTournaments.Remove(tournament);
+            await context.SaveChangesAsync();
         }
 
         #endregion

@@ -70,6 +70,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
         public DbSet<FishingSettings> FishingSettings { get; set; } = null!;
+        public DbSet<FishingTournament> FishingTournaments { get; set; } = null!;
+        public DbSet<FishingTournamentFishType> FishingTournamentFishTypes { get; set; } = null!;
+        public DbSet<FishingTournamentRewardRule> FishingTournamentRewardRules { get; set; } = null!;
+        public DbSet<FishingTournamentCatch> FishingTournamentCatches { get; set; } = null!;
 
         public DbSet<ActionType> Actions { get; set; } = null!;
         public DbSet<SubActionType> SubActions { get; set; } = null!;
@@ -197,6 +201,67 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
             modelBuilder.Entity<FishingSnapEvent>()
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+            modelBuilder.Entity<FishingTournament>()
+                .HasMany(t => t.EligibleFish)
+                .WithOne(e => e.FishingTournament)
+                .HasForeignKey(e => e.FishingTournamentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FishingTournament>()
+                .HasMany(t => t.RewardRules)
+                .WithOne(r => r.FishingTournament)
+                .HasForeignKey(r => r.FishingTournamentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FishingTournament>()
+                .HasIndex(t => new { t.Enabled, t.Status, t.StartsAtUtc })
+                .HasDatabaseName("IX_FishingTournaments_Enabled_Status_StartsAtUtc");
+
+            modelBuilder.Entity<FishingTournament>()
+                .HasOne(t => t.EntryFeePointType)
+                .WithMany()
+                .HasForeignKey(t => t.EntryFeePointTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FishingTournamentFishType>()
+                .HasIndex(e => new { e.FishingTournamentId, e.FishTypeId })
+                .IsUnique()
+                .HasDatabaseName("IX_FishingTournamentFishTypes_Tournament_Fish");
+
+            modelBuilder.Entity<FishingTournamentRewardRule>()
+                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.TargetFishTypeId, e.Placement })
+                .IsUnique()
+                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement");
+
+            modelBuilder.Entity<FishingTournamentRewardRule>()
+                .HasOne(r => r.PointType)
+                .WithMany()
+                .HasForeignKey(r => r.PointTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FishingTournamentRewardRule>()
+                .HasOne(r => r.TargetFishType)
+                .WithMany()
+                .HasForeignKey(r => r.TargetFishTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FishingTournamentCatch>()
+                .HasIndex(e => new { e.FishingTournamentId, e.FishCatchId })
+                .IsUnique()
+                .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
+
+            modelBuilder.Entity<FishingTournamentCatch>()
+                .HasOne(e => e.FishingTournament)
+                .WithMany()
+                .HasForeignKey(e => e.FishingTournamentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FishingTournamentCatch>()
+                .HasOne(e => e.FishCatch)
+                .WithMany()
+                .HasForeignKey(e => e.FishCatchId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Models.Metrics.SongRequestHistory>()
                 .HasIndex(e => new { e.SongId, e.RequestDate })

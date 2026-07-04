@@ -156,6 +156,31 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             fishCatch.FishType = fishType;
 
+            var activeTournaments = await context.FishingTournaments
+                .AsNoTracking()
+                .Include(t => t.EligibleFish)
+                .Where(t => t.Enabled && t.Status == FishingTournamentStatus.Active)
+                .Where(t => t.StartsAtUtc == null || t.StartsAtUtc <= fishCatch.CaughtAt)
+                .Where(t => t.EndsAtUtc == null || t.EndsAtUtc >= fishCatch.CaughtAt)
+                .ToListAsync();
+
+            var matchingTournamentIds = activeTournaments
+                .Where(t => t.EligibleFish.Count == 0 || t.EligibleFish.Any(e => e.FishTypeId == fishType.Id))
+                .Select(t => t.Id)
+                .Distinct()
+                .ToList();
+
+            if (matchingTournamentIds.Count > 0)
+            {
+                context.FishingTournamentCatches.AddRange(matchingTournamentIds.Select(tournamentId => new FishingTournamentCatch
+                {
+                    FishingTournamentId = tournamentId,
+                    FishCatchId = fishCatch.Id
+                }));
+
+                await context.SaveChangesAsync();
+            }
+
             await _fishingService.AddGoldToUser(userId, username, gold);
 
             // Consume uses from equipped items

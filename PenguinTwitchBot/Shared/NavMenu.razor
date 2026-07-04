@@ -100,8 +100,9 @@
     <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
-    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/shop", "fishing/inventory", "fishing/help")">
+    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
         <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboard</MudNavLink>
+        <MudNavLink Href="/fishing/tournaments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">Tournaments</MudNavLink>
         <AuthorizeView>
             <Authorized>
                 <MudNavLink Href="/fishing/shop" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">Shop</MudNavLink>

@@ -156,6 +156,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();
             services.AddHostedApiService<PenguinTwitchBot.Bot.Core.IDiscordService, PenguinTwitchBot.Bot.Core.DiscordService>();
+            services.AddHostedApiService<Bot.ScheduledJobs.FishingTournamentScheduler>();
 
             services.AddHostedApiService<ITTSService, TTSService>();
             services.AddHostedApiService<IClipService, ClipService>();

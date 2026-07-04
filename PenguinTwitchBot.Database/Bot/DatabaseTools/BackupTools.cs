@@ -248,6 +248,7 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             var restoreOrder = new Dictionary<string, int>
             {
                 { "ActionsRepository", 1 },        // First (includes SubActions and Triggers)
+                { "PointTypesRepository", 2 },     // Point types must exist before reward tables
                 { "SubActionsRepository", 999 },   // Skip (no-op)
                 { "TriggersRepository", 999 },     // Skip (no-op)
                 { "ActionTriggersRepository", 999 }, // Skip (no-op, deprecated)
@@ -259,7 +260,10 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 { "UserFishingBoostRepository", 13 }, // UserFishingBoost (depends on FishingShopItem)
                 { "FishingGoldRepository", 14 },   // FishingGold (no dependencies)
                 { "FishingSettingsRepository", 15 }, // FishingSettings (no dependencies)
-                { "FishingSnapEventRepository", 16 } // FishingSnapEvent (historical, no dependencies)
+                { "FishingSnapEventRepository", 16 }, // FishingSnapEvent (historical, no dependencies)
+                { "FishingTournamentRepository", 17 }, // Tournament header table
+                { "FishingTournamentFishTypeRepository", 18 }, // Tournament fish eligibility rows
+                { "FishingTournamentRewardRuleRepository", 19 } // Tournament reward rows
             };
 
             // Sort handlers by priority

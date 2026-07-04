@@ -1,0 +1,335 @@
+@page "/fishing/tournaments"
+@using PenguinTwitchBot.Bot.Commands.Fishing
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@inject IFishingService FishingService
+
+<PageTitle>Fishing Tournaments</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudStack Spacing="3">
+        <MudStack Spacing="0" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Size="Size.Large" Class="mr-2" />
+                Fishing Tournaments
+            </MudText>
+            <MudText Typo="Typo.body1" Align="Align.Center" Color="Color.Secondary">
+                View the current active tournaments and browse the recent archive.
+            </MudText>
+        </MudStack>
+
+        <MudPaper Elevation="3" Class="pa-4 ma-2">
+            <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h5">Tournament Overview</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Current and past fishing tournaments.</MudText>
+            </MudStack>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="ReloadAsync"
+                       Disabled="@isLoading">
+                Refresh
+            </MudButton>
+        </MudStack>
+
+        @if (isLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Current Tournaments" Expanded="true" Icon="@Icons.Material.Filled.LiveTv">
+                    @if (currentTournaments.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">No active or scheduled tournaments right now.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="@currentTournaments" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Scoring</MudTh>
+                                <MudTh>Eligible Fish</MudTh>
+                                <MudTh>Standings</MudTh>
+                                <MudTh>Reward Breakdown</MudTh>
+                                <MudTh>Entry Fee</MudTh>
+                                <MudTh>Window</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Name">
+                                    <MudStack Spacing="0">
+                                        <MudText><strong>@context.Name</strong></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Status">
+                                    <MudChip T="string" Color="@(context.Status == FishingTournamentStatus.Active ? Color.Success : Color.Info)" Size="Size.Small">@context.Status</MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
+                                <MudTd DataLabel="Eligible Fish">@RenderEligibleFish(context)</MudTd>
+                                <MudTd DataLabel="Standings">
+                                    @{
+                                        var standings = GetStandings(context.Id);
+                                    }
+
+                                    @if (standings.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            @(context.Status == FishingTournamentStatus.Active ? "No rankings yet" : "Standings appear when the tournament starts")
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTable Items="standings" Dense="true" Hover="true" Striped="true" Elevation="0">
+                                            <HeaderContent>
+                                                <MudTh>#</MudTh>
+                                                <MudTh>Player</MudTh>
+                                                <MudTh>Score</MudTh>
+                                                <MudTh>Catches</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate Context="standing">
+                                                <MudTd DataLabel="#">#@standing.Rank</MudTd>
+                                                <MudTd DataLabel="Player">@standing.Username</MudTd>
+                                                <MudTd DataLabel="Score">@FormatScore(standing.Score)</MudTd>
+                                                <MudTd DataLabel="Catches">@standing.CatchCount</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Reward Breakdown">
+                                    @if (context.RewardRules.Count == 0)
+                                    {
+                                        <MudText Color="Color.Secondary">No rewards configured</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Spacing="1">
+                                            @foreach (var rewardRule in context.RewardRules.OrderBy(rule => rule.Placement))
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                                    @FormatRewardRule(rewardRule)
+                                                </MudChip>
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Entry Fee">
+                                    @if (context.EntryFeeAmount.HasValue)
+                                    {
+                                        <MudText>@context.EntryFeeAmount.Value @context.EntryFeePointType?.Name</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Color="Color.Secondary">Free</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Window">
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.caption">Start: @FormatDate(context.StartsAtUtc)</MudText>
+                                        <MudText Typo="Typo.caption">End: @FormatDate(context.EndsAtUtc)</MudText>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Past Tournaments" Icon="@Icons.Material.Filled.History">
+                    @if (pastTournaments.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">No completed tournaments yet.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="@pastTournaments" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Scoring</MudTh>
+                                <MudTh>Ended</MudTh>
+                                <MudTh>Eligible Fish</MudTh>
+                                <MudTh>Standings</MudTh>
+                                <MudTh>Reward Breakdown</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Name">
+                                    <MudStack Spacing="0">
+                                        <MudText><strong>@context.Name</strong></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Status">
+                                    <MudChip T="string" Color="Color.Default" Size="Size.Small">@context.Status</MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
+                                <MudTd DataLabel="Ended">@FormatDate(context.EndsAtUtc ?? context.StartsAtUtc)</MudTd>
+                                <MudTd DataLabel="Eligible Fish">@RenderEligibleFish(context)</MudTd>
+                                <MudTd DataLabel="Standings">
+                                    @{
+                                        var standings = GetStandings(context.Id);
+                                    }
+
+                                    @if (standings.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">No final standings</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudTable Items="standings" Dense="true" Hover="true" Striped="true" Elevation="0">
+                                            <HeaderContent>
+                                                <MudTh>#</MudTh>
+                                                <MudTh>Player</MudTh>
+                                                <MudTh>Score</MudTh>
+                                                <MudTh>Catches</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate Context="standing">
+                                                <MudTd DataLabel="#">#@standing.Rank</MudTd>
+                                                <MudTd DataLabel="Player">@standing.Username</MudTd>
+                                                <MudTd DataLabel="Score">@FormatScore(standing.Score)</MudTd>
+                                                <MudTd DataLabel="Catches">@standing.CatchCount</MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Reward Breakdown">
+                                    @if (context.RewardRules.Count == 0)
+                                    {
+                                        <MudText Color="Color.Secondary">No rewards configured</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Spacing="1">
+                                            @foreach (var rewardRule in context.RewardRules.OrderBy(rule => rule.Placement))
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                                                    @FormatRewardRule(rewardRule)
+                                                </MudChip>
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+            </MudStack>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<FishingTournament> currentTournaments = new();
+    private List<FishingTournament> pastTournaments = new();
+    private bool isLoading = true;
+    private readonly Dictionary<int, List<FishingTournamentStanding>> tournamentStandings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        isLoading = true;
+        tournamentStandings.Clear();
+        currentTournaments = await FishingService.GetCurrentFishingTournaments();
+        pastTournaments = await FishingService.GetPastFishingTournaments();
+
+        var standingTasks = currentTournaments
+            .Concat(pastTournaments)
+            .Select(async tournament =>
+            {
+                tournamentStandings[tournament.Id] = await FishingService.GetFishingTournamentStandings(tournament.Id);
+            });
+
+        await Task.WhenAll(standingTasks);
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value?.ToLocalTime().ToString("g") ?? "-";
+    }
+
+    private static string FormatRewardRule(FishingTournamentRewardRule rewardRule)
+    {
+        var placementLabel = FormatPlacement(rewardRule.Placement);
+        var rewardLabel = rewardRule.RewardKind == FishingTournamentRewardKind.EntryFeePercentage
+            ? $"{rewardRule.EntryFeePercentage ?? 0}% of entry fees"
+            : $"{rewardRule.Points} {rewardRule.PointType?.Name ?? "points"}";
+
+        var categoryLabel = rewardRule.ScoreCategory == FishingTournamentScoreCategory.SpecificFish && rewardRule.TargetFishType != null
+            ? $"{rewardRule.TargetFishType.Name}"
+            : rewardRule.ScoreCategory.ToString();
+
+        return $"{placementLabel} - {categoryLabel} - {rewardLabel}";
+    }
+
+    private static string FormatPlacement(int placement)
+    {
+        return placement switch
+        {
+            1 => "1st place",
+            2 => "2nd place",
+            3 => "3rd place",
+            4 => "4th place",
+            5 => "5th place",
+            6 => "6th place",
+            7 => "7th place",
+            8 => "8th place",
+            9 => "9th place",
+            10 => "10th place",
+            _ => $"Top {placement}"
+        };
+    }
+
+    private List<FishingTournamentStanding> GetStandings(int tournamentId)
+    {
+        return tournamentStandings.TryGetValue(tournamentId, out var standings)
+            ? standings
+            : [];
+    }
+
+    private static RenderFragment RenderEligibleFish(FishingTournament tournament) => builder =>
+    {
+        if (tournament.EligibleFish.Count == 0)
+        {
+            builder.AddContent(0, "-");
+            return;
+        }
+
+        var fishNames = tournament.EligibleFish
+            .Select(fish => fish.FishType?.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
+
+        if (fishNames.Count == 0)
+        {
+            builder.AddContent(0, "-");
+            return;
+        }
+
+        for (var index = 0; index < fishNames.Count; index++)
+        {
+            if (index > 0)
+            {
+                builder.AddContent(index * 2 - 1, ", ");
+            }
+
+            builder.AddContent(index * 2, fishNames[index]);
+        }
+    };
+
+    private static string FormatScore(double score)
+    {
+        return Math.Abs(score % 1) < 0.0001 ? score.ToString("N0") : score.ToString("N2");
+    }
+}
