@@ -54,6 +54,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         RaffleSetWinnerCount,
         RaffleSetTotalAward,
         RaffleGetEntryCount,
-        ForEachViewer
+        ForEachViewer,
+        FishingTournamentStart,
+        FishingTournamentEnd,
+        FishingTournamentEligibleCatch
     }
 }

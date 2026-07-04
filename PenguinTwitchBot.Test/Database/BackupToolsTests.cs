@@ -250,6 +250,112 @@ public class BackupToolsTests : IDisposable
         await Assert.ThrowsAsync<JsonException>(() => _sut.RestoreTable<ActionType>(_context, tempDir, _logger));
     }
 
+    [Fact]
+    public async Task RestoreDatabase_RestoresFishingTournamentTables()
+    {
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fishtourney-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var realZipMock = new Mock<IZipService>();
+            var realBackupTools = new BackupTools(new System.IO.Abstractions.FileSystem(), _logger, realZipMock.Object);
+
+            var pointTypes = new List<PenguinTwitchBot.Database.Bot.Models.Points.PointType>
+            {
+                new()
+                {
+                    Id = 1,
+                    Name = "Tournament Points",
+                    Description = "Primary reward pool"
+                }
+            };
+
+            var fishTypes = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
+            {
+                new()
+                {
+                    Id = 2,
+                    Name = "Golden Carp",
+                    BaseWeight = 12.5,
+                    BaseGold = 250,
+                    ImageFileName = "golden-carp.png",
+                    Enabled = true
+                }
+            };
+
+            var tournaments = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament>
+            {
+                new()
+                {
+                    Id = 3,
+                    Name = "Summer Splash Cup",
+                    Description = "A restored tournament",
+                    Enabled = true,
+                    Status = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentStatus.Scheduled,
+                    PrimaryScoreCategory = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentScoreCategory.Largest,
+                    StartsAtUtc = DateTime.UtcNow.AddHours(1),
+                    EndsAtUtc = DateTime.UtcNow.AddHours(3),
+                    EntryFeeAmount = 50,
+                    EntryFeePointTypeId = 1
+                }
+            };
+
+            var eligibleFish = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentFishType>
+            {
+                new()
+                {
+                    Id = 4,
+                    FishingTournamentId = 3,
+                    FishTypeId = 2
+                }
+            };
+
+            var rewardRules = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentRewardRule>
+            {
+                new()
+                {
+                    Id = 5,
+                    FishingTournamentId = 3,
+                    ScoreCategory = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentScoreCategory.Largest,
+                    RewardKind = PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentRewardKind.Points,
+                    Placement = 1,
+                    Points = 100,
+                    PointTypeId = 1,
+                    Enabled = true
+                }
+            };
+
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "PointType.json"), JsonSerializer.Serialize(pointTypes, new JsonSerializerOptions { WriteIndented = true }));
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishType.json"), JsonSerializer.Serialize(fishTypes, new JsonSerializerOptions { WriteIndented = true }));
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournament.json"), JsonSerializer.Serialize(tournaments, new JsonSerializerOptions { WriteIndented = true }));
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournamentFishType.json"), JsonSerializer.Serialize(eligibleFish, new JsonSerializerOptions { WriteIndented = true }));
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishingTournamentRewardRule.json"), JsonSerializer.Serialize(rewardRules, new JsonSerializerOptions { WriteIndented = true }));
+
+            await realBackupTools.RestoreDatabase(_context, tempDir, _logger);
+
+            var restoredTournament = await _context.FishingTournaments
+                .Include(x => x.EntryFeePointType)
+                .Include(x => x.EligibleFish)
+                .Include(x => x.RewardRules)
+                .SingleAsync();
+
+            Assert.Equal("Summer Splash Cup", restoredTournament.Name);
+            Assert.Equal("Tournament Points", restoredTournament.EntryFeePointType?.Name);
+            Assert.Single(restoredTournament.EligibleFish);
+            Assert.Single(restoredTournament.RewardRules);
+            Assert.Single(_context.FishTypes);
+            Assert.Single(_context.Set<PenguinTwitchBot.Database.Bot.Models.Points.PointType>());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
     #endregion
 
     #region GetBackupFiles

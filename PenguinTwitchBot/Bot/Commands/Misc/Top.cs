@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Commands.Features;
+using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -13,7 +14,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        IPointsSystem pointsSystem
+        IPointsSystem pointsSystem,
+        IFishingService fishingService
             ) : BaseCommandService(serviceBackbone, commandHandler, "Top", dispatcher), IHostedService
     {
         public override async Task Register()
@@ -24,6 +26,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await RegisterDefaultCommand("top5", this, moduleName);
             await RegisterDefaultCommand("toptime", this, moduleName);
             await RegisterDefaultCommand("toptickets", this, moduleName);
+            await RegisterDefaultCommand("toptournaments", this, moduleName);
             //await RegisterDefaultCommand("topticket", this, moduleName); Add alias
             await RegisterDefaultCommand("loudest", this, moduleName);
             await pointsSystem.RegisterDefaultPointForGame(ModuleName);
@@ -48,6 +51,36 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 case "loudest":
                     await SayLoudestTopN(10);
                     break;
+                case "toptournaments":
+                    await SayActiveTournamentStandingsTopN(3);
+                    break;
+            }
+        }
+
+        private async Task SayActiveTournamentStandingsTopN(int topN)
+        {
+            var tournaments = await fishingService.GetCurrentFishingTournaments();
+            var activeTournaments = tournaments
+                .Where(t => t.Status == PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentStatus.Active)
+                .ToList();
+
+            if (activeTournaments.Count == 0)
+            {
+                await ServiceBackbone.SendChatMessage("No active fishing tournaments right now.");
+                return;
+            }
+
+            foreach (var tournament in activeTournaments)
+            {
+                var standings = await fishingService.GetFishingTournamentStandings(tournament.Id, topN);
+                if (standings.Count == 0)
+                {
+                    await ServiceBackbone.SendChatMessage($"{tournament.Name}: no catches yet.");
+                    continue;
+                }
+
+                var names = string.Join(", ", standings.Select(s => $"{s.Rank}. {s.Username} ({s.Score:N2})"));
+                await ServiceBackbone.SendChatMessage($"{tournament.Name} top {topN}: {names}");
             }
         }
 

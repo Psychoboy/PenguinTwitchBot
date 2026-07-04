@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
@@ -19,6 +20,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         private readonly FishingAnalyticsService _analyticsService;
         private readonly ApplicationDbContext _context;
         private readonly string _databaseName;
+        private readonly IPointsSystem _pointsSystem;
 
         public FishingServiceTests()
         {
@@ -36,7 +38,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var fishingLogger = Substitute.For<ILogger<FishingService>>();
             var analyticsLogger = Substitute.For<ILogger<FishingAnalyticsService>>();
-            _fishingService = new FishingService(_scopeFactory, fishingLogger);
+            _pointsSystem = Substitute.For<IPointsSystem>();
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+                .Returns(Task.FromResult(0L));
+            _fishingService = new FishingService(_scopeFactory, fishingLogger, _pointsSystem);
             _analyticsService = new FishingAnalyticsService(_scopeFactory, analyticsLogger, _fishingService);
         }
 
@@ -61,7 +66,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishTypes.AddRange(fishTypes);
 
             var settings = new FishingSettings
-            { 
+            {
                 Id = 1,
                 Enabled = true,
                 BoostMode = false,

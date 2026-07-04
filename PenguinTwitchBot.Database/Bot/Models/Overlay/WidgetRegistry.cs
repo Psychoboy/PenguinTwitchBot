@@ -24,6 +24,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("clips",     "Clips",     "/clips.html",     1920, 1080),
             new("fireworks", "Fireworks", "/fireworks.html", 1920, 1080),
             new("fishing",   "Fishing",   "/fishing.html",    500,  300),
+            new("fishing_tournaments", "Fishing Tournaments", "/fishing-tournaments.html", 620, 380),
             new("wheel",     "Wheel",     "/wheel.html",      1920,  1080),
             new("chat",      "Chat",      "/chat.html",       400,  600),
         ];

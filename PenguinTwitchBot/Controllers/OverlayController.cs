@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
@@ -12,11 +13,13 @@ namespace PenguinTwitchBot.Controllers
     public class OverlayController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IFishingService _fishingService;
         private readonly ILogger<OverlayController> _logger;
 
-        public OverlayController(IUnitOfWork unitOfWork, ILogger<OverlayController> logger)
+        public OverlayController(IUnitOfWork unitOfWork, IFishingService fishingService, ILogger<OverlayController> logger)
         {
             _unitOfWork = unitOfWork;
+            _fishingService = fishingService;
             _logger = logger;
         }
 
@@ -181,6 +184,38 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>
+        /// Returns current active fishing tournaments and their standings for overlay widgets.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("fishing-tournaments-standings")]
+        public async Task<IActionResult> GetFishingTournamentStandings([FromQuery] int top = 5)
+        {
+            var safeTop = Math.Clamp(top, 1, 20);
+
+            var tournaments = await _fishingService.GetCurrentFishingTournaments();
+            var activeTournaments = tournaments
+                .Where(t => t.Status == Database.Bot.Models.Fishing.FishingTournamentStatus.Active)
+                .ToList();
+
+            var response = new List<FishingTournamentOverlayResponse>(activeTournaments.Count);
+            foreach (var tournament in activeTournaments)
+            {
+                var standings = await _fishingService.GetFishingTournamentStandings(tournament.Id, safeTop);
+                response.Add(new FishingTournamentOverlayResponse(
+                    tournament.Id,
+                    tournament.Name,
+                    tournament.PrimaryScoreCategory.ToString(),
+                    standings.Select(s => new FishingTournamentStandingOverlayResponse(
+                        s.Rank,
+                        s.Username,
+                        s.Score,
+                        s.CatchCount)).ToList()));
+            }
+
+            return Ok(response);
+        }
+
+        /// <summary>
         /// Appends CustomSettings JSON fields as URL query parameters onto basePath.
         /// Null/empty/whitespace values are skipped.
         /// </summary>
@@ -218,4 +253,6 @@ namespace PenguinTwitchBot.Controllers
     public record OverlayLayoutSummary(int Id, string Name, bool IsDefault);
     public record CreateLayoutRequest(string Name, bool IsDefault);
     public record SaveWidgetRequest(string WidgetType, bool IsEnabled, int X, int Y, int Width, int Height, int ZIndex, string? CustomSettings);
+    public record FishingTournamentOverlayResponse(int Id, string Name, string ScoreCategory, List<FishingTournamentStandingOverlayResponse> Standings);
+    public record FishingTournamentStandingOverlayResponse(int Rank, string Username, double Score, int CatchCount);
 }

@@ -23,6 +23,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<int> GetUserCatchCountForFishType(string userId, int fishTypeId);
         Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId);
         Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId);
+        Task<List<FishingTournament>> GetAllFishingTournaments(int count = 100);
+        Task<List<FishingTournament>> GetCurrentFishingTournaments();
+        Task<List<FishingTournament>> GetPastFishingTournaments(int count = 25);
+        Task<FishingTournament?> GetFishingTournamentById(int id);
+        Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10);
+        Task<FishingTournament?> StartFishingTournament(int id);
+        Task<FishingTournament> SaveFishingTournament(FishingTournament tournament);
+        Task<FishingTournament?> EndFishingTournament(int id);
+        Task DeleteFishingTournament(int id);
 
         // Gold Management
         Task<FishingGold?> GetUserGold(string userId);

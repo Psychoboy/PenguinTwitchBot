@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Fishing Tournament Standings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root {
+            --panel-bg: rgba(8, 14, 22, 0.44);
+            --panel-border: rgba(131, 193, 255, 0.18);
+            --text-primary: rgba(244, 248, 255, 0.92);
+            --text-muted: rgba(173, 190, 216, 0.82);
+            --accent: rgba(127, 210, 255, 0.9);
+            --row-bg: rgba(255, 255, 255, 0.03);
+            --row-bg-alt: rgba(255, 255, 255, 0.055);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-primary);
+        }
+
+        body {
+            padding: 4px;
+        }
+
+        .overlay-card {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel-bg);
+            backdrop-filter: blur(3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .overlay-header {
+            padding: 7px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .overlay-title {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+
+        .overlay-subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .content {
+            padding: 7px 8px 8px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .tournament {
+            border: 1px solid rgba(127, 210, 255, 0.28);
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tournament-title {
+            padding: 6px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            background: rgba(127, 210, 255, 0.08);
+        }
+
+        .tournament-name {
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+            max-width: 75%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tournament-category {
+            font-size: 9px;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.45px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th,
+        td {
+            padding: 5px 7px;
+            text-align: left;
+        }
+
+        th {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        tr:nth-child(odd) {
+            background: var(--row-bg);
+        }
+
+        tr:nth-child(even) {
+            background: var(--row-bg-alt);
+        }
+
+        .rank {
+            width: 36px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .score,
+        .catches {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 18px 10px;
+        }
+
+        .error {
+            color: #ffd4d4;
+            background: rgba(180, 40, 40, 0.26);
+            border: 1px solid rgba(255, 120, 120, 0.4);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay-card">
+        <div class="overlay-header">
+            <div>
+                <div class="overlay-title">Fishing Tournament Standings</div>
+                <div class="overlay-subtitle">Live active leaderboard</div>
+            </div>
+        </div>
+        <div id="content" class="content"></div>
+    </div>
+
+    <script src="/js/fishing-tournaments-overlay.js"></script>
+</body>
+</html>

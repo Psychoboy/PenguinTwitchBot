@@ -85,23 +85,39 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             logger?.LogDebug("Deleting UserFishingBoosts...");
             await context.Set<UserFishingBoost>().ExecuteDeleteAsync();
 
-            // 2. Delete FishCatches (depends on FishTypes)
+            // 2. Delete FishingTournamentCatches (depends on FishCatches + FishingTournaments)
+            logger?.LogDebug("Deleting FishingTournamentCatches...");
+            await context.Set<FishingTournamentCatch>().ExecuteDeleteAsync();
+
+            // 3. Delete FishCatches (depends on FishTypes)
             logger?.LogDebug("Deleting FishCatches...");
             await context.Set<FishCatch>().ExecuteDeleteAsync();
 
-            // 3. Delete FishingShopItems (depends on FishTypes via TargetFishTypeId)
+            // 4. Delete FishingShopItems (depends on FishTypes via TargetFishTypeId)
             logger?.LogDebug("Deleting FishingShopItems...");
             await context.Set<FishingShopItem>().ExecuteDeleteAsync();
 
-            // 4. Delete FishTypes (master table, no dependencies)
+            // 5. Delete FishingTournamentRewardRules (depends on FishingTournaments + PointTypes)
+            logger?.LogDebug("Deleting FishingTournamentRewardRules...");
+            await context.Set<FishingTournamentRewardRule>().ExecuteDeleteAsync();
+
+            // 6. Delete FishingTournamentFishTypes (depends on FishingTournaments + FishTypes)
+            logger?.LogDebug("Deleting FishingTournamentFishTypes...");
+            await context.Set<FishingTournamentFishType>().ExecuteDeleteAsync();
+
+            // 7. Delete FishingTournaments (depends on PointTypes and can be referenced by child tables)
+            logger?.LogDebug("Deleting FishingTournaments...");
+            await context.Set<FishingTournament>().ExecuteDeleteAsync();
+
+            // 8. Delete FishTypes (master table, no dependencies)
             logger?.LogDebug("Deleting FishTypes...");
             await context.Set<FishType>().ExecuteDeleteAsync();
 
-            // 5. Delete FishingGold (independent)
+            // 9. Delete FishingGold (independent)
             logger?.LogDebug("Deleting FishingGold...");
             await context.Set<FishingGold>().ExecuteDeleteAsync();
 
-            // 6. Delete FishingSettings (independent)
+            // 10. Delete FishingSettings (independent)
             logger?.LogDebug("Deleting FishingSettings...");
             await context.Set<FishingSettings>().ExecuteDeleteAsync();
 
