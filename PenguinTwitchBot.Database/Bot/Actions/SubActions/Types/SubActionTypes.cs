@@ -38,8 +38,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         ObsSetSceneFilterState,
         ExecutePointCommand,
         Fishing,
-        FishingTournamentStart,
-        FishingTournamentEnd,
         ObsSetSourceVisibility,
         ObsSetSourceMuteState,
         ObsSetText,
@@ -56,6 +54,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         RaffleSetWinnerCount,
         RaffleSetTotalAward,
         RaffleGetEntryCount,
-        ForEachViewer
+        ForEachViewer,
+        FishingTournamentStart,
+        FishingTournamentEnd,
+        FishingTournamentEligibleCatch
     }
 }

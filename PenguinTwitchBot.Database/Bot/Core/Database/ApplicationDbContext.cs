@@ -229,10 +229,22 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .IsUnique()
                 .HasDatabaseName("IX_FishingTournamentFishTypes_Tournament_Fish");
 
+            modelBuilder.Entity<FishingTournamentFishType>()
+                .HasOne(e => e.FishType)
+                .WithMany()
+                .HasForeignKey(e => e.FishTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<FishingTournamentRewardRule>()
                 .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.TargetFishTypeId, e.Placement })
                 .IsUnique()
                 .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement");
+
+            modelBuilder.Entity<FishingTournamentRewardRule>()
+                .HasIndex(e => new { e.FishingTournamentId, e.ScoreCategory, e.Placement })
+                .IsUnique()
+                .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General")
+                .HasFilter("\"TargetFishTypeId\" IS NULL");
 
             modelBuilder.Entity<FishingTournamentRewardRule>()
                 .HasOne(r => r.PointType)

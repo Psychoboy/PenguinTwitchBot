@@ -99,6 +99,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                         _logger.LogInformation("User {Username} had a snapped {SnapType} and caught nothing", username, isRodSnap ? "rod" : "line");
                         variables["fish_type"] = failText;
+                        variables["fish_type_id"] = "0";
                         variables["fish_rarity"] = "Accident";
                         variables["fish_stars"] = "0";
                         variables["fish_weight"] = "0";
@@ -137,6 +138,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     _logger.LogInformation("User {Username} caught a {Stars} star {FishName} weighing {Weight}kg for {Gold} gold",
                         username, fishCatch.Stars, fishCatch.FishType?.Name, fishCatch.Weight, fishCatch.GoldEarned);
                     variables["fish_type"] = fishCatch.FishType?.Name ?? "Unknown";
+                    variables["fish_type_id"] = fishCatch.FishTypeId.ToString();
                     variables["fish_rarity"] = fishCatch.FishType?.Rarity.ToString() ?? "Common";
                     variables["fish_stars"] = fishCatch.Stars.ToString();
                     variables["fish_weight"] = fishCatch.Weight.ToString();

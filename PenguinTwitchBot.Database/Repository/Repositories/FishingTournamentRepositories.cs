@@ -14,4 +14,8 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
     public class FishingTournamentRewardRuleRepository(ApplicationDbContext context) : GenericRepository<FishingTournamentRewardRule>(context)
     {
     }
+
+    public class FishingTournamentCatchRepository(ApplicationDbContext context) : GenericRepository<FishingTournamentCatch>(context)
+    {
+    }
 }

@@ -47,11 +47,22 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 table: "FishingTournamentCatches",
                 columns: new[] { "FishingTournamentId", "FishCatchId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FishingTournamentRewardRules_Tournament_Category_Placement_General",
+                table: "FishingTournamentRewardRules",
+                columns: new[] { "FishingTournamentId", "ScoreCategory", "Placement" },
+                unique: true,
+                filter: "\"TargetFishTypeId\" IS NULL");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropIndex(
+                name: "IX_FishingTournamentRewardRules_Tournament_Category_Placement_General",
+                table: "FishingTournamentRewardRules");
+
             migrationBuilder.DropTable(
                 name: "FishingTournamentCatches");
         }

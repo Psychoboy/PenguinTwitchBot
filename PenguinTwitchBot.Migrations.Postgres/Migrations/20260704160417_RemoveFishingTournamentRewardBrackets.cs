@@ -43,6 +43,12 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         principalTable: "Actions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_subactions_fishingtournamentend_FishingTournaments_TournamentId",
+                        column: x => x.TournamentId,
+                        principalTable: "FishingTournaments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -66,6 +72,12 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         principalTable: "Actions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_subactions_fishingtournamentstart_FishingTournaments_TournamentId",
+                        column: x => x.TournamentId,
+                        principalTable: "FishingTournaments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -80,9 +92,19 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 column: "ActionTypeId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_subactions_fishingtournamentend_TournamentId",
+                table: "subactions_fishingtournamentend",
+                column: "TournamentId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_subactions_fishingtournamentstart_ActionTypeId",
                 table: "subactions_fishingtournamentstart",
                 column: "ActionTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_subactions_fishingtournamentstart_TournamentId",
+                table: "subactions_fishingtournamentstart",
+                column: "TournamentId");
         }
 
         /// <inheritdoc />

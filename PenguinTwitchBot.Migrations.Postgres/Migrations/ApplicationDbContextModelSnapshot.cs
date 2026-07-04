@@ -1083,8 +1083,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<DateTime?>("EndsAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("EntryFeeAmount")
-                        .HasColumnType("integer");
+                    b.Property<long?>("EntryFeeAmount")
+                        .HasColumnType("bigint");
 
                     b.Property<int?>("EntryFeePointTypeId")
                         .HasColumnType("integer");
@@ -1189,8 +1189,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("PointTypeId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Points")
-                        .HasColumnType("integer");
+                    b.Property<long>("Points")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("RewardKind")
                         .HasColumnType("integer");
@@ -1206,6 +1206,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasIndex("PointTypeId");
 
                     b.HasIndex("TargetFishTypeId");
+
+                    b.HasIndex("FishingTournamentId", "ScoreCategory", "Placement")
+                        .IsUnique()
+                        .HasDatabaseName("IX_FishingTournamentRewardRules_Tournament_Category_Placement_General")
+                        .HasFilter("\"TargetFishTypeId\" IS NULL");
 
                     b.HasIndex("FishingTournamentId", "ScoreCategory", "TargetFishTypeId", "Placement")
                         .IsUnique()
@@ -2476,6 +2481,13 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_externalapi", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEligibleCatchType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.ToTable("subactions_fishingtournamenteligiblecatch", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEndType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3221,7 +3233,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", "FishType")
                         .WithMany()
                         .HasForeignKey("FishTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", "FishingTournament")

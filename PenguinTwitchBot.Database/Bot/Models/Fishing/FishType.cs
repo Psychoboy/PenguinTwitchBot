@@ -69,7 +69,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public bool AutoScheduleEnabled { get; set; }
         public string AutoScheduleCron { get; set; } = string.Empty;
         public int RunDurationMinutes { get; set; } = 60;
-        public int? EntryFeeAmount { get; set; }
+        public long? EntryFeeAmount { get; set; }
         public int? EntryFeePointTypeId { get; set; }
         public PointType? EntryFeePointType { get; set; }
 
@@ -102,7 +102,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public FishType? TargetFishType { get; set; }
         public FishingTournamentRewardKind RewardKind { get; set; } = FishingTournamentRewardKind.Points;
         public int Placement { get; set; } = 1;
-        public int Points { get; set; } = 0;
+        public long Points { get; set; } = 0;
         public int? EntryFeePercentage { get; set; }
         public int PointTypeId { get; set; }
         public PointType PointType { get; set; } = null!;

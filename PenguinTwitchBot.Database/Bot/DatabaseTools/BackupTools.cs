@@ -263,7 +263,8 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 { "FishingSnapEventRepository", 16 }, // FishingSnapEvent (historical, no dependencies)
                 { "FishingTournamentRepository", 17 }, // Tournament header table
                 { "FishingTournamentFishTypeRepository", 18 }, // Tournament fish eligibility rows
-                { "FishingTournamentRewardRuleRepository", 19 } // Tournament reward rows
+                { "FishingTournamentRewardRuleRepository", 19 }, // Tournament reward rows
+                { "FishingTournamentCatchRepository", 20 } // Tournament catches (depends on tournaments + fish catches)
             };
 
             // Sort handlers by priority

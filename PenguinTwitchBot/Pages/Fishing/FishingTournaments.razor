@@ -263,7 +263,7 @@
         var placementLabel = FormatPlacement(rewardRule.Placement);
         var rewardLabel = rewardRule.RewardKind == FishingTournamentRewardKind.EntryFeePercentage
             ? $"{rewardRule.EntryFeePercentage ?? 0}% of entry fees"
-            : $"{rewardRule.Points} {rewardRule.PointType?.Name ?? "points"}";
+            : $"{rewardRule.Points:N0} {rewardRule.PointType?.Name ?? "points"}";
 
         var categoryLabel = rewardRule.ScoreCategory == FishingTournamentScoreCategory.SpecificFish && rewardRule.TargetFishType != null
             ? $"{rewardRule.TargetFishType.Name}"

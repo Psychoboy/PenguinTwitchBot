@@ -366,8 +366,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     ScoreCategory = rule.ScoreCategory,
                     TargetFishTypeId = rule.TargetFishTypeId,
+                    RewardKind = rule.RewardKind,
                     Placement = rule.Placement,
                     Points = rule.Points,
+                    EntryFeePercentage = rule.EntryFeePercentage,
                     PointTypeId = rule.PointTypeId,
                     Enabled = rule.Enabled
                 })
@@ -438,8 +440,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
 
                 var rewardAmount = rewardRule.RewardKind == FishingTournamentRewardKind.EntryFeePercentage
-                    ? Math.Max(0, (int)Math.Round((tournament.EntryFeeAmount ?? 0) * ((rewardRule.EntryFeePercentage ?? 0) / 100.0), MidpointRounding.AwayFromZero))
-                    : Math.Max(0, rewardRule.Points);
+                    ? Math.Max(0L, (long)Math.Round((tournament.EntryFeeAmount ?? 0L) * ((rewardRule.EntryFeePercentage ?? 0) / 100.0), MidpointRounding.AwayFromZero))
+                    : Math.Max(0L, rewardRule.Points);
 
                 if (rewardAmount <= 0)
                 {

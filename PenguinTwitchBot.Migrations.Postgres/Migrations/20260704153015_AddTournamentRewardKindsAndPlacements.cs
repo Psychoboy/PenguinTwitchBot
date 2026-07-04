@@ -29,6 +29,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 type: "integer",
                 nullable: false,
                 defaultValue: 0);
+
+            migrationBuilder.Sql("UPDATE \"FishingTournamentRewardRules\" SET \"Placement\" = \"MinPlacement\" WHERE \"MinPlacement\" > 0;");
         }
 
         /// <inheritdoc />

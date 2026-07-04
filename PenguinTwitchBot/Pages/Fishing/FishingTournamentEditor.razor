@@ -5,6 +5,8 @@
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @inject IFishingService FishingService
 @inject IPointsSystem PointsSystem
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <MudStack Spacing="3">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -42,7 +44,7 @@
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <MudSelect T="FishingTournamentStatus" @bind-Value="editorStatus" Label="Status">
-                            @foreach (var status in Enum.GetValues<FishingTournamentStatus>())
+                            @foreach (var status in editableStatuses)
                             {
                                 <MudSelectItem Value="@status">@status</MudSelectItem>
                             }
@@ -211,7 +213,7 @@
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveTournament" Disabled="isSaving">@(isSaving ? "Saving..." : "Save Tournament")</MudButton>
                     @if (editingTournamentId.HasValue)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever" OnClick="DeleteTournament" Disabled="isSaving">Delete Tournament</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever" OnClick="ConfirmDeleteCurrentTournament" Disabled="isSaving">Delete Tournament</MudButton>
                     }
                 </MudStack>
             </MudStack>
@@ -244,9 +246,9 @@
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
                             @if (context.Status == FishingTournamentStatus.Active || context.Status == FishingTournamentStatus.Scheduled)
                             {
-                                <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => EndTournament(context)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => ConfirmEndTournament(context)" />
                             }
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => PromptDeleteTournament(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => ConfirmDeleteTournament(context)" />
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -262,6 +264,12 @@
     private readonly List<FishingTournamentRewardRule> rewardRules = new();
     private readonly List<int> selectedFishTypeIds = new();
     private readonly List<int> placementOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    private static readonly FishingTournamentStatus[] editableStatuses =
+    [
+        FishingTournamentStatus.Draft,
+        FishingTournamentStatus.Scheduled,
+        FishingTournamentStatus.Cancelled
+    ];
 
     private int? editingTournamentId;
     private string editorTitle = "Create Tournament";
@@ -277,7 +285,7 @@
     private bool editorAutoScheduleEnabled;
     private string editorAutoScheduleCron = string.Empty;
     private int editorRunDurationMinutes = 60;
-    private int? editorEntryFeeAmount;
+    private long? editorEntryFeeAmount;
     private int? editorEntryFeePointTypeId;
     private string? errorMessage;
     private string? statusMessage;
@@ -534,7 +542,13 @@
 
             await FishingService.SaveFishingTournament(tournament);
             statusMessage = editingTournamentId.HasValue ? "Tournament updated." : "Tournament created.";
+            Snackbar.Add(statusMessage, Severity.Success);
             await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to save tournament. Please try again.";
+            Snackbar.Add($"Error saving tournament: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -554,7 +568,13 @@
         {
             await FishingService.DeleteFishingTournament(editingTournamentId.Value);
             statusMessage = "Tournament deleted.";
+            Snackbar.Add(statusMessage, Severity.Success);
             await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to delete tournament. Please try again.";
+            Snackbar.Add($"Error deleting tournament: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -571,7 +591,13 @@
             statusMessage = endedTournament == null
                 ? "Tournament not found."
                 : $"Ended tournament '{endedTournament.Name}'.";
+            Snackbar.Add(statusMessage, endedTournament == null ? Severity.Warning : Severity.Success);
             await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to end tournament. Please try again.";
+            Snackbar.Add($"Error ending tournament: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -579,10 +605,49 @@
         }
     }
 
-    private async Task PromptDeleteTournament(FishingTournament tournament)
+    private async Task ConfirmDeleteCurrentTournament()
+    {
+        if (!editingTournamentId.HasValue)
+        {
+            return;
+        }
+
+        var shouldDelete = await DialogService.ShowMessageBoxAsync(
+            "Delete Tournament",
+            "Are you sure you want to delete this tournament? This action cannot be undone.",
+            yesText: "Delete",
+            noText: "Cancel",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+
+        if (shouldDelete != true)
+        {
+            return;
+        }
+
+        await DeleteTournament();
+    }
+
+    private async Task ConfirmDeleteTournament(FishingTournament tournament)
     {
         editingTournamentId = tournament.Id;
-        await DeleteTournament();
+        await ConfirmDeleteCurrentTournament();
+    }
+
+    private async Task ConfirmEndTournament(FishingTournament tournament)
+    {
+        var shouldEnd = await DialogService.ShowMessageBoxAsync(
+            "End Tournament",
+            $"End tournament '{tournament.Name}' now and settle rewards?",
+            yesText: "End Tournament",
+            noText: "Cancel",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+
+        if (shouldEnd != true)
+        {
+            return;
+        }
+
+        await EndTournament(tournament);
     }
 
     private string GetPointTypeName(int pointTypeId)
