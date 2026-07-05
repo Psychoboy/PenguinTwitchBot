@@ -2398,6 +2398,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<bool>("CloneFromTemplate")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("TournamentId")
                         .HasColumnType("INTEGER");
 
