@@ -16,8 +16,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for FishingTournamentStartHandler: {SubActionType}", subAction.GetType().Name);
             }
 
-            var tournament = await fishingService.StartFishingTournament(tournamentStart.TournamentId);
+            var tournament = tournamentStart.CloneFromTemplate
+                ? await fishingService.CloneAndStartFishingTournament(tournamentStart.TournamentId)
+                : await fishingService.StartFishingTournament(tournamentStart.TournamentId);
+
             FishingTournamentSubActionVariableWriter.Write(variables, tournament, tournament != null);
+
+            variables["fishing_tournament_started_from_template"] = tournamentStart.CloneFromTemplate.ToString().ToLowerInvariant();
 
             if (tournament == null)
             {

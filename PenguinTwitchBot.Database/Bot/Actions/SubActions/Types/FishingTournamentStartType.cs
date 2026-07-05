@@ -18,6 +18,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         public int TournamentId { get; set; }
+        public bool CloneFromTemplate { get; set; }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
@@ -26,12 +27,20 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             return [
                 new()
                 {
+                    PropertyName = nameof(CloneFromTemplate),
+                    Label = "Clone from Template",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "When enabled, duplicates the selected tournament and starts the clone immediately.",
+                    SwitchColor = "Info"
+                },
+                new()
+                {
                     PropertyName = nameof(TournamentId),
-                    Label = "Tournament",
+                    Label = "Tournament / Template",
                     FieldType = tournamentOptions.Count > 0 ? UIFieldType.Select : UIFieldType.Number,
                     Required = true,
                     Min = 1,
-                    HelperText = "Fishing tournament to start immediately",
+                    HelperText = "Select an existing tournament to start, or a template to clone and start.",
                     SelectOptions = tournamentOptions.Count > 0 ? tournamentOptions : null
                 },
                 new()
@@ -48,6 +57,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
+                { nameof(CloneFromTemplate), CloneFromTemplate },
                 { nameof(TournamentId), TournamentId },
                 { nameof(Enabled), Enabled }
             };
@@ -55,6 +65,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
+            if (values.TryGetValue(nameof(CloneFromTemplate), out var cloneFromTemplate))
+            {
+                CloneFromTemplate = cloneFromTemplate as bool? ?? false;
+            }
+
             if (values.TryGetValue(nameof(TournamentId), out var tournamentId) && int.TryParse(tournamentId?.ToString(), out var parsedTournamentId))
             {
                 TournamentId = parsedTournamentId;

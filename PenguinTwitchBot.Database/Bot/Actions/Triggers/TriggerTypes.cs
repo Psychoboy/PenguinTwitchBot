@@ -8,6 +8,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         Manual,
         DefaultCommand,
         Keyword,
-        FishingTournamentCatch
+        FishingTournamentCatch,
+        FishingTournamentStart,
+        FishingTournamentEnd
     }
 }
