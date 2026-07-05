@@ -323,6 +323,50 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return tournament;
         }
 
+        public async Task<FishingTournament?> ReopenFishingTournament(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (tournament == null)
+            {
+                return null;
+            }
+
+            if (tournament.Status is not (FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled))
+            {
+                return tournament;
+            }
+
+            var linkedCatches = await context.FishingTournamentCatches
+                .Where(link => link.FishingTournamentId == id)
+                .ToListAsync();
+
+            if (linkedCatches.Count > 0)
+            {
+                context.FishingTournamentCatches.RemoveRange(linkedCatches);
+            }
+
+            tournament.Enabled = true;
+            tournament.Status = FishingTournamentStatus.Scheduled;
+            tournament.StartsAtUtc = null;
+            tournament.EndsAtUtc = null;
+
+            await context.SaveChangesAsync();
+            return tournament;
+        }
+
         public async Task<FishingTournament> SaveFishingTournament(FishingTournament tournament)
         {
             using var scope = _scopeFactory.CreateScope();

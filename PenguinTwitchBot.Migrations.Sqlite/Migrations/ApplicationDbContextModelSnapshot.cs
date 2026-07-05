@@ -2375,6 +2375,12 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<int>("QualifyingPlacementOverride")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequireQualifyingPosition")
+                        .HasColumnType("INTEGER");
+
                     b.ToTable("subactions_fishingtournamenteligiblecatch", (string)null);
                 });
 

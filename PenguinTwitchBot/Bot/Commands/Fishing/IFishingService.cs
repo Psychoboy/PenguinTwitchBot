@@ -29,6 +29,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<FishingTournament?> GetFishingTournamentById(int id);
         Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10);
         Task<FishingTournament?> StartFishingTournament(int id);
+        Task<FishingTournament?> ReopenFishingTournament(int id);
         Task<FishingTournament> SaveFishingTournament(FishingTournament tournament);
         Task<FishingTournament?> EndFishingTournament(int id);
         Task DeleteFishingTournament(int id);

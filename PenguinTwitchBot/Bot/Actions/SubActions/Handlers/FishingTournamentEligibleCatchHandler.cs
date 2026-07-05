@@ -11,7 +11,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
         public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
-            if (subAction is not FishingTournamentEligibleCatchType)
+            if (subAction is not FishingTournamentEligibleCatchType eligibleCatch)
             {
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for FishingTournamentEligibleCatchHandler");
             }
@@ -31,6 +31,40 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 .ThenBy(tournament => tournament.Name)
                 .ToList();
 
+            var userId = GetCurrentUserId(variables);
+            var qualifyingPlacementOverride = Math.Max(0, eligibleCatch.QualifyingPlacementOverride);
+            var qualifyingResults = new List<(int TournamentId, string TournamentName, int Rank, int MaxQualifyingPlacement)>();
+
+            if (!string.IsNullOrWhiteSpace(userId) && matchingTournaments.Count > 0)
+            {
+                foreach (var tournament in matchingTournaments)
+                {
+                    var maxQualifyingPlacement = qualifyingPlacementOverride > 0
+                        ? qualifyingPlacementOverride
+                        : tournament.RewardRules.Where(rule => rule.Enabled).Select(rule => rule.Placement).DefaultIfEmpty(0).Max();
+
+                    if (maxQualifyingPlacement <= 0)
+                    {
+                        continue;
+                    }
+
+                    var standings = await fishingService.GetFishingTournamentStandings(tournament.Id, maxQualifyingPlacement);
+                    var standing = standings.FirstOrDefault(item => string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
+                    if (standing != null && standing.Rank <= maxQualifyingPlacement)
+                    {
+                        qualifyingResults.Add((tournament.Id, tournament.Name, standing.Rank, maxQualifyingPlacement));
+                    }
+                }
+            }
+
+            if (eligibleCatch.RequireQualifyingPosition)
+            {
+                var qualifyingTournamentIds = qualifyingResults.Select(result => result.TournamentId).ToHashSet();
+                matchingTournaments = matchingTournaments
+                    .Where(tournament => qualifyingTournamentIds.Contains(tournament.Id))
+                    .ToList();
+            }
+
             if (matchingTournaments.Count == 0)
             {
                 SetNoMatchVariables(variables);
@@ -47,6 +81,27 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fishing_tournament_status"] = matchingTournaments[0].Status.ToString();
             variables["fishing_tournament_enabled"] = matchingTournaments[0].Enabled.ToString().ToLowerInvariant();
             variables["fishing_tournament_primary_score_category"] = matchingTournaments[0].PrimaryScoreCategory.ToString();
+            variables["fishing_tournament_qualifying"] = qualifyingResults.Count > 0 ? "true" : "false";
+            variables["fishing_tournament_qualifying_match_count"] = qualifyingResults.Count.ToString();
+            variables["fishing_tournament_qualifying_ids"] = string.Join(",", qualifyingResults.Select(result => result.TournamentId));
+            variables["fishing_tournament_qualifying_names"] = string.Join(", ", qualifyingResults.Select(result => result.TournamentName));
+            variables["fishing_tournament_qualifying_rank"] = qualifyingResults.Count > 0 ? qualifyingResults[0].Rank.ToString() : string.Empty;
+            variables["fishing_tournament_qualifying_max_place"] = qualifyingResults.Count > 0 ? qualifyingResults[0].MaxQualifyingPlacement.ToString() : string.Empty;
+        }
+
+        private static string? GetCurrentUserId(ConcurrentDictionary<string, string> variables)
+        {
+            if (variables.TryGetValue("userid", out var userId) && !string.IsNullOrWhiteSpace(userId))
+            {
+                return userId;
+            }
+
+            if (variables.TryGetValue("user_id", out userId) && !string.IsNullOrWhiteSpace(userId))
+            {
+                return userId;
+            }
+
+            return null;
         }
 
         private async Task<int> ResolveFishTypeIdAsync(ConcurrentDictionary<string, string> variables)
@@ -77,6 +132,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fishing_tournament_status"] = string.Empty;
             variables["fishing_tournament_enabled"] = "false";
             variables["fishing_tournament_primary_score_category"] = string.Empty;
+            variables["fishing_tournament_qualifying"] = "false";
+            variables["fishing_tournament_qualifying_match_count"] = "0";
+            variables["fishing_tournament_qualifying_ids"] = string.Empty;
+            variables["fishing_tournament_qualifying_names"] = string.Empty;
+            variables["fishing_tournament_qualifying_rank"] = string.Empty;
+            variables["fishing_tournament_qualifying_max_place"] = string.Empty;
         }
     }
 }

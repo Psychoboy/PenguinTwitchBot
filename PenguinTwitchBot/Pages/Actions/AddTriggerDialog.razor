@@ -64,6 +64,16 @@
                         </MudStack>
                     </MudListItem>
                     <MudDivider />
+                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentcatch" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentCatch))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Fishing Tournament Catch</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a caught fish matches active tournament eligibility</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
                      <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
@@ -170,6 +180,29 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., Gamble Jackpot Win" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.FishingTournamentCatch)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Tournament Catch Trigger</MudText>
+
+                    <MudSwitch T="bool"
+                               @bind-Value="_fishingTournamentCatchConfig.RequireEligibleTournamentFish"
+                               Color="Color.Primary"
+                               Label="Require Eligible Tournament Fish" />
+
+                    <MudSwitch T="bool"
+                               @bind-Value="_fishingTournamentCatchConfig.RequireQualifyingPosition"
+                               Color="Color.Info"
+                               Label="Require Reward-Qualifying Position" />
+
+                    <MudNumericField T="int"
+                                     @bind-Value="_fishingTournamentCatchConfig.QualifyingPlacementOverride"
+                                     Label="Qualifying Max Place Override"
+                                     Min="0"
+                                     HelperText="0 uses reward-rule placements; values above 0 force a top-N cutoff." />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
@@ -235,6 +268,7 @@
     private string _selectedEventType = "";
     private string _selectedTwitchEvent = "";
     private Bot.Actions.Triggers.TwitchEventTriggerConfig _twitchEventConfig = new();
+    private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
 
     protected override async Task OnInitializedAsync()
@@ -258,7 +292,9 @@
         _showTypeSelection = false;
 
         // Set default trigger name based on type
-        _triggerName = $"{type} Trigger";
+        _triggerName = type == TriggerTypes.FishingTournamentCatch
+            ? "FishingTournament.EligibleCatch"
+            : $"{type} Trigger";
     }
 
     private void OnCommandSelected(int? commandId)
@@ -566,6 +602,11 @@
                 DefaultCommandName = _selectedDefaultCommand.CommandName,
                 EventType = _selectedEventType
             });
+        }
+        else if (_selectedType == TriggerTypes.FishingTournamentCatch)
+        {
+            configuration = System.Text.Json.JsonSerializer.Serialize(_fishingTournamentCatchConfig);
+            _triggerName = "FishingTournament.EligibleCatch";
         }
 
         var result = new
