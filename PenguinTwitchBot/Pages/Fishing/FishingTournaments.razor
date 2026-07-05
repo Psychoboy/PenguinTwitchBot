@@ -69,7 +69,37 @@
                                     <MudChip T="string" Color="@(context.Status == FishingTournamentStatus.Active ? Color.Success : Color.Info)" Size="Size.Small">@context.Status</MudChip>
                                 </MudTd>
                                 <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
-                                <MudTd DataLabel="Eligible Fish">@RenderEligibleFish(context)</MudTd>
+                                <MudTd DataLabel="Eligible Fish">
+                                    @{
+                                        var fishNames = GetEligibleFishNames(context);
+                                        var isExpanded = expandedEligibleFishTournamentIds.Contains(context.Id);
+                                        var hasOverflow = fishNames.Count > eligibleFishCollapsedCount;
+                                        var visibleFish = hasOverflow && !isExpanded
+                                            ? fishNames.Take(eligibleFishCollapsedCount)
+                                            : fishNames;
+                                    }
+
+                                    @if (fishNames.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.caption">@string.Join(", ", visibleFish)</MudText>
+                                            @if (hasOverflow)
+                                            {
+                                                <MudButton Variant="Variant.Text"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary"
+                                                           Class="pa-0 mt-1 justify-start"
+                                                           OnClick="@(() => ToggleEligibleFishExpansion(context.Id))">
+                                                    @(isExpanded ? "Show less" : $"Show all ({fishNames.Count})")
+                                                </MudButton>
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudTd>
                                 <MudTd DataLabel="Standings">
                                     @{
                                         var standings = GetStandings(context.Id);
@@ -166,7 +196,37 @@
                                 </MudTd>
                                 <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
                                 <MudTd DataLabel="Ended">@FormatDate(context.EndsAtUtc ?? context.StartsAtUtc)</MudTd>
-                                <MudTd DataLabel="Eligible Fish">@RenderEligibleFish(context)</MudTd>
+                                <MudTd DataLabel="Eligible Fish">
+                                    @{
+                                        var fishNames = GetEligibleFishNames(context);
+                                        var isExpanded = expandedEligibleFishTournamentIds.Contains(context.Id);
+                                        var hasOverflow = fishNames.Count > eligibleFishCollapsedCount;
+                                        var visibleFish = hasOverflow && !isExpanded
+                                            ? fishNames.Take(eligibleFishCollapsedCount)
+                                            : fishNames;
+                                    }
+
+                                    @if (fishNames.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.caption">@string.Join(", ", visibleFish)</MudText>
+                                            @if (hasOverflow)
+                                            {
+                                                <MudButton Variant="Variant.Text"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary"
+                                                           Class="pa-0 mt-1 justify-start"
+                                                           OnClick="@(() => ToggleEligibleFishExpansion(context.Id))">
+                                                    @(isExpanded ? "Show less" : $"Show all ({fishNames.Count})")
+                                                </MudButton>
+                                            }
+                                        </MudStack>
+                                    }
+                                </MudTd>
                                 <MudTd DataLabel="Standings">
                                     @{
                                         var standings = GetStandings(context.Id);
@@ -226,6 +286,8 @@
     private List<FishingTournament> currentTournaments = new();
     private List<FishingTournament> pastTournaments = new();
     private bool isLoading = true;
+    private const int eligibleFishCollapsedCount = 3;
+    private readonly HashSet<int> expandedEligibleFishTournamentIds = [];
     private readonly Dictionary<int, List<FishingTournamentStanding>> tournamentStandings = new();
 
     protected override async Task OnInitializedAsync()
@@ -237,6 +299,7 @@
     {
         isLoading = true;
         tournamentStandings.Clear();
+        expandedEligibleFishTournamentIds.Clear();
         currentTournaments = await FishingService.GetCurrentFishingTournaments();
         pastTournaments = await FishingService.GetPastFishingTournaments();
 
@@ -297,36 +360,24 @@
             : [];
     }
 
-    private static RenderFragment RenderEligibleFish(FishingTournament tournament) => builder =>
+    private static List<string> GetEligibleFishNames(FishingTournament tournament)
     {
-        if (tournament.EligibleFish.Count == 0)
-        {
-            builder.AddContent(0, "-");
-            return;
-        }
-
-        var fishNames = tournament.EligibleFish
+        return tournament.EligibleFish
             .Select(fish => fish.FishType?.Name)
+            .OfType<string>()
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct()
+            .OrderBy(name => name)
             .ToList();
+    }
 
-        if (fishNames.Count == 0)
+    private void ToggleEligibleFishExpansion(int tournamentId)
+    {
+        if (!expandedEligibleFishTournamentIds.Add(tournamentId))
         {
-            builder.AddContent(0, "-");
-            return;
+            expandedEligibleFishTournamentIds.Remove(tournamentId);
         }
-
-        for (var index = 0; index < fishNames.Count; index++)
-        {
-            if (index > 0)
-            {
-                builder.AddContent(index * 2 - 1, ", ");
-            }
-
-            builder.AddContent(index * 2, fishNames[index]);
-        }
-    };
+    }
 
     private static string FormatScore(double score)
     {

@@ -28,7 +28,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes.ToListAsync();
+            return await context.FishTypes
+                .OrderBy(f => f.Name)
+                .ToListAsync();
         }
 
         public async Task<List<FishType>> GetFishTypesWithCatches()
@@ -37,6 +39,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             return await context.FishTypes
                 .Where(f => f.Enabled && context.FishCatches.Any(c => c.FishTypeId == f.Id))
+                .OrderBy(f => f.Name)
                 .ToListAsync();
         }
 
