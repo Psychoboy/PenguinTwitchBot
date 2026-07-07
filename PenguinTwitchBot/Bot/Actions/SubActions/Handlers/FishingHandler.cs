@@ -213,7 +213,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         }
 
                         qualifyingMatches = await GetQualifyingMatchesAsync(matchingTournaments, userId, config.QualifyingPlacementOverride);
-                        if (config.RequireQualifyingPosition && qualifyingMatches.Count == 0)
+                        if (config.RequireQualifyingPosition && !qualifyingMatches.Any(m => m.MaxPlace > 0 && m.Rank <= m.MaxPlace))
                         {
                             continue;
                         }
@@ -269,21 +269,21 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             foreach (var tournament in matchingTournaments)
             {
-                var maxPlace = qualifyingPlacementOverride > 0
-                    ? qualifyingPlacementOverride
-                    : tournament.RewardRules.Where(rule => rule.Enabled).Select(rule => rule.Placement).DefaultIfEmpty(0).Max();
+                // Rank is always based on the tournament's PrimaryScoreCategory standings.
+                var standings = await _fishingService.GetFishingTournamentStandings(tournament.Id, 100);
+                var standing = standings.FirstOrDefault(item => string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
 
-                if (maxPlace <= 0)
+                if (standing == null)
                 {
                     continue;
                 }
 
-                var standings = await _fishingService.GetFishingTournamentStandings(tournament.Id, maxPlace);
-                var standing = standings.FirstOrDefault(item => string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
-                if (standing != null && standing.Rank <= maxPlace)
-                {
-                    qualifyingMatches.Add((tournament, standing.Rank, maxPlace));
-                }
+                // MaxPlace is used only to determine whether the user is in a reward-qualifying position.
+                var maxPlace = qualifyingPlacementOverride > 0
+                    ? qualifyingPlacementOverride
+                    : tournament.RewardRules.Where(rule => rule.Enabled).Select(rule => rule.Placement).DefaultIfEmpty(0).Max();
+
+                qualifyingMatches.Add((tournament, standing.Rank, maxPlace));
             }
 
             return qualifyingMatches;
@@ -307,12 +307,21 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fishing_tournament_enabled"] = firstTournament != null ? firstTournament.Enabled.ToString().ToLowerInvariant() : "false";
             variables["fishing_tournament_primary_score_category"] = firstTournament?.PrimaryScoreCategory.ToString() ?? string.Empty;
 
+            // "qualifying" = user has a rank in the tournament by PrimaryScoreCategory.
             variables["fishing_tournament_qualifying"] = qualifyingMatches.Count > 0 ? "true" : "false";
+            variables["fishing_tournament_qualifying_rank"] = qualifyingMatches.Count > 0 ? qualifyingMatches[0].Rank.ToString() : string.Empty;
             variables["fishing_tournament_qualifying_match_count"] = qualifyingMatches.Count.ToString();
             variables["fishing_tournament_qualifying_ids"] = string.Join(",", qualifyingMatches.Select(item => item.Tournament.Id));
             variables["fishing_tournament_qualifying_names"] = string.Join(", ", qualifyingMatches.Select(item => item.Tournament.Name));
-            variables["fishing_tournament_qualifying_rank"] = qualifyingMatches.Count > 0 ? qualifyingMatches[0].Rank.ToString() : string.Empty;
-            variables["fishing_tournament_qualifying_max_place"] = qualifyingMatches.Count > 0 ? qualifyingMatches[0].MaxPlace.ToString() : string.Empty;
+
+            // "reward_qualifying" = user would receive a reward if the tournament ended right now
+            // (rank is within the enabled reward rule placement cutoff).
+            var rewardQualifying = qualifyingMatches.Where(m => m.MaxPlace > 0 && m.Rank <= m.MaxPlace).ToList();
+            variables["fishing_tournament_reward_qualifying"] = rewardQualifying.Count > 0 ? "true" : "false";
+            variables["fishing_tournament_reward_qualifying_match_count"] = rewardQualifying.Count.ToString();
+            variables["fishing_tournament_reward_qualifying_ids"] = string.Join(",", rewardQualifying.Select(item => item.Tournament.Id));
+            variables["fishing_tournament_reward_qualifying_names"] = string.Join(", ", rewardQualifying.Select(item => item.Tournament.Name));
+            variables["fishing_tournament_reward_qualifying_max_place"] = rewardQualifying.Count > 0 ? rewardQualifying[0].MaxPlace.ToString() : string.Empty;
         }
 
         private static string? GetCurrentUserId(ConcurrentDictionary<string, string> variables)
