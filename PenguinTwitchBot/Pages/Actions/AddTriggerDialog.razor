@@ -204,6 +204,15 @@
                 {
                     <MudText Typo="Typo.h6">Configure Fishing Tournament Catch Trigger</MudText>
 
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_eligible%, %fishing_tournament_match_count%, %fishing_tournament_ids%,
+                        %fishing_tournament_names%, %fishing_tournament_primary_score_categories%, %fishing_tournament_id%,
+                        %fishing_tournament_name%, %fishing_tournament_primary_score_category%, %fishing_tournament_qualifying%,
+                        %fishing_tournament_qualifying_match_count%, %fishing_tournament_qualifying_ids%,
+                        %fishing_tournament_qualifying_names%, %fishing_tournament_qualifying_rank%,
+                        %fishing_tournament_qualifying_max_place%.
+                    </MudAlert>
+
                     <MudSwitch T="bool"
                                @bind-Value="_fishingTournamentCatchConfig.RequireEligibleTournamentFish"
                                Color="Color.Primary"
@@ -231,6 +240,16 @@
                         Fires when any fishing tournament starts.
                     </MudAlert>
 
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_id%, %fishing_tournament_name%, %fishing_tournament_description%,
+                        %fishing_tournament_status%, %fishing_tournament_enabled%, %fishing_tournament_primary_score_category%,
+                        %fishing_tournament_starts_at_utc%, %fishing_tournament_ends_at_utc%,
+                        %fishing_tournament_eligible_fish_count%, %fishing_tournament_eligible_fish_names%,
+                        %fishing_tournament_eligible_fish_preview%, %fishing_tournament_eligible_fish_over_three%,
+                        %fishing_tournament_reward_winner_count%, %fishing_tournament_reward_winner_names%,
+                        %fishing_tournament_reward_winner_ids%, %fishing_tournament_reward_summary%.
+                    </MudAlert>
+
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
                 }
@@ -240,6 +259,16 @@
 
                     <MudAlert Severity="Severity.Info">
                         Fires when a fishing tournament ends and reward winners are computed.
+                    </MudAlert>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_id%, %fishing_tournament_name%, %fishing_tournament_description%,
+                        %fishing_tournament_status%, %fishing_tournament_enabled%, %fishing_tournament_primary_score_category%,
+                        %fishing_tournament_starts_at_utc%, %fishing_tournament_ends_at_utc%,
+                        %fishing_tournament_eligible_fish_count%, %fishing_tournament_eligible_fish_names%,
+                        %fishing_tournament_eligible_fish_preview%, %fishing_tournament_eligible_fish_over_three%,
+                        %fishing_tournament_reward_winner_count%, %fishing_tournament_reward_winner_names%,
+                        %fishing_tournament_reward_winner_ids%, %fishing_tournament_reward_summary%.
                     </MudAlert>
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
