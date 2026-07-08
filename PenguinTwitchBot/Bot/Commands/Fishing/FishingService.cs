@@ -324,8 +324,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var wasActive = tournament.Status == FishingTournamentStatus.Active;
             tournament.Enabled = true;
             tournament.Status = FishingTournamentStatus.Active;
-            tournament.StartsAtUtc ??= now;
-            tournament.EndsAtUtc ??= tournament.StartsAtUtc.Value.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
+            tournament.StartsAtUtc = now;
+            tournament.EndsAtUtc = now.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
 
             await context.SaveChangesAsync();
 
@@ -516,6 +516,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (tournament == null)
             {
                 return null;
+            }
+
+            // Only settle once: skip if already Completed or Cancelled.
+            if (tournament.Status is FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled)
+            {
+                return tournament;
             }
 
             var rewardWinners = await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);

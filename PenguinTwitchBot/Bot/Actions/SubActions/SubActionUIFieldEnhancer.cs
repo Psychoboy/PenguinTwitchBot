@@ -26,8 +26,8 @@ public static class SubActionUIFieldEnhancer
         {
             ObsSetSceneType obs => EnhanceObsSetScene(fields, obs, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
-            FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, fishStart, scope.ServiceProvider),
-            FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, fishEnd, scope.ServiceProvider),
+            FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
+            FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
             TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
             ToggleCommandDisabledType toggle => EnhanceToggleCommandDisabled(fields, toggle, scope.ServiceProvider),
             PointCommandType point => EnhancePointCommand(fields, point, scope.ServiceProvider),
@@ -118,7 +118,7 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingTournamentStart(List<SubActionUIField> fields, FishingTournamentStartType fishStart, IServiceProvider serviceProvider)
+    private static List<SubActionUIField> EnhanceFishingTournamentStart(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
         var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
@@ -141,7 +141,7 @@ public static class SubActionUIFieldEnhancer
         return fields;
     }
 
-    private static List<SubActionUIField> EnhanceFishingTournamentEnd(List<SubActionUIField> fields, FishingTournamentEndType fishEnd, IServiceProvider serviceProvider)
+    private static List<SubActionUIField> EnhanceFishingTournamentEnd(List<SubActionUIField> fields, IServiceProvider serviceProvider)
     {
         var fishingService = serviceProvider.GetRequiredService<IFishingService>();
         var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
