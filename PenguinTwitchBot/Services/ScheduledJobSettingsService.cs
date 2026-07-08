@@ -11,6 +11,7 @@ public interface IScheduledJobSettingsService
     public const string CleanupClipsJobName = "CleanupClipsJob";
     public const string CleanupChatLogsJobName = "CleanupChatLogsJob";
     public const string CleanupIpLogsJobName = "CleanupIpLogsJob";
+    public const string CleanupCooldownsJobName = "CleanupCooldownsJob";
     public const string TtsCleanupJobName = "TtsCleanupJob";
     public const string UpdateDiscordEventsJobName = "UpdateDiscordEvents";
     public const string PostScheduleJobName = "PostSchedule";

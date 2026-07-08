@@ -73,12 +73,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                 dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;
                 dictionary[ActionExecutionVariableKeys.TriggerDisplayName] = notification.EventArgs.DisplayName;
 
-                foreach (var action in actions)
-                {
-                    await actionService.EnqueueAction(dictionary, action);
-                }
-
-                // Set cooldowns after successful execution
+                // Set cooldowns before enqueue to close race windows between rapid invocations.
                 if (actionCommand.GlobalCooldown > 0)
                 {
                     var globalCooldown = CooldownHelper.CalculateCooldown(actionCommand.GlobalCooldown, actionCommand.GlobalCooldownMax);
@@ -92,6 +87,11 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                         notification.EventArgs.Name,
                         actionCommand.CommandName,
                         userCooldown);
+                }
+
+                foreach (var action in actions)
+                {
+                    await actionService.EnqueueAction(dictionary, action);
                 }
             }
             catch (Exception ex)

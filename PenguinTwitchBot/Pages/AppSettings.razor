@@ -191,6 +191,12 @@
                                 <td><MudSwitch @bind-Value="_cleanupIpLogsRunOnStartup" Color="Color.Primary" /></td>
                             </tr>
                             <tr>
+                                <td>Cleanup Expired Cooldowns</td>
+                                <td><MudSwitch @bind-Value="_cleanupCooldownsEnabled" Color="Color.Primary" /></td>
+                                <td><MudTextField @bind-Value="_cleanupCooldownsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                <td><MudSwitch @bind-Value="_cleanupCooldownsRunOnStartup" Color="Color.Primary" /></td>
+                            </tr>
+                            <tr>
                                 <td>TTS Cleanup</td>
                                 <td><MudSwitch @bind-Value="_ttsCleanupEnabled" Color="Color.Primary" /></td>
                                 <td><MudTextField @bind-Value="_ttsCleanupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
@@ -239,6 +245,7 @@
                                         <MudSelectItem Value="@IScheduledJobSettingsService.CleanupClipsJobName">Cleanup Clips</MudSelectItem>
                                         <MudSelectItem Value="@IScheduledJobSettingsService.CleanupChatLogsJobName">Cleanup Chat Logs</MudSelectItem>
                                         <MudSelectItem Value="@IScheduledJobSettingsService.CleanupIpLogsJobName">Cleanup IP Logs</MudSelectItem>
+                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupCooldownsJobName">Cleanup Expired Cooldowns</MudSelectItem>
                                         <MudSelectItem Value="@IScheduledJobSettingsService.TtsCleanupJobName">TTS Cleanup</MudSelectItem>
                                         <MudSelectItem Value="@IScheduledJobSettingsService.UpdateDiscordEventsJobName">Update Discord Events</MudSelectItem>
                                         <MudSelectItem Value="@IScheduledJobSettingsService.PostScheduleJobName">Post Schedule</MudSelectItem>
@@ -361,6 +368,9 @@
     private bool _cleanupIpLogsEnabled = true;
     private string _cleanupIpLogsCron = DefaultCleanupIpLogsCron;
     private bool _cleanupIpLogsRunOnStartup = true;
+    private bool _cleanupCooldownsEnabled = true;
+    private string _cleanupCooldownsCron = DefaultCleanupCooldownsCron;
+    private bool _cleanupCooldownsRunOnStartup = true;
     private bool _ttsCleanupEnabled = true;
     private string _ttsCleanupCron = DefaultTtsCleanupCron;
     private bool _ttsCleanupRunOnStartup = true;
@@ -382,6 +392,7 @@
     private const string DefaultCleanupClipsCron = "0 0 12 * * ?";
     private const string DefaultCleanupChatLogsCron = "0 0 13 * * ?";
     private const string DefaultCleanupIpLogsCron = "0 30 13 * * ?";
+    private const string DefaultCleanupCooldownsCron = "0 0/30 * * * ?";
     private const string DefaultTtsCleanupCron = "0 0 * * * ?";
     private const string DefaultUpdateDiscordEventsCron = "0 0/5 * * * ?";
     private const string DefaultPostScheduleCron = "0 0 9 ? * MON";
@@ -429,6 +440,10 @@
         _cleanupIpLogsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, DefaultCleanupIpLogsCron);
         _cleanupIpLogsRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, true);
 
+        _cleanupCooldownsEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, true);
+        _cleanupCooldownsCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, DefaultCleanupCooldownsCron);
+        _cleanupCooldownsRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, true);
+
         _ttsCleanupEnabled = await ScheduledJobSettings.GetJobEnabledAsync(IScheduledJobSettingsService.TtsCleanupJobName, true);
         _ttsCleanupCron = await ScheduledJobSettings.GetJobCronAsync(IScheduledJobSettingsService.TtsCleanupJobName, DefaultTtsCleanupCron);
         _ttsCleanupRunOnStartup = await ScheduledJobSettings.GetRunOnStartupAsync(IScheduledJobSettingsService.TtsCleanupJobName, true);
@@ -461,6 +476,7 @@
             _cleanupClipsCron = _cleanupClipsCron.Trim();
             _cleanupChatLogsCron = _cleanupChatLogsCron.Trim();
             _cleanupIpLogsCron = _cleanupIpLogsCron.Trim();
+            _cleanupCooldownsCron = _cleanupCooldownsCron.Trim();
             _ttsCleanupCron = _ttsCleanupCron.Trim();
             _updateDiscordEventsCron = _updateDiscordEventsCron.Trim();
             _postScheduleCron = _postScheduleCron.Trim();
@@ -471,6 +487,7 @@
                 !ValidateCronSetting("Cleanup Clips", _cleanupClipsCron) ||
                 !ValidateCronSetting("Cleanup Chat Logs", _cleanupChatLogsCron) ||
                 !ValidateCronSetting("Cleanup IP Logs", _cleanupIpLogsCron) ||
+                !ValidateCronSetting("Cleanup Expired Cooldowns", _cleanupCooldownsCron) ||
                 !ValidateCronSetting("TTS Cleanup", _ttsCleanupCron) ||
                 !ValidateCronSetting("Update Discord Events", _updateDiscordEventsCron) ||
                 !ValidateCronSetting("Post Schedule", _postScheduleCron) ||
@@ -494,6 +511,10 @@
             await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsEnabled);
             await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsCron);
             await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.CleanupIpLogsJobName, _cleanupIpLogsRunOnStartup);
+
+            await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, _cleanupCooldownsEnabled);
+            await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, _cleanupCooldownsCron);
+            await ScheduledJobSettings.SetRunOnStartupAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, _cleanupCooldownsRunOnStartup);
 
             await ScheduledJobSettings.SetJobEnabledAsync(IScheduledJobSettingsService.TtsCleanupJobName, _ttsCleanupEnabled);
             await ScheduledJobSettings.SetJobCronAsync(IScheduledJobSettingsService.TtsCleanupJobName, _ttsCleanupCron);
@@ -639,6 +660,7 @@
             IScheduledJobSettingsService.CleanupClipsJobName => _cleanupClipsCron,
             IScheduledJobSettingsService.CleanupChatLogsJobName => _cleanupChatLogsCron,
             IScheduledJobSettingsService.CleanupIpLogsJobName => _cleanupIpLogsCron,
+            IScheduledJobSettingsService.CleanupCooldownsJobName => _cleanupCooldownsCron,
             IScheduledJobSettingsService.TtsCleanupJobName => _ttsCleanupCron,
             IScheduledJobSettingsService.UpdateDiscordEventsJobName => _updateDiscordEventsCron,
             IScheduledJobSettingsService.PostScheduleJobName => _postScheduleCron,
@@ -776,6 +798,9 @@
                 break;
             case IScheduledJobSettingsService.CleanupIpLogsJobName:
                 _cleanupIpLogsCron = generatedCron;
+                break;
+            case IScheduledJobSettingsService.CleanupCooldownsJobName:
+                _cleanupCooldownsCron = generatedCron;
                 break;
             case IScheduledJobSettingsService.TtsCleanupJobName:
                 _ttsCleanupCron = generatedCron;

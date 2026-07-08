@@ -195,6 +195,7 @@ internal class Program
             var postScheduleKey = new JobKey(IScheduledJobSettingsService.PostScheduleJobName);
             var cleanupChatLogs = new JobKey(IScheduledJobSettingsService.CleanupChatLogsJobName);
             var cleanupIpLogs = new JobKey(IScheduledJobSettingsService.CleanupIpLogsJobName);
+            var cleanupCooldowns = new JobKey(IScheduledJobSettingsService.CleanupCooldownsJobName);
             var ttsCleanup = new JobKey(IScheduledJobSettingsService.TtsCleanupJobName);
             var updatePostedSchedulekey = new JobKey(IScheduledJobSettingsService.UpdatePostedScheduleJobName);
             var validationSanityCheckKey = new JobKey(IScheduledJobSettingsService.ValidationSanityCheckJobName);
@@ -205,6 +206,7 @@ internal class Program
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.PostSchedule>(opts => opts.WithIdentity(postScheduleKey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupChatLogJob>(opts => opts.WithIdentity(cleanupChatLogs).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupIpLogsJob>(opts => opts.WithIdentity(cleanupIpLogs).StoreDurably());
+            q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.CleanupCooldownsJob>(opts => opts.WithIdentity(cleanupCooldowns).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.TtsCleanupJob>(opts => opts.WithIdentity(ttsCleanup).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
@@ -262,6 +264,7 @@ internal class Program
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
         builder.Services.AddSingleton<IIpLogRetentionSettingsService, IpLogRetentionSettingsService>();
         builder.Services.AddSingleton<IScheduledJobSettingsService, ScheduledJobSettingsService>();
+        builder.Services.AddSingleton<ICooldownCleanupService, CooldownCleanupService>();
         builder.Services.AddSingleton<IFileCleanupService, FileCleanupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
@@ -580,6 +583,7 @@ try
         var fileCleanupService = scope.ServiceProvider.GetRequiredService<IFileCleanupService>();
         var chatHistory = scope.ServiceProvider.GetRequiredService<IChatHistory>();
         var ipLog = scope.ServiceProvider.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>();
+        var cooldownCleanupService = scope.ServiceProvider.GetRequiredService<ICooldownCleanupService>();
 
         stoppingToken.ThrowIfCancellationRequested();
         if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupChatLogsJobName, true) &&
@@ -595,6 +599,14 @@ try
         {
             programLogger?.LogInformation("Running startup cleanup: IP logs");
             await ipLog.CleanupOldIpLogs();
+        }
+
+        stoppingToken.ThrowIfCancellationRequested();
+        if (await settings.GetJobEnabledAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, true) &&
+            await settings.GetRunOnStartupAsync(IScheduledJobSettingsService.CleanupCooldownsJobName, true))
+        {
+            programLogger?.LogInformation("Running startup cleanup: expired cooldowns");
+            await cooldownCleanupService.CleanupExpiredCooldownsAsync();
         }
 
         stoppingToken.ThrowIfCancellationRequested();
@@ -629,6 +641,7 @@ try
             [IScheduledJobSettingsService.CleanupClipsJobName] = "0 0 12 * * ?",
             [IScheduledJobSettingsService.CleanupChatLogsJobName] = "0 0 13 * * ?",
             [IScheduledJobSettingsService.CleanupIpLogsJobName] = "0 30 13 * * ?",
+            [IScheduledJobSettingsService.CleanupCooldownsJobName] = "0 0/30 * * * ?",
             [IScheduledJobSettingsService.TtsCleanupJobName] = "0 0 * * * ?",
             [IScheduledJobSettingsService.UpdateDiscordEventsJobName] = "0 0/5 * * * ?",
             [IScheduledJobSettingsService.PostScheduleJobName] = "0 0 9 ? * MON",
