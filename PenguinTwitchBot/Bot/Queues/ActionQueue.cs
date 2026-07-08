@@ -495,7 +495,7 @@ namespace PenguinTwitchBot.Bot.Queues
             catch (SubActionUserFacingException userFacingEx)
             {
                 var failureMessage = BuildSubActionFailureMessage(userFacingEx);
-                queuedAction.Variables["UserFacingErrorMessage"] = userFacingEx.UserFacingMessage ?? userFacingEx.Message;
+                queuedAction.Variables[ActionExecutionVariableKeys.ActionErrorMessage] = userFacingEx.Message;
                 _executionLogger.UpdateActionFailed(queuedAction.LogId, failureMessage, queuedAction.Variables);
                 await RunCatchSubActionsAsync(queuedAction, executionContext);
 

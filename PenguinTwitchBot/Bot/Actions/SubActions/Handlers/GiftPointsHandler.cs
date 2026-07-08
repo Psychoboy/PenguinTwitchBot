@@ -23,13 +23,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var amountString = VariableReplacer.ReplaceVariables(giftPoints.Amount, variables);
             if(string.IsNullOrEmpty(amountString) || !int.TryParse(amountString, out var amount))
             {
-                throw new SubActionUserFacingException(subAction,  "Invalid amount: {0}", "Invalid amount: {0}", amountString);
+                throw new SubActionUserFacingException(subAction,  "Invalid amount: {0}", amountString);
             }
             
             var fromName = VariableReplacer.ReplaceVariables(giftPoints.FromUsername, variables);
             if(string.IsNullOrWhiteSpace(fromName))
             {
-                throw new SubActionUserFacingException(subAction, "From Username is required.", "From Username is required.");
+                throw new SubActionUserFacingException(subAction, "From Username is required.");
             }
             
             var targetName = VariableReplacer.ReplaceVariables(giftPoints.TargetName, variables);
@@ -49,9 +49,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var target = await viewerFeature.GetViewerByUserName(targetName) ??
-                throw new SubActionUserFacingException(subAction, "Target user not found: {0}", "Target user not found: {0}", targetName);
+                throw new SubActionUserFacingException(subAction, "Target user not found: {0}", targetName);
             var from = await viewerFeature.GetViewerByUserName(fromName) ??
-                throw new SubActionUserFacingException(subAction, "From user not found: {0}", "From user not found: {0}", fromName);
+                throw new SubActionUserFacingException(subAction, "From user not found: {0}", fromName);
             if(pointType.Id == null)
             {
                 throw new SubActionHandlerException(subAction, "Point type ID is null for point type: {0}", pointType.Name);
@@ -63,7 +63,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
             else
             {
-                throw new SubActionUserFacingException(subAction, "Not enough points for user: {0}", "Not enough points for user: {0}", from.Username);
+                throw new SubActionUserFacingException(subAction, "Not enough points for user: {0}", from.Username);
             }
         }
     }

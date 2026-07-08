@@ -5,5 +5,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions
         public static string CooldownCommandName = "CooldownCommandName";
         public static string CooldownUserName = "CooldownUserName";
         public static string TriggerDisplayName = "TriggerDisplayName";
+        public static string ActionErrorMessage = "ActionErrorMessage";
     }
 }
