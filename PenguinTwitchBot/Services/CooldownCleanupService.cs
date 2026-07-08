@@ -22,7 +22,7 @@ namespace PenguinTwitchBot.Services
                     (!x.IsGlobal && x.NextUserCooldownTime <= utcNow))
                 .ExecuteDeleteAsync();
 
-            logger.LogInformation("Expired cooldown cleanup removed {RemovedCooldowns} rows.", removed);
+            logger.LogDebug("Expired cooldown cleanup removed {RemovedCooldowns} rows.", removed);
             return removed;
         }
     }
