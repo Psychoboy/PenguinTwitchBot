@@ -175,6 +175,9 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "actionId")]
+    public int? ActionIdFilter { get; set; }
+
     private List<ActionExecutionLog> _executionLogs = new();
     private List<ActionExecutionLog> _allLogs = new();
     private bool _loading = true;
@@ -187,10 +190,20 @@
     private bool _updatesPaused = false;
     private int _pendingUpdatesCount = 0;
     private MudTable<ActionExecutionLog>? _table;
+    private int? _lastActionIdFilter;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLogs();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_lastActionIdFilter != ActionIdFilter)
+        {
+            _lastActionIdFilter = ActionIdFilter;
+            FilterLogs();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -286,22 +299,9 @@
 
     private void FilterLogs()
     {
-        var filtered = _allLogs.AsEnumerable();
-
-        // Filter by search string
-        if (!string.IsNullOrWhiteSpace(_searchString))
-        {
-            filtered = filtered.Where(log => log.ActionName.Contains(_searchString, StringComparison.OrdinalIgnoreCase));
-        }
-
-        // Filter by state
-        if (_filterState.HasValue)
-        {
-            filtered = filtered.Where(log => log.State == _filterState.Value);
-        }
-
-        // Show all actions in the list
-        _executionLogs = filtered.OrderByDescending(log => log.EnqueuedAt).ToList();
+        _executionLogs = ActionExecutionLogFilter
+            .Apply(_allLogs, _searchString, _filterState, ActionIdFilter)
+            .ToList();
     }
 
     private void OnFilterStateChanged(ActionExecutionState? value)

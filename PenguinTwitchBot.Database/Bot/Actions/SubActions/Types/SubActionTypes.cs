@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         ForEachViewer,
         FishingTournamentStart,
         FishingTournamentEnd,
-        FishingTournamentEligibleCatch
+        FishingTournamentEligibleCatch,
+        ResetCooldowns
     }
 }

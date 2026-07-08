@@ -23,6 +23,7 @@ namespace PenguinTwitchBot.Bot.Actions
             foreach (var action in actions)
             {
                 action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+                action.CatchSubActions = action.CatchSubActions.OrderBy(s => s.Index).ToList();
             }
 
             return actions;
@@ -38,6 +39,7 @@ namespace PenguinTwitchBot.Bot.Actions
             if (action != null)
             {
                 action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+                action.CatchSubActions = action.CatchSubActions.OrderBy(s => s.Index).ToList();
             }
 
             return action;
@@ -123,6 +125,7 @@ namespace PenguinTwitchBot.Bot.Actions
                 foreach (var action in actions)
                 {
                     action.SubActions = action.SubActions.OrderBy(s => s.Index).ToList();
+                    action.CatchSubActions = action.CatchSubActions.OrderBy(s => s.Index).ToList();
                 }
 
                 return actions;

@@ -22,7 +22,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             variables["key2"] = "value2";
 
             // Act
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
 
             // Assert
             Assert.NotEqual(Guid.Empty, logId);
@@ -38,6 +38,25 @@ namespace PenguinTwitchBot.Test.Bot.Queues
         }
 
         [Fact]
+        public void LogActionEnqueued_PersistsActionId()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(logger, hubContext);
+            var variables = new ConcurrentDictionary<string, string>();
+
+            // Act
+            var logId = executionLogger.LogActionEnqueued("TestAction", 42, "default", variables);
+
+            // Assert
+            Assert.NotEqual(Guid.Empty, logId);
+            var log = executionLogger.GetLogById(logId);
+            Assert.NotNull(log);
+            Assert.Equal(42, log!.ActionId);
+        }
+
+        [Fact]
         public void UpdateActionStarted_TransitionsStateToRunning()
         {
             // Arrange
@@ -45,7 +64,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             var variables = new ConcurrentDictionary<string, string>();
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
 
             // Act
             executionLogger.UpdateActionStarted(logId);
@@ -66,7 +85,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             var variables = new ConcurrentDictionary<string, string>();
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
             executionLogger.UpdateActionStarted(logId);
             var variablesAfter = new ConcurrentDictionary<string, string>();
 
@@ -93,7 +112,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             var variables = new ConcurrentDictionary<string, string>();
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
             executionLogger.UpdateActionStarted(logId);
 
             // Act
@@ -116,9 +135,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            executionLogger.LogActionEnqueued("Action1", "queue1", new ConcurrentDictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "queue2", new ConcurrentDictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action3", "queue1", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", null, "queue1", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", null, "queue2", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action3", null, "queue1", new ConcurrentDictionary<string, string>());
 
             // Act
             var queue1Logs = executionLogger.GetLogsByQueue("queue1");
@@ -136,9 +155,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            var logId1 = executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
-            var logId2 = executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
-            var logId3 = executionLogger.LogActionEnqueued("Action3", "default", new ConcurrentDictionary<string, string>());
+            var logId1 = executionLogger.LogActionEnqueued("Action1", null, "default", new ConcurrentDictionary<string, string>());
+            var logId2 = executionLogger.LogActionEnqueued("Action2", null, "default", new ConcurrentDictionary<string, string>());
+            var logId3 = executionLogger.LogActionEnqueued("Action3", null, "default", new ConcurrentDictionary<string, string>());
             
             executionLogger.UpdateActionStarted(logId1);
             executionLogger.UpdateActionCompleted(logId1, new ConcurrentDictionary<string, string>());
@@ -172,14 +191,14 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var beforeTime = DateTime.UtcNow;
             Thread.Sleep(10);
             
-            executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", null, "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", null, "default", new ConcurrentDictionary<string, string>());
             
             Thread.Sleep(10);
             var afterFirstTwo = DateTime.UtcNow;
             Thread.Sleep(10);
             
-            executionLogger.LogActionEnqueued("Action3", "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action3", null, "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var allLogs = executionLogger.GetLogs(beforeTime);
@@ -201,7 +220,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             
             for (int i = 0; i < 10; i++)
             {
-                executionLogger.LogActionEnqueued($"Action{i}", "default", new ConcurrentDictionary<string, string>());
+                executionLogger.LogActionEnqueued($"Action{i}", null, "default", new ConcurrentDictionary<string, string>());
             }
 
             // Act
@@ -221,8 +240,8 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             
-            executionLogger.LogActionEnqueued("Action1", "default", new ConcurrentDictionary<string, string>());
-            executionLogger.LogActionEnqueued("Action2", "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action1", null, "default", new ConcurrentDictionary<string, string>());
+            executionLogger.LogActionEnqueued("Action2", null, "default", new ConcurrentDictionary<string, string>());
             Assert.Equal(2, executionLogger.GetLogCount());
 
             // Act
@@ -243,7 +262,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             
             for (int i = 0; i < 10; i++)
             {
-                executionLogger.LogActionEnqueued($"Action{i}", "default", new ConcurrentDictionary<string, string>());
+                executionLogger.LogActionEnqueued($"Action{i}", null, "default", new ConcurrentDictionary<string, string>());
             }
 
             // Act & Assert
@@ -263,7 +282,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
             var variables = new ConcurrentDictionary<string, string>();
             
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
             Thread.Sleep(20);
             
             executionLogger.UpdateActionStarted(logId);
@@ -297,7 +316,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 ["key2"] = "value2"
             };
 
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", variablesBefore);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variablesBefore);
             executionLogger.UpdateActionStarted(logId);
 
             var variablesAfter = new ConcurrentDictionary<string, string>
@@ -332,7 +351,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var index1 = executionLogger.LogSubActionStarted(logId, "SubAction1", "First sub-action", 0);
@@ -374,7 +393,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             Thread.Sleep(10);
@@ -398,7 +417,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             // Act
@@ -419,7 +438,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
 
             // Act
@@ -443,7 +462,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
             var index = executionLogger.LogSubActionStarted(logId, "SubAction", "Test", 0);
             var longMessage = new string('A', 200);
 
@@ -465,7 +484,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(logger, hubContext);
-            var logId = executionLogger.LogActionEnqueued("TestAction", "default", new ConcurrentDictionary<string, string>());
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", new ConcurrentDictionary<string, string>());
 
             // Act
             var index1 = executionLogger.LogSubActionStarted(logId, "SubAction1", "Depth 0", 0);

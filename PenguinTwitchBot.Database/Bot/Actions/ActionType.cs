@@ -18,6 +18,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions
         public bool OnlineOnly { get; set; } = false;
         public string QueueName { get; set; } = "default";
         public List<SubActionType> SubActions { get; set; } = [];
+        public List<SubActionType> CatchSubActions { get; set; } = [];
 
         // Navigation property for one-to-many relationship with triggers
         public List<TriggerType> Triggers { get; set; } = [];

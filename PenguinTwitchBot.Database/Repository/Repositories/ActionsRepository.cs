@@ -22,6 +22,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == id);
@@ -32,6 +33,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return await _context.Actions
                 .AsNoTracking()
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .OrderBy(a => a.Name)
@@ -40,11 +42,16 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
         public async Task<ActionType> CreateActionAsync(ActionType action)
         {
+            action.SubActions ??= [];
+            action.CatchSubActions ??= [];
+
+            var allIncomingSubActions = GetAllTopLevelSubActions(action);
+
             // Assign IDs to new SubActions
-            if (action.SubActions != null && action.SubActions.Any())
+            if (allIncomingSubActions.Any())
             {
                 var maxId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
-                foreach (var subAction in action.SubActions.Where(s => s.Id == 0))
+                foreach (var subAction in allIncomingSubActions.Where(s => s.Id == 0))
                 {
                     maxId++;
                     subAction.Id = maxId;
@@ -52,10 +59,10 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             }
 
             // Populate ActionName for ExecuteActionType subactions before save
-            if(action.SubActions != null)
+            if(allIncomingSubActions.Count != 0)
             {
-                await PopulateExecuteActionNamesBeforeSave(action.SubActions);
-                await PopulateTimerGroupNamesBeforeSave(action.SubActions);
+                await PopulateExecuteActionNamesBeforeSave(allIncomingSubActions);
+                await PopulateTimerGroupNamesBeforeSave(allIncomingSubActions);
             }
 
             await _context.Actions.AddAsync(action);
@@ -74,6 +81,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Load the existing action from database WITH tracking
             var existingAction = await _context.Actions
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == action.Id.Value);
@@ -86,53 +94,15 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Update scalar properties on the tracked entity
             _context.Entry(existingAction).CurrentValues.SetValues(action);
 
+            action.SubActions ??= [];
+            action.CatchSubActions ??= [];
+
             // Handle SubActions: Remove deleted, Add new, Update existing
-            var existingSubActionIds = existingAction.SubActions.Select(s => s.Id).ToHashSet();
-            var newSubActionIds = action.SubActions.Where(s => s.Id > 0).Select(s => s.Id).ToHashSet();
-
-            // Remove SubActions that are no longer in the incoming list
-            var subActionsToRemove = existingAction.SubActions
-                .Where(s => !newSubActionIds.Contains(s.Id))
-                .ToList();
-            foreach (var subAction in subActionsToRemove)
-            {
-                existingAction.SubActions.Remove(subAction);
-                _context.Entry(subAction).State = EntityState.Deleted;
-            }
-
-            // Process incoming SubActions
             // Track the next available ID to prevent duplicate ID assignments in the same operation
             var nextAvailableId = await _context.SubActions.MaxAsync(s => (int?)s.Id) ?? 0;
 
-            foreach (var subAction in action.SubActions)
-            {
-                // Check if this is a new SubAction (Id = 0 or not in existing)
-                if (subAction.Id == 0 || !existingSubActionIds.Contains(subAction.Id))
-                {
-                    // New SubAction - generate ID
-                    if (subAction.Id == 0)
-                    {
-                        // Assign the next available ID and increment for subsequent subactions
-                        nextAvailableId++;
-                        subAction.Id = nextAvailableId;
-                    }
-
-                    // Add to collection - EF will INSERT this
-                    existingAction.SubActions.Add(subAction);
-                }
-                else
-                {
-                    // Existing SubAction - find and update it
-                    var existingSubAction = existingAction.SubActions.FirstOrDefault(s => s.Id == subAction.Id);
-                    if (existingSubAction != null)
-                    {
-                        // Remove the old one and add the new one (for polymorphism)
-                        existingAction.SubActions.Remove(existingSubAction);
-                        _context.Entry(existingSubAction).State = EntityState.Deleted;
-                        existingAction.SubActions.Add(subAction);
-                    }
-                }
-            }
+            SyncSubActionCollection(existingAction.SubActions, action.SubActions, ref nextAvailableId);
+            SyncSubActionCollection(existingAction.CatchSubActions, action.CatchSubActions, ref nextAvailableId);
 
             // Handle Triggers: Remove deleted, Add new, Update existing
             var existingTriggerIds = existingAction.Triggers.Select(t => t.Id).ToHashSet();
@@ -165,8 +135,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             }
 
             // Populate ActionName for ExecuteActionType subactions before save
-            await PopulateExecuteActionNamesBeforeSave(existingAction.SubActions);
-            await PopulateTimerGroupNamesBeforeSave(existingAction.SubActions);
+            var allSubActions = existingAction.SubActions.Concat(existingAction.CatchSubActions).ToList();
+            await PopulateExecuteActionNamesBeforeSave(allSubActions);
+            await PopulateTimerGroupNamesBeforeSave(allSubActions);
 
             await _context.SaveChangesAsync();
 
@@ -235,6 +206,52 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return result;
         }
 
+        private static List<SubActionType> GetAllTopLevelSubActions(ActionType action)
+        {
+            return [.. action.SubActions, .. action.CatchSubActions];
+        }
+
+        private void SyncSubActionCollection(List<SubActionType> existingSubActions, List<SubActionType> incomingSubActions, ref int nextAvailableId)
+        {
+            var existingSubActionIds = existingSubActions.Select(s => s.Id).ToHashSet();
+            var incomingSubActionIds = incomingSubActions.Where(s => s.Id > 0).Select(s => s.Id).ToHashSet();
+
+            var subActionsToRemove = existingSubActions
+                .Where(s => !incomingSubActionIds.Contains(s.Id))
+                .ToList();
+
+            foreach (var subAction in subActionsToRemove)
+            {
+                existingSubActions.Remove(subAction);
+                _context.Entry(subAction).State = EntityState.Deleted;
+            }
+
+            foreach (var subAction in incomingSubActions)
+            {
+                if (subAction.Id == 0 || !existingSubActionIds.Contains(subAction.Id))
+                {
+                    nextAvailableId++;
+                    subAction.Id = nextAvailableId;
+                    existingSubActions.Add(subAction);
+                }
+                else
+                {
+                    var existingSubAction = existingSubActions.FirstOrDefault(s => s.Id == subAction.Id);
+                    if (existingSubAction != null)
+                    {
+                        _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
+
+                        var existingActionEntry = _context.Entry(existingSubAction);
+                        if (existingActionEntry.State == EntityState.Detached)
+                        {
+                            existingSubActions.Remove(existingSubAction);
+                            existingSubActions.Add(subAction);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Populates TimerGroupName for all TimerGroupSetEnabledStateType subactions (including nested) before save.
         /// Only queries timer groups that are actually referenced.
@@ -279,6 +296,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .Where(a => a.Triggers.Any(t => 
                     t.Type == triggerType && 
@@ -294,6 +312,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var records = await context.Set<ActionType>()
                 .AsNoTracking()
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .Include(a => a.Triggers)
                 .AsSplitQuery()
                 .ToListAsync();
@@ -302,7 +321,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var actionIdToNameMap = records.ToDictionary(a => a.Id!.Value, a => a.Name);
             foreach (var action in records)
             {
-                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions);
+                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions.Concat(action.CatchSubActions));
                 foreach (var subAction in allExecuteActions)
                 {
                     if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
@@ -391,9 +410,15 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 {
                     // Recursively remove all ExecuteAction subactions and collect them for second pass
                     RemoveAndCollectExecuteActions(record.SubActions, record, executeActionSubActions);
+                    RemoveAndCollectExecuteActions(record.CatchSubActions, record, executeActionSubActions);
 
                     // Assign IDs to remaining SubActions
                     foreach (var subAction in record.SubActions)
+                    {
+                        subAction.Id = nextSubActionId++;
+                    }
+
+                    foreach (var subAction in record.CatchSubActions)
                     {
                         subAction.Id = nextSubActionId++;
                     }
@@ -456,7 +481,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                             executeActionSubActions.Count);
                     }
 
-                    var subActionCount = records.Sum(r => r.SubActions.Count);
+                    var subActionCount = records.Sum(r => r.SubActions.Count + r.CatchSubActions.Count);
                     var triggerCount = records.Sum(r => r.Triggers.Count);
                     logger?.LogDebug("Restored {ActionCount} Actions with {SubActionCount} SubActions and {TriggerCount} Triggers", 
                         records.Count, subActionCount, triggerCount);
@@ -480,6 +505,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var actions = await _context.Actions
                 .Include(a => a.Triggers)
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .AsSplitQuery()
                 .ToListAsync();
 
@@ -536,12 +562,13 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Note: We need to load all because we can't efficiently filter by nested ExecuteActionType in a query
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .ToListAsync();
 
             bool hasChanges = false;
             foreach (var action in allActions)
             {
-                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions);
+                var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions.Concat(action.CatchSubActions));
                 foreach (var exec in allExecuteActions)
                 {
                     if (exec.ActionId == actionId && exec.ActionName != newName)
@@ -660,12 +687,13 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Note: We need to load all because we can't efficiently filter by nested TimerGroupSetEnabledStateType in a query
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .ToListAsync();
 
             bool hasChanges = false;
             foreach (var action in allActions)
             {
-                var allTimerGroupSubActions = GetAllTimerGroupSubActions(action.SubActions);
+                var allTimerGroupSubActions = GetAllTimerGroupSubActions(action.SubActions.Concat(action.CatchSubActions));
                 foreach (var timerGroupSubAction in allTimerGroupSubActions)
                 {
                     if (timerGroupSubAction.TimerGroupId == timerGroupId && timerGroupSubAction.TimerGroupName != newName)
@@ -690,12 +718,13 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Note: We need to load all because we can't efficiently filter by nested ToggleCommandDisabledType in a query
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
+                .Include(a => a.CatchSubActions)
                 .ToListAsync();
 
             bool hasChanges = false;
             foreach (var action in allActions)
             {
-                var allToggleCommandSubActions = GetAllToggleCommandDisabledSubActions(action.SubActions);
+                var allToggleCommandSubActions = GetAllToggleCommandDisabledSubActions(action.SubActions.Concat(action.CatchSubActions));
                 foreach (var toggleCommandSubAction in allToggleCommandSubActions)
                 {
                     if (string.Equals(toggleCommandSubAction.CommandName, oldCommandName, StringComparison.OrdinalIgnoreCase) && 
@@ -1091,7 +1120,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         private async Task RemapTimerGroupSubActionIds(DbContext context, List<ActionType> records, ILogger? logger)
         {
             var timerGroupSubActions = records
-                .SelectMany(a => GetAllTimerGroupSubActions(a.SubActions))
+                .SelectMany(a => GetAllTimerGroupSubActions(a.SubActions.Concat(a.CatchSubActions)))
                 .ToList();
 
             if (!timerGroupSubActions.Any())
@@ -1197,7 +1226,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         private async Task RemapToggleCommandDisabledSubActions(DbContext context, List<ActionType> records, ILogger? logger)
         {
             var toggleCommandSubActions = records
-                .SelectMany(a => GetAllToggleCommandDisabledSubActions(a.SubActions))
+                .SelectMany(a => GetAllToggleCommandDisabledSubActions(a.SubActions.Concat(a.CatchSubActions)))
                 .ToList();
 
             if (!toggleCommandSubActions.Any())

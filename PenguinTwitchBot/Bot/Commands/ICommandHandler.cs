@@ -30,6 +30,7 @@ namespace PenguinTwitchBot.Bot.Commands
         Task DeleteExternalCommand(ExternalCommands externalCommand);
         Task<bool> CheckPermission(BaseCommandProperties commandProperties, CommandEventArgs eventArgs);
         Task ResetCooldown(CurrentCooldowns cooldown);
+        Task ResetCooldownsForCommand(string command, string user, bool resetUserCooldown, bool resetGlobalCooldown);
         Task<List<CurrentCooldowns>> GetCurrentCooldowns();
         Task<bool> IsGlobalCoolDownExpiredWithMessageForAction(string user, string displayName, string command);
         Task<DefaultCommand?> GetDefaultCommandByDefaultCommandName(string defaultCommandName);

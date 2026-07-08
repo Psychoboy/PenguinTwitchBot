@@ -14,7 +14,6 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         IActionKeywordCache keywordCache,
         ILogger<ActionKeywordHandler> logger) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
-
         public async Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {
             try
@@ -121,6 +120,9 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                         keyword.CommandName);
 
                     var dictionary = CommandEventArgsConverter.ToDictionary(commandEventArgs);
+                    dictionary[ActionExecutionVariableKeys.CooldownCommandName] = $"keyword {keyword.CommandName}";
+                    dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;
+                    dictionary[ActionExecutionVariableKeys.TriggerDisplayName] = notification.EventArgs.DisplayName;
 
                     foreach (var action in actions)
                     {

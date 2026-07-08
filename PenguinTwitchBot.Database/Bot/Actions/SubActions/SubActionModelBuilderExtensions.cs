@@ -33,6 +33,13 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
             modelBuilder.Entity<ActionType>()
                 .HasMany(a => a.SubActions)
                 .WithOne()
+                .HasForeignKey("ActionTypeId")
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ActionType>()
+                .HasMany(a => a.CatchSubActions)
+                .WithOne()
+                .HasForeignKey("CatchActionTypeId")
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure JSON serialization for LogicIfElseType nested subactions
