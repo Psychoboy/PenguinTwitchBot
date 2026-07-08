@@ -7,6 +7,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         Timer,
         Manual,
         DefaultCommand,
-        Keyword
+        Keyword,
+        FishingTournamentCatch,
+        FishingTournamentStart,
+        FishingTournamentEnd
     }
 }

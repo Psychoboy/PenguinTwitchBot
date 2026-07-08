@@ -1,3 +1,4 @@
+using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core.Points;
@@ -25,6 +26,8 @@ public static class SubActionUIFieldEnhancer
         {
             ObsSetSceneType obs => EnhanceObsSetScene(fields, obs, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
+            FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
+            FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
             TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
             ToggleCommandDisabledType toggle => EnhanceToggleCommandDisabled(fields, toggle, scope.ServiceProvider),
             PointCommandType point => EnhancePointCommand(fields, point, scope.ServiceProvider),
@@ -110,6 +113,52 @@ public static class SubActionUIFieldEnhancer
             SelectOptions = actionOptions,
             Required = true,
             Clearable = true
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingTournamentStart(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetRequiredService<IFishingService>();
+        var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
+        var options = tournaments
+            .Select(t => new SelectOption { Id = t.Id, Name = $"{t.Name} ({t.Status})" })
+            .OrderBy(o => o.Name)
+            .ToList();
+
+        fields.RemoveAll(f => f.PropertyName == nameof(FishingTournamentStartType.TournamentId));
+        fields.Add(new SubActionUIField
+        {
+            PropertyName = nameof(FishingTournamentStartType.TournamentId),
+            Label = "Tournament / Template",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            SelectOptions = options,
+            HelperText = "Select an existing tournament to start, or a template to clone and start."
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingTournamentEnd(List<SubActionUIField> fields, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetRequiredService<IFishingService>();
+        var tournaments = Task.Run(async () => await fishingService.GetAllFishingTournaments()).GetAwaiter().GetResult();
+        var options = tournaments
+            .Select(t => new SelectOption { Id = t.Id, Name = $"{t.Name} ({t.Status})" })
+            .OrderBy(o => o.Name)
+            .ToList();
+
+        fields.RemoveAll(f => f.PropertyName == nameof(FishingTournamentEndType.TournamentId));
+        fields.Insert(0, new SubActionUIField
+        {
+            PropertyName = nameof(FishingTournamentEndType.TournamentId),
+            Label = "Tournament",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            SelectOptions = options,
+            HelperText = "Fishing tournament to end."
         });
 
         return fields;

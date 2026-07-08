@@ -1,6 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
-using PenguinTwitchBot.Database.Bot.Models.Fishing;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -21,18 +19,15 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            var tournamentOptions = GetTournamentOptions(serviceProvider);
-
             return [
                 new()
                 {
                     PropertyName = nameof(TournamentId),
                     Label = "Tournament",
-                    FieldType = tournamentOptions.Count > 0 ? UIFieldType.Select : UIFieldType.Number,
+                    FieldType = UIFieldType.Number,
                     Required = true,
                     Min = 1,
-                    HelperText = "Fishing tournament to end",
-                    SelectOptions = tournamentOptions.Count > 0 ? tournamentOptions : null
+                    HelperText = "Fishing tournament to end"
                 },
                 new()
                 {
@@ -78,58 +73,5 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             return null;
         }
 
-        private static List<SelectOption> GetTournamentOptions(IServiceProvider? serviceProvider)
-        {
-            if (serviceProvider == null)
-            {
-                return [];
-            }
-
-            try
-            {
-                using var scope = serviceProvider.CreateScope();
-                var fishingServiceType = Type.GetType("PenguinTwitchBot.Bot.Commands.Fishing.IFishingService, PenguinTwitchBot");
-                if (fishingServiceType == null)
-                {
-                    return [];
-                }
-
-                var fishingService = scope.ServiceProvider.GetService(fishingServiceType);
-                if (fishingService == null)
-                {
-                    return [];
-                }
-
-                var getAllFishingTournaments = fishingServiceType.GetMethod("GetAllFishingTournaments", Type.EmptyTypes);
-                if (getAllFishingTournaments == null)
-                {
-                    return [];
-                }
-
-                var task = getAllFishingTournaments.Invoke(fishingService, []) as Task;
-                if (task == null)
-                {
-                    return [];
-                }
-
-                task.GetAwaiter().GetResult();
-                var result = task.GetType().GetProperty("Result")?.GetValue(task) as IEnumerable<FishingTournament>;
-                var tournaments = result?.ToList() ?? [];
-
-                return tournaments
-                    .OrderByDescending(tournament => tournament.StartsAtUtc)
-                    .ThenBy(tournament => tournament.Name)
-                    .Select(tournament => new SelectOption
-                    {
-                        Id = tournament.Id,
-                        Name = $"{tournament.Name} ({tournament.Status})"
-                    })
-                    .ToList();
-            }
-            catch
-            {
-                return [];
-            }
-        }
     }
 }

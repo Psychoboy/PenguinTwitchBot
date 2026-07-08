@@ -244,9 +244,14 @@
                         <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
                         <MudTd DataLabel="Actions">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" OnClick="() => ConfirmDuplicateTournament(context)" />
                             @if (context.Status == FishingTournamentStatus.Active || context.Status == FishingTournamentStatus.Scheduled)
                             {
                                 <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => ConfirmEndTournament(context)" />
+                            }
+                            @if (context.Status == FishingTournamentStatus.Completed || context.Status == FishingTournamentStatus.Cancelled)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.RestartAlt" Color="Color.Success" OnClick="() => ConfirmReopenTournament(context)" />
                             }
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => ConfirmDeleteTournament(context)" />
                         </MudTd>
@@ -605,6 +610,83 @@
         }
     }
 
+    private async Task ReopenTournament(FishingTournament tournament)
+    {
+        isSaving = true;
+        try
+        {
+            var reopenedTournament = await FishingService.ReopenFishingTournament(tournament.Id);
+            statusMessage = reopenedTournament == null
+                ? "Tournament not found."
+                : $"Reopened tournament '{reopenedTournament.Name}'.";
+            Snackbar.Add(statusMessage, reopenedTournament == null ? Severity.Warning : Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to reopen tournament. Please try again.";
+            Snackbar.Add($"Error reopening tournament: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DuplicateTournament(FishingTournament tournament)
+    {
+        isSaving = true;
+        try
+        {
+            var duplicatedTournament = new FishingTournament
+            {
+                Id = 0,
+                Name = $"{tournament.Name} (Copy)",
+                Description = tournament.Description,
+                Enabled = true,
+                Status = FishingTournamentStatus.Draft,
+                PrimaryScoreCategory = tournament.PrimaryScoreCategory,
+                StartsAtUtc = null,
+                EndsAtUtc = null,
+                AutoScheduleEnabled = tournament.AutoScheduleEnabled,
+                AutoScheduleCron = tournament.AutoScheduleCron,
+                RunDurationMinutes = tournament.RunDurationMinutes,
+                EntryFeeAmount = tournament.EntryFeeAmount,
+                EntryFeePointTypeId = tournament.EntryFeePointTypeId,
+                EligibleFish = tournament.EligibleFish
+                    .Select(fish => new FishingTournamentFishType { FishTypeId = fish.FishTypeId })
+                    .ToList(),
+                RewardRules = tournament.RewardRules
+                    .Select(rule => new FishingTournamentRewardRule
+                    {
+                        ScoreCategory = rule.ScoreCategory,
+                        TargetFishTypeId = rule.TargetFishTypeId,
+                        RewardKind = rule.RewardKind,
+                        Placement = rule.Placement,
+                        Points = rule.Points,
+                        EntryFeePercentage = rule.EntryFeePercentage,
+                        PointTypeId = rule.PointTypeId,
+                        Enabled = rule.Enabled
+                    })
+                    .ToList()
+            };
+
+            await FishingService.SaveFishingTournament(duplicatedTournament);
+            statusMessage = $"Duplicated tournament '{tournament.Name}' as '{duplicatedTournament.Name}'.";
+            Snackbar.Add(statusMessage, Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to duplicate tournament. Please try again.";
+            Snackbar.Add($"Error duplicating tournament: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
     private async Task ConfirmDeleteCurrentTournament()
     {
         if (!editingTournamentId.HasValue)
@@ -648,6 +730,40 @@
         }
 
         await EndTournament(tournament);
+    }
+
+    private async Task ConfirmReopenTournament(FishingTournament tournament)
+    {
+        var shouldReopen = await DialogService.ShowMessageBoxAsync(
+            "Reopen Tournament",
+            $"Reopen tournament '{tournament.Name}'? This resets it to Scheduled and clears linked catches from the prior run.",
+            yesText: "Reopen",
+            noText: "Cancel",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+
+        if (shouldReopen != true)
+        {
+            return;
+        }
+
+        await ReopenTournament(tournament);
+    }
+
+    private async Task ConfirmDuplicateTournament(FishingTournament tournament)
+    {
+        var shouldDuplicate = await DialogService.ShowMessageBoxAsync(
+            "Duplicate Tournament",
+            $"Create a draft copy of tournament '{tournament.Name}'?",
+            yesText: "Duplicate",
+            noText: "Cancel",
+            options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+
+        if (shouldDuplicate != true)
+        {
+            return;
+        }
+
+        await DuplicateTournament(tournament);
     }
 
     private string GetPointTypeName(int pointTypeId)

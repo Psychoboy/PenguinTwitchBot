@@ -1,6 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
-using PenguinTwitchBot.Database.Bot.Models.Fishing;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -18,21 +16,27 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         public int TournamentId { get; set; }
+        public bool CloneFromTemplate { get; set; }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
-            var tournamentOptions = GetTournamentOptions(serviceProvider);
-
             return [
                 new()
                 {
+                    PropertyName = nameof(CloneFromTemplate),
+                    Label = "Clone from Template",
+                    FieldType = UIFieldType.Switch,
+                    HelperText = "When enabled, duplicates the selected tournament and starts the clone immediately.",
+                    SwitchColor = "Info"
+                },
+                new()
+                {
                     PropertyName = nameof(TournamentId),
-                    Label = "Tournament",
-                    FieldType = tournamentOptions.Count > 0 ? UIFieldType.Select : UIFieldType.Number,
+                    Label = "Tournament / Template",
+                    FieldType = UIFieldType.Number,
                     Required = true,
                     Min = 1,
-                    HelperText = "Fishing tournament to start immediately",
-                    SelectOptions = tournamentOptions.Count > 0 ? tournamentOptions : null
+                    HelperText = "Select an existing tournament to start, or a template to clone and start."
                 },
                 new()
                 {
@@ -48,6 +52,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
+                { nameof(CloneFromTemplate), CloneFromTemplate },
                 { nameof(TournamentId), TournamentId },
                 { nameof(Enabled), Enabled }
             };
@@ -55,6 +60,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
+            if (values.TryGetValue(nameof(CloneFromTemplate), out var cloneFromTemplate))
+            {
+                CloneFromTemplate = cloneFromTemplate as bool? ?? false;
+            }
+
             if (values.TryGetValue(nameof(TournamentId), out var tournamentId) && int.TryParse(tournamentId?.ToString(), out var parsedTournamentId))
             {
                 TournamentId = parsedTournamentId;
@@ -78,58 +88,5 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             return null;
         }
 
-        private static List<SelectOption> GetTournamentOptions(IServiceProvider? serviceProvider)
-        {
-            if (serviceProvider == null)
-            {
-                return [];
-            }
-
-            try
-            {
-                using var scope = serviceProvider.CreateScope();
-                var fishingServiceType = Type.GetType("PenguinTwitchBot.Bot.Commands.Fishing.IFishingService, PenguinTwitchBot");
-                if (fishingServiceType == null)
-                {
-                    return [];
-                }
-
-                var fishingService = scope.ServiceProvider.GetService(fishingServiceType);
-                if (fishingService == null)
-                {
-                    return [];
-                }
-
-                var getAllFishingTournaments = fishingServiceType.GetMethod("GetAllFishingTournaments", Type.EmptyTypes);
-                if (getAllFishingTournaments == null)
-                {
-                    return [];
-                }
-
-                var task = getAllFishingTournaments.Invoke(fishingService, []) as Task;
-                if (task == null)
-                {
-                    return [];
-                }
-
-                task.GetAwaiter().GetResult();
-                var result = task.GetType().GetProperty("Result")?.GetValue(task) as IEnumerable<FishingTournament>;
-                var tournaments = result?.ToList() ?? [];
-
-                return tournaments
-                    .OrderByDescending(tournament => tournament.StartsAtUtc)
-                    .ThenBy(tournament => tournament.Name)
-                    .Select(tournament => new SelectOption
-                    {
-                        Id = tournament.Id,
-                        Name = $"{tournament.Name} ({tournament.Status})"
-                    })
-                    .ToList();
-            }
-            catch
-            {
-                return [];
-            }
-        }
     }
 }

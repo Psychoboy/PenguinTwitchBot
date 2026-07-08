@@ -1,16 +1,42 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
-using NSubstitute;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class FishingHandlerTests
     {
+        private static FishingHandler CreateHandler(
+            ILogger<FishingHandler> logger,
+            IFishingService fishingService,
+            IFishingGameplayService gameplayService,
+            IWebSocketMessenger webSocket)
+        {
+            var services = new ServiceCollection();
+
+            var actionManagementService = Substitute.For<IActionManagementService>();
+            actionManagementService
+                .GetActionsByTriggerTypeAndNameAsync(Arg.Any<TriggerTypes>(), Arg.Any<string>())
+                .Returns(_ => Task.FromResult(new List<ActionType>()));
+
+            services.AddSingleton(actionManagementService);
+            services.AddSingleton(Substitute.For<IAction>());
+
+            var provider = services.BuildServiceProvider();
+            var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+
+            return new FishingHandler(logger, fishingService, gameplayService, webSocket, scopeFactory);
+        }
+
         [Fact]
         public async Task FishingDisabled_ReturnsEarly()
         {
@@ -19,7 +45,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = false });
 
             var type = new FishingType();
@@ -37,7 +63,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var fishingService = Substitute.For<IFishingService>();
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -52,7 +78,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var fishingService = Substitute.For<IFishingService>();
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
 
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true });
 
@@ -69,7 +95,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var fishingService = Substitute.For<IFishingService>();
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
 
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true });
 
@@ -87,15 +113,15 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
 
             var type = new FishingType { Attempts = 1 };
             var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
 
             gameplayService.PerformFishingAttempt("123", "testuser").Returns(
-                new FishingAttemptResult 
-                { 
+                new FishingAttemptResult
+                {
                     Outcome = FishingAttemptOutcome.LineSnapped,
                     FishCatch = null
                 });
@@ -113,15 +139,15 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
 
             var type = new FishingType { Attempts = 1 };
             var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
 
             gameplayService.PerformFishingAttempt("123", "testuser").Returns(
-                new FishingAttemptResult 
-                { 
+                new FishingAttemptResult
+                {
                     Outcome = FishingAttemptOutcome.RodSnapped,
                     FishCatch = null
                 });
@@ -139,7 +165,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
 
             var type = new FishingType { Attempts = 1 };
@@ -154,8 +180,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             };
 
             gameplayService.PerformFishingAttempt("123", "testuser").Returns(
-                new FishingAttemptResult 
-                { 
+                new FishingAttemptResult
+                {
                     Outcome = FishingAttemptOutcome.CaughtFish,
                     FishCatch = fishCatch
                 });
@@ -173,7 +199,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
 
             var type = new FishingType { Attempts = 1 };
@@ -193,15 +219,15 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var gameplayService = Substitute.For<IFishingGameplayService>();
             var webSocket = Substitute.For<IWebSocketMessenger>();
 
-            var handler = new FishingHandler(logger, fishingService, gameplayService, webSocket);
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
             fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
 
             var type = new FishingType { Attempts = 3 };
             var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
 
             gameplayService.PerformFishingAttempt("123", "testuser").Returns(
-                new FishingAttemptResult 
-                { 
+                new FishingAttemptResult
+                {
                     Outcome = FishingAttemptOutcome.CaughtFish,
                     FishCatch = new FishCatch
                     {
@@ -220,12 +246,12 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public void SupportedType_IsFishing()
         {
-            var handler = new FishingHandler(
+            var handler = CreateHandler(
                 Substitute.For<ILogger<FishingHandler>>(),
                 Substitute.For<IFishingService>(),
                 Substitute.For<IFishingGameplayService>(),
                 Substitute.For<IWebSocketMessenger>());
-            
+
             Assert.Equal(SubActionTypes.Fishing, handler.SupportedType);
         }
     }

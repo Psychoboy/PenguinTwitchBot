@@ -2375,6 +2375,12 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<int>("QualifyingPlacementOverride")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("RequireQualifyingPosition")
+                        .HasColumnType("INTEGER");
+
                     b.ToTable("subactions_fishingtournamenteligiblecatch", (string)null);
                 });
 
@@ -2391,6 +2397,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentStartType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("CloneFromTemplate")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("TournamentId")
                         .HasColumnType("INTEGER");

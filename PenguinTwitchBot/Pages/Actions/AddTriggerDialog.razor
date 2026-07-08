@@ -64,6 +64,36 @@
                         </MudStack>
                     </MudListItem>
                     <MudDivider />
+                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentcatch" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentCatch))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Fishing Tournament Catch</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a caught fish matches active tournament eligibility</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentstart" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentStart))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Fishing Tournament Start</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is started</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentend" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentEnd))">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.FlagCircle" Color="Color.Warning" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body1"><b>Fishing Tournament End</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is ended and rewards are settled</MudText>
+                            </MudStack>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
                      <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
@@ -170,6 +200,83 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., Gamble Jackpot Win" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.FishingTournamentCatch)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Tournament Catch Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_eligible%, %fishing_tournament_match_count%, %fishing_tournament_ids%,
+                        %fishing_tournament_names%, %fishing_tournament_primary_score_categories%, %fishing_tournament_id%,
+                        %fishing_tournament_name%, %fishing_tournament_primary_score_category%,
+                        %fishing_tournament_qualifying% (has rank), %fishing_tournament_qualifying_rank%,
+                        %fishing_tournament_qualifying_match_count%, %fishing_tournament_qualifying_ids%,
+                        %fishing_tournament_qualifying_names%,
+                        %fishing_tournament_reward_qualifying% (would win reward now), %fishing_tournament_reward_qualifying_match_count%,
+                        %fishing_tournament_reward_qualifying_ids%, %fishing_tournament_reward_qualifying_names%,
+                        %fishing_tournament_reward_qualifying_max_place%.
+                    </MudAlert>
+
+                    <MudSwitch T="bool"
+                               @bind-Value="_fishingTournamentCatchConfig.RequireEligibleTournamentFish"
+                               Color="Color.Primary"
+                               Label="Require Eligible Tournament Fish" />
+
+                    <MudSwitch T="bool"
+                               @bind-Value="_fishingTournamentCatchConfig.RequireQualifyingPosition"
+                               Color="Color.Info"
+                               Label="Require Reward-Qualifying Position" />
+
+                    <MudNumericField T="int"
+                                     @bind-Value="_fishingTournamentCatchConfig.QualifyingPlacementOverride"
+                                     Label="Qualifying Max Place Override"
+                                     Min="0"
+                                     HelperText="0 uses reward-rule placements; values above 0 force a top-N cutoff." />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.FishingTournamentStart)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Tournament Start Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info">
+                        Fires when any fishing tournament starts.
+                    </MudAlert>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_id%, %fishing_tournament_name%, %fishing_tournament_description%,
+                        %fishing_tournament_status%, %fishing_tournament_enabled%, %fishing_tournament_primary_score_category%,
+                        %fishing_tournament_starts_at_utc%, %fishing_tournament_ends_at_utc%,
+                        %fishing_tournament_eligible_fish_count%, %fishing_tournament_eligible_fish_names%,
+                        %fishing_tournament_eligible_fish_preview%, %fishing_tournament_eligible_fish_over_three%,
+                        %fishing_tournament_reward_winner_count%, %fishing_tournament_reward_winner_names%,
+                        %fishing_tournament_reward_winner_ids%, %fishing_tournament_reward_summary%.
+                    </MudAlert>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.FishingTournamentEnd)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Tournament End Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info">
+                        Fires when a fishing tournament ends and reward winners are computed.
+                    </MudAlert>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Variables added: %fishing_tournament_id%, %fishing_tournament_name%, %fishing_tournament_description%,
+                        %fishing_tournament_status%, %fishing_tournament_enabled%, %fishing_tournament_primary_score_category%,
+                        %fishing_tournament_starts_at_utc%, %fishing_tournament_ends_at_utc%,
+                        %fishing_tournament_eligible_fish_count%, %fishing_tournament_eligible_fish_names%,
+                        %fishing_tournament_eligible_fish_preview%, %fishing_tournament_eligible_fish_over_three%,
+                        %fishing_tournament_reward_winner_count%, %fishing_tournament_reward_winner_names%,
+                        %fishing_tournament_reward_winner_ids%, %fishing_tournament_reward_summary%.
+                    </MudAlert>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
@@ -235,6 +342,7 @@
     private string _selectedEventType = "";
     private string _selectedTwitchEvent = "";
     private Bot.Actions.Triggers.TwitchEventTriggerConfig _twitchEventConfig = new();
+    private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
 
     protected override async Task OnInitializedAsync()
@@ -258,7 +366,13 @@
         _showTypeSelection = false;
 
         // Set default trigger name based on type
-        _triggerName = $"{type} Trigger";
+        _triggerName = type switch
+        {
+            TriggerTypes.FishingTournamentCatch => "FishingTournament.EligibleCatch",
+            TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
+            TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
+            _ => $"{type} Trigger"
+        };
     }
 
     private void OnCommandSelected(int? commandId)
@@ -566,6 +680,19 @@
                 DefaultCommandName = _selectedDefaultCommand.CommandName,
                 EventType = _selectedEventType
             });
+        }
+        else if (_selectedType == TriggerTypes.FishingTournamentCatch)
+        {
+            configuration = System.Text.Json.JsonSerializer.Serialize(_fishingTournamentCatchConfig);
+            _triggerName = "FishingTournament.EligibleCatch";
+        }
+        else if (_selectedType == TriggerTypes.FishingTournamentStart)
+        {
+            _triggerName = "FishingTournament.Start";
+        }
+        else if (_selectedType == TriggerTypes.FishingTournamentEnd)
+        {
+            _triggerName = "FishingTournament.End";
         }
 
         var result = new

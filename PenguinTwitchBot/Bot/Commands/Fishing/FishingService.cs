@@ -1,7 +1,11 @@
 using PenguinTwitchBot.Database.Bot.Core.Database;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
@@ -11,6 +15,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     /// </summary>
     public class FishingService : IFishingService
     {
+        private const string FishingTournamentStartTriggerName = "FishingTournament.Start";
+        private const string FishingTournamentEndTriggerName = "FishingTournament.End";
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingService> _logger;
         private readonly IPointsSystem _pointsSystem;
@@ -28,7 +35,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes.ToListAsync();
+            return await context.FishTypes
+                .OrderBy(f => f.Name)
+                .ToListAsync();
         }
 
         public async Task<List<FishType>> GetFishTypesWithCatches()
@@ -37,6 +46,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             return await context.FishTypes
                 .Where(f => f.Enabled && context.FishCatches.Any(c => c.FishTypeId == f.Id))
+                .OrderBy(f => f.Name)
                 .ToListAsync();
         }
 
@@ -311,10 +321,118 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var now = DateTime.UtcNow;
+            var wasActive = tournament.Status == FishingTournamentStatus.Active;
             tournament.Enabled = true;
             tournament.Status = FishingTournamentStatus.Active;
-            tournament.StartsAtUtc ??= now;
-            tournament.EndsAtUtc ??= tournament.StartsAtUtc.Value.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
+            tournament.StartsAtUtc = now;
+            tournament.EndsAtUtc = now.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
+
+            await context.SaveChangesAsync();
+
+            if (!wasActive)
+            {
+                await TriggerFishingTournamentLifecycleActionsAsync(tournament, TriggerTypes.FishingTournamentStart, FishingTournamentStartTriggerName);
+            }
+
+            return tournament;
+        }
+
+        public async Task<FishingTournament?> CloneAndStartFishingTournament(int templateTournamentId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var template = await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EligibleFish)
+                .Include(t => t.RewardRules)
+                .FirstOrDefaultAsync(t => t.Id == templateTournamentId);
+
+            if (template == null)
+            {
+                return null;
+            }
+
+            var clonedTournament = new FishingTournament
+            {
+                Name = string.IsNullOrWhiteSpace(template.Name)
+                    ? $"Tournament {DateTime.UtcNow:yyyy-MM-dd HH:mm}"
+                    : $"{template.Name} ({DateTime.UtcNow:yyyy-MM-dd HH:mm})",
+                Description = template.Description,
+                Enabled = true,
+                Status = FishingTournamentStatus.Scheduled,
+                PrimaryScoreCategory = template.PrimaryScoreCategory,
+                StartsAtUtc = null,
+                EndsAtUtc = null,
+                AutoScheduleEnabled = false,
+                AutoScheduleCron = string.Empty,
+                RunDurationMinutes = Math.Max(1, template.RunDurationMinutes),
+                EntryFeeAmount = template.EntryFeeAmount,
+                EntryFeePointTypeId = template.EntryFeePointTypeId,
+                EligibleFish = template.EligibleFish
+                    .Select(fish => new FishingTournamentFishType { FishTypeId = fish.FishTypeId })
+                    .ToList(),
+                RewardRules = template.RewardRules
+                    .Select(rule => new FishingTournamentRewardRule
+                    {
+                        ScoreCategory = rule.ScoreCategory,
+                        TargetFishTypeId = rule.TargetFishTypeId,
+                        RewardKind = rule.RewardKind,
+                        Placement = rule.Placement,
+                        Points = rule.Points,
+                        EntryFeePercentage = rule.EntryFeePercentage,
+                        PointTypeId = rule.PointTypeId,
+                        Enabled = rule.Enabled
+                    })
+                    .ToList()
+            };
+
+            context.FishingTournaments.Add(clonedTournament);
+            await context.SaveChangesAsync();
+
+            return await StartFishingTournament(clonedTournament.Id);
+        }
+
+        public async Task<FishingTournament?> ReopenFishingTournament(int id)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsSplitQuery()
+                .Include(t => t.EntryFeePointType)
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.PointType)
+                .Include(t => t.RewardRules)
+                    .ThenInclude(r => r.TargetFishType)
+                .FirstOrDefaultAsync(t => t.Id == id);
+
+            if (tournament == null)
+            {
+                return null;
+            }
+
+            if (tournament.Status is not (FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled))
+            {
+                return tournament;
+            }
+
+            var linkedCatches = await context.FishingTournamentCatches
+                .Where(link => link.FishingTournamentId == id)
+                .ToListAsync();
+
+            if (linkedCatches.Count > 0)
+            {
+                context.FishingTournamentCatches.RemoveRange(linkedCatches);
+            }
+
+            tournament.Enabled = true;
+            tournament.Status = FishingTournamentStatus.Scheduled;
+            tournament.StartsAtUtc = null;
+            tournament.EndsAtUtc = null;
 
             await context.SaveChangesAsync();
             return tournament;
@@ -400,21 +518,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return null;
             }
 
-            await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
+            // Only settle once: skip if already Completed or Cancelled.
+            if (tournament.Status is FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled)
+            {
+                return tournament;
+            }
+
+            var rewardWinners = await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
 
             tournament.Status = FishingTournamentStatus.Completed;
             tournament.Enabled = false;
             tournament.EndsAtUtc = DateTime.UtcNow;
 
             await context.SaveChangesAsync();
+
+            await TriggerFishingTournamentLifecycleActionsAsync(
+                tournament,
+                TriggerTypes.FishingTournamentEnd,
+                FishingTournamentEndTriggerName,
+                rewardWinners);
+
             return tournament;
         }
 
-        private async Task SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
+        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
         {
+            var winners = new List<TournamentRewardWinner>();
+
             if (tournament.RewardRules.Count == 0)
             {
-                return;
+                return winners;
             }
 
             using var scope = _scopeFactory.CreateScope();
@@ -424,7 +557,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (catches.Count == 0)
             {
-                return;
+                return winners;
             }
 
             foreach (var rewardRule in tournament.RewardRules.Where(rule => rule.Enabled).OrderBy(rule => rule.Placement))
@@ -450,6 +583,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
 
+                winners.Add(new TournamentRewardWinner
+                {
+                    UserId = winner.UserId,
+                    Username = winner.Username,
+                    Placement = rewardRule.Placement,
+                    PointTypeId = rewardRule.PointTypeId,
+                    PointTypeName = rewardRule.PointType?.Name ?? string.Empty,
+                    ScoreCategory = rewardRule.ScoreCategory,
+                    RewardKind = rewardRule.RewardKind,
+                    RewardAmount = rewardAmount
+                });
+
                 _logger.LogInformation(
                     "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}",
                     tournament.Id,
@@ -459,6 +604,86 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     rewardAmount,
                     rewardRule.PointTypeId);
             }
+
+            return winners;
+        }
+
+        private async Task TriggerFishingTournamentLifecycleActionsAsync(
+            FishingTournament tournament,
+            TriggerTypes triggerType,
+            string triggerName,
+            List<TournamentRewardWinner>? rewardWinners = null)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(triggerType, triggerName);
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                var eligibleFishNames = tournament.EligibleFish
+                    .Select(item => item.FishType?.Name)
+                    .OfType<string>()
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                var rewardWinnerList = rewardWinners ?? [];
+
+                foreach (var action in actions)
+                {
+                    var hasMatchingEnabledTrigger = action.Triggers.Any(trigger =>
+                        trigger.Type == triggerType &&
+                        trigger.Enabled &&
+                        string.Equals(trigger.Name, triggerName, StringComparison.Ordinal));
+
+                    if (!hasMatchingEnabledTrigger)
+                    {
+                        continue;
+                    }
+
+                    var variables = new ConcurrentDictionary<string, string>();
+                    PopulateTournamentLifecycleVariables(variables, tournament, eligibleFishNames, rewardWinnerList);
+
+                    await actionService.EnqueueAction(variables, action);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fishing tournament lifecycle action for trigger {TriggerName}", triggerName);
+            }
+        }
+
+        private static void PopulateTournamentLifecycleVariables(
+            ConcurrentDictionary<string, string> variables,
+            FishingTournament tournament,
+            List<string> eligibleFishNames,
+            List<TournamentRewardWinner> rewardWinners)
+        {
+            variables["fishing_tournament_id"] = tournament.Id.ToString();
+            variables["fishing_tournament_name"] = tournament.Name;
+            variables["fishing_tournament_description"] = tournament.Description;
+            variables["fishing_tournament_status"] = tournament.Status.ToString();
+            variables["fishing_tournament_enabled"] = tournament.Enabled.ToString().ToLowerInvariant();
+            variables["fishing_tournament_primary_score_category"] = tournament.PrimaryScoreCategory.ToString();
+            variables["fishing_tournament_starts_at_utc"] = tournament.StartsAtUtc?.ToString("O") ?? string.Empty;
+            variables["fishing_tournament_ends_at_utc"] = tournament.EndsAtUtc?.ToString("O") ?? string.Empty;
+
+            variables["fishing_tournament_eligible_fish_count"] = eligibleFishNames.Count.ToString();
+            variables["fishing_tournament_eligible_fish_names"] = string.Join(", ", eligibleFishNames);
+            variables["fishing_tournament_eligible_fish_preview"] = string.Join(", ", eligibleFishNames.Take(3));
+            variables["fishing_tournament_eligible_fish_over_three"] = (eligibleFishNames.Count > 3).ToString().ToLowerInvariant();
+
+            variables["fishing_tournament_reward_winner_count"] = rewardWinners.Count.ToString();
+            variables["fishing_tournament_reward_winner_names"] = string.Join(", ", rewardWinners.Select(winner => winner.Username).Distinct(StringComparer.OrdinalIgnoreCase));
+            variables["fishing_tournament_reward_winner_ids"] = string.Join(",", rewardWinners.Select(winner => winner.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
+            variables["fishing_tournament_reward_summary"] = string.Join("; ", rewardWinners.Select(winner =>
+                $"#{winner.Placement} {winner.Username} won {winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}"));
         }
 
         private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentRewardRule rewardRule)
@@ -546,6 +771,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public int CatchCount { get; set; }
             public DateTime? LastCaughtAtUtc { get; set; }
             public double Score { get; set; }
+        }
+
+        private sealed class TournamentRewardWinner
+        {
+            public string UserId { get; set; } = string.Empty;
+            public string Username { get; set; } = string.Empty;
+            public int Placement { get; set; }
+            public int PointTypeId { get; set; }
+            public string PointTypeName { get; set; } = string.Empty;
+            public FishingTournamentScoreCategory ScoreCategory { get; set; }
+            public FishingTournamentRewardKind RewardKind { get; set; }
+            public long RewardAmount { get; set; }
         }
 
         public async Task DeleteFishingTournament(int id)
