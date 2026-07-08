@@ -8,9 +8,9 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
     {
         public async Task Execute(IJobExecutionContext context)
         {
-            logger.LogInformation("Scheduled TTS cleanup job started.");
+            logger.LogDebug("Scheduled TTS cleanup job started.");
             await fileCleanupService.CleanupTtsAsync();
-            logger.LogInformation("Scheduled TTS cleanup job completed.");
+            logger.LogDebug("Scheduled TTS cleanup job completed.");
         }
     }
 }
