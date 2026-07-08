@@ -32,14 +32,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (string.IsNullOrWhiteSpace(targetUser))
             {
                 logger.LogError("Target user is empty after variable replacement in CheckPointsHandler");
-                throw new SubActionHandlerException(subAction, "Target user cannot be empty");
+                throw new SubActionUserFacingException(subAction, "Target user cannot be empty");
             }
 
             var targetViewer = await viewerFeature.GetViewerByUserName(targetUser);
             if (targetViewer == null)
             {
                 logger.LogError("Target viewer not found for CheckPointsHandler");
-                throw new SubActionHandlerException(subAction, $"Viewer not found: {targetUser}");
+                throw new SubActionUserFacingException(subAction, $"Viewer not found: {targetUser}");
             }
 
             var points = await pointsSystem.GetUserPointsByUserId(targetViewer.UserId, pointType.Id.Value);
