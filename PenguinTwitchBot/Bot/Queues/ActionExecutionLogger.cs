@@ -32,10 +32,11 @@ namespace PenguinTwitchBot.Bot.Queues
             _updateTimer = new Timer(SendThrottledLogUpdates, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables)
+        public Guid LogActionEnqueued(string actionName, int? actionId, string queueName, ConcurrentDictionary<string, string> variables)
         {
             var log = new ActionExecutionLog
             {
+            ActionId = actionId,
                 ActionName = actionName,
                 QueueName = queueName,
                 VariablesBefore = new Dictionary<string, string>(variables),
@@ -140,6 +141,7 @@ namespace PenguinTwitchBot.Bot.Queues
             var snapshot = new ActionExecutionLog
             {
                 Id = log.Id,
+                ActionId = log.ActionId,
                 ActionName = log.ActionName,
                 State = log.State,
                 VariablesBefore = log.VariablesBefore,

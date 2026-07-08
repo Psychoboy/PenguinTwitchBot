@@ -6,6 +6,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
     {
         public SubActionType? SubActionType { get; }
         public object[] Args { get; }
+        public string? UserFacingMessage { get; protected init; }
         public SubActionHandlerException(SubActionType subActionType) : base("An unknown error happened in a SubAction.") { SubActionType = subActionType; Args = []; }
         public SubActionHandlerException(SubActionType subActionType, string message) : base(message) { SubActionType = subActionType; Args = []; }
         public SubActionHandlerException(SubActionType subActionType ,string message, Exception innerException) : base(message, innerException) { SubActionType = subActionType; Args = []; }

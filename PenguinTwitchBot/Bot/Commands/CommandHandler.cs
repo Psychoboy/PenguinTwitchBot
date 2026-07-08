@@ -451,6 +451,48 @@ namespace PenguinTwitchBot.Bot.Commands
             await db.SaveChangesAsync();
         }
 
+        public async Task ResetCooldownsForCommand(string command, string user, bool resetUserCooldown, bool resetGlobalCooldown)
+        {
+            if (string.IsNullOrWhiteSpace(command))
+            {
+                return;
+            }
+
+            if (!resetUserCooldown && !resetGlobalCooldown)
+            {
+                return;
+            }
+
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            if (resetGlobalCooldown)
+            {
+                var globalCooldown = await db.Cooldowns
+                    .Find(x => x.CommandName.Equals(command) && x.IsGlobal)
+                    .FirstOrDefaultAsync();
+
+                if (globalCooldown != null)
+                {
+                    db.Cooldowns.Remove(globalCooldown);
+                }
+            }
+
+            if (resetUserCooldown && !string.IsNullOrWhiteSpace(user))
+            {
+                var userCooldown = await db.Cooldowns
+                    .Find(x => x.CommandName.Equals(command) && x.UserName.Equals(user))
+                    .FirstOrDefaultAsync();
+
+                if (userCooldown != null)
+                {
+                    db.Cooldowns.Remove(userCooldown);
+                }
+            }
+
+            await db.SaveChangesAsync();
+        }
+
         public async Task<List<CurrentCooldowns>> GetCurrentCooldowns()
         {
             await using var scope = scopeFactory.CreateAsyncScope();

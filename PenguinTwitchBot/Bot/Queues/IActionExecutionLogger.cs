@@ -5,7 +5,7 @@ namespace PenguinTwitchBot.Bot.Queues
 {
     public interface IActionExecutionLogger : IDisposable
     {
-        Guid LogActionEnqueued(string actionName, string queueName, ConcurrentDictionary<string, string> variables);
+        Guid LogActionEnqueued(string actionName, int? actionId, string queueName, ConcurrentDictionary<string, string> variables);
 
         void UpdateActionStarted(Guid logId);
 

@@ -68,6 +68,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int?>("ActionTypeId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("CatchActionTypeId")
+                        .HasColumnType("integer");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -84,6 +87,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ActionTypeId");
+
+                    b.HasIndex("CatchActionTypeId");
 
                     b.ToTable((string)null);
 
@@ -3009,6 +3014,27 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_replytomessage", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ResetCooldownsType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ResetGlobalCooldown")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ResetUserCooldown")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_resetcooldowns", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SendMessageType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3121,6 +3147,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasOne("PenguinTwitchBot.Database.Bot.Actions.ActionType", null)
                         .WithMany("SubActions")
                         .HasForeignKey("ActionTypeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("PenguinTwitchBot.Database.Bot.Actions.ActionType", null)
+                        .WithMany("CatchSubActions")
+                        .HasForeignKey("CatchActionTypeId")
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
@@ -3350,6 +3381,8 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.ActionType", b =>
                 {
+                    b.Navigation("CatchSubActions");
+
                     b.Navigation("SubActions");
 
                     b.Navigation("Triggers");

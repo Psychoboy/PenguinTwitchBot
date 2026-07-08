@@ -26,6 +26,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         CheckPoints,
         SendMessage,
         ReplyToMessage,
+        ResetCooldowns,
         ExecuteAction,
         ExecuteDefaultCommand,
         RuntimeDefaultCommand,

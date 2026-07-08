@@ -69,6 +69,9 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                     "!" + notification.EventArgs.Command);
 
                 var dictionary = CommandEventArgsConverter.ToDictionary(notification.EventArgs);
+                dictionary[ActionExecutionVariableKeys.CooldownCommandName] = actionCommand.CommandName;
+                dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;
+                dictionary[ActionExecutionVariableKeys.TriggerDisplayName] = notification.EventArgs.DisplayName;
 
                 foreach (var action in actions)
                 {

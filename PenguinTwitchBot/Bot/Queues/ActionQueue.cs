@@ -3,6 +3,8 @@ using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.WebSocketEvents;
+using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Core;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
@@ -96,7 +98,7 @@ namespace PenguinTwitchBot.Bot.Queues
                 return;
             }
 
-            var logId = _executionLogger.LogActionEnqueued(action.Name, Name, variables);
+            var logId = _executionLogger.LogActionEnqueued(action.Name, action.Id, Name, variables);
             var queuedAction = new QueuedAction(action, variables, logId, parentLogId, parentSubActionIndex);
 
             // Treat non-blocking queues as lower priority under pool pressure and defer enqueue briefly.
@@ -135,7 +137,7 @@ namespace PenguinTwitchBot.Bot.Queues
             {
                 Interlocked.Decrement(ref _pendingCount);
                 _logger.LogError(
-                    "Queue {QueueName} is saturated — action {ActionName} dropped after {TimeoutMs}ms wait.",
+                    "Queue {QueueName} is saturated ï¿½ action {ActionName} dropped after {TimeoutMs}ms wait.",
                     Name, action.Name, EnqueueTimeout.TotalMilliseconds);
                 _executionLogger.UpdateActionFailed(logId, "Enqueue timed out: queue is saturated.", variables);
                 return;
@@ -226,6 +228,11 @@ namespace PenguinTwitchBot.Bot.Queues
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            if (_processingTask != null && !_processingTask.IsCompleted)
+            {
+                return Task.CompletedTask;
+            }
+
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             
             if (IsBlocking)
@@ -369,6 +376,7 @@ namespace PenguinTwitchBot.Bot.Queues
             var stopwatch = Stopwatch.StartNew();
             Interlocked.Increment(ref _currentlyExecuting);
             Interlocked.Decrement(ref _pendingCount);
+            ActionExecutionContext? executionContext = null;
 
             _executionLogger.UpdateActionStarted(queuedAction.LogId);
 
@@ -392,7 +400,7 @@ namespace PenguinTwitchBot.Bot.Queues
 
                 // Create the execution context for this action - this is passed explicitly through all execution layers
                 var contextLogger = scope.ServiceProvider.GetRequiredService<ILogger<ActionExecutionContext>>();
-                var executionContext = new ActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
+                executionContext = new ActionExecutionContext(queuedAction.LogId, _executionLogger, contextLogger);
 
                 _logger.LogDebug("Created execution context for action {ActionName} with LogId {LogId}", 
                     queuedAction.Action.Name, queuedAction.LogId);
@@ -485,10 +493,22 @@ namespace PenguinTwitchBot.Bot.Queues
                 _logger.LogDebug("Completed action {ActionName} in queue {QueueName}", 
                     queuedAction.Action.Name, Name);
             }
+            catch (SubActionUserFacingException userFacingEx)
+            {
+                var failureMessage = BuildSubActionFailureMessage(userFacingEx);
+                queuedAction.Variables["UserFacingErrorMessage"] = userFacingEx.UserFacingMessage ?? userFacingEx.Message;
+                _executionLogger.UpdateActionFailed(queuedAction.LogId, failureMessage, queuedAction.Variables);
+                await RunCatchSubActionsAsync(queuedAction, executionContext);
+
+                _logger.LogError(userFacingEx, "User-facing sub-action failed while executing action {ActionName} in queue {QueueName}",
+                    queuedAction.Action.Name, Name);
+            }
             catch (SubActionHandlerException subEx)
             {
-                _executionLogger.UpdateActionFailed(queuedAction.LogId, $"Sub-action {subEx.SubActionType?.GetType().Name ?? "Unknown"} failed: {subEx.Message}", queuedAction.Variables);
-                _logger.LogError("Sub-action failed while executing action {ActionName} in queue {QueueName}", 
+                var failureMessage = BuildSubActionFailureMessage(subEx);
+                _executionLogger.UpdateActionFailed(queuedAction.LogId, failureMessage, queuedAction.Variables);
+
+                _logger.LogError(subEx, "Sub-action failed while executing action {ActionName} in queue {QueueName}",
                     queuedAction.Action.Name, Name);
             }
             catch (Exception ex)
@@ -503,6 +523,43 @@ namespace PenguinTwitchBot.Bot.Queues
                 // Notify clients about queue statistics change
                 await SendQueueStatsUpdateAsync();
             }
+        }
+
+        private async Task RunCatchSubActionsAsync(QueuedAction queuedAction, ActionExecutionContext? executionContext)
+        {
+            var catchSubActions = (queuedAction.Action.CatchSubActions ?? [])
+                .Where(x => x.Enabled)
+                .ToList();
+
+            if (catchSubActions.Count == 0)
+            {
+                return;
+            }
+
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var actionService = scope.ServiceProvider.GetRequiredService<Actions.IAction>();
+
+            var catchAction = new ActionType
+            {
+                Name = $"{queuedAction.Action.Name} (Catch)",
+                Enabled = true,
+                RandomAction = queuedAction.Action.RandomAction,
+                ConcurrentAction = queuedAction.Action.ConcurrentAction,
+                QueueName = queuedAction.Action.QueueName,
+                SubActions = catchSubActions
+            };
+
+            await actionService.RunAction(queuedAction.Variables, catchAction, executionContext);
+        }
+
+        private static string BuildSubActionFailureMessage(SubActionHandlerException subEx)
+        {
+            var subActionName = subEx.SubActionType?.SubActionTypes.ToString() ?? "Unknown";
+            var argsText = subEx.Args.Length == 0
+                ? "none"
+                : string.Join(", ", subEx.Args.Select(a => a?.ToString() ?? "null"));
+
+            return $"Sub-action {subActionName} failed: {subEx.Message} | Args: {argsText}";
         }
 
         private Task SendQueueStatsUpdateAsync()

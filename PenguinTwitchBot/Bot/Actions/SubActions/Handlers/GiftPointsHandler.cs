@@ -18,17 +18,18 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var pointTypeName = VariableReplacer.ReplaceVariables(giftPoints.Text, variables);
-            var pointType = await pointsSystem.GetPointTypeByName(pointTypeName) ?? throw new SubActionHandlerException(subAction, $"Invalid point type: {pointTypeName}");
+            var pointType = await pointsSystem.GetPointTypeByName(pointTypeName) ??
+                throw new SubActionHandlerException(subAction, "Invalid point type: {pointTypeName}", pointTypeName);
             var amountString = VariableReplacer.ReplaceVariables(giftPoints.Amount, variables);
             if(string.IsNullOrEmpty(amountString) || !int.TryParse(amountString, out var amount))
             {
-                throw new SubActionHandlerException(subAction, $"Invalid amount: {amountString}");
+                throw new SubActionUserFacingException(subAction,  "Invalid amount: {0}", "Invalid amount: {0}", amountString);
             }
             
             var fromName = VariableReplacer.ReplaceVariables(giftPoints.FromUsername, variables);
             if(string.IsNullOrWhiteSpace(fromName))
             {
-                throw new SubActionHandlerException(subAction, "From Username is required.");
+                throw new SubActionUserFacingException(subAction, "From Username is required.", "From Username is required.");
             }
             
             var targetName = VariableReplacer.ReplaceVariables(giftPoints.TargetName, variables);
@@ -47,11 +48,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Amount must be greater than zero.");
             }
 
-            var target = await viewerFeature.GetViewerByUserName(targetName) ?? throw new SubActionHandlerException(subAction, $"Target user not found: {targetName}");
-            var from = await viewerFeature.GetViewerByUserName(fromName) ?? throw new SubActionHandlerException(subAction, $"From user not found: {fromName}");
+            var target = await viewerFeature.GetViewerByUserName(targetName) ??
+                throw new SubActionUserFacingException(subAction, "Target user not found: {0}", "Target user not found: {0}", targetName);
+            var from = await viewerFeature.GetViewerByUserName(fromName) ??
+                throw new SubActionUserFacingException(subAction, "From user not found: {0}", "From user not found: {0}", fromName);
             if(pointType.Id == null)
             {
-                throw new SubActionHandlerException(subAction, $"Point type ID is null for point type: {pointType.Name}");
+                throw new SubActionUserFacingException(subAction, "Point type ID is null for point type: {0}", "Point type ID is null for point type: {0}", pointType.Name);
             }
             if (await pointsSystem.RemovePointsFromUserByUserId(from.UserId, pointType.Id.Value, amount))
             {
@@ -60,9 +63,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
             else
             {
-                throw new SubActionHandlerException(subAction, $"Not enough points {from.Username}");
+                throw new SubActionUserFacingException(subAction, "Not enough points for user: {0}", "Not enough points for user: {0}", from.Username);
             }
-
         }
     }
 }

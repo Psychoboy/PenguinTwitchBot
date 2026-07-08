@@ -61,8 +61,17 @@ namespace PenguinTwitchBot.Bot.Queues
                 _hubContext,
                 _globalLimiter);
 
-            _queues.TryAdd(DefaultQueueName, defaultQueue);
-            await defaultQueue.StartAsync(_cancellationTokenSource.Token);
+            if (_queues.TryAdd(DefaultQueueName, defaultQueue))
+            {
+                await defaultQueue.StartAsync(_cancellationTokenSource.Token);
+            }
+            else if (_queues.TryGetValue(DefaultQueueName, out var existingDefaultQueue))
+            {
+                // A fallback default queue may have been added before hosted startup completed.
+                // Always start the queue instance that is actually stored in the dictionary.
+                await existingDefaultQueue.StartAsync(_cancellationTokenSource.Token);
+                _logger.LogWarning("Default queue already existed before QueueManager startup; started existing queue instance.");
+            }
 
             // Load queues from database
             await LoadQueuesFromDatabaseAsync(_cancellationTokenSource.Token);

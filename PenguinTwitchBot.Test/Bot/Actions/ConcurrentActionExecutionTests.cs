@@ -78,7 +78,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var executionLogger = serviceProvider.GetRequiredService<IActionExecutionLogger>();
 
             // Act - Set up execution context and run the action
-            var logId = executionLogger.LogActionEnqueued("ConcurrentTestAction", "TestQueue", variables);
+            var logId = executionLogger.LogActionEnqueued("ConcurrentTestAction", null, "TestQueue", variables);
             executionLogger.UpdateActionStarted(logId);
 
             // Create explicit execution context (new pattern)
@@ -115,7 +115,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var variables = new ConcurrentDictionary<string, string>();
 
             // Act - Create context and use explicit index-based API
-            var logId = executionLogger.LogActionEnqueued("TestAction", "TestQueue", variables);
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "TestQueue", variables);
             var context = new ActionExecutionContext(logId, executionLogger, contextLogger);
 
             // Begin multiple sub-actions with explicit indices (no auto-increment)

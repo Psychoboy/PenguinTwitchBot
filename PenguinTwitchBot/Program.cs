@@ -810,7 +810,16 @@ try
         // Downgrade pending-model-changes from error to warning so the app can start
         // while a migration is being prepared.
         options.ConfigureWarnings(w =>
-            w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+        {
+            w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
+
+            // SQLite emits this warning when it needs PRAGMA foreign_keys toggles around
+            // schema updates. This is expected for provider-generated migration SQL.
+            if (provider == "sqlite")
+            {
+                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.NonTransactionalMigrationOperationWarning);
+            }
+        });
 
         switch (provider)
         {

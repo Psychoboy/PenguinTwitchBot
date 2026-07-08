@@ -2,6 +2,7 @@
 @using System.Text.Json
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Models.Queues
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Pages.Components
 @implements IDisposable
@@ -154,6 +155,9 @@
                                     <MudButton Variant="Variant.Outlined" OnClick="RunAction" StartIcon="@Icons.Material.Filled.PlayArrow">
                                         Test
                                     </MudButton>
+                                    <MudButton Variant="Variant.Outlined" OnClick="OpenSelectedActionHistory" StartIcon="@Icons.Material.Filled.History">
+                                        History
+                                    </MudButton>
                                 }
                                 <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
                                     Cancel
@@ -208,6 +212,86 @@
                         <!-- SubActions Section -->
                         <SubActionManagement SubActions="_selectedAction.SubActions" 
                                              SubActionsChanged="OnSubActionsChanged" />
+
+                        <!-- Catch SubActions Section -->
+                        <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.h6">Catch SubActions</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    These execute when an error is found in the main subactions. Useful for error handling or notifications.
+                                </MudText>
+                            </MudStack>
+                        </MudPaper>
+                        <SubActionManagement SubActions="_selectedAction.CatchSubActions"
+                                             SubActionsChanged="OnCatchSubActionsChanged" />
+
+                        @if (!_isNewAction && _selectedAction.Id.HasValue)
+                        {
+                            <MudPaper Class="pa-4" Elevation="0" Outlined="true">
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.h6">Recent Executions</MudText>
+                                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@_selectedActionExecutionLogs.Count shown</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" Color="Color.Default" OnClick="LoadSelectedActionHistory" />
+                                        </MudStack>
+                                    </MudStack>
+
+                                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Style="flex-wrap: wrap;">
+                                        <MudTextField @bind-Value="_selectedActionHistorySearchString" Placeholder="Search execution logs"
+                                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                                      Immediate="true" DebounceInterval="300" OnDebounceIntervalElapsed="FilterSelectedActionHistory"
+                                                      Margin="Margin.Dense" />
+
+                                        <MudSelect T="ActionExecutionState?" Value="_selectedActionHistoryFilterState" Label="State" Dense="true" Margin="Margin.Dense"
+                                                   ValueChanged="OnSelectedActionHistoryStateChanged" Style="min-width: 160px;">
+                                            <MudSelectItem T="ActionExecutionState?" Value="@((ActionExecutionState?)null)">All States</MudSelectItem>
+                                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Pending">Pending</MudSelectItem>
+                                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
+                                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
+                                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
+                                        </MudSelect>
+                                    </MudStack>
+
+                                    <MudTable Items="_selectedActionExecutionLogs" Dense="true" Hover="true" Striped="true" T="ActionExecutionLog">
+                                        <HeaderContent>
+                                            <MudTh>State</MudTh>
+                                            <MudTh>Queued</MudTh>
+                                            <MudTh>Duration</MudTh>
+                                            <MudTh>Error</MudTh>
+                                            <MudTh Style="text-align: right;">Actions</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd DataLabel="State">
+                                                <MudChip T="string" Size="Size.Small" Color="@GetExecutionStateColor(context.State)">@context.State</MudChip>
+                                            </MudTd>
+                                            <MudTd DataLabel="Queued">@context.EnqueuedAt.ToLocalTime().ToString("MM/dd HH:mm:ss")</MudTd>
+                                            <MudTd DataLabel="Duration">@(context.TotalTime.HasValue ? FormatDuration(context.TotalTime.Value) : "-")</MudTd>
+                                            <MudTd DataLabel="Error">
+                                                @if (string.IsNullOrWhiteSpace(context.ErrorMessage))
+                                                {
+                                                    <MudText Typo="Typo.body2" Color="Color.Secondary">-</MudText>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.body2">@TrimForPreview(context.ErrorMessage, 100)</MudText>
+                                                }
+                                            </MudTd>
+                                            <MudTd DataLabel="Actions" Style="text-align: right;">
+                                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                                           OnClick="@(() => OpenExecutionHistory(context))"
+                                                           StartIcon="@Icons.Material.Filled.History">
+                                                    View Details
+                                                </MudButton>
+                                            </MudTd>
+                                        </RowTemplate>
+                                        <NoRecordsContent>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">No execution history found for this action.</MudText>
+                                        </NoRecordsContent>
+                                    </MudTable>
+                                </MudStack>
+                            </MudPaper>
+                        }
                     </MudStack>
                 </MudPaper>
             }
@@ -234,6 +318,10 @@
     private string _expandedGroupInList = string.Empty;
     private string _searchString = "";
     private string _filterGroup = "";
+    private string _selectedActionHistorySearchString = "";
+    private ActionExecutionState? _selectedActionHistoryFilterState;
+    private List<ActionExecutionLog> _selectedActionExecutionLogs = new();
+    private List<ActionExecutionLog> _selectedActionExecutionLogsAll = new();
     private string _originalActionSnapshot = string.Empty;
     private const string Ungrouped = "None";
 
@@ -429,12 +517,14 @@
         }
 
         _selectedAction = actionToEdit;
+        _selectedAction.CatchSubActions ??= new List<SubActionType>();
         _isNewAction = !_selectedAction.Id.HasValue;
         _selectedActionIdInList = _selectedAction.Id;
         _expandedGroupInList = GetNormalizedGroup(_selectedAction.Group);
 
         _actionTriggers = _selectedAction.Triggers ?? new List<TriggerType>();
         CaptureOriginalSnapshot();
+        LoadSelectedActionHistory();
 
         if (action.Id.HasValue && !_isNavigating)
         {
@@ -456,6 +546,14 @@
         }
     }
 
+    private void OnCatchSubActionsChanged(List<SubActionType> subActions)
+    {
+        if (_selectedAction != null)
+        {
+            _selectedAction.CatchSubActions = subActions;
+        }
+    }
+
     private async Task CreateNewAction()
     {
         if (!await ConfirmDiscardChangesAsync())
@@ -469,12 +567,15 @@
             Group = "",
             Enabled = true,
             QueueName = "Default",
-            SubActions = new List<SubActionType>()
+            SubActions = new List<SubActionType>(),
+            CatchSubActions = new List<SubActionType>()
         };
         _actionTriggers = new List<TriggerType>();
         _isNewAction = true;
         _selectedActionIdInList = null;
         _expandedGroupInList = string.Empty;
+        _selectedActionExecutionLogsAll.Clear();
+        _selectedActionExecutionLogs.Clear();
         _originalActionSnapshot = string.Empty;
 
         _isNavigating = true;
@@ -584,6 +685,7 @@
 
             await ActionExecutor.EnqueueAction(variables, _selectedAction);
             Snackbar.Add($"Action '{_selectedAction.Name}' added to queue '{_selectedAction.QueueName}'.", Severity.Success);
+            LoadSelectedActionHistory();
         }
         catch (Exception ex)
         {
@@ -621,6 +723,8 @@
             _selectedActionIdInList = null;
             _expandedGroupInList = savedGroup;
             _actionTriggers = new List<TriggerType>();
+            _selectedActionExecutionLogsAll.Clear();
+            _selectedActionExecutionLogs.Clear();
             _isNewAction = false;
             _originalActionSnapshot = string.Empty;
             _skipNextNavigationPrompt = true;
@@ -645,6 +749,7 @@
             ConcurrentAction = _selectedAction.ConcurrentAction,
             QueueName = _selectedAction.QueueName,
             SubActions = new List<SubActionType>(),
+            CatchSubActions = new List<SubActionType>(),
             Triggers = new List<TriggerType>()
         };
 
@@ -671,6 +776,31 @@
             }
 
             duplicatedAction.SubActions.Add(duplicatedSubAction);
+        }
+
+        foreach (var subAction in _selectedAction.CatchSubActions)
+        {
+            var subActionType = subAction.GetType();
+            var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
+
+            duplicatedSubAction.Id = 0;
+            duplicatedSubAction.Index = subAction.Index;
+            duplicatedSubAction.Text = subAction.Text;
+            duplicatedSubAction.Enabled = subAction.Enabled;
+            duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
+
+            foreach (var prop in subActionType.GetProperties())
+            {
+                if (prop.CanWrite && prop.CanRead &&
+                    prop.Name != "Id" && prop.Name != "Index" && prop.Name != "Text" &&
+                    prop.Name != "Enabled" && prop.Name != "SubActionTypes")
+                {
+                    var value = prop.GetValue(subAction);
+                    prop.SetValue(duplicatedSubAction, value);
+                }
+            }
+
+            duplicatedAction.CatchSubActions.Add(duplicatedSubAction);
         }
 
         var duplicatedTriggers = new List<TriggerType>();
@@ -723,6 +853,8 @@
                 _selectedActionIdInList = null;
                 _expandedGroupInList = string.Empty;
                 _actionTriggers = new List<TriggerType>();
+                _selectedActionExecutionLogsAll.Clear();
+                _selectedActionExecutionLogs.Clear();
                 _originalActionSnapshot = string.Empty;
                 await LoadActions();
 
@@ -747,6 +879,8 @@
         _selectedActionIdInList = null;
         _expandedGroupInList = string.Empty;
         _actionTriggers = new List<TriggerType>();
+        _selectedActionExecutionLogsAll.Clear();
+        _selectedActionExecutionLogs.Clear();
         _isNewAction = false;
         _originalActionSnapshot = string.Empty;
 
@@ -806,9 +940,107 @@
             SubActions = _selectedAction.SubActions
                 .Select(subAction => JsonSerializer.SerializeToElement(subAction, subAction.GetType()))
                 .ToList(),
+            CatchSubActions = _selectedAction.CatchSubActions
+                .Select(subAction => JsonSerializer.SerializeToElement(subAction, subAction.GetType()))
+                .ToList(),
             Triggers = _actionTriggers
         };
 
         return JsonSerializer.Serialize(snapshot);
+    }
+
+    private void OpenSelectedActionHistory()
+    {
+        if (_selectedAction?.Id is int actionId)
+        {
+            NavigationManager.NavigateTo($"/actions/history?actionId={actionId}");
+        }
+    }
+
+    private void OpenExecutionHistory(ActionExecutionLog executionLog)
+    {
+        var actionId = executionLog.ActionId ?? _selectedAction?.Id;
+        if (actionId.HasValue)
+        {
+            NavigationManager.NavigateTo($"/actions/history?actionId={actionId.Value}");
+        }
+    }
+
+    private void LoadSelectedActionHistory()
+    {
+        _selectedActionExecutionLogsAll.Clear();
+
+        if (_selectedAction?.Id is not int actionId)
+        {
+            _selectedActionExecutionLogs.Clear();
+            return;
+        }
+
+        var totalLogCount = QueueManager.ExecutionLogger.GetLogCount();
+        var logsToRetrieve = Math.Min(totalLogCount, 2000);
+        _selectedActionExecutionLogsAll = QueueManager.ExecutionLogger
+            .GetRecentLogs(logsToRetrieve)
+            .ToList();
+
+        FilterSelectedActionHistory();
+    }
+
+    private void OnSelectedActionHistoryStateChanged(ActionExecutionState? value)
+    {
+        _selectedActionHistoryFilterState = value;
+        FilterSelectedActionHistory();
+    }
+
+    private void FilterSelectedActionHistory()
+    {
+        if (_selectedAction?.Id is not int actionId)
+        {
+            _selectedActionExecutionLogs.Clear();
+            return;
+        }
+
+        _selectedActionExecutionLogs = QueueManager.ExecutionLogger
+            .GetRecentLogs(Math.Min(QueueManager.ExecutionLogger.GetLogCount(), 2000))
+            .ToList();
+
+        _selectedActionExecutionLogs = PenguinTwitchBot.Bot.Queues.ActionExecutionLogFilter
+            .Apply(_selectedActionExecutionLogs, _selectedActionHistorySearchString, _selectedActionHistoryFilterState, actionId)
+            .Take(50)
+            .ToList();
+    }
+
+    private static Color GetExecutionStateColor(ActionExecutionState state)
+    {
+        return state switch
+        {
+            ActionExecutionState.Pending => Color.Warning,
+            ActionExecutionState.Running => Color.Info,
+            ActionExecutionState.Completed => Color.Success,
+            ActionExecutionState.Failed => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        var totalMilliseconds = duration.TotalMilliseconds;
+
+        if (totalMilliseconds < 1000)
+            return $"{totalMilliseconds:F0}ms";
+
+        if (duration.TotalSeconds < 60)
+            return $"{duration.TotalSeconds:F2}s";
+
+        return $"{duration.TotalMinutes:F2}m";
+    }
+
+    private static string TrimForPreview(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value[..maxLength] + "...";
     }
 }

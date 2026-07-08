@@ -3,6 +3,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Queues
     public class ActionExecutionLog
     {
         public Guid Id { get; set; } = Guid.NewGuid();
+        public int? ActionId { get; set; }
         public string ActionName { get; set; } = null!;
         public ActionExecutionState State { get; set; }
         public Dictionary<string, string> VariablesBefore { get; set; } = [];
