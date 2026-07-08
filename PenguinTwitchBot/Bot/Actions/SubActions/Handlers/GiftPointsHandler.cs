@@ -35,17 +35,17 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var targetName = VariableReplacer.ReplaceVariables(giftPoints.TargetName, variables);
             if(string.IsNullOrWhiteSpace(targetName))
             {
-                throw new SubActionHandlerException(subAction, "Target Username is required.");
+                throw new SubActionUserFacingException(subAction, "Target Username is required.");
             }
 
             if(fromName.Equals(targetName, StringComparison.OrdinalIgnoreCase))
             {
-                throw new SubActionHandlerException(subAction, "Cannot gift points to self.");
+                throw new SubActionUserFacingException(subAction, "Cannot gift points to self.");
             }
 
             if(amount <= 0)
             {
-                throw new SubActionHandlerException(subAction, "Amount must be greater than zero.");
+                throw new SubActionUserFacingException(subAction, "Amount must be greater than zero.");
             }
 
             var target = await viewerFeature.GetViewerByUserName(targetName) ??
@@ -54,7 +54,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, "From user not found: {0}", fromName);
             if(pointType.Id == null)
             {
-                throw new SubActionHandlerException(subAction, "Point type ID is null for point type: {0}", pointType.Name);
+                throw new SubActionUserFacingException(subAction, "Point type ID is null for point type: {0}", pointType.Name);
             }
             if (await pointsSystem.RemovePointsFromUserByUserId(from.UserId, pointType.Id.Value, amount))
             {
