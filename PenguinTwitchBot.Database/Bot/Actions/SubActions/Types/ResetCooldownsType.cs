@@ -79,12 +79,20 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (values.TryGetValue(nameof(CommandName), out var commandName))
             {
-                CommandName = commandName?.ToString() ?? string.Empty;
+                var parsedCommandName = commandName?.ToString();
+                if (!string.IsNullOrWhiteSpace(parsedCommandName))
+                {
+                    CommandName = parsedCommandName;
+                }
             }
 
             if (values.TryGetValue(nameof(UserName), out var userName))
             {
-                UserName = userName?.ToString() ?? string.Empty;
+                var parsedUserName = userName?.ToString();
+                if (!string.IsNullOrWhiteSpace(parsedUserName))
+                {
+                    UserName = parsedUserName;
+                }
             }
 
             if (values.TryGetValue(nameof(ResetUserCooldown), out var resetUserCooldown) && bool.TryParse(resetUserCooldown?.ToString(), out var parsedResetUserCooldown))

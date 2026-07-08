@@ -38,6 +38,25 @@ namespace PenguinTwitchBot.Test.Bot.Queues
         }
 
         [Fact]
+        public void LogActionEnqueued_PersistsActionId()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(logger, hubContext);
+            var variables = new ConcurrentDictionary<string, string>();
+
+            // Act
+            var logId = executionLogger.LogActionEnqueued("TestAction", 42, "default", variables);
+
+            // Assert
+            Assert.NotEqual(Guid.Empty, logId);
+            var log = executionLogger.GetLogById(logId);
+            Assert.NotNull(log);
+            Assert.Equal(42, log!.ActionId);
+        }
+
+        [Fact]
         public void UpdateActionStarted_TransitionsStateToRunning()
         {
             // Arrange

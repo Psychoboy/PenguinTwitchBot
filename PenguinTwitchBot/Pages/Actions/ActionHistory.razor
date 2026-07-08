@@ -190,10 +190,20 @@
     private bool _updatesPaused = false;
     private int _pendingUpdatesCount = 0;
     private MudTable<ActionExecutionLog>? _table;
+    private int? _lastActionIdFilter;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLogs();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_lastActionIdFilter != ActionIdFilter)
+        {
+            _lastActionIdFilter = ActionIdFilter;
+            FilterLogs();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

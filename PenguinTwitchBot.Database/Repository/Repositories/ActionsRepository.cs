@@ -239,9 +239,14 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                     var existingSubAction = existingSubActions.FirstOrDefault(s => s.Id == subAction.Id);
                     if (existingSubAction != null)
                     {
-                        existingSubActions.Remove(existingSubAction);
-                        _context.Entry(existingSubAction).State = EntityState.Deleted;
-                        existingSubActions.Add(subAction);
+                        _context.Entry(existingSubAction).CurrentValues.SetValues(subAction);
+
+                        var existingActionEntry = _context.Entry(existingSubAction);
+                        if (existingActionEntry.State == EntityState.Detached)
+                        {
+                            existingSubActions.Remove(existingSubAction);
+                            existingSubActions.Add(subAction);
+                        }
                     }
                 }
             }

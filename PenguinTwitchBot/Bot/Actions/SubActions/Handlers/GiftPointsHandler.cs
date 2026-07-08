@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var pointTypeName = VariableReplacer.ReplaceVariables(giftPoints.Text, variables);
             var pointType = await pointsSystem.GetPointTypeByName(pointTypeName) ??
-                throw new SubActionHandlerException(subAction, "Invalid point type: {pointTypeName}", pointTypeName);
+                throw new SubActionHandlerException(subAction, "Invalid point type: {0}", pointTypeName);
             var amountString = VariableReplacer.ReplaceVariables(giftPoints.Amount, variables);
             if(string.IsNullOrEmpty(amountString) || !int.TryParse(amountString, out var amount))
             {
@@ -54,7 +54,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionUserFacingException(subAction, "From user not found: {0}", "From user not found: {0}", fromName);
             if(pointType.Id == null)
             {
-                throw new SubActionUserFacingException(subAction, "Point type ID is null for point type: {0}", "Point type ID is null for point type: {0}", pointType.Name);
+                throw new SubActionHandlerException(subAction, "Point type ID is null for point type: {0}", pointType.Name);
             }
             if (await pointsSystem.RemovePointsFromUserByUserId(from.UserId, pointType.Id.Value, amount))
             {

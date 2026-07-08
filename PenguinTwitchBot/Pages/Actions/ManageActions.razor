@@ -755,52 +755,12 @@
 
         foreach (var subAction in _selectedAction.SubActions)
         {
-            var subActionType = subAction.GetType();
-            var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
-
-            duplicatedSubAction.Id = 0;
-            duplicatedSubAction.Index = subAction.Index;
-            duplicatedSubAction.Text = subAction.Text;
-            duplicatedSubAction.Enabled = subAction.Enabled;
-            duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
-
-            foreach (var prop in subActionType.GetProperties())
-            {
-                if (prop.CanWrite && prop.CanRead && 
-                    prop.Name != "Id" && prop.Name != "Index" && prop.Name != "Text" && 
-                    prop.Name != "Enabled" && prop.Name != "SubActionTypes")
-                {
-                    var value = prop.GetValue(subAction);
-                    prop.SetValue(duplicatedSubAction, value);
-                }
-            }
-
-            duplicatedAction.SubActions.Add(duplicatedSubAction);
+            duplicatedAction.SubActions.Add(CloneSubAction(subAction));
         }
 
         foreach (var subAction in _selectedAction.CatchSubActions)
         {
-            var subActionType = subAction.GetType();
-            var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
-
-            duplicatedSubAction.Id = 0;
-            duplicatedSubAction.Index = subAction.Index;
-            duplicatedSubAction.Text = subAction.Text;
-            duplicatedSubAction.Enabled = subAction.Enabled;
-            duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
-
-            foreach (var prop in subActionType.GetProperties())
-            {
-                if (prop.CanWrite && prop.CanRead &&
-                    prop.Name != "Id" && prop.Name != "Index" && prop.Name != "Text" &&
-                    prop.Name != "Enabled" && prop.Name != "SubActionTypes")
-                {
-                    var value = prop.GetValue(subAction);
-                    prop.SetValue(duplicatedSubAction, value);
-                }
-            }
-
-            duplicatedAction.CatchSubActions.Add(duplicatedSubAction);
+            duplicatedAction.CatchSubActions.Add(CloneSubAction(subAction));
         }
 
         var duplicatedTriggers = new List<TriggerType>();
@@ -966,6 +926,31 @@
         }
     }
 
+    private static SubActionType CloneSubAction(SubActionType subAction)
+    {
+        var subActionType = subAction.GetType();
+        var duplicatedSubAction = (SubActionType)Activator.CreateInstance(subActionType)!;
+
+        duplicatedSubAction.Id = 0;
+        duplicatedSubAction.Index = subAction.Index;
+        duplicatedSubAction.Text = subAction.Text;
+        duplicatedSubAction.Enabled = subAction.Enabled;
+        duplicatedSubAction.SubActionTypes = subAction.SubActionTypes;
+
+        foreach (var prop in subActionType.GetProperties())
+        {
+            if (prop.CanWrite && prop.CanRead &&
+                prop.Name != "Id" && prop.Name != "Index" && prop.Name != "Text" &&
+                prop.Name != "Enabled" && prop.Name != "SubActionTypes")
+            {
+                var value = prop.GetValue(subAction);
+                prop.SetValue(duplicatedSubAction, value);
+            }
+        }
+
+        return duplicatedSubAction;
+    }
+
     private void LoadSelectedActionHistory()
     {
         _selectedActionExecutionLogsAll.Clear();
@@ -999,9 +984,7 @@
             return;
         }
 
-        _selectedActionExecutionLogs = QueueManager.ExecutionLogger
-            .GetRecentLogs(Math.Min(QueueManager.ExecutionLogger.GetLogCount(), 2000))
-            .ToList();
+        _selectedActionExecutionLogs = _selectedActionExecutionLogsAll.ToList();
 
         _selectedActionExecutionLogs = PenguinTwitchBot.Bot.Queues.ActionExecutionLogFilter
             .Apply(_selectedActionExecutionLogs, _selectedActionHistorySearchString, _selectedActionHistoryFilterState, actionId)

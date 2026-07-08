@@ -37,6 +37,7 @@ namespace PenguinTwitchBot.Bot.Queues
         private int _pendingCount;
         private CancellationTokenSource? _cancellationTokenSource;
         private Task? _processingTask;
+        private readonly object _startLock = new();
 
         // Throttling for SignalR updates
         private readonly Timer _statsUpdateTimer;
@@ -137,7 +138,7 @@ namespace PenguinTwitchBot.Bot.Queues
             {
                 Interlocked.Decrement(ref _pendingCount);
                 _logger.LogError(
-                    "Queue {QueueName} is saturated � action {ActionName} dropped after {TimeoutMs}ms wait.",
+                    "Queue {QueueName} is saturated - action {ActionName} dropped after {TimeoutMs}ms wait.",
                     Name, action.Name, EnqueueTimeout.TotalMilliseconds);
                 _executionLogger.UpdateActionFailed(logId, "Enqueue timed out: queue is saturated.", variables);
                 return;
@@ -228,20 +229,18 @@ namespace PenguinTwitchBot.Bot.Queues
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            if (_processingTask != null && !_processingTask.IsCompleted)
+            lock (_startLock)
             {
-                return Task.CompletedTask;
-            }
+                if (_processingTask != null && !_processingTask.IsCompleted)
+                {
+                    return Task.CompletedTask;
+                }
 
-            _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            
-            if (IsBlocking)
-            {
-                _processingTask = ProcessBlockingQueueAsync(_cancellationTokenSource.Token);
-            }
-            else
-            {
-                _processingTask = ProcessNonBlockingQueueAsync(_cancellationTokenSource.Token);
+                _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                _processingTask = IsBlocking
+                    ? ProcessBlockingQueueAsync(_cancellationTokenSource.Token)
+                    : ProcessNonBlockingQueueAsync(_cancellationTokenSource.Token);
             }
 
             _logger.LogInformation("Queue {QueueName} started (Blocking: {IsBlocking}, MaxConcurrent: {MaxConcurrent})", 
@@ -543,7 +542,6 @@ namespace PenguinTwitchBot.Bot.Queues
             {
                 Name = $"{queuedAction.Action.Name} (Catch)",
                 Enabled = true,
-                RandomAction = queuedAction.Action.RandomAction,
                 ConcurrentAction = queuedAction.Action.ConcurrentAction,
                 QueueName = queuedAction.Action.QueueName,
                 SubActions = catchSubActions
