@@ -2,6 +2,7 @@
 @using PenguinTwitchBot.Bot.Features
 @inject PenguinTwitchBot.Bot.Commands.Misc.QuoteSystem QuoteSystem
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Quotes</PageTitle>
 <FeatureGate FeatureKey="@FeatureKeys.QuoteSystem">
@@ -103,14 +104,45 @@
     private IEnumerable<FilteredQuoteType> items = new List<FilteredQuoteType>();
     private string searchString1 = "";
     private bool dataLoaded = false;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
+        await LoadQuotesAsync();
+    }
+
+    private async Task LoadQuotesAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
         {
             items = (await QuoteSystem.GetQuotes()).OrderByDescending(x => x.Id).ToList();
         }
+        else
+        {
+            items = [];
+        }
+
         dataLoaded = true;
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(LoadQuotesAsync);
     }
 
     private bool FilterFunc1(FilteredQuoteType element) => FilterFunc(element, searchString1);
@@ -128,5 +160,11 @@
         if (element.Game.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         return false;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
     }
 }

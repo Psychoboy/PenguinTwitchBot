@@ -47,7 +47,7 @@ namespace PenguinTwitchBot.Bot.Features
                 db.Settings.Update(setting);
             }
 
-            await SaveChangesWithRetryAsync(db);
+            await SaveChangesWithRetryAsync(db, settingName, value);
         }
 
         private static string BuildEnabledSettingName(string featureKey)
@@ -55,7 +55,7 @@ namespace PenguinTwitchBot.Bot.Features
             return $"FeatureService.{featureKey}.Enabled";
         }
 
-        private static async Task SaveChangesWithRetryAsync(IUnitOfWork db)
+        private static async Task SaveChangesWithRetryAsync(IUnitOfWork db, string settingName, bool value)
         {
             for (var attempt = 1; ; attempt++)
             {
@@ -63,6 +63,18 @@ namespace PenguinTwitchBot.Bot.Features
                 {
                     await db.SaveChangesAsync();
                     return;
+                }
+                catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt < MaxSaveRetries)
+                {
+                    var existing = (await db.Settings.GetAsync(x => x.Name == settingName)).FirstOrDefault();
+                    if (existing is null)
+                    {
+                        throw;
+                    }
+
+                    existing.DataType = Setting.DataTypeEnum.Int;
+                    existing.IntSetting = value ? 1 : 0;
+                    db.Settings.Update(existing);
                 }
                 catch (DbUpdateException ex) when (IsSqliteTableLock(ex) && attempt < MaxSaveRetries)
                 {
@@ -74,6 +86,18 @@ namespace PenguinTwitchBot.Bot.Features
         private static bool IsSqliteTableLock(DbUpdateException ex)
         {
             return ex.InnerException is SqliteException sqliteEx && sqliteEx.SqliteErrorCode == 6;
+        }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+        {
+            if (ex.InnerException is SqliteException sqliteEx)
+            {
+                return sqliteEx.SqliteErrorCode == 19;
+            }
+
+            var message = ex.InnerException?.Message ?? ex.Message;
+            return message.Contains("duplicate", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("unique", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

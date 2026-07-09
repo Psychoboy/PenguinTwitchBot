@@ -1,21 +1,26 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.Models;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-
+using PenguinTwitchBot.Bot.Features;
 namespace PenguinTwitchBot.HealthChecks
 {
     public class DiscordServiceHealthCheck : IHealthCheck
     {
         private readonly IDiscordService _discordService;
         private readonly DiscordSettings _discordSettings;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
 
-        public DiscordServiceHealthCheck(IDiscordService discordService, IConfiguration configuration)
+        public DiscordServiceHealthCheck(IDiscordService discordService, IFeatureRuntimeCoordinator featureRuntimeCoordinator, IConfiguration configuration)
         {
             _discordService = discordService;
+            _featureRuntimeCoordinator = featureRuntimeCoordinator;
             _discordSettings = configuration.GetRequiredSection("Discord").Get<DiscordSettings>() ?? new DiscordSettings();
         }
         public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
+            if(_featureRuntimeCoordinator.IsEnabled(FeatureKeys.DiscordService) == false)
+                return Task.FromResult(HealthCheckResult.Healthy("Discord is disabled."));
+
             if (string.IsNullOrWhiteSpace(_discordSettings.DiscordToken))
                 return Task.FromResult(HealthCheckResult.Healthy("Discord is not configured."));
 

@@ -171,6 +171,7 @@
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
     private bool _isStreamer;
     private bool _showUpgradeLink => _isStreamer && !VersionCheck.IsUpToDate && !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
+    private bool _disposed;
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)
     {
@@ -214,11 +215,17 @@
 
     private void HandleFeatureStateChanged()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
+        _disposed = true;
         VersionCheck.VersionStatusChanged -= HandleVersionStatusChanged;
         FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
         Navigation.LocationChanged -= OnLocationChanged;

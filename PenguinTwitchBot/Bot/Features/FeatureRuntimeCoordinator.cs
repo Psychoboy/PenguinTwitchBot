@@ -11,7 +11,8 @@ namespace PenguinTwitchBot.Bot.Features
         string ModuleName,
         Type ServiceType,
         bool IsCore,
-        string Description = "");
+        string Description = "",
+        bool ManagesHostedLifecycle = true);
 
     public sealed record RuntimeFeatureState(
         string Key,
@@ -124,7 +125,7 @@ namespace PenguinTwitchBot.Bot.Features
             try
             {
                 foreach (var registrations in _registrationsByKey.Values
-                    .OrderByDescending(x => x[0].IsCore)
+                    .OrderBy(x => x[0].IsCore)
                     .ThenByDescending(x => x[0].DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
                     foreach (var registration in registrations)
@@ -208,15 +209,15 @@ namespace PenguinTwitchBot.Bot.Features
 
             var registration = registrations[0];
 
-            var isEnabled = registration.IsCore || _enabledStates.GetValueOrDefault(featureKey, true);
-            if (!isEnabled)
-            {
-                throw new InvalidOperationException($"Feature '{registration.DisplayName}' is disabled and cannot be restarted.");
-            }
-
             await _stateLock.WaitAsync(cancellationToken);
             try
             {
+                var isEnabled = registration.IsCore || _enabledStates.GetValueOrDefault(featureKey, true);
+                if (!isEnabled)
+                {
+                    throw new InvalidOperationException($"Feature '{registration.DisplayName}' is disabled and cannot be restarted.");
+                }
+
                 foreach (var featureRegistration in registrations)
                 {
                     await StopFeatureInternalAsync(featureRegistration, cancellationToken);
@@ -235,8 +236,17 @@ namespace PenguinTwitchBot.Bot.Features
 
         private async Task StartFeatureInternalAsync(RuntimeFeatureRegistration registration, CancellationToken cancellationToken)
         {
+            if (!registration.ManagesHostedLifecycle)
+            {
+                return;
+            }
+
             if (serviceProvider.GetService(registration.ServiceType) is not IHostedService service)
             {
+                logger.LogWarning(
+                    "Feature service {FeatureKey} service type {ServiceType} does not implement IHostedService; skipping start.",
+                    registration.Key,
+                    registration.ServiceType.FullName);
                 return;
             }
 
@@ -246,8 +256,17 @@ namespace PenguinTwitchBot.Bot.Features
 
         private async Task StopFeatureInternalAsync(RuntimeFeatureRegistration registration, CancellationToken cancellationToken)
         {
+            if (!registration.ManagesHostedLifecycle)
+            {
+                return;
+            }
+
             if (serviceProvider.GetService(registration.ServiceType) is not IHostedService service)
             {
+                logger.LogWarning(
+                    "Feature service {FeatureKey} service type {ServiceType} does not implement IHostedService; skipping stop.",
+                    registration.Key,
+                    registration.ServiceType.FullName);
                 return;
             }
 

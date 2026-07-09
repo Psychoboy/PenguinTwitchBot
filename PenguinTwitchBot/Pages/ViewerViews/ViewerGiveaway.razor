@@ -350,6 +350,11 @@
     {
         if (firstRender == false) return;
 
+        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        {
+            return;
+        }
+
         _hubConnectionCts = new CancellationTokenSource();
 
         // Configure SignalR with automatic reconnect and retry policy

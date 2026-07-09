@@ -317,7 +317,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             string description = "")
             where TService : class
         {
-            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description, false));
         }
 
         public static void AddRuntimeFeatureRegistration<TInterface, TService>(
@@ -329,7 +329,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             where TInterface : class
             where TService : class, TInterface
         {
-            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description, false));
         }
 
         private static void RegisterCommandServices(IServiceCollection services)

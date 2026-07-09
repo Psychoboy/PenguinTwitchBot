@@ -1,7 +1,10 @@
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Bot.Actions.SubActions
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.Actions
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -34,7 +37,13 @@
                                                    Disabled="@(index == SubActions.Count - 1)" OnClick="@(() => MoveDown(index))" />
                                 </MudStack>
                                 <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudText Typo="Typo.body1">@(index + 1). @GetSubActionTypeName(subAction)</MudText>
+                                        @if (IsDisabledByFeature(subAction))
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                        }
+                                    </MudStack>
                                     <MudText Typo="Typo.body2" Color="Color.Secondary">@SubActionHelpers.GetSubActionDescription(subAction)</MudText>
                                 </MudStack>
                             </MudStack>
@@ -197,5 +206,10 @@
     private string GetSubActionTypeName(SubActionType subAction)
     {
         return subAction.GetType().Name.Replace("Type", "");
+    }
+
+    private bool IsDisabledByFeature(SubActionType subAction)
+    {
+        return !SubActionFeatureGate.IsAvailable(subAction.SubActionTypes, FeatureRuntimeCoordinator);
     }
 }

@@ -111,7 +111,11 @@
             return;
         }
 
-        await InvokeAsync(RefreshAsync);
+        await InvokeAsync(async () =>
+        {
+            await RefreshAsync();
+            await EnsureHubConnectionAsync();
+        });
     }
 
     private async Task RefreshAsync()
@@ -148,6 +152,34 @@
     {
         if (firstRender == false) return;
 
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets))
+        {
+            return;
+        }
+
+        await EnsureHubConnectionAsync();
+
+        dataLoaded = true;
+        StateHasChanged();
+    }
+
+    private async Task EnsureHubConnectionAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets))
+        {
+            return;
+        }
+
+        if (hubConnection is not null)
+        {
+            return;
+        }
+
         _hubConnectionCts = new CancellationTokenSource();
 
         hubConnection = new HubConnectionBuilder()
@@ -168,9 +200,6 @@
         });
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, cancellationToken: _hubConnectionCts.Token);
-
-        dataLoaded = true;
-        StateHasChanged();
     }
 
     private async Task ClaimBonus()

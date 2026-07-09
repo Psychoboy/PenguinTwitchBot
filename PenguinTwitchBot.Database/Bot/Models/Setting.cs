@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PenguinTwitchBot.Database.Bot.Models
 {
-    [IndexAttribute(nameof(Name))]
+    [IndexAttribute(nameof(Name), IsUnique = true)]
     public class Setting
     {
         public enum DataTypeEnum
