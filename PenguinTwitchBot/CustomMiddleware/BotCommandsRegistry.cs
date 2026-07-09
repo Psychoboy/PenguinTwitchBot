@@ -176,9 +176,10 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Discord service integration for bot notifications and commands."
             );
-            services.AddRuntimeFeatureRegistration<Bot.ScheduledJobs.FishingTournamentScheduler>(
+            services.AddRuntimeFeatureService<Bot.ScheduledJobs.FishingTournamentScheduler>(
                 FeatureKeys.Fishing,
                 "Fishing",
+                isCore: false,
                 description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards."
             );
 
