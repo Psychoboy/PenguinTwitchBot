@@ -42,9 +42,15 @@ namespace PenguinTwitchBot.Bot.Features
         ILogger<FeatureRuntimeCoordinator> logger) : IFeatureRuntimeCoordinator, IHostedService
     {
         private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
-        private readonly Dictionary<string, RuntimeFeatureRegistration> _registrations = registrations
-            .DistinctBy(x => x.Key, KeyComparer)
-            .ToDictionary(x => x.Key, KeyComparer);
+        private readonly Dictionary<string, IReadOnlyList<RuntimeFeatureRegistration>> _registrationsByKey = registrations
+            .GroupBy(x => x.Key, KeyComparer)
+            .ToDictionary(
+                x => x.Key,
+                x => (IReadOnlyList<RuntimeFeatureRegistration>)x
+                    .OrderBy(registration => registration.DisplayName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(registration => registration.ModuleName, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                KeyComparer);
         private readonly ConcurrentDictionary<string, bool> _enabledStates = new(KeyComparer);
         private readonly ConcurrentDictionary<string, bool> _runningStates = new(KeyComparer);
         private readonly SemaphoreSlim _stateLock = new(1, 1);
@@ -54,7 +60,8 @@ namespace PenguinTwitchBot.Bot.Features
 
         public IReadOnlyList<RuntimeFeatureState> GetFeatures()
         {
-            return _registrations.Values
+            return _registrationsByKey.Values
+                .Select(x => x[0])
                 .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .Select(x => new RuntimeFeatureState(
                     x.Key,
@@ -69,12 +76,12 @@ namespace PenguinTwitchBot.Bot.Features
 
         public bool IsEnabled(string featureKey)
         {
-            if (!_registrations.TryGetValue(featureKey, out var registration))
+            if (!_registrationsByKey.TryGetValue(featureKey, out var registrations))
             {
                 return true;
             }
 
-            return registration.IsCore || _enabledStates.GetValueOrDefault(featureKey, true);
+            return registrations[0].IsCore || _enabledStates.GetValueOrDefault(featureKey, true);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -82,18 +89,25 @@ namespace PenguinTwitchBot.Bot.Features
             await _stateLock.WaitAsync(cancellationToken);
             try
             {
-                foreach (var registration in _registrations.Values
-                    .OrderByDescending(x => x.IsCore)
-                    .ThenBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
+                foreach (var registrations in _registrationsByKey.Values
+                    .OrderByDescending(x => x[0].IsCore)
+                    .ThenBy(x => x[0].DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
-                    var enabled = registration.IsCore || await featureStateStore.GetEnabledAsync(registration.Key, true);
-                    _enabledStates[registration.Key] = enabled;
-                    await SyncFeatureCommandsAsync(registration, enabled, cancellationToken);
+                    var featureRegistration = registrations[0];
+                    var enabled = featureRegistration.IsCore || await featureStateStore.GetEnabledAsync(featureRegistration.Key, true);
+                    _enabledStates[featureRegistration.Key] = enabled;
 
-                    if (enabled)
+                    foreach (var registration in registrations)
                     {
-                        await StartFeatureInternalAsync(registration, cancellationToken);
+                        await SyncFeatureCommandsAsync(registration, enabled, cancellationToken);
+
+                        if (enabled)
+                        {
+                            await StartFeatureInternalAsync(registration, cancellationToken);
+                        }
                     }
+
+                    _runningStates[featureRegistration.Key] = enabled;
                 }
             }
             finally
@@ -109,11 +123,16 @@ namespace PenguinTwitchBot.Bot.Features
             await _stateLock.WaitAsync(cancellationToken);
             try
             {
-                foreach (var registration in _registrations.Values
-                    .OrderByDescending(x => x.IsCore)
-                    .ThenByDescending(x => x.DisplayName, StringComparer.OrdinalIgnoreCase))
+                foreach (var registrations in _registrationsByKey.Values
+                    .OrderByDescending(x => x[0].IsCore)
+                    .ThenByDescending(x => x[0].DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
-                    await StopFeatureInternalAsync(registration, cancellationToken);
+                    foreach (var registration in registrations)
+                    {
+                        await StopFeatureInternalAsync(registration, cancellationToken);
+                    }
+
+                    _runningStates[registrations[0].Key] = false;
                 }
             }
             finally
@@ -126,10 +145,12 @@ namespace PenguinTwitchBot.Bot.Features
 
         public async Task SetEnabledAsync(string featureKey, bool enabled, CancellationToken cancellationToken = default)
         {
-            if (!_registrations.TryGetValue(featureKey, out var registration))
+            if (!_registrationsByKey.TryGetValue(featureKey, out var registrations))
             {
                 throw new InvalidOperationException($"Unknown feature key '{featureKey}'.");
             }
+
+            var registration = registrations[0];
 
             if (registration.IsCore && !enabled)
             {
@@ -147,17 +168,27 @@ namespace PenguinTwitchBot.Bot.Features
 
                 if (enabled)
                 {
-                    await StartFeatureInternalAsync(registration, cancellationToken);
-                    await SyncFeatureCommandsAsync(registration, true, cancellationToken);
+                    foreach (var featureRegistration in registrations)
+                    {
+                        await StartFeatureInternalAsync(featureRegistration, cancellationToken);
+                        await SyncFeatureCommandsAsync(featureRegistration, true, cancellationToken);
+                    }
+
                     await featureStateStore.SetEnabledAsync(registration.Key, true);
                     _enabledStates[registration.Key] = true;
+                    _runningStates[registration.Key] = true;
                 }
                 else
                 {
-                    await SyncFeatureCommandsAsync(registration, false, cancellationToken);
-                    await StopFeatureInternalAsync(registration, cancellationToken);
+                    foreach (var featureRegistration in registrations)
+                    {
+                        await SyncFeatureCommandsAsync(featureRegistration, false, cancellationToken);
+                        await StopFeatureInternalAsync(featureRegistration, cancellationToken);
+                    }
+
                     await featureStateStore.SetEnabledAsync(registration.Key, false);
                     _enabledStates[registration.Key] = false;
+                    _runningStates[registration.Key] = false;
                 }
             }
             finally
@@ -170,10 +201,12 @@ namespace PenguinTwitchBot.Bot.Features
 
         public async Task RestartAsync(string featureKey, CancellationToken cancellationToken = default)
         {
-            if (!_registrations.TryGetValue(featureKey, out var registration))
+            if (!_registrationsByKey.TryGetValue(featureKey, out var registrations))
             {
                 throw new InvalidOperationException($"Unknown feature key '{featureKey}'.");
             }
+
+            var registration = registrations[0];
 
             var isEnabled = registration.IsCore || _enabledStates.GetValueOrDefault(featureKey, true);
             if (!isEnabled)
@@ -184,8 +217,13 @@ namespace PenguinTwitchBot.Bot.Features
             await _stateLock.WaitAsync(cancellationToken);
             try
             {
-                await StopFeatureInternalAsync(registration, cancellationToken);
-                await StartFeatureInternalAsync(registration, cancellationToken);
+                foreach (var featureRegistration in registrations)
+                {
+                    await StopFeatureInternalAsync(featureRegistration, cancellationToken);
+                    await StartFeatureInternalAsync(featureRegistration, cancellationToken);
+                }
+
+                _runningStates[registration.Key] = true;
             }
             finally
             {
@@ -197,27 +235,23 @@ namespace PenguinTwitchBot.Bot.Features
 
         private async Task StartFeatureInternalAsync(RuntimeFeatureRegistration registration, CancellationToken cancellationToken)
         {
-            if (_runningStates.GetValueOrDefault(registration.Key, false))
+            if (serviceProvider.GetService(registration.ServiceType) is not IHostedService service)
             {
                 return;
             }
 
-            var service = (IHostedService)serviceProvider.GetRequiredService(registration.ServiceType);
             await service.StartAsync(cancellationToken);
-            _runningStates[registration.Key] = true;
             logger.LogInformation("Started feature service {FeatureKey}", registration.Key);
         }
 
         private async Task StopFeatureInternalAsync(RuntimeFeatureRegistration registration, CancellationToken cancellationToken)
         {
-            if (!_runningStates.GetValueOrDefault(registration.Key, false))
+            if (serviceProvider.GetService(registration.ServiceType) is not IHostedService service)
             {
                 return;
             }
 
-            var service = (IHostedService)serviceProvider.GetRequiredService(registration.ServiceType);
             await service.StopAsync(cancellationToken);
-            _runningStates[registration.Key] = false;
             logger.LogInformation("Stopped feature service {FeatureKey}", registration.Key);
         }
 

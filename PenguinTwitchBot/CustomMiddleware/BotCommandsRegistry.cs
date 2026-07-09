@@ -176,7 +176,11 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Discord service integration for bot notifications and commands."
             );
-            services.AddHostedApiService<Bot.ScheduledJobs.FishingTournamentScheduler>();
+            services.AddRuntimeFeatureRegistration<Bot.ScheduledJobs.FishingTournamentScheduler>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards."
+            );
 
             services.AddHostedApiService<ITTSService, TTSService>();
             services.AddHostedApiService<IClipService, ClipService>();
@@ -192,6 +196,36 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IFishingAnalyticsService, FishingAnalyticsService>();
             services.AddSingleton<IFishingLeaderboardService, FishingLeaderboardService>();
             services.AddSingleton<IFishingHelpDataService, FishingHelpDataService>();
+
+            services.AddRuntimeFeatureRegistration<IFishingService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards."
+                );
+            services.AddRuntimeFeatureRegistration<IFishingShopService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
+            services.AddRuntimeFeatureRegistration<IFishingInventoryService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
+            services.AddRuntimeFeatureRegistration<IFishingGameplayService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
+            services.AddRuntimeFeatureRegistration<IFishingAnalyticsService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
+            services.AddRuntimeFeatureRegistration<IFishingLeaderboardService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
+            services.AddRuntimeFeatureRegistration<IFishingHelpDataService>(
+                FeatureKeys.Fishing,
+                "Fishing",
+                description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards.");
 
             services.AddHostedApiService<ScAi>();
 
@@ -271,6 +305,29 @@ namespace PenguinTwitchBot.CustomMiddleware
         {
             services.AddSingleton<TService>();
             services.AddSingleton<TInterface>(p => p.GetRequiredService<TService>());
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+        }
+
+        public static void AddRuntimeFeatureRegistration<TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            bool isCore = false,
+            string description = "")
+            where TService : class
+        {
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+        }
+
+        public static void AddRuntimeFeatureRegistration<TInterface, TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            bool isCore = false,
+            string description = "")
+            where TInterface : class
+            where TService : class, TInterface
+        {
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
         }
 
