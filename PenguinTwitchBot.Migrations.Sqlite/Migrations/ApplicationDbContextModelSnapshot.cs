@@ -506,6 +506,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("Disabled")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("DisabledByFeature")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("ExcludeFromUi")
                         .HasColumnType("INTEGER");
 
@@ -1873,7 +1876,8 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name");
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Settings");
                 });

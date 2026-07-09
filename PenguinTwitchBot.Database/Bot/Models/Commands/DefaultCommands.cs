@@ -10,5 +10,6 @@ namespace PenguinTwitchBot.Database.Bot.Models.Commands
     {
         public string CustomCommandName { get; set; } = null!;
         public string ModuleName { get; set; } = null!;
+        public bool DisabledByFeature { get; set; } = false;
     }
 }

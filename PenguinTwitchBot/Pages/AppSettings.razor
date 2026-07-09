@@ -1,6 +1,7 @@
 @page "/settings/app"
 @attribute [Authorize(Roles = "Streamer")]
 @using PenguinTwitchBot.Bot.TwitchServices
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Services
 @using Quartz
 @inject IConfiguration Configuration
@@ -8,6 +9,7 @@
 @inject IChatHistoryRetentionSettingsService ChatHistoryRetentionSettings
 @inject IIpLogRetentionSettingsService IpLogRetentionSettings
 @inject IScheduledJobSettingsService ScheduledJobSettings
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Settings</PageTitle>
@@ -144,6 +146,72 @@
                             Save Support Links
                         </MudButton>
                     </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4 mt-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Feature Services</MudText>
+                    <MudText>
+                        Enable or disable eligible runtime services. Core services are always on. Optional services run startup work when enabled and cleanup work when disabled.
+                    </MudText>
+
+                    <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th>Description</th>
+                                <th>Type</th>
+                                <th>Enabled</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var feature in _featureStates)
+                            {
+                                <tr>
+                                    <td>@feature.DisplayName</td>
+                                    <td>@(string.IsNullOrWhiteSpace(feature.Description) ? "-" : feature.Description)</td>
+                                    <td>@(feature.IsCore ? "Core" : "Optional")</td>
+                                    <td>
+                                        @if (feature.IsCore)
+                                        {
+                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">Always On</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudSwitch T="bool"
+                                                       Value="@feature.IsEnabled"
+                                                       ValueChanged="@(value => ToggleFeatureAsync(feature, value))"
+                                                       Disabled="_saving"
+                                                       Color="Color.Primary" />
+                                        }
+                                    </td>
+                                    <td>
+                                        <MudChip T="string"
+                                                 Color="@(feature.IsRunning ? Color.Success : Color.Warning)"
+                                                 Variant="Variant.Outlined"
+                                                 Size="Size.Small">
+                                            @(feature.IsRunning ? "Running" : "Stopped")
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                                   OnClick="@(() => RestartFeatureAsync(feature))"
+                                                   Disabled="@(!feature.IsEnabled || _saving)">
+                                            Restart
+                                        </MudButton>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
                 </MudStack>
             </MudPaper>
         </MudItem>
@@ -356,6 +424,7 @@
     private string _weatherDefaultLocation = "";
     private string _starCitizenReferralUrl = DefaultStarCitizenReferralUrl;
     private int _chatHistoryMonthsToKeepInDb = 12;
+    private List<RuntimeFeatureState> _featureStates = [];
 
     private bool _backupEnabled = true;
     private string _backupCron = DefaultBackupCron;
@@ -421,6 +490,50 @@
         _starCitizenReferralUrl = Configuration["SupportLinks:StarCitizenReferral"] ?? DefaultStarCitizenReferralUrl;
         _chatHistoryMonthsToKeepInDb = await ChatHistoryRetentionSettings.GetChatHistoryMonthsToKeepAsync();
         await LoadScheduledJobSettingsAsync();
+        RefreshFeatureStates();
+    }
+
+    private void RefreshFeatureStates()
+    {
+        _featureStates = FeatureRuntimeCoordinator.GetFeatures().ToList();
+    }
+
+    private async Task ToggleFeatureAsync(RuntimeFeatureState feature, bool enabled)
+    {
+        _saving = true;
+        try
+        {
+            await FeatureRuntimeCoordinator.SetEnabledAsync(feature.Key, enabled);
+            RefreshFeatureStates();
+            Snackbar.Add($"{feature.DisplayName} {(enabled ? "enabled" : "disabled")}.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update {feature.DisplayName}: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task RestartFeatureAsync(RuntimeFeatureState feature)
+    {
+        _saving = true;
+        try
+        {
+            await FeatureRuntimeCoordinator.RestartAsync(feature.Key);
+            RefreshFeatureStates();
+            Snackbar.Add($"{feature.DisplayName} restarted.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to restart {feature.DisplayName}: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 
     private async Task LoadScheduledJobSettingsAsync()

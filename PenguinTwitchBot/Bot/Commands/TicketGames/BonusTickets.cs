@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
+using Microsoft.Extensions.Hosting;
 using System.Security.Cryptography;
 
 namespace PenguinTwitchBot.Bot.Commands.TicketGames
@@ -13,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
         Application.Notifications.IPenguinDispatcher dispatcher, 
         IServiceBackbone serviceBackbone, 
         IViewerFeature viewerFeature,
-        ILogger<BonusTickets> logger) : IBonusTickets
+        ILogger<BonusTickets> logger) : IBonusTickets, IHostedService
     {
         public static readonly string GAMENAME = "Bonus";
         public static readonly string MINAMOUNT = "MinAmount";
@@ -103,9 +104,19 @@ namespace PenguinTwitchBot.Bot.Commands.TicketGames
             }
         }
 
-        public Task Setup()
+        private Task Setup()
         {
             return pointSystem.RegisterDefaultPointForGame(GAMENAME);
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            await Setup();
+        }
+
+        public async Task StopAsync(CancellationToken cancellationToken)
+        {
+            await Reset();
         }
     }
 }

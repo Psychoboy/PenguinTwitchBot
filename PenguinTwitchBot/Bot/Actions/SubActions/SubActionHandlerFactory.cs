@@ -1,13 +1,15 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
 using System.Collections.Concurrent;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions
 {
     public class SubActionHandlerFactory(
         IEnumerable<ISubActionHandler> handlers, 
         ILogger<SubActionHandlerFactory> logger,
-        IServiceScopeFactory serviceScopeFactory)
+        IServiceScopeFactory serviceScopeFactory,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator)
     {
         private readonly Dictionary<SubActionTypes, ISubActionHandler> _handlers = handlers.ToDictionary(h => h.SupportedType);
 
@@ -18,6 +20,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 if(!subAction.Enabled)
                 {
                     logger.LogInformation("Sub action {subAction.Text} was disabled so skipping", subAction.Text);
+                    return;
+                }
+
+                if (!SubActionFeatureGate.IsAvailable(subAction.SubActionTypes, featureRuntimeCoordinator))
+                {
+                    logger.LogInformation(
+                        "Sub action {SubActionType} is disabled by feature runtime state and was skipped",
+                        subAction.SubActionTypes);
                     return;
                 }
 

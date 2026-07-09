@@ -160,7 +160,6 @@ namespace PenguinTwitchBot.Bot.Core.Points
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             await CreateInitialDataIfNeeded();
-            await SetupSpecialServices();
             await Register();
             ServiceBackbone.StreamStarted += StreamStarted;
             logger.LogInformation("Started {module}", nameof(PointsSystem));
@@ -177,13 +176,6 @@ namespace PenguinTwitchBot.Bot.Core.Points
                 await db.SaveChangesAsync();
                 logger.LogInformation("Initial data created");
             }
-        }
-
-        private async Task SetupSpecialServices()
-        {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var bonusService = scope.ServiceProvider.GetRequiredService<IBonusTickets>();
-            await bonusService.Setup();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

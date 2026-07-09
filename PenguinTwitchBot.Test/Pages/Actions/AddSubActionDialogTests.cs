@@ -4,6 +4,8 @@ using MudBlazor;
 using MudBlazor.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using NSubstitute;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Pages.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using System.Collections.Generic;
@@ -29,6 +31,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
+            _ctx.Services.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
         }
 
         [Fact]

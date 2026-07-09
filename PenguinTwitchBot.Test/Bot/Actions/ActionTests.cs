@@ -2,6 +2,7 @@ using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Database.Bot.Models.Actions;
@@ -40,6 +41,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             serviceCollection.AddSingleton(dispatcher);
             serviceCollection.AddSingleton(factoryLogger);
             serviceCollection.AddSingleton(twitchService);
+            serviceCollection.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
             serviceCollection.AddSingleton(Substitute.For<ILogger<SendMessageHandler>>());
             serviceCollection.AddSingleton(alertHandlerLogger);
             serviceCollection.AddSingleton(Substitute.For<ILogger<PlaySoundHandler>>());

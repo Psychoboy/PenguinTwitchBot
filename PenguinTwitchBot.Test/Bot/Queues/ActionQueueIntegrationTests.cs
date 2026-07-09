@@ -4,6 +4,7 @@ using PenguinTwitchBot.Database.Bot.Models.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.Queues;
+using PenguinTwitchBot.Bot.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
+            serviceCollection.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
             serviceCollection.AddTransient<PenguinTwitchBot.Bot.Actions.SubActions.SubActionHandlerFactory>();
             var serviceProvider = serviceCollection.BuildServiceProvider();
             var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
@@ -79,6 +81,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
+            serviceCollection.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
             serviceCollection.AddTransient<PenguinTwitchBot.Bot.Actions.SubActions.SubActionHandlerFactory>();
             var serviceProvider = serviceCollection.BuildServiceProvider();
             var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();

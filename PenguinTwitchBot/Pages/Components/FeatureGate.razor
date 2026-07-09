@@ -1,0 +1,73 @@
+@using PenguinTwitchBot.Bot.Features
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@implements IDisposable
+
+@if (IsFeatureEnabled())
+{
+    @ChildContent
+}
+else if (DisabledContent is not null)
+{
+    @DisabledContent
+}
+else
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PowerOff">
+        @(string.IsNullOrWhiteSpace(DisabledMessage) ? "This feature is currently disabled." : DisabledMessage)
+    </MudAlert>
+}
+
+@code {
+    [Parameter]
+    public string FeatureKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<string>? FeatureKeyList { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter]
+    public RenderFragment? DisabledContent { get; set; }
+
+    [Parameter]
+    public string? DisabledMessage { get; set; }
+
+    private bool _disposed;
+
+    protected override void OnInitialized()
+    {
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
+    }
+
+    private bool IsFeatureEnabled()
+    {
+        if (FeatureKeyList is { Count: > 0 })
+        {
+            return FeatureKeyList.Any(FeatureRuntimeCoordinator.IsEnabled);
+        }
+
+        if (string.IsNullOrWhiteSpace(FeatureKey))
+        {
+            return false;
+        }
+
+        return FeatureRuntimeCoordinator.IsEnabled(FeatureKey);
+    }
+
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
+    }
+}

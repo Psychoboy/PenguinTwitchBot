@@ -1,5 +1,6 @@
 @using PenguinTwitchBot.Bot.Actions.SubActions
 @using PenguinTwitchBot.Bot.Actions.SubActions.UI
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
@@ -116,6 +117,9 @@
     [Inject]
     private IServiceProvider ServiceProvider { get; set; } = null!;
 
+    [Inject]
+    private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
+
     [Parameter] 
     public SubActionType? ExistingSubAction { get; set; }
 
@@ -163,6 +167,7 @@
             // When searching, show all matching types flat (including OBS), sorted alphabetically
             return SubActionRegistry.Metadata.Keys
                 .Where(t => t != SubActionTypes.None)
+                .Where(IsTypeAvailable)
                 .Where(t =>
                 {
                     var metadata = SubActionRegistry.GetMetadata(t);
@@ -178,6 +183,7 @@
         // When not searching: non-OBS types + OBS category entry, sorted alphabetically
         var nonObsTypes = SubActionRegistry.Metadata.Keys
             .Where(t => t != SubActionTypes.None && !IsObsType(t))
+            .Where(IsTypeAvailable)
             .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
             .ToList();
 
@@ -205,8 +211,14 @@
     {
         return SubActionRegistry.Metadata.Keys
             .Where(t => t != SubActionTypes.None && IsObsType(t))
+            .Where(IsTypeAvailable)
             .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
             .ToList();
+    }
+
+    private bool IsTypeAvailable(SubActionTypes type)
+    {
+        return SubActionFeatureGate.IsAvailable(type, FeatureRuntimeCoordinator);
     }
 
     private string GetObsDisplayName(SubActionTypes type)

@@ -1,7 +1,9 @@
 ﻿@inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
@@ -16,10 +18,16 @@
             <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Control" Expanded="@GetGroupExpanded("streamControl", "raidhistory", "giveaway", "wheelspin", "giveawaysettings", "giveawayhistory", "twitcheventsettings", "musicplayer", "playlists", "redeems")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway", "wheelspin", "giveawaysettings", "giveawayhistory", "twitcheventsettings")">
-                    <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+                    {
                     <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.History" Href="/giveawayhistory" Match="NavLinkMatch.Prefix">History</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/twitcheventsettings" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
                 </MudNavGroup>
                 <MudNavGroup Icon="@Icons.Material.Filled.MusicNote" Title="Music" Expanded="@GetGroupExpanded("music", "musicplayer", "playlists")">
@@ -72,11 +80,14 @@
                 </MudNavGroup>
                 <MudNavLink Icon="@Icons.Material.Filled.Videocam" Href="/obs/connections" Match="NavLinkMatch.Prefix">OBS Connections</MudNavLink>
             </MudNavGroup>
+            @if( FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
+            {
             <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing Admin" Expanded="@GetGroupExpanded("fishingAdmin", "fishing/admin", "fishing/imageprocessing", "fishing/balance-analysis")">
                 <MudNavLink Icon="@Icons.Material.Filled.List" Href="/fishing/admin" Match="NavLinkMatch.Prefix">Manage Fish & Shop</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.List" Href="/fishing/imageprocessing" Match="NavLinkMatch.Prefix">Manage Images</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Analytics" Href="/fishing/balance-analysis" Match="NavLinkMatch.Prefix">Balance Analysis</MudNavLink>
             </MudNavGroup>
+            }
         </Authorized>
         <NotAuthorized>
             
@@ -95,22 +106,31 @@
         </NotAuthorized>
     </AuthorizeView>
     <MudNavLink Href="/commands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ChatBubble">Commands</MudNavLink>
-        <MudNavLink Href="/acommands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AudioFile">Audio Commands</MudNavLink>
-    <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
-    <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
+    <MudNavLink Href="/acommands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AudioFile">Audio Commands</MudNavLink>
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+    {
+        <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
+    }
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
+    {
+        <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
+    }
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
-    <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
-        <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboard</MudNavLink>
-        <MudNavLink Href="/fishing/tournaments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">Tournaments</MudNavLink>
-        <AuthorizeView>
-            <Authorized>
-                <MudNavLink Href="/fishing/shop" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">Shop</MudNavLink>
-                <MudNavLink Href="/fishing/inventory" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory">My Inventory</MudNavLink>
-            </Authorized>
-        </AuthorizeView>
-            <MudNavLink Href="/fishing/help" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Help">Help Guide</MudNavLink>
-    </MudNavGroup>
+    @if( FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
+    {
+        <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
+            <MudNavLink Href="/fishing/leaderboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboard</MudNavLink>
+            <MudNavLink Href="/fishing/tournaments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EmojiEvents">Tournaments</MudNavLink>
+            <AuthorizeView>
+                <Authorized>
+                    <MudNavLink Href="/fishing/shop" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ShoppingCart">Shop</MudNavLink>
+                    <MudNavLink Href="/fishing/inventory" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Inventory">My Inventory</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+                <MudNavLink Href="/fishing/help" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Help">Help Guide</MudNavLink>
+        </MudNavGroup>
+    }
     <AuthorizeView>
         <Authorized>
             <MudNavLink Href="/signout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Logout">Log Out</MudNavLink>
@@ -151,6 +171,7 @@
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
     private bool _isStreamer;
     private bool _showUpgradeLink => _isStreamer && !VersionCheck.IsUpToDate && !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
+    private bool _disposed;
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)
     {
@@ -178,6 +199,7 @@
             _isStreamer = authState.User.IsInRole("Streamer");
         }
         VersionCheck.VersionStatusChanged += HandleVersionStatusChanged;
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
         Navigation.LocationChanged += OnLocationChanged;
     }
 
@@ -191,9 +213,21 @@
         StateHasChanged();
     }
 
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
     public void Dispose()
     {
+        _disposed = true;
         VersionCheck.VersionStatusChanged -= HandleVersionStatusChanged;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }
