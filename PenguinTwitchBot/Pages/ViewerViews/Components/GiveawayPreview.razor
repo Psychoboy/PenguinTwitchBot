@@ -1,5 +1,11 @@
-﻿@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
+﻿@using PenguinTwitchBot.Bot.Features
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
+@implements IDisposable
+<FeatureGate FeatureKey="@FeatureKeys.GiveawayFeature">
+    <ChildContent>
 <MudPaper Class="pa-5" Elevation="3">
+    
     <MudStack Spacing="3">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -33,13 +39,55 @@
             }
         </MudStack>
     </MudStack>
+    
 </MudPaper>
+</ChildContent>
+<DisabledContent></DisabledContent>
+</FeatureGate>
 @code {
     private string prize = "";
     private string? imageUrl;
+    private bool _disposed;
+
     protected override async Task OnInitializedAsync()
     {
-        prize = await GiveawayFeature.GetPrize();
-        imageUrl = await GiveawayFeature.GetImageUrl();
+        FeatureRuntimeCoordinator.StateChangedAsync += HandleFeatureStateChangedAsync;
+
+        await RefreshAsync();
+    }
+
+    private Task HandleFeatureStateChangedAsync()
+    {
+        return InvokeAsync(RefreshAsync);
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+        {
+            prize = await GiveawayFeature.GetPrize();
+            imageUrl = await GiveawayFeature.GetImageUrl();
+        }
+        else
+        {
+            prize = string.Empty;
+            imageUrl = null;
+        }
+
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
     }
 }

@@ -1,6 +1,6 @@
 @page "/viewergiveaway"
 
-@using System.Security.Claims
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.ViewerViews.Components
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
@@ -13,6 +13,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<ViewerGiveaway> logger
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone ServiceBackbone
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @implements IAsyncDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway</PageTitle>
@@ -30,7 +31,8 @@
         transform: translateY(-4px);
     }
 </style>
-
+<FeatureGate FeatureKey="@FeatureKeys.GiveawayFeature">
+    <ChildContent>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
     <MudGrid Spacing="3">
         <MudItem xs="12" sm="6">
@@ -264,6 +266,15 @@
     </MudGrid>
 
 </MudContainer>
+</ChildContent>
+<DisabledContent>
+        <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Medium">
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.PowerOff">
+                Giveaways are currently disabled by the streamer.
+            </MudAlert>
+        </MudContainer>
+    </DisabledContent>
+</FeatureGate>
 
 @code {
     private HubConnection? hubConnection;
@@ -301,6 +312,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature) == false)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
         var pointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
         pointTypeName = pointType?.Name ?? "Tickets";
 

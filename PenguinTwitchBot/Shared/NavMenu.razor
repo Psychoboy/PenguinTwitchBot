@@ -1,7 +1,9 @@
 ﻿@inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
@@ -95,9 +97,15 @@
         </NotAuthorized>
     </AuthorizeView>
     <MudNavLink Href="/commands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ChatBubble">Commands</MudNavLink>
-        <MudNavLink Href="/acommands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AudioFile">Audio Commands</MudNavLink>
-    <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
-    <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
+    <MudNavLink Href="/acommands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AudioFile">Audio Commands</MudNavLink>
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+    {
+        <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
+    }
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
+    {
+        <MudNavLink Href="/quotes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FormatQuote">Quotes</MudNavLink>
+    }
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
     <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
@@ -178,6 +186,7 @@
             _isStreamer = authState.User.IsInRole("Streamer");
         }
         VersionCheck.VersionStatusChanged += HandleVersionStatusChanged;
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
         Navigation.LocationChanged += OnLocationChanged;
     }
 
@@ -191,9 +200,15 @@
         StateHasChanged();
     }
 
+    private void HandleFeatureStateChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
     public void Dispose()
     {
         VersionCheck.VersionStatusChanged -= HandleVersionStatusChanged;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }

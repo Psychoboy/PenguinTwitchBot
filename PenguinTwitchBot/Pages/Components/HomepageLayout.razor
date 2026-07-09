@@ -1,9 +1,12 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Bot.Features
 
 @inject PenguinTwitchBot.Services.HomepageLayoutService HomepageLayoutService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ISnackbar Snackbar
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@implements IDisposable
 
 @if (!isLoaded)
 {
@@ -129,14 +132,27 @@ else
     private bool isStreamer;
     private bool isEditing;
     private string selectedWidgetType = HomepageWidgetCatalog.SongRequests;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
+
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isStreamer = authState.User.IsInRole("Streamer");
 
         await ReloadLayoutAsync();
         isLoaded = true;
+    }
+
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task ReloadLayoutAsync()
@@ -228,6 +244,23 @@ else
 
     private bool ShouldRenderWidget(HomepageWidgetConfig widget)
     {
-        return isStreamer || !string.Equals(widget.Type, HomepageWidgetCatalog.StreamerTools, StringComparison.OrdinalIgnoreCase);
+        if (!isStreamer && string.Equals(widget.Type, HomepageWidgetCatalog.StreamerTools, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(widget.Type, HomepageWidgetCatalog.Giveaway, StringComparison.OrdinalIgnoreCase))
+        {
+            return FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets)
+                || FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature);
+        }
+
+        return true;
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
     }
 }

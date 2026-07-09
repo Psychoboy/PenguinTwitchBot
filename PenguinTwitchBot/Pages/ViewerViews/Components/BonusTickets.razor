@@ -1,4 +1,5 @@
-﻿@using PenguinTwitchBot.Bot.Commands.TicketGames
+﻿@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Commands.TicketGames
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
@@ -8,7 +9,10 @@
 @inject PenguinTwitchBot.Bot.Core.IServiceBackbone serviceBackbone
 @inject NavigationManager Navigation
 @inject ILogger<BonusTickets> logger
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @implements IAsyncDisposable
+<FeatureGate FeatureKey="@FeatureKeys.BonusTickets">
+    <ChildContent>
 <MudPaper Class="pa-5" Elevation="3">
     <MudStack Spacing="3">
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
@@ -74,6 +78,9 @@
         }
     </MudStack>
 </MudPaper>
+    </ChildContent>
+    <DisabledContent></DisabledContent>
+</FeatureGate>
 @code {
 
     private bool disabled = true;
@@ -84,14 +91,44 @@
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
     private bool dataLoaded = false;
+    private bool _disposed;
     protected override async Task OnInitializedAsync()
     {
+        FeatureRuntimeCoordinator.StateChangedAsync += HandleFeatureStateChangedAsync;
+        if(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets))
+        {
+            await base.OnInitializedAsync();
+            return;
+        }
+        await RefreshAsync();
+        await base.OnInitializedAsync();
+    }
+
+    private async Task HandleFeatureStateChangedAsync()
+    {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets))
+        {
+            return;
+        }
+
+        await InvokeAsync(RefreshAsync);
+    }
+
+    private async Task RefreshAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets))
+        {
+            return;
+        }
         var pointType = await pointsSystem.GetPointTypeForGame(PenguinTwitchBot.Bot.Commands.TicketGames.BonusTickets.GAMENAME);
         if (string.IsNullOrWhiteSpace(pointType.Name) == false)
         {
             BonusPointsName = pointType.Name;
         }
-
         var authState = await AuthenticationStateProvider
            .GetAuthenticationStateAsync();
         var user = authState.User;
@@ -101,7 +138,10 @@
             disabled = await bonusTickets.DidUserRedeemBonus(Username);
         }
         StreamOnline = serviceBackbone.IsOnline;
-        await base.OnInitializedAsync();
+        if (!_disposed)
+        {
+            StateHasChanged();
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -148,10 +188,12 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         _hubConnectionCts?.Cancel();
 
         await hubConnection.DisposeGracefullyAsync(logger);
 
         _hubConnectionCts?.Dispose();
+        FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
     }
 }
