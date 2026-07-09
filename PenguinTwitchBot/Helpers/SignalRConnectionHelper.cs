@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MudBlazor;
 using System.Net.Sockets;
@@ -10,6 +12,51 @@ namespace PenguinTwitchBot.Helpers;
 /// </summary>
 public static class SignalRConnectionHelper
 {
+    /// <summary>
+    /// Resolves the URL used by server-side SignalR clients when connecting back to this app.
+    /// Prefers a configured internal base URL or the HTTP Kestrel endpoint to avoid requiring
+    /// a trusted HTTPS certificate for in-process self-connections.
+    /// </summary>
+    public static Uri ResolveHubUri(IConfiguration appConfiguration, NavigationManager navigation, string hubPath)
+    {
+        ArgumentNullException.ThrowIfNull(appConfiguration);
+        ArgumentNullException.ThrowIfNull(navigation);
+
+        var normalizedHubPath = hubPath.StartsWith('/') ? hubPath : $"/{hubPath}";
+
+        var configuredBaseUrl = appConfiguration["SignalR:InternalBaseUrl"];
+        if (TryCreateBaseUri(configuredBaseUrl, out var internalBaseUri))
+        {
+            return new Uri(internalBaseUri, normalizedHubPath);
+        }
+
+        var httpEndpointUrl = appConfiguration["Kestrel:Endpoints:Http:Url"];
+        if (TryCreateBaseUri(httpEndpointUrl, out var httpEndpointBaseUri))
+        {
+            return new Uri(httpEndpointBaseUri, normalizedHubPath);
+        }
+
+        return navigation.ToAbsoluteUri(normalizedHubPath);
+    }
+
+    private static bool TryCreateBaseUri(string? url, out Uri baseUri)
+    {
+        baseUri = default!;
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsedUri))
+        {
+            return false;
+        }
+
+        if (parsedUri.Host == "0.0.0.0" || parsedUri.Host == "[::]" || parsedUri.Host == "::")
+        {
+            var port = parsedUri.IsDefaultPort ? string.Empty : $":{parsedUri.Port}";
+            parsedUri = new Uri($"{parsedUri.Scheme}://localhost{port}");
+        }
+
+        baseUri = new Uri(parsedUri.ToString().TrimEnd('/') + "/", UriKind.Absolute);
+        return true;
+    }
+
     /// <summary>
     /// Starts a SignalR hub connection with consistent exception handling for expected disconnection scenarios.
     /// </summary>

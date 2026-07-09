@@ -129,7 +129,7 @@
 
         // Configure SignalR with automatic reconnect and retry policy
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/mainhub"), options =>
+            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
             {
                 // Allow fallback to other transports if WebSockets fail
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
