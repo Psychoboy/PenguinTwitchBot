@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using NSubstitute;
@@ -19,7 +20,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var services = new ServiceCollection();
             services.AddSingleton(Substitute.For<ILogger<SubActionHandlerFactory>>());
-            services.AddSingleton(new SubActionHandlerFactory(new List<ISubActionHandler>(), Substitute.For<ILogger<SubActionHandlerFactory>>(), Substitute.For<IServiceScopeFactory>()));
+            services.AddSingleton(new SubActionHandlerFactory(
+                new List<ISubActionHandler>(),
+                Substitute.For<ILogger<SubActionHandlerFactory>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IFeatureRuntimeCoordinator>()));
             var provider = services.BuildServiceProvider();
             var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
             var asyncScope = scopeFactory.CreateAsyncScope();
@@ -60,7 +65,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             var services = new ServiceCollection();
             services.AddSingleton(Substitute.For<ILogger<SubActionHandlerFactory>>());
-            services.AddSingleton(new SubActionHandlerFactory(new List<ISubActionHandler>(), Substitute.For<ILogger<SubActionHandlerFactory>>(), Substitute.For<IServiceScopeFactory>()));
+            services.AddSingleton(new SubActionHandlerFactory(
+                new List<ISubActionHandler>(),
+                Substitute.For<ILogger<SubActionHandlerFactory>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IFeatureRuntimeCoordinator>()));
             var provider = services.BuildServiceProvider();
             var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
             var asyncScope = scopeFactory.CreateAsyncScope();

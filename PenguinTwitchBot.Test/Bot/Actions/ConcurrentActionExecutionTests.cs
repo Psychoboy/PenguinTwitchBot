@@ -2,6 +2,7 @@
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.SubActions;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Queues;
@@ -26,6 +27,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             services.AddSingleton<ILogger<TestLoggingHandler>>(Substitute.For<ILogger<TestLoggingHandler>>());
             services.AddSingleton<ILogger<ActionExecutionLogger>>(Substitute.For<ILogger<ActionExecutionLogger>>());
             services.AddSingleton<ILogger<ActionExecutionContext>>(Substitute.For<ILogger<ActionExecutionContext>>());
+            services.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
 
             // Add execution logging infrastructure
             services.AddSingleton<IActionExecutionLogger, ActionExecutionLogger>();
