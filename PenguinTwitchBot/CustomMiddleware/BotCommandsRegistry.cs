@@ -160,7 +160,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
             services.AddHostedApiService<Bot.Commands.Misc.Weather>();
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
-            services.AddHostedApiService<IAutoTimers, AutoTimers>();
+            services.AddRuntimeFeatureService<IAutoTimers, AutoTimers>(
+                FeatureKeys.AutoTimer,
+                "Auto Timer",
+                isCore: false,
+                description: "Automatic timer feature for scheduled events."
+            );
             services.AddHostedApiService<AudioCommands>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();

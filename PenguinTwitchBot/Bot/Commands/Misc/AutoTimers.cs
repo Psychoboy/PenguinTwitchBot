@@ -17,8 +17,10 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AutoTimers> _logger;
         private readonly Timer _intervalTimer;
+        private readonly IServiceBackbone _serviceBackbone;
         private readonly ConcurrentDictionary<int, int> MessageCounters = new();
         private readonly SemaphoreSlim _timerLock = new(1, 1);
+        private int _isStarted;
         private int MessageCounter = 0;
 
         public AutoTimers(
@@ -32,10 +34,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             _scopeFactory = scopeFactory;
             _logger = logger;
             _intervalTimer = new Timer(1000);
-            _intervalTimer.Elapsed += ElapseTimer;
-
-            serviceBackbone.CommandEvent += CommandMessage;
-            serviceBackbone.StreamStarted += StreamStarted;
+            _serviceBackbone = serviceBackbone;
         }
 
         private async Task StreamStarted(object? sender, EventArgs _)
@@ -396,25 +395,38 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            if (Interlocked.Exchange(ref _isStarted, 1) == 1)
+            {
+                return Task.CompletedTask;
+            }
+
             _logger.LogInformation("Starting {moduledname}", ModuleName);
+            _intervalTimer.Elapsed += ElapseTimer;
+            _serviceBackbone.CommandEvent += CommandMessage;
+            _serviceBackbone.StreamStarted += StreamStarted;
             _intervalTimer.Start();
             return Task.CompletedTask;
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Stopped {moduledname}", ModuleName);
+            if (Interlocked.Exchange(ref _isStarted, 0) == 0)
+            {
+                return;
+            }
 
             var timerLock = _timerLock;
 
             _intervalTimer.Stop();
             _intervalTimer.Elapsed -= ElapseTimer;
-            _intervalTimer.Dispose(); 
+            _serviceBackbone.CommandEvent -= CommandMessage;
+            _serviceBackbone.StreamStarted -= StreamStarted;
             if(timerLock != null)
             {
                 await timerLock.WaitAsync(cancellationToken);
                 timerLock.Release();
             }
+            _logger.LogInformation("Stopped {moduledname}", ModuleName);
         }
     }
 }

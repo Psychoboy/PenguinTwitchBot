@@ -51,7 +51,10 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Bolt" Href="/actions/commands" Match="NavLinkMatch.Prefix">Action Commands</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Key" Href="/actions/keywords" Match="NavLinkMatch.Prefix">Keywords</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.AudioFile" Href="/actions/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Action Timers</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Action Timers</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Tune" Href="/actions/manage" Match="NavLinkMatch.Prefix">Manage Actions</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
