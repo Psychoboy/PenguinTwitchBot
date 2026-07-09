@@ -125,7 +125,7 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             services.AddRuntimeFeatureService<IBonusTickets, BonusTickets>(
                 FeatureKeys.BonusTickets,
-                "Bonus Tickets",
+                "Bonus Points",
                 isCore: false,
                 description: "Bonus points claim widget and per-stream reset behavior.");
             services.AddSingleton<IRaffleRuntimeService, RaffleRuntimeService>();
