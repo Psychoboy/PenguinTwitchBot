@@ -119,7 +119,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();
-            services.AddSingleton<IAlias, Alias>();
+            services.AddRuntimeFeatureService<IAlias, Alias>(
+                FeatureKeys.Alias,
+                "Alias",
+                isCore: false,
+                description: "Alias commands and viewer alias page."
+            );
             //Add Alerts
             services.AddSingleton<Bot.Alerts.AlertImage>();
 

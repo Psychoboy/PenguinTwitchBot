@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Repository;
@@ -43,14 +44,14 @@ namespace PenguinTwitchBot.Bot.Features
         ILogger<FeatureRuntimeCoordinator> logger) : IFeatureRuntimeCoordinator, IHostedService
     {
         private static readonly StringComparer KeyComparer = StringComparer.OrdinalIgnoreCase;
-        private readonly Dictionary<string, IReadOnlyList<RuntimeFeatureRegistration>> _registrationsByKey = registrations
+        private readonly ImmutableDictionary<string, ImmutableArray<RuntimeFeatureRegistration>> _registrationsByKey = registrations
             .GroupBy(x => x.Key, KeyComparer)
-            .ToDictionary(
+            .ToImmutableDictionary(
                 x => x.Key,
-                x => (IReadOnlyList<RuntimeFeatureRegistration>)x
+                x => x
                     .OrderBy(registration => registration.DisplayName, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(registration => registration.ModuleName, StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
+                    .ToImmutableArray(),
                 KeyComparer);
         private readonly ConcurrentDictionary<string, bool> _enabledStates = new(KeyComparer);
         private readonly ConcurrentDictionary<string, bool> _runningStates = new(KeyComparer);

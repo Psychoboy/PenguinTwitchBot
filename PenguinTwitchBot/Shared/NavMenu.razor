@@ -40,7 +40,10 @@
             <MudNavGroup Icon="@Icons.Material.Filled.Terminal" Title="Bot & Commands" Expanded="@GetGroupExpanded("botCommands", "defaultcommands", "aliases", "command-cooldowns", "externalcommands", "actions", "blacklist")">
                 <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "defaultcommands", "aliases", "command-cooldowns", "externalcommands")">
                     <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/defaultcommands" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz" Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz" Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Schedule" Href="/command-cooldowns" Match="NavLinkMatch.Prefix">Current Cooldowns</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/externalcommands" Match="NavLinkMatch.Prefix">External Commands</MudNavLink>
                 </MudNavGroup>
