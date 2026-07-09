@@ -2,6 +2,7 @@
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Bot.Hubs
 @using PenguinTwitchBot.Database.Bot.Models.Queues
+@using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
@@ -210,7 +211,7 @@
     {
         if (firstRender)
         {
-            _hubConnection = HubConnectionFactory.CreateMainHubConnection(NavigationManager.ToAbsoluteUri("/mainHub"));
+            _hubConnection = HubConnectionFactory.CreateMainHubConnection(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"));
 
             if (_hubConnection == null) return;
 
