@@ -178,7 +178,7 @@ internal static class Program
                 continue;
             }
 
-            ValidateArchiveEntryPath(entry.FullName);
+            GetSafeArchiveEntryPath(entry.FullName);
 
             var destinationPath = GetSafeDestinationPath(appRoot, relativePath);
             var destinationDir = Path.GetDirectoryName(destinationPath);
@@ -244,8 +244,7 @@ internal static class Program
                 continue;
             }
 
-            var normalized = entry.FullName.Replace('\\', '/');
-            ValidateArchiveEntryPath(normalized);
+            var normalized = GetSafeArchiveEntryPath(entry.FullName);
 
             if (normalized.StartsWith("Updater/", StringComparison.OrdinalIgnoreCase))
             {
@@ -273,8 +272,7 @@ internal static class Program
                 continue;
             }
 
-            ValidateArchiveEntryPath(entry.FullName);
-            var relativePath = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
+            var relativePath = GetSafeArchiveEntryPath(entry.FullName).Replace('/', Path.DirectorySeparatorChar);
             var destinationPath = GetSafeDestinationPath(destinationRoot, relativePath);
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrWhiteSpace(destinationDir))
@@ -286,13 +284,15 @@ internal static class Program
         }
     }
 
-    private static void ValidateArchiveEntryPath(string entryPath)
+    private static string GetSafeArchiveEntryPath(string entryPath)
     {
         var normalized = entryPath.Replace('\\', '/');
         if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains("../", StringComparison.Ordinal) || normalized.Contains("..\\", StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"Unsafe entry path: {entryPath}");
         }
+
+        return normalized;
     }
 
     private static string GetSafeDestinationPath(string rootPath, string relativePath)
