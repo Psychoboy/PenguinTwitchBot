@@ -13,5 +13,9 @@ case "$INPUT_TAG" in
 esac
 
 dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
+dotnet publish PenguinTwitchBot.Updater/PenguinTwitchBot.Updater.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
+dotnet publish PenguinTwitchBot.Updater.Bootstrap/PenguinTwitchBot.Updater.Bootstrap.csproj -c Release -r win-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
 
 dotnet publish PenguinTwitchBot/PenguinTwitchBot.csproj -c Release -r linux-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
+dotnet publish PenguinTwitchBot.Updater/PenguinTwitchBot.Updater.csproj -c Release -r linux-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"
+dotnet publish PenguinTwitchBot.Updater.Bootstrap/PenguinTwitchBot.Updater.Bootstrap.csproj -c Release -r linux-x64 --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=$VERSION" "-p:InformationalVersion=$VERSION"

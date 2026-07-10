@@ -1,11 +1,199 @@
 ﻿@page "/tools"
 @using PenguinTwitchBot.Bot.ServiceTools
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IVersionCheckService VersionCheckService
+@inject IJSRuntime JS
+@inject IDialogService DialogService
 
 <h3>Tools</h3>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h6">Application Updates</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Updates are manual and update-package only. Current version: @VersionCheckService.CurrentVersion.
+        </MudText>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="CheckForUpdatesAsync" Disabled="_checkingUpdates">
+                Check For Updates
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="StartUpdateAsync" Disabled="_startingUpdate || !VersionCheckService.CanUserInitiateUpdate">
+                Update Now
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="RestoreLatestRecoveryAsync" Disabled="_restoringRecovery || !VersionCheckService.HasRecoveryBundle">
+                Restore Last Recovery
+            </MudButton>
+        </MudStack>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Latest: @(_latestLabel)
+        </MudText>
+        <MudSwitch T="bool" Label="Include preview releases" Value="_includePreviewReleases" ValueChanged="OnIncludePreviewReleasesChanged" Disabled="_savingPreviewSetting" Color="Color.Primary" />
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Recovery bundle: @(VersionCheckService.LatestRecoveryBundleName ?? "None")
+        </MudText>
+        @if (!string.IsNullOrWhiteSpace(VersionCheckService.UpdateBlockedReason))
+        {
+            <MudAlert Severity="Severity.Info" Dense="true">@VersionCheckService.UpdateBlockedReason</MudAlert>
+        }
+        @if (!string.IsNullOrWhiteSpace(VersionCheckService.LatestReleaseNotes))
+        {
+            <MudPaper Class="pa-3" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Latest Release Notes</MudText>
+                <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@VersionCheckService.LatestReleaseNotes</MudText>
+            </MudPaper>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.h6">Diagnostics</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Download the newest all_*.log file to share for support.
+        </MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="DownloadLatestAllLogAsync">
+            Download Latest all Log
+        </MudButton>
+    </MudStack>
+</MudPaper>
 
 <PenguinTwitchBot.Pages.Components.QuickTools />
 
 @code {
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
+
+    private bool _checkingUpdates;
+    private bool _startingUpdate;
+    private bool _restoringRecovery;
+    private bool _includePreviewReleases;
+    private bool _savingPreviewSetting;
+    private string _latestLabel => string.IsNullOrWhiteSpace(VersionCheckService.LatestVersion)
+        ? "Unknown"
+        : $"v{VersionCheckService.LatestVersion} ({VersionCheckService.CurrentRid ?? "unsupported"})";
+
+    private async Task CheckForUpdatesAsync()
+    {
+        _checkingUpdates = true;
+        try
+        {
+            await VersionCheckService.RefreshNowAsync();
+            Snackbar.Add("Update status refreshed.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to refresh update status: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _checkingUpdates = false;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _includePreviewReleases = VersionCheckService.IncludePreviewReleases;
+    }
+
+    private async Task OnIncludePreviewReleasesChanged(bool value)
+    {
+        _savingPreviewSetting = true;
+        try
+        {
+            await VersionCheckService.SetIncludePreviewReleasesAsync(value);
+            _includePreviewReleases = VersionCheckService.IncludePreviewReleases;
+            Snackbar.Add("Update channel preference saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save update channel preference: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _savingPreviewSetting = false;
+        }
+    }
+
+    private async Task StartUpdateAsync()
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            "Start Update",
+            "This will download the update package, run a backup, create recovery data, and restart the app process. Continue?",
+            yesText: "Start Update",
+            cancelText: "Cancel");
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        _startingUpdate = true;
+        try
+        {
+            var result = await VersionCheckService.StartManualUpdateAsync();
+            Snackbar.Add(result.Message, result.Started ? Severity.Info : Severity.Error);
+        }
+        finally
+        {
+            _startingUpdate = false;
+        }
+    }
+
+    private async Task RestoreLatestRecoveryAsync()
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            "Restore Last Recovery",
+            "This will stop the app and restore files from the most recent recovery bundle. Continue?",
+            yesText: "Restore",
+            cancelText: "Cancel");
+
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        _restoringRecovery = true;
+        try
+        {
+            var result = await VersionCheckService.StartRestoreLatestRecoveryAsync();
+            Snackbar.Add(result.Message, result.Started ? Severity.Warning : Severity.Error);
+        }
+        finally
+        {
+            _restoringRecovery = false;
+        }
+    }
+
+    private async Task DownloadLatestAllLogAsync()
+    {
+        try
+        {
+            var baseDir = Directory.GetCurrentDirectory();
+            var logsDir = Path.Combine(baseDir, "Logs");
+
+            if (!Directory.Exists(logsDir))
+            {
+                Snackbar.Add("Logs directory was not found.", Severity.Warning);
+                return;
+            }
+
+            var latest = Directory.GetFiles(logsDir, "all_*.log", SearchOption.TopDirectoryOnly)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(latest) || !File.Exists(latest))
+            {
+                Snackbar.Add("No all_*.log files were found.", Severity.Warning);
+                return;
+            }
+
+            await using var stream = File.OpenRead(latest);
+            using var streamRef = new DotNetStreamReference(stream);
+            await JS.InvokeVoidAsync("downloadFile", Path.GetFileName(latest), streamRef);
+            Snackbar.Add("Log download started.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to download latest log: {ex.Message}", Severity.Error);
+        }
+    }
 }

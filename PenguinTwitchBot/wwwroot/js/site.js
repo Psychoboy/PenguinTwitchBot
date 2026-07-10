@@ -8,7 +8,7 @@ window.downloadFile = async function(filename, content) {
     let blob;
     if (content && typeof content.arrayBuffer === 'function') {
         const buffer = await content.arrayBuffer();
-        blob = new Blob([buffer], { type: 'application/zip' });
+        blob = new Blob([buffer], { type: 'application/octet-stream' });
     } else if (typeof content === 'string') {
         blob = new Blob([content], { type: 'application/json' });
     }

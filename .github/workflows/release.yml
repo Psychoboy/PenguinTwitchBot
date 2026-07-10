@@ -69,10 +69,29 @@ jobs:
       shell: pwsh
       run: dotnet publish PenguinTwitchBot.Setup/PenguinTwitchBot.Setup.csproj -c Release -r ${{ matrix.rid }} --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=${{ steps.version.outputs.VERSION }}" "-p:InformationalVersion=${{ steps.version.outputs.VERSION }}"
 
+    - name: Publish Updater
+      shell: pwsh
+      run: dotnet publish PenguinTwitchBot.Updater/PenguinTwitchBot.Updater.csproj -c Release -r ${{ matrix.rid }} --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=${{ steps.version.outputs.VERSION }}" "-p:InformationalVersion=${{ steps.version.outputs.VERSION }}"
+
+    - name: Publish Updater Bootstrap
+      shell: pwsh
+      run: dotnet publish PenguinTwitchBot.Updater.Bootstrap/PenguinTwitchBot.Updater.Bootstrap.csproj -c Release -r ${{ matrix.rid }} --self-contained true "-p:PublishSingleFile=true" "-p:IncludeNativeLibrariesForSelfExtract=true" "-p:Version=${{ steps.version.outputs.VERSION }}" "-p:InformationalVersion=${{ steps.version.outputs.VERSION }}"
+
     - name: Create full zip
       shell: pwsh
       run: |
-        Compress-Archive -Path "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish/*", "PenguinTwitchBot.Setup/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -DestinationPath "PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-full.zip"
+        $fullTmp = "full-tmp"
+        Remove-Item $fullTmp -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Path $fullTmp | Out-Null
+
+        Copy-Item -Path "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Setup/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse
+
+        New-Item -ItemType Directory -Path "$fullTmp/Updater" -Force | Out-Null
+        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
+
+        Compress-Archive -Path "$fullTmp/*" -DestinationPath "PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-full.zip"
 
     - name: Create update zip
       shell: pwsh
@@ -85,6 +104,20 @@ jobs:
         Remove-Item "$tmp/wwwroot/alerts" -Recurse -ErrorAction SilentlyContinue
         Remove-Item "$tmp/wwwroot/audio" -Recurse -ErrorAction SilentlyContinue
         Remove-Item "$tmp/wwwroot/gifs" -Recurse -ErrorAction SilentlyContinue
+
+        New-Item -ItemType Directory -Path "$tmp/Updater" -Force | Out-Null
+        Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
+        Copy-Item -Path "PenguinTwitchBot.Updater.Bootstrap/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$tmp/Updater" -Recurse
+
+        $manifest = @{
+          minimumAutoUpdateVersion = "0.2.0"
+          updaterFolder = "Updater"
+          packageType = "update"
+          rid = "${{ matrix.rid }}"
+          version = "${{ steps.version.outputs.VERSION }}"
+        } | ConvertTo-Json -Depth 4
+        Set-Content -Path "$tmp/update-manifest.json" -Value $manifest -Encoding UTF8
+
         Compress-Archive -Path "$tmp/*" -DestinationPath "PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-update.zip"
 
     - name: Upload artifacts
