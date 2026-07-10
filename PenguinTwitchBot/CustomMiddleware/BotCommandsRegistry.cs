@@ -103,7 +103,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
             services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
 
-            services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
+            services.AddRuntimeFeatureService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>(
+                FeatureKeys.KnownBots,
+                "Known Bots",
+                isCore: true,
+                description: "Manage known bots in the chat. Also used to identify the bot itself and the streamer as known bots."
+            );
 
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.

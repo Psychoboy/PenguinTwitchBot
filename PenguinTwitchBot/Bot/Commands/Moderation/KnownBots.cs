@@ -11,8 +11,8 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
     {
         private readonly ConcurrentBag<KnownBot> _knownBots = [];
 
-        public string? BroadcasterName { get; } = configuration["broadcaster"];
-        public string? BotName { get; } = configuration["botName"];
+        public string? BroadcasterName { get; private set; } = configuration["broadcaster"];
+        public string? BotName { get; private set;} = configuration["botName"];
 
         public bool IsStreamerOrBot(string username)
         {
@@ -81,6 +81,8 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
         public Task StartAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Starting {moduledname}", "KnownBots");
+            BroadcasterName = configuration["broadcaster"];
+            BotName = configuration["botName"];
             return LoadKnownBots();
         }
 
