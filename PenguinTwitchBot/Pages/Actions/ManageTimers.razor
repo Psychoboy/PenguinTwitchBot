@@ -84,10 +84,15 @@
         <MudItem xs="12" md="8">
             @if (_isLoading)
             {
-                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading timer groups...</MudText>
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="220px" Height="32px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="120px" Height="36px" Class="rounded" />
+                        </MudStack>
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
+                        <MudDivider />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
                     </MudStack>
                 </MudPaper>
             }

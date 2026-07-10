@@ -111,10 +111,20 @@
         <MudItem xs="12" md="8">
             @if (_isLoading)
             {
-                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading actions...</MudText>
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" Height="32px" />
+                            <MudStack Row="true" Spacing="1">
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="90px" Height="36px" Class="rounded" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100px" Height="36px" Class="rounded" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="80px" Height="36px" Class="rounded" />
+                            </MudStack>
+                        </MudStack>
+                        <MudDivider />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="170px" Class="rounded" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="260px" Class="rounded" />
                     </MudStack>
                 </MudPaper>
             }

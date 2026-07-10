@@ -7,7 +7,11 @@
 
 @if (_loading)
 {
-    <MudProgressCircular Indeterminate="true" Class="ma-4" />
+    <MudStack Spacing="3">
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="140px" Class="rounded" />
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="180px" Height="36px" Class="rounded" />
+    </MudStack>
 }
 else
 {

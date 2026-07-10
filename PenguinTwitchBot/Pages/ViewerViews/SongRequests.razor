@@ -17,15 +17,23 @@
             Song Requests
         </MudText>
 
-        @if (currentSong != null)
-        {
-            <MudPaper Elevation="3" Class="pa-4">
-                <MudStack Spacing="2">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
+                    <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+                </MudStack>
+                <MudDivider />
+                @if (!currentSongLoaded)
+                {
+                    <MudStack Spacing="2">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="85%" Height="28px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="70%" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="40%" />
                     </MudStack>
-                    <MudDivider />
+                }
+                else if (currentSong != null)
+                {
                     <MudStack Spacing="1">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                             <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" />
@@ -40,15 +48,15 @@
                             <MudText Typo="Typo.body2">@currentSong.Duration</MudText>
                         </MudStack>
                     </MudStack>
-                </MudStack>
-            </MudPaper>
-        }
-        else
-        {
-            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Info">
-                No song is currently playing
-            </MudAlert>
-        }
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                        No song is currently playing.
+                    </MudAlert>
+                }
+            </MudStack>
+        </MudPaper>
 
         <MudGrid Spacing="3">
             <MudItem xs="12" sm="6">
@@ -71,10 +79,12 @@
     private Song? currentSong;
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
+    private bool currentSongLoaded;
 
     protected override void OnInitialized()
     {
         currentSong = YtPlayer.GetCurrentSong();
+        currentSongLoaded = currentSong != null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -99,10 +109,15 @@
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
         {
             currentSong = song;
+            currentSongLoaded = true;
             InvokeAsync(StateHasChanged);
         });
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+
+        currentSong = YtPlayer.GetCurrentSong();
+        currentSongLoaded = true;
+        StateHasChanged();
     }
 
     public async ValueTask DisposeAsync()

@@ -23,14 +23,21 @@
         <MudPaper Elevation="3">
             @if(!dataLoaded)
             {
-                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Typo="Typo.h6">Loading commands...</MudText>
+                <MudStack Class="pa-4" Spacing="2">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="30%" Height="28px" />
+                    <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="200px" Height="44px" Class="rounded" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="180px" Height="36px" Class="rounded" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="250px" Height="44px" Class="rounded" />
                     </MudStack>
-                </MudOverlay>
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="95%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="97%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="90%" />
+                </MudStack>
             }
-
+            else
+            {
             <MudTable Items="@originalCommands" Filter="new Func<CommandModel,bool>(FilterFunc1)" Dense="true" Hover="true">
                 <ToolBarContent>
                     <MudIcon Icon="@Icons.Material.Filled.ChatBubble" Color="Color.Primary" Class="mr-2" />
@@ -158,6 +165,7 @@
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            }
         </MudPaper>
     </MudStack>
 </MudContainer>

@@ -7,9 +7,6 @@
     @if(!dataLoaded)
     {
         <MudSkeleton Height="200px" />
-        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-        </MudOverlay>
     } else {
         <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
             <ToolBarContent>
@@ -73,7 +70,11 @@
                 </MudAlert>
             </NoRecordsContent>
             <LoadingContent>
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudStack Class="pa-4" Spacing="1">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="90%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="95%" />
+                </MudStack>
             </LoadingContent>
             <PagerContent>
                 @if (!IsPreview)

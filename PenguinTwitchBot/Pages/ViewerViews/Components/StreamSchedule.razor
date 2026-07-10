@@ -10,9 +10,6 @@
         @if (!dataLoaded)
         {
             <MudSkeleton Height="200px" />
-            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-            </MudOverlay>
         }
         else if (!scheduledStreams.Any())
         {

@@ -51,9 +51,16 @@
 
         @if (isLoading)
         {
-            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading inventory...</MudText>
+            <MudStack Spacing="3" Class="pa-2">
+                <MudGrid Spacing="2">
+                    @for (var index = 0; index < 4; index++)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="120px" Class="rounded" />
+                        </MudItem>
+                    }
+                </MudGrid>
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
             </MudStack>
         }
         else
