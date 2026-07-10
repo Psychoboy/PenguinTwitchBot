@@ -44,10 +44,14 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 internal class Program
 {
     private static ILogger<Program>? logger;
     private static int _fatalSignalCount;
+    private static X509Certificate2? _generatedHttpsCertificate;
 
     private static async Task Main(string[] args)
     {
@@ -295,6 +299,8 @@ internal class Program
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("192.168.0.0/16"));
         });
 
+        builder.WebHost.ConfigureKestrel((context, options) => ConfigureKestrelHttps(context, options));
+
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -436,6 +442,78 @@ try
             Log.CloseAndFlush();
         }
 
+    }
+
+    private static void ConfigureKestrelHttps(WebHostBuilderContext context, KestrelServerOptions options)
+    {
+        var httpsEndpointUrl = context.Configuration["Kestrel:Endpoints:Https:Url"];
+        if (string.IsNullOrWhiteSpace(httpsEndpointUrl))
+        {
+            return;
+        }
+
+        var explicitCertificatePath = context.Configuration["Kestrel:Certificates:Default:Path"];
+        if (!string.IsNullOrWhiteSpace(explicitCertificatePath) && File.Exists(explicitCertificatePath))
+        {
+            return;
+        }
+
+        _generatedHttpsCertificate ??= CreateSelfSignedHttpsCertificate();
+        options.ConfigureHttpsDefaults(httpsOptions =>
+        {
+            httpsOptions.ServerCertificate = _generatedHttpsCertificate;
+        });
+
+        Log.Information("No HTTPS certificate was configured for Kestrel. An application-generated self-signed certificate will be used for the HTTPS endpoint.");
+    }
+
+    private static X509Certificate2 CreateSelfSignedHttpsCertificate()
+    {
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest(
+            "CN=PenguinTwitchBot",
+            rsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+        sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddIpAddress(IPAddress.Loopback);
+        sanBuilder.AddIpAddress(IPAddress.IPv6Loopback);
+
+        foreach (var address in GetLocalIpv4Addresses())
+        {
+            sanBuilder.AddIpAddress(address);
+        }
+
+        request.CertificateExtensions.Add(sanBuilder.Build());
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, false));
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, false));
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(5));
+        return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx), ReadOnlySpan<char>.Empty, X509KeyStorageFlags.DefaultKeySet);
+    }
+
+    private static IEnumerable<IPAddress> GetLocalIpv4Addresses()
+    {
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up)
+            {
+                continue;
+            }
+
+            var ipProperties = networkInterface.GetIPProperties();
+            foreach (var unicastAddress in ipProperties.UnicastAddresses)
+            {
+                if (unicastAddress.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                    !IPAddress.IsLoopback(unicastAddress.Address))
+                {
+                    yield return unicastAddress.Address;
+                }
+            }
+        }
     }
 
     private static void RegisterGlobalExceptionHandlers()
