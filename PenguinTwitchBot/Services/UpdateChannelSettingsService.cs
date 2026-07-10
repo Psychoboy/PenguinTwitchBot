@@ -61,6 +61,7 @@ public class UpdateChannelSettingsService(IServiceScopeFactory scopeFactory) : I
             }
             catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt == 0)
             {
+                // Do Nothing
             }
         }
     }
