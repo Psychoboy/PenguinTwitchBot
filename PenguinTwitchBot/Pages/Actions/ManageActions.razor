@@ -32,6 +32,9 @@
             <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="OpenExportDialog">
                 Export
             </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Storage" OnClick="GoToGlobalVariables">
+                Global Variables
+            </MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Casino" OnClick="OpenCreateRaffleDialog">
                 Create Raffle
             </MudButton>
@@ -695,6 +698,11 @@
         }
 
         Snackbar.Add($"Raffle '{raffleSetup.RaffleKey}' created with commands '!{raffleSetup.StartCommandName}', '!{raffleSetup.JoinCommandName}', and '!{raffleSetup.EndCommandName}'.", Severity.Success);
+    }
+
+    private void GoToGlobalVariables()
+    {
+        NavigationManager.NavigateTo("/actions/globalvariables");
     }
 
     private async Task RunAction()

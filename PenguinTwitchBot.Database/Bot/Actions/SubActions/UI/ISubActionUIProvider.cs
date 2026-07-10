@@ -83,6 +83,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
         // Select specific
         public string[]? Options { get; set; }
         public List<SelectOption>? SelectOptions { get; set; }
+        public bool AllowCustomValue { get; set; }
 
         // Info/Alert specific
         public string? Severity { get; set; } = "Info";  // Info, Success, Warning, Error, Normal

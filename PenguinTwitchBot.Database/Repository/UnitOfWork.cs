@@ -19,6 +19,7 @@ namespace PenguinTwitchBot.Database.Repository
             Viewers = new ViewersRepository(_context);
             Aliases = new AliasRepository(_context);
             Settings = new SettingsRepository(_context);
+            GlobalVariables = new GlobalVariablesRepository(_context);
             GiveawayEntries = new GiveawayEntriesRepository(_context);
             GiveawayWinners = new GiveawayWinnersRepository(_context);
             GiveawayExclusions = new GiveawayExclusionRepository(_context);
@@ -81,6 +82,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IViewersRepository Viewers { get; private set; }
         public IAliasRepository Aliases { get; private set; }
         public ISettingsRepository Settings { get; private set; }
+        public IGlobalVariablesRepository GlobalVariables { get; private set; }
         public IGiveawayEntriesRepository GiveawayEntries { get; private set; }
         public IGiveawayWinnersRepository GiveawayWinners { get; private set; }
         public IGiveawayExclusionRepository GiveawayExclusions { get; private set; }

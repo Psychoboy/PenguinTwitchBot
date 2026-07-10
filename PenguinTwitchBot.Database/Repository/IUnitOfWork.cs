@@ -14,6 +14,7 @@ namespace PenguinTwitchBot.Database.Repository
         IViewersRepository Viewers { get; }
         IAliasRepository Aliases { get; }
         ISettingsRepository Settings { get; }
+        IGlobalVariablesRepository GlobalVariables { get; }
         IGiveawayEntriesRepository GiveawayEntries { get; }
         IGiveawayWinnersRepository GiveawayWinners { get; }
         IGiveawayExclusionRepository GiveawayExclusions { get; }

@@ -1328,6 +1328,29 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("GiveawayWinners");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.GlobalVariable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("GlobalVariables");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.IpLogs.IpLogEntry", b =>
                 {
                     b.Property<string>("Id")
@@ -2451,6 +2474,17 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("subactions_foreachviewer", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.GetGlobalVariableType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("TargetVariableName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_getglobalvariable", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.GiftPointsType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -2943,6 +2977,17 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.ToTable("subactions_sendmessage", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SetGlobalVariableType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_setglobalvariable", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SetVariableType", b =>

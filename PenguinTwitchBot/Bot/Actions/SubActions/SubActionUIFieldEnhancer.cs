@@ -5,6 +5,7 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions;
 
@@ -36,6 +37,8 @@ public static class SubActionUIFieldEnhancer
             ExecuteDefaultCommandType defaultCmd => EnhanceExecuteDefaultCommand(fields, defaultCmd, scope.ServiceProvider),
             ChannelPointSetEnabledStateType channelPoint => EnhanceChannelPointSetEnabledState(fields, channelPoint, scope.ServiceProvider),
             CheckPointsType checkPoints => EnhanceCheckPoints(fields, checkPoints, scope.ServiceProvider),
+            SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
+            GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
             _ => fields
         };
     }
@@ -347,6 +350,30 @@ public static class SubActionUIFieldEnhancer
             FieldType = UIFieldType.Select,
             Required = true,
             Options = pointTypeNames
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceGlobalVariableNames(List<SubActionUIField> fields, SimpleSubActionType subAction, IServiceProvider serviceProvider)
+    {
+        var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
+        var globalVariables = Task.Run(async () => await unitOfWork.GlobalVariables.GetAllOrderedAsync()).GetAwaiter().GetResult();
+        var variableNames = globalVariables.Select(variable => variable.Name).OrderBy(name => name).ToArray();
+
+        fields.RemoveAll(field => field.PropertyName == nameof(SubActionType.Text));
+        fields.Insert(0, new SubActionUIField
+        {
+            PropertyName = nameof(SubActionType.Text),
+            Label = "Global Variable Name",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            Clearable = true,
+            AllowCustomValue = true,
+            Options = variableNames,
+            HelperText = subAction is SetGlobalVariableType
+                ? "Type or select a name. New names will be created automatically when the subaction saves."
+                : "Type or select the global variable name directly, without % signs."
         });
 
         return fields;

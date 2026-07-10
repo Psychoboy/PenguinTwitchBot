@@ -1,0 +1,183 @@
+@page "/actions/globalvariables"
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Database.Repository
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@inject IServiceScopeFactory ScopeFactory
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Global Variables</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4" GutterBottom="true">Global Variables</MudText>
+            <MudText Typo="Typo.body2">Persist values that can be read and written by action subactions.</MudText>
+        </MudStack>
+        <MudStack Row="true" Spacing="1">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddVariable">
+                Add Variable
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <MudPaper Class="pa-4">
+        <MudStack Spacing="2">
+            <MudTextField @bind-Value="_searchText" Placeholder="Search variables" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="250"
+                          OnDebounceIntervalElapsed="FilterVariables" />
+
+            @if (_variables.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No global variables defined yet.</MudAlert>
+            }
+            else if (_filteredVariables.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No variables match the current search.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="@_filteredVariables" Hover="true" Dense="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Value</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name">
+                            <MudText Typo="Typo.body1"><strong>@context.Name</strong></MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Value">
+                            <MudText Typo="Typo.body2" Style="word-break: break-word;">@context.Value</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => EditVariable(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteVariable(context))" />
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<GlobalVariable> _variables = new();
+    private List<GlobalVariable> _filteredVariables = new();
+    private string _searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVariables();
+    }
+
+    private async Task LoadVariables()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        _variables = await unitOfWork.GlobalVariables.GetAllOrderedAsync();
+        FilterVariables();
+    }
+
+    private void FilterVariables()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            _filteredVariables = [.. _variables];
+            return;
+        }
+
+        _filteredVariables = _variables
+            .Where(variable => variable.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                               variable.Value.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task AddVariable()
+    {
+        var parameters = new DialogParameters<EditGlobalVariableDialog>
+        {
+            { x => x.Model, new GlobalVariable() }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditGlobalVariableDialog>("Add Global Variable", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: GlobalVariable variable })
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await unitOfWork.GlobalVariables.UpsertAsync(variable.Name, variable.Value);
+            Snackbar.Add($"Global variable '{variable.Name}' saved.", Severity.Success);
+            await LoadVariables();
+        }
+    }
+
+    private async Task EditVariable(GlobalVariable variable)
+    {
+        var dialogModel = new GlobalVariable
+        {
+            Id = variable.Id,
+            Name = variable.Name,
+            Value = variable.Value
+        };
+
+        var parameters = new DialogParameters<EditGlobalVariableDialog>
+        {
+            { x => x.Model, dialogModel }
+        };
+
+        var dialog = await DialogService.ShowAsync<EditGlobalVariableDialog>("Edit Global Variable", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: GlobalVariable updatedVariable })
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await unitOfWork.GlobalVariables.UpsertAsync(updatedVariable.Name, updatedVariable.Value);
+            Snackbar.Add($"Global variable '{updatedVariable.Name}' updated.", Severity.Success);
+            await LoadVariables();
+        }
+    }
+
+    private async Task DeleteVariable(GlobalVariable variable)
+    {
+        var parameters = new DialogParameters<ConfirmDeleteDialog>
+        {
+            { x => x.Title, "Delete Global Variable" },
+            { x => x.Message, $"Delete global variable '{variable.Name}'?" },
+            { x => x.ConfirmText, "Delete" }
+        };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>("Delete Global Variable", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            if (!await unitOfWork.GlobalVariables.DeleteByNameAsync(variable.Name))
+            {
+                return;
+            }
+
+            Snackbar.Add($"Global variable '{variable.Name}' deleted.", Severity.Success);
+            await LoadVariables();
+        }
+    }
+}
