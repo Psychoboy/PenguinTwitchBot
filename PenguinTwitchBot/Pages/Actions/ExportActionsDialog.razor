@@ -40,12 +40,6 @@
 
             <MudText Typo="Typo.subtitle2">Include in Export</MudText>
             <MudSwitch @bind-Value="_includeTriggers" Label="Triggers" Color="Color.Primary" />
-            @if (_includeTriggers)
-            {
-                <MudAlert Severity="Severity.Info" Dense="true">
-                    Only Command, Twitch Event, and Manual triggers are included. Timer, Keyword, and Default Command triggers reference system-specific IDs and are excluded.
-                </MudAlert>
-            }
             <MudSwitch @bind-Value="_includeQueueName" Label="Queue Name" Color="Color.Primary" />
             <MudSwitch @bind-Value="_includeGroup" Label="Group" Color="Color.Primary" />
 
@@ -132,9 +126,6 @@
                 SubActions = a.SubActions.OrderBy(s => s.Index).ToList(),
                 Triggers = _includeTriggers
                     ? a.Triggers
-                        .Where(t => t.Type == TriggerTypes.Command ||
-                                    t.Type == TriggerTypes.TwitchEvent ||
-                                    t.Type == TriggerTypes.Manual)
                         .Select(t =>
                         {
                             ActionCommandExportDto? commandDef = null;

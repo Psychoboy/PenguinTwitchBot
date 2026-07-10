@@ -5,10 +5,14 @@
 @using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Database.Repository.Repositories
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 @using System.Text.Json
 @using System.IO
 @inject IActionManagementService ActionService
 @inject IActionCommandService CommandService
+@inject IActionKeywordService KeywordService
+@inject PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService
+@inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 
 <MudDialog>
     <TitleContent>
@@ -111,6 +115,20 @@
                                      MaxItems="null" />
                 }
 
+                @if (_conflictingNames.Count > 0)
+                {
+                    <MudDivider />
+                    <MudText Typo="Typo.subtitle2">Name Conflicts (@_conflictingNames.Count)</MudText>
+                    <MudAlert Severity="Severity.Warning" Dense="true">
+                        @(_conflictingNames.Count) action(s) already exist with the same name:
+                        @string.Join(", ", _conflictingNames.Select(n => $"\"{n}\"")).
+                    </MudAlert>
+                    <MudRadioGroup T="bool" @bind-Value="_overwriteConflicts">
+                        <MudRadio T="bool" Value="false" Color="Color.Primary">Create new with unique name (e.g. "Name (2)")</MudRadio>
+                        <MudRadio T="bool" Value="true" Color="Color.Warning">Overwrite existing actions</MudRadio>
+                    </MudRadioGroup>
+                }
+
                 @if (_importErrors.Count > 0)
                 {
                     <MudAlert Severity="Severity.Error" Dense="true">
@@ -128,6 +146,10 @@
                         @if (_relinkCount > 0)
                         {
                             <text> @_relinkCount Execute Action link(s) resolved automatically by name.</text>
+                        }
+                        @if (_triggerWarningCount > 0)
+                        {
+                            <text> @_triggerWarningCount trigger(s) could not be resolved and were skipped.</text>
                         }
                     </MudAlert>
                 }
@@ -183,10 +205,15 @@
     private string _overrideQueueName = "Default";
     private string _overrideGroup = "";
 
+    private Dictionary<string, ActionType> _existingActionsByName = new(StringComparer.OrdinalIgnoreCase);
+    private List<string> _conflictingNames = [];
+    private bool _overwriteConflicts = false;
+
     private bool _isImporting;
     private List<string> _importErrors = [];
     private int _importedCount;
     private int _relinkCount;
+    private int _triggerWarningCount;
 
     protected override void OnParametersSet()
     {
@@ -230,6 +257,19 @@
 
             _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
             _overrideGroup = "";
+
+            // Detect name conflicts with existing actions
+            var existingActions = await ActionService.GetAllActionsAsync();
+            _existingActionsByName = existingActions
+                .Where(a => a.Id.HasValue)
+                .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            _conflictingNames = _importedPackage.Actions
+                .Where(a => _existingActionsByName.ContainsKey(a.Name))
+                .Select(a => a.Name)
+                .ToList();
+            _overwriteConflicts = false;
         }
         catch (Exception ex)
         {
@@ -246,8 +286,23 @@
         _importErrors.Clear();
         _importedCount = 0;
         _relinkCount = 0;
+        _triggerWarningCount = 0;
 
         var createdActions = new List<ActionType>();
+
+        // Preload timer groups and default commands once for trigger resolution
+        List<PenguinTwitchBot.Database.Bot.Models.Timers.TimerGroup> timerGroups = [];
+        List<PenguinTwitchBot.Database.Bot.Models.Commands.DefaultCommand> defaultCommands = [];
+        if (_importTriggers && _fileHasTriggers)
+        {
+            timerGroups = await TimersService.GetTimerGroupsAsync();
+            defaultCommands = await CommandHandler.GetDefaultCommandsFromDb();
+        }
+
+        // Track names used in this import batch to ensure uniqueness across the batch
+        var usedNames = new HashSet<string>(
+            _existingActionsByName.Keys,
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var dto in _importedPackage.Actions)
         {
@@ -313,9 +368,102 @@
                                 CommandId = command.Id
                             });
                         }
+                        else if (t.Type == TriggerTypes.Timer)
+                        {
+                            var timerGroupName = ExtractJsonStringProperty(t.Configuration, "TimerGroupName");
+                            if (string.IsNullOrEmpty(timerGroupName)) timerGroupName = t.TimerGroupName;
+
+                            if (string.IsNullOrEmpty(timerGroupName))
+                            {
+                                _triggerWarningCount++;
+                                _importErrors.Add($"Warning: Timer trigger in '{dto.Name}' has no TimerGroupName and was skipped.");
+                                continue;
+                            }
+
+                            var timerGroup = timerGroups.FirstOrDefault(tg =>
+                                string.Equals(tg.Name, timerGroupName, StringComparison.OrdinalIgnoreCase));
+
+                            if (timerGroup?.Id == null)
+                            {
+                                _triggerWarningCount++;
+                                _importErrors.Add($"Warning: Timer trigger for group '{timerGroupName}' in '{dto.Name}' was not found and was skipped.");
+                                continue;
+                            }
+
+                            var timerConfig = JsonSerializer.Serialize(new
+                            {
+                                TimerGroupId = timerGroup.Id.Value,
+                                TimerGroupName = timerGroupName
+                            });
+                            triggers.Add(new TriggerType
+                            {
+                                Name = $"TimerGroup_{timerGroup.Id.Value}",
+                                Type = TriggerTypes.Timer,
+                                Configuration = timerConfig,
+                                Enabled = t.Enabled,
+                                TimerGroupId = timerGroup.Id.Value
+                            });
+                        }
+                        else if (t.Type == TriggerTypes.Keyword)
+                        {
+                            var keywordName = ExtractJsonStringProperty(t.Configuration, "KeywordName");
+                            if (string.IsNullOrEmpty(keywordName)) keywordName = t.Name;
+
+                            if (string.IsNullOrEmpty(keywordName)) continue;
+
+                            var keyword = await KeywordService.GetByKeywordNameAsync(keywordName);
+                            if (keyword == null)
+                            {
+                                keyword = await KeywordService.AddAsync(new ActionKeyword
+                                {
+                                    CommandName = keywordName
+                                });
+                            }
+
+                            if (keyword?.Id == null) continue;
+
+                            var keywordConfig = JsonSerializer.Serialize(new
+                            {
+                                KeywordId = keyword.Id.Value,
+                                KeywordName = keywordName
+                            });
+                            triggers.Add(new TriggerType
+                            {
+                                Name = keywordName,
+                                Type = TriggerTypes.Keyword,
+                                Configuration = keywordConfig,
+                                Enabled = t.Enabled,
+                                KeywordId = keyword.Id.Value
+                            });
+                        }
+                        else if (t.Type == TriggerTypes.DefaultCommand)
+                        {
+                            DefaultCommandTriggerConfiguration? dcConfig = null;
+                            try
+                            {
+                                dcConfig = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(
+                                    t.Configuration,
+                                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            }
+                            catch { /* leave dcConfig null */ }
+
+                            if (dcConfig == null || string.IsNullOrEmpty(dcConfig.DefaultCommandName)) continue;
+
+                            var defaultCommand = defaultCommands.FirstOrDefault(d =>
+                                string.Equals(d.CommandName, dcConfig.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
+
+                            triggers.Add(new TriggerType
+                            {
+                                Name = t.Name,
+                                Type = TriggerTypes.DefaultCommand,
+                                Configuration = t.Configuration,
+                                Enabled = t.Enabled,
+                                DefaultCommandId = defaultCommand?.Id
+                            });
+                        }
                         else
                         {
-                            // TwitchEvent, Manual - no IDs, portable as-is
+                            // TwitchEvent, Manual, FishingTournament* — no IDs, portable as-is
                             triggers.Add(new TriggerType
                             {
                                 Name = t.Name,
@@ -327,9 +475,29 @@
                     }
                 }
 
+                // Resolve action name: overwrite existing or generate unique name
+                string actionName = dto.Name;
+                int? existingActionId = null;
+
+                if (_existingActionsByName.TryGetValue(dto.Name, out var conflictingAction))
+                {
+                    if (_overwriteConflicts)
+                    {
+                        existingActionId = conflictingAction.Id;
+                        usedNames.Remove(dto.Name); // Allow reuse of the existing name
+                    }
+                    else
+                    {
+                        actionName = GenerateUniqueName(dto.Name, usedNames);
+                    }
+                }
+
+                usedNames.Add(actionName);
+
                 var action = new ActionType
                 {
-                    Name = dto.Name,
+                    Id = existingActionId,
+                    Name = actionName,
                     Group = ResolveGroup(dto.Group),
                     Enabled = dto.Enabled,
                     RandomAction = dto.RandomAction,
@@ -340,8 +508,17 @@
                     Triggers = triggers
                 };
 
-                var created = await ActionService.CreateActionAsync(action);
-                createdActions.Add(created);
+                ActionType result;
+                if (existingActionId.HasValue)
+                {
+                    result = await ActionService.UpdateActionAsync(action);
+                }
+                else
+                {
+                    result = await ActionService.CreateActionAsync(action);
+                }
+
+                createdActions.Add(result);
                 _importedCount++;
             }
             catch (Exception ex)
@@ -447,6 +624,35 @@
         _importErrors.Clear();
         _importedCount = 0;
         _relinkCount = 0;
+        _triggerWarningCount = 0;
+        _existingActionsByName.Clear();
+        _conflictingNames.Clear();
+        _overwriteConflicts = false;
+    }
+
+    private string GenerateUniqueName(string baseName, HashSet<string> usedNames)
+    {
+        var candidate = baseName;
+        int counter = 2;
+        while (usedNames.Contains(candidate))
+        {
+            candidate = $"{baseName} ({counter})";
+            counter++;
+        }
+        return candidate;
+    }
+
+    private static string? ExtractJsonStringProperty(string? json, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty(propertyName, out var element))
+                return element.GetString();
+        }
+        catch { /* ignore parse errors */ }
+        return null;
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -479,6 +685,7 @@
         public TriggerTypes Type { get; set; }
         public string Configuration { get; set; } = "";
         public bool Enabled { get; set; } = true;
+        public string? TimerGroupName { get; set; }
         public ActionCommandImportDto? CommandDefinition { get; set; }
     }
 
