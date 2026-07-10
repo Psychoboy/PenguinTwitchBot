@@ -5,6 +5,7 @@
 @inject IServiceScopeFactory ScopeFactory
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ILogger<GlobalVariables> Logger
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Global Variables</PageTitle>
 
@@ -75,10 +76,20 @@
 
     private async Task LoadVariables()
     {
-        await using var scope = ScopeFactory.CreateAsyncScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        _variables = await unitOfWork.GlobalVariables.GetAllOrderedAsync();
-        FilterVariables();
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            _variables = await unitOfWork.GlobalVariables.GetAllOrderedAsync();
+            FilterVariables();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load global variables");
+            _variables = [];
+            _filteredVariables = [];
+            Snackbar.Add("Failed to load global variables.", Severity.Error);
+        }
     }
 
     private void FilterVariables()
@@ -111,11 +122,19 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: GlobalVariable variable })
         {
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await unitOfWork.GlobalVariables.UpsertAsync(variable.Name, variable.Value);
-            Snackbar.Add($"Global variable '{variable.Name}' saved.", Severity.Success);
-            await LoadVariables();
+            try
+            {
+                await using var scope = ScopeFactory.CreateAsyncScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                await unitOfWork.GlobalVariables.UpsertAsync(variable.Name, variable.Value);
+                Snackbar.Add($"Global variable '{variable.Name}' saved.", Severity.Success);
+                await LoadVariables();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to add global variable {VariableName}", variable.Name);
+                Snackbar.Add($"Failed to save global variable '{variable.Name}'.", Severity.Error);
+            }
         }
     }
 
@@ -142,11 +161,19 @@
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: GlobalVariable updatedVariable })
         {
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            await unitOfWork.GlobalVariables.UpsertAsync(updatedVariable.Name, updatedVariable.Value);
-            Snackbar.Add($"Global variable '{updatedVariable.Name}' updated.", Severity.Success);
-            await LoadVariables();
+            try
+            {
+                await using var scope = ScopeFactory.CreateAsyncScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                await unitOfWork.GlobalVariables.UpsertAsync(updatedVariable.Name, updatedVariable.Value);
+                Snackbar.Add($"Global variable '{updatedVariable.Name}' updated.", Severity.Success);
+                await LoadVariables();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to update global variable {VariableName}", updatedVariable.Name);
+                Snackbar.Add($"Failed to update global variable '{updatedVariable.Name}'.", Severity.Error);
+            }
         }
     }
 
@@ -169,15 +196,24 @@
 
         if (result is { Canceled: false })
         {
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            if (!await unitOfWork.GlobalVariables.DeleteByNameAsync(variable.Name))
+            try
             {
-                return;
-            }
+                await using var scope = ScopeFactory.CreateAsyncScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                if (!await unitOfWork.GlobalVariables.DeleteByNameAsync(variable.Name))
+                {
+                    Snackbar.Add($"Global variable '{variable.Name}' could not be deleted.", Severity.Warning);
+                    return;
+                }
 
-            Snackbar.Add($"Global variable '{variable.Name}' deleted.", Severity.Success);
-            await LoadVariables();
+                Snackbar.Add($"Global variable '{variable.Name}' deleted.", Severity.Success);
+                await LoadVariables();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to delete global variable {VariableName}", variable.Name);
+                Snackbar.Add($"Failed to delete global variable '{variable.Name}'.", Severity.Error);
+            }
         }
     }
 }

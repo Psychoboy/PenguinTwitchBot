@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+using PenguinTwitchBot.Database.Bot.Models;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
@@ -18,7 +19,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public string Value { get; set; } = string.Empty;
 
         protected override string TextLabel => "Global Variable Name";
-        protected override string TextHelperText => "Use the variable name directly, without % signs.";
+        protected override string TextHelperText => "Use the variable name directly, without % signs. Max 255 characters after trimming.";
         protected override bool TextRequired => true;
 
         protected override void AddCustomFields(List<SubActionUIField> fields)
@@ -47,6 +48,13 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         protected override string? ValidateCustom(Dictionary<string, object?> values)
         {
+            if (!values.TryGetValue(nameof(Text), out var textValue) || string.IsNullOrWhiteSpace(textValue as string))
+                return "Global variable name is required.";
+
+            var text = textValue as string ?? string.Empty;
+            if (GlobalVariable.NormalizeName(text).Length > 255)
+                return "Global variable name must be 255 characters or fewer after trimming.";
+
             if (!values.TryGetValue(nameof(Value), out var value) || string.IsNullOrWhiteSpace(value as string))
                 return "Value is required.";
 

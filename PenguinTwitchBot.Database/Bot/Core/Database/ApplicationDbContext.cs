@@ -175,8 +175,8 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .Property(variable => variable.Name)
                 .HasMaxLength(255)
                 .HasConversion(
-                    value => value.ToLowerInvariant(),
-                    value => value);
+                    value => GlobalVariable.NormalizeName(value),
+                    value => GlobalVariable.NormalizeName(value));
 
             // Configure FishCatch with proper column constraints and index
             modelBuilder.Entity<FishCatch>()

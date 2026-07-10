@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Models;
+using Npgsql;
+using Microsoft.Data.Sqlite;
 
 namespace PenguinTwitchBot.Database.Repository.Repositories
 {
@@ -7,7 +9,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
     {
         private static string NormalizeName(string name)
         {
-            return name.Trim().ToLowerInvariant();
+            return GlobalVariable.NormalizeName(name);
         }
 
         public async Task<List<GlobalVariable>> GetAllOrderedAsync()
@@ -21,11 +23,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         public async Task<GlobalVariable?> GetByNameAsync(string name)
         {
             var normalizedName = NormalizeName(name);
-            var variables = await _context.GlobalVariables
+            return await _context.GlobalVariables
                 .AsNoTracking()
-                .ToListAsync();
-
-            return variables.FirstOrDefault(variable => variable.Name.Equals(normalizedName, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefaultAsync(variable => variable.Name == normalizedName);
         }
 
         public async Task<GlobalVariable> UpsertAsync(string name, string value)
@@ -42,15 +42,34 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                     Value = value
                 };
                 await _context.GlobalVariables.AddAsync(entity);
+
+                try
+                {
+                    await _context.SaveChangesAsync();
+                    return entity;
+                }
+                catch (DbUpdateException ex) when (IsUniqueNameViolation(ex))
+                {
+                    _context.Entry(entity).State = EntityState.Detached;
+                    entity = await _context.GlobalVariables
+                        .FirstOrDefaultAsync(variable => variable.Name == normalizedName);
+
+                    if (entity == null)
+                        throw;
+
+                    entity.Value = value;
+                    await _context.SaveChangesAsync();
+                    return entity;
+                }
             }
             else
             {
                 entity.Name = normalizedName;
                 entity.Value = value;
-            }
 
-            await _context.SaveChangesAsync();
-            return entity;
+                await _context.SaveChangesAsync();
+                return entity;
+            }
         }
 
         public async Task<bool> DeleteByNameAsync(string name)
@@ -67,6 +86,21 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             _context.GlobalVariables.Remove(entity);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        private static bool IsUniqueNameViolation(DbUpdateException exception)
+        {
+            if (exception.InnerException is SqliteException sqliteException)
+            {
+                return sqliteException.SqliteExtendedErrorCode == 2067 || sqliteException.SqliteErrorCode == 19;
+            }
+
+            if (exception.InnerException is PostgresException postgresException)
+            {
+                return postgresException.SqlState == PostgresErrorCodes.UniqueViolation;
+            }
+
+            return false;
         }
     }
 }

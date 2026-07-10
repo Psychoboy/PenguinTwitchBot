@@ -8,12 +8,14 @@ namespace PenguinTwitchBot.Database.Bot.Models
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [JsonIgnore]
-        public int? Id { get; set; }
+        public int Id { get; set; }
 
         [Required]
         [StringLength(255)]
         public string Name { get; set; } = string.Empty;
 
         public string Value { get; set; } = string.Empty;
+
+        public static string NormalizeName(string name) => name.Trim().ToLowerInvariant();
     }
 }

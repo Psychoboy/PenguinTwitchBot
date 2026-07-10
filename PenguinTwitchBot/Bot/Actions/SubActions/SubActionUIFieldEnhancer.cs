@@ -359,7 +359,7 @@ public static class SubActionUIFieldEnhancer
     {
         var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
         var globalVariables = Task.Run(async () => await unitOfWork.GlobalVariables.GetAllOrderedAsync()).GetAwaiter().GetResult();
-        var variableNames = globalVariables.Select(variable => variable.Name).OrderBy(name => name).ToArray();
+        var variableNames = globalVariables.Select(variable => variable.Name).ToArray();
 
         fields.RemoveAll(field => field.PropertyName == nameof(SubActionType.Text));
         fields.Insert(0, new SubActionUIField
