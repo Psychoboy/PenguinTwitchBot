@@ -5,6 +5,7 @@ namespace PenguinTwitchBot.Bot.Features
         public const string Alias = "Alias";
         public const string AutoTimer = "AutoTimer";
         public const string BonusTickets = "BonusTickets";
+        public const string ChatHistory = "ChatHistory";
         public const string DiscordService = "DiscordService";
         public const string Fishing = "Fishing";
         public const string GiveawayFeature = "GiveawayFeature";

@@ -246,7 +246,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IChatMessageIdTracker, ChatMessageIdTracker>();
             services.AddSingleton<IServiceMaintenance, ServiceMaintenance>();
 
-            services.AddHostedApiService<IChatHistory, ChatHistory>();
+            services.AddRuntimeFeatureService<IChatHistory, ChatHistory>(
+                FeatureKeys.ChatHistory,
+                "Chat History",
+                isCore: false,
+                description: "Chat history service for storing and retrieving logged chat messages."
+            );
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
