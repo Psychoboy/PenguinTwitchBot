@@ -183,7 +183,7 @@
         _hubConnectionCts = new CancellationTokenSource();
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/mainhub"), options =>
+            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
             {
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
                                      Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |

@@ -132,6 +132,26 @@ Step 6 provides two options:
 
   > **Running on a different host or port?** Use your actual bot URL and port in the redirect URL above.
 
+   > **Direct IP Access:** Twitch only allows non-HTTPS OAuth redirects for `localhost` and `127.0.0.1`. If you plan to access the bot directly by IP address, add an HTTPS endpoint under the `Kestrel:Endpoints` section in `PenguinTwitchBot/appsettings.json`.
+   >
+   > Example:
+   > ```json
+   > "Kestrel": {
+   >   "Endpoints": {
+   >     "Http": {
+   >       "Url": "http://0.0.0.0:5000"
+   >     },
+   >     "Https": {
+   >       "Url": "https://0.0.0.0:5001"
+   >     }
+   >   }
+   > }
+   > ```
+   >
+   > Then add the matching redirect URL in your Twitch Developer Console application settings, for example `https://YOUR_IP:5001/redirect`.
+   >
+   > The bot will generate a self-signed HTTPS certificate automatically if you do not provide one, so the app can start without the ASP.NET Core developer certificate. If you browse to the bot directly by IP, your browser may still warn about the certificate unless you trust it or use a certificate issued for that address.
+
 4. Set the category to **Chat Bot** and click **Create**.
 5. Click **Manage** → **New Secret** to generate your Client Secret.
 6. Copy the **Client ID** and **Client Secret** into the setup wizard.
@@ -149,6 +169,26 @@ The bot starts a web server. Open your browser to `http://localhost:5000` (or th
 On first launch, the database will be automatically created and migrated. The bot will then connect to Twitch and begin operating.
 
 > **Tip:** If you skipped the bot account authorization in the setup wizard, navigate to `/botsignin` in the dashboard to authorize your bot account after the bot starts.
+
+> **HTTPS note:** If you enable the `Https` endpoint for direct-IP access, the bot will generate a self-signed certificate automatically if you do not supply one. That avoids the startup failure, but browsers may still warn about certificate trust when you open the bot by IP address.
+
+> **Direct IP Access:** If users will browse to the bot with a direct IP address instead of `localhost`, Twitch sign-in must use HTTPS. Add the `Https` entry under `Kestrel:Endpoints` in `PenguinTwitchBot/appsettings.json` and then update your Twitch Developer Console redirect URLs to match the exact HTTPS address users will open.
+>
+> Example `PenguinTwitchBot/appsettings.json` section:
+> ```json
+> "Kestrel": {
+>   "Endpoints": {
+>     "Http": {
+>       "Url": "http://0.0.0.0:5000"
+>     },
+>     "Https": {
+>       "Url": "https://0.0.0.0:5001"
+>     }
+>   }
+> }
+> ```
+>
+> Matching Twitch redirect example: `https://YOUR_IP:5001/redirect`
 
 OAuth redirects now use the URL/host/port from the request used to access the bot, so no separate URL configuration setting is required.
 

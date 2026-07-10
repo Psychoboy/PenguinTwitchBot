@@ -1,6 +1,7 @@
 @page "/actions/queues"
 @using PenguinTwitchBot.Bot.Queues
 @using PenguinTwitchBot.Database.Bot.Models.Queues
+@using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IQueueManager QueueManager
@@ -108,7 +109,7 @@
         if (firstRender)
         {
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/mainHub"))
+                .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
                 .WithAutomaticReconnect()
                 .Build();
 

@@ -88,7 +88,7 @@
         _hubConnectionCts = new CancellationTokenSource();
 
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
             {
                 // Prefer WebSocket for better performance; fall back if unavailable
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 

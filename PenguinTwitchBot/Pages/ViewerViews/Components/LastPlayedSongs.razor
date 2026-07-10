@@ -69,7 +69,7 @@
 
         // Configure SignalR with automatic reconnect and retry policy
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/ythub"), options =>
+            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/ythub"), options =>
             {
                 options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets | 
                                      Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
