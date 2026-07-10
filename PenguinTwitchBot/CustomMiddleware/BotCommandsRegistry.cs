@@ -175,7 +175,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedApiService<Bot.Commands.PastyGames.Heist>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Slots>();
             services.AddHostedApiService<Bot.Commands.PastyGames.Tax>();
-            services.AddHostedApiService<Bot.Commands.Music.YtPlayer>();
+            services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
+                FeatureKeys.MusicPlayer,
+                "Music Player",
+                isCore: false,
+                description: "YouTube music player, requests queue, and playback controls."
+            );
             services.AddHostedApiService<Bot.Commands.Moderation.Blacklist>();
             services.AddHostedApiService<Bot.Commands.Moderation.Admin>();
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();

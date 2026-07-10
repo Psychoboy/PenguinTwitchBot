@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Commands.Alias.Requests;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands.Alias
 {
@@ -8,8 +9,11 @@ namespace PenguinTwitchBot.Bot.Commands.Alias
         Application.Notifications.IPenguinDispatcher dispatcher,
         IServiceBackbone serviceBackbone,
         ILogger<Alias> logger,
-        ICommandHandler commandHandler) : BaseCommandService(serviceBackbone, commandHandler, "Alias", dispatcher), IAlias, IHostedService
+        ICommandHandler commandHandler,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator) : BaseCommandService(serviceBackbone, commandHandler, "Alias", dispatcher), IAlias, IHostedService
     {
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.ChatHistory);
+
         public async Task<List<AliasModel>> GetAliasesAsync()
         {
             return (await dispatcher.Send(new GetAliases())).ToList();
@@ -39,6 +43,7 @@ namespace PenguinTwitchBot.Bot.Commands.Alias
 
         public async Task<bool> RunCommand(CommandEventArgs e)
         {
+            if (!IsFeatureEnabled()) return false;
             if (await IsAlias(e))
             {
                 e.FromAlias = true;
