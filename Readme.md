@@ -131,6 +131,8 @@ Step 6 provides two options:
    - `http://localhost:5000/redirect`
 
   > **Running on a different host or port?** Use your actual bot URL and port in the redirect URL above.
+   >
+   > **LAN hostname access:** If users connect from another machine using your host name (for example, `https://your-bot-host:5001`), add that exact redirect URL in Twitch Developer Console too (for example, `https://your-bot-host:5001/redirect`). Use lowercase for the host name when entering redirect URLs and when sharing the URL with users.
 
    > **Direct IP Access:** Twitch only allows non-HTTPS OAuth redirects for `localhost` and `127.0.0.1`. If you plan to access the bot directly by IP address, add an HTTPS endpoint under the `Kestrel:Endpoints` section in `PenguinTwitchBot/appsettings.json`.
    >
@@ -189,6 +191,8 @@ On first launch, the database will be automatically created and migrated. The bo
 > ```
 >
 > Matching Twitch redirect example: `https://YOUR_IP:5001/redirect`
+>
+> **LAN access recommendation (Music Player / YouTube):** Prefer opening the bot with the machine hostname on your LAN (for example, `https://your-bot-host:5001`) instead of a raw IP (for example, `https://192.168.x.x:5001`). Some YouTube embeds are more likely to fail with API error `150` when accessed by direct IP origin.
 
 OAuth redirects now use the URL/host/port from the request used to access the bot, so no separate URL configuration setting is required.
 
@@ -213,6 +217,19 @@ All optional integrations can be configured during the setup wizard or added lat
 
 ### YouTube / Song Requests
 Requires a **YouTube Data API v3** key from [Google Cloud Console](https://console.cloud.google.com/apis/library/youtube.googleapis.com). Used to search and queue YouTube videos for the song request feature.
+
+If the dashboard is opened from another machine on your LAN, use the bot host name (for example, `https://your-bot-host:5001`) rather than a raw IP address when possible. This avoids a YouTube embed edge case where some videos can fail with player error `150` on direct IP origins.
+
+#### Troubleshooting: YouTube Error 150 on LAN
+
+If songs play on `localhost` but skip for another LAN user, try the following:
+
+1. Open the dashboard using the host machine name (for example, `https://your-bot-host:5001`) instead of `https://192.168.x.x:5001`.
+2. Use the same host name in any saved bookmarks, overlays, or embedded browser sources.
+3. Hard refresh the browser (`Ctrl+F5`) after changing the URL.
+4. If OAuth is used on LAN/remote access, add the exact machine-name URL in Twitch Developer Console (for example, `https://your-bot-host:5001/redirect`) and make sure users open that same host/port.
+
+This behavior is usually caused by YouTube embed-origin restrictions, not by your YouTube Data API key itself.
 
 ### Discord
 Requires a **Discord bot token** from [discord.com/developers](https://discord.com/developers/applications). Enable **Server Members Intent** and **Message Content Intent** in the bot settings. Features include:
