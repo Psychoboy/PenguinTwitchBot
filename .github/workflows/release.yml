@@ -84,8 +84,8 @@ jobs:
         Remove-Item $fullTmp -Recurse -Force -ErrorAction SilentlyContinue
         New-Item -ItemType Directory -Path $fullTmp | Out-Null
 
-        Copy-Item -Path "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse
-        Copy-Item -Path "PenguinTwitchBot.Setup/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse
+        Copy-Item -Path "PenguinTwitchBot/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
+        Copy-Item -Path "PenguinTwitchBot.Setup/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination $fullTmp -Recurse -Force
 
         New-Item -ItemType Directory -Path "$fullTmp/Updater" -Force | Out-Null
         Copy-Item -Path "PenguinTwitchBot.Updater/bin/Release/net10.0/${{ matrix.rid }}/publish/*" -Destination "$fullTmp/Updater" -Recurse
