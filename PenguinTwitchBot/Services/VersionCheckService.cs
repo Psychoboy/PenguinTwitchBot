@@ -21,10 +21,12 @@ public interface IVersionCheckService
     bool IsUpToDate { get; }
     Task<bool> RefreshNowAsync(CancellationToken cancellationToken = default);
     Task SetIncludePreviewReleasesAsync(bool value, CancellationToken cancellationToken = default);
-    Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default);
+    Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default, IProgress<UpdateProgressState>? progress = null);
     Task<UpdateStartResult> StartRestoreLatestRecoveryAsync(CancellationToken cancellationToken = default);
     event Action? VersionStatusChanged;
 }
+
+public sealed record UpdateProgressState(string Message, int Percent);
 
 public sealed class UpdateStartResult
 {
@@ -188,8 +190,9 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         await RefreshNowAsync(cancellationToken);
     }
 
-    public async Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default)
+    public async Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default, IProgress<UpdateProgressState>? progress = null)
     {
+        progress?.Report(new UpdateProgressState("Checking for the latest release...", 0));
         await RefreshNowAsync(cancellationToken);
 
         if (!CanUserInitiateUpdate)
@@ -203,6 +206,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
 
         try
         {
+            progress?.Report(new UpdateProgressState("Preparing download and recovery folders...", 10));
             var appRoot = AppContext.BaseDirectory;
             var updatesDir = Path.Combine(appRoot, "Data", "updates", "downloads");
             var recoveryDir = Path.Combine(appRoot, "Data", "updates", "recovery");
@@ -212,6 +216,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             var packageFileName = LatestUpdateAssetName!;
             var packagePath = Path.Combine(updatesDir, packageFileName);
 
+            progress?.Report(new UpdateProgressState("Downloading update package...", 20));
             var client = _httpClientFactory.CreateClient("GitHubRelease");
             await using (var downloadStream = await client.GetStreamAsync(_latestUpdateAssetUrl!, cancellationToken))
             await using (var fileStream = File.Create(packagePath))
@@ -219,6 +224,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 await downloadStream.CopyToAsync(fileStream, cancellationToken);
             }
 
+            progress?.Report(new UpdateProgressState("Verifying downloaded package...", 50));
             if (!await VerifyDownloadedPackageAsync(packagePath, cancellationToken))
             {
                 File.Delete(packagePath);
@@ -229,6 +235,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 };
             }
 
+            progress?.Report(new UpdateProgressState("Backing up the current database...", 70));
             await _databaseTools.Backup();
 
             string? latestDatabaseBackup = null;
@@ -241,6 +248,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                     ?.FullName;
             }
 
+                    progress?.Report(new UpdateProgressState("Launching the updater...", 90));
             var updaterRoot = Path.Combine(appRoot, "Updater");
             var updaterName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? "PenguinTwitchBot.Updater.exe"
