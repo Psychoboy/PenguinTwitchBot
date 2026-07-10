@@ -37,7 +37,25 @@
 
                     <MudDivider />
 
-                    @if (_filteredTimerGroups.Count == 0)
+                    @if (_isLoading)
+                    {
+                        <MudStack Spacing="2" Class="pt-2">
+                            @for (var index = 0; index < 5; index++)
+                            {
+                                <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                                    <MudStack Spacing="1">
+                                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" />
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="70px" Height="24px" Class="rounded-pill" />
+                                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="120px" Height="24px" Class="rounded-pill" />
+                                        </MudStack>
+                                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="45%" />
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                    else if (_filteredTimerGroups.Count == 0)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
                             No timer groups found
@@ -84,10 +102,15 @@
         <MudItem xs="12" md="8">
             @if (_isLoading)
             {
-                <MudPaper Class="pa-4" Style="height: 80vh; display: flex; align-items: center; justify-content: center;">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Typo="Typo.h6" Color="Color.Secondary">Loading timer groups...</MudText>
+                <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="220px" Height="32px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="120px" Height="36px" Class="rounded" />
+                        </MudStack>
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
+                        <MudDivider />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
                     </MudStack>
                 </MudPaper>
             }

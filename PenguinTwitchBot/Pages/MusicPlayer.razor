@@ -19,16 +19,26 @@
         </MudText>
 
         <MudGrid Spacing="3">
-            @if (currentSong != null)
-            {
-                <MudItem xs="12" md="4">
-                    <MudPaper Elevation="3" Class="pa-4">
-                        <MudStack Spacing="2">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
-                                <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="3" Class="pa-4">
+                    <MudStack Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" Size="Size.Large" />
+                            <MudText Typo="Typo.h6" Color="Color.Success">Now Playing</MudText>
+                        </MudStack>
+                        <MudDivider />
+                        @if (!currentSongLoaded)
+                        {
+                            <MudStack Spacing="2">
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="85%" Height="28px" />
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="70%" />
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="40%" />
+                                <MudDivider />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="36px" Class="rounded" />
                             </MudStack>
-                            <MudDivider />
+                        }
+                        else if (currentSong != null)
+                        {
                             <MudStack Spacing="1">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                     <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Small" Color="Color.Primary" />
@@ -56,10 +66,16 @@
                                     Steal Song
                                 </MudButton>
                             }
-                        </MudStack>
-                    </MudPaper>
-                </MudItem>
-            }
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.MusicOff">
+                                No song is currently playing.
+                            </MudAlert>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
             <MudItem xs="12" md="8">
                 <MudPaper Elevation="3" Class="pa-4" Style="height: 450px;">
                     <div id="player" style="height: 410px;"></div>
@@ -179,6 +195,7 @@
     private bool playerReady;
     private bool apiReady;
     private bool playerCreated;
+    private bool currentSongLoaded;
 
 
     protected override async Task OnInitializedAsync()
@@ -188,6 +205,7 @@
         currentSong = YtPlayer.GetCurrentSong();
         defaultPlaylistId = await YtPlayer.GetDefaultPlaylistId();
         additionalPlaylistIds = await YtPlayer.GetAdditionalPlaylistIds();
+        currentSongLoaded = currentSong != null;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -219,11 +237,16 @@
                         currentSong = YtPlayer.GetCurrentSong();
                     }
 
+                    currentSongLoaded = true;
+                    await InvokeAsync(StateHasChanged);
+
                     _timer?.Dispose();
                 }
             }
             catch (Exception)
             {
+                currentSongLoaded = true;
+                _ = InvokeAsync(StateHasChanged);
                 _timer?.Dispose();
             }
         }, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(500));
@@ -244,6 +267,7 @@
         hubConnection.On<Song?>("CurrentSongUpdate", (song) =>
         {
             currentSong = song;
+            currentSongLoaded = true;
             InvokeAsync(StateHasChanged);
         });
 
@@ -262,10 +286,8 @@
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
 
         currentSong = YtPlayer.GetCurrentSong();
-        if (currentSong != null)
-        {
-            StateHasChanged();
-        }
+        currentSongLoaded = true;
+        StateHasChanged();
     }
 
     private async Task SetDefaultPlaylist(MusicPlaylist musicPlaylist)

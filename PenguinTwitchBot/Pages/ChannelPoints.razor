@@ -41,9 +41,12 @@
 
                     @if (IsLoading)
                     {
-                        <MudStack AlignItems="AlignItems.Center" Class="mt-6" Spacing="2">
-                            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                            <MudText Typo="Typo.body2" Color="Color.Secondary">Loading rewards...</MudText>
+                        <MudStack Class="mt-4" Spacing="2">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="75%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="92%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="88%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="95%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="83%" />
                         </MudStack>
                     }
                     else if (FilteredChannelRewards.Count == 0)

@@ -21,11 +21,16 @@
 
         @if (isInitialLoading)
         {
-            <MudPaper Elevation="4" Class="pa-8">
-                <MudStack AlignItems="AlignItems.Center" Spacing="4">
-                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                    <MudText Typo="Typo.h6" Color="Color.Secondary">Loading fishing leaderboards...</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Please wait while we fetch the data</MudText>
+            <MudPaper Elevation="4" Class="pa-4 pa-md-6">
+                <MudStack Spacing="4">
+                    <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="170px" Height="40px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="160px" Height="40px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="130px" Height="40px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="150px" Height="40px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="150px" Height="40px" Class="rounded-pill" />
+                    </MudStack>
+                    @LeaderboardTableSkeleton(true, 5)
                 </MudStack>
             </MudPaper>
         }
@@ -52,10 +57,7 @@
                     </MudStack>
                     @if (isLoadingValuableCatches)
                     {
-                        <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                            <MudText Typo="Typo.body1" Color="Color.Secondary">Loading valuable catches...</MudText>
-                        </MudStack>
+                        @LeaderboardTableSkeleton(true, 6)
                     }
                     else if (valuableCatchesLeaderboard.Any())
                     {
@@ -167,9 +169,16 @@
                         </MudStack>
                         @if (isLoadingFishLeaderboard)
                         {
-                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading leaderboard...</MudText>
+                            <MudStack Spacing="4" Class="pa-2">
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="56px" Class="rounded" />
+                                <MudPaper Elevation="1" Class="pa-5 mb-2">
+                                    <MudStack Spacing="2" AlignItems="AlignItems.Center">
+                                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="150px" Height="150px" Class="rounded-lg" />
+                                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" Height="36px" />
+                                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="110px" Height="32px" Class="rounded-pill" />
+                                    </MudStack>
+                                </MudPaper>
+                                @LeaderboardTableSkeleton(false, 5)
                             </MudStack>
                         }
                         else if (leaderboardFishTypes.Any())
@@ -309,10 +318,7 @@
                         </MudStack>
                         @if (isLoadingGoldLeaderboard)
                         {
-                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading gold leaderboard...</MudText>
-                            </MudStack>
+                            @LeaderboardTableSkeleton(false, 6)
                         }
                         else if (goldLeaderboard.Any())
                         {
@@ -372,10 +378,7 @@
                         </MudStack>
                         @if (isLoadingSnapLossLeaderboard)
                         {
-                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                                <MudProgressCircular Color="Color.Error" Size="Size.Large" Indeterminate="true" />
-                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading wall of shame...</MudText>
-                            </MudStack>
+                            @LeaderboardTableSkeleton(false, 6)
                         }
                         else if (snapLossLeaderboard.Any())
                         {
@@ -457,10 +460,7 @@
                             </MudStack>
                             @if (isLoadingRecentCatches)
                             {
-                                <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                                    <MudText Typo="Typo.body1" Color="Color.Secondary">Loading recent catches...</MudText>
-                                </MudStack>
+                                @LeaderboardTableSkeleton(true, 6)
                             }
                             else if (recentCatches.Any())
                             {
@@ -574,9 +574,20 @@
 
                         @if (isLoadingDex)
                         {
-                            <MudStack AlignItems="AlignItems.Center" Spacing="3" Class="pa-6">
-                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                                <MudText Typo="Typo.body1" Color="Color.Secondary">Loading your fish collection...</MudText>
+                            <MudStack Spacing="3" Class="pa-2">
+                                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-2 flex-wrap">
+                                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="220px" Height="44px" Class="rounded" />
+                                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="160px" Height="36px" Class="rounded" />
+                                </MudStack>
+                                <MudGrid Spacing="2">
+                                    @for (var index = 0; index < 8; index++)
+                                    {
+                                        <MudItem xs="12" sm="6" md="4" lg="3">
+                                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="360px" Class="rounded" />
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="110px" Class="rounded" />
                             </MudStack>
                         }
                         else if (fishTypes.Any())
@@ -798,6 +809,39 @@
     private IJSObjectReference? signalRModule;
     private DotNetObjectReference<FishingLeaderboard>? dotNetReference;
     private bool _hasSetupSignalR = false;
+
+    private RenderFragment LeaderboardTableSkeleton(bool includeImageColumn, int rowCount) =>
+        @<MudStack Spacing="3" Class="pa-2">
+            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="48px" Class="rounded" />
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="px-2 flex-wrap">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="52px" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" />
+                @if (includeImageColumn)
+                {
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="56px" />
+                }
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="110px" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="90px" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="90px" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" />
+            </MudStack>
+            @for (var index = 0; index < rowCount; index++)
+            {
+                <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="48px" Height="26px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" />
+                        @if (includeImageColumn)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="50px" Height="50px" Class="rounded" />
+                        }
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="90px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" />
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>;
 
     protected override async Task OnInitializedAsync()
     {

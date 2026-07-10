@@ -13,14 +13,17 @@
         <MudPaper Elevation="3">
             @if (!dataLoaded)
             {
-                <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                    <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                        <MudText Typo="Typo.h6">Loading audio commands...</MudText>
-                    </MudStack>
-                </MudOverlay>
+                <MudStack Class="pa-4" Spacing="2">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="35%" Height="28px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="44px" Class="rounded" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="92%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="96%" />
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="88%" />
+                </MudStack>
             }
-
+            else
+            {
             <MudTable Items="@commands" Filter="new Func<CommandModel,bool>(FilterFunc1)" Dense="true" Hover="true">
                 <ToolBarContent>
                     <MudIcon Icon="@Icons.Material.Filled.AudioFile" Color="Color.Primary" Class="mr-2" />
@@ -110,6 +113,7 @@
                     <MudTablePager />
                 </PagerContent>
             </MudTable>
+            }
         </MudPaper>
     </MudStack>
 </MudContainer>

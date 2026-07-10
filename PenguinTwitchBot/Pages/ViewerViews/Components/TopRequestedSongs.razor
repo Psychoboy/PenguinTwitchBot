@@ -4,14 +4,7 @@
 @inject ILogger<SongRequests> logger
 
 <MudPaper Class="pa-5" Elevation="3">
-    @if(!dataLoaded)
-    {
-        <MudSkeleton Height="200px" />
-        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-        </MudOverlay>
-    } else {
-        <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
+    <MudTable ServerData="HistoryReload" Dense="true" Hover="true" Elevation="0" @ref=historyTable>
             <ToolBarContent>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Size="Size.Large" />
@@ -73,7 +66,26 @@
                 </MudAlert>
             </NoRecordsContent>
             <LoadingContent>
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudStack Class="pa-4" Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="48px" Height="24px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="160px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="90px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" />
+                    </MudStack>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="48px" Height="24px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="150px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="84px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="92px" />
+                    </MudStack>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="flex-wrap">
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="48px" Height="24px" Class="rounded-pill" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="170px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="88px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="96px" />
+                    </MudStack>
+                </MudStack>
             </LoadingContent>
             <PagerContent>
                 @if (!IsPreview)
@@ -81,8 +93,7 @@
                     <MudTablePager />
                 }
             </PagerContent>
-        </MudTable>
-    }
+    </MudTable>
 </MudPaper>
 
 @code {
@@ -97,8 +108,6 @@
 
     [Parameter]
     public int Months { get; set; } = 3;
-
-    private bool dataLoaded = false;
 
 
     private async Task<TableData<Database.Bot.Models.Metrics.SongRequestHistoryWithRank>> HistoryReload(TableState state, CancellationToken _)
@@ -123,13 +132,6 @@
     private string GetYoutubeLink(string songId)
     {
         return $"https://youtu.be/{songId}";
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender == false) return;
-        dataLoaded = true;
-        await InvokeAsync(StateHasChanged);
     }
 
     protected override void OnParametersSet()

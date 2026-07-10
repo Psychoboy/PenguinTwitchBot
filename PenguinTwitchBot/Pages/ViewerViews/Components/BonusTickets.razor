@@ -22,10 +22,10 @@
         <MudDivider />
         @if (!dataLoaded)
         {
-            <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
-            </MudOverlay>
-            <MudSkeleton Height="80px" />
+            <MudStack Spacing="2">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="85%" Height="28px" />
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="56px" Class="rounded" />
+            </MudStack>
         }
         else 
         {
@@ -142,6 +142,7 @@
             disabled = await bonusTickets.DidUserRedeemBonus(Username);
         }
         StreamOnline = serviceBackbone.IsOnline;
+        dataLoaded = true;
         if (!_disposed)
         {
             StateHasChanged();
@@ -158,9 +159,6 @@
         }
 
         await EnsureHubConnectionAsync();
-
-        dataLoaded = true;
-        StateHasChanged();
     }
 
     private async Task EnsureHubConnectionAsync()

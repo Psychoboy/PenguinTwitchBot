@@ -17,14 +17,17 @@
                 <MudPaper Elevation="3">
                     @if (!dataLoaded)
                     {
-                        <MudOverlay Visible="!dataLoaded" DarkBackground="true" Absolute="true">
-                            <MudStack AlignItems="AlignItems.Center" Spacing="2">
-                                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                                <MudText Typo="Typo.h6">Loading quotes...</MudText>
-                            </MudStack>
-                        </MudOverlay>
+                        <MudStack Class="pa-4" Spacing="2">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="22%" Height="28px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="250px" Height="44px" Class="rounded" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="100%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="94%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="98%" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="91%" />
+                        </MudStack>
                     }
-
+                    else
+                    {
                     <MudTable Items="@items" Filter="new Func<FilteredQuoteType,bool>(FilterFunc1)" Dense="true" Hover="true">
                         <ToolBarContent>
                             <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Color="Color.Primary" Class="mr-2" />
@@ -87,6 +90,7 @@
                             <MudTablePager />
                         </PagerContent>
                     </MudTable>
+                    }
                 </MudPaper>
             </MudStack>
         </MudContainer>

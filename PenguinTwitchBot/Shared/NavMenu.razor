@@ -129,10 +129,7 @@
     }
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
-    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
-    {
-        <MudNavLink Href="/wheelspin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Casino">Wheel Spin</MudNavLink>
-    }
+    
     @if( FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
     {
         <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
