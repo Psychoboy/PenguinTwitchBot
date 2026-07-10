@@ -83,6 +83,7 @@ namespace PenguinTwitchBot.Bot.Queues
         {
             _cancellationTokenSource?.Cancel();
             await StopAllQueuesAsync();
+            _queues.Clear();
             _logger.LogInformation("QueueManager stopped");
         }
 

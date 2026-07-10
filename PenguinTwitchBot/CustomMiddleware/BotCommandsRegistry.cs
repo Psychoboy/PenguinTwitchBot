@@ -288,7 +288,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager
-            services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
+            services.AddRuntimeFeatureService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>(
+                FeatureKeys.QueueManager,
+                "Queue Manager",
+                isCore: true,
+                description: "Manages action queues for the bot."
+            );
             services.AddTransient<Bot.Hubs.ISignalRHubConnectionFactory, Bot.Hubs.SignalRHubConnectionFactory>();
             services.AddHostedApiService<RuntimeHealthSnapshotService>();
 
