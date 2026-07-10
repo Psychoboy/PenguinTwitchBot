@@ -37,7 +37,25 @@
 
                     <MudDivider />
 
-                    @if (_filteredTimerGroups.Count == 0)
+                    @if (_isLoading)
+                    {
+                        <MudStack Spacing="2" Class="pt-2">
+                            @for (var index = 0; index < 5; index++)
+                            {
+                                <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                                    <MudStack Spacing="1">
+                                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" />
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="70px" Height="24px" Class="rounded-pill" />
+                                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="120px" Height="24px" Class="rounded-pill" />
+                                        </MudStack>
+                                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="45%" />
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                    else if (_filteredTimerGroups.Count == 0)
                     {
                         <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center" Class="mt-4">
                             No timer groups found
