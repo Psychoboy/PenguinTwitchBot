@@ -1,11 +1,9 @@
 using PenguinTwitchBot.Bot.Core;
-using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
-using PenguinTwitchBot.Database.Bot.Models;
-using PenguinTwitchBot.Database.Repository;
 using LinqToDB.EntityFrameworkCore;
 using System.Timers;
 using Timer = System.Timers.Timer;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands.Features
 {
@@ -15,13 +13,16 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         IServiceScopeFactory scopeFactory,
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
-        Application.Notifications.IPenguinDispatcher dispatcher
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator
             ) : BaseCommandService(serviceBackbone, commandHandler, "LoyaltyFeature", dispatcher), ILoyaltyFeature, IHostedService
     {
         private readonly Timer _intervalTimer = new Timer(60000);
         private static readonly Prometheus.Gauge NumberOfPastiesEarned = Prometheus.Metrics.CreateGauge("number_of_pasties_earned", "Number of Pasties earned since stream start", labelNames: new[] { "viewer" });
         private static readonly Prometheus.Gauge NumberOfPastiesLost = Prometheus.Metrics.CreateGauge("number_of_pasties_lost", "Number of Pasties lost since stream start", labelNames: new[] { "viewer" });
         private static readonly Prometheus.Gauge NumberOfPastiesDiff = Prometheus.Metrics.CreateGauge("number_of_pasties_diff", "Number of Pasties diff since stream start", labelNames: new[] { "viewer" });
+
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.LoyaltyFeature);
 
         private Task StreamStarted(object? sender, EventArgs _)
         {
@@ -55,7 +56,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             try
             {
-                await UpdatePointsAndTime();
+                await UpdateTime();
             }
             catch (Exception ex)
             {
@@ -63,10 +64,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
         }
 
-        public static Int64 MaxBet { get; } = 200000069;
+        public static Int64 MaxBet { get; } = 200000069; // TODO Move this and make configurable.
 
         public async Task OnChatMessage(ChatMessageEventArgs e)
         {
+            if (!IsFeatureEnabled()) return;
             if (!ServiceBackbone.IsOnline) return;
             if (ServiceBackbone.IsKnownBotOrCurrentStreamer(e.Name)) return;
             await using var scope = scopeFactory.CreateAsyncScope();
@@ -82,8 +84,9 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await db.SaveChangesAsync();
         }
 
-        public async Task UpdatePointsAndTime()
+        private async Task UpdateTime()
         {
+            if (!IsFeatureEnabled()) return;
             if (!ServiceBackbone.IsOnline) return;
 
             var currentViewers = viewerFeature.GetCurrentViewers();

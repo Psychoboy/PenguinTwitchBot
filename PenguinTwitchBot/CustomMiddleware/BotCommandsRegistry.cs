@@ -110,6 +110,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Manage known bots in the chat. Also used to identify the bot itself and the streamer as known bots."
             );
 
+            services.AddRuntimeFeatureService<ILoyaltyFeature, LoyaltyFeature>(
+                FeatureKeys.LoyaltyFeature,
+                "Loyalty Feature",
+                isCore: false,
+                description: "Loyalty feature for tracking viewer watch time and message counts."
+            );
+
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
