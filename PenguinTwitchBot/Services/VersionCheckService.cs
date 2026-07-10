@@ -43,7 +43,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
     private readonly IDatabaseTools _databaseTools;
     private readonly IBackupTools _backupTools;
     private readonly IUpdateChannelSettingsService _updateChannelSettingsService;
-    private readonly IHostApplicationLifetime _hostApplicationLifetime;
+    private readonly IHost _host;
 
     private string? _latestUpdateAssetUrl;
     private string? _latestUpdateChecksumUrl;
@@ -121,14 +121,14 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         IDatabaseTools databaseTools,
         IBackupTools backupTools,
         IUpdateChannelSettingsService updateChannelSettingsService,
-        IHostApplicationLifetime hostApplicationLifetime)
+        IHost host)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _databaseTools = databaseTools;
         _backupTools = backupTools;
         _updateChannelSettingsService = updateChannelSettingsService;
-        _hostApplicationLifetime = hostApplicationLifetime;
+        _host = host;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -319,7 +319,10 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 };
             }
 
-            _hostApplicationLifetime.StopApplication();
+            _ = Task.Run(async () =>
+            
+                await _host.StopAsync()
+            , CancellationToken.None);
 
             return new UpdateStartResult
             {
@@ -399,7 +402,9 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 });
             }
 
-            _hostApplicationLifetime.StopApplication();
+            _ = Task.Run(async () =>
+                await _host.StopAsync()
+            , CancellationToken.None);
 
             return Task.FromResult(new UpdateStartResult
             {
