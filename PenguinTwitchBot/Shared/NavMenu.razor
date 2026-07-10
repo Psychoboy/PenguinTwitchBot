@@ -82,7 +82,7 @@
                     }
                 </MudNavGroup>
                 <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools", "backups", "validation-status")">
-                    <MudNavLink Icon="@Icons.Material.Filled.FlashOn" Href="/tools" Match="NavLinkMatch.Prefix">Quick Actions</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Update" Href="/updatesandlogs" Match="NavLinkMatch.Prefix">Updates & Logs</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                 </MudNavGroup>
@@ -168,13 +168,13 @@
         </MudLink>
         @if (_showUpgradeLink)
         {
-            <MudLink Href="/tools" Typo="Typo.caption">
+            <MudLink Href="/updatesandlogs" Typo="Typo.caption">
                 v@(VersionCheck.CurrentVersion) - <strong>Upgrade available</strong>
             </MudLink>
         }
         else if (_isStreamer)
         {
-            <MudLink Href="/tools" Typo="Typo.caption" Class="mud-text-gray">
+            <MudLink Href="/updatesandlogs" Typo="Typo.caption" Class="mud-text-gray">
                 v@(VersionCheck.CurrentVersion)
             </MudLink>
         }

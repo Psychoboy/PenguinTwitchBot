@@ -1,4 +1,4 @@
-﻿@page "/tools"
+﻿@page "/updatesandlogs"
 @using PenguinTwitchBot.Bot.ServiceTools
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IVersionCheckService VersionCheckService
@@ -65,8 +65,6 @@
         </MudButton>
     </MudStack>
 </MudPaper>
-
-<PenguinTwitchBot.Pages.Components.QuickTools />
 
 @code {
     [Inject] private ISnackbar Snackbar { get; set; } = null!;

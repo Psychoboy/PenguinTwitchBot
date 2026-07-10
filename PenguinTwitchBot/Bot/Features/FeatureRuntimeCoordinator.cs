@@ -135,7 +135,22 @@ namespace PenguinTwitchBot.Bot.Features
                 {
                     foreach (var registration in registrations)
                     {
-                        await StopFeatureInternalAsync(registration, cancellationToken);
+                        try
+                        {
+                            await StopFeatureInternalAsync(registration, cancellationToken);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            logger.LogDebug("Stop of feature service {FeatureKey} was canceled by shutdown token.", registration.Key);
+                        }
+                        catch (ObjectDisposedException ex)
+                        {
+                            logger.LogDebug(ex, "Feature service {FeatureKey} was already disposed while stopping.", registration.Key);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "Error stopping feature service {FeatureKey}.", registration.Key);
+                        }
                     }
 
                     _runningStates[registrations[0].Key] = false;
