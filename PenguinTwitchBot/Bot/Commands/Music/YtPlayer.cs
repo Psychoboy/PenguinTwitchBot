@@ -305,7 +305,22 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public async Task SongError(object errorCode)
         {
-            _logger.LogWarning("Error with song {errorCode}", errorCode);
+            var errorCodeText = errorCode?.ToString() ?? "unknown";
+            var errorMeaning = errorCodeText switch
+            {
+                "2" => "Invalid Parameter",
+                "5" => "HTML5 Player Error",
+                "100" => "Video Not Found",
+                "101" => "Embedding Restricted",
+                "150" => "Embedding Restricted",
+                _ => "Unknown Error"
+            };
+
+            var currentSongInfo = CurrentSong == null
+                ? "No current song"
+                : $"Current song: {CurrentSong.Title} ({CurrentSong.SongId}) https://youtu.be/{CurrentSong.SongId}";
+
+            _logger.LogWarning("Error with song {errorCode} ({errorMeaning}). {currentSongInfo}", errorCodeText, errorMeaning, currentSongInfo);
             if (CurrentSong != null && !CurrentSong.RequestedBy.Equals(ServiceBackbone.BotName ?? "TheBot"))
             {
                 await ServiceBackbone.SendChatMessage(CurrentSong.RequestedBy, $"Could not play your song {CurrentSong.Title} due to an error. Skipping...");
