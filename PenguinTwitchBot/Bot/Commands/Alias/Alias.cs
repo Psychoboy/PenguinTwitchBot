@@ -12,7 +12,7 @@ namespace PenguinTwitchBot.Bot.Commands.Alias
         ICommandHandler commandHandler,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator) : BaseCommandService(serviceBackbone, commandHandler, "Alias", dispatcher), IAlias, IHostedService
     {
-        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.ChatHistory);
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias);
 
         public async Task<List<AliasModel>> GetAliasesAsync()
         {

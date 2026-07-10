@@ -1,6 +1,7 @@
 ﻿using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.TwitchServices;
@@ -19,6 +20,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
         private readonly ILogger<ChatHistory> _logger;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICommandHandler _commandHandler;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
         private readonly ITwitchService _twitchService;
         private readonly IChatHistoryRetentionSettingsService _chatHistoryRetentionSettingsService;
         private readonly PenguinTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
@@ -31,9 +33,12 @@ namespace PenguinTwitchBot.Test.Bot.Core
             _logger = Substitute.For<ILogger<ChatHistory>>();
             _unitOfWork = Substitute.For<IUnitOfWork>();
             _commandHandler = Substitute.For<ICommandHandler>();
+            _featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
             _twitchService = Substitute.For<ITwitchService>();
             _chatHistoryRetentionSettingsService = Substitute.For<IChatHistoryRetentionSettingsService>();
             dispatcherSubstitute = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+
+            _featureRuntimeCoordinator.IsEnabled(FeatureKeys.ChatHistory).Returns(true);
 
             var scope = Substitute.For<IServiceScope>();
             var serviceProvider = Substitute.For<IServiceProvider>();
@@ -42,7 +47,7 @@ namespace PenguinTwitchBot.Test.Bot.Core
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(_unitOfWork);
 
-            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, _chatHistoryRetentionSettingsService, dispatcherSubstitute, _logger);
+            _chatHistory = new ChatHistory(_scopeFactory, _serviceBackbone, _commandHandler, _twitchService, _featureRuntimeCoordinator, _chatHistoryRetentionSettingsService, dispatcherSubstitute, _logger);
         }
 
 
