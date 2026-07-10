@@ -106,6 +106,7 @@ internal class Program
            {
                return IsExpectedTransientBlazorException(logEvent.Exception, logEvent.Properties);
            });
+
         if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
         {
             loggerConfiguration = loggerConfiguration.WriteTo.OpenTelemetry(options =>
@@ -121,6 +122,7 @@ internal class Program
                     { "service.environment", builder.Environment.EnvironmentName }
                 };
             });
+            Log.Information("OpenTelemetry logging enabled. Exporting logs to {Endpoint}", otelEndpoint);
         }
 
         var serilogLogger = loggerConfiguration.CreateLogger();
@@ -131,9 +133,12 @@ internal class Program
 
         RegisterGlobalExceptionHandlers();
 
+       
+
         if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
         {
-            // Add OpenTelemetry data to json logs
+            var traceEndpoint = BuildOtlpHttpSignalEndpoint(otelEndpoint, "traces");
+            var metricEndpoint = BuildOtlpHttpSignalEndpoint(otelEndpoint, "metrics");
             builder.Services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource.AddService("PenguinTwitchBot"))
                 .WithTracing(tracing => tracing
@@ -141,11 +146,17 @@ internal class Program
                     .AddHttpClientInstrumentation()
                     .AddOtlpExporter(otlp =>
                     {
-                        otlp.Endpoint = new Uri(otelEndpoint);
+                        otlp.Endpoint = traceEndpoint;
                         otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
                     }))
                 .WithMetrics(metrics => metrics
-                    .AddAspNetCoreInstrumentation());
+                    .AddAspNetCoreInstrumentation()
+                    .AddOtlpExporter(otlp =>
+                    {
+                        otlp.Endpoint = metricEndpoint;
+                        otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                    }));
+            Log.Information("OpenTelemetry tracing and metrics enabled. Exporting traces to {TraceEndpoint} and metrics to {MetricEndpoint}", traceEndpoint, metricEndpoint);
         }
 
         // Add services to the container.
@@ -811,6 +822,33 @@ try
         }
 
         return true; // all inner exceptions are expected transient types
+    }
+
+    private static Uri BuildOtlpHttpSignalEndpoint(string endpoint, string signal)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed))
+        {
+            throw new InvalidOperationException($"Invalid OpenTelemetry endpoint '{endpoint}'.");
+        }
+
+        var builder = new UriBuilder(parsed);
+        var path = builder.Path.TrimEnd('/');
+        var expectedSuffix = $"/v1/{signal}";
+
+        if (!path.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            var normalizedRoot = path.Length == 0 ? string.Empty : path;
+            if (normalizedRoot.EndsWith("/v1/logs", StringComparison.OrdinalIgnoreCase) ||
+                normalizedRoot.EndsWith("/v1/traces", StringComparison.OrdinalIgnoreCase) ||
+                normalizedRoot.EndsWith("/v1/metrics", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedRoot = normalizedRoot[..normalizedRoot.LastIndexOf("/v1/", StringComparison.OrdinalIgnoreCase)];
+            }
+
+            builder.Path = $"{normalizedRoot}{expectedSuffix}";
+        }
+
+        return builder.Uri;
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
