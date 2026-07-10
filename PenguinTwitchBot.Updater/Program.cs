@@ -83,7 +83,7 @@ internal static class Program
 
             if (!string.IsNullOrWhiteSpace(options.RestartCommand))
             {
-                StartProcess(options.RestartCommand!);
+                StartProcess(options.RestartCommand!, appRoot);
             }
 
             return 0;
@@ -313,7 +313,7 @@ internal static class Program
         return fullPath;
     }
 
-    private static void StartProcess(string commandLine)
+    private static void StartProcess(string commandLine, string workingDirectory)
     {
         var tokens = SplitCommandLine(commandLine);
         if (tokens.Count == 0)
@@ -321,12 +321,16 @@ internal static class Program
             return;
         }
 
+        var launchWorkingDirectory = Directory.Exists(workingDirectory)
+            ? workingDirectory
+            : Directory.GetCurrentDirectory();
+
         if (tokens.Count == 1)
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tokens[0])
             {
                 UseShellExecute = true,
-                WorkingDirectory = Directory.GetCurrentDirectory()
+                WorkingDirectory = launchWorkingDirectory
             });
             return;
         }
@@ -334,7 +338,7 @@ internal static class Program
         var startInfo = new System.Diagnostics.ProcessStartInfo(tokens[0])
         {
             UseShellExecute = true,
-            WorkingDirectory = Directory.GetCurrentDirectory()
+            WorkingDirectory = launchWorkingDirectory
         };
 
         for (var i = 1; i < tokens.Count; i++)
