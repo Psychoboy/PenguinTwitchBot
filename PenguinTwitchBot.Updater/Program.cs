@@ -205,13 +205,14 @@ internal static class Program
 
         foreach (var relativePath in entries)
         {
-            var sourceFile = Path.Combine(appRoot, relativePath);
+            var sourceFile = GetSafeDestinationPath(appRoot, relativePath);
             if (!File.Exists(sourceFile))
             {
                 continue;
             }
 
-            recoveryArchive.CreateEntryFromFile(sourceFile, relativePath, CompressionLevel.Optimal);
+            var archivePath = GetSafeArchiveEntryPath(relativePath.Replace(Path.DirectorySeparatorChar, '/'));
+            recoveryArchive.CreateEntryFromFile(sourceFile, archivePath, CompressionLevel.Optimal);
             var fileInfo = new FileInfo(sourceFile);
             manifest.Files.Add(new RecoveryFile
             {
@@ -223,7 +224,8 @@ internal static class Program
 
         if (!string.IsNullOrWhiteSpace(options.DatabaseBackupPath) && File.Exists(options.DatabaseBackupPath))
         {
-            recoveryArchive.CreateEntryFromFile(options.DatabaseBackupPath, Path.Combine("database", Path.GetFileName(options.DatabaseBackupPath)), CompressionLevel.Optimal);
+            var archivePath = GetSafeArchiveEntryPath($"database/{Path.GetFileName(options.DatabaseBackupPath)}");
+            recoveryArchive.CreateEntryFromFile(options.DatabaseBackupPath, archivePath, CompressionLevel.Optimal);
             manifest.DatabaseBackup = options.DatabaseBackupPath;
         }
 

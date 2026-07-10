@@ -83,13 +83,8 @@ internal static class Program
                 continue;
             }
 
-            var normalized = entry.FullName.Replace('\\', '/');
+            var normalized = GetSafeArchiveEntryPath(entry.FullName);
             if (!normalized.StartsWith("Updater/", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (normalized.Contains("../", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -99,8 +94,7 @@ internal static class Program
                 continue;
             }
 
-            var relativePath = normalized.Replace('/', Path.DirectorySeparatorChar);
-            var destinationPath = Path.Combine(absoluteAppRoot, relativePath);
+            var destinationPath = GetSafeDestinationPath(absoluteAppRoot, normalized.Replace('/', Path.DirectorySeparatorChar));
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrWhiteSpace(destinationDir))
             {
@@ -109,5 +103,28 @@ internal static class Program
 
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
+    }
+
+    private static string GetSafeArchiveEntryPath(string entryPath)
+    {
+        var normalized = entryPath.Replace('\\', '/');
+        if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains("../", StringComparison.Ordinal) || normalized.Contains("..\\", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Unsafe entry path: {entryPath}");
+        }
+
+        return normalized;
+    }
+
+    private static string GetSafeDestinationPath(string rootPath, string relativePath)
+    {
+        var fullRoot = Path.GetFullPath(rootPath);
+        var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
+        if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Resolved path escapes root: {relativePath}");
+        }
+
+        return fullPath;
     }
 }
