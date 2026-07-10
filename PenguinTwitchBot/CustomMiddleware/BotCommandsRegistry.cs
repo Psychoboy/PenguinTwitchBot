@@ -24,6 +24,7 @@ using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.CustomMiddleware
 {
@@ -99,7 +100,19 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: true,
                 description: "The core Twitch chat bot service that sends chat messages."
             );
-            services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
+            services.AddRuntimeFeatureService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>(
+                FeatureKeys.TwitchWebsocket,
+                "Twitch Websocket",
+                isCore: true,
+                description: "The core Twitch websocket service that handles all events from twitch including chat messages, subscriptions, raids, and more."
+            );
+
+            services.AddRuntimeFeatureService<Bot.Commands.Features.IViewerFeature, Bot.Commands.Features.ViewerFeature>(
+                FeatureKeys.ViewerFeature,
+                "Viewer Feature",
+                isCore: true,
+                description: "Viewer feature for tracking viewer data and interactions."
+            );
 
             // OBS WebSocket Services
             services.AddSingleton<IOBSConnectionManager, OBSConnectionManager>();
@@ -180,6 +193,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddRuntimeFeatureService<IAutoTimers, AutoTimers>(
                 FeatureKeys.AutoTimer,
                 "Auto Timer",
+                moduleName: "Timers",
                 isCore: false,
                 description: "Automatic timer feature for scheduled events."
             );
@@ -208,6 +222,12 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Discord service integration for bot notifications and commands."
             );
+            services.AddRuntimeFeatureService<IVersionCheckService, VersionCheckService>(
+                FeatureKeys.VersionCheck,
+                "Version Check",
+                isCore: false,
+                description: "Checks for new bot releases on startup and periodically."
+            );
             services.AddRuntimeFeatureService<Bot.ScheduledJobs.FishingTournamentScheduler>(
                 FeatureKeys.Fishing,
                 "Fishing",
@@ -218,11 +238,23 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddRuntimeFeatureService<ITTSService, TTSService>(
                 FeatureKeys.TTS,
                 "Text-to-Speech",
+                moduleName: "TTSService",
                 isCore: false,
                 description: "Text-to-speech service for reading messages aloud."
             );
-            services.AddHostedApiService<IClipService, ClipService>();
-            services.AddHostedApiService<IWheelService, WheelService>();
+            services.AddRuntimeFeatureService<IClipService, ClipService>(
+                FeatureKeys.ClipService,
+                "Clip Service",
+                isCore: false,
+                description: "Clip service for creating and managing Twitch clips."
+            );
+            services.AddRuntimeFeatureService<IWheelService, WheelService>(
+                FeatureKeys.WheeledGame,
+                "Wheeled Game",
+                moduleName: "WheelService",
+                isCore: false,
+                description: "Wheeled game service for managing wheel game interactions and rewards."
+            );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,
                 "Points",
@@ -276,7 +308,6 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             services.AddHostedApiService<ScAi>();
 
-            RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
             services.AddSingleton<IChatMessageIdTracker, ChatMessageIdTracker>();
@@ -351,6 +382,19 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
         }
 
+        public static void AddRuntimeFeatureService<TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            string moduleName,
+            bool isCore,
+            string description = "")
+            where TService : class, IHostedService
+        {
+            services.AddSingleton<TService>();
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, moduleName, typeof(TService), isCore, description));
+        }
+
         public static void AddRuntimeFeatureService<TInterface, TService>(
             this IServiceCollection services,
             string featureKey,
@@ -363,6 +407,21 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<TService>();
             services.AddSingleton<TInterface>(p => p.GetRequiredService<TService>());
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+        }
+
+        public static void AddRuntimeFeatureService<TInterface, TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            string moduleName,
+            bool isCore,
+            string description = "")
+            where TInterface : class
+            where TService : class, IHostedService, TInterface
+        {
+            services.AddSingleton<TService>();
+            services.AddSingleton<TInterface>(p => p.GetRequiredService<TService>());
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, moduleName, typeof(TService), isCore, description));
         }
 
         public static void AddRuntimeFeatureRegistration<TService>(
@@ -386,12 +445,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             where TService : class, TInterface
         {
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description, false));
-        }
-
-        private static void RegisterCommandServices(IServiceCollection services)
-        {
-            services.AddHostedApiService<Bot.Commands.Features.IViewerFeature, Bot.Commands.Features.ViewerFeature>();
-            services.AddHostedApiService<Bot.Commands.Features.ILoyaltyFeature, Bot.Commands.Features.LoyaltyFeature>();
         }
     }
 }

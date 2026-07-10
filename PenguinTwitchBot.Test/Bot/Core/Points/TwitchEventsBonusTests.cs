@@ -10,6 +10,7 @@ using PenguinTwitchBot.Database.Bot.Models.Points;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.TwitchApi.EventSub;
 
 namespace PenguinTwitchBot.Test.Bot.Core.Points
@@ -21,6 +22,7 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         private readonly ICommandHandler _commandHandler;
         private readonly IGameSettingsService _gameSettingsService;
         private readonly IPointsSystem _pointsSystem;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
         private readonly PenguinTwitchBot.Application.Notifications.IPenguinDispatcher dispatcherSubstitute;
         private readonly TwitchEventsBonus _twitchEventsBonus;
 
@@ -31,7 +33,9 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
             _commandHandler = Substitute.For<ICommandHandler>();
             _gameSettingsService = Substitute.For<IGameSettingsService>();
             _pointsSystem = Substitute.For<IPointsSystem>();
+            _featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
             dispatcherSubstitute = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            _featureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus).Returns(true);
 
             _twitchEventsBonus = new TwitchEventsBonus(
                 _logger,
@@ -39,7 +43,8 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
                 _commandHandler,
                 _gameSettingsService,
                 dispatcherSubstitute,
-                _pointsSystem
+                _pointsSystem,
+                _featureRuntimeCoordinator
             );
         }
 

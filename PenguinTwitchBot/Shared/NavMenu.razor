@@ -126,6 +126,10 @@
     }
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+    {
+        <MudNavLink Href="/wheelspin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Casino">Wheel Spin</MudNavLink>
+    }
     @if( FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
     {
         <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
@@ -179,7 +183,11 @@
     private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
     private bool _isStreamer;
-    private bool _showUpgradeLink => _isStreamer && !VersionCheck.IsUpToDate && !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
+    private bool _showUpgradeLink =>
+        _isStreamer &&
+        FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.VersionCheck) &&
+        !VersionCheck.IsUpToDate &&
+        !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
     private bool _disposed;
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)

@@ -1,4 +1,5 @@
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
@@ -109,7 +110,7 @@
                                         <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
                                     }
                                 </MudStack>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandEventSummary(context.Configuration)</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandTriggerSubtitle(context)</MudText>
                             </MudStack>
                         }
                         else
@@ -156,6 +157,8 @@
     public bool ReadOnly { get; set; } = false;
 
     private Dictionary<int, string> _timerGroupNames = new();
+    private Dictionary<int, bool> _defaultCommandFeatureDisabled = new();
+    private Dictionary<int, string> _defaultCommandFeatureNames = new();
     private int? _previousActionId;
 
     protected override async Task OnParametersSetAsync()
@@ -170,6 +173,7 @@
         else
         {
             await LoadTimerGroupNames();
+            await LoadDefaultCommandFeatureStates();
         }
     }
 
@@ -192,6 +196,41 @@
                 {
                     _timerGroupNames[timerGroupId.Value] = timerGroup.Name;
                 }
+            }
+        }
+    }
+
+    private async Task LoadDefaultCommandFeatureStates()
+    {
+        _defaultCommandFeatureDisabled.Clear();
+        _defaultCommandFeatureNames.Clear();
+
+        var defaultCommandTriggers = ActionTriggers
+            .Where(trigger => trigger.Type == TriggerTypes.DefaultCommand && trigger.DefaultCommandId.HasValue)
+            .Select(trigger => trigger.DefaultCommandId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (defaultCommandTriggers.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var defaultCommandId in defaultCommandTriggers)
+        {
+            var defaultCommand = await CommandHandler.GetDefaultCommandById(defaultCommandId);
+            if (defaultCommand == null)
+            {
+                continue;
+            }
+
+            var featureState = FeatureRuntimeCoordinator.GetFeatures()
+                .FirstOrDefault(feature => feature.ModuleName.Equals(defaultCommand.ModuleName, StringComparison.OrdinalIgnoreCase));
+
+            if (featureState != null)
+            {
+                _defaultCommandFeatureDisabled[defaultCommandId] = !featureState.IsEnabled;
+                _defaultCommandFeatureNames[defaultCommandId] = featureState.DisplayName;
             }
         }
     }
@@ -404,7 +443,29 @@
 
     private bool IsDisabledByFeature(TriggerType trigger)
     {
+        if (trigger.Type == TriggerTypes.DefaultCommand && trigger.DefaultCommandId.HasValue)
+        {
+            return _defaultCommandFeatureDisabled.GetValueOrDefault(trigger.DefaultCommandId.Value, false);
+        }
+
         return !TriggerFeatureGate.IsAvailable(trigger.Type, FeatureRuntimeCoordinator);
+    }
+
+    private string GetDefaultCommandTriggerSubtitle(TriggerType trigger)
+    {
+        var eventSummary = GetDefaultCommandEventSummary(trigger.Configuration);
+
+        if (!trigger.DefaultCommandId.HasValue)
+        {
+            return eventSummary;
+        }
+
+        if (!_defaultCommandFeatureNames.TryGetValue(trigger.DefaultCommandId.Value, out var featureName) || string.IsNullOrWhiteSpace(featureName))
+        {
+            return eventSummary;
+        }
+
+        return $"{eventSummary} · Feature: {featureName}";
     }
 
     private string GetTwitchEventDisplayName(string triggerName)

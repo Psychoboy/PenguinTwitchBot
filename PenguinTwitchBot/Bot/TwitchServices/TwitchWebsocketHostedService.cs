@@ -990,6 +990,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             eventSubWebsocketClient.ChannelChatNotification -= OnChannelChatNotification;
             eventSubWebsocketClient.ChannelSuspiciousUserMessage -= ChannelSuspiciousUserMessage;
             eventSubWebsocketClient.ChannelChatMessageDelete -= ChannelChatMessageDelete;
+            eventSubWebsocketClient.MessageReceived -= MessageReceived;
+
+            JoinTimer?.Dispose();
+            JoinTimer = null;
+            KeepAliveTimer = TimeSpan.MinValue;
+            Reconnecting = false;
 
             _lifetimeCts?.Dispose();
             _lifetimeCts = null;

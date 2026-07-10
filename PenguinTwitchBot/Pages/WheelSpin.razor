@@ -1,12 +1,21 @@
 @page "/wheelspin"
 @using PenguinTwitchBot.Bot
+@using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Database.Bot.Models.Wheel
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.WheelSpin.IWheelService WheelService
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Wheel Spins</PageTitle>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
+    @if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true" Class="mb-4">
+            Wheel Spin is currently disabled. The current wheel version stays available, but controls are inactive until the feature is enabled.
+        </MudAlert>
+    }
     <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => OpenViewerWheel()">Open Viewer Wheel</MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="() => ShowViewerWheel()">Show Viewer Wheel</MudButton>
     <MudButton Variant="Variant.Filled" Color="Color.Warning" @onclick="() => CloseViewersWheel()">Close Viewer Wheel</MudButton>
@@ -104,29 +113,67 @@
     private Wheel newWheel { get; set; } = new();
     private List<WheelProperty> propertiesToDelete { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
+    private bool _disposed;
 
     protected override async Task OnInitializedAsync()
     {
+        FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
         Wheels = await WheelService.GetWheels();
+    }
+
+    private void HandleFeatureStateChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            newWheel = new Wheel();
+            propertiesToDelete = new List<WheelProperty>();
+        }
+
+        InvokeAsync(StateHasChanged);
     }
 
     private Task OpenViewerWheel()
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return Task.CompletedTask;
+        }
+
         return WheelService.OpenNameWheel();
     }
 
     private void ShowViewerWheel()
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.ShowNameWheel();
     }
 
     private void SpinViewersWheel()
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.SpinNameWheel();
     }
 
     private void CloseViewersWheel()
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.CloseNameWheel();
     }
 
@@ -185,16 +232,31 @@
 
     private void ShowWheel(Wheel wheel)
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.ShowWheel(wheel);
     }
 
     private void HideWheel()
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.HideWheel();
     }
 
     private void SpinWheel(Wheel wheel)
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         WheelService.SpinWheel();
     }
 
@@ -206,6 +268,11 @@
 
     private async Task DeleteWheel(Wheel wheel)
     {
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            return;
+        }
+
         bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",
@@ -215,5 +282,11 @@
             await WheelService.DeleteWheel(wheel);
             Wheels = await WheelService.GetWheels();
         }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
     }
 }
