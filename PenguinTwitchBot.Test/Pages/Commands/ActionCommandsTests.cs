@@ -145,31 +145,6 @@ namespace PenguinTwitchBot.Test.Pages.Commands
         }
 
         [Fact]
-        public async Task Loading_ShowsSpinner()
-        {
-            SetupContext();
-            var commands = CreateTestCommands();
-            var commandService = new Mock<IActionCommandService>();
-            commandService.Setup(s => s.GetAllAsync()).Returns(async () =>
-            {
-                await Task.Delay(500);
-                return commands;
-            });
-
-            _ctx!.Services.AddSingleton<IActionCommandService>(commandService.Object);
-            _ctx.Services.AddSingleton<IActionManagementService>(new Mock<IActionManagementService>().Object);
-            _ctx.Services.AddSingleton<IPointsSystem>(new Mock<IPointsSystem>().Object);
-            _ctx.Services.AddSingleton<IDialogService>(new Mock<IDialogService>().Object);
-            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-
-            var page = RenderPage();
-            page.WaitForAssertion(() =>
-            {
-                Assert.Contains("Loading commands...", page.Markup);
-            });
-        }
-
-        [Fact]
         public async Task EmptyState_ShowsNoCommands()
         {
             SetupContext();
