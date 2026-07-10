@@ -302,6 +302,13 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 startInfo.ArgumentList.Add(latestDatabaseBackup);
             }
 
+            var restartCommand = ResolveRestartCommand(appRoot);
+            if (!string.IsNullOrWhiteSpace(restartCommand))
+            {
+                startInfo.ArgumentList.Add("--restart-command");
+                startInfo.ArgumentList.Add(restartCommand);
+            }
+
             var process = System.Diagnostics.Process.Start(startInfo);
             if (process is null)
             {
@@ -553,6 +560,37 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
 
         File.Delete(checksumPath);
         return true;
+    }
+
+    private static string? ResolveRestartCommand(string appRoot)
+    {
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath) && File.Exists(processPath))
+        {
+            var processName = Path.GetFileName(processPath);
+            if (!string.Equals(processName, "dotnet", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(processName, "dotnet.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return QuoteArg(processPath);
+            }
+        }
+
+        var appExecutableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "PenguinTwitchBot.exe"
+            : "PenguinTwitchBot";
+        var appExecutablePath = Path.Combine(appRoot, appExecutableName);
+        if (File.Exists(appExecutablePath))
+        {
+            return QuoteArg(appExecutablePath);
+        }
+
+        var appDllPath = Path.Combine(appRoot, "PenguinTwitchBot.dll");
+        return File.Exists(appDllPath) ? $"dotnet {QuoteArg(appDllPath)}" : null;
+    }
+
+    private static string QuoteArg(string value)
+    {
+        return $"\"{value.Replace("\"", "\\\"")}\"";
     }
 
     private sealed class GitHubRelease
