@@ -28,7 +28,6 @@ internal static class Program
             WorkingDirectory = Path.GetDirectoryName(updaterPath) ?? Directory.GetCurrentDirectory()
         };
 
-        startInfo.ArgumentList.Add(updaterPath);
         foreach (var arg in args.Skip(1))
         {
             startInfo.ArgumentList.Add(arg);

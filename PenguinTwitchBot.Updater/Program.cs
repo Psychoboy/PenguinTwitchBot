@@ -482,25 +482,31 @@ internal static class Program
         public DateTime LastWriteUtc { get; set; }
     }
 
-    private static Task<bool> WaitForParentExitAsync(int? parentPid, TimeSpan timeout)
+    private static async Task<bool> WaitForParentExitAsync(int? parentPid, TimeSpan timeout)
     {
         if (parentPid is null || parentPid <= 0)
         {
-            return Task.FromResult(true);
+            return true;
         }
 
         try
         {
             using var parent = System.Diagnostics.Process.GetProcessById(parentPid.Value);
-            return Task.FromResult(parent.WaitForExit((int)timeout.TotalMilliseconds));
+            using var timeoutSource = new CancellationTokenSource(timeout);
+            await parent.WaitForExitAsync(timeoutSource.Token);
+            return true;
         }
         catch (ArgumentException)
         {
-            return Task.FromResult(true);
+            return true;
         }
         catch (InvalidOperationException)
         {
-            return Task.FromResult(true);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 }

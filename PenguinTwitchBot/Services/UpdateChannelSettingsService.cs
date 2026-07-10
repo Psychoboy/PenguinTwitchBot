@@ -67,7 +67,7 @@ public class UpdateChannelSettingsService(IServiceScopeFactory scopeFactory) : I
 
     private static bool IsUniqueViolation(DbUpdateException ex)
     {
-        if (ex.InnerException is SqliteException sqliteException && sqliteException.SqliteErrorCode == 19)
+        if (ex.InnerException is SqliteException sqliteException && sqliteException.SqliteExtendedErrorCode == 2067)
         {
             return true;
         }
