@@ -19,7 +19,7 @@ public interface IVersionCheckService
     bool CanUserInitiateUpdate { get; }
     string? UpdateBlockedReason { get; }
     bool IsUpToDate { get; }
-    Task RefreshNowAsync(CancellationToken cancellationToken = default);
+    Task<bool> RefreshNowAsync(CancellationToken cancellationToken = default);
     Task SetIncludePreviewReleasesAsync(bool value, CancellationToken cancellationToken = default);
     Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default);
     Task<UpdateStartResult> StartRestoreLatestRecoveryAsync(CancellationToken cancellationToken = default);
@@ -44,6 +44,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
     private readonly IHostApplicationLifetime _hostApplicationLifetime;
 
     private string? _latestUpdateAssetUrl;
+    private string? _latestUpdateChecksumUrl;
+    private FileInfo? _latestRecoveryBundle;
 
     public event Action? VersionStatusChanged;
 
@@ -58,8 +60,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
     public string? LatestReleaseNotes { get; private set; }
     public string? LatestUpdateAssetName { get; private set; }
     public string? CurrentRid { get; } = DetectRid();
-    public string? LatestRecoveryBundleName => FindLatestRecoveryZip()?.Name;
-    public bool HasRecoveryBundle => FindLatestRecoveryZip() is not null;
+    public string? LatestRecoveryBundleName => _latestRecoveryBundle?.Name;
+    public bool HasRecoveryBundle => _latestRecoveryBundle is not null;
     public bool IncludePreviewReleases { get; private set; }
 
     public bool CanUserInitiateUpdate =>
@@ -138,7 +140,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         }
     }
 
-    public async Task RefreshNowAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> RefreshNowAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -152,7 +154,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 // No releases published yet — not an error
-                return;
+                return true;
             }
 
             response.EnsureSuccessStatusCode();
@@ -164,14 +166,18 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 LatestVersion = release.TagName.TrimStart('v');
                 LatestReleaseNotes = release.Body;
                 ResolveUpdateAsset(release);
+                UpdateRecoveryCache();
                 _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}",
                     CurrentVersion, LatestVersion, IsUpToDate);
                 VersionStatusChanged?.Invoke();
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to check latest version from GitHub.");
+            return false;
         }
     }
 
@@ -211,6 +217,16 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             await using (var fileStream = File.Create(packagePath))
             {
                 await downloadStream.CopyToAsync(fileStream, cancellationToken);
+            }
+
+            if (!await VerifyDownloadedPackageAsync(packagePath, cancellationToken))
+            {
+                File.Delete(packagePath);
+                return new UpdateStartResult
+                {
+                    Started = false,
+                    Message = "Downloaded update package failed verification and was deleted."
+                };
             }
 
             await _databaseTools.Backup();
@@ -259,6 +275,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             startInfo.ArgumentList.Add(packagePath);
             startInfo.ArgumentList.Add("--recovery-root");
             startInfo.ArgumentList.Add(recoveryDir);
+            startInfo.ArgumentList.Add("--parent-pid");
+            startInfo.ArgumentList.Add(Environment.ProcessId.ToString());
             startInfo.ArgumentList.Add("--current-version");
             startInfo.ArgumentList.Add(CurrentVersion);
             startInfo.ArgumentList.Add("--target-version");
@@ -329,7 +347,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 });
             }
 
-            var latestRecovery = FindLatestRecoveryZip();
+            var latestRecovery = _latestRecoveryBundle;
             if (latestRecovery is null)
             {
                 return Task.FromResult(new UpdateStartResult
@@ -351,6 +369,8 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             startInfo.ArgumentList.Add("restore");
             startInfo.ArgumentList.Add("--app-root");
             startInfo.ArgumentList.Add(appRoot);
+            startInfo.ArgumentList.Add("--parent-pid");
+            startInfo.ArgumentList.Add(Environment.ProcessId.ToString());
             startInfo.ArgumentList.Add("--recovery-zip");
             startInfo.ArgumentList.Add(latestRecovery.FullName);
 
@@ -387,6 +407,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
     {
         LatestUpdateAssetName = null;
         _latestUpdateAssetUrl = null;
+        _latestUpdateChecksumUrl = null;
 
         if (string.IsNullOrWhiteSpace(CurrentRid) || string.IsNullOrWhiteSpace(release.TagName))
         {
@@ -409,6 +430,16 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
 
         LatestUpdateAssetName = asset.Name;
         _latestUpdateAssetUrl = asset.BrowserDownloadUrl;
+
+        var checksumAsset = release.Assets.FirstOrDefault(a =>
+            !string.IsNullOrWhiteSpace(a.Name) &&
+            !string.IsNullOrWhiteSpace(a.BrowserDownloadUrl) &&
+            string.Equals(a.Name, $"{asset.Name}.sha256", StringComparison.OrdinalIgnoreCase));
+
+        if (checksumAsset is not null)
+        {
+            _latestUpdateChecksumUrl = checksumAsset.BrowserDownloadUrl;
+        }
     }
 
     private static string? DetectRid()
@@ -463,12 +494,13 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         return Version.TryParse(core, out var parsed) ? parsed : null;
     }
 
-    private FileInfo? FindLatestRecoveryZip()
+    private void UpdateRecoveryCache()
     {
         var recoveryDir = Path.Combine(AppContext.BaseDirectory, "Data", "updates", "recovery");
         if (!Directory.Exists(recoveryDir))
         {
-            return null;
+            _latestRecoveryBundle = null;
+            return;
         }
 
         var latestPath = Directory
@@ -476,7 +508,43 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             .OrderByDescending(File.GetLastWriteTimeUtc)
             .FirstOrDefault();
 
-        return string.IsNullOrWhiteSpace(latestPath) ? null : new FileInfo(latestPath);
+        _latestRecoveryBundle = string.IsNullOrWhiteSpace(latestPath) ? null : new FileInfo(latestPath);
+    }
+
+    private async Task<bool> VerifyDownloadedPackageAsync(string packagePath, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_latestUpdateChecksumUrl))
+        {
+            _logger.LogWarning("No checksum asset was found for {Asset}", LatestUpdateAssetName);
+            return false;
+        }
+
+        var checksumPath = packagePath + ".sha256";
+        var client = _httpClientFactory.CreateClient("GitHubRelease");
+        await using (var checksumStream = await client.GetStreamAsync(_latestUpdateChecksumUrl, cancellationToken))
+        await using (var checksumFile = File.Create(checksumPath))
+        {
+            await checksumStream.CopyToAsync(checksumFile, cancellationToken);
+        }
+
+        var expectedHash = (await File.ReadAllTextAsync(checksumPath, cancellationToken)).Trim().Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(expectedHash))
+        {
+            File.Delete(checksumPath);
+            _logger.LogWarning("Checksum file for {Asset} was empty or invalid", LatestUpdateAssetName);
+            return false;
+        }
+
+        var actualHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(packagePath, cancellationToken)));
+        if (!string.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Delete(checksumPath);
+            _logger.LogWarning("Checksum mismatch for {Asset}", LatestUpdateAssetName);
+            return false;
+        }
+
+        File.Delete(checksumPath);
+        return true;
     }
 
     private sealed class GitHubRelease

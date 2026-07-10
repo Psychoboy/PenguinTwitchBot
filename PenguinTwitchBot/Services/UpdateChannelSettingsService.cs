@@ -1,6 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Data.Sqlite;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
+using Npgsql;
+using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Services;
 
@@ -21,14 +24,6 @@ public class UpdateChannelSettingsService(IServiceScopeFactory scopeFactory) : I
         var setting = (await db.Settings.GetAsync(x => x.Name == IncludePreviewSettingName)).FirstOrDefault();
         if (setting is null)
         {
-            var newSetting = new Setting
-            {
-                Name = IncludePreviewSettingName,
-                DataType = Setting.DataTypeEnum.Int,
-                IntSetting = defaultValue ? 1 : 0
-            };
-            await db.Settings.AddAsync(newSetting);
-            await db.SaveChangesAsync();
             return defaultValue;
         }
 
@@ -37,26 +32,51 @@ public class UpdateChannelSettingsService(IServiceScopeFactory scopeFactory) : I
 
     public async Task SetIncludePreviewReleasesAsync(bool value)
     {
-        using var scope = scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var setting = (await db.Settings.GetAsync(x => x.Name == IncludePreviewSettingName)).FirstOrDefault();
-        if (setting is null)
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            setting = new Setting
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var setting = (await db.Settings.GetAsync(x => x.Name == IncludePreviewSettingName)).FirstOrDefault();
+            if (setting is null)
             {
-                Name = IncludePreviewSettingName,
-                DataType = Setting.DataTypeEnum.Int,
-                IntSetting = value ? 1 : 0
-            };
-            await db.Settings.AddAsync(setting);
+                setting = new Setting
+                {
+                    Name = IncludePreviewSettingName,
+                    DataType = Setting.DataTypeEnum.Int,
+                    IntSetting = value ? 1 : 0
+                };
+                await db.Settings.AddAsync(setting);
+            }
+            else
+            {
+                setting.DataType = Setting.DataTypeEnum.Int;
+                setting.IntSetting = value ? 1 : 0;
+                db.Settings.Update(setting);
+            }
+
+            try
+            {
+                await db.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex) && attempt == 0)
+            {
+            }
         }
-        else
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        if (ex.InnerException is SqliteException sqliteException && sqliteException.SqliteErrorCode == 19)
         {
-            setting.DataType = Setting.DataTypeEnum.Int;
-            setting.IntSetting = value ? 1 : 0;
-            db.Settings.Update(setting);
+            return true;
         }
 
-        await db.SaveChangesAsync();
+        if (ex.InnerException is PostgresException postgresException && postgresException.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            return true;
+        }
+
+        return false;
     }
 }

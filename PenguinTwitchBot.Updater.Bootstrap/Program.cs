@@ -21,14 +21,18 @@ internal static class Program
 
         StageUpdaterFilesFromPackage(args.Skip(1).ToArray());
 
-        var updaterArgs = args.Length > 1 ? string.Join(' ', args.Skip(1).Select(QuoteArg)) : string.Empty;
         var startInfo = new System.Diagnostics.ProcessStartInfo
         {
             FileName = updaterPath,
-            Arguments = updaterArgs,
             UseShellExecute = false,
             WorkingDirectory = Path.GetDirectoryName(updaterPath) ?? Directory.GetCurrentDirectory()
         };
+
+        startInfo.ArgumentList.Add(updaterPath);
+        foreach (var arg in args.Skip(1))
+        {
+            startInfo.ArgumentList.Add(arg);
+        }
 
         using var process = System.Diagnostics.Process.Start(startInfo);
         if (process is null)
@@ -39,18 +43,6 @@ internal static class Program
 
         process.WaitForExit();
         return process.ExitCode;
-    }
-
-    private static string QuoteArg(string value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return "\"\"";
-        }
-
-        return value.Contains(' ') || value.Contains('"')
-            ? $"\"{value.Replace("\"", "\\\"")}\""
-            : value;
     }
 
     private static void StageUpdaterFilesFromPackage(string[] args)

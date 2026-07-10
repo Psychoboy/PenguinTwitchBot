@@ -37,6 +37,12 @@ internal static class Program
                     return 4;
                 }
 
+                if (!await WaitForParentExitAsync(options.ParentPid, TimeSpan.FromSeconds(60)))
+                {
+                    Console.Error.WriteLine("Timed out waiting for the host process to exit.");
+                    return 6;
+                }
+
                 RestoreFromRecoveryBundle(appRoot, recoveryZip);
                 Console.WriteLine("Recovery restore completed successfully.");
                 return 0;
@@ -58,6 +64,12 @@ internal static class Program
             {
                 Console.Error.WriteLine("Update package has no files to apply.");
                 return 5;
+            }
+
+            if (!await WaitForParentExitAsync(options.ParentPid, TimeSpan.FromSeconds(60)))
+            {
+                Console.Error.WriteLine("Timed out waiting for the host process to exit.");
+                return 6;
             }
 
             var updateTag = options.TargetVersion ?? "unknown";
@@ -90,7 +102,7 @@ internal static class Program
 
         try
         {
-            ZipFile.ExtractToDirectory(recoveryZip, restoreTemp, overwriteFiles: true);
+            ExtractZipSafely(recoveryZip, restoreTemp);
 
             var manifestPath = Path.Combine(restoreTemp, RecoveryManifestName);
             if (!File.Exists(manifestPath))
@@ -117,13 +129,13 @@ internal static class Program
                     throw new InvalidOperationException($"Unsafe recovery path: {file.Path}");
                 }
 
-                var sourcePath = Path.Combine(restoreTemp, normalized.Replace('/', Path.DirectorySeparatorChar));
+                var sourcePath = GetSafeDestinationPath(restoreTemp, normalized.Replace('/', Path.DirectorySeparatorChar));
                 if (!File.Exists(sourcePath))
                 {
                     continue;
                 }
 
-                var destinationPath = Path.Combine(appRoot, normalized.Replace('/', Path.DirectorySeparatorChar));
+                var destinationPath = GetSafeDestinationPath(appRoot, normalized.Replace('/', Path.DirectorySeparatorChar));
                 var destinationDir = Path.GetDirectoryName(destinationPath);
                 if (!string.IsNullOrWhiteSpace(destinationDir))
                 {
@@ -166,7 +178,9 @@ internal static class Program
                 continue;
             }
 
-            var destinationPath = Path.Combine(appRoot, relativePath);
+            ValidateArchiveEntryPath(entry.FullName);
+
+            var destinationPath = GetSafeDestinationPath(appRoot, relativePath);
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrWhiteSpace(destinationDir))
             {
@@ -231,10 +245,7 @@ internal static class Program
             }
 
             var normalized = entry.FullName.Replace('\\', '/');
-            if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains("../", StringComparison.Ordinal) || normalized.Contains("..\\", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"Unsafe entry path: {entry.FullName}");
-            }
+            ValidateArchiveEntryPath(normalized);
 
             if (normalized.StartsWith("Updater/", StringComparison.OrdinalIgnoreCase))
             {
@@ -252,12 +263,61 @@ internal static class Program
         return entries;
     }
 
+    private static void ExtractZipSafely(string zipPath, string destinationRoot)
+    {
+        using var archive = ZipFile.OpenRead(zipPath);
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name))
+            {
+                continue;
+            }
+
+            ValidateArchiveEntryPath(entry.FullName);
+            var relativePath = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
+            var destinationPath = GetSafeDestinationPath(destinationRoot, relativePath);
+            var destinationDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrWhiteSpace(destinationDir))
+            {
+                Directory.CreateDirectory(destinationDir);
+            }
+
+            entry.ExtractToFile(destinationPath, overwrite: true);
+        }
+    }
+
+    private static void ValidateArchiveEntryPath(string entryPath)
+    {
+        var normalized = entryPath.Replace('\\', '/');
+        if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.Contains("../", StringComparison.Ordinal) || normalized.Contains("..\\", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Unsafe entry path: {entryPath}");
+        }
+    }
+
+    private static string GetSafeDestinationPath(string rootPath, string relativePath)
+    {
+        var fullRoot = Path.GetFullPath(rootPath);
+        var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
+        if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Resolved path escapes root: {relativePath}");
+        }
+
+        return fullPath;
+    }
+
     private static void StartProcess(string commandLine)
     {
-        var firstSpace = commandLine.IndexOf(' ');
-        if (firstSpace < 0)
+        var tokens = SplitCommandLine(commandLine);
+        if (tokens.Count == 0)
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(commandLine)
+            return;
+        }
+
+        if (tokens.Count == 1)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tokens[0])
             {
                 UseShellExecute = true,
                 WorkingDirectory = Directory.GetCurrentDirectory()
@@ -265,13 +325,55 @@ internal static class Program
             return;
         }
 
-        var file = commandLine[..firstSpace];
-        var args = commandLine[(firstSpace + 1)..];
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file, args)
+        var startInfo = new System.Diagnostics.ProcessStartInfo(tokens[0])
         {
             UseShellExecute = true,
             WorkingDirectory = Directory.GetCurrentDirectory()
-        });
+        };
+
+        for (var i = 1; i < tokens.Count; i++)
+        {
+            startInfo.ArgumentList.Add(tokens[i]);
+        }
+
+        System.Diagnostics.Process.Start(startInfo);
+    }
+
+    private static List<string> SplitCommandLine(string commandLine)
+    {
+        var tokens = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < commandLine.Length; i++)
+        {
+            var ch = commandLine[i];
+            if (ch == '"')
+            {
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (!inQuotes && char.IsWhiteSpace(ch))
+            {
+                if (current.Length > 0)
+                {
+                    tokens.Add(current.ToString());
+                    current.Clear();
+                }
+
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        if (current.Length > 0)
+        {
+            tokens.Add(current.ToString());
+        }
+
+        return tokens;
     }
 
     private static Options? ParseArgs(string[] args)
@@ -323,6 +425,8 @@ internal static class Program
         map.TryGetValue("rid", out var rid);
         map.TryGetValue("database-backup", out var databaseBackupPath);
         map.TryGetValue("restart-command", out var restartCommand);
+        map.TryGetValue("parent-pid", out var parentPidString);
+        int? parentPid = int.TryParse(parentPidString, out var parsedParentPid) ? parsedParentPid : null;
 
         return new Options
         {
@@ -335,7 +439,8 @@ internal static class Program
             TargetVersion = targetVersion,
             Rid = rid,
             DatabaseBackupPath = databaseBackupPath,
-            RestartCommand = restartCommand
+            RestartCommand = restartCommand,
+            ParentPid = parentPid
         };
     }
 
@@ -357,6 +462,7 @@ internal static class Program
         public string? Rid { get; init; }
         public string? DatabaseBackupPath { get; init; }
         public string? RestartCommand { get; init; }
+        public int? ParentPid { get; init; }
     }
 
     private sealed class RecoveryManifest
@@ -374,5 +480,27 @@ internal static class Program
         public string Path { get; set; } = string.Empty;
         public long Size { get; set; }
         public DateTime LastWriteUtc { get; set; }
+    }
+
+    private static Task<bool> WaitForParentExitAsync(int? parentPid, TimeSpan timeout)
+    {
+        if (parentPid is null || parentPid <= 0)
+        {
+            return Task.FromResult(true);
+        }
+
+        try
+        {
+            using var parent = System.Diagnostics.Process.GetProcessById(parentPid.Value);
+            return Task.FromResult(parent.WaitForExit((int)timeout.TotalMilliseconds));
+        }
+        catch (ArgumentException)
+        {
+            return Task.FromResult(true);
+        }
+        catch (InvalidOperationException)
+        {
+            return Task.FromResult(true);
+        }
     }
 }

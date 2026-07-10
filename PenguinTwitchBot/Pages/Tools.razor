@@ -74,19 +74,16 @@
     private async Task CheckForUpdatesAsync()
     {
         _checkingUpdates = true;
-        try
+        var refreshed = await VersionCheckService.RefreshNowAsync();
+        if (!refreshed)
         {
-            await VersionCheckService.RefreshNowAsync();
+            Snackbar.Add("Unable to refresh release information right now.", Severity.Warning);
+        }
+        else
+        {
             Snackbar.Add("Update status refreshed.", Severity.Success);
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to refresh update status: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _checkingUpdates = false;
-        }
+        _checkingUpdates = false;
     }
 
     protected override void OnInitialized()
@@ -167,7 +164,7 @@
     {
         try
         {
-            var baseDir = Directory.GetCurrentDirectory();
+            var baseDir = AppContext.BaseDirectory;
             var logsDir = Path.Combine(baseDir, "Logs");
 
             if (!Directory.Exists(logsDir))
