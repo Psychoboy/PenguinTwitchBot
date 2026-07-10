@@ -9,7 +9,7 @@ internal static class Program
     private const string OperationApply = "apply";
     private const string OperationRestore = "restore";
 
-    private static int Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         try
         {

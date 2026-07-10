@@ -527,7 +527,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             await checksumStream.CopyToAsync(checksumFile, cancellationToken);
         }
 
-        var expectedHash = (await File.ReadAllTextAsync(checksumPath, cancellationToken)).Trim().Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+        var expectedHash = (await File.ReadAllTextAsync(checksumPath, cancellationToken)).Trim().Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
         if (string.IsNullOrWhiteSpace(expectedHash))
         {
             File.Delete(checksumPath);
