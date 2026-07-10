@@ -32,6 +32,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<DeathCounter> DeathCounters { get; set; } = null!;
         public DbSet<KeywordType> Keywords { get; set; } = null!;
         public DbSet<Setting> Settings { get; set; } = null!;
+        public DbSet<GlobalVariable> GlobalVariables { get; set; } = null!;
         public DbSet<MusicPlaylist> Playlists { get; set; } = null!;
         public DbSet<Song> Songs { get; set; } = null!;
         public DbSet<SongRequestViewItem> SongRequestViewItems { get; set; } = null!;
@@ -169,6 +170,13 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
+
+            modelBuilder.Entity<GlobalVariable>()
+                .Property(variable => variable.Name)
+                .HasMaxLength(255)
+                .HasConversion(
+                    value => GlobalVariable.NormalizeName(value),
+                    value => GlobalVariable.NormalizeName(value));
 
             // Configure FishCatch with proper column constraints and index
             modelBuilder.Entity<FishCatch>()
