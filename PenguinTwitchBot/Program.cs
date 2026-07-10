@@ -427,6 +427,10 @@ try
         {
             await app.RunAsync(); //Start in future to read input
         }
+        catch (OperationCanceledException)
+        {
+            Log.Information("Host shutdown completed after cancellation request.");
+        }
         catch (Exception ex)
         {
             Log.Fatal(ex, "Host terminated unexpectedly");

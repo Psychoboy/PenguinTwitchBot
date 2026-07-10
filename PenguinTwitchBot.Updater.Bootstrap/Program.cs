@@ -94,6 +94,11 @@ internal static class Program
                 continue;
             }
 
+            if (entry.Name.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var destinationPath = GetSafeDestinationPath(absoluteAppRoot, normalized.Replace('/', Path.DirectorySeparatorChar));
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrWhiteSpace(destinationDir))
@@ -120,7 +125,11 @@ internal static class Program
     {
         var fullRoot = Path.GetFullPath(rootPath);
         var fullPath = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
-        if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+
+        var relativeFromRoot = Path.GetRelativePath(fullRoot, fullPath);
+        if (Path.IsPathRooted(relativeFromRoot) ||
+            relativeFromRoot.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            string.Equals(relativeFromRoot, "..", StringComparison.Ordinal))
         {
             throw new InvalidOperationException($"Resolved path escapes root: {relativePath}");
         }
