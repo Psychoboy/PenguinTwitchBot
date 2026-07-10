@@ -7,6 +7,7 @@ using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.TwitchApi.Models.Clips;
 using PenguinTwitchBot.Extensions;
 using System.Text.RegularExpressions;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands.Shoutout
 {
@@ -15,13 +16,17 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
         ICommandHandler commandHandler,
         ILogger<ClipService> logger,
         ITwitchService twitchService,
-        Application.Notifications.IPenguinDispatcher dispatcher
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator
         ) : BaseCommandService(serviceBackbone, commandHandler, "Shoutout", dispatcher), IHostedService, IClipService
     {
         public HttpClient Client { get; private set; } = new HttpClient();
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.ClipService);
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
+            if (!IsFeatureEnabled()) return;
+
             var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             switch(command.CommandProperties.CommandName)
@@ -37,6 +42,7 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
 
         public async Task PlayRandomClipForStreamer(string streamer)
         {
+            if(!IsFeatureEnabled()) return;
             try
             {
                 Clip? clip = null;

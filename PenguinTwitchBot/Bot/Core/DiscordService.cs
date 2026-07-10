@@ -4,6 +4,7 @@ using Discord.Rest;
 using Discord.WebSocket;
 using PenguinTwitchBot.Application.Discord;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.StreamSchedule;
 using PenguinTwitchBot.Bot.TwitchServices;
@@ -21,6 +22,7 @@ namespace PenguinTwitchBot.Bot.Core
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private readonly ILoggerFactory _loggerFactory;
         private readonly IConfiguration _configuration;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
         private readonly SemaphoreSlim _restartLock = new(1, 1);
         private DiscordSettings _settings;
         private readonly string _broadcaster;
@@ -33,7 +35,8 @@ namespace PenguinTwitchBot.Bot.Core
             IServiceScopeFactory scopeFactory,
             Application.Notifications.IPenguinDispatcher dispatcher,
             ILoggerFactory loggerFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IFeatureRuntimeCoordinator featureRuntimeCoordinator)
         {
             _logger = logger;
             _serviceBackbone = serviceBackbone;
@@ -43,6 +46,7 @@ namespace PenguinTwitchBot.Bot.Core
             _dispatcher = dispatcher;
             _loggerFactory = loggerFactory;
             _configuration = configuration;
+            _featureRuntimeCoordinator = featureRuntimeCoordinator;
 
             _settings = LoadSettings();
             _broadcaster = configuration["broadcaster"] ?? "";
@@ -366,6 +370,12 @@ namespace PenguinTwitchBot.Bot.Core
         {
             if (arg.CommandName.Equals("weather"))
             {
+                if (!_featureRuntimeCoordinator.IsEnabled(FeatureKeys.Weather))
+                {
+                    await arg.RespondAsync("Weather is currently disabled.");
+                    return;
+                }
+
                 var options = arg.Data.Options;
                 var loc = "";
                 if (options.Count != 0)

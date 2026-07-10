@@ -10,7 +10,6 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task<string> GetViewerWatchTime(string name);
         Task OnCommand(object? sender, CommandEventArgs e);
         Task Register();
-        Task UpdatePointsAndTime();
         Task OnChatMessage(ChatMessageEventArgs e);
     }
 }

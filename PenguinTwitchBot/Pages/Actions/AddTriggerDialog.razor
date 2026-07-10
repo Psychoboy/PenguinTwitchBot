@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Database.Bot.Models.Timers
 @using PenguinTwitchBot.Bot.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Bot.Features
 @using MudBlazor
 @using PenguinTwitchBot.Pages.Components
 
@@ -34,16 +35,19 @@
                         </MudStack>
                     </MudListItem>
                     <MudDivider />
-                     <MudListItem T="string" class="trigger-item trigger-timer" OnClick="@(() => SelectType(TriggerTypes.Timer))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Info" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Timer</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on a schedule or interval</MudText>
+                    @if (IsTriggerTypeAvailable(TriggerTypes.Timer))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-timer" OnClick="@(() => SelectType(TriggerTypes.Timer))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Info" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Timer</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on a schedule or interval</MudText>
+                                </MudStack>
                             </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
+                        </MudListItem>
+                        <MudDivider />
+                    }
                      <MudListItem T="string" class="trigger-item trigger-keyword" OnClick="@(() => SelectType(TriggerTypes.Keyword))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Warning" />
@@ -64,36 +68,45 @@
                         </MudStack>
                     </MudListItem>
                     <MudDivider />
-                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentcatch" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentCatch))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Fishing Tournament Catch</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a caught fish matches active tournament eligibility</MudText>
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentCatch))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentcatch" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentCatch))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fishing Tournament Catch</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a caught fish matches active tournament eligibility</MudText>
+                                </MudStack>
                             </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentstart" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentStart))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Fishing Tournament Start</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is started</MudText>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentStart))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentstart" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentStart))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fishing Tournament Start</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is started</MudText>
+                                </MudStack>
                             </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                    <MudListItem T="string" class="trigger-item trigger-fishingtournamentend" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentEnd))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.FlagCircle" Color="Color.Warning" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Fishing Tournament End</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is ended and rewards are settled</MudText>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentEnd))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentend" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentEnd))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.FlagCircle" Color="Color.Warning" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fishing Tournament End</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is ended and rewards are settled</MudText>
+                                </MudStack>
                             </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
+                        </MudListItem>
+                        <MudDivider />
+                    }
                      <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
@@ -328,6 +341,7 @@
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
     [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;
     [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
+    [Inject] private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
@@ -362,6 +376,11 @@
 
     private void SelectType(TriggerTypes type)
     {
+        if (!IsTriggerTypeAvailable(type))
+        {
+            return;
+        }
+
         _selectedType = type;
         _showTypeSelection = false;
 
@@ -596,6 +615,7 @@
     {
         if (_showTypeSelection) return false;
         if (string.IsNullOrWhiteSpace(_triggerName)) return false;
+        if (_selectedType.HasValue && !IsTriggerTypeAvailable(_selectedType.Value)) return false;
 
         // For command type, require a command to be selected
         if (_selectedType == TriggerTypes.Command && !_selectedCommandId.HasValue)
@@ -712,5 +732,10 @@
     private void Cancel()
     {
         MudDialog.Cancel();
+    }
+
+    private bool IsTriggerTypeAvailable(TriggerTypes triggerType)
+    {
+        return TriggerFeatureGate.IsAvailable(triggerType, FeatureRuntimeCoordinator);
     }
 }

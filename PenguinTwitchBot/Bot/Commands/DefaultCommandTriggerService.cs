@@ -3,6 +3,7 @@ using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands
 {
@@ -15,13 +16,16 @@ namespace PenguinTwitchBot.Bot.Commands
     {
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<DefaultCommandTriggerService> _logger;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
 
         public DefaultCommandTriggerService(
             IServiceScopeFactory serviceScopeFactory,
-            ILogger<DefaultCommandTriggerService> logger)
+            ILogger<DefaultCommandTriggerService> logger,
+            IFeatureRuntimeCoordinator featureRuntimeCoordinator)
         {
             _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
+            _featureRuntimeCoordinator = featureRuntimeCoordinator;
         }
 
         public async Task TriggerDefaultCommandEventAsync(
@@ -50,6 +54,19 @@ namespace PenguinTwitchBot.Bot.Commands
                 if (!defaultCommand.Id.HasValue)
                 {
                     _logger.LogWarning("Default command has no ID: {CommandName}", defaultCommandName);
+                    return;
+                }
+
+                var featureState = _featureRuntimeCoordinator.GetFeatures()
+                    .FirstOrDefault(feature => feature.ModuleName.Equals(defaultCommand.ModuleName, StringComparison.OrdinalIgnoreCase));
+
+                if (featureState is not null && !featureState.IsEnabled)
+                {
+                    _logger.LogDebug(
+                        "Skipping default command event {EventType} for {CommandName} because feature module {ModuleName} is disabled.",
+                        eventType,
+                        defaultCommandName,
+                        defaultCommand.ModuleName);
                     return;
                 }
 

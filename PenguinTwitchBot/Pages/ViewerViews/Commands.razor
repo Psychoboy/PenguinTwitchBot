@@ -3,11 +3,14 @@
 @using PenguinTwitchBot.Bot.Commands;
 @using PenguinTwitchBot.Bot.Commands.Alias;
 @using PenguinTwitchBot.Database.Bot.Models.Points;
+@using PenguinTwitchBot.Bot.Features
+@implements IDisposable
 @inject AuthenticationStateProvider AuthenticationStateProvider;
 @inject ICommandHandler CommandHandler;
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias Aliases;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem;
 @inject PenguinTwitchBot.Bot.Commands.IActionCommandService ActionCommandService;
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Commands</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
@@ -40,7 +43,10 @@
                                 <MudSelectItem Value="@category">@category</MudSelectItem>
                             }
                         </MudSelect>
-                        <MudCheckBox @bind-Value="includeAliases" Label="Include Aliases" Color="Color.Primary"></MudCheckBox>
+                        @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+                        {
+                            <MudCheckBox @bind-Value="includeAliases" Label="Include Aliases" Color="Color.Primary"></MudCheckBox>
+                        }
                         <MudTextField DebounceInterval="1000" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Style="min-width: 250px;"></MudTextField>
                     </MudStack>
                 </ToolBarContent>
@@ -165,6 +171,7 @@
     private bool includeAliases = false;
     private List<string> availableCategories = new();
     private bool dataLoaded = false;
+    private bool _disposed;
 
     public class CommandModel
     {
@@ -183,6 +190,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        FeatureRuntimeCoordinator.StateChangedAsync += OnFeatureStateChangedAsync;
+
         var authState = await AuthenticationStateProvider
            .GetAuthenticationStateAsync();
         var user = authState.User;
@@ -244,21 +253,6 @@
             }
         }
 
-        // var audioCommands = AudioCommands.GetAudioCommands();
-        // foreach (var command in audioCommands.Where(x => x.Value.Disabled == false && x.Value.ExcludeFromUi == false))
-        // {
-        //     tempCommands.Add(new CommandModel
-        //         {
-        //             Command = "!" + command.Value.CommandName,
-        //             UserCooldown = command.Value.UserCooldown,
-        //             GlobalCooldown = command.Value.GlobalCooldown,
-        //             Rank = command.Value.MinimumRank,
-        //             Cost = command.Value.Cost,
-        //             Description = string.IsNullOrWhiteSpace(command.Value.Description) ? command.Value.AudioFile : command.Value.Description,
-        //             Category = string.IsNullOrWhiteSpace(command.Value.Category) ? "Sounds" : command.Value.Category
-        //         });
-        // }
-
         var externalCommands = await CommandHandler.GetExternalCommands();
         foreach (var command in externalCommands.Where(x => x.Disabled == false && x.ExcludeFromUi == false))
         {
@@ -275,7 +269,6 @@
                     SpecificUsers = command.SpecificUsersOnly
                 });
         }
-
         var aliases = await Aliases.GetAliasesAsync();
         foreach(var command in aliases)
         {
@@ -341,11 +334,24 @@
         dataLoaded = true;
     }
 
+    private async Task OnFeatureStateChangedAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private bool FilterFunc1(CommandModel element) => FilterFunc(element, searchString1);
 
     private bool FilterFunc(CommandModel element, string searchString)
     {
         if (!includeAliases && element.isAlias)
+            return false;
+
+        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias) && element.isAlias)
             return false;
 
         if (!string.IsNullOrWhiteSpace(selectedCategory) && !element.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase))
@@ -369,4 +375,9 @@
         return System.Text.RegularExpressions.Regex.Replace(moduleName, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim();
     }
 
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChangedAsync -= OnFeatureStateChangedAsync;
     }
+}
