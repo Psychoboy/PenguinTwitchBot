@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using MudBlazor;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Http.Connections.Client;
+using PenguinTwitchBot.Bot.Hubs;
 
 namespace PenguinTwitchBot.Helpers;
 
@@ -93,6 +94,45 @@ public static class SignalRConnectionHelper
                                                socketEx.SocketErrorCode == SocketError.OperationAborted)
         {
             // SocketError.OperationAborted: I/O operation aborted due to thread exit or app request
+            logger.LogDebug("SignalR connection aborted (expected during disposal)");
+            return false;
+        }
+        catch (Exception ex) when (IsExpectedCanceledSignalRStartException(ex))
+        {
+            logger.LogDebug(ex, "SignalR connection startup was canceled (expected during disposal or navigation)");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to establish SignalR connection");
+            snackbar?.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
+            return false;
+        }
+    }
+
+    public static async Task<bool> StartWithExpectedExceptionHandlingAsync(
+        this ISignalRHubConnection hubConnection,
+        ILogger logger,
+        ISnackbar? snackbar = null)
+    {
+        try
+        {
+            await hubConnection.StartAsync();
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogDebug("SignalR connection was canceled (expected during disposal or navigation)");
+            return false;
+        }
+        catch (Microsoft.AspNetCore.SignalR.HubException ex) when (ex.Message.Contains("Handshake was canceled"))
+        {
+            logger.LogDebug("SignalR handshake was canceled (expected during navigation)");
+            return false;
+        }
+        catch (System.IO.IOException ex) when (ex.InnerException is SocketException socketEx &&
+                                               socketEx.SocketErrorCode == SocketError.OperationAborted)
+        {
             logger.LogDebug("SignalR connection aborted (expected during disposal)");
             return false;
         }

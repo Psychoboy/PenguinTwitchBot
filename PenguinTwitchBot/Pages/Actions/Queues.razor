@@ -8,6 +8,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
+@inject ILogger<Queues> logger
 @implements IAsyncDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queue Management</PageTitle>
@@ -157,14 +158,7 @@
                 });
             });
 
-            try
-            {
-                await _hubConnection.StartAsync();
-            }
-            catch (Exception ex)
-            {
-                Snackbar.Add($"Lost connection to bot. Data may be inaccurate until refresh. Error: {ex.Message}", Severity.Warning);
-            }
+            await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
         }
     }
 
