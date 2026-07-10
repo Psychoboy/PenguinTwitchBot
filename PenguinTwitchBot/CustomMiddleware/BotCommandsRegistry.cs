@@ -172,15 +172,69 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Giveaway feature."
             );
-            services.AddHostedApiService<Roulette>();
-            services.AddHostedApiService<DuelGame>();
-            services.AddHostedApiService<ModSpam>();
-            services.AddHostedApiService<AddActive>();
-            services.AddHostedApiService<First>();
-            services.AddHostedApiService<Bot.Commands.Misc.DailyCounter>();
-            services.AddHostedApiService<Bot.Commands.Misc.DeathCounters>();
-            services.AddHostedApiService<Bot.Commands.Misc.LastSeen>();
-            services.AddHostedApiService<Top>();
+            services.AddRuntimeFeatureService<Roulette>(
+                FeatureKeys.Roulette,
+                "Roulette",
+                moduleName: "Roulette",
+                isCore: false,
+                description: "Roulette game to try and roll a winning number and win points. Can have daily limits and cooldowns."
+            );
+            services.AddRuntimeFeatureService<DuelGame>(
+                FeatureKeys.DuelGame,
+                "Duel",
+                moduleName: "Duel",
+                isCore: false,
+                description: "Duel game to challenge other viewers and win points."
+            );
+            services.AddRuntimeFeatureService<ModSpam>(
+                FeatureKeys.ModSpam,
+                "Mod Spam",
+                moduleName: "ModSpam",
+                isCore: false,
+                description: "Moderator spam command that silently spams add points to all active viewers."
+            );
+            services.AddRuntimeFeatureService<AddActive>(
+                FeatureKeys.AddActive,
+                "Add Active",
+                moduleName: "AddActive",
+                isCore: false,
+                description: "Adds points to all active viewers."
+            );
+            services.AddRuntimeFeatureService<First>(
+                FeatureKeys.First,
+                "First",
+                moduleName: "First",
+                isCore: false,
+                description: "First users to use command in chat to get extra points based on their ranking of using it since stream went live."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.DailyCounter>(
+                FeatureKeys.DailyCounter,
+                "Daily Counter",
+                moduleName: "DailyCounter",
+                isCore: false,
+                description: "Tracks daily messages and subscriptions."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.DeathCounters>(
+                FeatureKeys.DeathCounter,
+                "Death Counter",
+                moduleName: "DeathCounter",
+                isCore: false,
+                description: "Tracks viewer deaths in games. Each game has its own death counter and can be reset by the streamer."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.LastSeen>(
+                FeatureKeys.LastSeen,
+                "Last Seen",
+                moduleName: "LastSeen",
+                isCore: false,
+                description: "Last seen viewer activity tracking."
+            );
+            services.AddRuntimeFeatureService<Top>(
+                FeatureKeys.Top,
+                "Top",
+                moduleName: "Top",
+                isCore: false,
+                description: "Top commands for game and loyalty leaderboards."
+            );
             services.AddRuntimeFeatureService<Bot.Commands.Misc.QuoteSystem>(
                 FeatureKeys.QuoteSystem,
                 "Quotes",
@@ -188,7 +242,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Quote commands and viewer quotes page."
                 );
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
-            services.AddHostedApiService<Bot.Commands.Misc.Weather>();
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.Weather>(
+                FeatureKeys.Weather,
+                "Weather",
+                moduleName: "Weather",
+                isCore: false,
+                description: "Weather lookup command."
+            );
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
             services.AddRuntimeFeatureService<IAutoTimers, AutoTimers>(
                 FeatureKeys.AutoTimer,
@@ -198,14 +258,62 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Automatic timer feature for scheduled events."
             );
             services.AddHostedApiService<AudioCommands>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.FFA>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Gamble>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Steal>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Heist>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Slots>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Tax>();
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Defuse>(
+                FeatureKeys.Defuse,
+                "Defuse",
+                moduleName: "Defuse",
+                isCore: false,
+                description: "Defuse the bomb game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Roll>(
+                FeatureKeys.Roll,
+                "Roll",
+                moduleName: "Roll",
+                isCore: false,
+                description: "Roll the dice game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.FFA>(
+                FeatureKeys.FFA,
+                "FFA",
+                moduleName: "FFA",
+                isCore: false,
+                description: "Free-for-all game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Gamble>(
+                FeatureKeys.Gamble,
+                "Gamble",
+                moduleName: "Gamble",
+                isCore: false,
+                description: "Gamble points game with a progressive jackpot."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Steal>(
+                FeatureKeys.Steal,
+                "Steal",
+                moduleName: "Steal",
+                isCore: false,
+                description: "Steal points from other viewers game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Heist>(
+                FeatureKeys.Heist,
+                "Heist",
+                moduleName: "Heist",
+                isCore: false,
+                description: "Heist points game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Slots>(
+                FeatureKeys.Slots,
+                "Slots",
+                moduleName: "Slots",
+                isCore: false,
+                description: "Slots game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Tax>(
+                FeatureKeys.Tax,
+                "Tax",
+                moduleName: "Tax",
+                isCore: false,
+                description: "Passive tax timer that runs after stream end."
+            );
             services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
                 FeatureKeys.MusicPlayer,
                 "Music Player",

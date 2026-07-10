@@ -1,10 +1,15 @@
 ﻿using Discord;
 using Discord.Net;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Core;
 
 namespace PenguinTwitchBot.Application.Discord
 {
-    public class DiscordReadyHandler(ILogger<DiscordReadyHandler> logger, IConfiguration configuration, IDiscordService discordService) : Application.Notifications.INotificationHandler<DiscordReadyNotification>
+    public class DiscordReadyHandler(
+        ILogger<DiscordReadyHandler> logger,
+        IConfiguration configuration,
+        IDiscordService discordService,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator) : Application.Notifications.INotificationHandler<DiscordReadyNotification>
     {
         public async Task Handle(DiscordReadyNotification notification, CancellationToken cancellationToken)
         {
@@ -64,6 +69,7 @@ namespace PenguinTwitchBot.Application.Discord
                         logger.LogError(exception, "Error creating command");
                     }
                 }
+                if (featureRuntimeCoordinator.IsEnabled(FeatureKeys.Weather))
                 {
                     var guildCommand = new SlashCommandBuilder();
                     guildCommand.WithName("weather");
