@@ -1328,6 +1328,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         public Task StartAsync(CancellationToken cancellationToken)
         {
             // Rebuild service on each feature start/restart so updated settings are applied.
+            _youtubeService.Dispose();
             _youtubeService = CreateYouTubeService();
             _logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();

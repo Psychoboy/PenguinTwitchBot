@@ -98,10 +98,14 @@ namespace PenguinTwitchBot.Bot.Features
                     var featureRegistration = registrations[0];
                     var enabled = featureRegistration.IsCore || await featureStateStore.GetEnabledAsync(featureRegistration.Key, true);
                     _enabledStates[featureRegistration.Key] = enabled;
+                    var syncedModules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     foreach (var registration in registrations)
                     {
-                        await SyncFeatureCommandsAsync(registration, enabled, cancellationToken);
+                        if (syncedModules.Add(registration.ModuleName))
+                        {
+                            await SyncFeatureCommandsAsync(registration, enabled, cancellationToken);
+                        }
 
                         if (enabled)
                         {
@@ -170,10 +174,14 @@ namespace PenguinTwitchBot.Bot.Features
 
                 if (enabled)
                 {
+                    var syncedModules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var featureRegistration in registrations)
                     {
                         await StartFeatureInternalAsync(featureRegistration, cancellationToken);
-                        await SyncFeatureCommandsAsync(featureRegistration, true, cancellationToken);
+                        if (syncedModules.Add(featureRegistration.ModuleName))
+                        {
+                            await SyncFeatureCommandsAsync(featureRegistration, true, cancellationToken);
+                        }
                     }
 
                     await featureStateStore.SetEnabledAsync(registration.Key, true);
@@ -182,9 +190,14 @@ namespace PenguinTwitchBot.Bot.Features
                 }
                 else
                 {
+                    var syncedModules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var featureRegistration in registrations)
                     {
-                        await SyncFeatureCommandsAsync(featureRegistration, false, cancellationToken);
+                        if (syncedModules.Add(featureRegistration.ModuleName))
+                        {
+                            await SyncFeatureCommandsAsync(featureRegistration, false, cancellationToken);
+                        }
+
                         await StopFeatureInternalAsync(featureRegistration, cancellationToken);
                     }
 

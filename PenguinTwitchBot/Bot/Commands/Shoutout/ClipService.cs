@@ -25,6 +25,8 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
+            if (!IsFeatureEnabled()) return;
+
             var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             switch(command.CommandProperties.CommandName)

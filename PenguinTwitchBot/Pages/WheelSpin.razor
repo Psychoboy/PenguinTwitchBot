@@ -114,9 +114,11 @@
     private List<WheelProperty> propertiesToDelete { get; set; } = new();
     [Inject] private IDialogService DialogService { get; set; } = default!;
     private bool _disposed;
+    private bool _wasWheelFeatureEnabled;
 
     protected override async Task OnInitializedAsync()
     {
+        _wasWheelFeatureEnabled = FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame);
         FeatureRuntimeCoordinator.StateChanged += HandleFeatureStateChanged;
         Wheels = await WheelService.GetWheels();
     }
@@ -128,11 +130,14 @@
             return;
         }
 
-        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        var isWheelFeatureEnabled = FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame);
+        if (_wasWheelFeatureEnabled && !isWheelFeatureEnabled)
         {
             newWheel = new Wheel();
             propertiesToDelete = new List<WheelProperty>();
         }
+
+        _wasWheelFeatureEnabled = isWheelFeatureEnabled;
 
         InvokeAsync(StateHasChanged);
     }

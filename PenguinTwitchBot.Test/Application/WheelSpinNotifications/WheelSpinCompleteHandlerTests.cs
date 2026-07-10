@@ -14,16 +14,6 @@ namespace PenguinTwitchBot.Test.Application.WheelSpinNotifications
             var wheelService = Substitute.For<IWheelService>();
             var featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
             featureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame).Returns(true);
-            featureRuntimeCoordinator.GetFeatures().Returns([
-                new RuntimeFeatureState(
-                    FeatureKeys.WheeledGame,
-                    "Wheeled Game",
-                    "WheelService",
-                    false,
-                    true,
-                    false,
-                    string.Empty)
-            ]);
             var handler = new WheelSpinCompleteHandler(wheelService, featureRuntimeCoordinator);
             var wheelComplete = new WheelSpinComplete { Index = 5 };
             var notification = new WheelSpinCompleteNotification(wheelComplete);
@@ -39,16 +29,6 @@ namespace PenguinTwitchBot.Test.Application.WheelSpinNotifications
             var wheelService = Substitute.For<IWheelService>();
             var featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
             featureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame).Returns(true);
-            featureRuntimeCoordinator.GetFeatures().Returns([
-                new RuntimeFeatureState(
-                    FeatureKeys.WheeledGame,
-                    "Wheeled Game",
-                    "WheelService",
-                    false,
-                    true,
-                    false,
-                    string.Empty)
-            ]);
             var handler = new WheelSpinCompleteHandler(wheelService, featureRuntimeCoordinator);
             var wheelComplete = new WheelSpinComplete { Index = 10 };
             var notification = new WheelSpinCompleteNotification(wheelComplete);

@@ -421,10 +421,25 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             _intervalTimer.Elapsed -= ElapseTimer;
             _serviceBackbone.CommandEvent -= CommandMessage;
             _serviceBackbone.StreamStarted -= StreamStarted;
-            if(timerLock != null)
+            if (timerLock != null)
             {
-                await timerLock.WaitAsync(cancellationToken);
-                timerLock.Release();
+                var lockAcquired = false;
+                try
+                {
+                    await timerLock.WaitAsync(cancellationToken);
+                    lockAcquired = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                finally
+                {
+                    if (lockAcquired)
+                    {
+                        timerLock.Release();
+                    }
+                }
             }
             _logger.LogInformation("Stopped {moduledname}", ModuleName);
         }

@@ -304,6 +304,7 @@
     private string rules = "";
     private string cooldowns = "";
     private string terms = "";
+    private bool _disposed;
 
     private EnterTicketsForm model = new();
 
@@ -320,6 +321,9 @@
             Navigation.NavigateTo("/");
             return;
         }
+
+        FeatureRuntimeCoordinator.StateChangedAsync += HandleFeatureStateChangedAsync;
+
         var pointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
         pointTypeName = pointType?.Name ?? "Tickets";
 
@@ -438,8 +442,21 @@
         }
     }
 
+    private Task HandleFeatureStateChangedAsync()
+    {
+        if (_disposed)
+        {
+            return Task.CompletedTask;
+        }
+
+        return InvokeAsync(StateHasChanged);
+    }
+
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
+
         // Cancel any pending reconnection attempts
         _hubConnectionCts?.Cancel();
 

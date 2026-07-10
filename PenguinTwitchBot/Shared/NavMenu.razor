@@ -22,7 +22,10 @@
                     {
                         <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
                     }
-                    <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                    }
                     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
                     {
                     <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>

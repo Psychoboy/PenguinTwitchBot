@@ -216,6 +216,8 @@
             return;
         }
 
+        var features = FeatureRuntimeCoordinator.GetFeatures();
+
         foreach (var defaultCommandId in defaultCommandTriggers)
         {
             var defaultCommand = await CommandHandler.GetDefaultCommandById(defaultCommandId);
@@ -224,7 +226,7 @@
                 continue;
             }
 
-            var featureState = FeatureRuntimeCoordinator.GetFeatures()
+            var featureState = features
                 .FirstOrDefault(feature => feature.ModuleName.Equals(defaultCommand.ModuleName, StringComparison.OrdinalIgnoreCase));
 
             if (featureState != null)
@@ -266,6 +268,7 @@
             ActionTriggers = triggers;
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
             await LoadTimerGroupNames();
+            await LoadDefaultCommandFeatureStates();
         }
     }
 
@@ -367,6 +370,7 @@
                     var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
                     ActionTriggers.Add(createdTrigger);
                     await LoadTimerGroupNames();
+                    await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
                 }
                 else
@@ -374,6 +378,7 @@
                     // For new actions, just add to the list - will be saved with the action
                     ActionTriggers.Add(newTrigger);
                     await LoadTimerGroupNames();
+                    await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
                 }
 
