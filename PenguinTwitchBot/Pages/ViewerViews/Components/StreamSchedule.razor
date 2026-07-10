@@ -7,11 +7,7 @@
             <MudText Typo="Typo.h5" class="mud-contrast-text">Stream Schedule</MudText>
         </MudStack>
         <MudDivider />
-        @if (!dataLoaded)
-        {
-            <MudSkeleton Height="200px" />
-        }
-        else if (!scheduledStreams.Any())
+        @if (!scheduledStreams.Any())
         {
             <MudAlert Severity="Severity.Info" Variant="Variant.Text" Icon="@Icons.Material.Filled.CalendarToday">
                 No upcoming streams scheduled yet. Check back soon!
@@ -41,17 +37,9 @@
 </MudPaper>
 @code {
     private List<ScheduledStream> scheduledStreams = new();
-    private bool dataLoaded = false;
 
     protected override async Task OnInitializedAsync()
     {
         scheduledStreams = (await schedule.GetNextStreams()).Take(5).ToList();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender == false) return;
-        dataLoaded = true;
-        await InvokeAsync(StateHasChanged);
     }
 }

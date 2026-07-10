@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MudBlazor;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Http.Connections.Client;
 
 namespace PenguinTwitchBot.Helpers;
 
@@ -95,12 +96,73 @@ public static class SignalRConnectionHelper
             logger.LogDebug("SignalR connection aborted (expected during disposal)");
             return false;
         }
+        catch (Exception ex) when (IsExpectedCanceledSignalRStartException(ex))
+        {
+            logger.LogDebug(ex, "SignalR connection startup was canceled (expected during disposal or navigation)");
+            return false;
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to establish SignalR connection");
             snackbar?.Add("Unable to establish live connection. Data may be delayed.", Severity.Warning);
             return false;
         }
+    }
+
+    private static bool IsExpectedCanceledSignalRStartException(Exception exception)
+    {
+        var allExceptions = (exception as AggregateException)?.Flatten().InnerExceptions ?? [exception];
+        var sawException = false;
+
+        foreach (var innerException in allExceptions)
+        {
+            sawException = true;
+
+            if (innerException is OperationCanceledException || innerException is TaskCanceledException)
+            {
+                continue;
+            }
+
+            if (innerException is TransportFailedException transportFailedException &&
+                ContainsOnlyCancellationExceptions(transportFailedException))
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return sawException;
+    }
+
+    private static bool ContainsOnlyCancellationExceptions(Exception exception)
+    {
+        var allExceptions = (exception as AggregateException)?.Flatten().InnerExceptions ?? [exception];
+
+        foreach (var innerException in allExceptions)
+        {
+            if (ReferenceEquals(innerException, exception))
+            {
+                if (innerException is OperationCanceledException || innerException is TaskCanceledException)
+                {
+                    continue;
+                }
+
+                if (innerException.InnerException is not null && ContainsOnlyCancellationExceptions(innerException.InnerException))
+                {
+                    continue;
+                }
+
+                return false;
+            }
+
+            if (innerException is not OperationCanceledException && innerException is not TaskCanceledException)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
