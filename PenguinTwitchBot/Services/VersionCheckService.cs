@@ -575,12 +575,6 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             }
         }
 
-        var entryAssemblyLocation = Assembly.GetEntryAssembly()?.Location;
-        if (!string.IsNullOrWhiteSpace(entryAssemblyLocation) && File.Exists(entryAssemblyLocation))
-        {
-            return $"dotnet {QuoteArg(entryAssemblyLocation)}";
-        }
-
         var appExecutableName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "PenguinTwitchBot.exe"
             : "PenguinTwitchBot";
