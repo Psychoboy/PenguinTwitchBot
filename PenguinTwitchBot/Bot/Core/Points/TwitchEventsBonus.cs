@@ -4,6 +4,7 @@ using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using System.Collections.Concurrent;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Core.Points
 {
@@ -13,7 +14,8 @@ namespace PenguinTwitchBot.Bot.Core.Points
         ICommandHandler commandHandler,
         IGameSettingsService gameSettingsService,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        IPointsSystem pointsSystem
+        IPointsSystem pointsSystem,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator
         ) : BaseCommandService(serviceBackbone, commandHandler, GAMENAME, dispatcher), IHostedService, ITwitchEventsBonus
     {
         public static readonly string GAMENAME = "TwitchEventBonus";
@@ -27,6 +29,8 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         private readonly ConcurrentDictionary<string, DateTime> SubCache = new();
         static readonly SemaphoreSlim _subscriptionLock = new(1);
+
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus);
         public override Task OnCommand(object? sender, CommandEventArgs e)
         {
             return Task.CompletedTask;
@@ -38,17 +42,11 @@ namespace PenguinTwitchBot.Bot.Core.Points
             return pointsSystem.RegisterDefaultPointForGame(GAMENAME);
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            logger.LogInformation("Starting {moduledname}", ModuleName);
-            ServiceBackbone.SubscriptionEvent += OnSubscription;
-            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
-            ServiceBackbone.CheerEvent += OnCheer;
-            return Register();
-        }
+        
 
         public async Task SetPointsPerSub(int numberOfPointsPerSub)
         {
+            if(!IsFeatureEnabled()) return;
             await gameSettingsService.SaveSetting(GAMENAME, POINTSPERSUB, numberOfPointsPerSub);
         }
 
@@ -59,6 +57,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         public async Task SetBitsPerPoint(double numberOfPointsPerBit)
         {
+            if(!IsFeatureEnabled()) return;
             await gameSettingsService.SaveSetting(GAMENAME, BITSPERPOINT, numberOfPointsPerBit);
         }
 
@@ -69,6 +68,7 @@ namespace PenguinTwitchBot.Bot.Core.Points
 
         public async Task SetPointType(PointType pointType)
         {
+            if(!IsFeatureEnabled()) return;
             await pointsSystem.SetPointTypeForGame(GAMENAME, pointType.GetId());
         }
 
@@ -195,6 +195,15 @@ namespace PenguinTwitchBot.Bot.Core.Points
             {
                 logger.LogError(ex, "Error when processing subscription for {user}", e.Name);
             }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Starting {moduledname}", ModuleName);
+            ServiceBackbone.SubscriptionEvent += OnSubscription;
+            ServiceBackbone.SubscriptionGiftEvent += OnSubScriptionGift;
+            ServiceBackbone.CheerEvent += OnCheer;
+            return Register();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

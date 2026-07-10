@@ -93,7 +93,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.ICommandHandler, PenguinTwitchBot.Bot.Commands.CommandHandler>();
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.IDefaultCommandTriggerService, PenguinTwitchBot.Bot.Commands.DefaultCommandTriggerService>();
             services.AddSingleton<IFeatureStateStore, FeatureStateStore>();
-            services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
+            services.AddRuntimeFeatureService<ITwitchChatBot, TwitchChatBot>(
+                FeatureKeys.TwitchChatBot,
+                "Twitch Chat Bot",
+                isCore: true,
+                description: "The core Twitch chat bot service that sends chat messages."
+            );
             services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
 
             // OBS WebSocket Services
@@ -210,11 +215,25 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards."
             );
 
-            services.AddHostedApiService<ITTSService, TTSService>();
+            services.AddRuntimeFeatureService<ITTSService, TTSService>(
+                FeatureKeys.TTS,
+                "Text-to-Speech",
+                isCore: false,
+                description: "Text-to-speech service for reading messages aloud."
+            );
             services.AddHostedApiService<IClipService, ClipService>();
             services.AddHostedApiService<IWheelService, WheelService>();
-            services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(FeatureKeys.PointsSystem, "Points", isCore: true, description: "Core points system used by commands, pages, and feature integrations.");
-            services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
+            services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
+                FeatureKeys.PointsSystem,
+                "Points",
+                isCore: true,
+                description: "Core points system used by commands, pages, and feature integrations.");
+            services.AddRuntimeFeatureService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>(
+                FeatureKeys.TwitchEventsBonus,
+                "Twitch Events Bonus",
+                isCore: false,
+                description: "Twitch events bonus points system for channel point redemptions and event tracking."
+            );
 
             // Fishing services - core service and specialized services
             services.AddSingleton<IFishingService, FishingService>();

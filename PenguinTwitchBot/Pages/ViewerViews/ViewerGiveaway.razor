@@ -203,22 +203,25 @@
                             <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" Size="Size.Large" />
                             <MudText Typo="Typo.h5" class="mud-contrast-text">How to Earn @pointTypeName</MudText>
                         </MudStack>
-                        <MudDivider />
-                        <MudText Typo="Typo.h6" Color="Color.Primary">Instant Rewards</MudText>
-                        <MudStack Spacing="2">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Subscriptions" Color="Color.Secondary" />
-                                <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every subscription</MudText>
+                        @if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus))
+                        {
+                            <MudDivider />
+                            <MudText Typo="Typo.h6" Color="Color.Primary">Instant Rewards</MudText>
+                            <MudStack Spacing="2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Subscriptions" Color="Color.Secondary" />
+                                    <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every subscription</MudText>
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Color="Color.Secondary" />
+                                    <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every gifted sub</MudText>
+                                </MudStack>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Secondary" />
+                                    <MudText><strong>@((int)@BitsPerPoint) @pointTypeName</strong> per 100 bits cheered</MudText>
+                                </MudStack>
                             </MudStack>
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Color="Color.Secondary" />
-                                <MudText><strong>@TicketsPerSub @pointTypeName</strong> for every gifted sub</MudText>
-                            </MudStack>
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Diamond" Color="Color.Secondary" />
-                                <MudText><strong>@((int)@BitsPerPoint) @pointTypeName</strong> per 100 bits cheered</MudText>
-                            </MudStack>
-                        </MudStack>
+                        }
 
                         @if (!string.IsNullOrWhiteSpace(passiveEarnings))
                         {

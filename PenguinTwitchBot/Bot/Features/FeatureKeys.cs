@@ -16,5 +16,8 @@ namespace PenguinTwitchBot.Bot.Features
         public const string PointsSystem = "PointsSystem";
         public const string QueueManager = "QueueManager";
         public const string QuoteSystem = "QuoteSystem";
+        public const string TTS = "TTS";
+        public const string TwitchChatBot = "TwitchChatBot";
+        public const string TwitchEventsBonus = "TwitchEventsBonus";
     }
 }
