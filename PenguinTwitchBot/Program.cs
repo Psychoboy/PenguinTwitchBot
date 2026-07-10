@@ -265,6 +265,7 @@ internal class Program
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
+        builder.Services.AddSingleton<IUpdateChannelSettingsService, UpdateChannelSettingsService>();
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
         builder.Services.AddSingleton<IIpLogRetentionSettingsService, IpLogRetentionSettingsService>();
         builder.Services.AddSingleton<IScheduledJobSettingsService, ScheduledJobSettingsService>();

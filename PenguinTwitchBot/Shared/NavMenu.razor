@@ -168,8 +168,14 @@
         </MudLink>
         @if (_showUpgradeLink)
         {
-            <MudLink Href="https://github.com/Psychoboy/PenguinTwitchBot/releases" Target="_blank" Typo="Typo.caption">
+            <MudLink Href="/tools" Typo="Typo.caption">
                 v@(VersionCheck.CurrentVersion) - <strong>Upgrade available</strong>
+            </MudLink>
+        }
+        else if (_isStreamer)
+        {
+            <MudLink Href="/tools" Typo="Typo.caption" Class="mud-text-gray">
+                v@(VersionCheck.CurrentVersion)
             </MudLink>
         }
         else
