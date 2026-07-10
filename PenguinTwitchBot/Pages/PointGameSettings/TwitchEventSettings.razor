@@ -2,6 +2,9 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Pages.PointGameSettings
 @using PenguinTwitchBot.Pages.PointGameSettings.Providers
+@using PenguinTwitchBot.Bot.Features
+@implements IDisposable
+@inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Loyalty Bonuses</PageTitle>
 <CascadingAuthenticationState>
@@ -21,7 +24,7 @@
 
             @if (_selectedProvider == null)
             {
-                @foreach (var provider in _providers)
+                @foreach (var provider in VisibleProviders)
                 {
                     var p = provider;
                     <MudItem xs="12" sm="6">
@@ -67,11 +70,50 @@
 
 @code {
     private IGameSettingsFormProvider? _selectedProvider;
+    private bool _disposed;
 
     private readonly List<IGameSettingsFormProvider> _providers =
     [
         new TwitchEventBonusSettingsProvider(),
         new BonusTicketsSettingsProvider(),
     ];
+
+    private IEnumerable<IGameSettingsFormProvider> VisibleProviders => _providers.Where(IsProviderVisible);
+
+    protected override void OnInitialized()
+    {
+        FeatureRuntimeCoordinator.StateChangedAsync += HandleFeatureStateChangedAsync;
+    }
+
+    private bool IsProviderVisible(IGameSettingsFormProvider provider)
+    {
+        return provider switch
+        {
+            TwitchEventBonusSettingsProvider => FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TwitchEventsBonus),
+            BonusTicketsSettingsProvider => FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.BonusTickets),
+            _ => true
+        };
+    }
+
+    private async Task HandleFeatureStateChangedAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (_selectedProvider != null && !IsProviderVisible(_selectedProvider))
+        {
+            _selectedProvider = null;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        FeatureRuntimeCoordinator.StateChangedAsync -= HandleFeatureStateChangedAsync;
+    }
 }
 

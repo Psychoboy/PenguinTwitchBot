@@ -9,6 +9,7 @@ using PenguinTwitchBot.Pages.Actions;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Timers;
@@ -50,6 +51,10 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var mockPointsSystem = new Mock<IPointsSystem>();
             _ctx.Services.AddSingleton<IPointsSystem>(mockPointsSystem.Object);
+
+            var mockFeatureRuntimeCoordinator = new Mock<IFeatureRuntimeCoordinator>();
+            mockFeatureRuntimeCoordinator.Setup(x => x.IsEnabled(It.IsAny<string>())).Returns(true);
+            _ctx.Services.AddSingleton<IFeatureRuntimeCoordinator>(mockFeatureRuntimeCoordinator.Object);
             
             var mockTwitchService = new Mock<ITwitchService>();
             mockTwitchService.Setup(x => x.GetChannelPointRewards()).ReturnsAsync(new List<PenguinTwitchBot.TwitchApi.Models.ChannelPoints.ChannelPointReward>());

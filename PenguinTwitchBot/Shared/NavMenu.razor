@@ -22,7 +22,10 @@
                     {
                         <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
                     }
-                    <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                    }
                     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
                     {
                     <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
@@ -40,7 +43,10 @@
             <MudNavGroup Icon="@Icons.Material.Filled.Terminal" Title="Bot & Commands" Expanded="@GetGroupExpanded("botCommands", "defaultcommands", "aliases", "command-cooldowns", "externalcommands", "actions", "blacklist")">
                 <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "defaultcommands", "aliases", "command-cooldowns", "externalcommands")">
                     <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/defaultcommands" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz" Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.SwapHoriz" Href="/aliases" Match="NavLinkMatch.Prefix">Aliases</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Schedule" Href="/command-cooldowns" Match="NavLinkMatch.Prefix">Current Cooldowns</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/externalcommands" Match="NavLinkMatch.Prefix">External Commands</MudNavLink>
                 </MudNavGroup>
@@ -48,7 +54,10 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Bolt" Href="/actions/commands" Match="NavLinkMatch.Prefix">Action Commands</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Key" Href="/actions/keywords" Match="NavLinkMatch.Prefix">Keywords</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.AudioFile" Href="/actions/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Action Timers</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Action Timers</MudNavLink>
+                    }
                     <MudNavLink Icon="@Icons.Material.Filled.Tune" Href="/actions/manage" Match="NavLinkMatch.Prefix">Manage Actions</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
@@ -65,9 +74,12 @@
             <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "botauth", "voices", "tools", "backups", "validation-status", "pointsettings", "gamesettings", "obs/connections")">
                 <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "botauth", "voices", "settings/integrations", "settings/app")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/botauth" Match="NavLinkMatch.Prefix">Bot Auth</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SettingsSuggest" Href="/settings/app" Match="NavLinkMatch.Prefix">Bot Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/settings/integrations" Match="NavLinkMatch.Prefix">Integrations</MudNavLink>
+                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TTS))
+                    {
+                        <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
+                    }
                 </MudNavGroup>
                 <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools", "backups", "validation-status")">
                     <MudNavLink Icon="@Icons.Material.Filled.FlashOn" Href="/tools" Match="NavLinkMatch.Prefix">Quick Actions</MudNavLink>
@@ -117,6 +129,10 @@
     }
     <MudNavLink Href="/songrequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.QueueMusic">Song Requests</MudNavLink>
     <MudNavLink Href="/leaderboards" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Leaderboard">Leaderboards</MudNavLink>
+    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+    {
+        <MudNavLink Href="/wheelspin" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Casino">Wheel Spin</MudNavLink>
+    }
     @if( FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
     {
         <MudNavGroup Icon="@Icons.Material.Filled.Phishing" Title="Fishing" Expanded="@GetGroupExpanded("fishing", "fishing/leaderboard", "fishing/tournaments", "fishing/shop", "fishing/inventory", "fishing/help")">
@@ -170,7 +186,11 @@
     private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
     private bool _isStreamer;
-    private bool _showUpgradeLink => _isStreamer && !VersionCheck.IsUpToDate && !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
+    private bool _showUpgradeLink =>
+        _isStreamer &&
+        FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.VersionCheck) &&
+        !VersionCheck.IsUpToDate &&
+        !string.IsNullOrWhiteSpace(VersionCheck.LatestVersion);
     private bool _disposed;
 
     private bool GetGroupExpanded(string groupKey, params string[] routes)

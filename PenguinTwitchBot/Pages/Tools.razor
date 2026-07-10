@@ -5,30 +5,7 @@
 <h3>Tools</h3>
 
 <PenguinTwitchBot.Pages.Components.QuickTools />
-<MudTable Items="@services">
-    <HeaderContent>
-        <MudTh>Service</MudTh>
-        <MudTh>Actions</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Service">@context.Name</MudTd>
-        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Restart(context)">Restart</MudButton></MudTd>
-    </RowTemplate>
-</MudTable>
 
 @code {
-    private List<Type> services = new();
-    [Inject] private IServiceMaintenance serviceMaintenance { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
-    protected override void OnInitialized()
-    {
-        services = serviceMaintenance.GetServiceTypes().ToList();
-    }
-
-    private async Task Restart(Type service)
-    {
-        await serviceMaintenance.RestartService(service);
-        Snackbar.Add($"{service.Name} restarted successfully.", Severity.Success);
-
-    }
 }

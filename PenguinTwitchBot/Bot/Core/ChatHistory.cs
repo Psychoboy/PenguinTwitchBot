@@ -1,5 +1,6 @@
 ﻿using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Models;
 using PenguinTwitchBot.Database.Repository;
@@ -13,6 +14,7 @@ namespace PenguinTwitchBot.Bot.Core
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
         ITwitchService twitchService,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator,
         IChatHistoryRetentionSettingsService chatHistoryRetentionSettings,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ILogger<ChatHistory> logger
@@ -24,6 +26,8 @@ namespace PenguinTwitchBot.Bot.Core
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
         private readonly IServiceBackbone _serviceBackbone = serviceBackbone;
         private readonly ILogger<ChatHistory> _logger = logger;
+
+        private bool IsFeatureEnabled() => featureRuntimeCoordinator.IsEnabled(FeatureKeys.ChatHistory);
 
         public async Task<PagedDataResponse<ViewerChatHistory>> GetViewerChatMessages(PaginationFilter filter, bool includeCommands)
         {
@@ -69,6 +73,7 @@ namespace PenguinTwitchBot.Bot.Core
 
         public Task AddChatMessage(ChatMessageEventArgs e)
         {
+            if (!IsFeatureEnabled()) return Task.CompletedTask;
             if(e.FromOwnChannel == false) return Task.CompletedTask;
             return AddMessage(e.Name, e.DisplayName, e.Message, e.MessageId);
         }
@@ -130,6 +135,7 @@ namespace PenguinTwitchBot.Bot.Core
 
         public async Task DeleteChatMessage(ChannelChatMessageDeleteEventArgs e)
         {
+            if (!IsFeatureEnabled()) return;
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
@@ -149,6 +155,8 @@ namespace PenguinTwitchBot.Bot.Core
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
+            if (!IsFeatureEnabled()) return;
+
             var command = CommandHandler.GetCommandDefaultName(e.Command);
             if(command.Equals("vanish", StringComparison.OrdinalIgnoreCase))
             {

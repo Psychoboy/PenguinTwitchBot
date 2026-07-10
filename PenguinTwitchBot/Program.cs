@@ -280,11 +280,6 @@ internal class Program
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot/1.0");
         });
-        builder.Services.AddSingleton<PenguinTwitchBot.Services.VersionCheckService>();
-        builder.Services.AddSingleton<PenguinTwitchBot.Services.IVersionCheckService>(sp =>
-            sp.GetRequiredService<PenguinTwitchBot.Services.VersionCheckService>());
-        builder.Services.AddHostedService(sp =>
-            sp.GetRequiredService<PenguinTwitchBot.Services.VersionCheckService>());
 
         builder.Services.AddSingleton<PenguinTwitchBot.Bot.Services.Chat.IChatColorService,
             PenguinTwitchBot.Bot.Services.Chat.ChatColorService>();

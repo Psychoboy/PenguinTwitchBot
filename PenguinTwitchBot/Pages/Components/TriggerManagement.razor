@@ -1,4 +1,5 @@
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
@@ -11,6 +12,7 @@
 @inject PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService
 @inject PenguinTwitchBot.Bot.Validation.IValidationService ValidationService
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
+@inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 
 <MudPaper Class="pa-4 mb-4">
     <MudStack Spacing="2">
@@ -44,45 +46,82 @@
                     <MudTh Style="text-align: right;">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
+                    @{ var isFeatureDisabled = IsDisabledByFeature(context); }
                     <MudTd DataLabel="Trigger Name">
                         @if (context.Type == TriggerTypes.Timer && context.Name.StartsWith("TimerGroup_"))
                         {
                             <MudStack Spacing="0">
-                                <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText>@GetTimerGroupDisplayName(context.Name)</MudText>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Timer Trigger</MudText>
                             </MudStack>
                         }
                         else if (context.Type == TriggerTypes.TwitchEvent)
                         {
                             <MudStack Spacing="0">
-                                <MudText>@GetTwitchEventDisplayName(context.Name)</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText>@GetTwitchEventDisplayName(context.Name)</MudText>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@GetTwitchEventFilterSummary(context.Configuration)</MudText>
                             </MudStack>
                         }
                         else if (context.Type == TriggerTypes.Command && context.CommandId.HasValue)
                         {
                             <MudStack Spacing="0">
-                                <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudLink Href="@($"/actions/commands?commandId={context.CommandId}")">@context.Name</MudLink>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Command Trigger</MudText>
                             </MudStack>
                         }
                         else if (context.Type == TriggerTypes.Keyword && context.KeywordId.HasValue)
                         {
                             <MudStack Spacing="0">
-                                <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@context.Name</MudLink>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudLink Href="@($"/actions/keywords?keywordId={context.KeywordId}")">@context.Name</MudLink>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">Keyword Trigger</MudText>
                             </MudStack>
                         }
                         else if (context.Type == TriggerTypes.DefaultCommand && context.DefaultCommandId.HasValue)
                         {
                             <MudStack Spacing="0">
-                                <MudText>@context.Name</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandEventSummary(context.Configuration)</MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText>@context.Name</MudText>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandTriggerSubtitle(context)</MudText>
                             </MudStack>
                         }
                         else
                         {
-                            @context.Name
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudText>@context.Name</MudText>
+                                @if (isFeatureDisabled)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                }
+                            </MudStack>
                         }
                     </MudTd>
                     <MudTd DataLabel="Type">
@@ -118,6 +157,8 @@
     public bool ReadOnly { get; set; } = false;
 
     private Dictionary<int, string> _timerGroupNames = new();
+    private Dictionary<int, bool> _defaultCommandFeatureDisabled = new();
+    private Dictionary<int, string> _defaultCommandFeatureNames = new();
     private int? _previousActionId;
 
     protected override async Task OnParametersSetAsync()
@@ -132,6 +173,7 @@
         else
         {
             await LoadTimerGroupNames();
+            await LoadDefaultCommandFeatureStates();
         }
     }
 
@@ -154,6 +196,43 @@
                 {
                     _timerGroupNames[timerGroupId.Value] = timerGroup.Name;
                 }
+            }
+        }
+    }
+
+    private async Task LoadDefaultCommandFeatureStates()
+    {
+        _defaultCommandFeatureDisabled.Clear();
+        _defaultCommandFeatureNames.Clear();
+
+        var defaultCommandTriggers = ActionTriggers
+            .Where(trigger => trigger.Type == TriggerTypes.DefaultCommand && trigger.DefaultCommandId.HasValue)
+            .Select(trigger => trigger.DefaultCommandId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (defaultCommandTriggers.Count == 0)
+        {
+            return;
+        }
+
+        var features = FeatureRuntimeCoordinator.GetFeatures();
+
+        foreach (var defaultCommandId in defaultCommandTriggers)
+        {
+            var defaultCommand = await CommandHandler.GetDefaultCommandById(defaultCommandId);
+            if (defaultCommand == null)
+            {
+                continue;
+            }
+
+            var featureState = features
+                .FirstOrDefault(feature => feature.ModuleName.Equals(defaultCommand.ModuleName, StringComparison.OrdinalIgnoreCase));
+
+            if (featureState != null)
+            {
+                _defaultCommandFeatureDisabled[defaultCommandId] = !featureState.IsEnabled;
+                _defaultCommandFeatureNames[defaultCommandId] = featureState.DisplayName;
             }
         }
     }
@@ -189,6 +268,7 @@
             ActionTriggers = triggers;
             await ActionTriggersChanged.InvokeAsync(ActionTriggers);
             await LoadTimerGroupNames();
+            await LoadDefaultCommandFeatureStates();
         }
     }
 
@@ -290,6 +370,7 @@
                     var createdTrigger = await ActionService.CreateTriggerAsync(newTrigger);
                     ActionTriggers.Add(createdTrigger);
                     await LoadTimerGroupNames();
+                    await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added successfully", Severity.Success);
                 }
                 else
@@ -297,6 +378,7 @@
                     // For new actions, just add to the list - will be saved with the action
                     ActionTriggers.Add(newTrigger);
                     await LoadTimerGroupNames();
+                    await LoadDefaultCommandFeatureStates();
                     Snackbar.Add($"Trigger '{triggerName}' added (will be saved with action)", Severity.Success);
                 }
 
@@ -362,6 +444,33 @@
             TriggerTypes.FishingTournamentEnd => Color.Warning,
             _ => Color.Default
         };
+    }
+
+    private bool IsDisabledByFeature(TriggerType trigger)
+    {
+        if (trigger.Type == TriggerTypes.DefaultCommand && trigger.DefaultCommandId.HasValue)
+        {
+            return _defaultCommandFeatureDisabled.GetValueOrDefault(trigger.DefaultCommandId.Value, false);
+        }
+
+        return !TriggerFeatureGate.IsAvailable(trigger.Type, FeatureRuntimeCoordinator);
+    }
+
+    private string GetDefaultCommandTriggerSubtitle(TriggerType trigger)
+    {
+        var eventSummary = GetDefaultCommandEventSummary(trigger.Configuration);
+
+        if (!trigger.DefaultCommandId.HasValue)
+        {
+            return eventSummary;
+        }
+
+        if (!_defaultCommandFeatureNames.TryGetValue(trigger.DefaultCommandId.Value, out var featureName) || string.IsNullOrWhiteSpace(featureName))
+        {
+            return eventSummary;
+        }
+
+        return $"{eventSummary} · Feature: {featureName}";
     }
 
     private string GetTwitchEventDisplayName(string triggerName)

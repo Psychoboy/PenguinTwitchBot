@@ -24,6 +24,7 @@ using PenguinTwitchBot.Bot.ObsConnector;
 using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client;
+using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.CustomMiddleware
 {
@@ -93,8 +94,25 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.ICommandHandler, PenguinTwitchBot.Bot.Commands.CommandHandler>();
             services.AddSingleton<PenguinTwitchBot.Bot.Commands.IDefaultCommandTriggerService, PenguinTwitchBot.Bot.Commands.DefaultCommandTriggerService>();
             services.AddSingleton<IFeatureStateStore, FeatureStateStore>();
-            services.AddHostedApiService<ITwitchChatBot, TwitchChatBot>();
-            services.AddHostedApiService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>();
+            services.AddRuntimeFeatureService<ITwitchChatBot, TwitchChatBot>(
+                FeatureKeys.TwitchChatBot,
+                "Twitch Chat Bot",
+                isCore: true,
+                description: "The core Twitch chat bot service that sends chat messages."
+            );
+            services.AddRuntimeFeatureService<ITwitchWebsocketHostedService, TwitchWebsocketHostedService>(
+                FeatureKeys.TwitchWebsocket,
+                "Twitch Websocket",
+                isCore: true,
+                description: "The core Twitch websocket service that handles all events from twitch including chat messages, subscriptions, raids, and more."
+            );
+
+            services.AddRuntimeFeatureService<Bot.Commands.Features.IViewerFeature, Bot.Commands.Features.ViewerFeature>(
+                FeatureKeys.ViewerFeature,
+                "Viewer Feature",
+                isCore: true,
+                description: "Viewer feature for tracking viewer data and interactions."
+            );
 
             // OBS WebSocket Services
             services.AddSingleton<IOBSConnectionManager, OBSConnectionManager>();
@@ -103,7 +121,19 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
             services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
 
-            services.AddHostedApiService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>();
+            services.AddRuntimeFeatureService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>(
+                FeatureKeys.KnownBots,
+                "Known Bots",
+                isCore: true,
+                description: "Manage known bots in the chat. Also used to identify the bot itself and the streamer as known bots."
+            );
+
+            services.AddRuntimeFeatureService<ILoyaltyFeature, LoyaltyFeature>(
+                FeatureKeys.LoyaltyFeature,
+                "Loyalty Feature",
+                isCore: false,
+                description: "Loyalty feature for tracking viewer watch time and message counts."
+            );
 
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
@@ -119,7 +149,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             //Add Features Here:
 
             services.AddSingleton<Bot.Commands.PastyGames.MaxBetCalculator>();
-            services.AddSingleton<IAlias, Alias>();
+            services.AddRuntimeFeatureService<IAlias, Alias>(
+                FeatureKeys.Alias,
+                "Alias",
+                isCore: false,
+                description: "Alias commands and viewer alias page."
+            );
             //Add Alerts
             services.AddSingleton<Bot.Alerts.AlertImage>();
 
@@ -137,15 +172,69 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Giveaway feature."
             );
-            services.AddHostedApiService<Roulette>();
-            services.AddHostedApiService<DuelGame>();
-            services.AddHostedApiService<ModSpam>();
-            services.AddHostedApiService<AddActive>();
-            services.AddHostedApiService<First>();
-            services.AddHostedApiService<Bot.Commands.Misc.DailyCounter>();
-            services.AddHostedApiService<Bot.Commands.Misc.DeathCounters>();
-            services.AddHostedApiService<Bot.Commands.Misc.LastSeen>();
-            services.AddHostedApiService<Top>();
+            services.AddRuntimeFeatureService<Roulette>(
+                FeatureKeys.Roulette,
+                "Roulette",
+                moduleName: "Roulette",
+                isCore: false,
+                description: "Roulette game to try and roll a winning number and win points. Can have daily limits and cooldowns."
+            );
+            services.AddRuntimeFeatureService<DuelGame>(
+                FeatureKeys.DuelGame,
+                "Duel",
+                moduleName: "Duel",
+                isCore: false,
+                description: "Duel game to challenge other viewers and win points."
+            );
+            services.AddRuntimeFeatureService<ModSpam>(
+                FeatureKeys.ModSpam,
+                "Mod Spam",
+                moduleName: "ModSpam",
+                isCore: false,
+                description: "Moderator spam command that silently spams add points to all active viewers."
+            );
+            services.AddRuntimeFeatureService<AddActive>(
+                FeatureKeys.AddActive,
+                "Add Active",
+                moduleName: "AddActive",
+                isCore: false,
+                description: "Adds points to all active viewers."
+            );
+            services.AddRuntimeFeatureService<First>(
+                FeatureKeys.First,
+                "First",
+                moduleName: "First",
+                isCore: false,
+                description: "First users to use command in chat to get extra points based on their ranking of using it since stream went live."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.DailyCounter>(
+                FeatureKeys.DailyCounter,
+                "Daily Counter",
+                moduleName: "DailyCounter",
+                isCore: false,
+                description: "Tracks daily messages and subscriptions."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.DeathCounters>(
+                FeatureKeys.DeathCounter,
+                "Death Counter",
+                moduleName: "DeathCounter",
+                isCore: false,
+                description: "Tracks viewer deaths in games. Each game has its own death counter and can be reset by the streamer."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.LastSeen>(
+                FeatureKeys.LastSeen,
+                "Last Seen",
+                moduleName: "LastSeen",
+                isCore: false,
+                description: "Last seen viewer activity tracking."
+            );
+            services.AddRuntimeFeatureService<Top>(
+                FeatureKeys.Top,
+                "Top",
+                moduleName: "Top",
+                isCore: false,
+                description: "Top commands for game and loyalty leaderboards."
+            );
             services.AddRuntimeFeatureService<Bot.Commands.Misc.QuoteSystem>(
                 FeatureKeys.QuoteSystem,
                 "Quotes",
@@ -153,19 +242,84 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Quote commands and viewer quotes page."
                 );
             services.AddHostedApiService<Bot.Commands.Misc.RaidTracker>();
-            services.AddHostedApiService<Bot.Commands.Misc.Weather>();
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.Weather>(
+                FeatureKeys.Weather,
+                "Weather",
+                moduleName: "Weather",
+                isCore: false,
+                description: "Weather lookup command."
+            );
             services.AddHostedApiService<Bot.Commands.Misc.ShoutoutSystem>();
-            services.AddHostedApiService<IAutoTimers, AutoTimers>();
+            services.AddRuntimeFeatureService<IAutoTimers, AutoTimers>(
+                FeatureKeys.AutoTimer,
+                "Auto Timer",
+                moduleName: "Timers",
+                isCore: false,
+                description: "Automatic timer feature for scheduled events."
+            );
             services.AddHostedApiService<AudioCommands>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Defuse>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Roll>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.FFA>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Gamble>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Steal>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Heist>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Slots>();
-            services.AddHostedApiService<Bot.Commands.PastyGames.Tax>();
-            services.AddHostedApiService<Bot.Commands.Music.YtPlayer>();
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Defuse>(
+                FeatureKeys.Defuse,
+                "Defuse",
+                moduleName: "Defuse",
+                isCore: false,
+                description: "Defuse the bomb game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Roll>(
+                FeatureKeys.Roll,
+                "Roll",
+                moduleName: "Roll",
+                isCore: false,
+                description: "Roll the dice game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.FFA>(
+                FeatureKeys.FFA,
+                "FFA",
+                moduleName: "FFA",
+                isCore: false,
+                description: "Free-for-all game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Gamble>(
+                FeatureKeys.Gamble,
+                "Gamble",
+                moduleName: "Gamble",
+                isCore: false,
+                description: "Gamble points game with a progressive jackpot."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Steal>(
+                FeatureKeys.Steal,
+                "Steal",
+                moduleName: "Steal",
+                isCore: false,
+                description: "Steal points from other viewers game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Heist>(
+                FeatureKeys.Heist,
+                "Heist",
+                moduleName: "Heist",
+                isCore: false,
+                description: "Heist points game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Slots>(
+                FeatureKeys.Slots,
+                "Slots",
+                moduleName: "Slots",
+                isCore: false,
+                description: "Slots game."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.PastyGames.Tax>(
+                FeatureKeys.Tax,
+                "Tax",
+                moduleName: "Tax",
+                isCore: false,
+                description: "Passive tax timer that runs after stream end."
+            );
+            services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
+                FeatureKeys.MusicPlayer,
+                "Music Player",
+                isCore: false,
+                description: "YouTube music player, requests queue, and playback controls."
+            );
             services.AddHostedApiService<Bot.Commands.Moderation.Blacklist>();
             services.AddHostedApiService<Bot.Commands.Moderation.Admin>();
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
@@ -176,6 +330,12 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Discord service integration for bot notifications and commands."
             );
+            services.AddRuntimeFeatureService<IVersionCheckService, VersionCheckService>(
+                FeatureKeys.VersionCheck,
+                "Version Check",
+                isCore: false,
+                description: "Checks for new bot releases on startup and periodically."
+            );
             services.AddRuntimeFeatureService<Bot.ScheduledJobs.FishingTournamentScheduler>(
                 FeatureKeys.Fishing,
                 "Fishing",
@@ -183,11 +343,37 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "Fishing services, shop, inventory, gameplay, analytics, and leaderboards."
             );
 
-            services.AddHostedApiService<ITTSService, TTSService>();
-            services.AddHostedApiService<IClipService, ClipService>();
-            services.AddHostedApiService<IWheelService, WheelService>();
-            services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(FeatureKeys.PointsSystem, "Points", isCore: true, description: "Core points system used by commands, pages, and feature integrations.");
-            services.AddHostedApiService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>();
+            services.AddRuntimeFeatureService<ITTSService, TTSService>(
+                FeatureKeys.TTS,
+                "Text-to-Speech",
+                moduleName: "TTSService",
+                isCore: false,
+                description: "Text-to-speech service for reading messages aloud."
+            );
+            services.AddRuntimeFeatureService<IClipService, ClipService>(
+                FeatureKeys.ClipService,
+                "Clip Service",
+                isCore: false,
+                description: "Clip service for creating and managing Twitch clips."
+            );
+            services.AddRuntimeFeatureService<IWheelService, WheelService>(
+                FeatureKeys.WheeledGame,
+                "Wheeled Game",
+                moduleName: "WheelService",
+                isCore: false,
+                description: "Wheeled game service for managing wheel game interactions and rewards."
+            );
+            services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
+                FeatureKeys.PointsSystem,
+                "Points",
+                isCore: true,
+                description: "Core points system used by commands, pages, and feature integrations.");
+            services.AddRuntimeFeatureService<Bot.Core.Points.ITwitchEventsBonus, Bot.Core.Points.TwitchEventsBonus>(
+                FeatureKeys.TwitchEventsBonus,
+                "Twitch Events Bonus",
+                isCore: false,
+                description: "Twitch events bonus points system for channel point redemptions and event tracking."
+            );
 
             // Fishing services - core service and specialized services
             services.AddSingleton<IFishingService, FishingService>();
@@ -230,13 +416,17 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             services.AddHostedApiService<ScAi>();
 
-            RegisterCommandServices(services);
             services.AddSingleton<Bot.Commands.ICommandHelper, Bot.Commands.CommandHelper>();
             services.AddSingleton<ITTSPlayerService, TTSPlayerService>();
             services.AddSingleton<IChatMessageIdTracker, ChatMessageIdTracker>();
             services.AddSingleton<IServiceMaintenance, ServiceMaintenance>();
 
-            services.AddHostedApiService<IChatHistory, ChatHistory>();
+            services.AddRuntimeFeatureService<IChatHistory, ChatHistory>(
+                FeatureKeys.ChatHistory,
+                "Chat History",
+                isCore: false,
+                description: "Chat history service for storing and retrieving logged chat messages."
+            );
 
             services.AddSingleton<Bot.Core.Leaderboards>();
             services.AddScoped<Bot.Commands.ChannelPoints.IChannelPoints, Bot.Commands.ChannelPoints.ChannelPoints>();
@@ -256,7 +446,12 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager
-            services.AddHostedApiService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>();
+            services.AddRuntimeFeatureService<Bot.Queues.IQueueManager, Bot.Queues.QueueManager>(
+                FeatureKeys.QueueManager,
+                "Queue Manager",
+                isCore: true,
+                description: "Manages action queues for the bot."
+            );
             services.AddTransient<Bot.Hubs.ISignalRHubConnectionFactory, Bot.Hubs.SignalRHubConnectionFactory>();
             services.AddHostedApiService<RuntimeHealthSnapshotService>();
 
@@ -295,6 +490,19 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
         }
 
+        public static void AddRuntimeFeatureService<TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            string moduleName,
+            bool isCore,
+            string description = "")
+            where TService : class, IHostedService
+        {
+            services.AddSingleton<TService>();
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, moduleName, typeof(TService), isCore, description));
+        }
+
         public static void AddRuntimeFeatureService<TInterface, TService>(
             this IServiceCollection services,
             string featureKey,
@@ -307,6 +515,21 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<TService>();
             services.AddSingleton<TInterface>(p => p.GetRequiredService<TService>());
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description));
+        }
+
+        public static void AddRuntimeFeatureService<TInterface, TService>(
+            this IServiceCollection services,
+            string featureKey,
+            string displayName,
+            string moduleName,
+            bool isCore,
+            string description = "")
+            where TInterface : class
+            where TService : class, IHostedService, TInterface
+        {
+            services.AddSingleton<TService>();
+            services.AddSingleton<TInterface>(p => p.GetRequiredService<TService>());
+            services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, moduleName, typeof(TService), isCore, description));
         }
 
         public static void AddRuntimeFeatureRegistration<TService>(
@@ -330,12 +553,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             where TService : class, TInterface
         {
             services.AddSingleton(new RuntimeFeatureRegistration(featureKey, displayName, featureKey, typeof(TService), isCore, description, false));
-        }
-
-        private static void RegisterCommandServices(IServiceCollection services)
-        {
-            services.AddHostedApiService<Bot.Commands.Features.IViewerFeature, Bot.Commands.Features.ViewerFeature>();
-            services.AddHostedApiService<Bot.Commands.Features.ILoyaltyFeature, Bot.Commands.Features.LoyaltyFeature>();
         }
     }
 }

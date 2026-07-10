@@ -1,5 +1,6 @@
 using PenguinTwitchBot.Application.WheelSpinNotifications;
 using PenguinTwitchBot.Bot.Commands.WheelSpin;
+using PenguinTwitchBot.Bot.Features;
 using NSubstitute;
 using Xunit;
 
@@ -11,7 +12,9 @@ namespace PenguinTwitchBot.Test.Application.WheelSpinNotifications
         public async Task Handle_InvokesValidateAndProcessWinner()
         {
             var wheelService = Substitute.For<IWheelService>();
-            var handler = new WheelSpinCompleteHandler(wheelService);
+            var featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
+            featureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame).Returns(true);
+            var handler = new WheelSpinCompleteHandler(wheelService, featureRuntimeCoordinator);
             var wheelComplete = new WheelSpinComplete { Index = 5 };
             var notification = new WheelSpinCompleteNotification(wheelComplete);
 
@@ -24,7 +27,9 @@ namespace PenguinTwitchBot.Test.Application.WheelSpinNotifications
         public async Task Handle_CancellationTokenIsAccepted()
         {
             var wheelService = Substitute.For<IWheelService>();
-            var handler = new WheelSpinCompleteHandler(wheelService);
+            var featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
+            featureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame).Returns(true);
+            var handler = new WheelSpinCompleteHandler(wheelService, featureRuntimeCoordinator);
             var wheelComplete = new WheelSpinComplete { Index = 10 };
             var notification = new WheelSpinCompleteNotification(wheelComplete);
             var cts = new CancellationTokenSource();

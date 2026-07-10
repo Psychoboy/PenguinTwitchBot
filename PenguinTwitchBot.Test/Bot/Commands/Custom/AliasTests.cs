@@ -2,6 +2,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Alias;
 using PenguinTwitchBot.Bot.Commands.Alias.Requests;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Database.Bot.Core;
 using PenguinTwitchBot.Database.Bot.Models;
 using Microsoft.Extensions.Logging;
@@ -18,18 +19,21 @@ namespace PenguinTwitchBot.Tests.Bot.Commands.Custom
         private readonly Alias alias;
         private readonly PenguinTwitchBot.Application.Notifications.IPenguinDispatcher dispatcher;
         private readonly IServiceBackbone serviceBackbone;
+        private readonly IFeatureRuntimeCoordinator _featureRuntimeCoordinator;
 
         public AliasTests()
         {
             serviceBackbone = Substitute.For<IServiceBackbone>();
             commandHandler = Substitute.For<ICommandHandler>();
             dispatcher = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            _featureRuntimeCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
+            _featureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias).Returns(true);
 
             testAlias = new AliasModel { AliasName = "thealias", CommandName = "testcommand", Id = 1 };
             aliasQueryable = new List<AliasModel> { testAlias };
             emptyAliasQueryable = new List<AliasModel>();
 
-            alias = new Alias(dispatcher, serviceBackbone, Substitute.For<ILogger<Alias>>(), commandHandler);
+            alias = new Alias(dispatcher, serviceBackbone, Substitute.For<ILogger<Alias>>(), commandHandler, _featureRuntimeCoordinator);
 
         }
 

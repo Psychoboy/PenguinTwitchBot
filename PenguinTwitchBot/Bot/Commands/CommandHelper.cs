@@ -1,16 +1,18 @@
 ﻿using PenguinTwitchBot.Bot.Commands.Alias;
 using PenguinTwitchBot.Bot.Commands.AudioCommand;
+using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Bot.Commands
 {
     public class CommandHelper(
         IAlias alias,
         AudioCommands audioCommands,
-        ICommandHandler commandHandler) : ICommandHelper
+        ICommandHandler commandHandler,
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator) : ICommandHelper
     {
         public async Task<bool> CommandExists(string command)
         {
-            if (await alias.CommandExists(command))
+            if (featureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias) && await alias.CommandExists(command))
             {
                 return true;
             }

@@ -12,10 +12,11 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 {
     public class YtPlayer : BaseCommandService, IHostedService
     {
+        private readonly IConfiguration _configuration;
         private readonly IHubContext<YtHub> _hubContext;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<YtPlayer> _logger;
-        private readonly YouTubeService _youtubeService;
+        private YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
 
         public IGauge SongsInBackupQueueMetric { get; }
@@ -60,16 +61,22 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             ICommandHandler commandHandler
         ) : base(serviceBackbone, commandHandler, "YtPlayer", dispatcher)
         {
+            _configuration = configuration;
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
             _logger = logger;
-            _youtubeService = new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer
-            {
-                ApiKey = configuration["youtubeApi"],
-                ApplicationName = "DotNetBot"
-            });
+            _youtubeService = CreateYouTubeService();
             SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
             SongsInBackupQueueMetric = Prometheus.Metrics.CreateGauge("songs_in_backup_queue", "Songs in Backup Queue");
+        }
+
+        private YouTubeService CreateYouTubeService()
+        {
+            return new YouTubeService(new Google.Apis.Services.BaseClientService.Initializer
+            {
+                ApiKey = _configuration["youtubeApi"],
+                ApplicationName = "PenguinTwitchBot"
+            });
         }
 
         private void IncrementSong(Song? song)
@@ -1320,6 +1327,9 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
+            // Rebuild service on each feature start/restart so updated settings are applied.
+            _youtubeService.Dispose();
+            _youtubeService = CreateYouTubeService();
             _logger.LogInformation("Started {moduledname}", ModuleName);
             return Register();
         }
