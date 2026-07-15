@@ -121,6 +121,7 @@ internal class Program
                     { "service.name", "PenguinTwitchBot" },
                     { "service.environment", builder.Environment.EnvironmentName }
                 };
+                options.LevelSwitch = new Serilog.Core.LoggingLevelSwitch(LogEventLevel.Information);
             });
             Log.Information("OpenTelemetry logging enabled. Exporting logs to {Endpoint}", otelEndpoint);
         }
