@@ -8,13 +8,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly IConfiguration _configuration;
         private readonly ILogger<SettingsFileManager> _logger;
         static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        private const int MaxBackups = 3;
 
         public SettingsFileManager(ILogger<SettingsFileManager> logger, IConfiguration configuration)
         {
             _configuration = configuration;
             _logger = logger;
-
         }
+
         public async Task AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {
             var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
@@ -38,13 +39,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 SetValueRecursively(sectionPathKey, jsonObj, value);
 
                 string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
-                while (!IsFileLocked(filePath))
-                {
-                    _logger.LogWarning("Settings file was locked... Waiting to for it to be unlocked");
-                    Thread.Sleep(5000);
-                }
-                await File.WriteAllTextAsync(filePath, output);
-
+                await WriteSettingsFileAtomically(filePath, output);
             }
             catch (Exception ex)
             {
@@ -53,14 +48,99 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             finally { _semaphoreSlim.Release(); }
         }
 
-        private static bool IsFileLocked(string filePath)
+        private async Task WriteSettingsFileAtomically(string filePath, string content)
         {
+            string? tempFilePath = null;
             try
             {
-                using var fileStream = File.OpenWrite(filePath);
-                return fileStream.Length > 0;
+                await RotateBackups(filePath);
+
+                tempFilePath = filePath + ".tmp";
+                await File.WriteAllTextAsync(tempFilePath, content);
+
+                if (!File.Exists(filePath))
+                {
+                    File.Move(tempFilePath, filePath);
+                    tempFilePath = null;
+                    return;
+                }
+
+                var original = new FileInfo(filePath);
+                var replacement = new FileInfo(tempFilePath);
+
+                original.IsReadOnly = false;
+                replacement.IsReadOnly = false;
+
+                File.Replace(tempFilePath, filePath, null, true);
+                tempFilePath = null;
             }
-            catch (Exception) { return false; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error writing settings file atomically. Attempting to restore from backup.");
+
+                if (!string.IsNullOrEmpty(tempFilePath) && File.Exists(tempFilePath))
+                {
+                    try { File.Delete(tempFilePath); } catch { }
+                    tempFilePath = null;
+                }
+
+                await RestoreFromBackup(filePath);
+            }
+        }
+
+        private async Task RotateBackups(string filePath)
+        {
+            string oldestBackup = GetBackupPath(filePath, MaxBackups);
+            if (File.Exists(oldestBackup))
+            {
+                File.Delete(oldestBackup);
+            }
+
+            for (int i = MaxBackups - 1; i >= 1; i--)
+            {
+                string src = GetBackupPath(filePath, i);
+                string dst = GetBackupPath(filePath, i + 1);
+                if (File.Exists(src))
+                {
+                    File.Move(src, dst);
+                }
+            }
+
+            if (File.Exists(filePath))
+            {
+                string firstBackup = GetBackupPath(filePath, 1);
+                File.Copy(filePath, firstBackup, overwrite: true);
+                await Task.CompletedTask;
+            }
+        }
+
+        private async Task RestoreFromBackup(string filePath)
+        {
+            for (int i = MaxBackups; i >= 1; i--)
+            {
+                string backupPath = GetBackupPath(filePath, i);
+                if (File.Exists(backupPath))
+                {
+                    try
+                    {
+                        File.Copy(backupPath, filePath, overwrite: true);
+                        _logger.LogInformation("Successfully restored settings file from backup: {BackupPath}", backupPath);
+                        return;
+                    }
+                    catch (Exception restoreEx)
+                    {
+                        _logger.LogError(restoreEx, "Failed to restore from backup: {BackupPath}", backupPath);
+                    }
+                }
+            }
+
+            _logger.LogCritical("All backups failed to restore. Settings file may be corrupted at: {FilePath}", filePath);
+            await Task.CompletedTask;
+        }
+
+        private static string GetBackupPath(string filePath, int backupIndex)
+        {
+            return $"{filePath}.bak.{backupIndex}";
         }
 
         private static void SetValueRecursively<T>(string sectionPathKey, JObject jsonObj, T value)
