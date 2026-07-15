@@ -51,6 +51,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private async Task WriteSettingsFileAtomically(string filePath, string content)
         {
             string? tempFilePath = null;
+            bool enteredReplacementPhase = false;
             try
             {
                 await RotateBackups(filePath);
@@ -60,6 +61,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 if (!File.Exists(filePath))
                 {
+                    enteredReplacementPhase = true;
                     File.Move(tempFilePath, filePath);
                     tempFilePath = null;
                     return;
@@ -71,12 +73,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 original.IsReadOnly = false;
                 replacement.IsReadOnly = false;
 
+                enteredReplacementPhase = true;
                 File.Replace(tempFilePath, filePath, null, true);
                 tempFilePath = null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error writing settings file atomically. Attempting to restore from backup.");
+                _logger.LogError(ex, "Error writing settings file atomically.");
 
                 if (!string.IsNullOrEmpty(tempFilePath) && File.Exists(tempFilePath))
                 {
@@ -87,7 +90,13 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     }
                 }
 
-                await RestoreFromBackup(filePath);
+                if (enteredReplacementPhase)
+                {
+                    _logger.LogError("Replacement phase failed. Attempting to restore from backup.");
+                    await RestoreFromBackup(filePath);
+                }
+
+                throw;
             }
         }
 
@@ -119,7 +128,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task RestoreFromBackup(string filePath)
         {
-            for (int i = MaxBackups; i >= 1; i--)
+            for (int i = 1; i <= MaxBackups; i++)
             {
                 string backupPath = GetBackupPath(filePath, i);
                 if (File.Exists(backupPath))

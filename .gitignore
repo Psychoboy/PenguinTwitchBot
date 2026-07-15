@@ -526,3 +526,4 @@ coveragereport/Cobertura.xml
 ffmpeg
 yt-dlp
 
+PenguinTwitchBot/appsettings.secrets.json.bak.*
