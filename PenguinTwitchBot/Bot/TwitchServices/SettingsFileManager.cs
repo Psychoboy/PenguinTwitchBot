@@ -80,15 +80,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 if (!string.IsNullOrEmpty(tempFilePath) && File.Exists(tempFilePath))
                 {
-                    try { File.Delete(tempFilePath); } catch { }
-                    tempFilePath = null;
+                    try { File.Delete(tempFilePath); }
+                    catch
+                    {
+                        // ignore any exceptions during cleanup
+                    }
                 }
 
                 await RestoreFromBackup(filePath);
             }
         }
 
-        private async Task RotateBackups(string filePath)
+        private static async Task RotateBackups(string filePath)
         {
             string oldestBackup = GetBackupPath(filePath, MaxBackups);
             if (File.Exists(oldestBackup))
