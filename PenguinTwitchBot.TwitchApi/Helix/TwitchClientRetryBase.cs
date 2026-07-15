@@ -32,12 +32,12 @@ public abstract class TwitchClientRetryBase
             {
                 if (attempt == MaxAttempts)
                 {
-                    Logger.LogError(ex, "Operation failed after retries: {operation}", operation);
+                    Logger.LogError(ex, "Operation failed after retries (attempt {attempt}/{maxAttempts}): {operation}", attempt, MaxAttempts, operation);
                     throw;
                 }
 
                 var delay = TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt - 1));
-                Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.", 
+                Logger.LogWarning(ex, "Transient error during {operation} (attempt {attempt}/{maxAttempts}). Retrying in {delayMs} ms.",
                     operation, attempt, MaxAttempts, delay.TotalMilliseconds);
                 await Task.Delay(delay);
             }
