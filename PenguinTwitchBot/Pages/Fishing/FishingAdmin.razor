@@ -1333,14 +1333,20 @@
     {
         if (editingFish == null) return;
 
-        var categories = editingFishCategoriesText
+        var submittedNames = editingFishCategoriesText
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(category => !string.IsNullOrWhiteSpace(category))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select((category, index) => new FishCategory { Id = editingFish.Categories.ElementAtOrDefault(index)?.Id ?? 0, Category = category })
             .ToList();
 
-        editingFish.Categories = categories;
+        var existingByName = editingFish.Categories
+            .ToDictionary(c => c.Category, c => c, StringComparer.OrdinalIgnoreCase);
+
+        editingFish.Categories = submittedNames
+            .Select(name => existingByName.TryGetValue(name, out var existing)
+                ? new FishCategory { Id = existing.Id, Category = name }
+                : new FishCategory { Id = 0, Category = name })
+            .ToList();
     }
 
     private void AddNewFish()

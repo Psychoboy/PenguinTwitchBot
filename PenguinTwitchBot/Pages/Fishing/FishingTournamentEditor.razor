@@ -496,12 +496,6 @@
                 return;
             }
 
-            if (selectedFishTypeIds.Count == 0 && selectedCategoryNames.Count == 0)
-            {
-                errorMessage = "Select at least one eligible fish type or category (leave both empty for all fish).";
-                return;
-            }
-
             if (editorEntryFeeAmount.HasValue && !editorEntryFeePointTypeId.HasValue)
             {
                 errorMessage = "Choose a point type for the entry fee.";

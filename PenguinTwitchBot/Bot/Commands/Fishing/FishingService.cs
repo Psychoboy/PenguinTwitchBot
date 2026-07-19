@@ -70,7 +70,30 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishTypes.Update(fishType);
+
+            var existing = await context.FishTypes
+                .Include(f => f.Categories)
+                .FirstOrDefaultAsync(f => f.Id == fishType.Id);
+
+            if (existing == null)
+            {
+                context.FishTypes.Add(fishType);
+                await context.SaveChangesAsync();
+                return;
+            }
+
+            existing.Name = fishType.Name;
+            existing.Rarity = fishType.Rarity;
+            existing.BaseWeight = fishType.BaseWeight;
+            existing.BaseGold = fishType.BaseGold;
+            existing.ImageFileName = fishType.ImageFileName;
+            existing.Enabled = fishType.Enabled;
+
+            context.FishCategories.RemoveRange(existing.Categories);
+            existing.Categories = fishType.Categories
+                .Select(category => new FishCategory { Category = category.Category })
+                .ToList();
+
             await context.SaveChangesAsync();
         }
 
@@ -357,6 +380,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                 .FirstOrDefaultAsync(t => t.Id == templateTournamentId);
 
@@ -460,6 +484,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var persistedTournament = await context.FishingTournaments
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                 .FirstOrDefaultAsync(t => t.Id == tournament.Id);
 
@@ -485,6 +510,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             context.FishingTournamentFishTypes.RemoveRange(persistedTournament.EligibleFish);
             context.FishingTournamentRewardRules.RemoveRange(persistedTournament.RewardRules);
+            context.RemoveRange(persistedTournament.EligibleCategories);
 
             persistedTournament.EligibleFish = tournament.EligibleFish
                 .Select(fish => new FishingTournamentFishType
@@ -528,6 +554,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
