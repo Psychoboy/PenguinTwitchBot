@@ -32,6 +32,7 @@
                                 <MudTh>Rarity</MudTh>
                                 <MudTh>Base Weight</MudTh>
                                 <MudTh>Base Gold</MudTh>
+                                <MudTh>Categories</MudTh>
                                 <MudTh>Enabled</MudTh>
                                 <MudTh>Actions</MudTh>
                             </HeaderContent>
@@ -65,6 +66,14 @@
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                         <MudIcon Icon="@Icons.Material.Filled.AttachMoney" Size="Size.Small" Color="Color.Warning" />
                                         <MudText>@context.BaseGold</MudText>
+                                    </MudStack>
+                                </MudTd>
+                                <MudTd DataLabel="Categories">
+                                    <MudStack Row="true" Spacing="1" Style="flex-wrap: wrap;">
+                                        @foreach (var category in context.Categories)
+                                        {
+                                            <MudChip T="string" Color="Color.Default" Size="Size.Small">@category.Category</MudChip>
+                                        }
                                     </MudStack>
                                 </MudTd>
                                 <MudTd DataLabel="Enabled">
@@ -886,7 +895,15 @@
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.Start"
                                  AdornmentIcon="@Icons.Material.Filled.AttachMoney"
-                                 HelperText="Rarity will be set automatically based on gold value" />
+                                  HelperText="Rarity will be set automatically based on gold value" />
+
+                <MudTextField @bind-Value="editingFishCategoriesText"
+                              Label="Categories"
+                              HelperText="Comma-separated list. A fish can belong to multiple categories (e.g. Freshwater, Rare, Boss)."
+                              Variant="Variant.Outlined"
+                              Lines="2"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Label" />
 
                 <MudStack Spacing="2">
                     <MudText Typo="Typo.subtitle2">Fish Image & Sound</MudText>
@@ -1234,6 +1251,7 @@
     private bool shopItemDialogVisible = false;
     private bool resetConfirmVisible = false;
     private FishType? editingFish;
+    private string editingFishCategoriesText = string.Empty;
     private FishingShopItem? editingShopItem;
     private bool isResetting = false;
     private bool isSyncing = false;
@@ -1311,9 +1329,30 @@
         };
     }
 
+    private void SyncEditingFishCategories()
+    {
+        if (editingFish == null) return;
+
+        var submittedNames = editingFishCategoriesText
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(category => !string.IsNullOrWhiteSpace(category))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var existingByName = editingFish.Categories
+            .ToDictionary(c => c.Category, c => c, StringComparer.OrdinalIgnoreCase);
+
+        editingFish.Categories = submittedNames
+            .Select(name => existingByName.TryGetValue(name, out var existing)
+                ? new FishCategory { Id = existing.Id, Category = name }
+                : new FishCategory { Id = 0, Category = name })
+            .ToList();
+    }
+
     private void AddNewFish()
     {
         editingFish = new FishType();
+        editingFishCategoriesText = string.Empty;
         uploadedImageFileName = string.Empty;
         uploadedSoundFileName = string.Empty;
         pendingImageFile = null;
@@ -1331,8 +1370,10 @@
                 BaseWeight = fish.BaseWeight,
                 BaseGold = fish.BaseGold,
                 ImageFileName = fish.ImageFileName,
-                Enabled = fish.Enabled
+                Enabled = fish.Enabled,
+                Categories = fish.Categories.Select(c => new FishCategory { Id = c.Id, Category = c.Category }).ToList()
             };
+        editingFishCategoriesText = string.Join(", ", fish.Categories.Select(c => c.Category));
         uploadedImageFileName = string.Empty;
         uploadedSoundFileName = string.Empty;
         pendingImageFile = null;
@@ -1427,6 +1468,8 @@
                     await pendingSoundFile.OpenReadStream(maxAllowedSize: 10485760).CopyToAsync(stream);
                 }
             }
+
+            SyncEditingFishCategories();
 
             if (editingFish.Id == 0)
             {

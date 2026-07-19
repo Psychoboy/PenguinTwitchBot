@@ -36,6 +36,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             return await context.FishTypes
+                .Include(f => f.Categories)
                 .OrderBy(f => f.Name)
                 .ToListAsync();
         }
@@ -69,7 +70,30 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishTypes.Update(fishType);
+
+            var existing = await context.FishTypes
+                .Include(f => f.Categories)
+                .FirstOrDefaultAsync(f => f.Id == fishType.Id);
+
+            if (existing == null)
+            {
+                context.FishTypes.Add(fishType);
+                await context.SaveChangesAsync();
+                return;
+            }
+
+            existing.Name = fishType.Name;
+            existing.Rarity = fishType.Rarity;
+            existing.BaseWeight = fishType.BaseWeight;
+            existing.BaseGold = fishType.BaseGold;
+            existing.ImageFileName = fishType.ImageFileName;
+            existing.Enabled = fishType.Enabled;
+
+            context.FishCategories.RemoveRange(existing.Categories);
+            existing.Categories = fishType.Categories
+                .Select(category => new FishCategory { Category = category.Category })
+                .ToList();
+
             await context.SaveChangesAsync();
         }
 
@@ -181,6 +205,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
@@ -201,6 +227,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
@@ -224,6 +252,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
@@ -244,6 +274,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
@@ -263,6 +295,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
                 .FirstOrDefaultAsync(t => t.Id == tournamentId);
 
             if (tournament == null)
@@ -346,6 +380,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                 .FirstOrDefaultAsync(t => t.Id == templateTournamentId);
 
@@ -372,6 +407,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 EntryFeePointTypeId = template.EntryFeePointTypeId,
                 EligibleFish = template.EligibleFish
                     .Select(fish => new FishingTournamentFishType { FishTypeId = fish.FishTypeId })
+                    .ToList(),
+                EligibleCategories = template.EligibleCategories
+                    .Select(category => new FishingTournamentEligibleCategory { Category = category.Category })
                     .ToList(),
                 RewardRules = template.RewardRules
                     .Select(rule => new FishingTournamentRewardRule
@@ -446,6 +484,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var persistedTournament = await context.FishingTournaments
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                 .FirstOrDefaultAsync(t => t.Id == tournament.Id);
 
@@ -471,11 +510,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             context.FishingTournamentFishTypes.RemoveRange(persistedTournament.EligibleFish);
             context.FishingTournamentRewardRules.RemoveRange(persistedTournament.RewardRules);
+            context.RemoveRange(persistedTournament.EligibleCategories);
 
             persistedTournament.EligibleFish = tournament.EligibleFish
                 .Select(fish => new FishingTournamentFishType
                 {
                     FishTypeId = fish.FishTypeId
+                })
+                .ToList();
+
+            persistedTournament.EligibleCategories = tournament.EligibleCategories
+                .Select(category => new FishingTournamentEligibleCategory
+                {
+                    Category = category.Category
                 })
                 .ToList();
 
@@ -507,6 +554,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
+                .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
@@ -750,16 +798,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var startUtc = tournament.StartsAtUtc ?? DateTime.MinValue;
             var endUtc = settlementEndUtc ?? tournament.EndsAtUtc ?? DateTime.UtcNow;
-            var eligibleFishTypeIds = tournament.EligibleFish.Select(e => e.FishTypeId).ToHashSet();
+
+            var hasEligibleFish = tournament.EligibleFish.Count > 0;
+            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
 
             var query = context.FishCatches
                 .AsNoTracking()
                 .Include(c => c.FishType)
                 .Where(c => c.CaughtAt >= startUtc && c.CaughtAt <= endUtc);
 
-            if (eligibleFishTypeIds.Count > 0)
+            // No fish and no categories selected means all fish are eligible (default behavior).
+            if (hasEligibleFish || hasEligibleCategories)
             {
-                query = query.Where(c => eligibleFishTypeIds.Contains(c.FishTypeId));
+                var eligibleFishTypeIds = tournament.EligibleFish.Select(e => e.FishTypeId).ToHashSet();
+                var eligibleCategorySet = tournament.EligibleCategories
+                    .Select(e => e.Category)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var eligibleByCategoryFishTypeIds = new HashSet<int>();
+                if (eligibleCategorySet.Count > 0)
+                {
+                    eligibleByCategoryFishTypeIds = await context.FishCategories
+                        .Where(fc => eligibleCategorySet.Contains(fc.Category))
+                        .Select(fc => fc.FishTypeId)
+                        .Distinct()
+                        .ToHashSetAsync();
+                }
+
+                query = query.Where(c =>
+                    (hasEligibleFish && eligibleFishTypeIds.Contains(c.FishTypeId)) ||
+                    (hasEligibleCategories && eligibleByCategoryFishTypeIds.Contains(c.FishTypeId)));
             }
 
             return await query.ToListAsync();

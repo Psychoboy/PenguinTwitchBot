@@ -13,6 +13,20 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int BaseGold { get; set; } = 10;
         public string ImageFileName { get; set; } = string.Empty;
         public bool Enabled { get; set; } = true;
+
+        public ICollection<FishCategory> Categories { get; set; } = [];
+    }
+
+    public class FishCategory
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int FishTypeId { get; set; }
+        public FishType FishType { get; set; } = null!;
+
+        [MaxLength(128)]
+        public string Category { get; set; } = string.Empty;
     }
 
     public enum FishRarity
@@ -74,6 +88,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public PointType? EntryFeePointType { get; set; }
 
         public ICollection<FishingTournamentFishType> EligibleFish { get; set; } = [];
+        public ICollection<FishingTournamentEligibleCategory> EligibleCategories { get; set; } = [];
         public ICollection<FishingTournamentRewardRule> RewardRules { get; set; } = [];
     }
 
@@ -87,6 +102,18 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
         public int FishTypeId { get; set; }
         public FishType FishType { get; set; } = null!;
+    }
+
+    public class FishingTournamentEligibleCategory
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int FishingTournamentId { get; set; }
+        public FishingTournament FishingTournament { get; set; } = null!;
+
+        [MaxLength(128)]
+        public string Category { get; set; } = string.Empty;
     }
 
     public class FishingTournamentRewardRule

@@ -26,7 +26,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var tournaments = await fishingService.GetCurrentFishingTournaments();
             var matchingTournaments = tournaments
                 .Where(tournament => tournament.Enabled && tournament.Status == Database.Bot.Models.Fishing.FishingTournamentStatus.Active)
-                .Where(tournament => tournament.EligibleFish.Count == 0 || tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
+                .Where(tournament => IsFishEligible(tournament, fishTypeId))
                 .OrderBy(tournament => tournament.StartsAtUtc)
                 .ThenBy(tournament => tournament.Name)
                 .ToList();
@@ -102,6 +102,38 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             return null;
+        }
+
+        private static bool IsFishEligible(Database.Bot.Models.Fishing.FishingTournament tournament, int fishTypeId)
+        {
+            var hasEligibleFish = tournament.EligibleFish.Count > 0;
+            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
+
+            // No fish and no categories selected means all fish are eligible (default behavior).
+            if (!hasEligibleFish && !hasEligibleCategories)
+            {
+                return true;
+            }
+
+            if (hasEligibleFish && tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
+            {
+                return true;
+            }
+
+            if (hasEligibleCategories)
+            {
+                var fishCategories = tournament.EligibleFish
+                    .Where(fish => fish.FishTypeId == fishTypeId)
+                    .SelectMany(fish => fish.FishType?.Categories ?? [])
+                    .Select(c => c.Category);
+
+                if (fishCategories.Any(category => tournament.EligibleCategories.Any(selected => string.Equals(selected.Category, category, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private async Task<int> ResolveFishTypeIdAsync(ConcurrentDictionary<string, string> variables)

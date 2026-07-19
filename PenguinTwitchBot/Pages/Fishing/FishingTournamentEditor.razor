@@ -98,6 +98,28 @@
                 <MudDivider />
 
                 <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Eligible Categories</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Include all fish belonging to selected categories. You can also pick individual fish below, or leave both empty to include all fish.
+                    </MudText>
+                    @if (AvailableCategories.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">No categories defined on fish types yet. Add categories to fish first.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudSelect T="string" @bind-SelectedValues="selectedCategoryNames" Label="Categories" MultiSelection="true" Variant="Variant.Outlined">
+                            @foreach (var category in AvailableCategories)
+                            {
+                                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </MudStack>
+
+                <MudDivider />
+
+                <MudStack Spacing="2">
                     <MudText Typo="Typo.h6">Eligible Fish</MudText>
                     @if (fishTypes.Count == 0)
                     {
@@ -228,6 +250,7 @@
                         <MudTh>Status</MudTh>
                         <MudTh>Scoring</MudTh>
                         <MudTh>Eligible Fish</MudTh>
+                        <MudTh>Eligible Categories</MudTh>
                         <MudTh>Rewards</MudTh>
                         <MudTh>Actions</MudTh>
                     </HeaderContent>
@@ -241,6 +264,7 @@
                         <MudTd DataLabel="Status">@context.Status</MudTd>
                         <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
                         <MudTd DataLabel="Eligible Fish">@context.EligibleFish.Count</MudTd>
+                        <MudTd DataLabel="Eligible Categories">@context.EligibleCategories.Count</MudTd>
                         <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
                         <MudTd DataLabel="Actions">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
@@ -268,7 +292,14 @@
     private readonly List<PointType> pointTypes = new();
     private readonly List<FishingTournamentRewardRule> rewardRules = new();
     private readonly List<int> selectedFishTypeIds = new();
+    private IReadOnlyCollection<string> selectedCategoryNames { get; set; } = new HashSet<string>();
     private readonly List<int> placementOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    private List<string> AvailableCategories => fishTypes
+        .SelectMany(f => f.Categories.Select(c => c.Category))
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+        .ToList();
     private static readonly FishingTournamentStatus[] editableStatuses =
     [
         FishingTournamentStatus.Draft,
@@ -352,6 +383,7 @@
         editorEntryFeeAmount = null;
         editorEntryFeePointTypeId = pointTypes.FirstOrDefault()?.Id;
         selectedFishTypeIds.Clear();
+        selectedCategoryNames = new HashSet<string>();
         rewardRules.Clear();
         AddRewardRule();
         errorMessage = null;
@@ -380,6 +412,7 @@
         editorEntryFeePointTypeId = tournament.EntryFeePointTypeId ?? pointTypes.FirstOrDefault()?.Id;
         selectedFishTypeIds.Clear();
         selectedFishTypeIds.AddRange(tournament.EligibleFish.Select(fish => fish.FishTypeId));
+        selectedCategoryNames = new HashSet<string>(tournament.EligibleCategories.Select(c => c.Category), StringComparer.OrdinalIgnoreCase);
         rewardRules.Clear();
         rewardRules.AddRange(tournament.RewardRules.Select(rule => new FishingTournamentRewardRule
         {
@@ -463,12 +496,6 @@
                 return;
             }
 
-            if (selectedFishTypeIds.Count == 0)
-            {
-                errorMessage = "Select at least one eligible fish type.";
-                return;
-            }
-
             if (editorEntryFeeAmount.HasValue && !editorEntryFeePointTypeId.HasValue)
             {
                 errorMessage = "Choose a point type for the entry fee.";
@@ -529,6 +556,10 @@
                 EligibleFish = selectedFishTypeIds
                     .Distinct()
                     .Select(fishTypeId => new FishingTournamentFishType { FishTypeId = fishTypeId })
+                    .ToList(),
+                EligibleCategories = selectedCategoryNames
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(category => new FishingTournamentEligibleCategory { Category = category })
                     .ToList(),
                 RewardRules = rewardRules
                     .Select(rule => new FishingTournamentRewardRule
@@ -655,6 +686,9 @@
                 EntryFeePointTypeId = tournament.EntryFeePointTypeId,
                 EligibleFish = tournament.EligibleFish
                     .Select(fish => new FishingTournamentFishType { FishTypeId = fish.FishTypeId })
+                    .ToList(),
+                EligibleCategories = tournament.EligibleCategories
+                    .Select(category => new FishingTournamentEligibleCategory { Category = category.Category })
                     .ToList(),
                 RewardRules = tournament.RewardRules
                     .Select(rule => new FishingTournamentRewardRule

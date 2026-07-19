@@ -229,6 +229,25 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             // Reset fishing deletion flag at the start of restore
             Repository.Repositories.FishingRepository.ResetDeletionFlag();
 
+            // Reloading the entire dataset means every table is rewritten (delete + reinsert).
+            // Restoring PointTypes before its dependents would otherwise trip "FOREIGN KEY
+            // constraint failed" when ExecuteDeleteAsync wipes PointTypes while rows in
+            // tournaments, reward rules, and point balances still reference them. Disable
+            // FK enforcement for the duration of the restore and re-enable it afterward.
+            await SetForeignKeysAsync(context, false, logger);
+
+            try
+            {
+                await RestoreDatabaseCore(context, backupDirectory, logger);
+            }
+            finally
+            {
+                await SetForeignKeysAsync(context, true, logger);
+            }
+        }
+
+        private async Task RestoreDatabaseCore(DbContext context, string backupDirectory, ILogger? logger)
+        {
             // Get all handler types
             var allHandlers = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(s =>
@@ -410,6 +429,31 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                 {
                     logger?.LogWarning(ex, "Failed to copy file {File}, skipping", file);
                 }
+            }
+        }
+
+        private static async Task SetForeignKeysAsync(DbContext context, bool enable, ILogger? logger)
+        {
+            try
+            {
+                var isPostgres = context.Database.ProviderName?.Contains("Npgsql") == true;
+                var sql = isPostgres
+                    ? "SET session_replication_role = 'replica';"
+                    : "PRAGMA foreign_keys = OFF;";
+
+                if (isPostgres)
+                {
+                    // 'replica' disables triggers (incl. FK checks) for the session.
+                    await context.Database.ExecuteSqlRawAsync(enable ? "SET session_replication_role = 'origin';" : sql);
+                }
+                else
+                {
+                    await context.Database.ExecuteSqlRawAsync(enable ? "PRAGMA foreign_keys = ON;" : sql);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to {State} foreign keys during restore", enable ? "enable" : "disable");
             }
         }
 

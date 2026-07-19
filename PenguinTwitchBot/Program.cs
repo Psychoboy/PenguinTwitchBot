@@ -966,10 +966,12 @@ try
                 break;
 
             case "sqlite":
-                // Append shared-cache, foreign keys, and pooling defaults if not already specified
+                // WAL + foreign keys are enabled via SqliteWalInterceptor. Shared-cache mode
+                // (Cache=Shared) is intentionally avoided: it causes cross-connection table
+                // locks ("database table is locked", SQLITE_LOCKED) under concurrent reads/writes.
                 var sqliteConnStr = connectionString!.Contains("Cache=", StringComparison.OrdinalIgnoreCase)
                     ? connectionString
-                    : connectionString + ";Cache=Shared;Foreign Keys=True";
+                    : connectionString + ";Foreign Keys=True";
                 options.UseSqlite(sqliteConnStr, sqliteOptions =>
                 {
                     sqliteOptions.MigrationsAssembly(migrationsAssembly)
