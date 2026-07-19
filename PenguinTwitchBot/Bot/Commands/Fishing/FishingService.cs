@@ -717,12 +717,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         FishingTournamentScoreCategory.MostCatches => group.Count(),
                         FishingTournamentScoreCategory.TotalWeight => group.Sum(c => c.Weight),
                         _ => 0
-                    }
+                    },
+                    TotalStars = group.Sum(c => c.Stars)
                 });
 
             return scoreCategory == FishingTournamentScoreCategory.Smallest
-                ? grouped.OrderBy(x => x.Score).ThenBy(x => x.Username).ToList()
-                : grouped.OrderByDescending(x => x.Score).ThenBy(x => x.Username).ToList();
+                ? [.. grouped.OrderBy(x => x.Score).ThenBy(x  => x.CatchCount).ThenBy(x => x.TotalStars)]
+                : [.. grouped.OrderByDescending(x => x.Score).ThenBy(x => x.CatchCount).ThenBy(x => x.TotalStars)];
         }
 
         private static async Task<List<FishCatch>> GetTournamentCatches(ApplicationDbContext context, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
@@ -770,6 +771,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public string Username { get; set; } = string.Empty;
             public int CatchCount { get; set; }
             public DateTime? LastCaughtAtUtc { get; set; }
+            public int TotalStars { get; set; }
             public double Score { get; set; }
         }
 

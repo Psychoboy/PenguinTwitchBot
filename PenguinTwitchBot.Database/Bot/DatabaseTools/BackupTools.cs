@@ -415,24 +415,47 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
 
         private static async Task ResetPostgresSequencesAsync(DbContext context, ILogger? logger)
         {
-            var tables = new[]
-            {
-                "PointTypes",
-            };
+            // Reset the identity sequence for every table whose rows were restored with
+            // explicit Id values. If the sequence's last value fell behind the restored
+            // MAX(Id), the next auto-generated Id collides with an existing row and fails
+            // with a duplicate-key error (e.g. PK_FishTypes).
+            //
+            // We use ALTER TABLE ... RESTART WITH (not setval/pg_get_serial_sequence)
+            // because pg_get_serial_sequence() returns NULL for GENERATED AS IDENTITY
+            // columns, which would make setval a silent no-op. RESTART WITH is the
+            // authoritative reset for both serial and identity columns.
+            var entityTypes = context.Model.GetEntityTypes()
+                .Where(e => e.FindPrimaryKey()?.Properties.Count == 1)
+                .ToList();
 
-            foreach (var table in tables)
+            foreach (var entityType in entityTypes)
             {
+                var table = entityType.GetTableName();
+                var keyProperty = entityType.FindPrimaryKey()!.Properties[0];
+                if (string.IsNullOrEmpty(table) || keyProperty.ClrType != typeof(int))
+                {
+                    continue;
+                }
+
                 try
                 {
 #pragma warning disable EF1002
                     await context.Database.ExecuteSqlRawAsync(
-                        $"SELECT setval(pg_get_serial_sequence('\"{table}\"', 'Id'), COALESCE((SELECT MAX(\"Id\") FROM \"{table}\"), 1), true)");
+                        $"SELECT COALESCE(MAX(\"Id\"), 0) + 1 FROM \"{table}\"");
+                    var restartSql = @$"
+                        DO $$
+                        DECLARE next_val int;
+                        BEGIN
+                            SELECT COALESCE(MAX(""Id""), 0) + 1 INTO next_val FROM ""{table}"";
+                            EXECUTE format('ALTER TABLE ""{table}"" ALTER COLUMN ""Id"" RESTART WITH %s', next_val);
+                        END $$;";
+                    await context.Database.ExecuteSqlRawAsync(restartSql);
 #pragma warning restore EF1002
-                    logger?.LogDebug("Reset sequence for table {Table}", table);
+                    logger?.LogDebug("Reset identity for table {Table}", table);
                 }
                 catch (Exception ex)
                 {
-                    logger?.LogWarning(ex, "Failed to reset sequence for table {Table}", table);
+                    logger?.LogWarning(ex, "Failed to reset identity for table {Table}", table);
                 }
             }
         }
