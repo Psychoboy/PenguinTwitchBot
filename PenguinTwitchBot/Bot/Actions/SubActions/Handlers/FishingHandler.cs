@@ -182,7 +182,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var tournaments = await _fishingService.GetCurrentFishingTournaments();
                 var matchingTournaments = tournaments
                     .Where(tournament => tournament.Enabled && tournament.Status == FishingTournamentStatus.Active)
-                    .Where(tournament => tournament.EligibleFish.Count == 0 || tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
+                    .Where(tournament => IsFishEligible(tournament, fishTypeId))
                     .OrderBy(tournament => tournament.StartsAtUtc)
                     .ThenBy(tournament => tournament.Name)
                     .ToList();
@@ -322,6 +322,37 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fishing_tournament_reward_qualifying_ids"] = string.Join(",", rewardQualifying.Select(item => item.Tournament.Id));
             variables["fishing_tournament_reward_qualifying_names"] = string.Join(", ", rewardQualifying.Select(item => item.Tournament.Name));
             variables["fishing_tournament_reward_qualifying_max_place"] = rewardQualifying.Count > 0 ? rewardQualifying[0].MaxPlace.ToString() : string.Empty;
+        }
+
+        private static bool IsFishEligible(FishingTournament tournament, int fishTypeId)
+        {
+            var hasEligibleFish = tournament.EligibleFish.Count > 0;
+            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
+
+            if (!hasEligibleFish && !hasEligibleCategories)
+            {
+                return true;
+            }
+
+            if (hasEligibleFish && tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
+            {
+                return true;
+            }
+
+            if (hasEligibleCategories)
+            {
+                var fishCategories = tournament.EligibleFish
+                    .Where(fish => fish.FishTypeId == fishTypeId)
+                    .SelectMany(fish => fish.FishType?.Categories ?? [])
+                    .Select(c => c.Category);
+
+                if (fishCategories.Any(category => tournament.EligibleCategories.Any(selected => string.Equals(selected.Category, category, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string? GetCurrentUserId(ConcurrentDictionary<string, string> variables)

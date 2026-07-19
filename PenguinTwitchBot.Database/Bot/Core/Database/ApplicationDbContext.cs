@@ -65,6 +65,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
 
         // Fishing tables
         public DbSet<FishType> FishTypes { get; set; } = null!;
+        public DbSet<FishCategory> FishCategories { get; set; } = null!;
         public DbSet<FishCatch> FishCatches { get; set; } = null!;
         public DbSet<FishingSnapEvent> FishingSnapEvents { get; set; } = null!;
         public DbSet<FishingGold> FishingGolds { get; set; } = null!;

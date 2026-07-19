@@ -819,6 +819,27 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("FishCatches");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FishTypeId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FishTypeId");
+
+                    b.ToTable("FishCategories");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", b =>
                 {
                     b.Property<int>("Id")
@@ -1095,6 +1116,27 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
 
                     b.ToTable("FishingTournamentCatches");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentEligibleCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FishingTournamentId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FishingTournamentId");
+
+                    b.ToTable("FishingTournamentEligibleCategory");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentFishType", b =>
@@ -3169,6 +3211,17 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Navigation("FishType");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCategory", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", "FishType")
+                        .WithMany("Categories")
+                        .HasForeignKey("FishTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FishType");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingShopItem", b =>
                 {
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", "TargetFishType")
@@ -3203,6 +3256,17 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired();
 
                     b.Navigation("FishCatch");
+
+                    b.Navigation("FishingTournament");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournamentEligibleCategory", b =>
+                {
+                    b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", "FishingTournament")
+                        .WithMany("EligibleCategories")
+                        .HasForeignKey("FishingTournamentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("FishingTournament");
                 });
@@ -3327,8 +3391,15 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Navigation("Triggers");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishType", b =>
+                {
+                    b.Navigation("Categories");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", b =>
                 {
+                    b.Navigation("EligibleCategories");
+
                     b.Navigation("EligibleFish");
 
                     b.Navigation("RewardRules");

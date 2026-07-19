@@ -285,6 +285,7 @@
 @code {
     private List<FishingTournament> currentTournaments = new();
     private List<FishingTournament> pastTournaments = new();
+    private List<FishType> allFishTypes = new();
     private bool isLoading = true;
     private const int eligibleFishCollapsedCount = 3;
     private readonly HashSet<int> expandedEligibleFishTournamentIds = [];
@@ -302,6 +303,7 @@
         expandedEligibleFishTournamentIds.Clear();
         currentTournaments = await FishingService.GetCurrentFishingTournaments();
         pastTournaments = await FishingService.GetPastFishingTournaments();
+        allFishTypes = await FishingService.GetAllFishTypes();
 
         var standingTasks = currentTournaments
             .Concat(pastTournaments)
@@ -360,15 +362,30 @@
             : [];
     }
 
-    private static List<string> GetEligibleFishNames(FishingTournament tournament)
+    private List<string> GetEligibleFishNames(FishingTournament tournament)
     {
-        return tournament.EligibleFish
+        var categorySet = tournament.EligibleCategories
+            .Select(c => c.Category)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var names = tournament.EligibleFish
             .Select(fish => fish.FishType?.Name)
             .OfType<string>()
             .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct()
-            .OrderBy(name => name)
-            .ToList();
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (categorySet.Count > 0)
+        {
+            foreach (var fish in allFishTypes)
+            {
+                if (fish.Categories.Any(c => categorySet.Contains(c.Category)))
+                {
+                    names.Add(fish.Name);
+                }
+            }
+        }
+
+        return [.. names.OrderBy(name => name)];
     }
 
     private void ToggleEligibleFishExpansion(int tournamentId)

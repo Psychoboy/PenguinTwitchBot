@@ -645,6 +645,18 @@
                                                         </MudChip>
                                                     </MudStack>
 
+                                                    @if (hasCaught && fish.Categories.Count > 0)
+                                                    {
+                                                        <MudStack Row="true" Spacing="1" Class="flex-wrap mt-1">
+                                                            @foreach (var category in fish.Categories)
+                                                            {
+                                                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Icon="@Icons.Material.Filled.Label">
+                                                                    @category.Category
+                                                                </MudChip>
+                                                            }
+                                                        </MudStack>
+                                                    }
+
                                                     @if (hasCaught && userBest != null)
                                                     {
                                                         <MudDivider />

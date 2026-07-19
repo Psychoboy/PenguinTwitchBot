@@ -527,3 +527,6 @@ ffmpeg
 yt-dlp
 
 PenguinTwitchBot/appsettings.secrets.json.bak.*
+PenguinTwitchBot/Data/backups/*
+PenguinTwitchBot/wwwroot/audio/*
+PenguinTwitchBot/wwwroot/gifs/*
