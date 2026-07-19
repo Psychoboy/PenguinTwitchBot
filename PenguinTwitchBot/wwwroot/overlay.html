@@ -83,8 +83,13 @@
                     .sort((a, b) => a.zIndex - b.zIndex);
 
                 for (const w of enabledWidgets) {
+                    // Append a cache-busting token so iframe widget pages (e.g.
+                    // fireworks.html) always reload the latest version instead of
+                    // serving a stale cached copy.
+                    const sep = w.sourcePath.includes('?') ? '&' : '?';
+                    const src = w.sourcePath + sep + '_cb=' + Date.now();
                     const iframe = document.createElement('iframe');
-                    iframe.src = w.sourcePath;
+                    iframe.src = src;
                     iframe.className = 'overlay-widget';
                     iframe.style.left   = w.x + 'px';
                     iframe.style.top    = w.y + 'px';

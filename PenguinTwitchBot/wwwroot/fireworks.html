@@ -682,6 +682,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			return fireRandom();
 		}
 
+		// Single-shell launcher for websocket-triggered fireworks.
+		// Each event fires exactly one shell (not a burst sequence) so a rapid
+		// stream of events produces a continuous show. Keeps the perf rate-limit
+		// and load guards so under heavy load we skip instead of queuing bursts.
+		function fireSingleOptimized() {
+			const now = Date.now();
+			if (now - lastOptimizedLaunchAt < PERF_LIMITS.minLaunchGapMs) {
+				return 0;
+			}
+
+			const particles = getActiveParticleCount();
+			lastOptimizedLaunchAt = now;
+
+			if (particles > PERF_LIMITS.criticalParticleCount) {
+				return 0;
+			}
+
+			const size = getRandomShellSize();
+			const shell = new Shell(isLowEndRuntime() || particles > PERF_LIMITS.highParticleCount
+				? randomFastShell()(size.size)
+				: shellFromConfig(size.size));
+			shell.launch(size.x, size.height);
+			return 0;
+		}
+
 
 		function init() {
 			// Remove loading state
@@ -2007,7 +2032,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 						if (wsdata.data.name == "Fireworks") {
 							clearTimeout(timer);
 							timer = setTimeout(cleancanvas, queryConfig.clearCanvasDelayMs);
-							fireRandomOptimized();
+							fireSingleOptimized();
 						}
 					}
 				}
