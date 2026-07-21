@@ -243,7 +243,18 @@
 
         <MudPaper Elevation="3" Class="pa-4">
             <MudStack Spacing="2">
-                <MudText Typo="Typo.h6">Existing Tournaments</MudText>
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h6">Existing Tournaments</MudText>
+                    <MudTooltip Text="Remove category selections from tournaments where that category no longer exists on any fish.">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Warning"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CleaningServices"
+                                   OnClick="CleanOrphanedCategoriesAsync">
+                            Clean Orphaned Categories
+                        </MudButton>
+                    </MudTooltip>
+                </MudStack>
                 <MudTable Items="@allTournaments" Dense="true" Hover="true" Striped="true">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
@@ -263,7 +274,7 @@
                         </MudTd>
                         <MudTd DataLabel="Status">@context.Status</MudTd>
                         <MudTd DataLabel="Scoring">@context.PrimaryScoreCategory</MudTd>
-                        <MudTd DataLabel="Eligible Fish">@context.EligibleFish.Count</MudTd>
+                        <MudTd DataLabel="Eligible Fish">@GetEligibleFishCount(context)</MudTd>
                         <MudTd DataLabel="Eligible Categories">@context.EligibleCategories.Count</MudTd>
                         <MudTd DataLabel="Rewards">@context.RewardRules.Count</MudTd>
                         <MudTd DataLabel="Actions">
@@ -459,6 +470,47 @@
         {
             AddRewardRule();
         }
+    }
+
+    private async Task CleanOrphanedCategoriesAsync()
+    {
+        try
+        {
+            var removed = await FishingService.CleanOrphanedTournamentCategories();
+            await ReloadAsync();
+            statusMessage = removed == 0
+                ? "No orphaned category selections found."
+                : $"Removed {removed} orphaned category selection{(removed == 1 ? "" : "s")} from tournaments.";
+            Snackbar.Add(statusMessage, removed == 0 ? Severity.Info : Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error cleaning orphaned categories: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private int GetEligibleFishCount(FishingTournament tournament)
+    {
+        var categorySet = tournament.EligibleCategories
+            .Select(c => c.Category)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var fishIds = tournament.EligibleFish
+            .Select(f => f.FishTypeId)
+            .ToHashSet();
+
+        if (categorySet.Count > 0)
+        {
+            foreach (var fish in fishTypes)
+            {
+                if (fish.Categories.Any(c => categorySet.Contains(c.Category)))
+                {
+                    fishIds.Add(fish.Id);
+                }
+            }
+        }
+
+        return fishIds.Count;
     }
 
     private void ToggleFishSelection(int fishTypeId, ChangeEventArgs changeEventArgs)

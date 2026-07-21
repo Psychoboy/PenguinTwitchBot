@@ -11,7 +11,8 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 [TriggerTypes.Timer] = FeatureKeys.AutoTimer,
                 [TriggerTypes.FishingTournamentCatch] = FeatureKeys.Fishing,
                 [TriggerTypes.FishingTournamentStart] = FeatureKeys.Fishing,
-                [TriggerTypes.FishingTournamentEnd] = FeatureKeys.Fishing
+                [TriggerTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
+                [TriggerTypes.FishCatch] = FeatureKeys.Fishing
             };
 
         public static bool IsAvailable(TriggerTypes triggerType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)

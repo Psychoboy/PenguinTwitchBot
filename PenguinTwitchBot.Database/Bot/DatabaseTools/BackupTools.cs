@@ -234,6 +234,10 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             // constraint failed" when ExecuteDeleteAsync wipes PointTypes while rows in
             // tournaments, reward rules, and point balances still reference them. Disable
             // FK enforcement for the duration of the restore and re-enable it afterward.
+            // Keep a single open connection for the whole restore so connection-scoped
+            // FK/session settings stay in effect across every command.
+            await context.Database.OpenConnectionAsync();
+
             await SetForeignKeysAsync(context, false, logger);
 
             try
@@ -242,7 +246,14 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             }
             finally
             {
-                await SetForeignKeysAsync(context, true, logger);
+                try
+                {
+                    await SetForeignKeysAsync(context, true, logger);
+                }
+                finally
+                {
+                    await context.Database.CloseConnectionAsync();
+                }
             }
         }
 

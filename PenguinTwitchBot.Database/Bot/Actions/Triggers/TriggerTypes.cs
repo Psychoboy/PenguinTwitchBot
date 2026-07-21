@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         Keyword,
         FishingTournamentCatch,
         FishingTournamentStart,
-        FishingTournamentEnd
+        FishingTournamentEnd,
+        FishCatch
     }
 }

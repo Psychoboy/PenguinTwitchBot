@@ -113,10 +113,38 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@GetDefaultCommandTriggerSubtitle(context)</MudText>
                             </MudStack>
                         }
+                        else if (context.Type == TriggerTypes.FishCatch)
+                        {
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText>@GetFriendlyTriggerName(context)</MudText>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetFishCatchTriggerSummary(context.Configuration)</MudText>
+                            </MudStack>
+                        }
+                        else if (context.Type == TriggerTypes.FishingTournamentCatch ||
+                                 context.Type == TriggerTypes.FishingTournamentStart ||
+                                 context.Type == TriggerTypes.FishingTournamentEnd)
+                        {
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText>@GetFriendlyTriggerName(context)</MudText>
+                                    @if (isFeatureDisabled)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
+                                    }
+                                </MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@GetFishingLifecycleTriggerSummary(context)</MudText>
+                            </MudStack>
+                        }
                         else
                         {
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudText>@context.Name</MudText>
+                                <MudText>@GetFriendlyTriggerName(context)</MudText>
                                 @if (isFeatureDisabled)
                                 {
                                     <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Feature Disabled</MudChip>
@@ -126,7 +154,7 @@
                     </MudTd>
                     <MudTd DataLabel="Type">
                         <MudChip T="string" Size="Size.Small" Color="@GetTriggerTypeColor(context.Type)">
-                            @context.Type.ToString()
+                            @GetTriggerTypeDisplayName(context.Type)
                         </MudChip>
                     </MudTd>
                     <MudTd DataLabel="Enabled">
@@ -134,6 +162,11 @@
                                    Color="Color.Success" />
                     </MudTd>
                     <MudTd DataLabel="Actions" Style="text-align: right;">
+                        @if (!ReadOnly && IsEditableActionManagementTrigger(context))
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="@(() => EditTrigger(context))" />
+                        }
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" 
                                        OnClick="@(() => RemoveTrigger(context))" />
                     </MudTd>
@@ -402,6 +435,59 @@
         await dialog.Result;
     }
 
+    private async Task EditTrigger(TriggerType trigger)
+    {
+        var parameters = new DialogParameters<AddTriggerDialog>
+        {
+            { x => x.ActionId, ActionId ?? trigger.ActionId ?? 0 },
+            { x => x.ExistingTrigger, trigger }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddTriggerDialog>("Edit Trigger", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        if (result == null || result.Canceled || result.Data == null)
+        {
+            return;
+        }
+
+        try
+        {
+            dynamic data = result.Data;
+            trigger.Name = data.TriggerName;
+            trigger.Type = data.TriggerType;
+            trigger.Configuration = data.Configuration;
+
+            trigger.CommandId = data.CommandId;
+            trigger.KeywordId = data.KeywordId;
+            trigger.TimerGroupId = data.TimerGroupId;
+            trigger.DefaultCommandId = data.DefaultCommandId;
+
+            if (trigger.Id > 0)
+            {
+                var updatedTrigger = await ActionService.UpdateTriggerAsync(trigger);
+                var triggerIndex = ActionTriggers.FindIndex(t => t.Id == updatedTrigger.Id);
+                if (triggerIndex >= 0)
+                {
+                    ActionTriggers[triggerIndex] = updatedTrigger;
+                }
+            }
+
+            await ActionTriggersChanged.InvokeAsync(ActionTriggers);
+            await LoadTimerGroupNames();
+            await LoadDefaultCommandFeatureStates();
+            Snackbar.Add($"Trigger '{GetFriendlyTriggerName(trigger)}' updated successfully", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating trigger: {ex.Message}", Severity.Error);
+        }
+    }
+
     private async Task ToggleTriggerEnabled(TriggerType trigger, bool enabled)
     {
         trigger.Enabled = enabled;
@@ -444,6 +530,108 @@
             TriggerTypes.FishingTournamentEnd => Color.Warning,
             _ => Color.Default
         };
+    }
+
+    private static string GetTriggerTypeDisplayName(TriggerTypes type)
+    {
+        return type switch
+        {
+            TriggerTypes.TwitchEvent => "Twitch Event",
+            TriggerTypes.DefaultCommand => "Default Command",
+            TriggerTypes.FishingTournamentCatch => "Tournament Catch",
+            TriggerTypes.FishingTournamentStart => "Tournament Start",
+            TriggerTypes.FishingTournamentEnd => "Tournament End",
+            TriggerTypes.FishCatch => "Fish Catch",
+            _ => type.ToString()
+        };
+    }
+
+    private static bool IsEditableActionManagementTrigger(TriggerType trigger)
+    {
+        return trigger.Type is TriggerTypes.Manual
+            or TriggerTypes.TwitchEvent
+            or TriggerTypes.FishingTournamentCatch
+            or TriggerTypes.FishingTournamentStart
+            or TriggerTypes.FishingTournamentEnd
+            or TriggerTypes.FishCatch;
+    }
+
+    private static string GetFriendlyTriggerName(TriggerType trigger)
+    {
+        return trigger.Type switch
+        {
+            TriggerTypes.FishCatch => "Fish Caught",
+            TriggerTypes.FishingTournamentCatch => "Tournament Eligible Catch",
+            TriggerTypes.FishingTournamentStart => "Tournament Started",
+            TriggerTypes.FishingTournamentEnd => "Tournament Ended",
+            _ => trigger.Name
+        };
+    }
+
+    private static string GetFishingLifecycleTriggerSummary(TriggerType trigger)
+    {
+        return trigger.Type switch
+        {
+            TriggerTypes.FishingTournamentCatch => "Fires when a catch matches active tournament eligibility",
+            TriggerTypes.FishingTournamentStart => "Fires when any fishing tournament starts",
+            TriggerTypes.FishingTournamentEnd => "Fires when a fishing tournament ends and rewards settle",
+            _ => string.Empty
+        };
+    }
+
+    private static string GetFishCatchTriggerSummary(string configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+        {
+            return "All catches";
+        }
+
+        FishCatchTriggerConfiguration? config;
+        try
+        {
+            config = JsonSerializer.Deserialize<FishCatchTriggerConfiguration>(configurationJson);
+        }
+        catch
+        {
+            return "Invalid configuration";
+        }
+
+        if (config == null)
+        {
+            return "Invalid configuration";
+        }
+
+        var filters = new List<string>();
+        if (config.FishTypeIds.Count > 0)
+        {
+            filters.Add($"Fish: {config.FishTypeIds.Count}");
+        }
+        if (config.Categories.Count > 0)
+        {
+            filters.Add($"Categories: {string.Join(", ", config.Categories.Take(2))}{(config.Categories.Count > 2 ? "..." : string.Empty)}");
+        }
+        if (config.Rarities.Count > 0)
+        {
+            filters.Add($"Rarity: {string.Join(", ", config.Rarities)}");
+        }
+        if (config.MinStars > 0)
+        {
+            filters.Add($"Stars >= {config.MinStars}");
+        }
+        if (config.MinWeight > 0)
+        {
+            filters.Add($"Weight >= {config.MinWeight}");
+        }
+        if (config.MinGold > 0)
+        {
+            filters.Add($"Gold >= {config.MinGold}");
+        }
+        if (config.RequireActiveTournament)
+        {
+            filters.Add("Tournament eligible only");
+        }
+
+        return filters.Count == 0 ? "All catches" : string.Join(" • ", filters);
     }
 
     private bool IsDisabledByFeature(TriggerType trigger)

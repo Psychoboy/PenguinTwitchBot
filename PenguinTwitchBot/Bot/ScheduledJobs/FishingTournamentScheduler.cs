@@ -55,6 +55,23 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
                 {
                     try
                     {
+                        var latestStatus = await db.FishingTournaments
+                            .AsNoTracking()
+                            .Where(t => t.Id == tournamentId)
+                            .Select(t => (Database.Bot.Models.Fishing.FishingTournamentStatus?)t.Status)
+                            .FirstOrDefaultAsync(stoppingToken);
+
+                        // Tournament state can change after we build tournamentsToEnd.
+                        // Re-checking avoids no-op calls being logged as automatic ends.
+                        if (latestStatus != Database.Bot.Models.Fishing.FishingTournamentStatus.Active)
+                        {
+                            logger.LogDebug(
+                                "Skipping auto-end for fishing tournament {TournamentId} because current status is {Status}",
+                                tournamentId,
+                                latestStatus?.ToString() ?? "Missing");
+                            continue;
+                        }
+
                         await fishingService.EndFishingTournament(tournamentId);
                         logger.LogInformation("Automatically ended fishing tournament {TournamentId}", tournamentId);
                     }

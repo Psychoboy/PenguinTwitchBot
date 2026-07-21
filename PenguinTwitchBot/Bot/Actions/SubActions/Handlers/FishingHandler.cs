@@ -19,6 +19,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
+        private const string FishCatchTriggerName = "Fishing.FishCaught";
 
         public SubActionTypes SupportedType => SubActionTypes.Fishing;
 
@@ -151,7 +152,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     variables["fish_weight"] = fishCatch.Weight.ToString();
                     variables["fish_gold"] = fishCatch.GoldEarned.ToString();
 
-                    await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId);
+                    var fishCategoryNames = fishCatch.FishType?.Categories?.Select(c => c.Category).ToList() ?? [];
+                    variables["fish_categories"] = string.Join(", ", fishCategoryNames);
+                    await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId, fishCategoryNames);
+                    await TriggerFishCatchActionsAsync(variables, fishCatch, fishCategoryNames);
 
                 }
                 catch (Exception ex)
@@ -162,7 +166,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
         }
 
-        private async Task TriggerFishingTournamentCatchActionsAsync(ConcurrentDictionary<string, string> variables, int fishTypeId)
+        private async Task TriggerFishingTournamentCatchActionsAsync(ConcurrentDictionary<string, string> variables, int fishTypeId, IEnumerable<string> fishCategoryNames)
         {
             try
             {
@@ -182,7 +186,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var tournaments = await _fishingService.GetCurrentFishingTournaments();
                 var matchingTournaments = tournaments
                     .Where(tournament => tournament.Enabled && tournament.Status == FishingTournamentStatus.Active)
-                    .Where(tournament => IsFishEligible(tournament, fishTypeId))
+                    .Where(tournament => FishingCalculations.IsFishEligible(tournament, fishTypeId, fishCategoryNames))
                     .OrderBy(tournament => tournament.StartsAtUtc)
                     .ThenBy(tournament => tournament.Name)
                     .ToList();
@@ -324,37 +328,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["fishing_tournament_reward_qualifying_max_place"] = rewardQualifying.Count > 0 ? rewardQualifying[0].MaxPlace.ToString() : string.Empty;
         }
 
-        private static bool IsFishEligible(FishingTournament tournament, int fishTypeId)
-        {
-            var hasEligibleFish = tournament.EligibleFish.Count > 0;
-            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
-
-            if (!hasEligibleFish && !hasEligibleCategories)
-            {
-                return true;
-            }
-
-            if (hasEligibleFish && tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
-            {
-                return true;
-            }
-
-            if (hasEligibleCategories)
-            {
-                var fishCategories = tournament.EligibleFish
-                    .Where(fish => fish.FishTypeId == fishTypeId)
-                    .SelectMany(fish => fish.FishType?.Categories ?? [])
-                    .Select(c => c.Category);
-
-                if (fishCategories.Any(category => tournament.EligibleCategories.Any(selected => string.Equals(selected.Category, category, StringComparison.OrdinalIgnoreCase))))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static string? GetCurrentUserId(ConcurrentDictionary<string, string> variables)
         {
             if (variables.TryGetValue("userid", out var userId) && !string.IsNullOrWhiteSpace(userId))
@@ -368,6 +341,128 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             return null;
+        }
+
+        private async Task TriggerFishCatchActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            FishCatch fishCatch,
+            IReadOnlyList<string> fishCategoryNames)
+        {
+            try
+            {
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                    TriggerTypes.FishCatch,
+                    FishCatchTriggerName);
+
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                List<FishingTournament>? activeTournaments = null;
+
+                foreach (var action in actions)
+                {
+                    var triggers = action.Triggers
+                        .Where(t => t.Type == TriggerTypes.FishCatch && t.Enabled && t.Name == FishCatchTriggerName)
+                        .ToList();
+
+                    if (triggers.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    bool shouldExecute = false;
+
+                    foreach (var trigger in triggers)
+                    {
+                        var config = DeserializeFishCatchConfiguration(trigger.Configuration);
+
+                        if (config.FishTypeIds.Count > 0 && !config.FishTypeIds.Contains(fishCatch.FishTypeId))
+                        {
+                            continue;
+                        }
+
+                        if (config.Categories.Count > 0 &&
+                            !fishCategoryNames.Any(c => config.Categories.Any(cc =>
+                                string.Equals(cc, c, StringComparison.OrdinalIgnoreCase))))
+                        {
+                            continue;
+                        }
+
+                        var rarityName = fishCatch.FishType?.Rarity.ToString() ?? string.Empty;
+                        if (config.Rarities.Count > 0 &&
+                            !config.Rarities.Any(r => string.Equals(r, rarityName, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            continue;
+                        }
+
+                        if (config.MinStars > 0 && fishCatch.Stars < config.MinStars)
+                        {
+                            continue;
+                        }
+
+                        if (config.MinWeight > 0 && fishCatch.Weight < config.MinWeight)
+                        {
+                            continue;
+                        }
+
+                        if (config.MinGold > 0 && fishCatch.GoldEarned < config.MinGold)
+                        {
+                            continue;
+                        }
+
+                        if (config.RequireActiveTournament)
+                        {
+                            activeTournaments ??= await _fishingService.GetCurrentFishingTournaments();
+                            var hasEligibleTournament = activeTournaments.Any(t =>
+                                t.Enabled &&
+                                t.Status == FishingTournamentStatus.Active &&
+                                FishingCalculations.IsFishEligible(t, fishCatch.FishTypeId, fishCategoryNames));
+                            if (!hasEligibleTournament)
+                            {
+                                continue;
+                            }
+                        }
+
+                        shouldExecute = true;
+                        break;
+                    }
+
+                    if (!shouldExecute)
+                    {
+                        continue;
+                    }
+
+                    await actionService.EnqueueAction(new ConcurrentDictionary<string, string>(variables), action);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fish catch actions");
+            }
+        }
+
+        private static FishCatchTriggerConfiguration DeserializeFishCatchConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new FishCatchTriggerConfiguration();
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<FishCatchTriggerConfiguration>(configuration)
+                    ?? new FishCatchTriggerConfiguration();
+            }
+            catch
+            {
+                return new FishCatchTriggerConfiguration();
+            }
         }
     }
 }
