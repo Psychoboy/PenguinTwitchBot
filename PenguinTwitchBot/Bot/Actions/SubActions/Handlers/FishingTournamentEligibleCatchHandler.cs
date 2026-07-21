@@ -16,17 +16,20 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for FishingTournamentEligibleCatchHandler");
             }
 
-            var fishTypeId = await ResolveFishTypeIdAsync(variables);
-            if (fishTypeId <= 0)
+            var fishType = await ResolveFishTypeAsync(variables);
+            if (fishType == null)
             {
                 SetNoMatchVariables(variables);
                 return;
             }
 
+            var fishTypeId = fishType.Id;
+            var fishCategoryNames = fishType.Categories.Select(c => c.Category).ToList();
+
             var tournaments = await fishingService.GetCurrentFishingTournaments();
             var matchingTournaments = tournaments
                 .Where(tournament => tournament.Enabled && tournament.Status == Database.Bot.Models.Fishing.FishingTournamentStatus.Active)
-                .Where(tournament => IsFishEligible(tournament, fishTypeId))
+                .Where(tournament => FishingCalculations.IsFishEligible(tournament, fishTypeId, fishCategoryNames))
                 .OrderBy(tournament => tournament.StartsAtUtc)
                 .ThenBy(tournament => tournament.Name)
                 .ToList();
@@ -104,52 +107,21 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             return null;
         }
 
-        private static bool IsFishEligible(Database.Bot.Models.Fishing.FishingTournament tournament, int fishTypeId)
+        private async Task<Database.Bot.Models.Fishing.FishType?> ResolveFishTypeAsync(ConcurrentDictionary<string, string> variables)
         {
-            var hasEligibleFish = tournament.EligibleFish.Count > 0;
-            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
+            var allFishTypes = await fishingService.GetAllFishTypes();
 
-            // No fish and no categories selected means all fish are eligible (default behavior).
-            if (!hasEligibleFish && !hasEligibleCategories)
-            {
-                return true;
-            }
-
-            if (hasEligibleFish && tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
-            {
-                return true;
-            }
-
-            if (hasEligibleCategories)
-            {
-                var fishCategories = tournament.EligibleFish
-                    .Where(fish => fish.FishTypeId == fishTypeId)
-                    .SelectMany(fish => fish.FishType?.Categories ?? [])
-                    .Select(c => c.Category);
-
-                if (fishCategories.Any(category => tournament.EligibleCategories.Any(selected => string.Equals(selected.Category, category, StringComparison.OrdinalIgnoreCase))))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private async Task<int> ResolveFishTypeIdAsync(ConcurrentDictionary<string, string> variables)
-        {
             if (variables.TryGetValue("fish_type_id", out var fishTypeIdText) && int.TryParse(fishTypeIdText, out var fishTypeId) && fishTypeId > 0)
             {
-                return fishTypeId;
+                return allFishTypes.FirstOrDefault(f => f.Id == fishTypeId);
             }
 
             if (!variables.TryGetValue("fish_type", out var fishTypeName) || string.IsNullOrWhiteSpace(fishTypeName))
             {
-                return 0;
+                return null;
             }
 
-            var fishTypes = await fishingService.GetAllFishTypes();
-            return fishTypes.FirstOrDefault(fish => string.Equals(fish.Name, fishTypeName, StringComparison.OrdinalIgnoreCase))?.Id ?? 0;
+            return allFishTypes.FirstOrDefault(fish => string.Equals(fish.Name, fishTypeName, StringComparison.OrdinalIgnoreCase));
         }
 
         private static void SetNoMatchVariables(ConcurrentDictionary<string, string> variables)

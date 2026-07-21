@@ -208,5 +208,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             
             return amount;
         }
+
+        /// <summary>
+        /// Determines whether a fish is eligible for a tournament based on its explicitly selected fish types,
+        /// selected categories, or (when neither are set) all fish are eligible by default.
+        /// </summary>
+        public static bool IsFishEligible(FishingTournament tournament, int fishTypeId, IEnumerable<string> fishCategoryNames)
+        {
+            var hasEligibleFish = tournament.EligibleFish.Count > 0;
+            var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
+
+            if (!hasEligibleFish && !hasEligibleCategories)
+            {
+                return true;
+            }
+
+            if (hasEligibleFish && tournament.EligibleFish.Any(fish => fish.FishTypeId == fishTypeId))
+            {
+                return true;
+            }
+
+            if (hasEligibleCategories)
+            {
+                if (fishCategoryNames.Any(category => tournament.EligibleCategories.Any(selected =>
+                    string.Equals(selected.Category, category, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

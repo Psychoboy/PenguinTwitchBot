@@ -80,7 +80,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                 }
 
                 var names = string.Join(", ", standings.Select(s => $"{s.Rank}. {s.Username} ({s.Score:N2})"));
-                await ServiceBackbone.SendChatMessage($"{tournament.Name} top {topN}: {names}");
+                var timeRemaining = tournament.EndsAtUtc.HasValue ? $"Time remaining: {(tournament.EndsAtUtc.Value - DateTime.UtcNow).ToString(@"dd\.hh\:mm\:ss")}" : "No end time set.";
+                await ServiceBackbone.SendChatMessage($"{tournament.Name} top {topN}: {names}. {timeRemaining}");
             }
         }
 

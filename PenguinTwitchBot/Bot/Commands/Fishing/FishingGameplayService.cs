@@ -159,25 +159,27 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var activeTournaments = await context.FishingTournaments
                 .AsNoTracking()
                 .Include(t => t.EligibleFish)
+                .Include(t => t.EligibleCategories)
                 .Where(t => t.Enabled && t.Status == FishingTournamentStatus.Active)
                 .Where(t => t.StartsAtUtc == null || t.StartsAtUtc <= fishCatch.CaughtAt)
                 .Where(t => t.EndsAtUtc == null || t.EndsAtUtc >= fishCatch.CaughtAt)
                 .ToListAsync();
 
-            var matchingTournamentIds = activeTournaments
-                .Where(t => t.EligibleFish.Count == 0 || t.EligibleFish.Any(e => e.FishTypeId == fishType.Id))
-                .Select(t => t.Id)
-                .Distinct()
-                .ToList();
-
-            if (matchingTournamentIds.Count > 0)
+            var activeTournamentIds = activeTournaments.Select(t => t.Id).ToList();
+            if(activeTournamentIds.Count > 0)
             {
-                context.FishingTournamentCatches.AddRange(matchingTournamentIds.Select(tournamentId => new FishingTournamentCatch
+                var fishCategoryNames = fishType.Categories.Select(c => c.Category).ToList();
+                foreach(var tournament in activeTournaments)
                 {
-                    FishingTournamentId = tournamentId,
-                    FishCatchId = fishCatch.Id
-                }));
-
+                    if (FishingCalculations.IsFishEligible(tournament, fishType.Id, fishCategoryNames))
+                    {
+                        context.FishingTournamentCatches.Add(new FishingTournamentCatch
+                        {
+                            FishingTournamentId = tournament.Id,
+                            FishCatchId = fishCatch.Id
+                        });
+                    }
+                }
                 await context.SaveChangesAsync();
             }
 

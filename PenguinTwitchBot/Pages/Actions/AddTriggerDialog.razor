@@ -5,6 +5,8 @@
 @using PenguinTwitchBot.Bot.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Bot.Commands.Fishing
 @using MudBlazor
 @using PenguinTwitchBot.Pages.Components
 
@@ -102,6 +104,19 @@
                                 <MudStack Spacing="0">
                                     <MudText Typo="Typo.body1"><b>Fishing Tournament End</b></MudText>
                                     <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is ended and rewards are settled</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishCatch))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishcatch" OnClick="@(() => SelectType(TriggerTypes.FishCatch))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Phishing" Color="Color.Primary" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fish Catch</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger whenever a fish is caught, with optional filters for type, category, rarity, and more</MudText>
                                 </MudStack>
                             </MudStack>
                         </MudListItem>
@@ -290,6 +305,66 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.FishCatch)
+                {
+                    <MudText Typo="Typo.h6">Configure Fish Catch Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires whenever a fish is successfully caught. All filters are optional — leave empty to match any catch.
+                        Variables added: %fish_type%, %fish_type_id%, %fish_rarity%, %fish_stars%, %fish_weight%, %fish_gold%, %fish_categories%.
+                    </MudAlert>
+
+                    @if (_fishTypes.Count > 0)
+                    {
+                        <MudSelect T="int" @bind-SelectedValues="_fishCatchFishTypeIds"
+                                   Label="Specific Fish Types" MultiSelection="true" Variant="Variant.Outlined"
+                                   HelperText="Leave empty to include all fish types">
+                            @foreach (var fish in _fishTypes)
+                            {
+                                <MudSelectItem T="int" Value="@fish.Id">@fish.Name (@fish.Rarity)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    @if (FishCatchAvailableCategories.Count > 0)
+                    {
+                        <MudSelect T="string" @bind-SelectedValues="_fishCatchCategories"
+                                   Label="Category Filter" MultiSelection="true" Variant="Variant.Outlined"
+                                   HelperText="Only fire for fish belonging to at least one selected category">
+                            @foreach (var cat in FishCatchAvailableCategories)
+                            {
+                                <MudSelectItem T="string" Value="@cat">@cat</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    <MudSelect T="string" @bind-SelectedValues="_fishCatchRarities"
+                               Label="Rarity Filter" MultiSelection="true" Variant="Variant.Outlined"
+                               HelperText="Only fire for fish with one of these rarities">
+                        @foreach (var rarity in Enum.GetNames<FishRarity>())
+                        {
+                            <MudSelectItem T="string" Value="@rarity">@rarity</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudNumericField T="int" @bind-Value="_fishCatchMinStars"
+                                     Label="Minimum Stars" Min="0" Max="5" Variant="Variant.Outlined"
+                                     HelperText="0 = any number of stars" />
+
+                    <MudNumericField T="double" @bind-Value="_fishCatchMinWeight"
+                                     Label="Minimum Weight (kg)" Min="0" Variant="Variant.Outlined"
+                                     HelperText="0 = any weight" />
+
+                    <MudNumericField T="int" @bind-Value="_fishCatchMinGold"
+                                     Label="Minimum Gold Earned" Min="0" Variant="Variant.Outlined"
+                                     HelperText="0 = any gold amount" />
+
+                    <MudSwitch T="bool" @bind-Value="_fishCatchRequireActiveTournament" Color="Color.Primary"
+                               Label="Only fire when fish is eligible for an active tournament" />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
                 else
                 {
                     <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
@@ -342,6 +417,7 @@
     [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;
     [Inject] private ICommandHandler CommandHandler { get; set; } = null!;
     [Inject] private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
+    [Inject] private IFishingService FishingService { get; set; } = null!;
 
     private bool _showTypeSelection = true;
     private TriggerTypes? _selectedType;
@@ -359,6 +435,22 @@
     private FishingTournamentCatchTriggerConfiguration _fishingTournamentCatchConfig = new();
     private string _triggerName = "";
 
+    private IReadOnlyCollection<int> _fishCatchFishTypeIds = new HashSet<int>();
+    private IReadOnlyCollection<string> _fishCatchCategories = new HashSet<string>();
+    private IReadOnlyCollection<string> _fishCatchRarities = new HashSet<string>();
+    private int _fishCatchMinStars = 0;
+    private double _fishCatchMinWeight = 0;
+    private int _fishCatchMinGold = 0;
+    private bool _fishCatchRequireActiveTournament = false;
+    private List<FishType> _fishTypes = new();
+
+    private List<string> FishCatchAvailableCategories => _fishTypes
+        .SelectMany(f => f.Categories.Select(c => c.Category))
+        .Where(c => !string.IsNullOrWhiteSpace(c))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
     protected override async Task OnInitializedAsync()
     {
         // Load all action commands for the dropdown
@@ -372,6 +464,12 @@
 
         // Load all default commands for the dropdown
         _defaultCommands = (await CommandHandler.GetDefaultCommandsFromDb()).OrderBy(d => d.CommandName).ToList();
+
+        // Load fish types for FishCatch trigger configuration
+        if (IsTriggerTypeAvailable(TriggerTypes.FishCatch))
+        {
+            _fishTypes = await FishingService.GetAllFishTypes();
+        }
     }
 
     private void SelectType(TriggerTypes type)
@@ -390,6 +488,7 @@
             TriggerTypes.FishingTournamentCatch => "FishingTournament.EligibleCatch",
             TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
             TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
+            TriggerTypes.FishCatch => "Fishing.FishCaught",
             _ => $"{type} Trigger"
         };
     }
@@ -713,6 +812,21 @@
         else if (_selectedType == TriggerTypes.FishingTournamentEnd)
         {
             _triggerName = "FishingTournament.End";
+        }
+        else if (_selectedType == TriggerTypes.FishCatch)
+        {
+            var config = new FishCatchTriggerConfiguration
+            {
+                FishTypeIds = _fishCatchFishTypeIds.ToList(),
+                Categories = _fishCatchCategories.ToList(),
+                Rarities = _fishCatchRarities.ToList(),
+                MinStars = _fishCatchMinStars,
+                MinWeight = _fishCatchMinWeight,
+                MinGold = _fishCatchMinGold,
+                RequireActiveTournament = _fishCatchRequireActiveTournament
+            };
+            configuration = System.Text.Json.JsonSerializer.Serialize(config);
+            _triggerName = "Fishing.FishCaught";
         }
 
         var result = new

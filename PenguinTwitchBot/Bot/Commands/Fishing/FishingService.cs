@@ -1022,6 +1022,24 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return updateCount;
         }
 
+        public async Task<int> CleanOrphanedTournamentCategories()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var orphaned = await context.Set<FishingTournamentEligibleCategory>()
+                .Where(ec => !context.FishCategories.Any(fc => fc.Category == ec.Category))
+                .ToListAsync();
+
+            if (orphaned.Count > 0)
+            {
+                context.Set<FishingTournamentEligibleCategory>().RemoveRange(orphaned);
+                await context.SaveChangesAsync();
+            }
+
+            return orphaned.Count;
+        }
+
         private FishRarity CalculateRarityFromGold(int baseGold, FishingSettings settings)
         {
             return baseGold switch

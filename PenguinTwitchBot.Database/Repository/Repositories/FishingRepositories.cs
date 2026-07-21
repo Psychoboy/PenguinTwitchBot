@@ -18,6 +18,36 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         {
         }
 
+        public override async Task BackupTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            try
+            {
+                var records = await context
+                    .Set<FishType>()
+                    .AsNoTracking()
+                    .Include(f => f.Categories)
+                    .AsSplitQuery()
+                    .ToListAsync();
+
+                var fileName = $"{backupDirectory}/{typeof(FishType).Name}.json";
+                await using var fishTypeStream = new FileStream(fileName, FileMode.Create, FileAccess.Write,
+                    FileShare.None, bufferSize: 65536, useAsync: true);
+
+                await JsonSerializer.SerializeAsync(fishTypeStream, records, new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
+                    WriteIndented = true
+                });
+
+                logger?.LogDebug("Backed up {Count} FishType records with categories", records.Count);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to backup {Name}", typeof(FishType).Name);
+                throw;
+            }
+        }
+
         public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
         {
             try
@@ -93,31 +123,35 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             logger?.LogDebug("Deleting FishCatches...");
             await context.Set<FishCatch>().ExecuteDeleteAsync();
 
-            // 4. Delete FishingShopItems (depends on FishTypes via TargetFishTypeId)
+            // 4. Delete FishCategories (depends on FishTypes)
+            logger?.LogDebug("Deleting FishCategories...");
+            await context.Set<FishCategory>().ExecuteDeleteAsync();
+
+            // 5. Delete FishingShopItems (depends on FishTypes via TargetFishTypeId)
             logger?.LogDebug("Deleting FishingShopItems...");
             await context.Set<FishingShopItem>().ExecuteDeleteAsync();
 
-            // 5. Delete FishingTournamentRewardRules (depends on FishingTournaments + PointTypes)
+            // 6. Delete FishingTournamentRewardRules (depends on FishingTournaments + PointTypes)
             logger?.LogDebug("Deleting FishingTournamentRewardRules...");
             await context.Set<FishingTournamentRewardRule>().ExecuteDeleteAsync();
 
-            // 6. Delete FishingTournamentFishTypes (depends on FishingTournaments + FishTypes)
+            // 7. Delete FishingTournamentFishTypes (depends on FishingTournaments + FishTypes)
             logger?.LogDebug("Deleting FishingTournamentFishTypes...");
             await context.Set<FishingTournamentFishType>().ExecuteDeleteAsync();
 
-            // 7. Delete FishingTournaments (depends on PointTypes and can be referenced by child tables)
+            // 8. Delete FishingTournaments (depends on PointTypes and can be referenced by child tables)
             logger?.LogDebug("Deleting FishingTournaments...");
             await context.Set<FishingTournament>().ExecuteDeleteAsync();
 
-            // 8. Delete FishTypes (master table, no dependencies)
+            // 9. Delete FishTypes (master table, no dependencies)
             logger?.LogDebug("Deleting FishTypes...");
             await context.Set<FishType>().ExecuteDeleteAsync();
 
-            // 9. Delete FishingGold (independent)
+            // 10. Delete FishingGold (independent)
             logger?.LogDebug("Deleting FishingGold...");
             await context.Set<FishingGold>().ExecuteDeleteAsync();
 
-            // 10. Delete FishingSettings (independent)
+            // 11. Delete FishingSettings (independent)
             logger?.LogDebug("Deleting FishingSettings...");
             await context.Set<FishingSettings>().ExecuteDeleteAsync();
 

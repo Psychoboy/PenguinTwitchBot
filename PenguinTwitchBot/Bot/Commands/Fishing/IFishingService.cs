@@ -49,5 +49,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         // Admin Operations
         Task ResetAllUserData();
         Task<int> SyncAllFishRarities();
+        Task<int> CleanOrphanedTournamentCategories();
     }
 }
