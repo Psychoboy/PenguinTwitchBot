@@ -318,6 +318,7 @@
                     {
                         <MudSelect T="int" @bind-SelectedValues="_fishCatchFishTypeIds"
                                    Label="Specific Fish Types" MultiSelection="true" Variant="Variant.Outlined"
+                                   ToStringFunc="GetFishTypeNameById"
                                    HelperText="Leave empty to include all fish types">
                             @foreach (var fish in _fishTypes)
                             {
@@ -387,14 +388,17 @@
                 }
 
                 <MudDivider Class="my-2" />
-                
-                <MudStack Row="true" Spacing="2">
-                    <MudButton class="btn-back" Variant="Variant.Text" Color="Color.Default" 
-                               OnClick="@(() => _showTypeSelection = true)">
-                        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />
-                        Back
-                    </MudButton>
-                </MudStack>
+
+                @if (!IsEditMode)
+                {
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton class="btn-back" Variant="Variant.Text" Color="Color.Default"
+                                   OnClick="@(() => _showTypeSelection = true)">
+                            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />
+                            Back
+                        </MudButton>
+                    </MudStack>
+                }
             }
         </MudStack>
     </DialogContent>
@@ -402,7 +406,7 @@
         <MudButton OnClick="Cancel">Cancel</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
                    Disabled="@(!CanSubmit())">
-            Add Trigger
+            @(IsEditMode ? "Update Trigger" : "Add Trigger")
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -412,6 +416,7 @@
     private IMudDialogInstance MudDialog { get; set; } = null!;
 
     [Parameter] public int ActionId { get; set; }
+    [Parameter] public TriggerType? ExistingTrigger { get; set; }
     [Inject] private IActionCommandService CommandService { get; set; } = null!;
     [Inject] private IActionKeywordService KeywordService { get; set; } = null!;
     [Inject] private PenguinTwitchBot.Bot.Commands.Misc.IAutoTimers TimersService { get; set; } = null!;
@@ -443,6 +448,7 @@
     private int _fishCatchMinGold = 0;
     private bool _fishCatchRequireActiveTournament = false;
     private List<FishType> _fishTypes = new();
+    private bool IsEditMode => ExistingTrigger != null;
 
     private List<string> FishCatchAvailableCategories => _fishTypes
         .SelectMany(f => f.Categories.Select(c => c.Category))
@@ -469,6 +475,87 @@
         if (IsTriggerTypeAvailable(TriggerTypes.FishCatch))
         {
             _fishTypes = await FishingService.GetAllFishTypes();
+        }
+
+        if (IsEditMode)
+        {
+            LoadFromExistingTrigger(ExistingTrigger!);
+        }
+    }
+
+    private void LoadFromExistingTrigger(TriggerType trigger)
+    {
+        _selectedType = trigger.Type;
+        _showTypeSelection = false;
+        _triggerName = trigger.Name;
+
+        _selectedCommandId = trigger.CommandId;
+        _selectedKeywordId = trigger.KeywordId;
+        _selectedDefaultCommand = _defaultCommands.FirstOrDefault(c => c.Id == trigger.DefaultCommandId);
+        _selectedTimerGroup = _timerGroups.FirstOrDefault(t => t.Id == trigger.TimerGroupId);
+
+        if (trigger.Type == TriggerTypes.TwitchEvent)
+        {
+            if (Bot.Actions.Triggers.TwitchEventTriggerConfig.TryFromJson(trigger.Configuration, out var config) && config != null)
+            {
+                _twitchEventConfig = config;
+                _selectedTwitchEvent = config.EventName;
+            }
+            else
+            {
+                _selectedTwitchEvent = trigger.Name;
+            }
+        }
+        else if (trigger.Type == TriggerTypes.DefaultCommand)
+        {
+            try
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
+                if (config != null)
+                {
+                    _selectedEventType = config.EventType;
+                    _selectedDefaultCommand ??= _defaultCommands.FirstOrDefault(c =>
+                        string.Equals(c.CommandName, config.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            catch { }
+        }
+        else if (trigger.Type == TriggerTypes.FishingTournamentCatch)
+        {
+            try
+            {
+                _fishingTournamentCatchConfig = System.Text.Json.JsonSerializer.Deserialize<FishingTournamentCatchTriggerConfiguration>(trigger.Configuration)
+                    ?? new FishingTournamentCatchTriggerConfiguration();
+            }
+            catch
+            {
+                _fishingTournamentCatchConfig = new FishingTournamentCatchTriggerConfiguration();
+            }
+        }
+        else if (trigger.Type == TriggerTypes.FishCatch)
+        {
+            try
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<FishCatchTriggerConfiguration>(trigger.Configuration)
+                    ?? new FishCatchTriggerConfiguration();
+                _fishCatchFishTypeIds = new HashSet<int>(config.FishTypeIds);
+                _fishCatchCategories = new HashSet<string>(config.Categories, StringComparer.OrdinalIgnoreCase);
+                _fishCatchRarities = new HashSet<string>(config.Rarities, StringComparer.OrdinalIgnoreCase);
+                _fishCatchMinStars = config.MinStars;
+                _fishCatchMinWeight = config.MinWeight;
+                _fishCatchMinGold = config.MinGold;
+                _fishCatchRequireActiveTournament = config.RequireActiveTournament;
+            }
+            catch
+            {
+                _fishCatchFishTypeIds = new HashSet<int>();
+                _fishCatchCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                _fishCatchRarities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                _fishCatchMinStars = 0;
+                _fishCatchMinWeight = 0;
+                _fishCatchMinGold = 0;
+                _fishCatchRequireActiveTournament = false;
+            }
         }
     }
 
@@ -851,5 +938,11 @@
     private bool IsTriggerTypeAvailable(TriggerTypes triggerType)
     {
         return TriggerFeatureGate.IsAvailable(triggerType, FeatureRuntimeCoordinator);
+    }
+
+    private string GetFishTypeNameById(int fishTypeId)
+    {
+        var fish = _fishTypes.FirstOrDefault(f => f.Id == fishTypeId);
+        return fish == null ? fishTypeId.ToString() : $"{fish.Name} ({fish.Rarity})";
     }
 }
