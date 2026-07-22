@@ -31,6 +31,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task SetPrizeTier(string? arg);
         Task SetPrize(string arg);
         Task SetImageUrl(string? arg);
+        Task Open();
         Task Close();
         Task Reset();
         Task Draw();

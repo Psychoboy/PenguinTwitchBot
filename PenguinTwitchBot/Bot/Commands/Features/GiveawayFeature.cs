@@ -91,6 +91,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             var moduleName = "GiveawayFeature";
             await RegisterDefaultCommand("enter", this, moduleName);
             await RegisterDefaultCommand("draw", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("open", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
@@ -117,6 +118,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 case "draw":
                     {
                         await Draw();
+                        break;
+                    }
+                case "open":
+                    {
+                        await Open();
                         break;
                     }
                 case "close":
@@ -346,19 +352,24 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         {
             if (TotalWeightedTickets == 0 || WeightedEntries.Count == 0)
             {
-                await Close();
+                await RebuildWeightedPool();
             }
 
+            var boundedIterations = Math.Max(1000, Math.Min(iterations ?? DefaultMonteCarloIterations, 2_000_000));
+
+            return await GenerateAndStoreMonteCarloFairnessReport(boundedIterations);
+        }
+
+        private async Task<GiveawayFairnessReport?> GenerateAndStoreMonteCarloFairnessReport(int iterations)
+        {
             if (TotalWeightedTickets == 0 || WeightedEntries.Count == 0)
             {
                 return null;
             }
 
-            var boundedIterations = Math.Max(1000, Math.Min(iterations ?? DefaultMonteCarloIterations, 2_000_000));
             var entries = WeightedEntries.ToList();
             var totalTickets = TotalWeightedTickets;
-
-            var report = GenerateMonteCarloFairnessReport(entries, totalTickets, boundedIterations, null);
+            var report = GenerateMonteCarloFairnessReport(entries, totalTickets, iterations, null);
 
             await fairnessReportLock.WaitAsync();
             try
@@ -375,14 +386,45 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
 
             logger.LogInformation(
-                "Giveaway Monte Carlo fairness report generated: iterations={Iterations}, entrants={Entrants}, totalTickets={TotalTickets}, maxAbsDelta={MaxAbsDelta}%, poolFingerprint={PoolFingerprint}",
+                "Giveaway Monte Carlo fairness report generated: iterations={Iterations}, entrants={Entrants}, totalTickets={TotalTickets}, maxAbsDelta={MaxAbsDelta}%",
                 report.Iterations,
                 report.Results.Count,
                 report.TotalTickets,
-                report.MaxAbsoluteDeltaPercent.ToString("0.000", CultureInfo.InvariantCulture),
-                report.PoolFingerprint);
+                report.MaxAbsoluteDeltaPercent.ToString("0.000", CultureInfo.InvariantCulture));
 
             return report;
+        }
+
+        private async Task RebuildWeightedPool()
+        {
+            Tickets.Clear();
+            WeightedEntries.Clear();
+            TotalWeightedTickets = 0;
+
+            var entries = await GetEntries();
+            var exclusions = await GetExclusions();
+            var excludedUsers = exclusions
+                .Select(x => x.Username)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in entries)
+            {
+                if (excludedUsers.Contains(entry.Username))
+                {
+                    continue;
+                }
+
+                if (entry.Tickets <= 0)
+                {
+                    continue;
+                }
+
+                // Keep a compact list for visibility while preserving weighted draw odds.
+                Tickets.Add(entry.Username);
+                WeightedEntries.Add((entry.Username, entry.Tickets));
+                TotalWeightedTickets += entry.Tickets;
+            }
         }
 
         public async Task SetPrizeTier(string? arg)
@@ -450,35 +492,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         public async Task Close()
         {
             isClosed = true;
-            Tickets.Clear();
-            WeightedEntries.Clear();
-            TotalWeightedTickets = 0;
             LastDrawSnapshot = null;
-
-            var entries = await GetEntries();
-            var exclusions = await GetExclusions();
-            var excludedUsers = exclusions
-                .Select(x => x.Username)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var entry in entries)
-            {
-                if (excludedUsers.Contains(entry.Username))
-                {
-                    continue;
-                }
-
-                if (entry.Tickets <= 0)
-                {
-                    continue;
-                }
-
-                // Keep a compact list for visibility while preserving weighted draw odds.
-                Tickets.Add(entry.Username);
-                WeightedEntries.Add((entry.Username, entry.Tickets));
-                TotalWeightedTickets += entry.Tickets;
-            }
+            await RebuildWeightedPool();
 
             logger.LogInformation(
                 "Giveaway pool closed with {Entrants} eligible entrants and {Tickets} total tickets. Fairness report: {FairnessReport}",
@@ -488,9 +503,19 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             if (await GetMonteCarloFairnessEnabled())
             {
-                _ = await RunMonteCarloFairnessReport();
+                _ = await GenerateAndStoreMonteCarloFairnessReport(DefaultMonteCarloIterations);
             }
 
+            await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
+        }
+
+        public async Task Open()
+        {
+            isClosed = false;
+            Tickets.Clear();
+            WeightedEntries.Clear();
+            TotalWeightedTickets = 0;
+            LastDrawSnapshot = null;
             await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
@@ -545,13 +570,12 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                     BuildWeightedPoolFingerprint(WeightedEntries, TotalWeightedTickets));
 
                 logger.LogInformation(
-                    "Giveaway draw debug replay: index={Index}, totalTickets={TotalTickets}, entrants={Entrants}, winner={Winner}, winnerTickets={WinnerTickets}, poolFingerprint={PoolFingerprint}",
+                    "Giveaway draw debug replay: index={Index}, totalTickets={TotalTickets}, entrants={Entrants}, winner={Winner}, winnerTickets={WinnerTickets}",
                     LastDrawSnapshot.WinningTicketIndex,
                     LastDrawSnapshot.TotalTickets,
                     LastDrawSnapshot.EligibleEntrants,
                     LastDrawSnapshot.WinnerUsername,
-                    LastDrawSnapshot.WinnerTickets,
-                    LastDrawSnapshot.PoolFingerprint);
+                    LastDrawSnapshot.WinnerTickets);
 
                 var viewer = await viewerFeature.GetViewerByUserName(winningTicket);
                 var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);

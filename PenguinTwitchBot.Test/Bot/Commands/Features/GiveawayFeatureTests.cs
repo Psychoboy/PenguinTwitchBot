@@ -209,6 +209,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
         }
 
         [Fact]
+        public async Task Open_ShouldReopenWithoutResettingEntries()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            await giveawayFeature.Close();
+
+            // Act
+            await giveawayFeature.Open();
+
+            // Assert
+            Assert.False(giveawayFeature.IsClosed());
+            Assert.Empty(giveawayFeature.ClosedTickets);
+            await dbContext.GiveawayEntries.DidNotReceive().ExecuteDeleteAllAsync();
+        }
+
+        [Fact]
         public async Task Draw_ShouldCloseAndDrawWinner()
         {
             // Arrange
@@ -366,6 +383,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.NotNull(report);
             Assert.NotEmpty(history);
             Assert.Equal(report!.PoolFingerprint, history[0].PoolFingerprint);
+        }
+
+        [Fact]
+        public async Task RunMonteCarloFairnessReport_WithAutoEnabled_ShouldNotDuplicateReport()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            gameSettingsService.GetBoolSetting(Arg.Any<string>(), "GiveawayMonteCarloFairnessEnabled", false).Returns(true);
+
+            // Act
+            var report = await giveawayFeature.RunMonteCarloFairnessReport(5000);
+            var history = await giveawayFeature.GetMonteCarloFairnessReports();
+
+            // Assert
+            Assert.NotNull(report);
+            Assert.Single(history);
         }
 
 
@@ -621,6 +655,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             Assert.NotEmpty(giveawayFeature.ClosedTickets);
+        }
+
+        [Fact]
+        public async Task OnCommand_Open()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            await giveawayFeature.Close();
+
+            var commandEvent = new CommandEventArgs { Command = "open" };
+            commandHandler.GetCommandDefaultName("open").Returns("open");
+
+            // Act
+            await giveawayFeature.OnCommand(new object(), commandEvent);
+
+            // Assert
+            Assert.False(giveawayFeature.IsClosed());
+            Assert.Empty(giveawayFeature.ClosedTickets);
         }
 
         [Fact]
