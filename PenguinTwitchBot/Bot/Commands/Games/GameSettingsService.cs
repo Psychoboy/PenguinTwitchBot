@@ -244,7 +244,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             var normalizedSettingName = NormalizeSettingName(settingName);
             var cacheKey = BuildSettingCacheKey(normalizedGameName, normalizedSettingName);
 
-            if(cache.TryGetValue(cacheKey, out GameSetting? setting))
+            if(cache.TryGetValue(cacheKey, out GameSetting? setting) && setting != null)
             {
                 return setting;
             }
@@ -253,8 +253,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             var dbContext = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             setting = (await dbContext.GameSettings.GetAsync(x =>
                 x.GameName == normalizedGameName &&
-                x.SettingName == normalizedSettingName)).FirstOrDefault();
-            cache.Set(cacheKey, setting);
+                x.SettingName == normalizedSettingName,
+                orderBy: q => q.OrderByDescending(x => x.Id),
+                limit: 1)).FirstOrDefault();
+
+            if (setting != null)
+            {
+                cache.Set(cacheKey, setting);
+            }
+            else
+            {
+                cache.Remove(cacheKey);
+            }
+
             return setting;
         }
 
@@ -268,7 +279,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             dbContext.GameSettings.Update(setting);
             await dbContext.SaveChangesAsync();
             var cacheKey = BuildSettingCacheKey(setting.GameName, setting.SettingName);
-            cache.Set(cacheKey, await GetSetting(setting.GameName, setting.SettingName));
+            cache.Set(cacheKey, setting);
         }
 
         private PointType? GetCachedPointTypeForGame(string gameName)

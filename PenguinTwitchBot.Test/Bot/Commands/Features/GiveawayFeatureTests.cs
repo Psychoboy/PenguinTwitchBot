@@ -165,10 +165,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             Assert.NotEmpty(giveawayFeature.ClosedTickets);
-            Assert.Equal(110, giveawayFeature.ClosedTickets.Count);
-            Assert.Equal(10, giveawayFeature.ClosedTickets.Where(x => x.Equals("UserA")).Count());
-            Assert.Equal(100, giveawayFeature.ClosedTickets.Where(x => x.Equals("UserB")).Count());
+            Assert.Equal(2, giveawayFeature.ClosedTickets.Count);
+            Assert.Contains("UserA", giveawayFeature.ClosedTickets);
+            Assert.Contains("UserB", giveawayFeature.ClosedTickets);
 
+        }
+
+        [Fact]
+        public async Task Close_ShouldExcludeShadowBannedUsersFromPool()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            var excludedUsers = new List<GiveawayExclusion>
+            {
+                new GiveawayExclusion { Username = "UserB" }
+            }.BuildMockDbSet().AsQueryable();
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(excludedUsers);
+
+            // Act
+            await giveawayFeature.Close();
+
+            // Assert
+            Assert.Single(giveawayFeature.ClosedTickets);
+            Assert.Equal("UserA", giveawayFeature.ClosedTickets[0]);
         }
 
 
@@ -187,6 +206,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             Assert.Empty(giveawayFeature.ClosedTickets);
             await dbContext.GiveawayEntries.Received(1).ExecuteDeleteAllAsync();
             await dbContext.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task Open_ShouldReopenWithoutResettingEntries()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            await giveawayFeature.Close();
+
+            // Act
+            await giveawayFeature.Open();
+
+            // Assert
+            Assert.False(giveawayFeature.IsClosed());
+            Assert.Empty(giveawayFeature.ClosedTickets);
+            await dbContext.GiveawayEntries.DidNotReceive().ExecuteDeleteAllAsync();
         }
 
         [Fact]
@@ -209,6 +245,161 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             await dbContext.Received(1).SaveChangesAsync();
             await serviceBackbone.Received(1).SendChatMessage(Arg.Is<string>(x => x.Contains("won the")));
 
+        }
+
+        [Fact]
+        public async Task Draw_ShouldSendNoEligibleEntriesMessage_WhenEveryoneExcluded()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            var excludedUsers = new List<GiveawayExclusion>
+            {
+                new GiveawayExclusion { Username = "UserA" },
+                new GiveawayExclusion { Username = "UserB" }
+            }.BuildMockDbSet().AsQueryable();
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(excludedUsers);
+            gameSettingsService.GetStringSetting(Arg.Any<string>(), "draw.noentries", Arg.Any<string>()).Returns("No eligible entries for the giveaway draw.");
+
+            // Act
+            await giveawayFeature.Draw();
+
+            // Assert
+            await serviceBackbone.Received(1).SendChatMessage("No eligible entries for the giveaway draw.");
+            await dbContext.GiveawayWinners.DidNotReceive().AddAsync(Arg.Any<GiveawayWinner>());
+        }
+
+        [Fact]
+        public void WeightedSelector_ShouldMapExactTicketRanges()
+        {
+            // Arrange
+            var weightedEntries = new List<(string Username, int Tickets)>
+            {
+                ("UserA", 2),
+                ("UserB", 3),
+                ("UserC", 5)
+            };
+            var totalTickets = 10;
+            var winCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            // Act
+            for (var index = 0; index < totalTickets; index++)
+            {
+                var winner = GiveawayFeature.SelectWinnerFromWeightedEntries(weightedEntries, totalTickets, index);
+                Assert.NotNull(winner);
+                var username = winner!.Value.Username;
+                winCounts[username] = winCounts.GetValueOrDefault(username, 0) + 1;
+            }
+
+            // Assert
+            Assert.Equal(2, winCounts["UserA"]);
+            Assert.Equal(3, winCounts["UserB"]);
+            Assert.Equal(5, winCounts["UserC"]);
+        }
+
+        [Fact]
+        public void WeightedSelector_ShouldThrow_ForOutOfRangeIndex()
+        {
+            // Arrange
+            var weightedEntries = new List<(string Username, int Tickets)> { ("UserA", 1) };
+
+            // Act / Assert
+            Assert.Throws<ArgumentOutOfRangeException>(() => GiveawayFeature.SelectWinnerFromWeightedEntries(weightedEntries, 1, -1));
+            Assert.Throws<ArgumentOutOfRangeException>(() => GiveawayFeature.SelectWinnerFromWeightedEntries(weightedEntries, 1, 1));
+        }
+
+        [Fact]
+        public void FairnessReport_ShouldIncludeExpectedPercentages()
+        {
+            // Arrange
+            var weightedEntries = new List<(string Username, int Tickets)>
+            {
+                ("UserA", 2),
+                ("UserB", 3),
+                ("UserC", 5)
+            };
+
+            // Act
+            var report = GiveawayFeature.BuildFairnessReport(weightedEntries, 10);
+
+            // Assert
+            Assert.Contains("UserA:2(20.00%)", report);
+            Assert.Contains("UserB:3(30.00%)", report);
+            Assert.Contains("UserC:5(50.00%)", report);
+        }
+
+        [Fact]
+        public void WeightedPoolFingerprint_ShouldBeStable_ForSameInput()
+        {
+            // Arrange
+            var weightedEntries = new List<(string Username, int Tickets)>
+            {
+                ("UserB", 3),
+                ("UserA", 2)
+            };
+
+            // Act
+            var first = GiveawayFeature.BuildWeightedPoolFingerprint(weightedEntries, 5);
+            var second = GiveawayFeature.BuildWeightedPoolFingerprint(weightedEntries, 5);
+
+            // Assert
+            Assert.Equal(first, second);
+        }
+
+        [Fact]
+        public void MonteCarloReport_ShouldReturnConsistentShape_WithSeed()
+        {
+            // Arrange
+            var weightedEntries = new List<(string Username, int Tickets)>
+            {
+                ("UserA", 2),
+                ("UserB", 3),
+                ("UserC", 5)
+            };
+
+            // Act
+            var report = GiveawayFeature.GenerateMonteCarloFairnessReport(weightedEntries, 10, 10000, 12345);
+
+            // Assert
+            Assert.Equal(10000, report.Iterations);
+            Assert.Equal(10, report.TotalTickets);
+            Assert.Equal(3, report.Results.Count);
+            Assert.True(report.MaxAbsoluteDeltaPercent >= 0);
+            Assert.All(report.Results, row => Assert.True(row.ObservedPercent >= 0));
+            Assert.Equal(100m, decimal.Round(report.Results.Sum(x => x.ObservedPercent), 0));
+        }
+
+        [Fact]
+        public async Task RunMonteCarloFairnessReport_ShouldStoreReport()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+
+            // Act
+            var report = await giveawayFeature.RunMonteCarloFairnessReport(5000);
+            var history = await giveawayFeature.GetMonteCarloFairnessReports();
+
+            // Assert
+            Assert.NotNull(report);
+            Assert.NotEmpty(history);
+            Assert.Equal(report!.PoolFingerprint, history[0].PoolFingerprint);
+        }
+
+        [Fact]
+        public async Task RunMonteCarloFairnessReport_WithAutoEnabled_ShouldNotDuplicateReport()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            gameSettingsService.GetBoolSetting(Arg.Any<string>(), "GiveawayMonteCarloFairnessEnabled", false).Returns(true);
+
+            // Act
+            var report = await giveawayFeature.RunMonteCarloFairnessReport(5000);
+            var history = await giveawayFeature.GetMonteCarloFairnessReports();
+
+            // Assert
+            Assert.NotNull(report);
+            Assert.Single(history);
         }
 
 
@@ -464,6 +655,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
 
             // Assert
             Assert.NotEmpty(giveawayFeature.ClosedTickets);
+        }
+
+        [Fact]
+        public async Task OnCommand_Open()
+        {
+            // Arrange
+            dbContext.GiveawayEntries.GetAllAsync().Returns(testGiveawayEntriesQueryable);
+            dbContext.GiveawayExclusions.Find(x => true).ReturnsForAnyArgs(testGiveawayExclusionQueryable);
+            await giveawayFeature.Close();
+
+            var commandEvent = new CommandEventArgs { Command = "open" };
+            commandHandler.GetCommandDefaultName("open").Returns("open");
+
+            // Act
+            await giveawayFeature.OnCommand(new object(), commandEvent);
+
+            // Assert
+            Assert.False(giveawayFeature.IsClosed());
+            Assert.Empty(giveawayFeature.ClosedTickets);
         }
 
         [Fact]

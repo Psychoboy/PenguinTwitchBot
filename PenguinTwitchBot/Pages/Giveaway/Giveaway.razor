@@ -28,6 +28,10 @@
                            StartIcon="@Icons.Material.Filled.Lock">
                     Close Giveaway
                 </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Large" OnClick="Open"
+                           StartIcon="@Icons.Material.Filled.LockOpen">
+                    Re-open Giveaway
+                </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Large" OnClick="Reset" 
                            StartIcon="@Icons.Material.Filled.RestartAlt">
                     Reset Giveaway
@@ -227,6 +231,12 @@
     {
         Snackbar.Add("Giveaway closing...", Severity.Info);
         await GiveawayFeature.Close();
+    }
+
+    private async Task Open()
+    {
+        Snackbar.Add("Re-opening giveaway...", Severity.Info);
+        await GiveawayFeature.Open();
     }
 
     private async Task Reset()

@@ -24,9 +24,14 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task SetTerms(string value);
         Task<string> GetPassiveEarnings();
         Task SetPassiveEarnings(string value);
+        Task<bool> GetMonteCarloFairnessEnabled();
+        Task SetMonteCarloFairnessEnabled(bool enabled);
+        Task<GiveawayFairnessReport?> RunMonteCarloFairnessReport(int? iterations = null);
+        Task<IReadOnlyList<GiveawayFairnessReport>> GetMonteCarloFairnessReports();
         Task SetPrizeTier(string? arg);
         Task SetPrize(string arg);
         Task SetImageUrl(string? arg);
+        Task Open();
         Task Close();
         Task Reset();
         Task Draw();

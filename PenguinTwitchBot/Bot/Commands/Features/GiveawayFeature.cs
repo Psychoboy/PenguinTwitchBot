@@ -7,7 +7,10 @@ using PenguinTwitchBot.Database.Bot.Models.Giveaway;
 using PenguinTwitchBot.Extensions;
 using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
+using System.Collections.ObjectModel;
 using Timer = System.Timers.Timer;
 using System.Collections.Concurrent;
 
@@ -26,6 +29,9 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             ) : BaseCommandService(serviceBackbone, commandHandler, "GiveawayFeature", dispatcher), IHostedService, IGiveawayFeature
     {
         private readonly List<string> Tickets = new();
+        private readonly List<(string Username, int Tickets)> WeightedEntries = new();
+        private int TotalWeightedTickets = 0;
+        private DrawDebugSnapshot? LastDrawSnapshot;
         private readonly List<GiveawayWinner> Winners = new();
         private readonly string PrizeSettingName = "GiveawayPrize";
         private readonly string ImageSettingName = "GiveawayPrizeImage";
@@ -35,6 +41,9 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         private readonly string GiveawayCooldownsSettingName = "GiveawayCooldowns";
         private readonly string GiveawayTermsSettingName = "GiveawayTerms";
         private readonly string GiveawayPassiveEarningsSettingName = "GiveawayPassiveEarnings";
+        private readonly string GiveawayMonteCarloFairnessEnabledSettingName = "GiveawayMonteCarloFairnessEnabled";
+        private const int DefaultMonteCarloIterations = 100000;
+        private const int MaxMonteCarloReports = 20;
 
         private static readonly string DefaultRulesMarkdown =
             "- Winners do **NOT** need to be present during the drawing\n" +
@@ -58,6 +67,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             "- Must be **18+** to participate\n" +
             "- Void where prohibited by law";
         private static readonly ConcurrentDictionary<string, Lazy<SemaphoreSlim>> UserLocks = new();
+        private readonly SemaphoreSlim fairnessReportLock = new(1, 1);
+        private readonly List<GiveawayFairnessReport> fairnessReports = new();
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
         private static readonly Prometheus.Gauge NumberOfTicketsEntered = Prometheus.Metrics.CreateGauge("number_of_tickets_entered", "Number of Tickets entered since last stream start", labelNames: new[] { "viewer" });
 
@@ -80,6 +91,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             var moduleName = "GiveawayFeature";
             await RegisterDefaultCommand("enter", this, moduleName);
             await RegisterDefaultCommand("draw", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("open", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
@@ -106,6 +118,11 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                 case "draw":
                     {
                         await Draw();
+                        break;
+                    }
+                case "open":
+                    {
+                        await Open();
                         break;
                     }
                 case "close":
@@ -308,6 +325,108 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await gameSettingsService.SetStringSetting(ModuleName, GiveawayPassiveEarningsSettingName, value);
         }
 
+        public async Task<bool> GetMonteCarloFairnessEnabled()
+        {
+            return await gameSettingsService.GetBoolSetting(ModuleName, GiveawayMonteCarloFairnessEnabledSettingName, false);
+        }
+
+        public async Task SetMonteCarloFairnessEnabled(bool enabled)
+        {
+            await gameSettingsService.SetBoolSetting(ModuleName, GiveawayMonteCarloFairnessEnabledSettingName, enabled);
+        }
+
+        public async Task<IReadOnlyList<GiveawayFairnessReport>> GetMonteCarloFairnessReports()
+        {
+            await fairnessReportLock.WaitAsync();
+            try
+            {
+                return new ReadOnlyCollection<GiveawayFairnessReport>(fairnessReports.ToList());
+            }
+            finally
+            {
+                fairnessReportLock.Release();
+            }
+        }
+
+        public async Task<GiveawayFairnessReport?> RunMonteCarloFairnessReport(int? iterations = null)
+        {
+            if (TotalWeightedTickets == 0 || WeightedEntries.Count == 0)
+            {
+                await RebuildWeightedPool();
+            }
+
+            var boundedIterations = Math.Max(1000, Math.Min(iterations ?? DefaultMonteCarloIterations, 2_000_000));
+
+            return await GenerateAndStoreMonteCarloFairnessReport(boundedIterations);
+        }
+
+        private async Task<GiveawayFairnessReport?> GenerateAndStoreMonteCarloFairnessReport(int iterations)
+        {
+            if (TotalWeightedTickets == 0 || WeightedEntries.Count == 0)
+            {
+                return null;
+            }
+
+            var entries = WeightedEntries.ToList();
+            var totalTickets = TotalWeightedTickets;
+            var report = GenerateMonteCarloFairnessReport(entries, totalTickets, iterations, null);
+
+            await fairnessReportLock.WaitAsync();
+            try
+            {
+                fairnessReports.Insert(0, report);
+                if (fairnessReports.Count > MaxMonteCarloReports)
+                {
+                    fairnessReports.RemoveRange(MaxMonteCarloReports, fairnessReports.Count - MaxMonteCarloReports);
+                }
+            }
+            finally
+            {
+                fairnessReportLock.Release();
+            }
+
+            logger.LogInformation(
+                "Giveaway Monte Carlo fairness report generated: iterations={Iterations}, entrants={Entrants}, totalTickets={TotalTickets}, maxAbsDelta={MaxAbsDelta}%",
+                report.Iterations,
+                report.Results.Count,
+                report.TotalTickets,
+                report.MaxAbsoluteDeltaPercent.ToString("0.000", CultureInfo.InvariantCulture));
+
+            return report;
+        }
+
+        private async Task RebuildWeightedPool()
+        {
+            Tickets.Clear();
+            WeightedEntries.Clear();
+            TotalWeightedTickets = 0;
+
+            var entries = await GetEntries();
+            var exclusions = await GetExclusions();
+            var excludedUsers = exclusions
+                .Select(x => x.Username)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var entry in entries)
+            {
+                if (excludedUsers.Contains(entry.Username))
+                {
+                    continue;
+                }
+
+                if (entry.Tickets <= 0)
+                {
+                    continue;
+                }
+
+                // Keep a compact list for visibility while preserving weighted draw odds.
+                Tickets.Add(entry.Username);
+                WeightedEntries.Add((entry.Username, entry.Tickets));
+                TotalWeightedTickets += entry.Tickets;
+            }
+        }
+
         public async Task SetPrizeTier(string? arg)
         {
             var prize = await GetCurrentPrizeTier();
@@ -360,19 +479,43 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public List<string> ClosedTickets { get { return Tickets; } }
 
+        internal sealed record DrawDebugSnapshot(
+            DateTime DrawTimeUtc,
+            int WinningTicketIndex,
+            int TotalTickets,
+            int EligibleEntrants,
+            string WinnerUsername,
+            int WinnerTickets,
+            string PoolFingerprint
+        );
+
         public async Task Close()
         {
             isClosed = true;
-            Tickets.Clear();
-            var entries = await GetEntries();
-            var tickets = new List<string>();
-            var exclusions = await GetExclusions();
-            foreach (var entry in entries)
+            LastDrawSnapshot = null;
+            await RebuildWeightedPool();
+
+            logger.LogInformation(
+                "Giveaway pool closed with {Entrants} eligible entrants and {Tickets} total tickets. Fairness report: {FairnessReport}",
+                WeightedEntries.Count,
+                TotalWeightedTickets,
+                BuildFairnessReport(WeightedEntries, TotalWeightedTickets));
+
+            if (await GetMonteCarloFairnessEnabled())
             {
-                if (exclusions.Where(x => x.Username.Equals(entry.Username, StringComparison.OrdinalIgnoreCase)).Any()) continue;
-                tickets.AddRange(Enumerable.Repeat(entry.Username, entry.Tickets));
+                _ = await GenerateAndStoreMonteCarloFairnessReport(DefaultMonteCarloIterations);
             }
-            Tickets.AddRange(tickets.OrderBy(_ => Guid.NewGuid()).ToList());
+
+            await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
+        }
+
+        public async Task Open()
+        {
+            isClosed = false;
+            Tickets.Clear();
+            WeightedEntries.Clear();
+            TotalWeightedTickets = 0;
+            LastDrawSnapshot = null;
             await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
@@ -383,27 +526,63 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await db.GiveawayEntries.ExecuteDeleteAllAsync();
             await db.SaveChangesAsync();
             Tickets.Clear();
+            WeightedEntries.Clear();
+            TotalWeightedTickets = 0;
+            LastDrawSnapshot = null;
             isClosed = false;
             await hubContext.Clients.All.SendAsync("GiveawayIsClosed", isClosed);
         }
 
         public async Task Draw()
         {
-            if (Tickets.Count == 0)
+            if (TotalWeightedTickets == 0)
             {
                 await Close();
             }
+
             try
             {
-                var entries = await GetEntries();
-                var winningTicket = Tickets.RandomElementOrDefault(logger);
+                if (TotalWeightedTickets == 0 || WeightedEntries.Count == 0)
+                {
+                    var noEntriesMessage = await gameSettingsService.GetStringSetting(ModuleName, "draw.noentries", "No eligible entries for the giveaway draw.");
+                    await ServiceBackbone.SendChatMessage(noEntriesMessage);
+                    return;
+                }
+
+                var winningTicketIndex = RandomNumberGenerator.GetInt32(TotalWeightedTickets);
+                var winner = SelectWinnerFromWeightedEntries(WeightedEntries, TotalWeightedTickets, winningTicketIndex);
+                if (winner == null)
+                {
+                    logger.LogWarning("Weighted draw failed to resolve a winner despite non-empty pool.");
+                    return;
+                }
+
+                var winningTicket = winner.Value.Username;
+                var winningEntryTickets = winner.Value.Tickets;
+
+                LastDrawSnapshot = new DrawDebugSnapshot(
+                    DateTime.UtcNow,
+                    winningTicketIndex,
+                    TotalWeightedTickets,
+                    WeightedEntries.Count,
+                    winningTicket,
+                    winningEntryTickets,
+                    BuildWeightedPoolFingerprint(WeightedEntries, TotalWeightedTickets));
+
+                logger.LogInformation(
+                    "Giveaway draw debug replay: index={Index}, totalTickets={TotalTickets}, entrants={Entrants}, winner={Winner}, winnerTickets={WinnerTickets}",
+                    LastDrawSnapshot.WinningTicketIndex,
+                    LastDrawSnapshot.TotalTickets,
+                    LastDrawSnapshot.EligibleEntrants,
+                    LastDrawSnapshot.WinnerUsername,
+                    LastDrawSnapshot.WinnerTickets);
+
                 var viewer = await viewerFeature.GetViewerByUserName(winningTicket);
                 var isFollower = await viewerFeature.IsFollowerByUsername(winningTicket);
                 var prize = await GetPrize();
 
                 var message = await gameSettingsService.GetStringSetting(ModuleName, "WINNER", "(name) won the (prize) with a (chance)% of winning and (isfollowingCheck) following");
-                var winningEntry = entries.Where(x => x.Username.Equals(winningTicket, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
-                var chance = winningEntry != null && entries.Sum(x => x.Tickets) > 0 ? (decimal)winningEntry.Tickets / (decimal)entries.Sum(x => x.Tickets) * 100 : 0;
+                var chance = TotalWeightedTickets > 0 ? (decimal)winningEntryTickets / (decimal)TotalWeightedTickets * 100 : 0;
 
                 message = message
                     .Replace("(name)", viewer != null ? viewer.NameWithTitle() : winningTicket, StringComparison.OrdinalIgnoreCase)
@@ -422,6 +601,141 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             {
                 logger.LogError(ex, "Error drawing a ticket.");
             }
+        }
+
+        internal static (string Username, int Tickets)? SelectWinnerFromWeightedEntries(
+            IReadOnlyList<(string Username, int Tickets)> weightedEntries,
+            int totalWeightedTickets,
+            int winningTicketIndex)
+        {
+            if (weightedEntries == null || weightedEntries.Count == 0 || totalWeightedTickets <= 0)
+            {
+                return null;
+            }
+
+            if (winningTicketIndex < 0 || winningTicketIndex >= totalWeightedTickets)
+            {
+                throw new ArgumentOutOfRangeException(nameof(winningTicketIndex));
+            }
+
+            var runningTotal = 0;
+            foreach (var entry in weightedEntries)
+            {
+                if (entry.Tickets <= 0)
+                {
+                    continue;
+                }
+
+                runningTotal += entry.Tickets;
+                if (winningTicketIndex < runningTotal)
+                {
+                    return entry;
+                }
+            }
+
+            return null;
+        }
+
+        internal static string BuildWeightedPoolFingerprint(
+            IReadOnlyList<(string Username, int Tickets)> weightedEntries,
+            int totalWeightedTickets)
+        {
+            var normalized = string.Join("|", weightedEntries
+                .OrderBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.Tickets)
+                .Select(x => $"{x.Username}:{x.Tickets}"));
+
+            var payload = $"{totalWeightedTickets}|{weightedEntries.Count}|{normalized}";
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
+            return Convert.ToHexString(bytes);
+        }
+
+        internal static string BuildFairnessReport(
+            IReadOnlyList<(string Username, int Tickets)> weightedEntries,
+            int totalWeightedTickets,
+            int maxUsers = 10)
+        {
+            if (weightedEntries == null || weightedEntries.Count == 0 || totalWeightedTickets <= 0)
+            {
+                return "no eligible entries";
+            }
+
+            var report = weightedEntries
+                .OrderByDescending(x => x.Tickets)
+                .ThenBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+                .Take(maxUsers)
+                .Select(x =>
+                {
+                    var pct = ((decimal)x.Tickets / totalWeightedTickets * 100m).ToString("0.00", CultureInfo.InvariantCulture);
+                    return $"{x.Username}:{x.Tickets}({pct}%)";
+                });
+
+            return string.Join(", ", report);
+        }
+
+        internal static GiveawayFairnessReport GenerateMonteCarloFairnessReport(
+            IReadOnlyList<(string Username, int Tickets)> weightedEntries,
+            int totalWeightedTickets,
+            int iterations,
+            int? seed)
+        {
+            if (weightedEntries == null || weightedEntries.Count == 0 || totalWeightedTickets <= 0)
+            {
+                throw new ArgumentException("Cannot generate fairness report without eligible entries.");
+            }
+
+            if (iterations <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(iterations));
+            }
+
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var random = seed.HasValue ? new Random(seed.Value) : null;
+
+            for (var i = 0; i < iterations; i++)
+            {
+                var winnerIndex = random == null
+                    ? RandomNumberGenerator.GetInt32(totalWeightedTickets)
+                    : random.Next(totalWeightedTickets);
+
+                var winner = SelectWinnerFromWeightedEntries(weightedEntries, totalWeightedTickets, winnerIndex);
+                if (winner == null)
+                {
+                    continue;
+                }
+
+                var username = winner.Value.Username;
+                counts[username] = counts.TryGetValue(username, out var current) ? current + 1 : 1;
+            }
+
+            var resultRows = weightedEntries
+                .OrderByDescending(x => x.Tickets)
+                .ThenBy(x => x.Username, StringComparer.OrdinalIgnoreCase)
+                .Select(entry =>
+                {
+                    var observedHits = counts.TryGetValue(entry.Username, out var hits) ? hits : 0;
+                    var expectedPercent = (decimal)entry.Tickets / totalWeightedTickets * 100m;
+                    var observedPercent = (decimal)observedHits / iterations * 100m;
+                    var delta = Math.Abs(expectedPercent - observedPercent);
+
+                    return new GiveawayFairnessUserResult(
+                        entry.Username,
+                        entry.Tickets,
+                        decimal.Round(expectedPercent, 4),
+                        decimal.Round(observedPercent, 4),
+                        decimal.Round(delta, 4));
+                })
+                .ToList();
+
+            var maxDelta = resultRows.Count == 0 ? 0m : resultRows.Max(x => x.AbsoluteDeltaPercent);
+
+            return new GiveawayFairnessReport(
+                DateTime.UtcNow,
+                iterations,
+                totalWeightedTickets,
+                BuildWeightedPoolFingerprint(weightedEntries, totalWeightedTickets),
+                decimal.Round(maxDelta, 4),
+                resultRows);
         }
 
         public async Task<List<GiveawayWinner>> PastWinners()

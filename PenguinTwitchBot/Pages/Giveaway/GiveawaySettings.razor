@@ -7,6 +7,7 @@
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Settings</PageTitle>
 
@@ -130,6 +131,64 @@
         </MudCardActions>
     </MudCard>
 
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Fairness Diagnostics</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Monte Carlo diagnostics can be auto-generated when closing a giveaway. Export reports as CSV for external review.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="2">
+                <MudSwitch T="bool" Value="MonteCarloEnabled" ValueChanged="OnMonteCarloToggleChanged" Color="Color.Primary" Label="Enable Monte Carlo report generation on Close" />
+                <MudNumericField T="int" @bind-Value="MonteCarloIterations" Label="Iterations" Min="1000" Max="2000000" Variant="Variant.Outlined" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Higher iteration counts reduce noise but take longer. Recommended: 100,000+</MudText>
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveMonteCarloSettings" StartIcon="@Icons.Material.Filled.Save">Save Diagnostics Settings</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="RunMonteCarloReportNow" StartIcon="@Icons.Material.Filled.Science">Run Report Now</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="RefreshMonteCarloReports" StartIcon="@Icons.Material.Filled.Refresh">Refresh Reports</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ExportLatestMonteCarloReportCsv" StartIcon="@Icons.Material.Filled.Download">Export Latest CSV</MudButton>
+        </MudCardActions>
+        <MudCardContent>
+            @if (MonteCarloReports.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">No Monte Carlo fairness reports yet.</MudAlert>
+            }
+            else
+            {
+                <MudExpansionPanels Elevation="0" MultiExpansion="true">
+                    @foreach (var report in MonteCarloReports)
+                    {
+                        <MudExpansionPanel Text="@($"{report.GeneratedAtUtc:u} | {report.Iterations:N0} iterations | max delta {report.MaxAbsoluteDeltaPercent:0.000}%")">
+                            <MudText Typo="Typo.body2"><strong>Total Tickets:</strong> @report.TotalTickets</MudText>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Secondary" OnClick="@(() => ExportMonteCarloReportCsv(report))" StartIcon="@Icons.Material.Filled.Download">
+                                Export This Report (CSV)
+                            </MudButton>
+                            <MudTable Items="report.Results" Dense="true" Hover="true">
+                                <HeaderContent>
+                                    <MudTh>User</MudTh>
+                                    <MudTh>Tickets</MudTh>
+                                    <MudTh>Expected %</MudTh>
+                                    <MudTh>Observed %</MudTh>
+                                    <MudTh>Abs Delta %</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd DataLabel="User">@context.Username</MudTd>
+                                    <MudTd DataLabel="Tickets">@context.Tickets</MudTd>
+                                    <MudTd DataLabel="Expected %">@context.ExpectedPercent.ToString("0.0000")</MudTd>
+                                    <MudTd DataLabel="Observed %">@context.ObservedPercent.ToString("0.0000")</MudTd>
+                                    <MudTd DataLabel="Abs Delta %">@context.AbsoluteDeltaPercent.ToString("0.0000")</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        </MudExpansionPanel>
+                    }
+                </MudExpansionPanels>
+            }
+        </MudCardContent>
+    </MudCard>
+
 </MudStack>
 
 @code {
@@ -141,6 +200,9 @@
     private string Cooldowns { get; set; } = "";
     private string Terms { get; set; } = "";
     private string PassiveEarnings { get; set; } = "";
+    private bool MonteCarloEnabled { get; set; }
+    private int MonteCarloIterations { get; set; } = 100000;
+    private List<PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport> MonteCarloReports { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,6 +214,8 @@
         Cooldowns = await GiveawayFeature.GetCooldowns();
         Terms = await GiveawayFeature.GetTerms();
         PassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
+        MonteCarloEnabled = await GiveawayFeature.GetMonteCarloFairnessEnabled();
+        MonteCarloReports = (await GiveawayFeature.GetMonteCarloFairnessReports()).ToList();
     }
 
     public async Task OnPrizeSubmit()
@@ -186,6 +250,96 @@
     {
         await GiveawayFeature.SetPassiveEarnings(PassiveEarnings);
         Snackbar.Add("Passive Earnings saved.", Severity.Success);
+    }
+
+    public async Task SaveMonteCarloSettings()
+    {
+        await GiveawayFeature.SetMonteCarloFairnessEnabled(MonteCarloEnabled);
+        var persisted = await GiveawayFeature.GetMonteCarloFairnessEnabled();
+        MonteCarloEnabled = persisted;
+
+        if (persisted)
+        {
+            Snackbar.Add("Fairness diagnostics settings saved. Auto-generation is ON.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("Fairness diagnostics settings saved. Auto-generation is OFF.", Severity.Success);
+        }
+    }
+
+    public Task OnMonteCarloToggleChanged(bool value)
+    {
+        MonteCarloEnabled = value;
+        return Task.CompletedTask;
+    }
+
+    public async Task RunMonteCarloReportNow()
+    {
+        var report = await GiveawayFeature.RunMonteCarloFairnessReport(MonteCarloIterations);
+        if (report == null)
+        {
+            Snackbar.Add("No eligible entries available to build a fairness report.", Severity.Warning);
+            return;
+        }
+
+        MonteCarloReports = (await GiveawayFeature.GetMonteCarloFairnessReports()).ToList();
+        Snackbar.Add($"Monte Carlo report generated (max delta {report.MaxAbsoluteDeltaPercent:0.000}%).", Severity.Success);
+    }
+
+    public async Task RefreshMonteCarloReports()
+    {
+        MonteCarloReports = (await GiveawayFeature.GetMonteCarloFairnessReports()).ToList();
+        Snackbar.Add("Fairness reports refreshed.", Severity.Info);
+    }
+
+    public async Task ExportLatestMonteCarloReportCsv()
+    {
+        if (MonteCarloReports.Count == 0)
+        {
+            Snackbar.Add("No Monte Carlo report available to export.", Severity.Warning);
+            return;
+        }
+
+        await ExportMonteCarloReportCsv(MonteCarloReports[0]);
+    }
+
+    public async Task ExportMonteCarloReportCsv(PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport report)
+    {
+        var csv = BuildMonteCarloCsv(report);
+        var fileName = $"GiveawayFairness_{report.GeneratedAtUtc:yyyyMMdd_HHmmss}.csv";
+
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, csv);
+        Snackbar.Add($"CSV export started: {fileName}", Severity.Success);
+    }
+
+    private static string BuildMonteCarloCsv(PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport report)
+    {
+        var lines = new List<string>
+        {
+            "GeneratedAtUtc,Iterations,TotalTickets,MaxAbsoluteDeltaPercent",
+            $"{EscapeCsv(report.GeneratedAtUtc.ToString("u"))},{report.Iterations},{report.TotalTickets},{report.MaxAbsoluteDeltaPercent:0.0000}",
+            string.Empty,
+            "Username,Tickets,ExpectedPercent,ObservedPercent,AbsoluteDeltaPercent"
+        };
+
+        foreach (var row in report.Results)
+        {
+            lines.Add($"{EscapeCsv(row.Username)},{row.Tickets},{row.ExpectedPercent:0.0000},{row.ObservedPercent:0.0000},{row.AbsoluteDeltaPercent:0.0000}");
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        var escaped = value.Replace("\"", "\"\"");
+        return $"\"{escaped}\"";
     }
 
     public async Task Reset()
