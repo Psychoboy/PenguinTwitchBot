@@ -52,6 +52,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating settings");
+                throw;
             }
             finally
             {
