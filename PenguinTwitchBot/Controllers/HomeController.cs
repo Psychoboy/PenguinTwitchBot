@@ -136,13 +136,11 @@ namespace PenguinTwitchBot.Controllers
             if (resp == null) return Redirect("/");
 
             configuration["twitchAccessToken"] = resp.AccessToken;
-            configuration["expiresIn"] = resp.ExpiresIn.ToString();
             configuration["twitchRefreshToken"] = resp.RefreshToken;
             twitchService.SetAccessToken(resp.AccessToken);
 
             await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
-            await settingsFileManager.AddOrUpdateAppSetting("expiresIn", resp.ExpiresIn.ToString());
 
             return Redirect("/botauth");
         }
@@ -158,13 +156,11 @@ namespace PenguinTwitchBot.Controllers
             if (resp == null) return Redirect("/");
 
             configuration["twitchBotAccessToken"] = resp.AccessToken;
-            configuration["botExpiresIn"] = resp.ExpiresIn.ToString();
             configuration["twitchBotRefreshToken"] = resp.RefreshToken;
             twitchChatBot.SetAccessToken(resp.AccessToken);
 
             await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
-            await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", resp.ExpiresIn.ToString());
 
             return Redirect("/botauth");
         }

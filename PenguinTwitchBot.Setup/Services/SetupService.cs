@@ -127,8 +127,6 @@ namespace PenguinTwitchBot.Setup.Services
                 ["twitchRefreshToken"] = TwitchRefreshToken ?? "",
                 ["twitchBotAccessToken"] = TwitchBotAccessToken ?? "",
                 ["twitchBotRefreshToken"] = TwitchBotRefreshToken ?? "",
-                ["botExpiresIn"] = (object)TwitchBotExpiresIn,
-                ["expiresIn"] = (object)TwitchExpiresIn,
                 ["youtubeApi"] = model.YoutubeApiKey.Trim(),
                 ["webauth"] = webauth,
                 ["Database"] = new Dictionary<string, object?>

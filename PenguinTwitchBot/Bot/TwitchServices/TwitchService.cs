@@ -1440,11 +1440,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var refreshToken = await _authClient.RefreshAuthTokenAsync(_configuration["twitchRefreshToken"]!, _configuration["twitchClientSecret"]!, _configuration["twitchClientId"]!);
                 _accessToken = refreshToken.AccessToken;
                 _configuration["twitchAccessToken"] = refreshToken.AccessToken;
-                _configuration["expiresIn"] = refreshToken.ExpiresIn.ToString();
                 _configuration["twitchRefreshToken"] = refreshToken.RefreshToken;
                 await _settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", refreshToken.AccessToken);
                 await _settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", refreshToken.RefreshToken);
-                await _settingsFileManager.AddOrUpdateAppSetting("expiresIn", refreshToken.ExpiresIn.ToString());
                 return true;
             }
             catch (Exception e)
