@@ -159,7 +159,6 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var validToken = await authClient.ValidateAccessTokenAsync(_accessToken);
                 if (validToken != null && validToken.ExpiresIn > 1200)
                 {
-                    await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", validToken.ExpiresIn);
                     return true;
                 }
                 else
@@ -213,10 +212,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                         return false;
                     }
                     configuration["twitchBotAccessToken"] = tokenResponse.AccessToken;
-                    configuration["botExpiresIn"] = tokenResponse.ExpiresIn.ToString();
                     _accessToken = tokenResponse.AccessToken;
                     await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", tokenResponse.AccessToken);
-                    await settingsFileManager.AddOrUpdateAppSetting("botExpiresIn", tokenResponse.ExpiresIn.ToString());
                 }
                 return true;
             }

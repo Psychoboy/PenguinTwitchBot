@@ -7,8 +7,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
     {
         private readonly IConfiguration _configuration;
         private readonly ILogger<SettingsFileManager> _logger;
-        static readonly SemaphoreSlim _semaphoreSlim = new(1);
+        static readonly SemaphoreSlim _semaphoreSlim = new(1, 1);
         private const int MaxBackups = 3;
+        private const int MaxIoRetries = 5;
+        private const int InitialRetryDelayMs = 50;
 
         public SettingsFileManager(ILogger<SettingsFileManager> logger, IConfiguration configuration)
         {
@@ -30,22 +32,67 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         private async Task AddOrUpdateSettingInFile<T>(string sectionPathKey, T value, string filePath)
         {
+            var lockTaken = false;
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                string json = File.ReadAllText(filePath);
-                var jsonObj = JsonConvert.DeserializeObject<JObject>(json) ?? throw new InvalidOperationException();
+                lockTaken = true;
 
-                SetValueRecursively(sectionPathKey, jsonObj, value);
+                await ExecuteWithRetryAsync(async () =>
+                {
+                    string json = await File.ReadAllTextAsync(filePath);
+                    var jsonObj = JsonConvert.DeserializeObject<JObject>(json) ?? throw new InvalidOperationException();
 
-                string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
-                await WriteSettingsFileAtomically(filePath, output);
+                    SetValueRecursively(sectionPathKey, jsonObj, value);
+
+                    string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
+                    await WriteSettingsFileAtomically(filePath, output);
+                }, $"updating setting '{sectionPathKey}'", filePath);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating settings");
+                throw;
             }
-            finally { _semaphoreSlim.Release(); }
+            finally
+            {
+                if (lockTaken)
+                {
+                    _semaphoreSlim.Release();
+                }
+            }
+        }
+
+        private async Task ExecuteWithRetryAsync(Func<Task> operation, string operationName, string filePath)
+        {
+            for (var attempt = 1; attempt <= MaxIoRetries; attempt++)
+            {
+                try
+                {
+                    await operation();
+                    return;
+                }
+                catch (Exception ex) when (IsTransientFileException(ex) && attempt < MaxIoRetries)
+                {
+                    var delayMs = InitialRetryDelayMs * (1 << (attempt - 1));
+                    _logger.LogWarning(ex,
+                        "Transient file IO issue while {OperationName} on {FilePath}. Retrying {Attempt}/{MaxAttempts} in {DelayMs}ms.",
+                        operationName,
+                        filePath,
+                        attempt,
+                        MaxIoRetries,
+                        delayMs);
+                    await Task.Delay(delayMs);
+                }
+            }
+
+            // Final attempt lets the original exception propagate with its full stack trace.
+            await operation();
+        }
+
+        private static bool IsTransientFileException(Exception ex)
+        {
+            return ex is IOException || ex is UnauthorizedAccessException;
         }
 
         private async Task WriteSettingsFileAtomically(string filePath, string content)
