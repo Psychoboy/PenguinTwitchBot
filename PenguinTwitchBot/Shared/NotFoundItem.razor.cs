@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 
 
 namespace PenguinTwitchBot.Shared
@@ -73,7 +74,17 @@ namespace PenguinTwitchBot.Shared
 
             // StatusCodePagesWithReExecute stores the original path in this feature.
             var reExecuteFeature = httpContext.Features.Get<IStatusCodeReExecuteFeature>();
-            var originalPath = reExecuteFeature?.OriginalPath ?? httpContext.Request.Path.Value ?? string.Empty;
+            if (reExecuteFeature is null)
+            {
+                return false;
+            }
+
+            if (reExecuteFeature.OriginalStatusCode != StatusCodes.Status404NotFound)
+            {
+                return false;
+            }
+
+            var originalPath = reExecuteFeature.OriginalPath ?? string.Empty;
 
             return IsExpectedProbePath(originalPath) && IsExpectedMediaExtension(originalPath);
         }
@@ -100,10 +111,7 @@ namespace PenguinTwitchBot.Shared
 
             var reExecuteFeature = httpContext.Features.Get<IStatusCodeReExecuteFeature>();
             var originalPath = reExecuteFeature?.OriginalPath ?? httpContext.Request.Path.Value ?? string.Empty;
-            var originalQueryString = reExecuteFeature?.OriginalQueryString ?? httpContext.Request.QueryString.Value ?? string.Empty;
-
-            var target = $"{originalPath}{originalQueryString}";
-            return target.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
+            return originalPath.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
         }
     }
 }
