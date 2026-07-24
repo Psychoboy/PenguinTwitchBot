@@ -2561,6 +2561,29 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_externalapi", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingGiveItemToPlayerType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("PlayerUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("ShopItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShopItemName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("PlayerUsername");
+
+                    b.ToTable("subactions_fishinggiveitemtoplayer", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEligibleCatchType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");

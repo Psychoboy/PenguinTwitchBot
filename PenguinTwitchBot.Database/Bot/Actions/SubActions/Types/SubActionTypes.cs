@@ -60,6 +60,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         FishingTournamentEligibleCatch,
         ResetCooldowns,
         SetGlobalVariable,
-        GetGlobalVariable
+        GetGlobalVariable,
+        FishingGiveItemToPlayer
     }
 }

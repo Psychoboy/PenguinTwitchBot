@@ -9,6 +9,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
             new Dictionary<SubActionTypes, string>
             {
                 [SubActionTypes.Fishing] = FeatureKeys.Fishing,
+                [SubActionTypes.FishingGiveItemToPlayer] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentStart] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentEligibleCatch] = FeatureKeys.Fishing,
