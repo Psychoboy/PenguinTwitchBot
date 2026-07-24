@@ -1,4 +1,4 @@
-﻿@page "/defaultcommands"
+﻿@page "/commands/default"
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
@@ -41,6 +41,6 @@ else
 
     private void Edit(DefaultCommand item)
     {
-        navigationManager.NavigateTo($"/defaultcommands/{item.Id}");
+        navigationManager.NavigateTo($"/commands/default/{item.Id}");
     }
 }

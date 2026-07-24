@@ -1,4 +1,4 @@
-@page "/defaultcommands/{id:int}"
+@page "/commands/default/{id:int}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -141,7 +141,7 @@ else
         defaultCommand.SpecificRanks = ranks.ToList();
         ranks = new HashSet<Rank>();
         await CommandHandler.UpdateDefaultCommand(defaultCommand);
-        navigationManager.NavigateTo($"/defaultcommands");
+        navigationManager.NavigateTo($"/commands/default");
     }
 
     private string ConvertFunction(PointType? pointType)

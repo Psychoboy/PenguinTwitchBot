@@ -1,4 +1,4 @@
-@page "/viewers"
+@page "/community/viewers"
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
 @using PenguinTwitchBot.Database.Bot.Models.IpLogs
 @attribute [Authorize(Roles = "Streamer, Moderator")]
@@ -160,7 +160,7 @@
 
     private void Edit(PenguinTwitchBot.Database.Bot.Models.Viewer item)
     {
-        navigationManager.NavigateTo($"/viewers/edit?id={item.Id}");
+        navigationManager.NavigateTo($"/community/viewers/edit?id={item.Id}");
     }
     private async Task Search()
     {
@@ -170,6 +170,6 @@
 
     private string LinkBuilder(string _parameter)
     {
-        return $"/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
+        return $"/community/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
     }
 }

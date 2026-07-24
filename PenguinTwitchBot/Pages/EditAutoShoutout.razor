@@ -1,4 +1,4 @@
-@page "/autoshoutouts/{id:int}"
+@page "/community/auto-shoutouts/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 @using System.ComponentModel.DataAnnotations
@@ -41,6 +41,6 @@ else
     {
         if (autoShoutout == null) return;
         await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
-        navigationManager.NavigateTo($"/autoshoutouts");
+        navigationManager.NavigateTo($"/community/auto-shoutouts");
     }
 }

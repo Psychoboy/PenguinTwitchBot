@@ -1,4 +1,4 @@
-@page "/botauth"
+@page "/settings/bot-auth"
 @attribute [Authorize(Roles = "Streamer")]
 @using System.ComponentModel.DataAnnotations
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -6,7 +6,7 @@
 @inject PenguinTwitchBot.Bot.TwitchServices.ITwitchChatBot twitchChatBot;
 @inject ISnackbar Snackbar
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Signin</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Authentication</PageTitle>
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
     <MudPaper>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>

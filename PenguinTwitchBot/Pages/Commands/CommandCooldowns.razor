@@ -1,7 +1,9 @@
-﻿@page "/command-cooldowns"
+﻿@page "/commands/cooldowns"
 @using PenguinTwitchBot.Bot.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Command Cooldowns</PageTitle>
 
 <MudContainer>
     <MudPaper Elevation="2" Class="pa-4">

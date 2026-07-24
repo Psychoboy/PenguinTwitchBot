@@ -1,4 +1,4 @@
-@page "/aliases"
+@page "/commands/aliases"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
@@ -87,7 +87,7 @@
 
     private void Edit(PenguinTwitchBot.Database.Bot.Models.AliasModel item)
     {
-        navigationManager.NavigateTo($"/aliases/{item.Id}");
+        navigationManager.NavigateTo($"/commands/aliases/{item.Id}");
     }
 
     private async Task Delete(PenguinTwitchBot.Database.Bot.Models.AliasModel item)
