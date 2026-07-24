@@ -142,7 +142,7 @@ namespace PenguinTwitchBot.Controllers
             await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
 
-            return Redirect("/botauth");
+            return Redirect("/settings/bot-auth");
         }
 
         private async Task<IActionResult> HandleBotCallback(string code, string origin)
@@ -162,7 +162,7 @@ namespace PenguinTwitchBot.Controllers
             await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", resp.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("twitchBotRefreshToken", resp.RefreshToken);
 
-            return Redirect("/botauth");
+            return Redirect("/settings/bot-auth");
         }
 
         private async Task<IActionResult> HandleUserCallback(string code, string? redirect, string origin)

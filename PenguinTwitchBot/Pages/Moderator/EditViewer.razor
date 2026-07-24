@@ -1,4 +1,4 @@
-@page "/viewers/edit"
+@page "/community/viewers/edit"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @using PenguinTwitchBot.Bot;
 
@@ -244,7 +244,7 @@ else
     {
         if (viewer.Viewer == null) return;
         await viewerFeature.SaveViewer(viewer.Viewer);
-        navigationManager.NavigateTo($"/viewers");
+        navigationManager.NavigateTo($"/community/viewers");
     }
 
     private async Task<TableData<ViewerChatHistory>> MessagesReload(TableState state, CancellationToken _)
@@ -259,6 +259,6 @@ else
 
     private string LinkBuilder(string _parameter)
     {
-        return $"/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
+        return $"/community/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
     }
 }

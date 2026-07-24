@@ -1,4 +1,4 @@
-@page "/giveaway"
+@page "/giveaway/draw"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.SignalR.Client
@@ -9,13 +9,13 @@
 @inject ILogger<Giveaway> logger
 @implements IAsyncDisposable
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Draw Giveaway</PageTitle>
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
         <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
             <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Class="mr-2" />
-            Giveaway Manager
+            Draw Giveaway
         </MudText>
 
         <MudPaper Elevation="3" Class="pa-4">

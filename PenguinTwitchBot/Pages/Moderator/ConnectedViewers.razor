@@ -1,4 +1,4 @@
-﻿@page "/connectedviewers"
+﻿@page "/community/connected-viewers"
 @using PenguinTwitchBot.Circuit;
 @using PenguinTwitchBot.Models;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -6,6 +6,8 @@
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject ICircuitUserService UserService
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Connected Viewers</PageTitle>
 
 
  @* <h1>@MyUserId</h1> *@

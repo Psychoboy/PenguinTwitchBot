@@ -1,9 +1,11 @@
-﻿@page "/updatesandlogs"
+﻿@page "/settings/updates"
 @using PenguinTwitchBot.Bot.ServiceTools
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IVersionCheckService VersionCheckService
 @inject IJSRuntime JS
 @inject IDialogService DialogService
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Updates & Logs</PageTitle>
 
 <h3>Tools</h3>
 

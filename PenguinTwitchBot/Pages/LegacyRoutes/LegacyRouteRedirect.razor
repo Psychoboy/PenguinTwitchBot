@@ -1,0 +1,116 @@
+@page "/defaultcommands"
+@page "/defaultcommands/{id:int}"
+@page "/aliases"
+@page "/aliases/{id:int}"
+@page "/externalcommands"
+@page "/command-cooldowns"
+@page "/viewers"
+@page "/viewers/edit"
+@page "/connectedviewers"
+@page "/knownbots"
+@page "/autoshoutouts"
+@page "/autoshoutouts/{id:int}"
+@page "/botauth"
+@page "/updatesandlogs"
+@page "/pointsettings"
+@page "/gamesettings"
+@page "/twitcheventsettings"
+@page "/redeems"
+@page "/viewergiveaway"
+@page "/giveawaysettings"
+@page "/giveawayhistory"
+@page "/giveawaybots"
+@page "/giveaway/manage"
+@page "/timergroups"
+
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Redirecting...</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.Medium">
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Forward">
+        Page moved from <strong>@_sourcePath</strong> to
+        <MudLink Href="@_targetPath" Class="mx-1">@_targetPath</MudLink>. Redirecting...
+    </MudAlert>
+</MudContainer>
+
+@code {
+    [Parameter] public int? id { get; set; }
+
+    private static readonly (string OldPrefix, string NewPrefix)[] RedirectPrefixes =
+    [
+        ("defaultcommands", "commands/default"),
+        ("aliases", "commands/aliases"),
+        ("externalcommands", "commands/external"),
+        ("command-cooldowns", "commands/cooldowns"),
+        ("viewers", "community/viewers"),
+        ("connectedviewers", "community/connected-viewers"),
+        ("knownbots", "community/known-bots"),
+        ("autoshoutouts", "community/auto-shoutouts"),
+        ("botauth", "settings/bot-auth"),
+        ("updatesandlogs", "settings/updates"),
+        ("pointsettings", "settings/points"),
+        ("gamesettings", "settings/games"),
+        ("twitcheventsettings", "settings/loyalty-bonuses"),
+        ("redeems", "settings/channel-points"),
+        ("viewergiveaway", "giveaway"),
+        ("giveawaysettings", "giveaway/settings"),
+        ("giveawayhistory", "giveaway/history"),
+        ("giveawaybots", "giveaway/exclusions"),
+        ("giveaway/manage", "giveaway/draw"),
+        ("timergroups", "actions/timers")
+    ];
+
+    private string _sourcePath = "/";
+    private string _targetPath = "/";
+
+    protected override void OnParametersSet()
+    {
+        var relative = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var parts = relative.Split('?', 2);
+        var pathOnly = parts[0].Trim('/');
+        var query = parts.Length > 1 ? $"?{parts[1]}" : string.Empty;
+
+        _sourcePath = "/" + pathOnly + query;
+        if (TryMapLegacyPath(pathOnly, out var mappedPath))
+        {
+            _targetPath = "/" + mappedPath + query;
+            return;
+        }
+
+        _targetPath = "/";
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        Snackbar.Add($"Page moved to {_targetPath}.", Severity.Info);
+        Navigation.NavigateTo(_targetPath, forceLoad: false, replace: true);
+    }
+
+    private static bool TryMapLegacyPath(string oldPath, out string mappedPath)
+    {
+        foreach (var (oldPrefix, newPrefix) in RedirectPrefixes)
+        {
+            if (oldPath.Equals(oldPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                mappedPath = newPrefix;
+                return true;
+            }
+
+            if (oldPath.StartsWith(oldPrefix + "/", StringComparison.OrdinalIgnoreCase))
+            {
+                mappedPath = newPrefix + oldPath[oldPrefix.Length..];
+                return true;
+            }
+        }
+
+        mappedPath = string.Empty;
+        return false;
+    }
+}

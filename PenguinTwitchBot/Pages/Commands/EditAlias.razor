@@ -1,4 +1,4 @@
-@page "/aliases/{id:int}"
+@page "/commands/aliases/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
@@ -61,6 +61,6 @@ else
             }
         }
         await AliasCommand.CreateOrUpdateAliasAsync(theAlias);
-        navigationManager.NavigateTo($"/aliases");
+        navigationManager.NavigateTo($"/commands/aliases");
     }
 }
