@@ -47,6 +47,8 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Pyroscope.OpenTelemetry;
+using Pyroscope;
 internal class Program
 {
     private static ILogger<Program>? logger;
@@ -76,6 +78,20 @@ internal class Program
         var prometheusPort = builder.Configuration.GetValue<int>("Observability:Prometheus:Port", 4999);
         var otelEnabled = builder.Configuration.GetValue<bool>("Observability:OpenTelemetry:Enabled");
         var otelEndpoint = builder.Configuration.GetValue<string>("Observability:OpenTelemetry:Endpoint") ?? "http://localhost:4318";
+        var pyroscopeEnabled = builder.Configuration.GetValue<bool>("Observability:Pyroscope:Enabled");
+        var pyroscopeApplicationName = builder.Configuration.GetValue<string>("Observability:Pyroscope:ApplicationName") ?? "PenguinTwitchBot";
+        var pyroscopeServerAddress = builder.Configuration.GetValue<string>("Observability:Pyroscope:ServerAddress") ?? "http://pyroscope.lan:4040";
+        var pyroscopeAuthToken = builder.Configuration.GetValue<string>("Observability:Pyroscope:AuthToken");
+        var pyroscopeBasicAuthUsername = builder.Configuration.GetValue<string>("Observability:Pyroscope:BasicAuth:Username");
+        var pyroscopeBasicAuthPassword = builder.Configuration.GetValue<string>("Observability:Pyroscope:BasicAuth:Password");
+
+        ConfigurePyroscope(
+            pyroscopeEnabled,
+            pyroscopeApplicationName,
+            pyroscopeServerAddress,
+            pyroscopeAuthToken,
+            pyroscopeBasicAuthUsername,
+            pyroscopeBasicAuthPassword);
 
         IDisposable? metricsServer = null;
         if (prometheusEnabled)
@@ -134,8 +150,6 @@ internal class Program
 
         RegisterGlobalExceptionHandlers();
 
-       
-
         if (otelEnabled && !string.IsNullOrEmpty(otelEndpoint))
         {
             var traceEndpoint = BuildOtlpHttpSignalEndpoint(otelEndpoint, "traces");
@@ -149,7 +163,7 @@ internal class Program
                     {
                         otlp.Endpoint = traceEndpoint;
                         otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-                    }))
+                    }).AddProcessor(new PyroscopeSpanProcessor()))
                 .WithMetrics(metrics => metrics
                     .AddAspNetCoreInstrumentation()
                     .AddOtlpExporter(otlp =>
@@ -823,6 +837,43 @@ try
         }
 
         return true; // all inner exceptions are expected transient types
+    }
+
+    private static void ConfigurePyroscope(
+        bool enabled,
+        string applicationName,
+        string? serverAddress,
+        string? authToken,
+        string? basicAuthUsername,
+        string? basicAuthPassword)
+    {
+        Environment.SetEnvironmentVariable("PYROSCOPE_PROFILING_ENABLED", enabled ? "true" : "false");
+
+        if (!enabled)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(applicationName))
+        {
+            Environment.SetEnvironmentVariable("PYROSCOPE_APPLICATION_NAME", applicationName);
+        }
+
+        if (!string.IsNullOrWhiteSpace(serverAddress))
+        {
+            Environment.SetEnvironmentVariable("PYROSCOPE_SERVER_ADDRESS", serverAddress);
+        }
+
+        if (!string.IsNullOrWhiteSpace(authToken))
+        {
+            Profiler.Instance.SetAuthToken(authToken);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(basicAuthUsername) && !string.IsNullOrWhiteSpace(basicAuthPassword))
+        {
+            Profiler.Instance.SetBasicAuth(basicAuthUsername, basicAuthPassword);
+        }
     }
 
     private static Uri BuildOtlpHttpSignalEndpoint(string endpoint, string signal)
