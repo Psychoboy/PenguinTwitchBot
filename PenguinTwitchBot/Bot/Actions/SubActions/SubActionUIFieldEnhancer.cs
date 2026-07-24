@@ -27,6 +27,7 @@ public static class SubActionUIFieldEnhancer
         {
             ObsSetSceneType obs => EnhanceObsSetScene(fields, obs, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
+            FishingGiveItemToPlayerType fishingGiveItem => EnhanceFishingGiveItemToPlayer(fields, fishingGiveItem, scope.ServiceProvider),
             FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
             FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
             TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
@@ -116,6 +117,76 @@ public static class SubActionUIFieldEnhancer
             SelectOptions = actionOptions,
             Required = true,
             Clearable = true
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingGiveItemToPlayer(List<SubActionUIField> fields, FishingGiveItemToPlayerType giveItem, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetRequiredService<IFishingService>();
+        var shopService = serviceProvider.GetRequiredService<IFishingShopService>();
+
+        var players = Task.Run(async () => await fishingService.GetAllPlayersWithGold()).GetAwaiter().GetResult();
+        var shopItems = Task.Run(async () => await shopService.GetAllShopItems()).GetAwaiter().GetResult();
+
+        var playerOptions = players
+            .Where(player => !string.IsNullOrWhiteSpace(player.Username))
+            .Select(player => new SelectOption
+            {
+                Name = $"{player.Username} ({player.UserId})",
+                Value = player.Username
+            })
+            .GroupBy(option => option.Value, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(option => option.Name)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(giveItem.TargetName)
+            && !playerOptions.Any(option => string.Equals(option.Value, giveItem.TargetName, StringComparison.OrdinalIgnoreCase)))
+        {
+            playerOptions.Add(new SelectOption { Name = giveItem.TargetName, Value = giveItem.TargetName });
+        }
+
+        var shopItemOptions = shopItems
+            .Select(item => new SelectOption
+            {
+                Id = item.Id,
+                Name = item.Enabled ? item.Name : $"{item.Name} (disabled)"
+            })
+            .OrderBy(option => option.Name)
+            .ToList();
+
+        if (giveItem.ShopItemId.HasValue
+            && !shopItemOptions.Any(option => option.Id == giveItem.ShopItemId.Value))
+        {
+            var fallbackName = string.IsNullOrWhiteSpace(giveItem.ShopItemName)
+                ? $"Item #{giveItem.ShopItemId.Value}"
+                : giveItem.ShopItemName;
+            shopItemOptions.Add(new SelectOption { Id = giveItem.ShopItemId.Value, Name = fallbackName });
+        }
+
+        fields.RemoveAll(field => field.PropertyName == nameof(FishingGiveItemToPlayerType.TargetName));
+        fields.Insert(0, new SubActionUIField
+        {
+            PropertyName = nameof(FishingGiveItemToPlayerType.TargetName),
+            Label = "Target Username",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            SelectOptions = playerOptions,
+            AllowCustomValue = true,
+            HelperText = "Select or type the username of the player who should receive the fishing item."
+        });
+
+        fields.RemoveAll(field => field.PropertyName == nameof(FishingGiveItemToPlayerType.ShopItemId));
+        fields.Insert(1, new SubActionUIField
+        {
+            PropertyName = nameof(FishingGiveItemToPlayerType.ShopItemId),
+            Label = "Fishing Item",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            SelectOptions = shopItemOptions,
+            HelperText = "Select which fishing item to grant."
         });
 
         return fields;
