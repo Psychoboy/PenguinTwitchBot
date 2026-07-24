@@ -51,7 +51,7 @@
   <ItemGroup>
     <PackageReference Include="BlazorTime" Version="1.0.3" />
     <PackageReference Include="Discord.Net" Version="3.20.1" />
-    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.75.0.4176" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.75.0.4207" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.18.0" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
     <PackageReference Include="MathParser.org-mXparser" Version="6.1.1" />
