@@ -46,7 +46,11 @@ using System.Net.NetworkInformation;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components;
 using Pyroscope.OpenTelemetry;
 using Pyroscope;
 internal class Program
@@ -380,6 +384,39 @@ internal class Program
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
         app.MapControllers();
+        app.MapGet("/sitemap.xml", (HttpContext context) =>
+        {
+            string sitemapXml;
+            try
+            {
+                var publicBaseUri = GetPublicBaseUriFromRequest(context.Request);
+                sitemapXml = BuildSitemapXml(publicBaseUri);
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogWarning(ex, "Failed to generate sitemap.xml from request origin; returning empty sitemap.");
+                sitemapXml = BuildEmptySitemapXml();
+            }
+
+            return Results.Content(sitemapXml, "application/xml; charset=utf-8");
+        }).AllowAnonymous();
+
+        app.MapGet("/robots.txt", (HttpContext context) =>
+        {
+            string robots;
+            try
+            {
+                var publicBaseUri = GetPublicBaseUriFromRequest(context.Request);
+                robots = $"User-agent: *\nAllow: /\nSitemap: {publicBaseUri}/sitemap.xml\n";
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogWarning(ex, "Failed to generate robots.txt sitemap URL from request origin; returning safe robots fallback.");
+                robots = "User-agent: *\nAllow: /\n";
+            }
+
+            return Results.Text(robots, "text/plain");
+        }).AllowAnonymous();
 
         if (prometheusEnabled)
         {
@@ -876,6 +913,78 @@ try
         }
     }
 
+    private static string BuildSitemapXml(string origin)
+    {
+        var normalizedOrigin = origin.TrimEnd('/');
+        var routes = GetPublicBlazorRoutes();
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+        var urlSet = new XElement(ns + "urlset",
+            routes.Select(route =>
+                new XElement(ns + "url",
+                    new XElement(ns + "loc", $"{normalizedOrigin}{route}"))));
+
+        var document = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), urlSet);
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
+    private static string BuildEmptySitemapXml()
+    {
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        var urlSet = new XElement(ns + "urlset");
+        var document = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), urlSet);
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
+    private static IReadOnlyList<string> GetPublicBlazorRoutes()
+    {
+        var appAssembly = typeof(Program).Assembly;
+        var routes = appAssembly.GetTypes()
+            .Where(IsPublicRoutableComponent)
+            .SelectMany(type => type.GetCustomAttributes<RouteAttribute>(inherit: true))
+            .Select(attribute => NormalizeRoute(attribute.Template))
+            .Where(static route => !string.IsNullOrWhiteSpace(route))
+            .Where(static route => !route.Contains('{'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static route => route, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return routes;
+    }
+
+    private static bool IsPublicRoutableComponent(Type type)
+    {
+        if (!typeof(IComponent).IsAssignableFrom(type) || type.IsAbstract || type.IsGenericTypeDefinition)
+        {
+            return false;
+        }
+
+        if (!type.IsDefined(typeof(RouteAttribute), inherit: true))
+        {
+            return false;
+        }
+
+        if (type.Namespace?.Contains(".Pages.LegacyRoutes", StringComparison.Ordinal) == true)
+        {
+            return false;
+        }
+
+        var hasAuthorize = type.IsDefined(typeof(AuthorizeAttribute), inherit: true);
+        var hasAllowAnonymous = type.IsDefined(typeof(AllowAnonymousAttribute), inherit: true);
+        return !hasAuthorize || hasAllowAnonymous;
+    }
+
+    private static string NormalizeRoute(string template)
+    {
+        if (string.IsNullOrWhiteSpace(template))
+        {
+            return "/";
+        }
+
+        var route = template.StartsWith("/", StringComparison.Ordinal) ? template : $"/{template}";
+        return route == string.Empty ? "/" : route;
+    }
+
     private static Uri BuildOtlpHttpSignalEndpoint(string endpoint, string signal)
     {
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var parsed))
@@ -901,6 +1010,32 @@ try
         }
 
         return builder.Uri;
+    }
+
+    private static string GetPublicBaseUriFromRequest(HttpRequest request)
+    {
+        if (!string.Equals(request.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(request.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return "http://localhost";
+        }
+
+        if (!request.Host.HasValue)
+        {
+            return "http://localhost";
+        }
+
+        var pathBase = request.PathBase.HasValue
+            ? request.PathBase.Value?.TrimEnd('/') ?? string.Empty
+            : string.Empty;
+        var candidate = $"{request.Scheme}://{request.Host.Value}{pathBase}";
+
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed))
+        {
+            return "http://localhost";
+        }
+
+        return parsed.AbsoluteUri.TrimEnd('/');
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
