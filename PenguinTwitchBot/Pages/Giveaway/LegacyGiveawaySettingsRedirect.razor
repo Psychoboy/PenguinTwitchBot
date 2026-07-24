@@ -1,0 +1,24 @@
+@page "/giveawaysettings"
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Settings (Redirecting...)</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.Medium">
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Forward">
+        Giveaway Settings moved to <MudLink Href="/giveaway/settings">/giveaway/settings</MudLink>. Redirecting...
+    </MudAlert>
+</MudContainer>
+
+@code {
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        Snackbar.Add("Giveaway Settings moved to /giveaway/settings.", Severity.Info);
+        Navigation.NavigateTo("/giveaway/settings", forceLoad: false, replace: true);
+    }
+}

@@ -5,9 +5,13 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Timers (Redirecting...)</PageTitle>
 
 @code {
-    protected override void OnInitialized()
+    protected override void OnAfterRender(bool firstRender)
     {
-        // Redirect to new location (client-side navigation, no full page reload)
+        if (!firstRender)
+        {
+            return;
+        }
+
         navigationManager.NavigateTo("/actions/timers", false);
     }
 }

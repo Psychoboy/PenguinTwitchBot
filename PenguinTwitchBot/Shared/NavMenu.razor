@@ -15,29 +15,47 @@
     <MudNavLink Icon="@Icons.Material.Filled.Home" Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
     <AuthorizeView Roles="Streamer, Editor">
         <Authorized>
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Control" Expanded="@GetGroupExpanded("streamControl", "raidhistory", "giveaway", "wheelspin", "giveawaysettings", "giveawayhistory", "twitcheventsettings", "musicplayer", "playlists", "redeems")">
+            @{
+                var quickLinks = GetFilteredQuickLinks().Take(8).ToList();
+            }
+            <MudPaper Outlined="true" Class="mb-4 pa-2">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.overline" Class="px-2">Quick Jump</MudText>
+                    <MudTextField @bind-Value="_navSearchText"
+                                  Placeholder="Search streamer and editor pages"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Immediate="true"
+                                  DebounceInterval="200"
+                                  Clearable="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                    @if (quickLinks.Count > 0)
+                    {
+                        <MudStack Spacing="1" Class="px-1 pb-1">
+                            @foreach (var quickLink in quickLinks)
+                            {
+                                <MudButton OnClick="() => NavigateToQuickLink(quickLink.Href)"
+                                           Variant="Variant.Text"
+                                           StartIcon="@quickLink.Icon"
+                                           FullWidth="true"
+                                           Style="justify-content:flex-start; text-transform:none;">
+                                    @quickLink.Title
+                                </MudButton>
+                            }
+                        </MudStack>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_navSearchText))
+                    {
+                        <MudText Typo="Typo.caption" Class="px-2 pb-1 mud-text-secondary">No matching pages.</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "overlay/editor")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
-                <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways" Expanded="@GetGroupExpanded("giveaways", "giveaway", "wheelspin", "giveawaysettings", "giveawayhistory", "twitcheventsettings")">
-                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
-                    {
-                        <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway" Match="NavLinkMatch.Prefix">Giveaway</MudNavLink>
-                    }
-                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
-                    {
-                        <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
-                    }
-                    @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
-                    {
-                    <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveawaysettings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.History" Href="/giveawayhistory" Match="NavLinkMatch.Prefix">History</MudNavLink>
-                    }
-                    <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/twitcheventsettings" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
-                </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.MusicNote" Title="Music" Expanded="@GetGroupExpanded("music", "musicplayer", "playlists")">
-                    <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
-                    <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Play Lists</MudNavLink>
-                </MudNavGroup>
-                <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/redeems" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Play Lists</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Terminal" Title="Bot & Commands" Expanded="@GetGroupExpanded("botCommands", "defaultcommands", "aliases", "command-cooldowns", "externalcommands", "actions", "blacklist")">
@@ -65,12 +83,27 @@
                 </MudNavGroup>
                 <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/blacklist" Match="NavLinkMatch.Prefix">Blacklist</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "viewers", "connectedviewers", "autoshoutouts", "knownbots", "giveawaybots")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Group" Title="Community" Expanded="@GetGroupExpanded("community", "viewers", "connectedviewers", "autoshoutouts", "knownbots")">
                 <MudNavLink Icon="@Icons.Material.Filled.People" Href="/viewers" Match="NavLinkMatch.Prefix">Viewers</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ConnectWithoutContact" Href="/connectedviewers" Match="NavLinkMatch.Prefix">Current Users</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Campaign" Href="/autoshoutouts" Match="NavLinkMatch.Prefix">Auto Shoutouts</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.FmdBad" Href="/knownbots" Match="NavLinkMatch.Prefix">Known Bots</MudNavLink>
-                <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/giveawaybots" Match="NavLinkMatch.Prefix">G Exclusions</MudNavLink>
+            </MudNavGroup>
+            <MudNavGroup Icon="@Icons.Material.Filled.CardGiftcard" Title="Giveaways & Rewards" Expanded="@GetGroupExpanded("giveawaysRewards", "giveaway", "wheelspin", "twitcheventsettings", "redeems")">
+                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+                {
+                    <MudNavLink Icon="@Icons.Material.Filled.Public" Href="/giveaway" Match="NavLinkMatch.All">Viewer Giveaway Page</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Redeem" Href="/giveaway/draw" Match="NavLinkMatch.Prefix">Draw Giveaway</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Settings" Href="/giveaway/settings" Match="NavLinkMatch.Prefix">Giveaway Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.History" Href="/giveaway/history" Match="NavLinkMatch.Prefix">Giveaway History</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Block" Href="/giveaway/exclusions" Match="NavLinkMatch.Prefix">Giveaway Exclusions</MudNavLink>
+                }
+                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+                {
+                    <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
+                }
+                <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/twitcheventsettings" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/redeems" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "botauth", "voices", "tools", "backups", "validation-status", "pointsettings", "gamesettings", "obs/connections")">
                 <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "botauth", "voices", "settings/integrations", "settings/app")">
@@ -122,7 +155,7 @@
     <MudNavLink Href="/acommands" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AudioFile">Audio Commands</MudNavLink>
     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
     {
-        <MudNavLink Href="/viewergiveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
+        <MudNavLink Href="/giveaway" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CardGiftcard">Giveaway</MudNavLink>
     }
     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.QuoteSystem))
     {
@@ -187,6 +220,7 @@
 @code {
     private const string DefaultStarCitizenReferralUrl = "https://www.robertsspaceindustries.com/enlist?referral=STAR-6564-JQ7N";
     private Dictionary<string, bool> _groupExpandedState = new();
+    private string _navSearchText = string.Empty;
     private string CurrentUrl => Navigation.ToBaseRelativePath(Navigation.Uri);
     private string StarCitizenReferralUrl => string.IsNullOrWhiteSpace(AppConfiguration["SupportLinks:StarCitizenReferral"]) ? DefaultStarCitizenReferralUrl : AppConfiguration["SupportLinks:StarCitizenReferral"]!;
     private bool _isStreamer;
@@ -208,6 +242,115 @@
         }
 
         return _groupExpandedState.GetValueOrDefault(groupKey, false);
+    }
+
+    private IEnumerable<NavQuickLink> GetFilteredQuickLinks()
+    {
+        if (string.IsNullOrWhiteSpace(_navSearchText))
+        {
+            return Enumerable.Empty<NavQuickLink>();
+        }
+
+        string search = _navSearchText.Trim();
+        return GetQuickLinks()
+            .Where(link => link.SearchText.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(link => link.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(link => link.Group)
+            .ThenBy(link => link.Title);
+    }
+
+    private IEnumerable<NavQuickLink> GetQuickLinks()
+    {
+        var links = new List<NavQuickLink>
+        {
+            CreateQuickLink("Raid History", "/raidhistory", Icons.Material.Filled.Groups, "Stream Tools"),
+            CreateQuickLink("Music Player", "/musicplayer", Icons.Material.Filled.PlayCircle, "Stream Tools", "music"),
+            CreateQuickLink("Play Lists", "/playlists", Icons.Material.Filled.QueueMusic, "Stream Tools", "music", "playlist"),
+            CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),
+            CreateQuickLink("Default Commands", "/defaultcommands", Icons.Material.Filled.Code, "Bot & Commands", "commands"),
+            CreateQuickLink("Current Cooldowns", "/command-cooldowns", Icons.Material.Filled.Schedule, "Bot & Commands", "commands", "cooldown"),
+            CreateQuickLink("External Commands", "/externalcommands", Icons.Material.Filled.Extension, "Bot & Commands", "commands"),
+            CreateQuickLink("Action Commands", "/actions/commands", Icons.Material.Filled.Bolt, "Bot & Commands", "actions"),
+            CreateQuickLink("Keywords", "/actions/keywords", Icons.Material.Filled.Key, "Bot & Commands", "actions"),
+            CreateQuickLink("Audio Commands", "/actions/audiocommands", Icons.Material.Filled.AudioFile, "Bot & Commands", "actions"),
+            CreateQuickLink("Manage Actions", "/actions/manage", Icons.Material.Filled.Tune, "Bot & Commands", "actions"),
+            CreateQuickLink("Global Variables", "/actions/globalvariables", Icons.Material.Filled.Storage, "Bot & Commands", "actions"),
+            CreateQuickLink("Action History", "/actions/history", Icons.Material.Filled.History, "Bot & Commands", "actions"),
+            CreateQuickLink("Queues", "/actions/queues", Icons.Material.Filled.ViewList, "Bot & Commands", "actions"),
+            CreateQuickLink("Blacklist", "/blacklist", Icons.Material.Filled.Block, "Bot & Commands"),
+            CreateQuickLink("Viewers", "/viewers", Icons.Material.Filled.People, "Community"),
+            CreateQuickLink("Current Users", "/connectedviewers", Icons.Material.Filled.ConnectWithoutContact, "Community", "connected viewers"),
+            CreateQuickLink("Auto Shoutouts", "/autoshoutouts", Icons.Material.Filled.Campaign, "Community", "shoutouts"),
+            CreateQuickLink("Known Bots", "/knownbots", Icons.Material.Filled.FmdBad, "Community"),
+            CreateQuickLink("Bot Auth", "/botauth", Icons.Material.Filled.Security, "Configuration", "auth"),
+            CreateQuickLink("Bot Settings", "/settings/app", Icons.Material.Filled.SettingsSuggest, "Configuration", "app settings"),
+            CreateQuickLink("Integrations", "/settings/integrations", Icons.Material.Filled.Extension, "Configuration"),
+            CreateQuickLink("Updates & Logs", "/updatesandlogs", Icons.Material.Filled.Update, "Configuration", "updates logs"),
+            CreateQuickLink("Backups", "/backups", Icons.Material.Filled.Backup, "Configuration"),
+            CreateQuickLink("Validation Status", "/validation-status", Icons.Material.Filled.BugReport, "Configuration", "validation"),
+            CreateQuickLink("Points", "/pointsettings", Icons.Material.Filled.Money, "Configuration", "games points"),
+            CreateQuickLink("Game", "/gamesettings", Icons.Material.Filled.Games, "Configuration", "games points"),
+            CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs"),
+            CreateQuickLink("Loyalty Bonuses", "/twitcheventsettings", Icons.Material.Filled.Loyalty, "Giveaways & Rewards", "loyalty bonuses"),
+            CreateQuickLink("Channel Points", "/redeems", Icons.Material.Filled.Stars, "Giveaways & Rewards", "rewards channel points")
+        };
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
+        {
+            links.Add(CreateQuickLink("Viewer Giveaway Page", "/giveaway", Icons.Material.Filled.Public, "Giveaways & Rewards", "viewer giveaway public"));
+            links.Add(CreateQuickLink("Draw Giveaway", "/giveaway/draw", Icons.Material.Filled.Redeem, "Giveaways & Rewards", "drawing admin control manage"));
+            links.Add(CreateQuickLink("Giveaway Settings", "/giveaway/settings", Icons.Material.Filled.Settings, "Giveaways & Rewards"));
+            links.Add(CreateQuickLink("Giveaway History", "/giveaway/history", Icons.Material.Filled.History, "Giveaways & Rewards"));
+            links.Add(CreateQuickLink("Giveaway Exclusions", "/giveaway/exclusions", Icons.Material.Filled.Block, "Giveaways & Rewards", "bots exclusions"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            links.Add(CreateQuickLink("Wheel Spin", "/wheelspin", Icons.Material.Filled.Casino, "Giveaways & Rewards", "wheel"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))
+        {
+            links.Add(CreateQuickLink("Action Timers", "/actions/timers", Icons.Material.Filled.Timer, "Bot & Commands", "timers"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+        {
+            links.Add(CreateQuickLink("Aliases", "/aliases", Icons.Material.Filled.SwapHoriz, "Bot & Commands", "commands"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TTS))
+        {
+            links.Add(CreateQuickLink("Voices", "/voices", Icons.Material.Filled.RecordVoiceOver, "Configuration", "tts"));
+        }
+
+        if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Fishing))
+        {
+            links.Add(CreateQuickLink("Manage Fish & Shop", "/fishing/admin", Icons.Material.Filled.List, "Fishing Admin", "fishing shop"));
+            links.Add(CreateQuickLink("Manage Images", "/fishing/imageprocessing", Icons.Material.Filled.List, "Fishing Admin", "fishing images"));
+            links.Add(CreateQuickLink("Balance Analysis", "/fishing/balance-analysis", Icons.Material.Filled.Analytics, "Fishing Admin", "fishing balance"));
+        }
+
+        return links;
+    }
+
+    private static NavQuickLink CreateQuickLink(string title, string href, string icon, string group, params string[] additionalTerms)
+    {
+        string searchText = string.Join(' ', new[] { title, group, href }.Concat(additionalTerms));
+        return new NavQuickLink(title, href, icon, group, searchText);
+    }
+
+    private void NavigateToQuickLink(string href)
+    {
+        _navSearchText = string.Empty;
+
+        if (string.Equals(CurrentUrl, href.TrimStart('/'), StringComparison.OrdinalIgnoreCase))
+        {
+            StateHasChanged();
+            return;
+        }
+
+        Navigation.NavigateTo(href);
     }
 
     private void Signin()
@@ -254,4 +397,6 @@
         FeatureRuntimeCoordinator.StateChanged -= HandleFeatureStateChanged;
         Navigation.LocationChanged -= OnLocationChanged;
     }
+
+    private sealed record NavQuickLink(string Title, string Href, string Icon, string Group, string SearchText);
 }
