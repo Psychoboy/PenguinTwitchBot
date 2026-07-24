@@ -386,15 +386,35 @@ internal class Program
         app.MapControllers();
         app.MapGet("/sitemap.xml", (HttpContext context) =>
         {
-            var origin = $"{context.Request.Scheme}://{context.Request.Host.Value}";
-            var sitemapXml = BuildSitemapXml(origin);
+            string sitemapXml;
+            try
+            {
+                var publicBaseUri = GetPublicBaseUriFromRequest(context.Request);
+                sitemapXml = BuildSitemapXml(publicBaseUri);
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogWarning(ex, "Failed to generate sitemap.xml from request origin; returning empty sitemap.");
+                sitemapXml = BuildEmptySitemapXml();
+            }
+
             return Results.Content(sitemapXml, "application/xml; charset=utf-8");
         }).AllowAnonymous();
 
         app.MapGet("/robots.txt", (HttpContext context) =>
         {
-            var origin = $"{context.Request.Scheme}://{context.Request.Host.Value}";
-            var robots = $"User-agent: *\nAllow: /\nSitemap: {origin}/sitemap.xml\n";
+            string robots;
+            try
+            {
+                var publicBaseUri = GetPublicBaseUriFromRequest(context.Request);
+                robots = $"User-agent: *\nAllow: /\nSitemap: {publicBaseUri}/sitemap.xml\n";
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogWarning(ex, "Failed to generate robots.txt sitemap URL from request origin; returning safe robots fallback.");
+                robots = "User-agent: *\nAllow: /\n";
+            }
+
             return Results.Text(robots, "text/plain");
         }).AllowAnonymous();
 
@@ -908,6 +928,14 @@ try
         return document.ToString(SaveOptions.DisableFormatting);
     }
 
+    private static string BuildEmptySitemapXml()
+    {
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        var urlSet = new XElement(ns + "urlset");
+        var document = new XDocument(new XDeclaration("1.0", "utf-8", "yes"), urlSet);
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
     private static IReadOnlyList<string> GetPublicBlazorRoutes()
     {
         var appAssembly = typeof(Program).Assembly;
@@ -982,6 +1010,32 @@ try
         }
 
         return builder.Uri;
+    }
+
+    private static string GetPublicBaseUriFromRequest(HttpRequest request)
+    {
+        if (!string.Equals(request.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(request.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return "http://localhost";
+        }
+
+        if (!request.Host.HasValue)
+        {
+            return "http://localhost";
+        }
+
+        var pathBase = request.PathBase.HasValue
+            ? request.PathBase.Value?.TrimEnd('/') ?? string.Empty
+            : string.Empty;
+        var candidate = $"{request.Scheme}://{request.Host.Value}{pathBase}";
+
+        if (!Uri.TryCreate(candidate, UriKind.Absolute, out var parsed))
+        {
+            return "http://localhost";
+        }
+
+        return parsed.AbsoluteUri.TrimEnd('/');
     }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
