@@ -290,9 +290,14 @@
             CreateQuickLink("Loyalty Bonuses", "/settings/loyalty-bonuses", Icons.Material.Filled.Loyalty, "Configuration", "points rewards"),
             CreateQuickLink("Point Settings", "/settings/points", Icons.Material.Filled.Money, "Configuration", "games points rewards"),
             CreateQuickLink("Game Settings", "/settings/games", Icons.Material.Filled.Games, "Configuration", "games points rewards"),
-            CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs"),
-            CreateQuickLink("Aliases", "/commands/aliases", Icons.Material.Filled.SwapHoriz, "Commands", "chat commands")
+            CreateQuickLink("OBS Connections", "/obs/connections", Icons.Material.Filled.Videocam, "Configuration", "obs")
+            
         };
+
+        if(FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
+        {
+            CreateQuickLink("Aliases", "/commands/aliases", Icons.Material.Filled.SwapHoriz, "Commands", "chat commands");
+        }
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.GiveawayFeature))
         {
