@@ -27,30 +27,39 @@
 <MudPaper Class="pa-4" Elevation="0" Outlined="true">
     @if (ShowActions)
     {
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
-            <MudText Typo="Typo.h6">
-                @(IsNewCommand ? "New Command" : $"Edit Command: !{Command?.CommandName}")
-            </MudText>
-            <MudStack Row="true" Spacing="1">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                           OnClick="SaveCommand" StartIcon="@Icons.Material.Filled.Save"
-                           Disabled="@(!CanSave())" Class="save-command-btn">
-                    Save
-                </MudButton>
-                @if (!IsNewCommand && OnDelete.HasDelegate)
-                {
-                     <MudButton Variant="Variant.Filled" Color="Color.Error" 
-                                OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete" Class="delete-command-btn">
-                         Delete
-                     </MudButton>
-                }
-                @if (OnCancel.HasDelegate)
-                {
-                    <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
-                        Cancel
+        <MudStack Spacing="1" Class="mb-3">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.h6">
+                    @(IsNewCommand ? "New Command" : $"Edit Command: !{Command?.CommandName}")
+                </MudText>
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                               OnClick="SaveCommand" StartIcon="@Icons.Material.Filled.Save"
+                               Disabled="@(!CanSave())" Class="save-command-btn">
+                        Save
                     </MudButton>
-                }
+                    @if (!IsNewCommand && OnDelete.HasDelegate)
+                    {
+                         <MudButton Variant="Variant.Filled" Color="Color.Error" 
+                                    OnClick="DeleteCommand" StartIcon="@Icons.Material.Filled.Delete" Class="delete-command-btn">
+                             Delete
+                         </MudButton>
+                    }
+                    @if (OnCancel.HasDelegate)
+                    {
+                        <MudButton Variant="Variant.Outlined" OnClick="CancelEdit">
+                            Cancel
+                        </MudButton>
+                    }
+                </MudStack>
             </MudStack>
+
+            @if (!CanSave())
+            {
+                <MudText Typo="Typo.caption" Color="Color.Error" Class="save-command-helper-text">
+                    @GetSaveDisabledReason()
+                </MudText>
+            }
         </MudStack>
         <MudDivider Class="mb-3" />
     }
@@ -64,7 +73,9 @@
             </MudItem>
             <MudItem xs="12" md="6">
                 <MudTextField @bind-Value="Command.CommandName" Label="Command Name" 
-                              Required="true" Variant="Variant.Outlined" 
+                              Required="true" Variant="Variant.Outlined"
+                              Error="@IsCommandNameMissing()"
+                              ErrorText="Command name is required."
                               HelperText="Do not include the ! prefix" Class="command-name-input" />
             </MudItem>
             <MudItem xs="12" md="6">
@@ -112,6 +123,8 @@
                 <MudSelect T="PointType" @bind-Value="_selectedPointType" Label="Point Type" 
                            Variant="Variant.Outlined"
                            Required="@(Command.Cost > 0)"
+                           Error="@IsPointTypeRequired()"
+                           ErrorText="Point type is required when cost is greater than 0."
                            ToStringFunc="@(p => p?.Name ?? "None")">
                     <MudSelectItem T="PointType" Value="@null">None</MudSelectItem>
                     @foreach (var pointType in _pointTypes)
@@ -286,6 +299,36 @@
         if (Command == null || string.IsNullOrWhiteSpace(Command.CommandName)) return false;
         if (Command.Cost > 0 && _selectedPointType == null) return false;
         return true;
+    }
+
+    private bool IsCommandNameMissing()
+    {
+        return Command != null && string.IsNullOrWhiteSpace(Command.CommandName);
+    }
+
+    private bool IsPointTypeRequired()
+    {
+        return Command != null && Command.Cost > 0 && _selectedPointType == null;
+    }
+
+    private string GetSaveDisabledReason()
+    {
+        if (Command == null)
+        {
+            return "Command details are still loading.";
+        }
+
+        if (IsCommandNameMissing())
+        {
+            return "Command name is required before saving.";
+        }
+
+        if (IsPointTypeRequired())
+        {
+            return "Point type is required when cost is greater than 0.";
+        }
+
+        return string.Empty;
     }
 
     private async Task SaveCommand()
