@@ -7,6 +7,12 @@ namespace PenguinTwitchBot.Shared
 {
     public partial class NotFoundItem : ComponentBase
     {
+        private static readonly string[] ExpectedProbePrefixes = ["/gifs/", "/audio/", "/clips/", "/fishes/"];
+        private static readonly HashSet<string> ExpectedMediaExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".mp3", ".wav", ".ogg", ".oga", ".opus", ".aac", ".m4a", ".mp4", ".webm", ".ogv"
+        };
+
         [Inject]
         private ILogger<NotFoundItem>? Logger { get; set; }
         [Inject]
@@ -60,35 +66,28 @@ namespace PenguinTwitchBot.Shared
                 return false;
             }
 
+            if (!IsHeadRequest(httpContext.Request.Method))
+            {
+                return false;
+            }
+
             // StatusCodePagesWithReExecute stores the original path in this feature.
             var reExecuteFeature = httpContext.Features.Get<IStatusCodeReExecuteFeature>();
             var originalPath = reExecuteFeature?.OriginalPath ?? httpContext.Request.Path.Value ?? string.Empty;
 
-            if (!string.Equals(httpContext.Request.Method, "HEAD", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return IsExpectedProbePath(originalPath) && IsExpectedMediaExtension(originalPath);
+        }
 
-            if (!(originalPath.StartsWith("/gifs/", StringComparison.OrdinalIgnoreCase)
-                || originalPath.StartsWith("/audio/", StringComparison.OrdinalIgnoreCase)
-                || originalPath.StartsWith("/clips/", StringComparison.OrdinalIgnoreCase)
-                || originalPath.StartsWith("/fishes/", StringComparison.OrdinalIgnoreCase)))
-            {
-                return false;
-            }
+        private static bool IsHeadRequest(string? method)
+            => string.Equals(method, "HEAD", StringComparison.OrdinalIgnoreCase);
 
+        private static bool IsExpectedProbePath(string originalPath)
+            => ExpectedProbePrefixes.Any(prefix => originalPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        private static bool IsExpectedMediaExtension(string originalPath)
+        {
             var ext = Path.GetExtension(originalPath);
-            return !string.IsNullOrWhiteSpace(ext)
-                && (ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".wav", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".ogg", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".oga", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".opus", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".aac", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".m4a", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".mp4", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".webm", StringComparison.OrdinalIgnoreCase)
-                    || ext.Equals(".ogv", StringComparison.OrdinalIgnoreCase));
+            return !string.IsNullOrWhiteSpace(ext) && ExpectedMediaExtensions.Contains(ext);
         }
 
         private string GetOriginalRequestTarget()
