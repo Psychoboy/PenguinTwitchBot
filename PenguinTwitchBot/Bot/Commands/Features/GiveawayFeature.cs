@@ -95,6 +95,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             await RegisterDefaultCommand("close", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("resetdraw", this, moduleName, Rank.Streamer);
             await RegisterDefaultCommand("setprize", this, moduleName, Rank.Streamer);
+            await RegisterDefaultCommand("entries", this, moduleName);
             await pointsSystem.RegisterDefaultPointForGame(ModuleName);
             _timer.Start();
             logger.LogInformation("Registered commands for {moduleName}", moduleName);
@@ -140,7 +141,18 @@ namespace PenguinTwitchBot.Bot.Commands.Features
                         await SetPrize(e.Arg);
                         break;
                     }
+                case "entries":
+                    {
+                        await Entries(e.Name);
+                        break;
+                    }
             }
+        }
+
+        private async Task Entries(string name)
+        {
+            var entries = await GetEntriesCount(name);
+            await ServiceBackbone.SendChatMessage($"{name} has {entries} entries into the giveaway.");
         }
 
         public async Task<string> GetPrize()
