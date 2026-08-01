@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Extension Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <link rel="stylesheet" href="/css/extension.css" />
+</head>
+<body>
+    <div class="config-container">
+        <h1>Extension Settings</h1>
+        <form id="configForm">
+            <div class="form-group">
+                <label for="tournamentCount">Tournament Count</label>
+                <input type="number" id="tournamentCount" name="tournamentCount" min="1" max="20" value="5" />
+            </div>
+            <div class="form-group">
+                <label for="catchCount">Catch Count</label>
+                <input type="number" id="catchCount" name="catchCount" min="1" max="50" value="10" />
+            </div>
+            <div class="form-group">
+                <label for="refreshInterval">Refresh Interval (seconds)</label>
+                <input type="number" id="refreshInterval" name="refreshInterval" min="5" max="300" value="30" />
+            </div>
+            <button type="submit">Save</button>
+            <div id="feedback" class="feedback"></div>
+        </form>
+    </div>
+    <script src="/js/extension.js"></script>
+    <script src="/js/config.js"></script>
+</body>
+</html>
