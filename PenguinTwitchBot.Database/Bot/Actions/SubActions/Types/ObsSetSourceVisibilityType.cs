@@ -32,6 +32,38 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(SceneName),
+                    Label = "Scene Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Scene containing the source"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(SourceName),
+                    Label = "Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Source to show or hide"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(Visible),
+                    Label = "Visible",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

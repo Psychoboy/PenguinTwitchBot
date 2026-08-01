@@ -32,6 +32,31 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Image Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Name of the OBS image source"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(FilePath),
+                    Label = "File Path",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Absolute image file path"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

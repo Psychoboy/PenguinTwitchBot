@@ -52,6 +52,38 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Media Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Name of the OBS media source"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(MediaAction),
+                    Label = "Action",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions = MediaActions
+                        .Select((value, index) => new SelectOption
+                        {
+                            Value = value,
+                            Name = MediaActionLabels[index]
+                        })
+                        .ToList(),
+                    HelperText = "Media action to trigger"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

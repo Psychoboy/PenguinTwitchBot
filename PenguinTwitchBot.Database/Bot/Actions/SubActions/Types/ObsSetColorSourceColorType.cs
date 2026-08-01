@@ -35,6 +35,31 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Color Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Name of the OBS color source"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(Color),
+                    Label = "Color",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Hex color (#RRGGBB or #AARRGGBB)"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

@@ -34,6 +34,41 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Audio source name"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(TrackNumber),
+                    Label = "Track Number",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    Max = 6,
+                    Step = 1,
+                    HelperText = "Audio track from 1 to 6"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(TrackEnabled),
+                    Label = "Track Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
