@@ -48,7 +48,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 connection.Execute(obs =>
                 {
-                    var settings = new JObject { { "color", (long)abgrColor } };
+                    var existingSettings = obs.GetInputSettings(inputName);
+                    var settings = existingSettings?.Settings?.DeepClone() as JObject ?? new JObject();
+
+                    settings["color"] = (long)abgrColor;
                     obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 

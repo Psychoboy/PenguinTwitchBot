@@ -47,7 +47,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 connection.Execute(obs =>
                 {
-                    var settings = new JObject { { "url", url } };
+                    var existingSettings = obs.GetInputSettings(inputName);
+                    var settings = existingSettings?.Settings?.DeepClone() as JObject ?? new JObject();
+
+                    settings["url"] = url;
                     obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 
