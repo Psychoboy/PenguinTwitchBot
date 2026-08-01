@@ -57,7 +57,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 connection.Execute(obs =>
                 {
                     var settings = new JObject { { "text", textContent } };
-                    obs.SetInputSettings(inputName, settings, overlay: true);
+                    obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 
                 _logger.LogInformation(

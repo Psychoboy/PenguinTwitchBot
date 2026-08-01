@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 connection.Execute(obs =>
                 {
                     var settings = new JObject { { "file", filePath } };
-                    obs.SetInputSettings(inputName, settings, overlay: true);
+                    obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 
                 _logger.LogInformation("Set image source '{Input}' file to '{File}' in OBS connection '{Connection}'",

@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 connection.Execute(obs =>
                 {
                     var settings = new JObject { { "url", url } };
-                    obs.SetInputSettings(inputName, settings, overlay: true);
+                    obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 
                 _logger.LogInformation("Set browser source '{Input}' URL to '{Url}' in OBS connection '{Connection}'",
