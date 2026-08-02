@@ -34,6 +34,41 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Audio source name"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(TrackNumber),
+                    Label = "Track Number",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    Max = 6,
+                    Step = 1,
+                    HelperText = "Audio track from 1 to 6"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(TrackEnabled),
+                    Label = "Track Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
@@ -72,10 +107,32 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (!values.TryGetValue(nameof(OBSConnectionId), out var connId) || connId == null)
                 return "OBS Connection is required";
+
+            var parsedConnectionId = connId switch
+            {
+                string s when int.TryParse(s, out var parsed) => parsed,
+                int i => i,
+                _ => 0
+            };
+
+            if (parsedConnectionId < 1)
+                return "OBS Connection is required";
+
             if (!values.TryGetValue(nameof(InputName), out var n) || string.IsNullOrWhiteSpace(n as string))
                 return "Source Name is required";
             if (!values.TryGetValue(nameof(TrackNumber), out var t) || t == null)
                 return "Track Number is required";
+
+            int? parsedTrackNumber = t switch
+            {
+                string s when int.TryParse(s, out var parsed) => parsed,
+                int i => i,
+                _ => null
+            };
+
+            if (parsedTrackNumber is null || parsedTrackNumber < 1 || parsedTrackNumber > 6)
+                return "Track Number must be between 1 and 6";
+
             return null;
         }
     }

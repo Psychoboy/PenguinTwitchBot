@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(type, variables);
 
             connectionManager.Received(1).GetManagedConnection(1);
-            mockObs.Received(1).SetInputSettings("Media", Arg.Is<JObject>(o => o["local_file"]!.ToString() == "C:\\test.mp4"), true);
+            mockObs.Received(1).SetInputSettings("Media", Arg.Is<JObject>(o => o["local_file"]!.ToString() == "C:\\test.mp4"), false);
         }
 
         [Fact]

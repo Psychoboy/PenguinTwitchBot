@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             await handler.ExecuteAsync(type, variables);
 
             connectionManager.Received(1).GetManagedConnection(1);
-            mockObs.Received(1).SetInputSettings("Text", Arg.Is<JObject>(o => o["text"]!.ToString() == "Hello World"), true);
+            mockObs.Received(1).SetInputSettings("Text", Arg.Is<JObject>(o => o["text"]!.ToString() == "Hello World"), false);
         }
 
         [Fact]

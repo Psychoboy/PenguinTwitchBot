@@ -29,6 +29,30 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Input Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Input to mute or unmute"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(Muted),
+                    Label = "Muted",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

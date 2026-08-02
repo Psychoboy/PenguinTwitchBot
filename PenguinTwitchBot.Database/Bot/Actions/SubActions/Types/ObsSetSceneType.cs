@@ -27,6 +27,23 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(SceneName),
+                    Label = "Scene Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Scene to switch to"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

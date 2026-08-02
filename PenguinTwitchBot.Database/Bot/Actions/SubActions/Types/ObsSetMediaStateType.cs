@@ -52,6 +52,38 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(InputName),
+                    Label = "Media Source Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Name of the OBS media source"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(MediaAction),
+                    Label = "Action",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions = MediaActions
+                        .Select((value, index) => new SelectOption
+                        {
+                            Value = value,
+                            Name = MediaActionLabels[index]
+                        })
+                        .ToList(),
+                    HelperText = "Media action to trigger"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,
@@ -84,10 +116,26 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (!values.TryGetValue(nameof(OBSConnectionId), out var connId) || connId == null)
                 return "OBS Connection is required";
+
+            var parsedConnectionId = connId switch
+            {
+                string s when int.TryParse(s, out var parsed) => parsed,
+                int i => i,
+                _ => 0
+            };
+
+            if (parsedConnectionId < 1)
+                return "OBS Connection is required";
+
             if (!values.TryGetValue(nameof(InputName), out var n) || string.IsNullOrWhiteSpace(n as string))
                 return "Media Source Name is required";
             if (!values.TryGetValue(nameof(MediaAction), out var a) || string.IsNullOrWhiteSpace(a as string))
                 return "Action is required";
+
+            var mediaActionValue = (a as string ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(mediaActionValue) && !MediaActions.Contains(mediaActionValue, StringComparer.Ordinal))
+                return "Action is invalid";
+
             return null;
         }
     }

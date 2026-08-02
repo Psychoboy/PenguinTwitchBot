@@ -32,6 +32,38 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 new SubActionUIField
                 {
+                    PropertyName = nameof(OBSConnectionId),
+                    Label = "OBS Connection",
+                    FieldType = UIFieldType.Number,
+                    Required = true,
+                    Min = 1,
+                    HelperText = "Select your OBS connection"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(SceneName),
+                    Label = "Scene Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Scene that has the filter"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(FilterName),
+                    Label = "Filter Name",
+                    FieldType = UIFieldType.Text,
+                    Required = true,
+                    HelperText = "Filter to toggle on the scene"
+                },
+                new SubActionUIField
+                {
+                    PropertyName = nameof(FilterEnabled),
+                    Label = "Filter Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary"
+                },
+                new SubActionUIField
+                {
                     PropertyName = nameof(Enabled),
                     Label = "Enabled",
                     FieldType = UIFieldType.Switch,

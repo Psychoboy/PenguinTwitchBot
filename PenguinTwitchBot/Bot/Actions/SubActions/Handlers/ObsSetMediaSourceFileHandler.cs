@@ -47,9 +47,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 connection.Execute(obs =>
                 {
+                    var existingSettings = obs.GetInputSettings(inputName);
+                    var settings = existingSettings?.Settings?.DeepClone() as JObject ?? new JObject();
+
                     // ffmpeg_source uses "local_file" for local files
-                    var settings = new JObject { { "local_file", filePath } };
-                    obs.SetInputSettings(inputName, settings, overlay: true);
+                    settings["local_file"] = filePath;
+                    obs.SetInputSettings(inputName, settings, overlay: false);
                 });
 
                 _logger.LogInformation("Set media source '{Input}' file to '{File}' in OBS connection '{Connection}'",
