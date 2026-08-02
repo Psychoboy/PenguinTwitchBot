@@ -389,30 +389,55 @@ public static class SubActionUIFieldEnhancer
             return [text];
 
         if (data is IEnumerable enumerable && data is not string)
+            return ExtractNamesFromEnumerable(enumerable, allowedKinds);
+
+        return ExtractNamesFromObject(data, allowedKinds);
+    }
+
+    private static List<string> ExtractNamesFromEnumerable(IEnumerable enumerable, IEnumerable<string>? allowedKinds)
+    {
+        var names = new List<string>();
+        foreach (var item in enumerable)
         {
-            var names = new List<string>();
-            foreach (var item in enumerable)
-            {
-                names.AddRange(ExtractNames(item, allowedKinds));
-            }
-            return names;
+            names.AddRange(ExtractNames(item, allowedKinds));
         }
 
+        return names;
+    }
+
+    private static List<string> ExtractNamesFromObject(object data, IEnumerable<string>? allowedKinds)
+    {
         var type = data.GetType();
-        if (allowedKinds != null)
-        {
-            var inputKindProperty = type.GetProperty("InputKind");
-            if (inputKindProperty != null)
-            {
-                var inputKind = inputKindProperty.GetValue(data)?.ToString();
-                if (!string.IsNullOrWhiteSpace(inputKind) && !allowedKinds.Contains(inputKind, StringComparer.OrdinalIgnoreCase))
-                {
-                    return [];
-                }
-            }
-        }
+        if (ShouldFilterOutByInputKind(data, type, allowedKinds))
+            return [];
 
-        foreach (var propertyName in new[] { "Name", "InputName", "SourceName", "FilterName", "SceneName", "DisplayName", "ItemName" })
+        var directName = TryGetFirstStringPropertyValue(data, type, ["Name", "InputName", "SourceName", "FilterName", "SceneName", "DisplayName", "ItemName"]);
+        if (!string.IsNullOrWhiteSpace(directName))
+            return [directName];
+
+        var nestedNames = TryGetNestedNames(data, type, ["InputName", "SourceName", "Name"], allowedKinds);
+        if (nestedNames.Count > 0)
+            return nestedNames;
+
+        return TryGetNestedNames(data, type, ["Inputs", "Scenes", "Sources", "Filters", "SceneItems", "Items"], allowedKinds);
+    }
+
+    private static bool ShouldFilterOutByInputKind(object data, Type type, IEnumerable<string>? allowedKinds)
+    {
+        if (allowedKinds == null)
+            return false;
+
+        var inputKindProperty = type.GetProperty("InputKind");
+        if (inputKindProperty == null)
+            return false;
+
+        var inputKind = inputKindProperty.GetValue(data)?.ToString();
+        return !string.IsNullOrWhiteSpace(inputKind) && !allowedKinds.Contains(inputKind, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? TryGetFirstStringPropertyValue(object data, Type type, IEnumerable<string> propertyNames)
+    {
+        foreach (var propertyName in propertyNames)
         {
             var property = type.GetProperty(propertyName);
             if (property == null)
@@ -420,10 +445,15 @@ public static class SubActionUIFieldEnhancer
 
             var value = property.GetValue(data)?.ToString();
             if (!string.IsNullOrWhiteSpace(value))
-                return [value];
+                return value;
         }
 
-        foreach (var propertyName in new[] { "InputName", "SourceName", "Name" })
+        return null;
+    }
+
+    private static List<string> TryGetNestedNames(object data, Type type, IEnumerable<string> propertyNames, IEnumerable<string>? allowedKinds)
+    {
+        foreach (var propertyName in propertyNames)
         {
             var property = type.GetProperty(propertyName);
             if (property == null)
@@ -435,21 +465,6 @@ public static class SubActionUIFieldEnhancer
                 var nestedNames = ExtractNames(nestedValue, allowedKinds);
                 if (nestedNames.Count > 0)
                     return nestedNames;
-            }
-        }
-
-        foreach (var propertyName in new[] { "Inputs", "Scenes", "Sources", "Filters", "SceneItems", "Items" })
-        {
-            var property = type.GetProperty(propertyName);
-            if (property == null)
-                continue;
-
-            var nested = property.GetValue(data);
-            if (nested is IEnumerable enumerableValue && nested is not string)
-            {
-                var names = ExtractNames(enumerableValue, allowedKinds);
-                if (names.Count > 0)
-                    return names;
             }
         }
 
