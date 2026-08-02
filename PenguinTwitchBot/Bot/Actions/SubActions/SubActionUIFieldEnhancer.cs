@@ -12,6 +12,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions;
 
 public static class SubActionUIFieldEnhancer
 {
+    private static readonly string[] TextInputKinds = ["text_gdiplus", "text_gdiplus_v2", "text_gdiplus_v3", "text_ft2_source", "text_ft2_source_v2"];
+    private static readonly string[] BrowserInputKinds = ["browser_source"];
+
     public static List<SubActionUIField> GetEnhancedFields(SubActionType? subAction, IServiceProvider? serviceProvider)
     {
         if (subAction is not ISubActionUIProvider uiProvider)
@@ -39,7 +42,6 @@ public static class SubActionUIFieldEnhancer
             ObsSetSourceMuteStateType mute => EnhanceObsSourceMuteState(fields, mute, scope.ServiceProvider),
             ObsSetSourceVisibilityType visibility => EnhanceObsSourceVisibility(fields, visibility, scope.ServiceProvider),
             ObsSetTextType text => EnhanceObsTextSource(fields, text, scope.ServiceProvider),
-            ObsTriggerHotkeyType hotkey => EnhanceObsHotkey(fields, hotkey, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
             FishingGiveItemToPlayerType fishingGiveItem => EnhanceFishingGiveItemToPlayer(fields, fishingGiveItem, scope.ServiceProvider),
             FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
@@ -73,6 +75,12 @@ public static class SubActionUIFieldEnhancer
             .Select(c => new SelectOption { Id = c.Id, Name = c.Name })
             .ToList();
 
+        var selectedConnectionId = subAction.GetType().GetProperty(nameof(ObsSetSceneType.OBSConnectionId))?.GetValue(subAction) as int?;
+        if (selectedConnectionId.HasValue && connectionOptions.All(option => option.Id != selectedConnectionId.Value))
+        {
+            connectionOptions.Add(new SelectOption { Id = selectedConnectionId.Value, Name = $"Connection #{selectedConnectionId.Value}" });
+        }
+
         fields.RemoveAll(f => f.PropertyName == nameof(ObsSetSceneType.OBSConnectionId));
         fields.Insert(0, new SubActionUIField
         {
@@ -80,7 +88,8 @@ public static class SubActionUIFieldEnhancer
             Label = "OBS Connection",
             FieldType = UIFieldType.Select,
             Required = true,
-            SelectOptions = connectionOptions
+            SelectOptions = connectionOptions,
+            HelperText = "Select your OBS connection"
         });
 
         return fields;
@@ -91,19 +100,6 @@ public static class SubActionUIFieldEnhancer
         var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
         if (connectionManager == null)
             return fields;
-
-        var connections = Task.Run(async () => await connectionManager.GetAllConnectionsAsync()).GetAwaiter().GetResult();
-        var connectionOptions = connections.Select(c => new SelectOption { Id = c.Id, Name = c.Name }).ToList();
-
-        fields.RemoveAll(f => f.PropertyName == nameof(ObsSetSceneType.OBSConnectionId));
-        fields.Insert(0, new SubActionUIField
-        {
-            PropertyName = nameof(ObsSetSceneType.OBSConnectionId),
-            Label = "OBS Connection",
-            FieldType = UIFieldType.Select,
-            Required = true,
-            SelectOptions = connectionOptions
-        });
 
         if (obs.OBSConnectionId.HasValue)
         {
@@ -134,99 +130,19 @@ public static class SubActionUIFieldEnhancer
     }
 
     private static List<SubActionUIField> EnhanceObsBrowserSourceUrl(List<SubActionUIField> fields, ObsSetBrowserSourceUrlType browserSource, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !browserSource.OBSConnectionId.HasValue)
-            return fields;
-
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == browserSource.OBSConnectionId.Value && x.IsConnected);
-        if (connected == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetBrowserSourceUrlType.InputName));
-        if (field == null)
-            return fields;
-
-        var inputNames = GetInputNames(connected, ["browser_source"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS browser source to update");
-        return fields;
-    }
+        => EnhanceObsInputField(fields, serviceProvider, browserSource.OBSConnectionId, nameof(ObsSetBrowserSourceUrlType.InputName), BrowserInputKinds, "Select the OBS browser source to update");
 
     private static List<SubActionUIField> EnhanceObsColorSource(List<SubActionUIField> fields, ObsSetColorSourceColorType colorSource, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !colorSource.OBSConnectionId.HasValue)
-            return fields;
-
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == colorSource.OBSConnectionId.Value && x.IsConnected);
-        if (connected == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetColorSourceColorType.InputName));
-        if (field == null)
-            return fields;
-
-        var inputNames = GetInputNames(connected, ["color_source", "color_source_v2", "color_source_v3"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS color source");
-        return fields;
-    }
+        => EnhanceObsInputField(fields, serviceProvider, colorSource.OBSConnectionId, nameof(ObsSetColorSourceColorType.InputName), ["color_source", "color_source_v2", "color_source_v3"], "Select the OBS color source");
 
     private static List<SubActionUIField> EnhanceObsImageSource(List<SubActionUIField> fields, ObsSetImageSourceFileType imageSource, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !imageSource.OBSConnectionId.HasValue)
-            return fields;
-
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == imageSource.OBSConnectionId.Value && x.IsConnected);
-        if (connected == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetImageSourceFileType.InputName));
-        if (field == null)
-            return fields;
-
-        var inputNames = GetInputNames(connected, ["image_source"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS image source");
-        return fields;
-    }
+        => EnhanceObsInputField(fields, serviceProvider, imageSource.OBSConnectionId, nameof(ObsSetImageSourceFileType.InputName), ["image_source"], "Select the OBS image source");
 
     private static List<SubActionUIField> EnhanceObsMediaSource(List<SubActionUIField> fields, ObsSetMediaSourceFileType mediaSource, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !mediaSource.OBSConnectionId.HasValue)
-            return fields;
-
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == mediaSource.OBSConnectionId.Value && x.IsConnected);
-        if (connected == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetMediaSourceFileType.InputName));
-        if (field == null)
-            return fields;
-
-        var inputNames = GetInputNames(connected, ["ffmpeg_source", "vlc_source"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS media source");
-        return fields;
-    }
+        => EnhanceObsInputField(fields, serviceProvider, mediaSource.OBSConnectionId, nameof(ObsSetMediaSourceFileType.InputName), ["ffmpeg_source", "vlc_source"], "Select the OBS media source");
 
     private static List<SubActionUIField> EnhanceObsMediaState(List<SubActionUIField> fields, ObsSetMediaStateType mediaState, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !mediaState.OBSConnectionId.HasValue)
-            return fields;
-
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == mediaState.OBSConnectionId.Value && x.IsConnected);
-        if (connected == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetMediaStateType.InputName));
-        if (field == null)
-            return fields;
-
-        var inputNames = GetInputNames(connected, ["ffmpeg_source", "vlc_source"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS media source");
-        return fields;
-    }
+        => EnhanceObsInputField(fields, serviceProvider, mediaState.OBSConnectionId, nameof(ObsSetMediaStateType.InputName), ["ffmpeg_source", "vlc_source"], "Select the OBS media source");
 
     private static List<SubActionUIField> EnhanceObsSceneFilterState(List<SubActionUIField> fields, ObsSetSceneFilterStateType sceneFilter, IServiceProvider serviceProvider)
     {
@@ -246,11 +162,15 @@ public static class SubActionUIFieldEnhancer
         }
 
         var filterField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSceneFilterStateType.FilterName));
+        if (filterField != null)
+        {
+            filterField.DependsOn = [nameof(ObsSetSceneFilterStateType.SceneName)];
+        }
+
         if (filterField != null && !string.IsNullOrWhiteSpace(sceneFilter.SceneName))
         {
             var filters = GetFilterNames(connected, sceneFilter.SceneName);
             ApplySelectOptions(filterField, filters, "Select the OBS filter");
-            filterField.DependsOn = [nameof(ObsSetSceneFilterStateType.SceneName)];
         }
 
         return fields;
@@ -274,11 +194,20 @@ public static class SubActionUIFieldEnhancer
         }
 
         var sourceField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSourceVisibilityType.SourceName));
+        if (sourceField != null)
+        {
+            sourceField.DependsOn = [nameof(ObsSetSourceVisibilityType.SceneName)];
+        }
+
         if (sourceField != null && !string.IsNullOrWhiteSpace(visibility.SceneName))
         {
-            var sources = GetSceneItemNames(connected, visibility.SceneName);
+            var sources = GetInputNames(connected)
+                .Concat(GetSceneNames(connected))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
             ApplySelectOptions(sourceField, sources, "Select the OBS source in the scene");
-            sourceField.DependsOn = [nameof(ObsSetSourceVisibilityType.SceneName)];
+            sourceField.AllowCustomValue = true;
         }
 
         return fields;
@@ -321,11 +250,15 @@ public static class SubActionUIFieldEnhancer
         }
 
         var filterField = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetSourceFilterStateType.FilterName));
+        if (filterField != null)
+        {
+            filterField.DependsOn = [nameof(ObsSetSourceFilterStateType.SourceName)];
+        }
+
         if (filterField != null && !string.IsNullOrWhiteSpace(sourceFilter.SourceName))
         {
             var filters = GetFilterNames(connected, sourceFilter.SourceName);
             ApplySelectOptions(filterField, filters, "Select the OBS filter");
-            filterField.DependsOn = [nameof(ObsSetSourceFilterStateType.SourceName)];
         }
 
         return fields;
@@ -351,37 +284,24 @@ public static class SubActionUIFieldEnhancer
     }
 
     private static List<SubActionUIField> EnhanceObsTextSource(List<SubActionUIField> fields, ObsSetTextType textSource, IServiceProvider serviceProvider)
+        => EnhanceObsInputField(fields, serviceProvider, textSource.OBSConnectionId, nameof(ObsSetTextType.InputName), TextInputKinds, "Select the OBS text source");
+
+    private static List<SubActionUIField> EnhanceObsInputField(List<SubActionUIField> fields, IServiceProvider serviceProvider, int? connectionId, string propertyName, IEnumerable<string>? allowedKinds, string helperText)
     {
         var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null || !textSource.OBSConnectionId.HasValue)
+        if (connectionManager == null || !connectionId.HasValue)
             return fields;
 
-        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == textSource.OBSConnectionId.Value && x.IsConnected);
+        var connected = connectionManager.GetAllManagedConnections().FirstOrDefault(x => x.Id == connectionId.Value && x.IsConnected);
         if (connected == null)
             return fields;
 
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsSetTextType.InputName));
+        var field = fields.FirstOrDefault(f => f.PropertyName == propertyName);
         if (field == null)
             return fields;
 
-        var inputNames = GetInputNames(connected, ["text_gdiplus", "text_gdiplus_v2", "text_gdiplus_v3", "text_ft2_source", "text_ft2_source_v2"]);
-        ApplySelectOptions(field, inputNames, "Select the OBS text source");
-        return fields;
-    }
-
-    private static List<SubActionUIField> EnhanceObsHotkey(List<SubActionUIField> fields, ObsTriggerHotkeyType hotkey, IServiceProvider serviceProvider)
-    {
-        var connectionManager = serviceProvider.GetService<ObsConnector.IOBSConnectionManager>();
-        if (connectionManager == null)
-            return fields;
-
-        var field = fields.FirstOrDefault(f => f.PropertyName == nameof(ObsTriggerHotkeyType.HotkeyName));
-        if (field == null)
-            return fields;
-
-        field.FieldType = UIFieldType.Select;
-        field.Required = true;
-        field.HelperText = "Select the OBS hotkey to trigger";
+        var inputNames = GetInputNames(connected, allowedKinds);
+        ApplySelectOptions(field, inputNames, helperText);
         return fields;
     }
 
@@ -405,7 +325,7 @@ public static class SubActionUIFieldEnhancer
         var names = new List<string>();
         connection.Execute(obs =>
         {
-            var result = InvokeObsMethod(obs, "GetSceneList");
+            var result = obs.GetSceneList();
             names.AddRange(ExtractNames(result));
         });
         return names
@@ -420,7 +340,7 @@ public static class SubActionUIFieldEnhancer
         var names = new List<string>();
         connection.Execute(obs =>
         {
-            var result = InvokeObsMethod(obs, "GetInputList");
+            var result = obs.GetInputList(null);
             names.AddRange(ExtractNames(result, allowedKinds));
         });
         return names
@@ -435,7 +355,7 @@ public static class SubActionUIFieldEnhancer
         var names = new List<string>();
         connection.Execute(obs =>
         {
-            var result = InvokeObsMethod(obs, "GetSceneItemList", sceneName);
+            var result = obs.GetSceneItemList(sceneName);
             names.AddRange(ExtractNames(result));
         });
         return names
@@ -450,7 +370,7 @@ public static class SubActionUIFieldEnhancer
         var names = new List<string>();
         connection.Execute(obs =>
         {
-            var result = InvokeObsMethod(obs, "GetSourceFilterList", sourceName);
+            var result = obs.GetSourceFilterList(sourceName);
             names.AddRange(ExtractNames(result));
         });
         return names
@@ -458,55 +378,6 @@ public static class SubActionUIFieldEnhancer
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private static object? InvokeObsMethod(object obs, string methodName, params object?[] args)
-    {
-        var methods = obs.GetType().GetMethods()
-            .Where(candidate => candidate.Name == methodName)
-            .OrderBy(candidate => candidate.GetParameters().Length)
-            .ToList();
-
-        if (methods.Count == 0)
-            return null;
-
-        var method = methods.FirstOrDefault(candidate => candidate.GetParameters().Length == (args?.Length ?? 0));
-        if (method == null)
-        {
-            method = methods.FirstOrDefault(candidate => candidate.GetParameters().Length >= (args?.Length ?? 0));
-        }
-
-        if (method == null)
-            return null;
-
-        try
-        {
-            var parameters = method.GetParameters();
-            var invokeArgs = new object?[parameters.Length];
-            for (var i = 0; i < parameters.Length; i++)
-            {
-                if (i < (args?.Length ?? 0) && args != null)
-                {
-                    invokeArgs[i] = args[i];
-                }
-                else if (parameters[i].HasDefaultValue)
-                {
-                    invokeArgs[i] = parameters[i].DefaultValue;
-                }
-                else
-                {
-                    invokeArgs[i] = parameters[i].ParameterType.IsValueType
-                        ? Activator.CreateInstance(parameters[i].ParameterType)
-                        : null;
-                }
-            }
-
-            return method.Invoke(obs, invokeArgs);
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static List<string> ExtractNames(object? data, IEnumerable<string>? allowedKinds = null)

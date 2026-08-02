@@ -559,8 +559,7 @@
 
         if (action.Id.HasValue && !_isNavigating)
         {
-            _skipNextNavigationPrompt = true;
-            NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}", false);
+            NavigateToManagePage(action.Id.Value, false);
         }
     }
 
@@ -610,8 +609,7 @@
         _originalActionSnapshot = string.Empty;
 
         _isNavigating = true;
-        _skipNextNavigationPrompt = true;
-        NavigationManager.NavigateTo("/actions/manage", false);
+        NavigateToManagePage(null, false);
         _isNavigating = false;
     }
 
@@ -763,8 +761,7 @@
             _selectedActionExecutionLogs.Clear();
             _isNewAction = false;
             _originalActionSnapshot = string.Empty;
-            _skipNextNavigationPrompt = true;
-            NavigationManager.NavigateTo("/actions/manage", false);
+            NavigateToManagePage(null, false);
         }
         catch (Exception ex)
         {
@@ -822,8 +819,7 @@
         _originalActionSnapshot = string.Empty;
 
         _isNavigating = true;
-        _skipNextNavigationPrompt = true;
-        NavigationManager.NavigateTo("/actions/manage", false);
+        NavigateToManagePage(null, false);
         _isNavigating = false;
 
         Snackbar.Add("Action duplicated. Click Save to create the copy.", Severity.Info);
@@ -854,8 +850,7 @@
                 _originalActionSnapshot = string.Empty;
                 await LoadActions();
 
-                _skipNextNavigationPrompt = true;
-                NavigationManager.NavigateTo("/actions/manage", false);
+                NavigateToManagePage(null, false);
             }
             catch (Exception ex)
             {
@@ -880,8 +875,7 @@
         _isNewAction = false;
         _originalActionSnapshot = string.Empty;
 
-        _skipNextNavigationPrompt = true;
-        NavigationManager.NavigateTo("/actions/manage", false);
+        NavigateToManagePage(null, false);
     }
 
     private async Task<bool> ConfirmDiscardChangesAsync()
@@ -910,6 +904,20 @@
         _selectedActionIdInList = _selectedAction?.Id;
         _expandedGroupInList = GetNormalizedGroup(_selectedAction?.Group);
         _actionsListRenderVersion++;
+    }
+
+    private void NavigateToManagePage(int? actionId = null, bool replace = false)
+    {
+        var targetPath = actionId.HasValue ? $"/actions/manage?actionId={actionId.Value}" : "/actions/manage";
+        var currentPathAndQuery = new Uri(NavigationManager.Uri).PathAndQuery;
+
+        if (string.Equals(currentPathAndQuery, targetPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _skipNextNavigationPrompt = true;
+        NavigationManager.NavigateTo(targetPath, replace);
     }
 
     private static string GetNormalizedGroup(string? group)

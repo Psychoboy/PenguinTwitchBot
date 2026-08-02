@@ -89,6 +89,17 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (!values.TryGetValue(nameof(OBSConnectionId), out var connId) || connId == null)
                 return "OBS Connection is required";
+
+            var parsedConnectionId = connId switch
+            {
+                string s when int.TryParse(s, out var parsed) => parsed,
+                int i => i,
+                _ => 0
+            };
+
+            if (parsedConnectionId < 1)
+                return "OBS Connection is required";
+
             if (!values.TryGetValue(nameof(InputName), out var n) || string.IsNullOrWhiteSpace(n as string))
                 return "Image Source Name is required";
             if (!values.TryGetValue(nameof(FilePath), out var f) || string.IsNullOrWhiteSpace(f as string))

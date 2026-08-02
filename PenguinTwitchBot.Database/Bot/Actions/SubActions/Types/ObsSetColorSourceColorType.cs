@@ -92,13 +92,29 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             if (!values.TryGetValue(nameof(OBSConnectionId), out var connId) || connId == null)
                 return "OBS Connection is required";
+
+            var parsedConnectionId = connId switch
+            {
+                string s when int.TryParse(s, out var parsed) => parsed,
+                int i => i,
+                _ => 0
+            };
+
+            if (parsedConnectionId < 1)
+                return "OBS Connection is required";
+
             if (!values.TryGetValue(nameof(InputName), out var n) || string.IsNullOrWhiteSpace(n as string))
                 return "Color Source Name is required";
             if (!values.TryGetValue(nameof(Color), out var c) || string.IsNullOrWhiteSpace(c as string))
                 return "Color is required";
-            var colorStr = (c as string ?? "").TrimStart('#');
+
+            var colorStr = (c as string ?? "").TrimStart('#').ToUpperInvariant();
             if (colorStr.Length != 6 && colorStr.Length != 8)
                 return "Color must be in #RRGGBB or #AARRGGBB format";
+
+            if (colorStr.Any(ch => !((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'F'))))
+                return "Color must contain only hexadecimal characters";
+
             return null;
         }
     }
