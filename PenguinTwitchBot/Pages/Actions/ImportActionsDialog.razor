@@ -791,9 +791,18 @@
         {
             await RefreshExistingResourcesAsync();
 
-            var resolvedResources = _importTriggers
-                ? await ResolveResourcesAsync()
-                : new Dictionary<string, ResolvedImportResource>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, ResolvedImportResource> resolvedResources;
+            try
+            {
+                resolvedResources = _importTriggers
+                    ? await ResolveResourcesAsync()
+                    : new Dictionary<string, ResolvedImportResource>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                _importErrors.Add($"Failed to resolve import resources: {ex.Message}");
+                return;
+            }
 
             var createdActions = new List<ActionType>();
 
@@ -808,6 +817,10 @@
                         executeAction.ActionId = null;
                     foreach (var executeAction in GetAllExecuteActionSubActions(catchSubActions))
                         executeAction.ActionId = null;
+                    foreach (var forEachViewer in GetAllForEachViewerSubActions(subActions))
+                        forEachViewer.ActionId = null;
+                    foreach (var forEachViewer in GetAllForEachViewerSubActions(catchSubActions))
+                        forEachViewer.ActionId = null;
 
                     var triggers = new List<TriggerType>();
                     if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
@@ -839,7 +852,15 @@
                 }
             }
 
-            await RelinkExecuteActionsAsync(createdActions);
+            try
+            {
+                await RelinkExecuteActionsAsync(createdActions);
+            }
+            catch (Exception ex)
+            {
+                _importErrors.Add($"Failed to relink imported action references: {ex.Message}");
+                return;
+            }
         }
         finally
         {
@@ -1116,6 +1137,9 @@
             var executeActions = GetAllExecuteActionSubActions(created.SubActions)
                 .Concat(GetAllExecuteActionSubActions(created.CatchSubActions))
                 .ToList();
+            var forEachViewerSubActions = GetAllForEachViewerSubActions(created.SubActions)
+                .Concat(GetAllForEachViewerSubActions(created.CatchSubActions))
+                .ToList();
 
             var needsUpdate = false;
             foreach (var executeAction in executeActions)
@@ -1125,6 +1149,18 @@
                     executeAction.ActionId != resolvedId)
                 {
                     executeAction.ActionId = resolvedId;
+                    needsUpdate = true;
+                    _relinkCount++;
+                }
+            }
+
+            foreach (var forEachViewer in forEachViewerSubActions)
+            {
+                if (!string.IsNullOrWhiteSpace(forEachViewer.ActionName) &&
+                    nameToId.TryGetValue(forEachViewer.ActionName, out var resolvedId) &&
+                    forEachViewer.ActionId != resolvedId)
+                {
+                    forEachViewer.ActionId = resolvedId;
                     needsUpdate = true;
                     _relinkCount++;
                 }
@@ -1157,6 +1193,24 @@
             {
                 result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
                 result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
+            }
+        }
+        return result;
+    }
+
+    private static List<ForEachViewerType> GetAllForEachViewerSubActions(IEnumerable<SubActionType> subActions)
+    {
+        var result = new List<ForEachViewerType>();
+        foreach (var subAction in subActions)
+        {
+            if (subAction is ForEachViewerType forEachViewer)
+            {
+                result.Add(forEachViewer);
+            }
+            else if (subAction is LogicIfElseType logic)
+            {
+                result.AddRange(GetAllForEachViewerSubActions(logic.TrueSubActions));
+                result.AddRange(GetAllForEachViewerSubActions(logic.FalseSubActions));
             }
         }
         return result;

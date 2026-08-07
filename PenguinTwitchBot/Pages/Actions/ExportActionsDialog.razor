@@ -112,6 +112,9 @@
     private async Task Export()
     {
         var actionsToExport = GetActionsToExport();
+        var actionIdToNameMap = AllActions
+            .Where(action => action.Id.HasValue)
+            .ToDictionary(action => action.Id!.Value, action => action.Name);
 
         // Preload related resources so trigger exports can carry portable definitions.
         Dictionary<int, ActionCommand> commandById = new();
@@ -152,8 +155,8 @@
                 ConcurrentAction = a.ConcurrentAction,
                 OnlineOnly = a.OnlineOnly,
                 QueueName = _includeQueueName ? a.QueueName : null,
-                SubActions = a.SubActions.OrderBy(s => s.Index).ToList(),
-                CatchSubActions = a.CatchSubActions.OrderBy(s => s.Index).ToList(),
+                SubActions = PrepareSubActionsForExport(a.SubActions.OrderBy(s => s.Index).ToList(), actionIdToNameMap),
+                CatchSubActions = PrepareSubActionsForExport(a.CatchSubActions.OrderBy(s => s.Index).ToList(), actionIdToNameMap),
                 Triggers = _includeTriggers
                     ? a.Triggers
                         .Select(t =>
@@ -270,7 +273,6 @@
     {
         if (string.IsNullOrWhiteSpace(configuration))
             return null;
-
         try
         {
             return JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
@@ -278,6 +280,36 @@
         catch
         {
             return null;
+        }
+    }
+
+    private static List<SubActionType> PrepareSubActionsForExport(List<SubActionType> subActions, Dictionary<int, string> actionIdToNameMap)
+    {
+        PopulateActionReferenceNames(subActions, actionIdToNameMap);
+        return subActions;
+    }
+
+    private static void PopulateActionReferenceNames(IEnumerable<SubActionType> subActions, Dictionary<int, string> actionIdToNameMap)
+    {
+        foreach (var subAction in subActions)
+        {
+            if (subAction is ExecuteActionType executeAction &&
+                executeAction.ActionId.HasValue &&
+                actionIdToNameMap.TryGetValue(executeAction.ActionId.Value, out var executeActionName))
+            {
+                executeAction.ActionName = executeActionName;
+            }
+            else if (subAction is ForEachViewerType forEachViewer &&
+                     forEachViewer.ActionId.HasValue &&
+                     actionIdToNameMap.TryGetValue(forEachViewer.ActionId.Value, out var forEachViewerActionName))
+            {
+                forEachViewer.ActionName = forEachViewerActionName;
+            }
+            else if (subAction is LogicIfElseType logic)
+            {
+                PopulateActionReferenceNames(logic.TrueSubActions, actionIdToNameMap);
+                PopulateActionReferenceNames(logic.FalseSubActions, actionIdToNameMap);
+            }
         }
     }
 

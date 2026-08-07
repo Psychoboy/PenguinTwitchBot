@@ -58,10 +58,10 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 }
             }
 
-            // Populate ActionName for ExecuteActionType subactions before save
+            // Populate action-reference names for action-calling subactions before save
             if(allIncomingSubActions.Count != 0)
             {
-                await PopulateExecuteActionNamesBeforeSave(allIncomingSubActions);
+                await PopulateActionReferenceNamesBeforeSave(allIncomingSubActions);
                 await PopulateTimerGroupNamesBeforeSave(allIncomingSubActions);
             }
 
@@ -134,9 +134,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 }
             }
 
-            // Populate ActionName for ExecuteActionType subactions before save
+            // Populate action-reference names for action-calling subactions before save
             var allSubActions = existingAction.SubActions.Concat(existingAction.CatchSubActions).ToList();
-            await PopulateExecuteActionNamesBeforeSave(allSubActions);
+            await PopulateActionReferenceNamesBeforeSave(allSubActions);
             await PopulateTimerGroupNamesBeforeSave(allSubActions);
 
             await _context.SaveChangesAsync();
@@ -155,16 +155,24 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         }
 
         /// <summary>
-        /// Populates ActionName for all ExecuteActionType subactions (including nested) before save.
+        /// Populates ActionName for all subactions that call another action (including nested) before save.
         /// Only queries actions that are actually referenced.
         /// </summary>
-        private async Task PopulateExecuteActionNamesBeforeSave(List<SubActionType> subActions)
+        private async Task PopulateActionReferenceNamesBeforeSave(List<SubActionType> subActions)
         {
-            var allExecuteActions = GetAllExecuteActionSubActions(subActions);
-            if (!allExecuteActions.Any()) return;
+            var executeActions = GetAllExecuteActionSubActions(subActions);
+            var forEachViewerActions = GetAllForEachViewerSubActions(subActions);
+            if (!executeActions.Any() && !forEachViewerActions.Any()) return;
 
             // Get distinct ActionIds that need to be resolved
-            var actionIdsToResolve = allExecuteActions.Select(e => e.ActionId).Distinct().ToList();
+            var actionIdsToResolve = executeActions.Select(e => e.ActionId)
+                .Concat(forEachViewerActions.Select(e => e.ActionId))
+                .Where(actionId => actionId.HasValue)
+                .Select(actionId => actionId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!actionIdsToResolve.Any()) return;
 
             // Query only the actions we need
             var referencedActions = await _context.Actions
@@ -176,11 +184,19 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var actionIdToNameMap = referencedActions.ToDictionary(a => a.Id!.Value, a => a.Name);
 
             // Populate ActionName for each ExecuteAction subaction
-            foreach (var executeAction in allExecuteActions)
+            foreach (var executeAction in executeActions)
             {
                 if (executeAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(executeAction.ActionId.Value, out var actionName))
                 {
                     executeAction.ActionName = actionName;
+                }
+            }
+
+            foreach (var forEachViewer in forEachViewerActions)
+            {
+                if (forEachViewer.ActionId.HasValue && actionIdToNameMap.TryGetValue(forEachViewer.ActionId.Value, out var actionName))
+                {
+                    forEachViewer.ActionName = actionName;
                 }
             }
         }
@@ -201,6 +217,27 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 {
                     result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
                     result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Recursively finds all ForEachViewerType subactions, including those nested in LogicIfElseType.
+        /// </summary>
+        private List<ForEachViewerType> GetAllForEachViewerSubActions(IEnumerable<SubActionType> subActions)
+        {
+            var result = new List<ForEachViewerType>();
+            foreach (var subAction in subActions)
+            {
+                if (subAction is ForEachViewerType forEachViewer)
+                {
+                    result.Add(forEachViewer);
+                }
+                else if (subAction is LogicIfElseType logic)
+                {
+                    result.AddRange(GetAllForEachViewerSubActions(logic.TrueSubActions));
+                    result.AddRange(GetAllForEachViewerSubActions(logic.FalseSubActions));
                 }
             }
             return result;
@@ -317,12 +354,21 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 .AsSplitQuery()
                 .ToListAsync();
 
-            // Populate ActionName for all ExecuteAction subactions (including nested) based on ActionId
+            // Populate ActionName for all action-calling subactions (including nested) based on ActionId
             var actionIdToNameMap = records.ToDictionary(a => a.Id!.Value, a => a.Name);
             foreach (var action in records)
             {
                 var allExecuteActions = GetAllExecuteActionSubActions(action.SubActions.Concat(action.CatchSubActions));
                 foreach (var subAction in allExecuteActions)
+                {
+                    if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
+                    {
+                        subAction.ActionName = actionName;
+                    }
+                }
+
+                var allForEachViewerSubActions = GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions));
+                foreach (var subAction in allForEachViewerSubActions)
                 {
                     if (subAction.ActionId.HasValue && actionIdToNameMap.TryGetValue(subAction.ActionId.Value, out var actionName))
                     {
@@ -527,6 +573,9 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Eighth Pass: Validate ToggleCommandDisabled SubAction CommandNames
             await RemapToggleCommandDisabledSubActions(_context, actions, logger);
 
+            // Ninth Pass: Remap ForEachViewer SubAction action IDs based on ActionName
+            await RemapForEachViewerSubActionIds(_context, actions, logger);
+
             logger?.LogInformation("Completed post-restore entity reference remapping");
         }
 
@@ -553,7 +602,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
         }
 
         /// <summary>
-        /// Updates ActionName for all ExecuteActionType subactions (including nested) referencing the given actionId.
+        /// Updates ActionName for all action-calling subactions (including nested) referencing the given actionId.
         /// Optimized to only load actions that contain ExecuteAction subactions.
         /// </summary>
         public async Task UpdateExecuteActionNamesForRenamedAction(int actionId, string newName)
@@ -574,6 +623,16 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                     if (exec.ActionId == actionId && exec.ActionName != newName)
                     {
                         exec.ActionName = newName;
+                        hasChanges = true;
+                    }
+                }
+
+                var allForEachViewerSubActions = GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions));
+                foreach (var forEachViewer in allForEachViewerSubActions)
+                {
+                    if (forEachViewer.ActionId == actionId && forEachViewer.ActionName != newName)
+                    {
+                        forEachViewer.ActionName = newName;
                         hasChanges = true;
                     }
                 }
@@ -1282,6 +1341,82 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 
             logger?.LogInformation("Validated {ValidatedCount} ToggleCommandDisabled subactions, {FailedCount} failed", 
                 validatedCount, failedCount);
+        }
+
+        /// <summary>
+        /// Remaps ForEachViewer SubAction IDs based on ActionName after restore.
+        /// Action IDs change during restore, so we use ActionName to re-establish the relationships.
+        /// </summary>
+        private async Task RemapForEachViewerSubActionIds(DbContext context, List<ActionType> records, ILogger? logger)
+        {
+            var forEachViewerSubActions = records
+                .SelectMany(action => GetAllForEachViewerSubActions(action.SubActions.Concat(action.CatchSubActions)))
+                .ToList();
+
+            if (!forEachViewerSubActions.Any())
+            {
+                logger?.LogDebug("No ForEachViewer subactions to remap");
+                return;
+            }
+
+            var actions = await context.Set<ActionType>()
+                .AsNoTracking()
+                .Where(action => action.Id.HasValue)
+                .ToListAsync();
+
+            var actionNameToIdMap = actions
+                .GroupBy(action => action.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group =>
+                    {
+                        if (group.Count() > 1)
+                        {
+                            logger?.LogWarning("Multiple actions found with name '{Name}' (case-insensitive). Using first occurrence (ID: {Id})", group.Key, group.First().Id);
+                        }
+                        return group.First().Id!.Value;
+                    },
+                    StringComparer.OrdinalIgnoreCase);
+
+            var remappedCount = 0;
+            var failedCount = 0;
+
+            foreach (var subAction in forEachViewerSubActions)
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(subAction.ActionName))
+                    {
+                        if (actionNameToIdMap.TryGetValue(subAction.ActionName, out var newActionId))
+                        {
+                            subAction.ActionId = newActionId;
+                            remappedCount++;
+                            logger?.LogDebug("Remapped ForEachViewer subaction for action '{ActionName}': new ID is {NewId}", subAction.ActionName, newActionId);
+                        }
+                        else
+                        {
+                            failedCount++;
+                            logger?.LogWarning("ForEachViewer subaction references unknown action: {ActionName}", subAction.ActionName);
+                        }
+                    }
+                    else
+                    {
+                        failedCount++;
+                        logger?.LogWarning("ForEachViewer subaction uses old format (ActionId only) and cannot be remapped. ActionId: {ActionId}", subAction.ActionId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    logger?.LogError(ex, "Failed to remap ForEachViewer subaction. ActionId: {ActionId}, ActionName: {ActionName}", subAction.ActionId, subAction.ActionName);
+                }
+            }
+
+            if (remappedCount > 0 || failedCount > 0)
+            {
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Remapped {RemappedCount} ForEachViewer subactions, {FailedCount} failed", remappedCount, failedCount);
+            }
         }
 
         /// <summary>
