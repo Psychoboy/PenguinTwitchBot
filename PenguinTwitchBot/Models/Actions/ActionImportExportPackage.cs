@@ -204,8 +204,10 @@ public static class ActionImportExportParsingHelper
                 return value.GetString();
             }
         }
-        catch
+        catch (JsonException)
         {
+            // Configuration payload can be legacy or malformed; treat it as "property not present".
+            return null;
         }
 
         return null;
