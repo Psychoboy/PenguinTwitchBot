@@ -6,6 +6,7 @@ let lastPlayingInSeconds = 0;
 let ws = null;
 let wsReady = false;
 let isDebug = true;
+let scaleFrameHandle = 0;
 
 function connectWS() {
     try {
@@ -148,7 +149,7 @@ async function handleFishingAlert(fishingData) {
     $('#stars').html(starHtml);
 
     $('#weight').text(`${safeWeight} kg`);
-    $('#gold').text(`${safeGold} gold`);
+    $('#gold').text(`${safeGold} g`);
 
     await sleep(100);
 
@@ -158,7 +159,7 @@ async function handleFishingAlert(fishingData) {
     // Trigger reflow to ensure transition works
     alertElement[0].offsetHeight;
 
-    scaleContainer();
+    scheduleScaleContainer();
     alertElement.addClass('show');
 
     // Play audio if found
@@ -214,16 +215,39 @@ function toFiniteNumber(value, fallback) {
 function scaleContainer() {
     const container = document.querySelector('.container');
     if (!container) return;
+
     container.style.transform = '';
+
     const naturalW = container.offsetWidth;
     const naturalH = container.offsetHeight;
-    const padding = 40; // 20px body padding each side
-    const vpW = window.innerWidth - padding;
-    const vpH = window.innerHeight - padding;
-    if (naturalW <= vpW && naturalH <= vpH) return;
+
+    if (naturalW <= 0 || naturalH <= 0) {
+        return;
+    }
+
+    const vpW = window.innerWidth;
+    const vpH = window.innerHeight;
     const scale = Math.min(vpW / naturalW, vpH / naturalH);
+
+    if (!Number.isFinite(scale) || scale <= 0) {
+        return;
+    }
+
     container.style.transform = `scale(${scale})`;
 }
+
+function scheduleScaleContainer() {
+    if (scaleFrameHandle !== 0) {
+        cancelAnimationFrame(scaleFrameHandle);
+    }
+
+    scaleFrameHandle = requestAnimationFrame(() => {
+        scaleFrameHandle = 0;
+        scaleContainer();
+    });
+}
+
+window.addEventListener('resize', scheduleScaleContainer);
 
 function normalizeRarity(rarity) {
     const normalized = typeof rarity === 'string' ? rarity.trim().toLowerCase() : '';
