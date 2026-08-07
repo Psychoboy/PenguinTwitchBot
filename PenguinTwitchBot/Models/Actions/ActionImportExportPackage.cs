@@ -1,7 +1,9 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Timers;
+using System.Text.Json;
 
 namespace PenguinTwitchBot.Models.Actions;
 
@@ -183,4 +185,63 @@ public class DefaultCommandTriggerImportExportDto
 {
     public string DefaultCommandName { get; set; } = "";
     public string EventType { get; set; } = "";
+}
+
+public static class ActionImportExportParsingHelper
+{
+    public static string? ExtractStringValue(string configuration, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(configuration))
+            return null;
+
+        try
+        {
+            var element = JsonSerializer.Deserialize<JsonElement>(configuration);
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(propertyName, out var value) &&
+                value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString();
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    public static string? NormalizeCommandName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+
+        return name.Trim().TrimStart('!');
+    }
+
+    public static DefaultCommandTriggerImportExportDto? GetDefaultCommandDefinition(TriggerImportExportDto trigger)
+    {
+        if (trigger.DefaultCommandDefinition != null)
+            return trigger.DefaultCommandDefinition;
+
+        if (string.IsNullOrWhiteSpace(trigger.Configuration))
+            return null;
+
+        try
+        {
+            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
+            if (config == null || string.IsNullOrWhiteSpace(config.DefaultCommandName))
+                return null;
+
+            return new DefaultCommandTriggerImportExportDto
+            {
+                DefaultCommandName = config.DefaultCommandName,
+                EventType = config.EventType
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

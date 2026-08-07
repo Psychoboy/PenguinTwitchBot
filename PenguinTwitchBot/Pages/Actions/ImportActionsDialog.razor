@@ -16,6 +16,7 @@
 @inject IAutoTimers TimerService
 @inject ICommandHandler CommandHandler
 @inject IWebHostEnvironment HostEnvironment
+@inject ILogger<ImportActionsDialog> Logger
 
 <MudDialog>
     <TitleContent>
@@ -124,7 +125,7 @@
 
                         @if (_fileHasTriggers)
                         {
-                            <MudSwitch @bind-Value="_importTriggers" Label="Import triggers from this package" Color="Color.Primary" />
+                            <MudSwitch T="bool" Value="_importTriggers" ValueChanged="@(value => OnImportTriggersChanged(value))" Label="Import triggers from this package" Color="Color.Primary" />
 
                             @if (_importTriggers)
                             {
@@ -433,8 +434,10 @@
                         GroupSummary = groups.Count == 0 ? "0 groups" : string.Join(", ", groups)
                     });
                 }
-                catch
+                catch (Exception ex)
                 {
+                    var relativePath = Path.GetRelativePath(libraryRoot, filePath).Replace('\\', '/');
+                    Logger.LogWarning(ex, "Skipping invalid action library file {RelativePath}", relativePath);
                 }
             }
         }
@@ -457,7 +460,17 @@
 
     private async Task LoadLibraryItemAsync(LibraryItemSummary item)
     {
-        var json = await File.ReadAllTextAsync(item.FilePath);
+        string json;
+        try
+        {
+            json = await File.ReadAllTextAsync(item.FilePath);
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading library package '{item.RelativePath}': {ex.Message}";
+            return;
+        }
+
         await LoadPackageFromJsonAsync(json, item.DisplayName);
     }
 
@@ -466,9 +479,19 @@
         if (file == null)
             return;
 
-        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-        using var reader = new StreamReader(stream);
-        var json = await reader.ReadToEndAsync();
+        string json;
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            json = await reader.ReadToEndAsync();
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading file '{file.Name}': {ex.Message}";
+            return;
+        }
+
         await LoadPackageFromJsonAsync(json, file.Name);
     }
 
@@ -562,7 +585,7 @@
                                 CanCreate = true,
                                 HasExisting = _existingCommands.ContainsKey(commandName),
                                 ResolutionChoice = _existingCommands.ContainsKey(commandName) ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
-                                TargetName = _existingCommands.ContainsKey(commandName) ? commandName : SuggestUniqueName(ImportResourceType.Command, commandName),
+                                TargetName = commandName,
                                 CommandDefinition = trigger.CommandDefinition,
                                 MissingMessage = $"Command '!{commandName}' cannot be created because the package did not include enough data.",
                                 UsageCount = 1
@@ -584,7 +607,7 @@
                                 CanCreate = trigger.KeywordDefinition != null,
                                 HasExisting = hasExisting,
                                 ResolutionChoice = hasExisting ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
-                                TargetName = hasExisting ? keywordName : SuggestUniqueName(ImportResourceType.Keyword, keywordName),
+                                TargetName = keywordName,
                                 KeywordDefinition = trigger.KeywordDefinition,
                                 MissingMessage = $"Keyword '{keywordName}' does not exist and this package did not include its full definition.",
                                 UsageCount = 1
@@ -606,7 +629,7 @@
                                 CanCreate = trigger.TimerGroupDefinition != null,
                                 HasExisting = hasExisting,
                                 ResolutionChoice = hasExisting ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
-                                TargetName = hasExisting ? timerGroupName : SuggestUniqueName(ImportResourceType.TimerGroup, timerGroupName),
+                                TargetName = timerGroupName,
                                 TimerGroupDefinition = trigger.TimerGroupDefinition,
                                 MissingMessage = $"Timer group '{timerGroupName}' does not exist and this package did not include its full settings.",
                                 UsageCount = 1
@@ -642,16 +665,16 @@
 
         _resourcePlans.Sort((left, right) =>
         {
-            var typeCompare = left.DisplayTypeLabel.CompareTo(right.DisplayTypeLabel);
+            var typeCompare = string.Compare(left.DisplayTypeLabel, right.DisplayTypeLabel, StringComparison.OrdinalIgnoreCase);
             return typeCompare != 0 ? typeCompare : string.Compare(left.SourceName, right.SourceName, StringComparison.OrdinalIgnoreCase);
         });
     }
 
     private void RegisterPlan(ImportResourcePlan incoming)
     {
+        incoming.SourceName = incoming.SourceName.Trim();
         var existing = _resourcePlans.FirstOrDefault(plan =>
-            plan.ResourceType == incoming.ResourceType &&
-            plan.SourceName.Equals(incoming.SourceName, StringComparison.OrdinalIgnoreCase));
+            GetPlanKey(plan.ResourceType, plan.SourceName) == GetPlanKey(incoming.ResourceType, incoming.SourceName));
 
         if (existing == null)
         {
@@ -883,13 +906,20 @@
                     ActionCommand command;
                     if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
                     {
-                        command = _existingCommands[plan.SourceName];
+                        if (!_existingCommands.TryGetValue(plan.SourceName, out command!))
+                        {
+                            _importErrors.Add($"Command '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
                     }
                     else
                     {
                         var definition = plan.CommandDefinition ?? new ActionCommandImportExportDto { CommandName = plan.SourceName };
                         command = await CommandService.AddAsync(definition.ToCommand(plan.TargetName));
                         _existingCommands[command.CommandName] = command;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = command.CommandName;
                     }
 
                     resolved[key] = new ResolvedImportResource { Command = command, Name = command.CommandName };
@@ -900,12 +930,19 @@
                     ActionKeyword keyword;
                     if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
                     {
-                        keyword = _existingKeywords[plan.SourceName];
+                        if (!_existingKeywords.TryGetValue(plan.SourceName, out keyword!))
+                        {
+                            _importErrors.Add($"Keyword '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
                     }
                     else
                     {
                         keyword = await KeywordService.AddAsync(plan.KeywordDefinition!.ToKeyword(plan.TargetName));
                         _existingKeywords[keyword.CommandName] = keyword;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = keyword.CommandName;
                     }
 
                     resolved[key] = new ResolvedImportResource { Keyword = keyword, Name = keyword.CommandName };
@@ -916,7 +953,11 @@
                     TimerGroup timerGroup;
                     if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
                     {
-                        timerGroup = _existingTimerGroups[plan.SourceName];
+                        if (!_existingTimerGroups.TryGetValue(plan.SourceName, out timerGroup!))
+                        {
+                            _importErrors.Add($"Timer group '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
                     }
                     else
                     {
@@ -925,6 +966,9 @@
                         var refreshedTimerGroup = await GetTimerGroupByNameAsync(timerGroup.Name) ?? timerGroup;
                         timerGroup = refreshedTimerGroup;
                         _existingTimerGroups[timerGroup.Name] = timerGroup;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = timerGroup.Name;
                     }
 
                     resolved[key] = new ResolvedImportResource { TimerGroup = timerGroup, Name = timerGroup.Name };
@@ -932,7 +976,11 @@
                 }
                 case ImportResourceType.DefaultCommand:
                 {
-                    var defaultCommand = _existingDefaultCommands[plan.SourceName];
+                    if (!_existingDefaultCommands.TryGetValue(plan.SourceName, out var defaultCommand))
+                    {
+                        _importErrors.Add($"Default command '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                        continue;
+                    }
                     resolved[key] = new ResolvedImportResource { DefaultCommand = defaultCommand, Name = defaultCommand.CommandName };
                     break;
                 }
@@ -962,7 +1010,11 @@
                     if (string.IsNullOrWhiteSpace(sourceName))
                         continue;
 
-                    var resolved = resolvedResources[GetPlanKey(ImportResourceType.Command, sourceName)];
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.Command, sourceName), out var resolved) || resolved.Command == null)
+                    {
+                        _importErrors.Add($"Dropped command trigger '{trigger.Name}' because command '{sourceName}' could not be resolved.");
+                        continue;
+                    }
                     var command = resolved.Command!;
                     triggers.Add(new TriggerType
                     {
@@ -980,7 +1032,11 @@
                     if (string.IsNullOrWhiteSpace(sourceName))
                         continue;
 
-                    var resolved = resolvedResources[GetPlanKey(ImportResourceType.Keyword, sourceName)];
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.Keyword, sourceName), out var resolved) || resolved.Keyword == null)
+                    {
+                        _importErrors.Add($"Dropped keyword trigger '{trigger.Name}' because keyword '{sourceName}' could not be resolved.");
+                        continue;
+                    }
                     var keyword = resolved.Keyword!;
                     triggers.Add(new TriggerType
                     {
@@ -998,10 +1054,17 @@
                     if (string.IsNullOrWhiteSpace(sourceName))
                         continue;
 
-                    var resolved = resolvedResources[GetPlanKey(ImportResourceType.TimerGroup, sourceName)];
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.TimerGroup, sourceName), out var resolved) || resolved.TimerGroup == null)
+                    {
+                        _importErrors.Add($"Dropped timer trigger '{trigger.Name}' because timer group '{sourceName}' could not be resolved.");
+                        continue;
+                    }
                     var timerGroup = resolved.TimerGroup!;
                     if (!timerGroup.Id.HasValue)
+                    {
+                        _importErrors.Add($"Dropped timer trigger '{trigger.Name}' because timer group '{timerGroup.Name}' has no ID after resolution.");
                         continue;
+                    }
 
                     triggers.Add(new TriggerType
                     {
@@ -1019,7 +1082,11 @@
                     if (definition == null || string.IsNullOrWhiteSpace(definition.DefaultCommandName))
                         continue;
 
-                    var resolved = resolvedResources[GetPlanKey(ImportResourceType.DefaultCommand, definition.DefaultCommandName)];
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.DefaultCommand, definition.DefaultCommandName), out var resolved) || resolved.DefaultCommand == null)
+                    {
+                        _importErrors.Add($"Dropped default-command trigger '{trigger.Name}' because default command '{definition.DefaultCommandName}' could not be resolved.");
+                        continue;
+                    }
                     var defaultCommand = resolved.DefaultCommand!;
                     var triggerName = string.IsNullOrWhiteSpace(trigger.Name)
                         ? $"{defaultCommand.CommandName}_{definition.EventType.Split('.').LastOrDefault()}"
@@ -1142,6 +1209,7 @@
                 .ToList();
 
             var needsUpdate = false;
+            var relinkedForAction = 0;
             foreach (var executeAction in executeActions)
             {
                 if (!string.IsNullOrWhiteSpace(executeAction.ActionName) &&
@@ -1150,7 +1218,7 @@
                 {
                     executeAction.ActionId = resolvedId;
                     needsUpdate = true;
-                    _relinkCount++;
+                    relinkedForAction++;
                 }
             }
 
@@ -1162,7 +1230,7 @@
                 {
                     forEachViewer.ActionId = resolvedId;
                     needsUpdate = true;
-                    _relinkCount++;
+                    relinkedForAction++;
                 }
             }
 
@@ -1172,6 +1240,7 @@
             try
             {
                 await ActionService.UpdateActionAsync(created);
+                _relinkCount += relinkedForAction;
             }
             catch (Exception ex)
             {
@@ -1314,78 +1383,33 @@
 
     private static string? GetCommandName(TriggerImportExportDto trigger)
     {
-        return NormalizeCommandName(trigger.CommandDefinition?.CommandName)
-            ?? NormalizeCommandName(ExtractStringValue(trigger.Configuration, "CommandName"))
-            ?? NormalizeCommandName(trigger.Name.TrimStart('!'));
+        return ActionImportExportParsingHelper.NormalizeCommandName(trigger.CommandDefinition?.CommandName)
+            ?? ActionImportExportParsingHelper.NormalizeCommandName(ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "CommandName"))
+            ?? ActionImportExportParsingHelper.NormalizeCommandName(trigger.Name.TrimStart('!'));
     }
 
     private static string? GetKeywordName(TriggerImportExportDto trigger)
     {
         return trigger.KeywordDefinition?.CommandName
-            ?? ExtractStringValue(trigger.Configuration, "KeywordName")
+            ?? ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "KeywordName")
             ?? (!string.IsNullOrWhiteSpace(trigger.Name) ? trigger.Name : null);
     }
 
     private static string? GetTimerGroupName(TriggerImportExportDto trigger)
     {
         return trigger.TimerGroupDefinition?.Name
-            ?? ExtractStringValue(trigger.Configuration, "TimerGroupName");
+            ?? ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "TimerGroupName");
     }
 
     private static DefaultCommandTriggerImportExportDto? GetDefaultCommandDefinition(TriggerImportExportDto trigger)
     {
-        if (trigger.DefaultCommandDefinition != null)
-            return trigger.DefaultCommandDefinition;
-
-        if (string.IsNullOrWhiteSpace(trigger.Configuration))
-            return null;
-
-        try
-        {
-            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
-            if (config == null || string.IsNullOrWhiteSpace(config.DefaultCommandName))
-                return null;
-
-            return new DefaultCommandTriggerImportExportDto
-            {
-                DefaultCommandName = config.DefaultCommandName,
-                EventType = config.EventType
-            };
-        }
-        catch
-        {
-            return null;
-        }
+        return ActionImportExportParsingHelper.GetDefaultCommandDefinition(trigger);
     }
 
-    private static string? NormalizeCommandName(string? name)
+    private void OnImportTriggersChanged(bool value)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            return null;
-
-        return name.Trim().TrimStart('!');
-    }
-
-    private static string? ExtractStringValue(string configuration, string propertyName)
-    {
-        if (string.IsNullOrWhiteSpace(configuration))
-            return null;
-
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(configuration);
-            if (element.ValueKind == JsonValueKind.Object &&
-                element.TryGetProperty(propertyName, out var value) &&
-                value.ValueKind == JsonValueKind.String)
-            {
-                return value.GetString();
-            }
-        }
-        catch
-        {
-        }
-
-        return null;
+        _importTriggers = value;
+        RefreshBlockingIssues();
     }
 
     private void Cancel() => MudDialog.Cancel();

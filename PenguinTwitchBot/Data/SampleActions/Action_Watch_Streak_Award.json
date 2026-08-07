@@ -36,7 +36,7 @@
           "FallBack": true,
           "StreamOnly": true,
           "Index": 2,
-          "Text": "%user% sent you %ticketsToAward% Tickets for your streak!",
+          "Text": "%user% received %ticketsToAward% Tickets for your streak!",
           "Enabled": true,
           "SubActionTypes": 22
         }

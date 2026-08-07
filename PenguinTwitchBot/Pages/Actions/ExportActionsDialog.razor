@@ -6,14 +6,12 @@
 @using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Timers
-@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 @using PenguinTwitchBot.Models.Actions
 @using System.Text.Json
 @inject IJSRuntime JSRuntime
 @inject IActionCommandService CommandService
 @inject IActionKeywordService KeywordService
 @inject IAutoTimers TimerService
-@inject ICommandHandler CommandHandler
 
 <MudDialog>
     <TitleContent>
@@ -120,7 +118,6 @@
         Dictionary<int, ActionCommand> commandById = new();
         Dictionary<int, ActionKeyword> keywordById = new();
         Dictionary<int, TimerGroup> timerGroupById = new();
-        Dictionary<string, DefaultCommand> defaultCommandByName = new(StringComparer.OrdinalIgnoreCase);
         if (_includeTriggers)
         {
             var allCommands = await CommandService.GetAllAsync();
@@ -137,10 +134,6 @@
             timerGroupById = timerGroups
                 .Where(t => t.Id.HasValue)
                 .ToDictionary(t => t.Id!.Value);
-
-            defaultCommandByName = (await CommandHandler.GetDefaultCommandsFromDb())
-                .GroupBy(command => command.CommandName, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         }
 
         var package = new ActionsImportExportPackage
@@ -168,7 +161,7 @@
 
                             if (t.Type == TriggerTypes.Command)
                             {
-                                var fallbackCommandName = ExtractStringValue(t.Configuration, "CommandName") ?? t.Name.TrimStart('!');
+                                var fallbackCommandName = ActionImportExportParsingHelper.ExtractStringValue(t.Configuration, "CommandName") ?? t.Name.TrimStart('!');
                                 commandDef = t.CommandId.HasValue && commandById.TryGetValue(t.CommandId.Value, out var command)
                                     ? ActionCommandImportExportDto.FromCommand(command)
                                     : string.IsNullOrWhiteSpace(fallbackCommandName)
@@ -177,7 +170,7 @@
                             }
                             else if (t.Type == TriggerTypes.Keyword)
                             {
-                                var fallbackKeywordName = ExtractStringValue(t.Configuration, "KeywordName") ?? t.Name;
+                                var fallbackKeywordName = ActionImportExportParsingHelper.ExtractStringValue(t.Configuration, "KeywordName") ?? t.Name;
                                 keywordDef = t.KeywordId.HasValue && keywordById.TryGetValue(t.KeywordId.Value, out var keyword)
                                     ? ActionKeywordImportExportDto.FromKeyword(keyword)
                                     : string.IsNullOrWhiteSpace(fallbackKeywordName)
@@ -186,7 +179,7 @@
                             }
                             else if (t.Type == TriggerTypes.Timer)
                             {
-                                var fallbackTimerGroupName = ExtractStringValue(t.Configuration, "TimerGroupName");
+                                var fallbackTimerGroupName = ActionImportExportParsingHelper.ExtractStringValue(t.Configuration, "TimerGroupName");
                                 timerGroupDef = t.TimerGroupId.HasValue && timerGroupById.TryGetValue(t.TimerGroupId.Value, out var timerGroup)
                                     ? TimerGroupImportExportDto.FromTimerGroup(timerGroup)
                                     : string.IsNullOrWhiteSpace(fallbackTimerGroupName)
@@ -195,10 +188,13 @@
                             }
                             else if (t.Type == TriggerTypes.DefaultCommand)
                             {
-                                var config = DeserializeDefaultCommandConfiguration(t.Configuration);
+                                var config = ActionImportExportParsingHelper.GetDefaultCommandDefinition(new TriggerImportExportDto
+                                {
+                                    Configuration = t.Configuration,
+                                    DefaultCommandDefinition = null
+                                });
                                 if (config != null && !string.IsNullOrWhiteSpace(config.DefaultCommandName))
                                 {
-                                    defaultCommandByName.TryGetValue(config.DefaultCommandName, out _);
                                     defaultCommandDef = new DefaultCommandTriggerImportExportDto
                                     {
                                         DefaultCommandName = config.DefaultCommandName,
@@ -246,42 +242,6 @@
         string.IsNullOrWhiteSpace(name)
             ? "export"
             : string.Concat(name.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_'));
-
-    private static string? ExtractStringValue(string configuration, string propertyName)
-    {
-        if (string.IsNullOrWhiteSpace(configuration))
-            return null;
-
-        try
-        {
-            var element = JsonSerializer.Deserialize<JsonElement>(configuration);
-            if (element.ValueKind == JsonValueKind.Object &&
-                element.TryGetProperty(propertyName, out var propertyValue) &&
-                propertyValue.ValueKind == JsonValueKind.String)
-            {
-                return propertyValue.GetString();
-            }
-        }
-        catch
-        {
-        }
-
-        return null;
-    }
-
-    private static DefaultCommandTriggerConfiguration? DeserializeDefaultCommandConfiguration(string configuration)
-    {
-        if (string.IsNullOrWhiteSpace(configuration))
-            return null;
-        try
-        {
-            return JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     private static List<SubActionType> PrepareSubActionsForExport(List<SubActionType> subActions, Dictionary<int, string> actionIdToNameMap)
     {
