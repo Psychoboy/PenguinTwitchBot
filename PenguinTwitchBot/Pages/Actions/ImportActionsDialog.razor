@@ -1,14 +1,22 @@
 @using PenguinTwitchBot.Bot.Actions
-@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
-@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Bot.Commands
-@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Database.Bot.Actions
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Database.Bot.Models.Commands
-@using PenguinTwitchBot.Database.Repository.Repositories
-@using System.Text.Json
+@using PenguinTwitchBot.Database.Bot.Models.Timers
+@using PenguinTwitchBot.Models.Actions
 @using System.IO
+@using System.Text.Json
 @inject IActionManagementService ActionService
 @inject IActionCommandService CommandService
+@inject IActionKeywordService KeywordService
+@inject IAutoTimers TimerService
+@inject ICommandHandler CommandHandler
+@inject IWebHostEnvironment HostEnvironment
+@inject ILogger<ImportActionsDialog> Logger
 
 <MudDialog>
     <TitleContent>
@@ -22,16 +30,83 @@
             @if (_importedPackage == null)
             {
                 <MudText Typo="Typo.body2">
-                    Upload a JSON file previously exported from Action Management.
+                    Choose a file export or browse the built-in library. After loading a package, the wizard will walk through trigger conflicts before anything is imported.
                 </MudText>
 
-                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
-                    <CustomContent>
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">
-                            Select File
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        <MudButton Variant="@(_sourceMode == ImportSourceMode.File ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.UploadFile"
+                                   OnClick="@(() => _sourceMode = ImportSourceMode.File)">
+                            File Import
                         </MudButton>
-                    </CustomContent>
-                </MudFileUpload>
+                        <MudButton Variant="@(_sourceMode == ImportSourceMode.Library ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.LibraryBooks"
+                                   OnClick="@(() => _sourceMode = ImportSourceMode.Library)">
+                            Library
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+
+                @if (_sourceMode == ImportSourceMode.File)
+                {
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
+                        <CustomContent>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">
+                                Select File
+                            </MudButton>
+                        </CustomContent>
+                    </MudFileUpload>
+                }
+                else
+                {
+                    <MudTextField @bind-Value="_librarySearch" Label="Search library" Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Immediate="true" />
+
+                    @if (_isLoadingLibrary)
+                    {
+                        <MudProgressLinear Indeterminate="true" Color="Color.Secondary" />
+                    }
+                    else if (_libraryItems.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            No library packages were found in Data/SampleActions.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="2">
+                            @foreach (var item in FilterLibraryItems())
+                            {
+                                <MudPaper Outlined="true" Class="pa-3">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Wrap="Wrap.Wrap">
+                                        <MudStack Spacing="1">
+                                            <MudText Typo="Typo.subtitle1">@item.DisplayName</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                @item.ActionCount action(s) across @item.GroupSummary
+                                            </MudText>
+                                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Info">@item.TriggerCount trigger(s)</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Secondary">@item.RelativePath</MudChip>
+                                                @if (item.ExportedAt.HasValue)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@item.ExportedAt.Value.ToLocalTime().ToString("g")</MudChip>
+                                                }
+                                            </MudStack>
+                                        </MudStack>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download"
+                                                   OnClick="@(() => LoadLibraryItemAsync(item))">
+                                            Use Package
+                                        </MudButton>
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                }
 
                 @if (!string.IsNullOrEmpty(_parseError))
                 {
@@ -41,103 +116,208 @@
             else
             {
                 <MudAlert Severity="Severity.Info" Dense="true">
-                    Found @_importedPackage.Actions.Count action(s) exported on @_importedPackage.ExportedAt.ToLocalTime().ToString("g").
+                    Loaded @_importedPackage.Actions.Count action(s) from @_sourceLabel, exported on @_importedPackage.ExportedAt.ToLocalTime().ToString("g").
                 </MudAlert>
 
-                @if (_fileHasTriggers)
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2">Triggers</MudText>
-                    <MudSwitch @bind-Value="_importTriggers" Label="Import triggers from file" Color="Color.Primary" />
-                }
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">Step 1: Review Triggers</MudText>
 
-                <MudDivider />
-                <MudText Typo="Typo.subtitle2">Queue Name</MudText>
+                        @if (_fileHasTriggers)
+                        {
+                            <MudSwitch T="bool" Value="_importTriggers" ValueChanged="@(value => OnImportTriggersChanged(value))" Label="Import triggers from this package" Color="Color.Primary" />
 
-                @if (_fileHasQueueNames)
-                {
-                    <MudStack Spacing="1">
-                        <MudRadioGroup T="bool" @bind-Value="_useFileQueueName">
-                            <MudRadio T="bool" Value="true" Color="Color.Primary">Use queue name from file</MudRadio>
-                            <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
-                        </MudRadioGroup>
+                            @if (_importTriggers)
+                            {
+                                @if (_resourcePlans.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Success" Dense="true">
+                                        All trigger types in this package are portable without extra decisions.
+                                    </MudAlert>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Resolve matching commands, keywords, timer groups, and default commands before import.
+                                    </MudText>
+
+                                    @foreach (var plan in _resourcePlans)
+                                    {
+                                        var validationMessage = GetPlanValidationMessage(plan);
+                                        <MudPaper Outlined="true" Class="pa-3">
+                                            <MudStack Spacing="2">
+                                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Wrap="Wrap.Wrap">
+                                                    <MudStack Spacing="0">
+                                                        <MudText Typo="Typo.subtitle2">@plan.SourceName</MudText>
+                                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                                            @plan.DisplayTypeLabel used by @plan.UsageCount trigger(s)
+                                                        </MudText>
+                                                    </MudStack>
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetPlanColor(plan)">@GetPlanStatus(plan)</MudChip>
+                                                </MudStack>
+
+                                                @if (plan.HasExisting && plan.CanCreate)
+                                                {
+                                                    <MudRadioGroup T="ResourceResolutionChoice" Value="@plan.ResolutionChoice" ValueChanged="@(choice => OnPlanResolutionChanged(plan, choice))">
+                                                        <MudRadio T="ResourceResolutionChoice" Value="ResourceResolutionChoice.UseExisting" Color="Color.Primary">
+                                                            Use existing @plan.DisplayTypeLabel.ToLowerInvariant() '@plan.SourceName'
+                                                        </MudRadio>
+                                                        <MudRadio T="ResourceResolutionChoice" Value="ResourceResolutionChoice.CreateNew" Color="Color.Primary">
+                                                            Create imported copy
+                                                        </MudRadio>
+                                                    </MudRadioGroup>
+
+                                                    @if (plan.ResolutionChoice == ResourceResolutionChoice.CreateNew)
+                                                    {
+                                                        <MudTextField T="string" Value="@plan.TargetName"
+                                                                      ValueChanged="@(value => OnPlanTargetNameChanged(plan, value))"
+                                                                      Label="New name"
+                                                                      Variant="Variant.Outlined"
+                                                                      Immediate="true" />
+                                                    }
+                                                }
+                                                else if (plan.CanCreate)
+                                                {
+                                                    <MudAlert Severity="Severity.Info" Dense="true">
+                                                        This @plan.DisplayTypeLabel.ToLowerInvariant() will be created as '@plan.TargetName'.
+                                                    </MudAlert>
+                                                }
+                                                else if (plan.HasExisting)
+                                                {
+                                                    <MudAlert Severity="Severity.Success" Dense="true">
+                                                        This package will use the existing @plan.DisplayTypeLabel.ToLowerInvariant() '@plan.SourceName'.
+                                                    </MudAlert>
+                                                }
+                                                else
+                                                {
+                                                    <MudAlert Severity="Severity.Error" Dense="true">
+                                                        @plan.MissingMessage
+                                                    </MudAlert>
+                                                }
+
+                                                @if (!string.IsNullOrWhiteSpace(validationMessage))
+                                                {
+                                                    <MudAlert Severity="Severity.Error" Dense="true">@validationMessage</MudAlert>
+                                                }
+                                            </MudStack>
+                                        </MudPaper>
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">
+                                This package does not contain triggers.
+                            </MudAlert>
+                        }
                     </MudStack>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        File does not include queue names. Select a queue to assign to all imported actions.
-                    </MudText>
-                }
+                </MudPaper>
 
-                @if (!_useFileQueueName || !_fileHasQueueNames)
-                {
-                    <MudSelect T="string" @bind-Value="_overrideQueueName" Label="Queue Name"
-                               Variant="Variant.Outlined" Required="true">
-                        @foreach (var queue in AvailableQueues)
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">Step 2: Choose Queue and Group Defaults</MudText>
+
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Queue Name</MudText>
+
+                        @if (_fileHasQueueNames)
                         {
-                            <MudSelectItem T="string" Value="@queue">@queue</MudSelectItem>
+                            <MudRadioGroup T="bool" @bind-Value="_useFileQueueName">
+                                <MudRadio T="bool" Value="true" Color="Color.Primary">Use queue name from package</MudRadio>
+                                <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
+                            </MudRadioGroup>
                         }
-                    </MudSelect>
-                }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Package does not include queue names. Select a queue to assign to all imported actions.
+                            </MudText>
+                        }
 
-                <MudDivider />
-                <MudText Typo="Typo.subtitle2">Group</MudText>
+                        @if (!_useFileQueueName || !_fileHasQueueNames)
+                        {
+                            <MudSelect T="string" @bind-Value="_overrideQueueName" Label="Queue Name" Variant="Variant.Outlined" Required="true">
+                                @foreach (var queue in AvailableQueues)
+                                {
+                                    <MudSelectItem T="string" Value="@queue">@queue</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
 
-                @if (_fileHasGroups)
-                {
-                    <MudStack Spacing="1">
-                        <MudRadioGroup T="bool" @bind-Value="_useFileGroup">
-                            <MudRadio T="bool" Value="true" Color="Color.Primary">Use group from file</MudRadio>
-                            <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
-                        </MudRadioGroup>
+                        <MudDivider />
+
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">Group</MudText>
+
+                        @if (_fileHasGroups)
+                        {
+                            <MudRadioGroup T="bool" @bind-Value="_useFileGroup">
+                                <MudRadio T="bool" Value="true" Color="Color.Primary">Use group from package</MudRadio>
+                                <MudRadio T="bool" Value="false" Color="Color.Primary">Override all with:</MudRadio>
+                            </MudRadioGroup>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Package does not include groups. Optionally assign a group to all imported actions.
+                            </MudText>
+                        }
+
+                        @if (!_useFileGroup || !_fileHasGroups)
+                        {
+                            <MudAutocomplete T="string" @bind-Value="_overrideGroup" Label="Group (optional)"
+                                             Variant="Variant.Outlined"
+                                             SearchFunc="@SearchGroups"
+                                             Clearable="true"
+                                             CoerceText="false"
+                                             CoerceValue="true"
+                                             MaxItems="null" />
+                        }
                     </MudStack>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        File does not include groups. Optionally assign a group to all imported actions.
-                    </MudText>
-                }
+                </MudPaper>
 
-                @if (!_useFileGroup || !_fileHasGroups)
-                {
-                    <MudAutocomplete T="string" @bind-Value="_overrideGroup" Label="Group (optional)"
-                                     Variant="Variant.Outlined"
-                                     SearchFunc="@SearchGroups"
-                                     Clearable="true"
-                                     CoerceText="false"
-                                     CoerceValue="true"
-                                     MaxItems="null" />
-                }
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">Step 3: Import</MudText>
 
-                @if (_importErrors.Count > 0)
-                {
-                    <MudAlert Severity="Severity.Error" Dense="true">
-                        @foreach (var error in _importErrors)
+                        @if (_blockingIssues.Count > 0)
                         {
-                            <div>@error</div>
+                            <MudAlert Severity="Severity.Error" Dense="true">
+                                @foreach (var issue in _blockingIssues)
+                                {
+                                    <div>@issue</div>
+                                }
+                            </MudAlert>
                         }
-                    </MudAlert>
-                }
 
-                @if (_importedCount > 0)
-                {
-                    <MudAlert Severity="Severity.Success" Dense="true">
-                        @_importedCount action(s) imported successfully.
-                        @if (_relinkCount > 0)
+                        @if (_importErrors.Count > 0)
                         {
-                            <text> @_relinkCount Execute Action link(s) resolved automatically by name.</text>
+                            <MudAlert Severity="Severity.Error" Dense="true">
+                                @foreach (var error in _importErrors)
+                                {
+                                    <div>@error</div>
+                                }
+                            </MudAlert>
                         }
-                    </MudAlert>
-                }
 
-                @if (_importedCount == 0)
-                {
-                    <MudButton Variant="Variant.Text" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">
-                        Choose Different File
-                    </MudButton>
-                }
+                        @if (_importedCount > 0)
+                        {
+                            <MudAlert Severity="Severity.Success" Dense="true">
+                                @_importedCount action(s) imported successfully.
+                                @if (_relinkCount > 0)
+                                {
+                                    <text> @_relinkCount Execute Action link(s) resolved automatically by name.</text>
+                                }
+                            </MudAlert>
+                        }
+
+                        @if (_importedCount == 0)
+                        {
+                            <MudButton Variant="Variant.Text" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">
+                                Choose Different Source
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
             }
         </MudStack>
     </DialogContent>
@@ -146,7 +326,8 @@
         @if (_importedPackage != null && _importedCount == 0)
         {
             <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Import"
-                       Disabled="_isImporting" StartIcon="@Icons.Material.Filled.FileUpload">
+                       Disabled="_isImporting || _blockingIssues.Count > 0"
+                       StartIcon="@Icons.Material.Filled.FileUpload">
                 @if (_isImporting)
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -169,229 +350,903 @@
 
     [Parameter] public List<string> AvailableQueues { get; set; } = [];
     [Parameter] public List<string> Groups { get; set; } = [];
+    [Parameter] public bool StartInLibraryMode { get; set; }
 
-    private ActionsImportPackage? _importedPackage;
+    private ActionsImportExportPackage? _importedPackage;
+    private ImportSourceMode _sourceMode;
+    private string _sourceLabel = "selected package";
     private string _parseError = "";
+    private string _librarySearch = "";
+
+    private readonly List<LibraryItemSummary> _libraryItems = [];
+    private readonly List<ImportResourcePlan> _resourcePlans = [];
+    private readonly List<string> _blockingIssues = [];
+    private readonly List<string> _importErrors = [];
+
+    private Dictionary<string, ActionCommand> _existingCommands = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ActionKeyword> _existingKeywords = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, TimerGroup> _existingTimerGroups = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, DefaultCommand> _existingDefaultCommands = new(StringComparer.OrdinalIgnoreCase);
 
     private bool _fileHasTriggers;
     private bool _fileHasQueueNames;
     private bool _fileHasGroups;
-
     private bool _importTriggers = true;
     private bool _useFileQueueName = true;
     private bool _useFileGroup = true;
+    private bool _isImporting;
+    private bool _isLoadingLibrary;
     private string _overrideQueueName = "Default";
     private string _overrideGroup = "";
-
-    private bool _isImporting;
-    private List<string> _importErrors = [];
     private int _importedCount;
     private int _relinkCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _sourceMode = StartInLibraryMode ? ImportSourceMode.Library : ImportSourceMode.File;
+        await LoadLibraryAsync();
+    }
 
     protected override void OnParametersSet()
     {
         _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
     }
 
+    private async Task LoadLibraryAsync()
+    {
+        _isLoadingLibrary = true;
+        _libraryItems.Clear();
+
+        try
+        {
+            var libraryRoot = Path.Combine(HostEnvironment.ContentRootPath, "Data", "SampleActions");
+            if (!Directory.Exists(libraryRoot))
+                return;
+
+            var options = CreateJsonOptions();
+            var files = Directory.EnumerateFiles(libraryRoot, "*.json", SearchOption.AllDirectories)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var filePath in files)
+            {
+                try
+                {
+                    var json = await File.ReadAllTextAsync(filePath);
+                    var package = JsonSerializer.Deserialize<ActionsImportExportPackage>(json, options);
+                    if (package == null)
+                        continue;
+
+                    var triggerCount = package.Actions.Sum(action => action.Triggers?.Count ?? 0);
+                    var groups = package.Actions
+                        .Select(action => string.IsNullOrWhiteSpace(action.Group) ? "Ungrouped" : action.Group!.Trim())
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(group => group, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    _libraryItems.Add(new LibraryItemSummary
+                    {
+                        DisplayName = Path.GetFileNameWithoutExtension(filePath).Replace('_', ' '),
+                        RelativePath = Path.GetRelativePath(libraryRoot, filePath).Replace('\\', '/'),
+                        FilePath = filePath,
+                        ExportedAt = package.ExportedAt == default ? null : package.ExportedAt,
+                        ActionCount = package.Actions.Count,
+                        TriggerCount = triggerCount,
+                        GroupSummary = groups.Count == 0 ? "0 groups" : string.Join(", ", groups)
+                    });
+                }
+                catch (Exception ex)
+                {
+                    var relativePath = Path.GetRelativePath(libraryRoot, filePath).Replace('\\', '/');
+                    Logger.LogWarning(ex, "Skipping invalid action library file {RelativePath}", relativePath);
+                }
+            }
+        }
+        finally
+        {
+            _isLoadingLibrary = false;
+        }
+    }
+
+    private IEnumerable<LibraryItemSummary> FilterLibraryItems()
+    {
+        if (string.IsNullOrWhiteSpace(_librarySearch))
+            return _libraryItems;
+
+        return _libraryItems.Where(item =>
+            item.DisplayName.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase) ||
+            item.RelativePath.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase) ||
+            item.GroupSummary.Contains(_librarySearch, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task LoadLibraryItemAsync(LibraryItemSummary item)
+    {
+        string json;
+        try
+        {
+            json = await File.ReadAllTextAsync(item.FilePath);
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading library package '{item.RelativePath}': {ex.Message}";
+            return;
+        }
+
+        await LoadPackageFromJsonAsync(json, item.DisplayName);
+    }
+
     private async Task OnFileSelected(IBrowserFile? file)
     {
-        if (file == null) return;
-        _parseError = "";
-        _importedPackage = null;
+        if (file == null)
+            return;
 
+        string json;
         try
         {
             using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
+            json = await reader.ReadToEndAsync();
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading file '{file.Name}': {ex.Message}";
+            return;
+        }
 
-            var options = new JsonSerializerOptions
+        await LoadPackageFromJsonAsync(json, file.Name);
+    }
+
+    private async Task LoadPackageFromJsonAsync(string json, string sourceLabel)
+    {
+        _parseError = "";
+        _importedPackage = null;
+        _resourcePlans.Clear();
+        _blockingIssues.Clear();
+        _importErrors.Clear();
+        _importedCount = 0;
+        _relinkCount = 0;
+
+        try
+        {
+            var package = JsonSerializer.Deserialize<ActionsImportExportPackage>(json, CreateJsonOptions());
+            if (package == null || package.Actions == null)
             {
-                PropertyNameCaseInsensitive = true,
-                TypeInfoResolver = new SubActionTypeResolver()
-            };
-
-            _importedPackage = JsonSerializer.Deserialize<ActionsImportPackage>(json, options);
-
-            if (_importedPackage == null || _importedPackage.Actions == null)
-            {
-                _parseError = "Failed to parse the file. Make sure it is a valid actions export.";
-                _importedPackage = null;
+                _parseError = "Failed to parse the package. Make sure it is a valid actions export.";
                 return;
             }
 
-            _fileHasTriggers = _importedPackage.Actions.Any(a => a.Triggers?.Count > 0);
-            _fileHasQueueNames = _importedPackage.Actions.Any(a => !string.IsNullOrWhiteSpace(a.QueueName));
-            _fileHasGroups = _importedPackage.Actions.Any(a => a.Group != null);
+            _importedPackage = package;
+            _sourceLabel = sourceLabel;
+            _fileHasTriggers = package.Actions.Any(action => action.Triggers?.Count > 0);
+            _fileHasQueueNames = package.Actions.Any(action => !string.IsNullOrWhiteSpace(action.QueueName));
+            _fileHasGroups = package.Actions.Any(action => action.Group != null);
 
             _importTriggers = _fileHasTriggers;
             _useFileQueueName = _fileHasQueueNames;
             _useFileGroup = _fileHasGroups;
-
             _overrideQueueName = AvailableQueues.Contains("Default") ? "Default" : AvailableQueues.FirstOrDefault() ?? "Default";
             _overrideGroup = "";
+
+            await RefreshExistingResourcesAsync();
+            BuildResourcePlans();
+            RefreshBlockingIssues();
         }
         catch (Exception ex)
         {
-            _parseError = $"Error reading file: {ex.Message}";
+            _parseError = $"Error reading package: {ex.Message}";
             _importedPackage = null;
         }
     }
 
+    private async Task RefreshExistingResourcesAsync()
+    {
+        _existingCommands = (await CommandService.GetAllAsync())
+            .Where(command => !string.IsNullOrWhiteSpace(command.CommandName))
+            .GroupBy(command => command.CommandName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        _existingKeywords = (await KeywordService.GetAllAsync())
+            .Where(keyword => !string.IsNullOrWhiteSpace(keyword.CommandName))
+            .GroupBy(keyword => keyword.CommandName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        _existingTimerGroups = (await TimerService.GetTimerGroupsAsync())
+            .Where(timerGroup => !string.IsNullOrWhiteSpace(timerGroup.Name))
+            .GroupBy(timerGroup => timerGroup.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+
+        _existingDefaultCommands = (await CommandHandler.GetDefaultCommandsFromDb())
+            .Where(command => !string.IsNullOrWhiteSpace(command.CommandName))
+            .GroupBy(command => command.CommandName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void BuildResourcePlans()
+    {
+        _resourcePlans.Clear();
+        if (_importedPackage == null)
+            return;
+
+        foreach (var action in _importedPackage.Actions)
+        {
+            foreach (var trigger in action.Triggers ?? [])
+            {
+                switch (trigger.Type)
+                {
+                    case TriggerTypes.Command:
+                    {
+                        var commandName = GetCommandName(trigger);
+                        if (!string.IsNullOrWhiteSpace(commandName))
+                        {
+                            RegisterPlan(new ImportResourcePlan
+                            {
+                                ResourceType = ImportResourceType.Command,
+                                SourceName = commandName,
+                                DisplayTypeLabel = "Command",
+                                CanCreate = true,
+                                HasExisting = _existingCommands.ContainsKey(commandName),
+                                ResolutionChoice = _existingCommands.ContainsKey(commandName) ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
+                                TargetName = commandName,
+                                CommandDefinition = trigger.CommandDefinition,
+                                MissingMessage = $"Command '!{commandName}' cannot be created because the package did not include enough data.",
+                                UsageCount = 1
+                            });
+                        }
+                        break;
+                    }
+                    case TriggerTypes.Keyword:
+                    {
+                        var keywordName = GetKeywordName(trigger);
+                        if (!string.IsNullOrWhiteSpace(keywordName))
+                        {
+                            var hasExisting = _existingKeywords.ContainsKey(keywordName);
+                            RegisterPlan(new ImportResourcePlan
+                            {
+                                ResourceType = ImportResourceType.Keyword,
+                                SourceName = keywordName,
+                                DisplayTypeLabel = "Keyword",
+                                CanCreate = trigger.KeywordDefinition != null,
+                                HasExisting = hasExisting,
+                                ResolutionChoice = hasExisting ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
+                                TargetName = keywordName,
+                                KeywordDefinition = trigger.KeywordDefinition,
+                                MissingMessage = $"Keyword '{keywordName}' does not exist and this package did not include its full definition.",
+                                UsageCount = 1
+                            });
+                        }
+                        break;
+                    }
+                    case TriggerTypes.Timer:
+                    {
+                        var timerGroupName = GetTimerGroupName(trigger);
+                        if (!string.IsNullOrWhiteSpace(timerGroupName))
+                        {
+                            var hasExisting = _existingTimerGroups.ContainsKey(timerGroupName);
+                            RegisterPlan(new ImportResourcePlan
+                            {
+                                ResourceType = ImportResourceType.TimerGroup,
+                                SourceName = timerGroupName,
+                                DisplayTypeLabel = "Timer Group",
+                                CanCreate = trigger.TimerGroupDefinition != null,
+                                HasExisting = hasExisting,
+                                ResolutionChoice = hasExisting ? ResourceResolutionChoice.UseExisting : ResourceResolutionChoice.CreateNew,
+                                TargetName = timerGroupName,
+                                TimerGroupDefinition = trigger.TimerGroupDefinition,
+                                MissingMessage = $"Timer group '{timerGroupName}' does not exist and this package did not include its full settings.",
+                                UsageCount = 1
+                            });
+                        }
+                        break;
+                    }
+                    case TriggerTypes.DefaultCommand:
+                    {
+                        var definition = GetDefaultCommandDefinition(trigger);
+                        if (definition != null && !string.IsNullOrWhiteSpace(definition.DefaultCommandName))
+                        {
+                            var hasExisting = _existingDefaultCommands.ContainsKey(definition.DefaultCommandName);
+                            RegisterPlan(new ImportResourcePlan
+                            {
+                                ResourceType = ImportResourceType.DefaultCommand,
+                                SourceName = definition.DefaultCommandName,
+                                DisplayTypeLabel = "Default Command",
+                                CanCreate = false,
+                                HasExisting = hasExisting,
+                                ResolutionChoice = ResourceResolutionChoice.UseExisting,
+                                TargetName = definition.DefaultCommandName,
+                                DefaultCommandDefinition = definition,
+                                MissingMessage = $"Default command '{definition.DefaultCommandName}' is missing. Enable the owning feature or create it before importing.",
+                                UsageCount = 1
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        _resourcePlans.Sort((left, right) =>
+        {
+            var typeCompare = string.Compare(left.DisplayTypeLabel, right.DisplayTypeLabel, StringComparison.OrdinalIgnoreCase);
+            return typeCompare != 0 ? typeCompare : string.Compare(left.SourceName, right.SourceName, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    private void RegisterPlan(ImportResourcePlan incoming)
+    {
+        incoming.SourceName = incoming.SourceName.Trim();
+        var existing = _resourcePlans.FirstOrDefault(plan =>
+            GetPlanKey(plan.ResourceType, plan.SourceName) == GetPlanKey(incoming.ResourceType, incoming.SourceName));
+
+        if (existing == null)
+        {
+            _resourcePlans.Add(incoming);
+            return;
+        }
+
+        existing.UsageCount += incoming.UsageCount;
+        existing.CommandDefinition ??= incoming.CommandDefinition;
+        existing.KeywordDefinition ??= incoming.KeywordDefinition;
+        existing.TimerGroupDefinition ??= incoming.TimerGroupDefinition;
+        existing.DefaultCommandDefinition ??= incoming.DefaultCommandDefinition;
+        existing.CanCreate = existing.CanCreate || incoming.CanCreate;
+        existing.HasExisting = existing.HasExisting || incoming.HasExisting;
+        if (existing.HasExisting)
+            existing.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+    }
+
+    private void OnPlanResolutionChanged(ImportResourcePlan plan, ResourceResolutionChoice choice)
+    {
+        plan.ResolutionChoice = choice;
+        if (choice == ResourceResolutionChoice.CreateNew && string.IsNullOrWhiteSpace(plan.TargetName))
+            plan.TargetName = SuggestUniqueName(plan.ResourceType, plan.SourceName);
+        RefreshBlockingIssues();
+    }
+
+    private void OnPlanTargetNameChanged(ImportResourcePlan plan, string? value)
+    {
+        plan.TargetName = value?.Trim() ?? string.Empty;
+        RefreshBlockingIssues();
+    }
+
+    private void RefreshBlockingIssues()
+    {
+        _blockingIssues.Clear();
+
+        if (!_importTriggers)
+            return;
+
+        foreach (var plan in _resourcePlans)
+        {
+            var validationMessage = GetPlanValidationMessage(plan);
+            if (!string.IsNullOrWhiteSpace(validationMessage))
+                _blockingIssues.Add(validationMessage);
+        }
+    }
+
+    private string? GetPlanValidationMessage(ImportResourcePlan plan)
+    {
+        if (!_importTriggers)
+            return null;
+
+        if (!plan.CanCreate && !plan.HasExisting)
+            return plan.MissingMessage;
+
+        if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+            return null;
+
+        if (!plan.CanCreate)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(plan.TargetName))
+            return $"{plan.DisplayTypeLabel} '{plan.SourceName}' needs a name before it can be created.";
+
+        if (NameExistsForCreate(plan))
+            return $"{plan.DisplayTypeLabel} '{plan.TargetName}' already exists. Choose a different name or use the existing one.";
+
+        if (NameClashesWithAnotherPlannedCreate(plan))
+            return $"{plan.DisplayTypeLabel} '{plan.TargetName}' is already being created by another import decision.";
+
+        return null;
+    }
+
+    private bool NameExistsForCreate(ImportResourcePlan plan)
+    {
+        if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+            return false;
+
+        return plan.ResourceType switch
+        {
+            ImportResourceType.Command => _existingCommands.ContainsKey(plan.TargetName),
+            ImportResourceType.Keyword => _existingKeywords.ContainsKey(plan.TargetName),
+            ImportResourceType.TimerGroup => _existingTimerGroups.ContainsKey(plan.TargetName),
+            _ => false
+        };
+    }
+
+    private bool NameClashesWithAnotherPlannedCreate(ImportResourcePlan plan)
+    {
+        if (string.IsNullOrWhiteSpace(plan.TargetName))
+            return false;
+
+        return _resourcePlans.Any(other =>
+            !ReferenceEquals(other, plan) &&
+            other.ResourceType == plan.ResourceType &&
+            other.CanCreate &&
+            (other.ResolutionChoice == ResourceResolutionChoice.CreateNew || !other.HasExisting) &&
+            other.TargetName.Equals(plan.TargetName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private Color GetPlanColor(ImportResourcePlan plan)
+    {
+        if (!string.IsNullOrWhiteSpace(GetPlanValidationMessage(plan)))
+            return Color.Error;
+
+        if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+            return Color.Success;
+
+        return Color.Info;
+    }
+
+    private string GetPlanStatus(ImportResourcePlan plan)
+    {
+        var validationMessage = GetPlanValidationMessage(plan);
+        if (!string.IsNullOrWhiteSpace(validationMessage))
+            return "Needs attention";
+        if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+            return "Using existing";
+        return "Will create";
+    }
+
     private async Task Import()
     {
-        if (_importedPackage == null) return;
+        if (_importedPackage == null)
+            return;
+
+        RefreshBlockingIssues();
+        if (_blockingIssues.Count > 0)
+            return;
 
         _isImporting = true;
         _importErrors.Clear();
         _importedCount = 0;
         _relinkCount = 0;
 
-        var createdActions = new List<ActionType>();
-
-        foreach (var dto in _importedPackage.Actions)
+        try
         {
+            await RefreshExistingResourcesAsync();
+
+            Dictionary<string, ResolvedImportResource> resolvedResources;
             try
             {
-                var subActions = (dto.SubActions ?? [])
-                    .OrderBy(s => s.Index)
-                    .Select((s, idx) =>
-                    {
-                        s.Id = 0;
-                        s.Index = idx;
-                        return s;
-                    })
-                    .ToList();
-
-                // Clear stale source-system ActionIds so PopulateExecuteActionNamesBeforeSave
-                // doesn't corrupt ActionName before the relink pass runs
-                foreach (var ea in GetAllExecuteActionSubActions(subActions))
-                    ea.ActionId = null;
-
-                var triggers = new List<TriggerType>();
-                if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
-                {
-                    foreach (var t in dto.Triggers)
-                    {
-                        if (t.Type == TriggerTypes.Command)
-                        {
-                            var commandName = !string.IsNullOrEmpty(t.CommandDefinition?.CommandName)
-                                ? t.CommandDefinition.CommandName
-                                : t.Name.TrimStart('!');
-
-                            if (string.IsNullOrWhiteSpace(commandName)) continue;
-
-                            var existingCmd = await CommandService.GetByCommandNameAsync(commandName);
-                            ActionCommand command;
-                            if (existingCmd != null)
-                            {
-                                command = existingCmd;
-                            }
-                            else
-                            {
-                                command = await CommandService.AddAsync(new ActionCommand
-                                {
-                                    CommandName = commandName,
-                                    UserCooldown = t.CommandDefinition?.UserCooldown ?? 0,
-                                    UserCooldownMax = t.CommandDefinition?.UserCooldownMax ?? 0,
-                                    GlobalCooldown = t.CommandDefinition?.GlobalCooldown ?? 0,
-                                    GlobalCooldownMax = t.CommandDefinition?.GlobalCooldownMax ?? 0,
-                                    MinimumRank = t.CommandDefinition?.MinimumRank ?? Rank.Viewer,
-                                    Cost = t.CommandDefinition?.Cost ?? 0,
-                                    Disabled = t.CommandDefinition?.Disabled ?? false,
-                                    SayCooldown = t.CommandDefinition?.SayCooldown ?? true
-                                });
-                            }
-
-                            var configuration = JsonSerializer.Serialize(new { CommandId = command.Id, CommandName = commandName });
-                            triggers.Add(new TriggerType
-                            {
-                                Name = $"!{commandName}",
-                                Type = TriggerTypes.Command,
-                                Configuration = configuration,
-                                Enabled = t.Enabled,
-                                CommandId = command.Id
-                            });
-                        }
-                        else
-                        {
-                            // TwitchEvent, Manual - no IDs, portable as-is
-                            triggers.Add(new TriggerType
-                            {
-                                Name = t.Name,
-                                Type = t.Type,
-                                Configuration = t.Configuration,
-                                Enabled = t.Enabled
-                            });
-                        }
-                    }
-                }
-
-                var action = new ActionType
-                {
-                    Name = dto.Name,
-                    Group = ResolveGroup(dto.Group),
-                    Enabled = dto.Enabled,
-                    RandomAction = dto.RandomAction,
-                    ConcurrentAction = dto.ConcurrentAction,
-                    OnlineOnly = dto.OnlineOnly,
-                    QueueName = ResolveQueueName(dto.QueueName),
-                    SubActions = subActions,
-                    Triggers = triggers
-                };
-
-                var created = await ActionService.CreateActionAsync(action);
-                createdActions.Add(created);
-                _importedCount++;
+                resolvedResources = _importTriggers
+                    ? await ResolveResourcesAsync()
+                    : new Dictionary<string, ResolvedImportResource>(StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
-                _importErrors.Add($"Failed to import '{dto.Name}': {ex.Message}");
+                _importErrors.Add($"Failed to resolve import resources: {ex.Message}");
+                return;
             }
-        }
 
-        // Pass 2: relink ExecuteAction sub-actions by ActionName
-        if (createdActions.Count > 0)
-        {
-            // Build name->ID map: imported batch takes priority, then fall back to pre-existing
-            var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var created in createdActions.Where(a => a.Id.HasValue))
-                nameToId[created.Name] = created.Id!.Value;
+            var createdActions = new List<ActionType>();
 
-            var allExisting = await ActionService.GetAllActionsAsync();
-            foreach (var existing in allExisting.Where(a => a.Id.HasValue && !nameToId.ContainsKey(a.Name)))
-                nameToId[existing.Name] = existing.Id!.Value;
-
-            foreach (var created in createdActions)
+            foreach (var dto in _importedPackage.Actions)
             {
-                var executeActions = GetAllExecuteActionSubActions(created.SubActions);
-                bool needsUpdate = false;
-                foreach (var ea in executeActions)
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(ea.ActionName) &&
-                        nameToId.TryGetValue(ea.ActionName, out var resolvedId) &&
-                        ea.ActionId != resolvedId)
+                    var subActions = NormalizeAndRewriteSubActions(dto.SubActions ?? [], resolvedResources);
+                    var catchSubActions = NormalizeAndRewriteSubActions(dto.CatchSubActions ?? [], resolvedResources);
+
+                    foreach (var executeAction in GetAllExecuteActionSubActions(subActions))
+                        executeAction.ActionId = null;
+                    foreach (var executeAction in GetAllExecuteActionSubActions(catchSubActions))
+                        executeAction.ActionId = null;
+                    foreach (var forEachViewer in GetAllForEachViewerSubActions(subActions))
+                        forEachViewer.ActionId = null;
+                    foreach (var forEachViewer in GetAllForEachViewerSubActions(catchSubActions))
+                        forEachViewer.ActionId = null;
+
+                    var triggers = new List<TriggerType>();
+                    if (_importTriggers && _fileHasTriggers && dto.Triggers?.Count > 0)
                     {
-                        ea.ActionId = resolvedId;
-                        needsUpdate = true;
-                        _relinkCount++;
+                        triggers = BuildTriggers(dto.Triggers, resolvedResources);
                     }
+
+                    var action = new ActionType
+                    {
+                        Name = dto.Name,
+                        Group = ResolveGroup(dto.Group),
+                        Enabled = dto.Enabled,
+                        RandomAction = dto.RandomAction,
+                        ConcurrentAction = dto.ConcurrentAction,
+                        OnlineOnly = dto.OnlineOnly,
+                        QueueName = ResolveQueueName(dto.QueueName),
+                        SubActions = subActions,
+                        CatchSubActions = catchSubActions,
+                        Triggers = triggers
+                    };
+
+                    var created = await ActionService.CreateActionAsync(action);
+                    createdActions.Add(created);
+                    _importedCount++;
                 }
-                if (needsUpdate)
+                catch (Exception ex)
                 {
-                    try
+                    _importErrors.Add($"Failed to import '{dto.Name}': {ex.Message}");
+                }
+            }
+
+            try
+            {
+                await RelinkExecuteActionsAsync(createdActions);
+            }
+            catch (Exception ex)
+            {
+                _importErrors.Add($"Failed to relink imported action references: {ex.Message}");
+                return;
+            }
+        }
+        finally
+        {
+            _isImporting = false;
+        }
+    }
+
+    private async Task<Dictionary<string, ResolvedImportResource>> ResolveResourcesAsync()
+    {
+        var resolved = new Dictionary<string, ResolvedImportResource>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var plan in _resourcePlans)
+        {
+            var key = GetPlanKey(plan.ResourceType, plan.SourceName);
+
+            switch (plan.ResourceType)
+            {
+                case ImportResourceType.Command:
+                {
+                    ActionCommand command;
+                    if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
                     {
-                        await ActionService.UpdateActionAsync(created);
+                        if (!_existingCommands.TryGetValue(plan.SourceName, out command!))
+                        {
+                            _importErrors.Add($"Command '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _importErrors.Add($"Failed to relink Execute Actions in '{created.Name}': {ex.Message}");
+                        var definition = plan.CommandDefinition ?? new ActionCommandImportExportDto { CommandName = plan.SourceName };
+                        command = await CommandService.AddAsync(definition.ToCommand(plan.TargetName));
+                        _existingCommands[command.CommandName] = command;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = command.CommandName;
                     }
+
+                    resolved[key] = new ResolvedImportResource { Command = command, Name = command.CommandName };
+                    break;
+                }
+                case ImportResourceType.Keyword:
+                {
+                    ActionKeyword keyword;
+                    if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+                    {
+                        if (!_existingKeywords.TryGetValue(plan.SourceName, out keyword!))
+                        {
+                            _importErrors.Add($"Keyword '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        keyword = await KeywordService.AddAsync(plan.KeywordDefinition!.ToKeyword(plan.TargetName));
+                        _existingKeywords[keyword.CommandName] = keyword;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = keyword.CommandName;
+                    }
+
+                    resolved[key] = new ResolvedImportResource { Keyword = keyword, Name = keyword.CommandName };
+                    break;
+                }
+                case ImportResourceType.TimerGroup:
+                {
+                    TimerGroup timerGroup;
+                    if (plan.HasExisting && plan.ResolutionChoice == ResourceResolutionChoice.UseExisting)
+                    {
+                        if (!_existingTimerGroups.TryGetValue(plan.SourceName, out timerGroup!))
+                        {
+                            _importErrors.Add($"Timer group '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        timerGroup = plan.TimerGroupDefinition!.ToTimerGroup(plan.TargetName);
+                        await TimerService.AddTimerGroup(timerGroup);
+                        var refreshedTimerGroup = await GetTimerGroupByNameAsync(timerGroup.Name) ?? timerGroup;
+                        timerGroup = refreshedTimerGroup;
+                        _existingTimerGroups[timerGroup.Name] = timerGroup;
+                        plan.HasExisting = true;
+                        plan.ResolutionChoice = ResourceResolutionChoice.UseExisting;
+                        plan.TargetName = timerGroup.Name;
+                    }
+
+                    resolved[key] = new ResolvedImportResource { TimerGroup = timerGroup, Name = timerGroup.Name };
+                    break;
+                }
+                case ImportResourceType.DefaultCommand:
+                {
+                    if (!_existingDefaultCommands.TryGetValue(plan.SourceName, out var defaultCommand))
+                    {
+                        _importErrors.Add($"Default command '{plan.SourceName}' was expected to exist but is missing. Dependent triggers will be skipped.");
+                        continue;
+                    }
+                    resolved[key] = new ResolvedImportResource { DefaultCommand = defaultCommand, Name = defaultCommand.CommandName };
+                    break;
                 }
             }
         }
 
-        _isImporting = false;
+        return resolved;
+    }
+
+    private async Task<TimerGroup?> GetTimerGroupByNameAsync(string name)
+    {
+        var timerGroups = await TimerService.GetTimerGroupsAsync();
+        return timerGroups.FirstOrDefault(group => group.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<TriggerType> BuildTriggers(IEnumerable<TriggerImportExportDto> triggerDtos, Dictionary<string, ResolvedImportResource> resolvedResources)
+    {
+        var triggers = new List<TriggerType>();
+
+        foreach (var trigger in triggerDtos)
+        {
+            switch (trigger.Type)
+            {
+                case TriggerTypes.Command:
+                {
+                    var sourceName = GetCommandName(trigger);
+                    if (string.IsNullOrWhiteSpace(sourceName))
+                        continue;
+
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.Command, sourceName), out var resolved) || resolved.Command == null)
+                    {
+                        _importErrors.Add($"Dropped command trigger '{trigger.Name}' because command '{sourceName}' could not be resolved.");
+                        continue;
+                    }
+                    var command = resolved.Command!;
+                    triggers.Add(new TriggerType
+                    {
+                        Name = $"!{command.CommandName}",
+                        Type = TriggerTypes.Command,
+                        Configuration = JsonSerializer.Serialize(new { CommandId = command.Id, CommandName = command.CommandName }),
+                        Enabled = trigger.Enabled,
+                        CommandId = command.Id
+                    });
+                    break;
+                }
+                case TriggerTypes.Keyword:
+                {
+                    var sourceName = GetKeywordName(trigger);
+                    if (string.IsNullOrWhiteSpace(sourceName))
+                        continue;
+
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.Keyword, sourceName), out var resolved) || resolved.Keyword == null)
+                    {
+                        _importErrors.Add($"Dropped keyword trigger '{trigger.Name}' because keyword '{sourceName}' could not be resolved.");
+                        continue;
+                    }
+                    var keyword = resolved.Keyword!;
+                    triggers.Add(new TriggerType
+                    {
+                        Name = keyword.CommandName,
+                        Type = TriggerTypes.Keyword,
+                        Configuration = JsonSerializer.Serialize(new { KeywordId = keyword.Id, KeywordName = keyword.CommandName }),
+                        Enabled = trigger.Enabled,
+                        KeywordId = keyword.Id
+                    });
+                    break;
+                }
+                case TriggerTypes.Timer:
+                {
+                    var sourceName = GetTimerGroupName(trigger);
+                    if (string.IsNullOrWhiteSpace(sourceName))
+                        continue;
+
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.TimerGroup, sourceName), out var resolved) || resolved.TimerGroup == null)
+                    {
+                        _importErrors.Add($"Dropped timer trigger '{trigger.Name}' because timer group '{sourceName}' could not be resolved.");
+                        continue;
+                    }
+                    var timerGroup = resolved.TimerGroup!;
+                    if (!timerGroup.Id.HasValue)
+                    {
+                        _importErrors.Add($"Dropped timer trigger '{trigger.Name}' because timer group '{timerGroup.Name}' has no ID after resolution.");
+                        continue;
+                    }
+
+                    triggers.Add(new TriggerType
+                    {
+                        Name = $"TimerGroup_{timerGroup.Id.Value}",
+                        Type = TriggerTypes.Timer,
+                        Configuration = JsonSerializer.Serialize(new { TimerGroupId = timerGroup.Id.Value, TimerGroupName = timerGroup.Name }),
+                        Enabled = trigger.Enabled,
+                        TimerGroupId = timerGroup.Id.Value
+                    });
+                    break;
+                }
+                case TriggerTypes.DefaultCommand:
+                {
+                    var definition = GetDefaultCommandDefinition(trigger);
+                    if (definition == null || string.IsNullOrWhiteSpace(definition.DefaultCommandName))
+                        continue;
+
+                    if (!resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.DefaultCommand, definition.DefaultCommandName), out var resolved) || resolved.DefaultCommand == null)
+                    {
+                        _importErrors.Add($"Dropped default-command trigger '{trigger.Name}' because default command '{definition.DefaultCommandName}' could not be resolved.");
+                        continue;
+                    }
+                    var defaultCommand = resolved.DefaultCommand!;
+                    var triggerName = string.IsNullOrWhiteSpace(trigger.Name)
+                        ? $"{defaultCommand.CommandName}_{definition.EventType.Split('.').LastOrDefault()}"
+                        : trigger.Name;
+
+                    triggers.Add(new TriggerType
+                    {
+                        Name = triggerName,
+                        Type = TriggerTypes.DefaultCommand,
+                        Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                        {
+                            DefaultCommandName = defaultCommand.CommandName,
+                            EventType = definition.EventType
+                        }),
+                        Enabled = trigger.Enabled,
+                        DefaultCommandId = defaultCommand.Id
+                    });
+                    break;
+                }
+                default:
+                    triggers.Add(new TriggerType
+                    {
+                        Name = trigger.Name,
+                        Type = trigger.Type,
+                        Configuration = trigger.Configuration,
+                        Enabled = trigger.Enabled
+                    });
+                    break;
+            }
+        }
+
+        return triggers;
+    }
+
+    private static List<SubActionType> NormalizeAndRewriteSubActions(IEnumerable<SubActionType> sourceSubActions, Dictionary<string, ResolvedImportResource> resolvedResources)
+    {
+        var subActions = sourceSubActions.OrderBy(subAction => subAction.Index).ToList();
+        for (var index = 0; index < subActions.Count; index++)
+        {
+            NormalizeSubAction(subActions[index], index, resolvedResources);
+        }
+
+        return subActions;
+    }
+
+    private static void NormalizeSubAction(SubActionType subAction, int index, Dictionary<string, ResolvedImportResource> resolvedResources)
+    {
+        subAction.Id = 0;
+        subAction.Index = index;
+
+        switch (subAction)
+        {
+            case ToggleCommandDisabledType toggleCommand:
+            {
+                if (!string.IsNullOrWhiteSpace(toggleCommand.CommandName) &&
+                    resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.Command, toggleCommand.CommandName), out var resolvedCommand) &&
+                    resolvedCommand.Command != null)
+                {
+                    toggleCommand.CommandName = resolvedCommand.Command.CommandName;
+                }
+                break;
+            }
+            case TimerGroupSetEnabledStateType timerGroupToggle:
+            {
+                if (!string.IsNullOrWhiteSpace(timerGroupToggle.TimerGroupName) &&
+                    resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.TimerGroup, timerGroupToggle.TimerGroupName), out var resolvedTimerGroup) &&
+                    resolvedTimerGroup.TimerGroup?.Id.HasValue == true)
+                {
+                    timerGroupToggle.TimerGroupId = resolvedTimerGroup.TimerGroup.Id;
+                    timerGroupToggle.TimerGroupName = resolvedTimerGroup.TimerGroup.Name;
+                }
+                break;
+            }
+            case ExecuteDefaultCommandType executeDefaultCommand:
+            {
+                if (!string.IsNullOrWhiteSpace(executeDefaultCommand.CommandName) &&
+                    resolvedResources.TryGetValue(GetPlanKey(ImportResourceType.DefaultCommand, executeDefaultCommand.CommandName), out var resolvedDefaultCommand) &&
+                    resolvedDefaultCommand.DefaultCommand != null)
+                {
+                    executeDefaultCommand.CommandName = resolvedDefaultCommand.DefaultCommand.CommandName;
+                }
+                break;
+            }
+            case LogicIfElseType logic:
+            {
+                for (var childIndex = 0; childIndex < logic.TrueSubActions.Count; childIndex++)
+                {
+                    NormalizeSubAction(logic.TrueSubActions[childIndex], childIndex, resolvedResources);
+                }
+
+                for (var childIndex = 0; childIndex < logic.FalseSubActions.Count; childIndex++)
+                {
+                    NormalizeSubAction(logic.FalseSubActions[childIndex], childIndex, resolvedResources);
+                }
+                break;
+            }
+        }
+    }
+
+    private async Task RelinkExecuteActionsAsync(List<ActionType> createdActions)
+    {
+        if (createdActions.Count == 0)
+            return;
+
+        var nameToId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var created in createdActions.Where(action => action.Id.HasValue))
+            nameToId[created.Name] = created.Id!.Value;
+
+        var allExisting = await ActionService.GetAllActionsAsync();
+        foreach (var existing in allExisting.Where(action => action.Id.HasValue && !nameToId.ContainsKey(action.Name)))
+            nameToId[existing.Name] = existing.Id!.Value;
+
+        foreach (var created in createdActions)
+        {
+            var executeActions = GetAllExecuteActionSubActions(created.SubActions)
+                .Concat(GetAllExecuteActionSubActions(created.CatchSubActions))
+                .ToList();
+            var forEachViewerSubActions = GetAllForEachViewerSubActions(created.SubActions)
+                .Concat(GetAllForEachViewerSubActions(created.CatchSubActions))
+                .ToList();
+
+            var needsUpdate = false;
+            var relinkedForAction = 0;
+            foreach (var executeAction in executeActions)
+            {
+                if (!string.IsNullOrWhiteSpace(executeAction.ActionName) &&
+                    nameToId.TryGetValue(executeAction.ActionName, out var resolvedId) &&
+                    executeAction.ActionId != resolvedId)
+                {
+                    executeAction.ActionId = resolvedId;
+                    needsUpdate = true;
+                    relinkedForAction++;
+                }
+            }
+
+            foreach (var forEachViewer in forEachViewerSubActions)
+            {
+                if (!string.IsNullOrWhiteSpace(forEachViewer.ActionName) &&
+                    nameToId.TryGetValue(forEachViewer.ActionName, out var resolvedId) &&
+                    forEachViewer.ActionId != resolvedId)
+                {
+                    forEachViewer.ActionId = resolvedId;
+                    needsUpdate = true;
+                    relinkedForAction++;
+                }
+            }
+
+            if (!needsUpdate)
+                continue;
+
+            try
+            {
+                await ActionService.UpdateActionAsync(created);
+                _relinkCount += relinkedForAction;
+            }
+            catch (Exception ex)
+            {
+                _importErrors.Add($"Failed to relink Execute Actions in '{created.Name}': {ex.Message}");
+            }
+        }
     }
 
     private static List<ExecuteActionType> GetAllExecuteActionSubActions(IEnumerable<SubActionType> subActions)
@@ -399,12 +1254,32 @@
         var result = new List<ExecuteActionType>();
         foreach (var subAction in subActions)
         {
-            if (subAction is ExecuteActionType exec)
-                result.Add(exec);
+            if (subAction is ExecuteActionType executeAction)
+            {
+                result.Add(executeAction);
+            }
             else if (subAction is LogicIfElseType logic)
             {
                 result.AddRange(GetAllExecuteActionSubActions(logic.TrueSubActions));
                 result.AddRange(GetAllExecuteActionSubActions(logic.FalseSubActions));
+            }
+        }
+        return result;
+    }
+
+    private static List<ForEachViewerType> GetAllForEachViewerSubActions(IEnumerable<SubActionType> subActions)
+    {
+        var result = new List<ForEachViewerType>();
+        foreach (var subAction in subActions)
+        {
+            if (subAction is ForEachViewerType forEachViewer)
+            {
+                result.Add(forEachViewer);
+            }
+            else if (subAction is LogicIfElseType logic)
+            {
+                result.AddRange(GetAllForEachViewerSubActions(logic.TrueSubActions));
+                result.AddRange(GetAllForEachViewerSubActions(logic.FalseSubActions));
             }
         }
         return result;
@@ -431,10 +1306,10 @@
 
         value = value.Trim();
         var filtered = Groups
-            .Where(g => g.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Where(group => group.Contains(value, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        if (!filtered.Any(g => g.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        if (!filtered.Any(group => group.Equals(value, StringComparison.OrdinalIgnoreCase)))
             filtered.Insert(0, value);
 
         return Task.FromResult<IEnumerable<string>>(filtered);
@@ -443,55 +1318,157 @@
     private void Reset()
     {
         _importedPackage = null;
+        _sourceLabel = "selected package";
         _parseError = "";
         _importErrors.Clear();
+        _blockingIssues.Clear();
+        _resourcePlans.Clear();
         _importedCount = 0;
         _relinkCount = 0;
+    }
+
+    private static JsonSerializerOptions CreateJsonOptions()
+    {
+        return new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            TypeInfoResolver = new SubActionTypeResolver()
+        };
+    }
+
+    private static string GetPlanKey(ImportResourceType resourceType, string sourceName)
+        => $"{resourceType}:{sourceName.Trim().ToLowerInvariant()}";
+
+    private string SuggestUniqueName(ImportResourceType resourceType, string baseName)
+    {
+        var cleanedBaseName = resourceType == ImportResourceType.TimerGroup
+            ? baseName
+            : baseName.Replace("!", "", StringComparison.Ordinal);
+
+        var suffix = resourceType == ImportResourceType.TimerGroup ? " (Imported)" : "_imported";
+        var candidate = $"{cleanedBaseName}{suffix}";
+        var index = 2;
+
+        while (NameExists(resourceType, candidate) || PlannedCreateExists(resourceType, candidate))
+        {
+            candidate = resourceType == ImportResourceType.TimerGroup
+                ? $"{cleanedBaseName} (Imported {index})"
+                : $"{cleanedBaseName}_imported_{index}";
+            index++;
+        }
+
+        return candidate;
+    }
+
+    private bool NameExists(ImportResourceType resourceType, string candidate)
+    {
+        return resourceType switch
+        {
+            ImportResourceType.Command => _existingCommands.ContainsKey(candidate),
+            ImportResourceType.Keyword => _existingKeywords.ContainsKey(candidate),
+            ImportResourceType.TimerGroup => _existingTimerGroups.ContainsKey(candidate),
+            ImportResourceType.DefaultCommand => _existingDefaultCommands.ContainsKey(candidate),
+            _ => false
+        };
+    }
+
+    private bool PlannedCreateExists(ImportResourceType resourceType, string candidate)
+    {
+        return _resourcePlans.Any(plan =>
+            plan.ResourceType == resourceType &&
+            plan.CanCreate &&
+            (plan.ResolutionChoice == ResourceResolutionChoice.CreateNew || !plan.HasExisting) &&
+            plan.TargetName.Equals(candidate, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? GetCommandName(TriggerImportExportDto trigger)
+    {
+        return ActionImportExportParsingHelper.NormalizeCommandName(trigger.CommandDefinition?.CommandName)
+            ?? ActionImportExportParsingHelper.NormalizeCommandName(ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "CommandName"))
+            ?? ActionImportExportParsingHelper.NormalizeCommandName(trigger.Name.TrimStart('!'));
+    }
+
+    private static string? GetKeywordName(TriggerImportExportDto trigger)
+    {
+        return trigger.KeywordDefinition?.CommandName
+            ?? ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "KeywordName")
+            ?? (!string.IsNullOrWhiteSpace(trigger.Name) ? trigger.Name : null);
+    }
+
+    private static string? GetTimerGroupName(TriggerImportExportDto trigger)
+    {
+        return trigger.TimerGroupDefinition?.Name
+            ?? ActionImportExportParsingHelper.ExtractStringValue(trigger.Configuration, "TimerGroupName");
+    }
+
+    private static DefaultCommandTriggerImportExportDto? GetDefaultCommandDefinition(TriggerImportExportDto trigger)
+    {
+        return ActionImportExportParsingHelper.GetDefaultCommandDefinition(trigger);
+    }
+
+    private void OnImportTriggersChanged(bool value)
+    {
+        _importTriggers = value;
+        RefreshBlockingIssues();
     }
 
     private void Cancel() => MudDialog.Cancel();
     private void Done() => MudDialog.Close(DialogResult.Ok(_importedCount));
 
-    // DTOs - must match ExportActionsDialog serialization format
-    public class ActionsImportPackage
+    private enum ImportSourceMode
     {
-        public string Version { get; set; } = "1.0";
-        public DateTime ExportedAt { get; set; }
-        public List<ActionImportDto> Actions { get; set; } = [];
+        File,
+        Library
     }
 
-    public class ActionImportDto
+    private enum ImportResourceType
+    {
+        Command,
+        Keyword,
+        TimerGroup,
+        DefaultCommand
+    }
+
+    private enum ResourceResolutionChoice
+    {
+        UseExisting,
+        CreateNew
+    }
+
+    private sealed class LibraryItemSummary
+    {
+        public string DisplayName { get; set; } = "";
+        public string RelativePath { get; set; } = "";
+        public string FilePath { get; set; } = "";
+        public DateTime? ExportedAt { get; set; }
+        public int ActionCount { get; set; }
+        public int TriggerCount { get; set; }
+        public string GroupSummary { get; set; } = "";
+    }
+
+    private sealed class ImportResourcePlan
+    {
+        public ImportResourceType ResourceType { get; set; }
+        public string SourceName { get; set; } = "";
+        public string DisplayTypeLabel { get; set; } = "";
+        public bool CanCreate { get; set; }
+        public bool HasExisting { get; set; }
+        public ResourceResolutionChoice ResolutionChoice { get; set; }
+        public string TargetName { get; set; } = "";
+        public string MissingMessage { get; set; } = "";
+        public int UsageCount { get; set; }
+        public ActionCommandImportExportDto? CommandDefinition { get; set; }
+        public ActionKeywordImportExportDto? KeywordDefinition { get; set; }
+        public TimerGroupImportExportDto? TimerGroupDefinition { get; set; }
+        public DefaultCommandTriggerImportExportDto? DefaultCommandDefinition { get; set; }
+    }
+
+    private sealed class ResolvedImportResource
     {
         public string Name { get; set; } = "";
-        public string? Group { get; set; }
-        public bool Enabled { get; set; } = true;
-        public bool RandomAction { get; set; }
-        public bool ConcurrentAction { get; set; }
-        public bool OnlineOnly { get; set; }
-        public string? QueueName { get; set; }
-        public List<SubActionType> SubActions { get; set; } = [];
-        public List<TriggerImportDto> Triggers { get; set; } = [];
-    }
-
-    public class TriggerImportDto
-    {
-        public string Name { get; set; } = "";
-        public TriggerTypes Type { get; set; }
-        public string Configuration { get; set; } = "";
-        public bool Enabled { get; set; } = true;
-        public ActionCommandImportDto? CommandDefinition { get; set; }
-    }
-
-    public class ActionCommandImportDto
-    {
-        public string CommandName { get; set; } = "";
-        public int UserCooldown { get; set; }
-        public int UserCooldownMax { get; set; }
-        public int GlobalCooldown { get; set; }
-        public int GlobalCooldownMax { get; set; }
-        public Rank MinimumRank { get; set; } = Rank.Viewer;
-        public int Cost { get; set; }
-        public bool Disabled { get; set; }
-        public bool SayCooldown { get; set; } = true;
+        public ActionCommand? Command { get; set; }
+        public ActionKeyword? Keyword { get; set; }
+        public TimerGroup? TimerGroup { get; set; }
+        public DefaultCommand? DefaultCommand { get; set; }
     }
 }

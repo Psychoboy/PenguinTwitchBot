@@ -29,6 +29,9 @@
             <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileUpload" OnClick="OpenImportDialog">
                 Import
             </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.LibraryBooks" OnClick="OpenLibraryDialog">
+                Library
+            </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="OpenExportDialog">
                 Export
             </MudButton>
@@ -641,7 +644,8 @@
         var parameters = new DialogParameters<ImportActionsDialog>
         {
             { x => x.AvailableQueues, _availableQueues },
-            { x => x.Groups, _groups }
+            { x => x.Groups, _groups },
+            { x => x.StartInLibraryMode, false }
         };
 
         var options = new DialogOptions
@@ -658,6 +662,32 @@
         {
             await LoadActions();
             Snackbar.Add($"{importedCount} action(s) imported successfully.", Severity.Success);
+        }
+    }
+
+    private async Task OpenLibraryDialog()
+    {
+        var parameters = new DialogParameters<ImportActionsDialog>
+        {
+            { x => x.AvailableQueues, _availableQueues },
+            { x => x.Groups, _groups },
+            { x => x.StartInLibraryMode, true }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ImportActionsDialog>("Action Library", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: int importedCount } && importedCount > 0)
+        {
+            await LoadActions();
+            Snackbar.Add($"{importedCount} action(s) imported successfully from the library.", Severity.Success);
         }
     }
 

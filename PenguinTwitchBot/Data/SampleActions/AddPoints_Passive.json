@@ -1,0 +1,73 @@
+{
+  "Version": "1.1",
+  "ExportedAt": "2026-08-07T03:24:05.8395911Z",
+  "Actions": [
+    {
+      "Name": "Add Points To User",
+      "Group": "Passive",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "PointCommand",
+          "Arguments": "%user% 100",
+          "RespondToChat": true,
+          "ElevatedCommand": true,
+          "RankToExecuteAs": "Streamer",
+          "Index": 0,
+          "Text": "addpoints",
+          "Enabled": true,
+          "SubActionTypes": 34
+        }
+      ],
+      "CatchSubActions": [],
+      "Triggers": []
+    },
+    {
+      "Name": "Earn Passive Points For All Users",
+      "Group": "Passive",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "ForEachViewer",
+          "ActionId": 984,
+          "ActionName": "Add Points To User",
+          "ViewerScope": "AllViewers",
+          "Index": 0,
+          "Text": "",
+          "Enabled": true,
+          "SubActionTypes": 52
+        }
+      ],
+      "CatchSubActions": [],
+      "Triggers": [
+        {
+          "Name": "TimerGroup_41",
+          "Type": 2,
+          "Configuration": "{\u0022TimerGroupId\u0022:41,\u0022TimerGroupName\u0022:\u00225 Minute Timer\u0022}",
+          "Enabled": true,
+          "CommandDefinition": null,
+          "KeywordDefinition": null,
+          "TimerGroupDefinition": {
+            "Name": "5 Minute Timer",
+            "Active": true,
+            "Repeat": true,
+            "OnlineOnly": true,
+            "IntervalMinimumSeconds": 300,
+            "IntervalMaximumSeconds": 300,
+            "MinimumMessages": 0,
+            "Shuffle": true
+          },
+          "DefaultCommandDefinition": null
+        }
+      ]
+    }
+  ]
+}

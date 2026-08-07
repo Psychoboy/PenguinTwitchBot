@@ -107,4 +107,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="Data\SampleActions\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
