@@ -116,7 +116,7 @@ async function handleFishingAlert(fishingData) {
     const safeWeight = toFiniteNumber(weight, 0);
     const safeGold = toFiniteNumber(gold, 0);
 
-    $('#username').text(`${username} caught:`);
+    $('#username').text(`${username}:`);
     $('#fish-name').text(fishName);
 
     const fishImage = $('#fish-image');
@@ -148,7 +148,7 @@ async function handleFishingAlert(fishingData) {
     $('#stars').html(starHtml);
 
     $('#weight').text(`${safeWeight} kg`);
-    $('#gold').text(`${safeGold} gold`);
+    $('#gold').text(`${safeGold} g`);
 
     await sleep(100);
 
@@ -158,7 +158,9 @@ async function handleFishingAlert(fishingData) {
     // Trigger reflow to ensure transition works
     alertElement[0].offsetHeight;
 
-    scaleContainer();
+    requestAnimationFrame(() => {
+        scaleContainer();
+    });
     alertElement.addClass('show');
 
     // Play audio if found
@@ -213,16 +215,20 @@ function toFiniteNumber(value, fallback) {
 
 function scaleContainer() {
     const container = document.querySelector('.container');
-    if (!container) return;
-    container.style.transform = '';
-    const naturalW = container.offsetWidth;
-    const naturalH = container.offsetHeight;
-    const padding = 40; // 20px body padding each side
-    const vpW = window.innerWidth - padding;
-    const vpH = window.innerHeight - padding;
-    if (naturalW <= vpW && naturalH <= vpH) return;
-    const scale = Math.min(vpW / naturalW, vpH / naturalH);
-    container.style.transform = `scale(${scale})`;
+    const alert = document.getElementById('fishing-alert');
+    const content = document.querySelector('.content');
+    if (!container || !alert || !content) return;
+
+    const padding = 24;
+    const containerRect = container.getBoundingClientRect();
+    const availableW = Math.max(1, containerRect.width - padding * 2);
+    const availableH = Math.max(1, containerRect.height - padding * 2);
+
+    const targetWidth = Math.min(availableW, availableH * 0.9);
+    content.style.width = `${Math.max(260, targetWidth)}px`;
+    content.style.maxWidth = `${availableW}px`;
+    content.style.maxHeight = `${availableH}px`;
+    content.style.height = 'auto';
 }
 
 function normalizeRarity(rarity) {

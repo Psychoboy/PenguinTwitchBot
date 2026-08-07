@@ -21,25 +21,34 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: transparent;
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-start;
+            display: block;
             overflow: hidden;
-            padding: 20px;
+            padding: 0;
             box-sizing: border-box;
+            width: 100vw;
+            height: 100vh;
         }
 
         .container {
             position: relative;
-            transform-origin: top left;
+            width: 100vw;
+            height: 100vh;
+            padding: 24px;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         #fishing-alert {
             text-align: center;
             color: var(--text-color);
-            position: relative;
+            position: absolute;
+            inset: 0;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
         }
 
         #fishing-alert.show {
@@ -50,53 +59,66 @@
             position: relative;
             z-index: 1;
             background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            padding: 15px;
+            border-radius: 12px;
+            padding: 14px;
             display: inline-block;
+            width: min(92vw, 92vh);
+            max-width: calc(100vw - 48px);
+            max-height: calc(100vh - 48px);
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         .username {
-            font-size: 1.2em;
+            font-size: clamp(0.9rem, 2vw, 1.4rem);
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 1px;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .fish-image {
-            width: 120px;
-            height: 120px;
+            width: min(24vw, 24vh, 150px);
+            height: auto;
+            max-width: min(100%, 180px);
+            max-height: min(32vh, 180px);
+            aspect-ratio: 1 / 1;
             object-fit: contain;
-            margin: 10px auto;
+            margin: 6px auto;
             filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
         }
 
         .fish-name {
-            font-size: 1.8em;
+            font-size: clamp(1rem, 3vw, 2rem);
             font-weight: bold;
-            margin: 10px 0;
+            margin: 0;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .info-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin-top: 10px;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: nowrap;
         }
 
         .middle-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            margin-top: 2px;
         }
 
         .rarity {
             display: inline-block;
-            padding: 5px 15px;
-            border-radius: 8px;
-            font-size: 1em;
+            padding: 6px 12px;
+            border-radius: 10px;
+            font-size: clamp(0.8rem, 1.4vw, 1rem);
             font-weight: bold;
             text-transform: uppercase;
         }
@@ -117,7 +139,8 @@
         }
 
         .stars {
-            font-size: 1.2em;
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+            line-height: 1;
         }
 
         .star {
@@ -128,13 +151,16 @@
 
         .stat-item {
             background: rgba(0, 0, 0, 0.4);
-            padding: 6px 12px;
+            padding: 5px 8px;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 0.95em;
+            font-size: clamp(0.75rem, 1.2vw, 0.95rem);
             font-weight: bold;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             text-align: center;
+            min-width: 0;
         }
 
         .gold {
@@ -175,13 +201,13 @@
                 <div class="username" id="username"></div>
                 <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
                 <div class="fish-name" id="fish-name"></div>
-                <div class="info-row">
-                    <div class="stat-item" id="weight"></div>
-                    <div class="middle-section">
-                        <div class="rarity" id="rarity"></div>
-                        <div class="stars" id="stars"></div>
+                <div class="middle-section">
+                    <div class="rarity" id="rarity"></div>
+                    <div class="stars" id="stars"></div>
+                    <div class="info-row">
+                        <div class="stat-item" id="weight"></div>
+                        <div class="stat-item gold" id="gold"></div>
                     </div>
-                    <div class="stat-item gold" id="gold"></div>
                 </div>
             </div>
         </div>
