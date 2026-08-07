@@ -2,12 +2,18 @@
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Bot.Commands.Misc
 @using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Database.Bot.Models.Commands
-@using PenguinTwitchBot.Database.Repository.Repositories
+@using PenguinTwitchBot.Database.Bot.Models.Timers
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Models.Actions
 @using System.Text.Json
 @inject IJSRuntime JSRuntime
 @inject IActionCommandService CommandService
+@inject IActionKeywordService KeywordService
+@inject IAutoTimers TimerService
+@inject ICommandHandler CommandHandler
 
 <MudDialog>
     <TitleContent>
@@ -43,7 +49,7 @@
             @if (_includeTriggers)
             {
                 <MudAlert Severity="Severity.Info" Dense="true">
-                    Only Command, Twitch Event, and Manual triggers are included. Timer, Keyword, and Default Command triggers reference system-specific IDs and are excluded.
+                    Export includes portable trigger definitions for commands, keywords, timer groups, and default-command events so imports can recreate or remap them safely.
                 </MudAlert>
             }
             <MudSwitch @bind-Value="_includeQueueName" Label="Queue Name" Color="Color.Primary" />
@@ -107,20 +113,37 @@
     {
         var actionsToExport = GetActionsToExport();
 
-        // Preload all commands so we can embed definitions in Command triggers
+        // Preload related resources so trigger exports can carry portable definitions.
         Dictionary<int, ActionCommand> commandById = new();
+        Dictionary<int, ActionKeyword> keywordById = new();
+        Dictionary<int, TimerGroup> timerGroupById = new();
+        Dictionary<string, DefaultCommand> defaultCommandByName = new(StringComparer.OrdinalIgnoreCase);
         if (_includeTriggers)
         {
             var allCommands = await CommandService.GetAllAsync();
             commandById = allCommands
                 .Where(c => c.Id.HasValue)
                 .ToDictionary(c => c.Id!.Value);
+
+            var allKeywords = await KeywordService.GetAllAsync();
+            keywordById = allKeywords
+                .Where(k => k.Id.HasValue)
+                .ToDictionary(k => k.Id!.Value);
+
+            var timerGroups = await TimerService.GetTimerGroupsAsync();
+            timerGroupById = timerGroups
+                .Where(t => t.Id.HasValue)
+                .ToDictionary(t => t.Id!.Value);
+
+            defaultCommandByName = (await CommandHandler.GetDefaultCommandsFromDb())
+                .GroupBy(command => command.CommandName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         }
 
-        var package = new ActionsExportPackage
+        var package = new ActionsImportExportPackage
         {
             ExportedAt = DateTime.UtcNow,
-            Actions = actionsToExport.Select(a => new ActionExportDto
+            Actions = actionsToExport.Select(a => new ActionImportExportDto
             {
                 Name = a.Name,
                 Group = _includeGroup ? a.Group : null,
@@ -130,42 +153,67 @@
                 OnlineOnly = a.OnlineOnly,
                 QueueName = _includeQueueName ? a.QueueName : null,
                 SubActions = a.SubActions.OrderBy(s => s.Index).ToList(),
+                CatchSubActions = a.CatchSubActions.OrderBy(s => s.Index).ToList(),
                 Triggers = _includeTriggers
                     ? a.Triggers
-                        .Where(t => t.Type == TriggerTypes.Command ||
-                                    t.Type == TriggerTypes.TwitchEvent ||
-                                    t.Type == TriggerTypes.Manual)
                         .Select(t =>
                         {
-                            ActionCommandExportDto? commandDef = null;
+                            ActionCommandImportExportDto? commandDef = null;
+                            ActionKeywordImportExportDto? keywordDef = null;
+                            TimerGroupImportExportDto? timerGroupDef = null;
+                            DefaultCommandTriggerImportExportDto? defaultCommandDef = null;
+
                             if (t.Type == TriggerTypes.Command)
                             {
-                                ActionCommand? cmd = null;
-                                if (t.CommandId.HasValue)
-                                    commandById.TryGetValue(t.CommandId.Value, out cmd);
-                                if (cmd != null)
+                                var fallbackCommandName = ExtractStringValue(t.Configuration, "CommandName") ?? t.Name.TrimStart('!');
+                                commandDef = t.CommandId.HasValue && commandById.TryGetValue(t.CommandId.Value, out var command)
+                                    ? ActionCommandImportExportDto.FromCommand(command)
+                                    : string.IsNullOrWhiteSpace(fallbackCommandName)
+                                        ? null
+                                        : new ActionCommandImportExportDto { CommandName = fallbackCommandName };
+                            }
+                            else if (t.Type == TriggerTypes.Keyword)
+                            {
+                                var fallbackKeywordName = ExtractStringValue(t.Configuration, "KeywordName") ?? t.Name;
+                                keywordDef = t.KeywordId.HasValue && keywordById.TryGetValue(t.KeywordId.Value, out var keyword)
+                                    ? ActionKeywordImportExportDto.FromKeyword(keyword)
+                                    : string.IsNullOrWhiteSpace(fallbackKeywordName)
+                                        ? null
+                                        : new ActionKeywordImportExportDto { CommandName = fallbackKeywordName };
+                            }
+                            else if (t.Type == TriggerTypes.Timer)
+                            {
+                                var fallbackTimerGroupName = ExtractStringValue(t.Configuration, "TimerGroupName");
+                                timerGroupDef = t.TimerGroupId.HasValue && timerGroupById.TryGetValue(t.TimerGroupId.Value, out var timerGroup)
+                                    ? TimerGroupImportExportDto.FromTimerGroup(timerGroup)
+                                    : string.IsNullOrWhiteSpace(fallbackTimerGroupName)
+                                        ? null
+                                        : new TimerGroupImportExportDto { Name = fallbackTimerGroupName };
+                            }
+                            else if (t.Type == TriggerTypes.DefaultCommand)
+                            {
+                                var config = DeserializeDefaultCommandConfiguration(t.Configuration);
+                                if (config != null && !string.IsNullOrWhiteSpace(config.DefaultCommandName))
                                 {
-                                    commandDef = new ActionCommandExportDto
+                                    defaultCommandByName.TryGetValue(config.DefaultCommandName, out _);
+                                    defaultCommandDef = new DefaultCommandTriggerImportExportDto
                                     {
-                                        CommandName = cmd.CommandName,
-                                        UserCooldown = cmd.UserCooldown,
-                                        UserCooldownMax = cmd.UserCooldownMax,
-                                        GlobalCooldown = cmd.GlobalCooldown,
-                                        GlobalCooldownMax = cmd.GlobalCooldownMax,
-                                        MinimumRank = cmd.MinimumRank,
-                                        Cost = cmd.Cost,
-                                        Disabled = cmd.Disabled,
-                                        SayCooldown = cmd.SayCooldown
+                                        DefaultCommandName = config.DefaultCommandName,
+                                        EventType = config.EventType
                                     };
                                 }
                             }
-                            return new TriggerExportDto
+
+                            return new TriggerImportExportDto
                             {
                                 Name = t.Name,
                                 Type = t.Type,
                                 Configuration = t.Configuration,
                                 Enabled = t.Enabled,
-                                CommandDefinition = commandDef
+                                CommandDefinition = commandDef,
+                                KeywordDefinition = keywordDef,
+                                TimerGroupDefinition = timerGroupDef,
+                                DefaultCommandDefinition = defaultCommandDef
                             };
                         }).ToList()
                     : []
@@ -196,49 +244,44 @@
             ? "export"
             : string.Concat(name.Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_'));
 
+    private static string? ExtractStringValue(string configuration, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(configuration))
+            return null;
+
+        try
+        {
+            var element = JsonSerializer.Deserialize<JsonElement>(configuration);
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(propertyName, out var propertyValue) &&
+                propertyValue.ValueKind == JsonValueKind.String)
+            {
+                return propertyValue.GetString();
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static DefaultCommandTriggerConfiguration? DeserializeDefaultCommandConfiguration(string configuration)
+    {
+        if (string.IsNullOrWhiteSpace(configuration))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(configuration);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     public enum ExportScope { SelectedAction, SelectedGroup, AllActions }
-
-    public class ActionsExportPackage
-    {
-        public string Version { get; set; } = "1.0";
-        public DateTime ExportedAt { get; set; }
-        public List<ActionExportDto> Actions { get; set; } = [];
-    }
-
-    public class ActionExportDto
-    {
-        public string Name { get; set; } = "";
-        public string? Group { get; set; }
-        public bool Enabled { get; set; } = true;
-        public bool RandomAction { get; set; }
-        public bool ConcurrentAction { get; set; }
-        public bool OnlineOnly { get; set; }
-        public string? QueueName { get; set; }
-        public List<SubActionType> SubActions { get; set; } = [];
-        public List<TriggerExportDto> Triggers { get; set; } = [];
-    }
-
-    public class TriggerExportDto
-    {
-        public string Name { get; set; } = "";
-        public TriggerTypes Type { get; set; }
-        public string Configuration { get; set; } = "";
-        public bool Enabled { get; set; } = true;
-        public ActionCommandExportDto? CommandDefinition { get; set; }
-    }
-
-    public class ActionCommandExportDto
-    {
-        public string CommandName { get; set; } = "";
-        public int UserCooldown { get; set; }
-        public int UserCooldownMax { get; set; }
-        public int GlobalCooldown { get; set; }
-        public int GlobalCooldownMax { get; set; }
-        public Rank MinimumRank { get; set; } = Rank.Viewer;
-        public int Cost { get; set; }
-        public bool Disabled { get; set; }
-        public bool SayCooldown { get; set; } = true;
-    }
 }
