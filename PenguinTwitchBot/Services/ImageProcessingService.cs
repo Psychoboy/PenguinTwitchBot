@@ -1,8 +1,4 @@
-﻿using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Jpeg;
+﻿using SkiaSharp;
 
 namespace PenguinTwitchBot.Services
 {
@@ -31,45 +27,59 @@ namespace PenguinTwitchBot.Services
             {
                 Directory.CreateDirectory(outputDirectory);
 
-                // Load image with size limits to prevent decompression bombs
-                using var image = await Image.LoadAsync(sourceStream);
+                // Buffer once so we can inspect metadata and decode safely.
+                byte[] imageBytes;
+                using (var buffer = new MemoryStream())
+                {
+                    await sourceStream.CopyToAsync(buffer);
+                    imageBytes = buffer.ToArray();
+                }
+
+                using var codec = SKCodec.Create(new SKMemoryStream(imageBytes));
+                if (codec is null)
+                {
+                    throw new InvalidOperationException("Unsupported or invalid image format.");
+                }
+
+                var imageInfo = codec.Info;
 
                 // Validate dimensions to prevent excessive memory usage
                 const int maxDimension = 8192;
-                if (image.Width > maxDimension || image.Height > maxDimension)
+                if (imageInfo.Width > maxDimension || imageInfo.Height > maxDimension)
                 {
                     throw new InvalidOperationException(
-                        $"Image dimensions ({image.Width}x{image.Height}) exceed maximum allowed size ({maxDimension}x{maxDimension}). " +
+                    $"Image dimensions ({imageInfo.Width}x{imageInfo.Height}) exceed maximum allowed size ({maxDimension}x{maxDimension}). " +
                         $"Please resize the image before uploading.");
                 }
 
                 // Additional check for total pixel count (prevents wide/tall attack vectors)
                 const long maxPixels = 67_108_864; // 8192 * 8192
-                long totalPixels = (long)image.Width * image.Height;
+                long totalPixels = (long)imageInfo.Width * imageInfo.Height;
                 if (totalPixels > maxPixels)
                 {
                     throw new InvalidOperationException(
                         $"Image total pixel count ({totalPixels:N0}) exceeds maximum allowed ({maxPixels:N0}).");
                 }
+
+                using var originalBitmap = SKBitmap.Decode(imageBytes);
+                if (originalBitmap is null)
+                {
+                    throw new InvalidOperationException("Failed to decode image.");
+                }
                 
                 var result = new ImageProcessingResult
                 {
-                    OriginalWidth = image.Width,
-                    OriginalHeight = image.Height
+                    OriginalWidth = originalBitmap.Width,
+                    OriginalHeight = originalBitmap.Height
                 };
 
                 // Save full-resolution base image (used as canonical filename).
                 var originalFileName = $"{baseFileName}.webp";
                 var originalFilePath = Path.Combine(outputDirectory, originalFileName);
-                var originalEncoder = new WebpEncoder
-                {
-                    Quality = 100,
-                    Method = WebpEncodingMethod.BestQuality
-                };
-                await image.SaveAsync(originalFilePath, originalEncoder);
+                await SaveBitmapAsWebpAsync(originalBitmap, originalFilePath, 100);
                 result.ProcessedFiles["original"] = originalFileName;
 
-                _logger.LogInformation($"Created original image: {originalFileName} ({image.Width}x{image.Height})");
+                _logger.LogInformation($"Created original image: {originalFileName} ({originalBitmap.Width}x{originalBitmap.Height})");
 
                 // Define size configurations
                 var sizes = new Dictionary<string, ImageSizeConfig>
@@ -85,25 +95,27 @@ namespace PenguinTwitchBot.Services
                     var fileName = $"{baseFileName}_{sizeName}.webp";
                     var filePath = Path.Combine(outputDirectory, fileName);
 
-                    using var outputImage = image.Clone(ctx =>
-                    {
-                        // Resize to fit within bounds while maintaining aspect ratio
-                        var resizeOptions = new ResizeOptions
-                        {
-                            Size = new Size(config.MaxWidth, config.MaxHeight),
-                            Mode = ResizeMode.Max, // Maintains aspect ratio, fits within bounds
-                            Sampler = KnownResamplers.Lanczos3 // High quality resampling
-                        };
-                        ctx.Resize(resizeOptions);
-                    });
+                    var (targetWidth, targetHeight) = CalculateFitDimensions(
+                        originalBitmap.Width,
+                        originalBitmap.Height,
+                        config.MaxWidth,
+                        config.MaxHeight);
 
-                    var encoder = new WebpEncoder
-                    {
-                        Quality = config.Quality,
-                        Method = WebpEncodingMethod.BestQuality
-                    };
+                    var outputInfo = new SKImageInfo(
+                        targetWidth,
+                        targetHeight,
+                        originalBitmap.ColorType,
+                        originalBitmap.AlphaType,
+                        originalBitmap.ColorSpace);
+                    var sampling = new SKSamplingOptions(SKCubicResampler.Mitchell);
 
-                    await outputImage.SaveAsync(filePath, encoder);
+                    using var outputImage = originalBitmap.Resize(outputInfo, sampling);
+                    if (outputImage is null)
+                    {
+                        throw new InvalidOperationException($"Failed to resize image to {targetWidth}x{targetHeight}.");
+                    }
+
+                    await SaveBitmapAsWebpAsync(outputImage, filePath, config.Quality);
                     result.ProcessedFiles[sizeName] = fileName;
 
                     _logger.LogInformation($"Created {sizeName} image: {fileName} ({outputImage.Width}x{outputImage.Height})");
@@ -116,6 +128,39 @@ namespace PenguinTwitchBot.Services
                 _logger.LogError(ex, "Error processing image");
                 throw;
             }
+        }
+
+        private static async Task SaveBitmapAsWebpAsync(SKBitmap bitmap, string outputPath, int quality)
+        {
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Webp, quality);
+            if (data is null)
+            {
+                throw new InvalidOperationException("Failed to encode image as WebP.");
+            }
+
+            await using var output = File.Open(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            data.SaveTo(output);
+        }
+
+        private static (int Width, int Height) CalculateFitDimensions(
+            int sourceWidth,
+            int sourceHeight,
+            int maxWidth,
+            int maxHeight)
+        {
+            if (sourceWidth <= maxWidth && sourceHeight <= maxHeight)
+            {
+                return (sourceWidth, sourceHeight);
+            }
+
+            var widthRatio = (double)maxWidth / sourceWidth;
+            var heightRatio = (double)maxHeight / sourceHeight;
+            var scale = Math.Min(widthRatio, heightRatio);
+
+            var width = Math.Max(1, (int)Math.Round(sourceWidth * scale));
+            var height = Math.Max(1, (int)Math.Round(sourceHeight * scale));
+            return (width, height);
         }
 
         /// <summary>
