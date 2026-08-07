@@ -51,14 +51,14 @@
             z-index: 1;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 10px;
-            padding: 15px;
+            padding: 12px;
             display: inline-block;
         }
 
         .username {
             font-size: 1.2em;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
         }
 
@@ -66,14 +66,14 @@
             width: 120px;
             height: 120px;
             object-fit: contain;
-            margin: 10px auto;
+            margin: 6px auto 2px;
             filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.3));
         }
 
         .fish-name {
             font-size: 1.8em;
             font-weight: bold;
-            margin: 10px 0;
+            margin: 0 0 4px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
 
@@ -82,14 +82,24 @@
             align-items: center;
             justify-content: space-between;
             gap: 15px;
-            margin-top: 10px;
+            margin-top: 4px;
         }
 
         .middle-section {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 3px;
+            width: 100%;
+        }
+
+        .stats-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 2px;
+            width: 100%;
         }
 
         .rarity {
@@ -118,6 +128,8 @@
 
         .stars {
             font-size: 1.2em;
+            text-align: center;
+            width: 100%;
         }
 
         .star {
@@ -139,6 +151,7 @@
 
         .gold {
             color: #FFD700;
+            margin-left: auto;
         }
 
         #ws-status {
@@ -176,12 +189,14 @@
                 <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
                 <div class="fish-name" id="fish-name"></div>
                 <div class="info-row">
-                    <div class="stat-item" id="weight"></div>
                     <div class="middle-section">
                         <div class="rarity" id="rarity"></div>
                         <div class="stars" id="stars"></div>
+                        <div class="stats-row">
+                            <div class="stat-item" id="weight"></div>
+                            <div class="stat-item gold" id="gold"></div>
+                        </div>
                     </div>
-                    <div class="stat-item gold" id="gold"></div>
                 </div>
             </div>
         </div>

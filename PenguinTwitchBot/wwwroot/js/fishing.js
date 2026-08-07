@@ -149,7 +149,7 @@ async function handleFishingAlert(fishingData) {
     $('#stars').html(starHtml);
 
     $('#weight').text(`${safeWeight} kg`);
-    $('#gold').text(`${safeGold} gold`);
+    $('#gold').text(`${safeGold} g`);
 
     await sleep(100);
 
