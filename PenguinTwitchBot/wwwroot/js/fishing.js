@@ -153,7 +153,7 @@ async function handleFishingAlert(fishingData) {
     await sleep(100);
 
     const alertElement = $('#fishing-alert');
-    alertElement.css('display', 'block');
+    alertElement.css('display', 'flex');
 
     // Trigger reflow to ensure transition works
     alertElement[0].offsetHeight;
