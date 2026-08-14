@@ -782,7 +782,7 @@
                 .OrderByDescending(GetTierRank)
                 .ThenByDescending(b => b.PurchasedAt),
             OwnedItemsSortOption.NameAsc => userBoosts
-                .OrderBy(b => b.ShopItem?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(b => ResolveShopItemForBoost(b)?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                 .ThenByDescending(b => b.PurchasedAt),
             _ => userBoosts.OrderByDescending(b => b.PurchasedAt)
         };
@@ -792,16 +792,22 @@
 
     private int GetTierRank(UserFishingBoost boost)
     {
-        if (boost.ShopItem == null || boost.ShopItem.IsConsumable)
+        var resolvedItem = ResolveShopItemForBoost(boost);
+        if (resolvedItem == null || resolvedItem.IsConsumable)
         {
             return -1;
         }
 
-        var tier = tierMap.TryGetValue(boost.ShopItem.Id, out var computedTier)
+        var tier = tierMap.TryGetValue(resolvedItem.Id, out var computedTier)
             ? computedTier
-            : boost.ShopItem.GetTier();
+            : resolvedItem.GetTier();
 
         return (int)tier;
+    }
+
+    private FishingShopItem? ResolveShopItemForBoost(UserFishingBoost boost)
+    {
+        return boost.ShopItem ?? (shopItemsById.TryGetValue(boost.ShopItemId, out var lookupItem) ? lookupItem : null);
     }
 
     private async Task SellItem(int userBoostId)

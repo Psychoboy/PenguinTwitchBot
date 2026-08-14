@@ -11,24 +11,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         public static FishType SelectRandomFish(List<FishType> fishTypes, FishingSettings? settings, List<UserFishingBoost> boosts)
         {
-            var rarityWeights = new Dictionary<FishRarity, double>
-            {
-                { FishRarity.Common, 50.0 },
-                { FishRarity.Uncommon, 30.0 },
-                { FishRarity.Rare, 15.0 },
-                { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 0.8 },
-                { FishRarity.Mythical, 0.2 }
-            };
+            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes, normalizeToBaseTotal: true);
 
             if (settings?.BoostMode == true)
             {
-                var multiplier = settings.BoostModeRarityMultiplier;
-                rarityWeights[FishRarity.Uncommon] *= multiplier;
-                rarityWeights[FishRarity.Rare] *= multiplier;
-                rarityWeights[FishRarity.Epic] *= multiplier;
-                rarityWeights[FishRarity.Legendary] *= multiplier;
-                rarityWeights[FishRarity.Mythical] *= multiplier;
+                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, settings.BoostModeRarityMultiplier);
             }
 
             foreach (var boost in boosts)
