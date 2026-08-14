@@ -84,7 +84,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     { FishRarity.Uncommon, 30.0 },
                     { FishRarity.Rare, 15.0 },
                     { FishRarity.Epic, 4.0 },
-                    { FishRarity.Legendary, 1.0 }
+                    { FishRarity.Legendary, 0.8 },
+                    { FishRarity.Mythical, 0.2 }
                 },
                 BoostModeEnabled = settings?.BoostMode ?? false,
                 BoostModeMultiplier = settings?.BoostModeRarityMultiplier
@@ -156,20 +157,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             
             section.GoldRangePerStar = new Dictionary<int, string>
             {
-                { 3, "1.25–1.41x gold multiplier (3-star)" },
-                { 2, "1.0–1.25x gold multiplier (2-star)" },
-                { 1, "0.75–1.0x gold multiplier (1-star)" }
+                { 3, "1.25ï¿½1.41x gold multiplier (3-star)" },
+                { 2, "1.0ï¿½1.25x gold multiplier (2-star)" },
+                { 1, "0.75ï¿½1.0x gold multiplier (1-star)" }
             };
 
-            section.WeightMultiplierNote = "Final gold = fish base gold × star multiplier × weight multiplier. " +
+            section.WeightMultiplierNote = "Final gold = fish base gold ï¿½ star multiplier ï¿½ weight multiplier. " +
                 "Weight ranges from 0.9x to 1.065x of base weight, providing -10% to +6.5% gold bonus. " +
                 "Example: A 100 base gold fish with 3-star (1.41x max) and heavy weight (1.065x) yields ~150g.";
 
             section.ValueExamples = new List<string>
             {
-                "3-star at max weight: base gold × 1.41 × 1.065 = +50% total",
-                "2-star at average: base gold × 1.125 × 1.0 = +12.5% total",
-                "1-star at light: base gold × 0.875 × 0.9 = -21.25% total"
+                "3-star at max weight: base gold ï¿½ 1.41 ï¿½ 1.065 = +50% total",
+                "2-star at average: base gold ï¿½ 1.125 ï¿½ 1.0 = +12.5% total",
+                "1-star at light: base gold ï¿½ 0.875 ï¿½ 0.9 = -21.25% total"
             };
 
             return section;
@@ -182,14 +183,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             // Equipment slot descriptions
             section.SlotDescriptions = new Dictionary<string, string>
             {
-                { "Rod", "Main fishing rod — provides general rarity boost" },
-                { "Reel", "Fishing reel — provides star boost" },
-                { "Line", "Fishing line — provides weight boost" },
-                { "Hook", "Fish hook — provides star boost" },
-                { "Bait", "Consumable bait — targets specific fish types" },
-                { "Lure", "Consumable lure — targets specific fish + boosts rarity" },
-                { "TackleBox", "Permanent accessory — multiple small boosts" },
-                { "Net", "Permanent accessory — weight bonus" },
+                { "Rod", "Main fishing rod ï¿½ provides general rarity boost" },
+                { "Reel", "Fishing reel ï¿½ provides star boost" },
+                { "Line", "Fishing line ï¿½ provides weight boost" },
+                { "Hook", "Fish hook ï¿½ provides star boost" },
+                { "Bait", "Consumable bait ï¿½ targets specific fish types" },
+                { "Lure", "Consumable lure ï¿½ targets specific fish + boosts rarity" },
+                { "TackleBox", "Permanent accessory ï¿½ multiple small boosts" },
+                { "Net", "Permanent accessory ï¿½ weight bonus" },
                 { "Special", "Reserved for special event items" }
             };
 

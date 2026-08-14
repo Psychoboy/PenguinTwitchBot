@@ -305,7 +305,7 @@
                     </MudText>
 
                     <MudGrid>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityUncommonThreshold" 
                                              Label="Uncommon (≥)" 
                                              Min="1"
@@ -314,7 +314,7 @@
                                 
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityRareThreshold" 
                                              Label="Rare (≥)" 
                                              Min="1"
@@ -322,7 +322,7 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityEpicThreshold" 
                                              Label="Epic (≥)" 
                                              Min="1"
@@ -330,9 +330,17 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudNumericField @bind-Value="settings.RarityLegendaryThreshold" 
                                              Label="Legendary (≥)" 
+                                             Min="1"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                            </MudNumericField>
+                        </MudItem>
+                        <MudItem xs="6" sm="6" md="3">
+                            <MudNumericField @bind-Value="settings.RarityMythicalThreshold" 
+                                             Label="Mythical (≥)" 
                                              Min="1"
                                              Adornment="Adornment.Start"
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
@@ -1309,6 +1317,7 @@
         FishRarity.Rare => Color.Info,
         FishRarity.Epic => Color.Secondary,
         FishRarity.Legendary => Color.Warning,
+        FishRarity.Mythical => Color.Error,
         _ => Color.Default
     };
 
@@ -1321,6 +1330,7 @@
         // Auto-set rarity based on gold value using current settings
         editingFish.Rarity = newGoldValue switch
         {
+            var gold when gold >= settings.RarityMythicalThreshold => FishRarity.Mythical,
             var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
             var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
             var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,

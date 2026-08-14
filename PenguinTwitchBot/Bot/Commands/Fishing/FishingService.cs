@@ -1044,6 +1044,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             return baseGold switch
             {
+                var gold when gold >= settings.RarityMythicalThreshold => FishRarity.Mythical,
                 var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
                 var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
                 var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,

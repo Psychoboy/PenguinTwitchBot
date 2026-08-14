@@ -17,7 +17,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { FishRarity.Uncommon, 30.0 },
                 { FishRarity.Rare, 15.0 },
                 { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 1.0 }
+                { FishRarity.Legendary, 0.8 },
+                { FishRarity.Mythical, 0.2 }
             };
 
             if (settings?.BoostMode == true)
@@ -27,6 +28,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 rarityWeights[FishRarity.Rare] *= multiplier;
                 rarityWeights[FishRarity.Epic] *= multiplier;
                 rarityWeights[FishRarity.Legendary] *= multiplier;
+                rarityWeights[FishRarity.Mythical] *= multiplier;
             }
 
             foreach (var boost in boosts)

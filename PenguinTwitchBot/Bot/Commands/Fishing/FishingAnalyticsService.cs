@@ -82,7 +82,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 RarityUncommonThreshold = settings.RarityUncommonThreshold,
                 RarityRareThreshold = settings.RarityRareThreshold,
                 RarityEpicThreshold = settings.RarityEpicThreshold,
-                RarityLegendaryThreshold = settings.RarityLegendaryThreshold
+                RarityLegendaryThreshold = settings.RarityLegendaryThreshold,
+                RarityMythicalThreshold = settings.RarityMythicalThreshold
             };
 
             var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
@@ -308,7 +309,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { FishRarity.Uncommon, 30.0 },
                 { FishRarity.Rare, 15.0 },
                 { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 1.0 }
+                { FishRarity.Legendary, 0.8 },
+                { FishRarity.Mythical, 0.2 }
             };
 
             if (useBoostMode)
@@ -317,6 +319,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 rarityWeights[FishRarity.Rare] *= boostModeMultiplier;
                 rarityWeights[FishRarity.Epic] *= boostModeMultiplier;
                 rarityWeights[FishRarity.Legendary] *= boostModeMultiplier;
+                rarityWeights[FishRarity.Mythical] *= boostModeMultiplier;
             }
 
             foreach (var boost in mockBoosts)
@@ -422,7 +425,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { FishRarity.Uncommon, 30.0 },
                 { FishRarity.Rare, 15.0 },
                 { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 1.0 }
+                { FishRarity.Legendary, 0.8 },
+                { FishRarity.Mythical, 0.2 }
             };
 
             var totalRarityWeight = rarityWeights.Values.Sum();
@@ -522,7 +526,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var contribution = tierGold * tierWeight;
                 weightedGold += contribution;
 
-                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g × {Weight:P1} = {Contribution}g", 
+                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g ï¿½ {Weight:P1} = {Contribution}g", 
                     tier.Name,
                     tier.Weeks,
                     Math.Round(grossTierGold, 2),
@@ -644,7 +648,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { FishRarity.Uncommon, 30.0 },
                 { FishRarity.Rare, 15.0 },
                 { FishRarity.Epic, 4.0 },
-                { FishRarity.Legendary, 1.0 }
+                { FishRarity.Legendary, 0.8 },
+                { FishRarity.Mythical, 0.2 }
             };
 
             if (rarityBoost > 0)
@@ -653,6 +658,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 rarityWeights[FishRarity.Rare] *= (1.0 + rarityBoost);
                 rarityWeights[FishRarity.Epic] *= (1.0 + rarityBoost);
                 rarityWeights[FishRarity.Legendary] *= (1.0 + rarityBoost);
+                rarityWeights[FishRarity.Mythical] *= (1.0 + rarityBoost);
             }
 
             var totalRarityWeight = rarityWeights.Values.Sum();
@@ -1502,14 +1508,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     continue;
                 }
 
-                // Calculate price: sessions × catches/session × gold/catch
+                // Calculate price: sessions ï¿½ catches/session ï¿½ gold/catch
                 var sessionsNeeded = tier.TargetWeeks * streamsPerWeek;
                 var catchesNeeded = sessionsNeeded * activeAttemptsPerSession;
                 var targetPrice = (int)Math.Round(catchesNeeded * expectedGoldPerCatch);
 
                 recommendations[itemName] = targetPrice;
 
-                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w × {SessionsPerWeek} × {CatchesPerSession} × {GoldPerCatch}g",
+                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w ï¿½ {SessionsPerWeek} ï¿½ {CatchesPerSession} ï¿½ {GoldPerCatch}g",
                     itemName, tierName, targetPrice, tier.TargetWeeks, streamsPerWeek, Math.Round(activeAttemptsPerSession, 1), Math.Round(expectedGoldPerCatch, 2));
             }
 
