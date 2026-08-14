@@ -35,7 +35,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         Uncommon = 1,
         Rare = 2,
         Epic = 3,
-        Legendary = 4
+        Legendary = 4,
+        Mythical = 5
     }
 
     public enum FishingTournamentStatus

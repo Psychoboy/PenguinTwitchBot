@@ -21,5 +21,6 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int RarityRareThreshold { get; set; } = 60;
         public int RarityEpicThreshold { get; set; } = 110;
         public int RarityLegendaryThreshold { get; set; } = 201;
+        public int RarityMythicalThreshold { get; set; } = 300;
     }
 }

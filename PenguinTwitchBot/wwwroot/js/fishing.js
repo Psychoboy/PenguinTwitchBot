@@ -257,6 +257,7 @@ function normalizeRarity(rarity) {
         rare: 'Rare',
         epic: 'Epic',
         legendary: 'Legendary',
+        mythical: 'Mythical',
         accident: 'Accident'
     };
 

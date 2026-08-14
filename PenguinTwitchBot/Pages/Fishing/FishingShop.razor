@@ -257,12 +257,25 @@
         @if (userBoosts.Any())
         {
             <MudStack Spacing="1" Class="mt-3">
-                <MudText Typo="Typo.h6">
-                    <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Medium" Class="mr-1" />
-                    Your Items (@userBoosts.Count)
-                </MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="2">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Success" Size="Size.Medium" Class="mr-1" />
+                        Your Items (@userBoosts.Count)
+                    </MudText>
+                    <MudSelect T="OwnedItemsSortOption"
+                               @bind-Value="ownedItemsSort"
+                               Label="Sort"
+                               Variant="Variant.Outlined"
+                               dense="true"
+                               Style="min-width: 220px;">
+                        <MudSelectItem T="OwnedItemsSortOption" Value="@OwnedItemsSortOption.PurchasedNewest">Newest Purchase</MudSelectItem>
+                        <MudSelectItem T="OwnedItemsSortOption" Value="@OwnedItemsSortOption.PurchasedOldest">Oldest Purchase</MudSelectItem>
+                        <MudSelectItem T="OwnedItemsSortOption" Value="@OwnedItemsSortOption.TierHighToLow">Tier: High to Low</MudSelectItem>
+                        <MudSelectItem T="OwnedItemsSortOption" Value="@OwnedItemsSortOption.NameAsc">Name (A-Z)</MudSelectItem>
+                    </MudSelect>
+                </MudStack>
 
-                <MudTable Items="@userBoosts" Striped="true" Hover="true" dense="true" Elevation="1">
+                <MudTable Items="@GetSortedUserBoosts()" Striped="true" Hover="true" dense="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Slot</MudTh>
@@ -284,7 +297,22 @@
                         }
                         <MudTd DataLabel="Item">
                             <MudStack Spacing="0">
-                                <MudText><strong>@shopItem?.Name</strong></MudText>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudText><strong>@shopItem?.Name</strong></MudText>
+                                    @if (shopItem != null && !shopItem.IsConsumable)
+                                    {
+                                        var tier = tierMap.ContainsKey(shopItem.Id) ? tierMap[shopItem.Id] : shopItem.GetTier();
+                                        var (tierColor, tierIcon) = GetTierDisplay(tier);
+                                        <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
+
+                                        var comparisonIndicator = GetOwnedItemComparisonIndicator(boost, shopItem);
+                                        if (comparisonIndicator.HasValue)
+                                        {
+                                            var (indicatorColor, indicatorIcon, indicatorText) = comparisonIndicator.Value;
+                                            <MudChip T="string" Color="@indicatorColor" Size="Size.Small" Icon="@indicatorIcon">@indicatorText</MudChip>
+                                        }
+                                    }
+                                </MudStack>
                                 @if (fishType != null)
                                 {
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishType.Name</MudText>
@@ -354,7 +382,7 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Purchased">
-                            <MudText Typo="Typo.caption">@boost.PurchasedAt.ToString("MM/dd")</MudText>
+                            <MudText Typo="Typo.caption">@boost.PurchasedAt.ToString("yyyy-MM-dd")</MudText>
                         </MudTd>
                         <MudTd DataLabel="Actions">
                             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
@@ -442,6 +470,7 @@
     private int? confirmingPurchaseItemId = null;
     private int? sellingBoostId = null;
     private bool isLoading = false;
+    private OwnedItemsSortOption ownedItemsSort = OwnedItemsSortOption.PurchasedNewest;
 
     // Preview dialog
     private bool previewDialogVisible = false;
@@ -522,6 +551,14 @@
     private Dictionary<int, EquipmentTier> tierMap = new(); // Dynamic tier assignments
     private List<int> equippedItemIds = new();
     private List<FishingShopItem> equippedItems = new();
+
+    private enum OwnedItemsSortOption
+    {
+        PurchasedNewest,
+        PurchasedOldest,
+        TierHighToLow,
+        NameAsc
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -736,6 +773,43 @@
         };
     }
 
+    private List<UserFishingBoost> GetSortedUserBoosts()
+    {
+        var sorted = ownedItemsSort switch
+        {
+            OwnedItemsSortOption.PurchasedOldest => userBoosts.OrderBy(b => b.PurchasedAt),
+            OwnedItemsSortOption.TierHighToLow => userBoosts
+                .OrderByDescending(GetTierRank)
+                .ThenByDescending(b => b.PurchasedAt),
+            OwnedItemsSortOption.NameAsc => userBoosts
+                .OrderBy(b => ResolveShopItemForBoost(b)?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(b => b.PurchasedAt),
+            _ => userBoosts.OrderByDescending(b => b.PurchasedAt)
+        };
+
+        return sorted.ToList();
+    }
+
+    private int GetTierRank(UserFishingBoost boost)
+    {
+        var resolvedItem = ResolveShopItemForBoost(boost);
+        if (resolvedItem == null || resolvedItem.IsConsumable)
+        {
+            return -1;
+        }
+
+        var tier = tierMap.TryGetValue(resolvedItem.Id, out var computedTier)
+            ? computedTier
+            : resolvedItem.GetTier();
+
+        return (int)tier;
+    }
+
+    private FishingShopItem? ResolveShopItemForBoost(UserFishingBoost boost)
+    {
+        return boost.ShopItem ?? (shopItemsById.TryGetValue(boost.ShopItemId, out var lookupItem) ? lookupItem : null);
+    }
+
     private async Task SellItem(int userBoostId)
     {
         if (sellingBoostId.HasValue)
@@ -803,6 +877,39 @@
             TierComparisonResult.Sidegrade => (Color.Default, Icons.Material.Filled.SwapHoriz, "Sidegrade"),
             _ => null
         };
+    }
+
+    private (Color color, string icon, string text)? GetOwnedItemComparisonIndicator(UserFishingBoost boost, FishingShopItem? item)
+    {
+        if (item == null || item.IsConsumable || !item.EquipmentSlot.HasValue)
+        {
+            return null;
+        }
+
+        if (boost.IsEquipped)
+        {
+            return (Color.Success, Icons.Material.Filled.CheckCircle, "Equipped");
+        }
+
+        if (!equippedShopItemBySlot.TryGetValue(item.EquipmentSlot.Value, out var equippedItem))
+        {
+            return (Color.Info, Icons.Material.Filled.NewReleases, "New");
+        }
+
+        var itemTier = tierMap.TryGetValue(item.Id, out var computedItemTier) ? computedItemTier : item.GetTier();
+        var equippedTier = tierMap.TryGetValue(equippedItem.Id, out var computedEquippedTier) ? computedEquippedTier : equippedItem.GetTier();
+
+        if (itemTier > equippedTier)
+        {
+            return (Color.Success, Icons.Material.Filled.ArrowUpward, "Upgrade");
+        }
+
+        if (itemTier < equippedTier)
+        {
+            return (Color.Error, Icons.Material.Filled.ArrowDownward, "Downgrade");
+        }
+
+        return (Color.Default, Icons.Material.Filled.SwapHoriz, "Sidegrade");
     }
 
     private async Task EquipItem(int userBoostId)

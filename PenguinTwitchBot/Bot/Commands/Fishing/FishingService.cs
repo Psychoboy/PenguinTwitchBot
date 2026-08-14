@@ -958,6 +958,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task UpdateSettings(FishingSettings settings)
         {
+            if (!FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var thresholdValidationMessage))
+            {
+                throw new InvalidOperationException(thresholdValidationMessage);
+            }
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishingSettings.Update(settings);
@@ -1005,7 +1010,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             foreach (var fish in allFish)
             {
                 var oldRarity = fish.Rarity;
-                var newRarity = CalculateRarityFromGold(fish.BaseGold, settings);
+                var newRarity = FishingRarityThresholdRules.CalculateRarityFromGold(fish.BaseGold, settings);
 
                 if (oldRarity != newRarity)
                 {
@@ -1042,14 +1047,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private FishRarity CalculateRarityFromGold(int baseGold, FishingSettings settings)
         {
-            return baseGold switch
-            {
-                var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
-                var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
-                var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,
-                var gold when gold >= settings.RarityUncommonThreshold => FishRarity.Uncommon,
-                _ => FishRarity.Common
-            };
+            return FishingRarityThresholdRules.CalculateRarityFromGold(baseGold, settings);
         }
 
         #endregion
