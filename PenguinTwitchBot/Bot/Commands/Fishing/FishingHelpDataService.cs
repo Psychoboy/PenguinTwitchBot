@@ -296,6 +296,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 Cost = item.Cost,
                 Boosts = string.Join(", ", boosts),
                 TargetFish = item.TargetFishType?.Name ?? string.Empty,
+                TargetCategory = item.TargetCategory ?? string.Empty,
                 MaxUses = item.MaxUses ?? 0
             };
 
@@ -308,6 +309,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 FishingBoostType.GeneralRarityBoost => $"+{(amount * 100):F0}% rarity",
                 FishingBoostType.SpecificFishBoost => $"+{(amount * 100):F0}% specific fish",
+                FishingBoostType.SpecificCategoryBoost => $"+{(amount * 100):F0}% category",
                 FishingBoostType.WeightBoost => $"+{(amount * 100):F0}% weight",
                 FishingBoostType.StarBoost => $"+{(amount * 100):F0}% stars",
                 _ => string.Empty

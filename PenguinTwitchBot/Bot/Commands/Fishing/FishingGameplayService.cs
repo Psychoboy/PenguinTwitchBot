@@ -30,18 +30,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task<FishingAttemptResult> PerformFishingAttempt(string userId, string username)
         {
+            // These reads are independent of each other, so fetch them concurrently.
+            var fishTypesTask = _fishingService.GetAllFishTypes();
+            var settingsTask = _fishingService.GetSettings();
+            var userBoostsTask = _inventoryService.GetUserEquippedItems(userId);
+            await Task.WhenAll(fishTypesTask, settingsTask, userBoostsTask);
+
             // Only get enabled fish types
-            var allFishTypes = await _fishingService.GetAllFishTypes();
-            var fishTypes = allFishTypes.Where(f => f.Enabled).ToList();
+            var fishTypes = fishTypesTask.Result.Where(f => f.Enabled).ToList();
 
             if (fishTypes.Count == 0)
             {
                 throw new InvalidOperationException("No enabled fish types available");
             }
 
-            var settings = await _fishingService.GetSettings();
-            // Only get equipped items, not all boosts
-            var userBoosts = await _inventoryService.GetUserEquippedItems(userId);
+            var settings = settingsTask.Result;
+            var userBoosts = userBoostsTask.Result;
 
             var lineSnapChance = settings != null &&
                 !double.IsNaN(settings.LineSnapChance) &&
@@ -185,11 +189,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             await _fishingService.AddGoldToUser(userId, username, gold);
 
-            // Consume uses from equipped items
-            foreach (var boost in userBoosts)
-            {
-                await _inventoryService.ConsumeItemUse(userId, boost.Id);
-            }
+            // Consume uses from all equipped items in a single batched update
+            await _inventoryService.ConsumeItemUses(userId, userBoosts.Select(b => b.Id));
 
             // Broadcast the new catch to all connected clients via SignalR
             try

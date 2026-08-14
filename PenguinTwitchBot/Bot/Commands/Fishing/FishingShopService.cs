@@ -9,6 +9,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingShopService> _logger;
 
+        // Cached on this singleton service; invalidated whenever shop items are mutated.
+        private volatile Dictionary<int, EquipmentTier>? _tierMapCache;
+
         public FishingShopService(IServiceScopeFactory scopeFactory, ILogger<FishingShopService> logger)
         {
             _scopeFactory = scopeFactory;
@@ -39,6 +42,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishingShopItems.Add(item);
             await context.SaveChangesAsync();
+            InvalidateTierCache();
         }
 
         public async Task UpdateShopItem(FishingShopItem item)
@@ -47,6 +51,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishingShopItems.Update(item);
             await context.SaveChangesAsync();
+            InvalidateTierCache();
         }
 
         public async Task DeleteShopItem(int id)
@@ -58,6 +63,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 context.FishingShopItems.Remove(item);
                 await context.SaveChangesAsync();
+                InvalidateTierCache();
             }
         }
 
@@ -86,6 +92,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (updatedCount > 0)
             {
                 await context.SaveChangesAsync();
+                InvalidateTierCache();
             }
 
             return updatedCount;
@@ -126,6 +133,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (updatedCount > 0)
             {
                 await context.SaveChangesAsync();
+                InvalidateTierCache();
             }
 
             return updatedCount;
@@ -137,8 +145,34 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var generator = new FishingShopItemGenerator();
-            return await generator.GenerateDefaultItems(context, updateExisting);
+            var changedCount = await generator.GenerateDefaultItems(context, updateExisting);
+            if (changedCount > 0)
+            {
+                InvalidateTierCache();
+            }
+
+            return changedCount;
         }
+
+        /// <summary>
+        /// Returns the cached tier map, computing and caching it on first use or after invalidation.
+        /// Guaranteed to contain an entry for every non-deleted shop item, so callers never need a fallback.
+        /// </summary>
+        public async Task<Dictionary<int, EquipmentTier>> GetTierMap()
+        {
+            var cached = _tierMapCache;
+            if (cached != null)
+            {
+                return cached;
+            }
+
+            var allItems = await GetAllShopItems();
+            var computed = CalculateDynamicTiers(allItems);
+            _tierMapCache = computed;
+            return computed;
+        }
+
+        private void InvalidateTierCache() => _tierMapCache = null;
 
         /// <summary>
         /// Calculates dynamic tiers for all shop items based on price rankings within each equipment slot.
@@ -152,13 +186,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>
         /// Calculates dynamic tiers from pre-fetched shop items (avoids extra DB query).
-        /// Pre-groups by slot to avoid O(n²) complexity.
+        /// Pre-groups by slot to avoid O(nï¿½) complexity.
+        /// Guarantees every item in <paramref name="allItems"/> gets a tier entry (no fallback needed).
         /// </summary>
         public Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
         {
             var tierMap = new Dictionary<int, EquipmentTier>();
 
-            // Pre-group by equipment slot to avoid O(n²) - each slot is sorted once
+            // Pre-group by equipment slot to avoid O(nï¿½) - each slot is sorted once
             var itemsBySlot = allItems
                 .Where(i => !i.IsConsumable && i.Enabled && i.EquipmentSlot.HasValue)
                 .GroupBy(i => i.EquipmentSlot!.Value)
@@ -190,10 +225,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            // Handle consumables
+            // Consumables always tier as Consumable
             foreach (var item in allItems.Where(i => i.IsConsumable))
             {
                 tierMap[item.Id] = EquipmentTier.Consumable;
+            }
+
+            // Catch-all for anything not ranked above (no slot, or disabled/excluded from its slot's ranking)
+            // so every item is guaranteed a tier and callers never need a fallback.
+            foreach (var item in allItems)
+            {
+                if (!tierMap.ContainsKey(item.Id))
+                {
+                    tierMap[item.Id] = EquipmentTier.Entry;
+                }
             }
 
             return tierMap;

@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -9,6 +10,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingInventoryService> _logger;
+
+        // Serializes ConsumeItemUses per user so two concurrent fishing attempts for the same
+        // user can't both read/decrement the same RemainingUses value. Service is a singleton,
+        // so these locks live for the app's lifetime (negligible memory cost per user).
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _userConsumeLocks = new();
 
         public FishingInventoryService(IServiceScopeFactory scopeFactory, ILogger<FishingInventoryService> logger)
         {
@@ -193,47 +199,67 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task ConsumeItemUse(string userId, int userBoostId)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await ConsumeItemUses(userId, new[] { userBoostId });
+        }
 
-            var userBoost = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
-
-            if (userBoost == null || !userBoost.IsEquipped)
+        // Batches uses across all equipped items in a single query/save instead of one round trip per item.
+        public async Task ConsumeItemUses(string userId, IEnumerable<int> userBoostIds)
+        {
+            var ids = userBoostIds.Distinct().ToList();
+            if (ids.Count == 0)
             {
                 return;
             }
 
-            // Skip if unlimited uses
-            if (userBoost.RemainingUses == -1)
+            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+            await userLock.WaitAsync();
+            try
             {
-                userBoost.LastUsedAt = DateTime.UtcNow;
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                var userBoosts = await context.UserFishingBoosts
+                    .Include(b => b.ShopItem)
+                    .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
+                    .ToListAsync();
+
+                if (userBoosts.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var userBoost in userBoosts)
+                {
+                    // Skip if unlimited uses
+                    if (userBoost.RemainingUses == -1)
+                    {
+                        continue;
+                    }
+
+                    // Only decrement if we have uses remaining (prevent going below 0)
+                    if (userBoost.RemainingUses > 0)
+                    {
+                        userBoost.RemainingUses--;
+                    }
+
+                    if (userBoost.RemainingUses <= 0)
+                    {
+                        userBoost.IsEquipped = false;
+
+                        // Consumables are removed entirely once out of uses
+                        if (userBoost.ShopItem!.IsConsumable)
+                        {
+                            context.UserFishingBoosts.Remove(userBoost);
+                        }
+                    }
+                }
+
                 await context.SaveChangesAsync();
-                return;
             }
-
-            // Only decrement if we have uses remaining (prevent going below 0)
-            if (userBoost.RemainingUses > 0)
+            finally
             {
-                userBoost.RemainingUses--;
+                userLock.Release();
             }
-            userBoost.LastUsedAt = DateTime.UtcNow;
-
-            // If consumable and no uses left, remove the item
-            if (userBoost.ShopItem!.IsConsumable && userBoost.RemainingUses <= 0)
-            {
-                userBoost.IsEquipped = false;
-                // Optionally delete the item entirely
-                context.UserFishingBoosts.Remove(userBoost);
-            }
-            else if (userBoost.RemainingUses <= 0)
-            {
-                // Non-consumable items just get unequipped when out of uses
-                userBoost.IsEquipped = false;
-            }
-
-            await context.SaveChangesAsync();
         }
 
         public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
@@ -328,8 +354,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     item.RemainingUses--;
                 }
                 var remainingUsesAfter = item.RemainingUses;
-
-                item.LastUsedAt = DateTime.UtcNow;
 
                 var usesLost = Math.Max(0, remainingUsesBefore - remainingUsesAfter);
                 if (usesLost > 0)

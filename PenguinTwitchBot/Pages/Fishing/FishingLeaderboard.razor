@@ -860,8 +860,11 @@
         isInitialLoading = true;
         try
         {
-            fishTypes = await fishingService.GetAllFishTypes();
-            leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
+            var fishTypesTask = fishingService.GetAllFishTypes();
+            var leaderboardFishTypesTask = fishingService.GetFishTypesWithCatches();
+            await Task.WhenAll(fishTypesTask, leaderboardFishTypesTask);
+            fishTypes = fishTypesTask.Result;
+            leaderboardFishTypes = leaderboardFishTypesTask.Result;
 
             if (leaderboardFishTypes.Any())
             {
@@ -997,8 +1000,11 @@
         try
         {
             // Reload core data
-            fishTypes = await fishingService.GetAllFishTypes();
-            leaderboardFishTypes = await fishingService.GetFishTypesWithCatches();
+            var fishTypesTask = fishingService.GetAllFishTypes();
+            var leaderboardFishTypesTask = fishingService.GetFishTypesWithCatches();
+            await Task.WhenAll(fishTypesTask, leaderboardFishTypesTask);
+            fishTypes = fishTypesTask.Result;
+            leaderboardFishTypes = leaderboardFishTypesTask.Result;
 
             // Reload all leaderboards in parallel for better performance
             var tasks = new List<Task>

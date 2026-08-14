@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 
@@ -10,9 +11,11 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814165157_AddFishingShopItemTargetCategory")]
+    partial class AddFishingShopItemTargetCategory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -811,19 +814,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CaughtAt")
-                        .HasDatabaseName("IX_FishCatches_CaughtAt");
-
                     b.HasIndex("FishTypeId");
-
-                    b.HasIndex("GoldEarned")
-                        .HasDatabaseName("IX_FishCatches_GoldEarned");
 
                     b.HasIndex("UserId", "CaughtAt")
                         .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
-
-                    b.HasIndex("UserId", "FishTypeId")
-                        .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
 
                     b.ToTable("FishCatches");
                 });
@@ -898,9 +892,6 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_FishingGolds_UserId");
 
                     b.ToTable("FishingGolds");
                 });
@@ -1241,6 +1232,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("PurchasedAt")
                         .HasColumnType("TEXT");
 
@@ -1257,9 +1251,6 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopItemId");
-
-                    b.HasIndex("UserId", "IsEquipped")
-                        .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
                     b.ToTable("UserFishingBoosts");
                 });

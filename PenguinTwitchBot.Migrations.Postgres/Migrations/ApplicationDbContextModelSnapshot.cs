@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -849,10 +849,19 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CaughtAt")
+                        .HasDatabaseName("IX_FishCatches_CaughtAt");
+
                     b.HasIndex("FishTypeId");
+
+                    b.HasIndex("GoldEarned")
+                        .HasDatabaseName("IX_FishCatches_GoldEarned");
 
                     b.HasIndex("UserId", "CaughtAt")
                         .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
+
+                    b.HasIndex("UserId", "FishTypeId")
+                        .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
 
                     b.ToTable("FishCatches");
                 });
@@ -933,6 +942,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_FishingGolds_UserId");
 
                     b.ToTable("FishingGolds");
                 });
@@ -1034,6 +1046,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("TargetCategory")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<int?>("TargetFishTypeId")
                         .HasColumnType("integer");
@@ -1287,9 +1303,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTime>("PurchasedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1306,6 +1319,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopItemId");
+
+                    b.HasIndex("UserId", "IsEquipped")
+                        .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
                     b.ToTable("UserFishingBoosts");
                 });

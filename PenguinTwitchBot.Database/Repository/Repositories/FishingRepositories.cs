@@ -76,13 +76,11 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 var records = await JsonSerializer.DeserializeAsync<List<FishType>>(fishTypeStream, options);
                 if (records == null) throw new Exception($"{typeof(FishType).Name}.json was null");
 
-                // CRITICAL: Preserve IDs from backup by explicitly setting them
-                // This ensures foreign keys in other tables remain valid
-                foreach (var record in records)
-                {
-                    var entry = context.Entry(record);
-                    entry.State = EntityState.Added;
-                }
+                // CRITICAL: Preserve IDs from backup by explicitly setting them.
+                // Use AddRange (not Entry().State = Added) so the Categories navigation
+                // collection is walked and added too - setting .State directly only
+                // affects the single FishType entity, silently dropping its categories.
+                context.AddRange(records);
 
                 await context.SaveChangesAsync();
                 context.ChangeTracker.Clear();

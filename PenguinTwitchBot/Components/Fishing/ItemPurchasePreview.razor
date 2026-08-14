@@ -42,18 +42,18 @@
             @* Show all boost types *@
             <MudStack Spacing="2">
                 @* Primary Boost *@
-                @RenderBoostAlert(ShopItem.BoostType, ShopItem.BoostAmount, ShopItem.TargetFishType)
+                @RenderBoostAlert(ShopItem.BoostType, ShopItem.BoostAmount, ShopItem.TargetFishType, ShopItem.TargetCategory)
 
                 @* Secondary Boost *@
                 @if (ShopItem.BoostType2.HasValue && ShopItem.BoostAmount2.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, null)
+                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
 
                 @* Tertiary Boost *@
                 @if (ShopItem.BoostType3.HasValue && ShopItem.BoostAmount3.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, null)
+                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
             </MudStack>
 
@@ -115,6 +115,7 @@
     private Dictionary<int, FishProbability>? currentFishPreview;
     private Dictionary<int, FishProbability>? newFishPreview;
     private bool isLoading = false;
+    private List<FishType> allFishTypes = new();
 
     private readonly List<MetricComparisonRow> comparisonRows = new();
     private readonly List<FishingShopItem> currentEquippedResolved = new();
@@ -144,7 +145,12 @@
         isLoading = true;
         try
         {
-            var settings = await FishingService.GetSettings();
+            var fishTypesTask = allFishTypes.Count == 0 ? FishingService.GetAllFishTypes() : Task.FromResult(allFishTypes);
+            var settingsTask = FishingService.GetSettings();
+            await Task.WhenAll(fishTypesTask, settingsTask);
+
+            allFishTypes = fishTypesTask.Result;
+            var settings = settingsTask.Result;
 
             ResolveCurrentItems();
             ResolveProjectedItems();
@@ -152,29 +158,21 @@
             var currentItemIds = currentEquippedResolved.Select(i => i.Id).Distinct().ToList();
             var projectedItemIds = projectedEquippedResolved.Select(i => i.Id).Distinct().ToList();
 
-            currentRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            var boostModeActive = settings?.BoostMode ?? false;
+            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
 
-            newRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            // These four calculations are independent of each other - run them concurrently.
+            var currentRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
+            var currentFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
 
-            currentFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            await Task.WhenAll(currentRarityTask, newRarityTask, currentFishTask, newFishTask);
 
-            newFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            currentRarityPreview = currentRarityTask.Result;
+            newRarityPreview = newRarityTask.Result;
+            currentFishPreview = currentFishTask.Result;
+            newFishPreview = newFishTask.Result;
 
             BuildComparisonRows();
         }
@@ -228,7 +226,7 @@
         if (ShopItem == null)
             return;
 
-        if (HasGeneralRarityBoost() || HasSpecificFishBoost())
+        if (HasGeneralRarityBoost() || HasSpecificFishBoost() || HasSpecificCategoryBoost())
         {
             foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
             {
@@ -266,6 +264,21 @@
                 newFishPreview.TryGetValue(targetId, out var newTarget))
             {
                 AddPercentRow($"{currentTarget.FishName} catch chance", currentTarget.OverallChance, newTarget.OverallChance);
+            }
+        }
+
+        if (HasSpecificCategoryBoost() && !string.IsNullOrWhiteSpace(ShopItem.TargetCategory))
+        {
+            var categoryFishIds = allFishTypes
+                .Where(f => f.Categories.Any(c => c.Category.Equals(ShopItem.TargetCategory, StringComparison.OrdinalIgnoreCase)))
+                .Select(f => f.Id)
+                .ToHashSet();
+
+            if (currentFishPreview != null && newFishPreview != null && categoryFishIds.Count > 0)
+            {
+                var currentChance = currentFishPreview.Values.Where(p => categoryFishIds.Contains(p.FishId)).Sum(p => p.OverallChance);
+                var newChance = newFishPreview.Values.Where(p => categoryFishIds.Contains(p.FishId)).Sum(p => p.OverallChance);
+                AddPercentRow($"{ShopItem.TargetCategory} catch chance", currentChance, newChance);
             }
         }
     }
@@ -317,6 +330,14 @@
                ShopItem.BoostType3 == FishingBoostType.SpecificFishBoost;
     }
 
+    private bool HasSpecificCategoryBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
+               ShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+               ShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost;
+    }
+
     private Color GetDiffColor(double diff)
     {
         if (diff > 0) return Color.Success;
@@ -333,6 +354,7 @@
             FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
             FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
             FishingBoostType.SpecificFishBoost => $"+{percentage}% chance to catch specific fish",
+            FishingBoostType.SpecificCategoryBoost => $"+{percentage}% chance to catch fish in a specific category",
             _ => $"+{percentage}% boost"
         };
     }
@@ -380,7 +402,7 @@
 }
 
 @code {
-    private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish) => builder =>
+    private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish, string? targetCategory) => builder =>
     {
         builder.OpenComponent<MudAlert>(0);
         builder.AddAttribute(1, "Severity", Severity.Success);
@@ -393,6 +415,17 @@
                 childBuilder.AddContent(0, $"Targets: ");
                 childBuilder.OpenElement(1, "strong");
                 childBuilder.AddContent(2, targetFish.Name);
+                childBuilder.CloseElement();
+                childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
+            }));
+        }
+        else if (boostType == FishingBoostType.SpecificCategoryBoost && !string.IsNullOrWhiteSpace(targetCategory))
+        {
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(childBuilder =>
+            {
+                childBuilder.AddContent(0, $"Targets category: ");
+                childBuilder.OpenElement(1, "strong");
+                childBuilder.AddContent(2, targetCategory);
                 childBuilder.CloseElement();
                 childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
             }));

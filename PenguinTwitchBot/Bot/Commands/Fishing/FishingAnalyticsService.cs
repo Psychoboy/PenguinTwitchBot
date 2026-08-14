@@ -48,8 +48,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             result.StarCounts[2] = 0;
             result.StarCounts[3] = 0;
 
-            // Get enabled fish types
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 throw new InvalidOperationException("No fish types available for simulation");
@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Get shop items for simulation
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
 
@@ -186,8 +187,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Get enabled fish types
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 return new Dictionary<int, FishProbability>();
@@ -195,6 +196,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Get shop items
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(s => s.TargetFishType)
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
@@ -245,8 +247,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(s => s.TargetFishType)
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
@@ -369,26 +372,25 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private double CalculateWithinRarityChance(FishType targetFish, List<FishType> fishOfRarity, List<UserFishingBoost> mockBoosts)
         {
-            var specificBoosts = mockBoosts.Where(b => 
+            var targetedBoosts = mockBoosts.Where(b =>
                 (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
                  b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
                  b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
-                b.ShopItem.TargetFishTypeId != null).ToList();
+                b.ShopItem.TargetFishTypeId != null ||
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificCategoryBoost) &&
+                !string.IsNullOrWhiteSpace(b.ShopItem?.TargetCategory)).ToList();
 
-            if (specificBoosts.Any())
+            if (targetedBoosts.Any())
             {
                 var weightedFish = new List<(FishType fish, double weight)>();
                 foreach (var f in fishOfRarity)
                 {
                     var weight = 1.0;
-                    foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == f.Id))
+                    foreach (var boost in targetedBoosts)
                     {
-                        if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
-                            weight *= (1.0 + boost.ShopItem.BoostAmount);
-                        if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
-                            weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
-                        if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
-                            weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
+                        weight *= FishingCalculations.GetTargetedBoostMultiplier(boost.ShopItem, f);
                     }
                     weightedFish.Add((f, weight));
                 }
@@ -409,7 +411,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 _logger.LogWarning("[BASELINE] No fish types found, returning 0");
@@ -474,7 +476,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 _logger.LogWarning("[PROGRESSIVE] No fish types found, returning 0");
@@ -515,7 +517,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var contribution = tierGold * tierWeight;
                 weightedGold += contribution;
 
-                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g � {Weight:P1} = {Contribution}g", 
+                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g - {Weight:P1} = {Contribution}g",
                     tier.Name,
                     tier.Weeks,
                     Math.Round(grossTierGold, 2),
@@ -761,6 +763,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var specificBoost = boostEntries
                 .Where(b => b.Type == FishingBoostType.SpecificFishBoost)
                 .Sum(b => b.Amount);
+            var categoryBoost = boostEntries
+                .Where(b => b.Type == FishingBoostType.SpecificCategoryBoost)
+                .Sum(b => b.Amount);
             var generalBoost = boostEntries
                 .Where(b => b.Type == FishingBoostType.GeneralRarityBoost)
                 .Sum(b => b.Amount);
@@ -794,6 +799,25 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 affordability.EffectMetric = $"{baselineTarget.FishName} catch chance";
                 affordability.EffectBaselineValue = baselineTarget.OverallChance;
                 affordability.EffectWithItemValue = boostedTarget.OverallChance;
+            }
+            else if (categoryBoost > 0 && !string.IsNullOrWhiteSpace(item.TargetCategory))
+            {
+                var categoryFishIds = fishTypes
+                    .Where(f => f.Categories.Any(c => c.Category.Equals(item.TargetCategory, StringComparison.OrdinalIgnoreCase)))
+                    .Select(f => f.Id)
+                    .ToHashSet();
+
+                var baselineCategoryChance = baselineProbabilities.Values
+                    .Where(p => categoryFishIds.Contains(p.FishId))
+                    .Sum(p => p.OverallChance);
+                var withItemCategoryChance = withItemProbabilities.Values
+                    .Where(p => categoryFishIds.Contains(p.FishId))
+                    .Sum(p => p.OverallChance);
+
+                affordability.HasEffectPreview = true;
+                affordability.EffectMetric = $"{item.TargetCategory} catch chance";
+                affordability.EffectBaselineValue = Math.Round(baselineCategoryChance, 4);
+                affordability.EffectWithItemValue = Math.Round(withItemCategoryChance, 4);
             }
             else if (generalBoost > 0)
             {
@@ -1125,10 +1149,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Item affordability analysis
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(i => i.TargetFishType)
                 .Where(i => i.Enabled)
                 .ToListAsync();
-            var enabledFishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var enabledFishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
             var medianUserGold = userGoldTotals.Count > 0
                 ? (userGoldTotals.Count % 2 == 0

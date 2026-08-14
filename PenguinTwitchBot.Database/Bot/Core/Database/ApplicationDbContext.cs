@@ -189,6 +189,31 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(e => new { e.UserId, e.CaughtAt })
                 .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
 
+            // Covers per-user, per-fish lookups (personal best/catch count/dex) that the UserId+CaughtAt index doesn't serve well.
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => new { e.UserId, e.FishTypeId })
+                .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
+
+            // Speeds up the global "most valuable catches" and "recent catches" leaderboard queries (ORDER BY ... DESC LIMIT n with no WHERE clause).
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => e.GoldEarned)
+                .HasDatabaseName("IX_FishCatches_GoldEarned");
+
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => e.CaughtAt)
+                .HasDatabaseName("IX_FishCatches_CaughtAt");
+
+            // UserId has no relational FK here (external user id), so EF won't auto-index it like it does for ShopItemId.
+            // Both columns are filtered on nearly every fishing action (catch, purchase, equip/unequip).
+            modelBuilder.Entity<UserFishingBoost>()
+                .HasIndex(e => new { e.UserId, e.IsEquipped })
+                .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
+
+            // FishingGolds is looked up by UserId on nearly every catch/purchase and previously had no index at all (full table scan).
+            modelBuilder.Entity<FishingGold>()
+                .HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_FishingGolds_UserId");
+
             modelBuilder.Entity<FishingSnapEvent>()
                 .Property(e => e.UserId)
                 .HasMaxLength(255)
