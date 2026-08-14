@@ -406,7 +406,7 @@
     private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish, string? targetCategory) => builder =>
     {
         builder.OpenComponent<MudAlert>(0);
-        builder.AddAttribute(1, "Severity", Severity.Success);
+        builder.AddAttribute(1, "Severity", boostAmount < 0 ? Severity.Error : Severity.Success);
         builder.AddAttribute(2, "Dense", true);
 
         if (boostType == FishingBoostType.SpecificFishBoost && targetFish != null)
