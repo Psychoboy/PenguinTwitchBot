@@ -900,8 +900,9 @@
                 <MudNumericField @bind-Value="editingFish.BaseWeight" 
                                  Label="Base Weight (kg)" 
                                  HelperText="Actual weight will vary between 0.8x and 1.13x of base, modified by stars"
-                                 Min="0.1" 
-                                 Step="0.1"
+                                 Min="0.05" 
+                                 Step="0.05"
+                                 Format="F2"
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.End"
                                  AdornmentText="kg" />
@@ -1073,10 +1074,11 @@
 
                 <MudNumericField @bind-Value="editingShopItem.BoostAmount" 
                                  Label="Boost Amount" 
-                                 HelperText="Enter as decimal (0.05 = 5%)"
-                                 Min="0.01" 
+                                 HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                 Min="-0.8" 
                                  Max="5.0" 
                                  Step="0.01"
+                                 Format="F2"
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.End"
                                  AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
