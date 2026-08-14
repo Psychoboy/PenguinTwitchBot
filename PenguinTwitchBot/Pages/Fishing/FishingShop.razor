@@ -585,12 +585,18 @@
         isLoading = true;
         try
         {
-            fishTypes = await fishingService.GetAllFishTypes();
-            shopItems = await shopService.GetAllShopItems();
+            // These reads are independent of each other, so fetch them concurrently.
+            var fishTypesTask = fishingService.GetAllFishTypes();
+            var shopItemsTask = shopService.GetAllShopItems();
+            var userBoostsTask = inventoryService.GetUserBoosts(userId);
+            var goldTask = fishingService.GetUserGold(userId);
+            await Task.WhenAll(fishTypesTask, shopItemsTask, userBoostsTask, goldTask);
+
+            fishTypes = fishTypesTask.Result;
+            shopItems = shopItemsTask.Result;
             tierMap = shopService.CalculateDynamicTiers(shopItems); // Use overload to avoid extra DB query
-            userBoosts = await inventoryService.GetUserBoosts(userId);
-            var goldData = await fishingService.GetUserGold(userId);
-            userGold = goldData?.TotalGold ?? 0;
+            userBoosts = userBoostsTask.Result;
+            userGold = goldTask.Result?.TotalGold ?? 0;
 
             // Build lookups for O(1) access in render paths
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);

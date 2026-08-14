@@ -193,44 +193,58 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task ConsumeItemUse(string userId, int userBoostId)
         {
+            await ConsumeItemUses(userId, new[] { userBoostId });
+        }
+
+        // Batches uses across all equipped items in a single query/save instead of one round trip per item.
+        public async Task ConsumeItemUses(string userId, IEnumerable<int> userBoostIds)
+        {
+            var ids = userBoostIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return;
+            }
+
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var userBoost = await context.UserFishingBoosts
+            var userBoosts = await context.UserFishingBoosts
                 .Include(b => b.ShopItem)
-                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+                .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
+                .ToListAsync();
 
-            if (userBoost == null || !userBoost.IsEquipped)
+            if (userBoosts.Count == 0)
             {
                 return;
             }
 
-            // Skip if unlimited uses
-            if (userBoost.RemainingUses == -1)
+            var now = DateTime.UtcNow;
+            foreach (var userBoost in userBoosts)
             {
-                userBoost.LastUsedAt = DateTime.UtcNow;
-                await context.SaveChangesAsync();
-                return;
-            }
+                // Skip if unlimited uses
+                if (userBoost.RemainingUses == -1)
+                {
+                    userBoost.LastUsedAt = now;
+                    continue;
+                }
 
-            // Only decrement if we have uses remaining (prevent going below 0)
-            if (userBoost.RemainingUses > 0)
-            {
-                userBoost.RemainingUses--;
-            }
-            userBoost.LastUsedAt = DateTime.UtcNow;
+                // Only decrement if we have uses remaining (prevent going below 0)
+                if (userBoost.RemainingUses > 0)
+                {
+                    userBoost.RemainingUses--;
+                }
+                userBoost.LastUsedAt = now;
 
-            // If consumable and no uses left, remove the item
-            if (userBoost.ShopItem!.IsConsumable && userBoost.RemainingUses <= 0)
-            {
-                userBoost.IsEquipped = false;
-                // Optionally delete the item entirely
-                context.UserFishingBoosts.Remove(userBoost);
-            }
-            else if (userBoost.RemainingUses <= 0)
-            {
-                // Non-consumable items just get unequipped when out of uses
-                userBoost.IsEquipped = false;
+                if (userBoost.RemainingUses <= 0)
+                {
+                    userBoost.IsEquipped = false;
+
+                    // Consumables are removed entirely once out of uses
+                    if (userBoost.ShopItem!.IsConsumable)
+                    {
+                        context.UserFishingBoosts.Remove(userBoost);
+                    }
+                }
             }
 
             await context.SaveChangesAsync();

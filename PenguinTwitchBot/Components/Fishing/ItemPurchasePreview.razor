@@ -145,12 +145,12 @@
         isLoading = true;
         try
         {
-            if (allFishTypes.Count == 0)
-            {
-                allFishTypes = await FishingService.GetAllFishTypes();
-            }
+            var fishTypesTask = allFishTypes.Count == 0 ? FishingService.GetAllFishTypes() : Task.FromResult(allFishTypes);
+            var settingsTask = FishingService.GetSettings();
+            await Task.WhenAll(fishTypesTask, settingsTask);
 
-            var settings = await FishingService.GetSettings();
+            allFishTypes = fishTypesTask.Result;
+            var settings = settingsTask.Result;
 
             ResolveCurrentItems();
             ResolveProjectedItems();
@@ -158,29 +158,21 @@
             var currentItemIds = currentEquippedResolved.Select(i => i.Id).Distinct().ToList();
             var projectedItemIds = projectedEquippedResolved.Select(i => i.Id).Distinct().ToList();
 
-            currentRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            var boostModeActive = settings?.BoostMode ?? false;
+            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
 
-            newRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            // These four calculations are independent of each other - run them concurrently.
+            var currentRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
+            var currentFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
 
-            currentFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            await Task.WhenAll(currentRarityTask, newRarityTask, currentFishTask, newFishTask);
 
-            newFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            currentRarityPreview = currentRarityTask.Result;
+            newRarityPreview = newRarityTask.Result;
+            currentFishPreview = currentFishTask.Result;
+            newFishPreview = newFishTask.Result;
 
             BuildComparisonRows();
         }

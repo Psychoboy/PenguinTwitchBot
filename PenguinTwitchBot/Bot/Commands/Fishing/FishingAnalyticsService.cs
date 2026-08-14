@@ -49,7 +49,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             result.StarCounts[3] = 0;
 
             // Get enabled fish types
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 throw new InvalidOperationException("No fish types available for simulation");
@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Get shop items for simulation
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
 
@@ -187,7 +188,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             // Get enabled fish types
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 return new Dictionary<int, FishProbability>();
@@ -195,6 +196,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Get shop items
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(s => s.TargetFishType)
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
@@ -245,8 +247,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(s => s.TargetFishType)
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
@@ -408,7 +411,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 _logger.LogWarning("[BASELINE] No fish types found, returning 0");
@@ -473,7 +476,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 _logger.LogWarning("[PROGRESSIVE] No fish types found, returning 0");
@@ -1146,10 +1149,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Item affordability analysis
             var shopItems = await context.FishingShopItems
+                .AsNoTracking()
                 .Include(i => i.TargetFishType)
                 .Where(i => i.Enabled)
                 .ToListAsync();
-            var enabledFishTypes = await context.FishTypes.Where(f => f.Enabled).ToListAsync();
+            var enabledFishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
             var medianUserGold = userGoldTotals.Count > 0
                 ? (userGoldTotals.Count % 2 == 0

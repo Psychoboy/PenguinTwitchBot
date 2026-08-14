@@ -557,14 +557,20 @@
     {
         isLoading = true;
         try
-        {            
-            userGold = await fishingService.GetUserGold(userId);
-            allItems = await inventoryService.GetUserBoosts(userId);
-            equippedBySlot = await inventoryService.GetUserEquipmentBySlot(userId);
-            fishTypes = await fishingService.GetAllFishTypes();
+        {
+            // These reads are independent of each other, so fetch them concurrently.
+            var goldTask = fishingService.GetUserGold(userId);
+            var allItemsTask = inventoryService.GetUserBoosts(userId);
+            var equippedBySlotTask = inventoryService.GetUserEquipmentBySlot(userId);
+            var fishTypesTask = fishingService.GetAllFishTypes();
+            var tierMapTask = shopService.GetTierMap(); // Cached (recomputed automatically after any shop mutation)
+            await Task.WhenAll(goldTask, allItemsTask, equippedBySlotTask, fishTypesTask, tierMapTask);
 
-            // Cached tier map (recomputed automatically after any shop mutation) - avoids an extra full shop item query here.
-            tierMap = await shopService.GetTierMap();
+            userGold = goldTask.Result;
+            allItems = allItemsTask.Result;
+            equippedBySlot = equippedBySlotTask.Result;
+            fishTypes = fishTypesTask.Result;
+            tierMap = tierMapTask.Result;
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);

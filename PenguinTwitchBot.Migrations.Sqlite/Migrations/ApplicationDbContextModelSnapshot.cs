@@ -811,10 +811,19 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CaughtAt")
+                        .HasDatabaseName("IX_FishCatches_CaughtAt");
+
                     b.HasIndex("FishTypeId");
+
+                    b.HasIndex("GoldEarned")
+                        .HasDatabaseName("IX_FishCatches_GoldEarned");
 
                     b.HasIndex("UserId", "CaughtAt")
                         .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
+
+                    b.HasIndex("UserId", "FishTypeId")
+                        .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
 
                     b.ToTable("FishCatches");
                 });
@@ -889,6 +898,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_FishingGolds_UserId");
 
                     b.ToTable("FishingGolds");
                 });
@@ -1248,6 +1260,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopItemId");
+
+                    b.HasIndex("UserId", "IsEquipped")
+                        .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
                     b.ToTable("UserFishingBoosts");
                 });
