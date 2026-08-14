@@ -91,34 +91,33 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             if (shopItem == null) return 1.0;
 
+            var categoryMatchesTarget = !string.IsNullOrWhiteSpace(shopItem.TargetCategory) &&
+                FishHasCategory(fish, shopItem.TargetCategory);
+
+            return ApplyTargetedBoosts(
+                new[]
+                {
+                    (shopItem.BoostType, shopItem.BoostAmount),
+                    (shopItem.BoostType2, shopItem.BoostAmount2 ?? 0),
+                    (shopItem.BoostType3, shopItem.BoostAmount3 ?? 0)
+                },
+                shopItem.TargetFishTypeId == fish.Id,
+                categoryMatchesTarget);
+        }
+
+        private static double ApplyTargetedBoosts(
+            (FishingBoostType? Type, double Amount)[] boosts,
+            bool fishMatchesTarget,
+            bool categoryMatchesTarget)
+        {
             var multiplier = 1.0;
-
-            if (shopItem.BoostType == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
+            foreach (var boost in boosts)
             {
-                multiplier *= (1.0 + shopItem.BoostAmount);
-            }
-            if (shopItem.BoostType2 == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
-            {
-                multiplier *= (1.0 + (shopItem.BoostAmount2 ?? 0));
-            }
-            if (shopItem.BoostType3 == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
-            {
-                multiplier *= (1.0 + (shopItem.BoostAmount3 ?? 0));
-            }
-
-            if (!string.IsNullOrWhiteSpace(shopItem.TargetCategory) && FishHasCategory(fish, shopItem.TargetCategory))
-            {
-                if (shopItem.BoostType == FishingBoostType.SpecificCategoryBoost)
+                var matchesFish = boost.Type == FishingBoostType.SpecificFishBoost && fishMatchesTarget;
+                var matchesCategory = boost.Type == FishingBoostType.SpecificCategoryBoost && categoryMatchesTarget;
+                if (matchesFish || matchesCategory)
                 {
-                    multiplier *= (1.0 + shopItem.BoostAmount);
-                }
-                if (shopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost)
-                {
-                    multiplier *= (1.0 + (shopItem.BoostAmount2 ?? 0));
-                }
-                if (shopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost)
-                {
-                    multiplier *= (1.0 + (shopItem.BoostAmount3 ?? 0));
+                    multiplier *= 1.0 + boost.Amount;
                 }
             }
 
