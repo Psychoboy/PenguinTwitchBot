@@ -916,11 +916,10 @@
                                   HelperText="Rarity will be set automatically based on gold value" />
 
                 <MudStack Spacing="1">
-                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
                         <MudAutocomplete T="string"
                                          @bind-Value="categoryInputText"
                                          Label="Categories"
-                                         HelperText="Pick an existing category or type a new one, then press Enter or click Add."
                                          Variant="Variant.Outlined"
                                          SearchFunc="@SearchCategories"
                                          Clearable="true"
@@ -938,6 +937,7 @@
                             Add
                         </MudButton>
                     </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Pick an existing category or type a new one, then press Enter or click Add.</MudText>
                     @if (editingFishCategoriesList.Any())
                     {
                         <MudStack Row="true" Spacing="1" Style="flex-wrap: wrap;">
