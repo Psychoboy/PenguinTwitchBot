@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -964,6 +964,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("RarityLegendaryThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RarityMythicalThreshold")
                         .HasColumnType("integer");
 
                     b.Property<int>("RarityRareThreshold")

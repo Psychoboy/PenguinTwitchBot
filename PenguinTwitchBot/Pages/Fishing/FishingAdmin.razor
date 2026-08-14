@@ -305,7 +305,7 @@
                     </MudText>
 
                     <MudGrid>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityUncommonThreshold" 
                                              Label="Uncommon (≥)" 
                                              Min="1"
@@ -314,7 +314,7 @@
                                 
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityRareThreshold" 
                                              Label="Rare (≥)" 
                                              Min="1"
@@ -322,7 +322,7 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityEpicThreshold" 
                                              Label="Epic (≥)" 
                                              Min="1"
@@ -330,7 +330,7 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudNumericField @bind-Value="settings.RarityLegendaryThreshold" 
                                              Label="Legendary (≥)" 
                                              Min="1"
@@ -338,7 +338,24 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
+                        <MudItem xs="6" sm="6" md="3">
+                            <MudNumericField @bind-Value="settings.RarityMythicalThreshold" 
+                                             Label="Mythical (≥)" 
+                                             Min="1"
+                                             Error="@(!HasValidRarityThresholdOrder)"
+                                             ErrorText="@RarityThresholdValidationMessage"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                            </MudNumericField>
+                        </MudItem>
                     </MudGrid>
+
+                    @if (!HasValidRarityThresholdOrder)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Icon="@Icons.Material.Filled.Warning" Class="mt-2">
+                            @RarityThresholdValidationMessage
+                        </MudAlert>
+                    }
 
                     <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info" Dense="true">
                         Common rarity applies to all fish with BaseGold below the Uncommon threshold (@settings.RarityUncommonThreshold)
@@ -364,6 +381,7 @@
                            Size="Size.Large"
                            StartIcon="@Icons.Material.Filled.Save"
                            OnClick="SaveSettings" 
+                           Disabled="@(!HasValidRarityThresholdOrder)"
                            Class="mt-4">
                     Save Settings
                 </MudButton>
@@ -1309,6 +1327,7 @@
         FishRarity.Rare => Color.Info,
         FishRarity.Epic => Color.Secondary,
         FishRarity.Legendary => Color.Warning,
+        FishRarity.Mythical => Color.Error,
         _ => Color.Default
     };
 
@@ -1318,15 +1337,8 @@
 
         editingFish.BaseGold = newGoldValue;
 
-        // Auto-set rarity based on gold value using current settings
-        editingFish.Rarity = newGoldValue switch
-        {
-            var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
-            var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
-            var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,
-            var gold when gold >= settings.RarityUncommonThreshold => FishRarity.Uncommon,
-            _ => FishRarity.Common
-        };
+        // Auto-set rarity based on gold value using current settings.
+        editingFish.Rarity = FishingRarityThresholdRules.CalculateRarityFromGold(newGoldValue, settings);
     }
 
     private void SyncEditingFishCategories()
@@ -1631,6 +1643,12 @@
             settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
             settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
 
+            if (!FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var thresholdValidationMessage))
+            {
+                Snackbar.Add(thresholdValidationMessage, Severity.Error);
+                return;
+            }
+
             await fishingService.UpdateSettings(settings);
             helpDataService.InvalidateCache(); // Invalidate help data on settings changes
             Snackbar.Add("Settings saved successfully", Severity.Success);
@@ -1650,6 +1668,14 @@
 
         return Math.Clamp(value, 0.0, 1.0);
     }
+
+    private bool HasValidRarityThresholdOrder =>
+        FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out _);
+
+    private string RarityThresholdValidationMessage =>
+        FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var message)
+            ? string.Empty
+            : message;
 
     private void ShowResetConfirmation()
     {
