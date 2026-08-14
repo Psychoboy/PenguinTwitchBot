@@ -442,7 +442,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Global concurrency limiter � shared SemaphoreSlim across all non-blocking queues
+            // Global concurrency limiter - shared SemaphoreSlim across all non-blocking queues
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager

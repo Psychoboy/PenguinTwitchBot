@@ -91,6 +91,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (existing.BoostType3 != template.BoostType3) { existing.BoostType3 = template.BoostType3; changed = true; }
             if (existing.BoostAmount3 != template.BoostAmount3) { existing.BoostAmount3 = template.BoostAmount3; changed = true; }
             if (existing.TargetFishTypeId != template.TargetFishTypeId) { existing.TargetFishTypeId = template.TargetFishTypeId; changed = true; }
+            if (existing.TargetCategory != template.TargetCategory) { existing.TargetCategory = template.TargetCategory; changed = true; }
             if (existing.Enabled != template.Enabled) { existing.Enabled = template.Enabled; changed = true; }
             if (existing.EquipmentSlot != template.EquipmentSlot) { existing.EquipmentSlot = template.EquipmentSlot; changed = true; }
             if (existing.MaxUses != template.MaxUses) { existing.MaxUses = template.MaxUses; changed = true; }

@@ -22,6 +22,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
         public int? TargetFishTypeId { get; set; }
         public virtual FishType? TargetFishType { get; set; }
+
+        [MaxLength(128)]
+        public string? TargetCategory { get; set; }
         public bool Enabled { get; set; } = true;
 
         // Equipment and usage properties
@@ -61,7 +64,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         GeneralRarityBoost,
         SpecificFishBoost,
         WeightBoost,
-        StarBoost
+        StarBoost,
+        SpecificCategoryBoost
     }
 
     public enum EquipmentSlot

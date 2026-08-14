@@ -46,34 +46,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 fishOfRarity = fishTypes;
             }
 
-            // Get all specific fish boosts from all boost type slots
-            var specificBoosts = boosts.Where(b => 
+            // Get all specific fish/category boosts from all boost type slots
+            var targetedBoosts = boosts.Where(b =>
                 (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
                  b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
                  b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
-                b.ShopItem.TargetFishTypeId != null).ToList();
+                b.ShopItem.TargetFishTypeId != null ||
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificCategoryBoost) &&
+                !string.IsNullOrWhiteSpace(b.ShopItem?.TargetCategory)).ToList();
 
-            if (specificBoosts.Any())
+            if (targetedBoosts.Any())
             {
                 var weightedFish = new List<(FishType fish, double weight)>();
                 foreach (var fish in fishOfRarity)
                 {
                     var weight = 1.0;
-                    // Apply all specific boosts targeting this fish
-                    foreach (var boost in specificBoosts.Where(b => b.ShopItem?.TargetFishTypeId == fish.Id))
+                    foreach (var boost in targetedBoosts)
                     {
-                        if (boost.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost)
-                        {
-                            weight *= (1.0 + boost.ShopItem.BoostAmount);
-                        }
-                        if (boost.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost)
-                        {
-                            weight *= (1.0 + (boost.ShopItem.BoostAmount2 ?? 0));
-                        }
-                        if (boost.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost)
-                        {
-                            weight *= (1.0 + (boost.ShopItem.BoostAmount3 ?? 0));
-                        }
+                        weight *= GetTargetedBoostMultiplier(boost.ShopItem, fish);
                     }
                     weightedFish.Add((fish, weight));
                 }
@@ -93,6 +85,49 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             return fishOfRarity.RandomElement();
+        }
+
+        internal static double GetTargetedBoostMultiplier(FishingShopItem? shopItem, FishType fish)
+        {
+            if (shopItem == null) return 1.0;
+
+            var multiplier = 1.0;
+
+            if (shopItem.BoostType == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
+            {
+                multiplier *= (1.0 + shopItem.BoostAmount);
+            }
+            if (shopItem.BoostType2 == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
+            {
+                multiplier *= (1.0 + (shopItem.BoostAmount2 ?? 0));
+            }
+            if (shopItem.BoostType3 == FishingBoostType.SpecificFishBoost && shopItem.TargetFishTypeId == fish.Id)
+            {
+                multiplier *= (1.0 + (shopItem.BoostAmount3 ?? 0));
+            }
+
+            if (!string.IsNullOrWhiteSpace(shopItem.TargetCategory) && FishHasCategory(fish, shopItem.TargetCategory))
+            {
+                if (shopItem.BoostType == FishingBoostType.SpecificCategoryBoost)
+                {
+                    multiplier *= (1.0 + shopItem.BoostAmount);
+                }
+                if (shopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost)
+                {
+                    multiplier *= (1.0 + (shopItem.BoostAmount2 ?? 0));
+                }
+                if (shopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost)
+                {
+                    multiplier *= (1.0 + (shopItem.BoostAmount3 ?? 0));
+                }
+            }
+
+            return multiplier;
+        }
+
+        private static bool FishHasCategory(FishType fish, string category)
+        {
+            return fish.Categories.Any(c => c.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
         }
 
         private static void ApplyBoostToRarityWeights(

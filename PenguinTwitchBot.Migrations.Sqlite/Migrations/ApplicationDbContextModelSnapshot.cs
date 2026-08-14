@@ -15,7 +15,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.ActionType", b =>
                 {
@@ -985,6 +985,10 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetCategory")
+                        .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("TargetFishTypeId")
