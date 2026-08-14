@@ -1,5 +1,6 @@
 @using PenguinTwitchBot.Bot.Commands.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Helpers
 @inject IFishingService FishingService
 @inject IFishingAnalyticsService AnalyticsService
 
@@ -347,15 +348,15 @@
 
     private string GetBoostDescription(FishingBoostType boostType, double boostAmount)
     {
-        var percentage = (boostAmount * 100).ToString("F0");
+        var percentage = FishingBoostDisplayHelper.FormatPercent(boostAmount);
         return boostType switch
         {
-            FishingBoostType.GeneralRarityBoost => $"+{percentage}% chance to catch rare fish (all rarities)",
-            FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
-            FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
-            FishingBoostType.SpecificFishBoost => $"+{percentage}% chance to catch specific fish",
-            FishingBoostType.SpecificCategoryBoost => $"+{percentage}% chance to catch fish in a specific category",
-            _ => $"+{percentage}% boost"
+            FishingBoostType.GeneralRarityBoost => $"{percentage} chance to catch rare fish (all rarities)",
+            FishingBoostType.WeightBoost => $"{percentage} to fish weight (catch bigger fish)",
+            FishingBoostType.StarBoost => $"{percentage} chance for higher star quality",
+            FishingBoostType.SpecificFishBoost => $"{percentage} chance to catch specific fish",
+            FishingBoostType.SpecificCategoryBoost => $"{percentage} chance to catch fish in a specific category",
+            _ => $"{percentage} boost"
         };
     }
 
@@ -416,7 +417,7 @@
                 childBuilder.OpenElement(1, "strong");
                 childBuilder.AddContent(2, targetFish.Name);
                 childBuilder.CloseElement();
-                childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
+                childBuilder.AddContent(3, $" ({FishingBoostDisplayHelper.FormatPercent(boostAmount)} catch chance)");
             }));
         }
         else if (boostType == FishingBoostType.SpecificCategoryBoost && !string.IsNullOrWhiteSpace(targetCategory))
@@ -427,7 +428,7 @@
                 childBuilder.OpenElement(1, "strong");
                 childBuilder.AddContent(2, targetCategory);
                 childBuilder.CloseElement();
-                childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
+                childBuilder.AddContent(3, $" ({FishingBoostDisplayHelper.FormatPercent(boostAmount)} catch chance)");
             }));
         }
         else

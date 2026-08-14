@@ -173,7 +173,7 @@
                         <MudTd DataLabel="Boost Type">
                             <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Boost Amount">+@((context.BoostAmount * 100).ToString("F0"))%</MudTd>
+                        <MudTd DataLabel="Boost Amount">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)</MudTd>
                         <MudTd DataLabel="Equipment Slot">
                             @if (context.EquipmentSlot.HasValue)
                             {
@@ -453,7 +453,7 @@
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                     <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.BoostType)</MudChip>
                                                     <MudText>@item.Name</MudText>
-                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">(+@(item.BoostAmount * 100)%)</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">(@FishingBoostDisplayHelper.FormatPercent(item.BoostAmount))</MudText>
                                                 </MudStack>
                                             </MudSelectItem>
                                         }
