@@ -296,6 +296,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 Cost = item.Cost,
                 Boosts = string.Join(", ", boosts),
                 TargetFish = item.TargetFishType?.Name ?? string.Empty,
+                TargetCategory = item.TargetCategory ?? string.Empty,
                 MaxUses = item.MaxUses ?? 0
             };
 

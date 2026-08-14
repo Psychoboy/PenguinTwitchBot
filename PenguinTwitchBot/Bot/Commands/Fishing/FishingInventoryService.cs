@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -9,6 +10,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingInventoryService> _logger;
+
+        // Serializes ConsumeItemUses per user so two concurrent fishing attempts for the same
+        // user can't both read/decrement the same RemainingUses value. Service is a singleton,
+        // so these locks live for the app's lifetime (negligible memory cost per user).
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _userConsumeLocks = new();
 
         public FishingInventoryService(IServiceScopeFactory scopeFactory, ILogger<FishingInventoryService> logger)
         {
@@ -205,49 +211,55 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return;
             }
 
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var userBoosts = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
-                .ToListAsync();
-
-            if (userBoosts.Count == 0)
+            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+            await userLock.WaitAsync();
+            try
             {
-                return;
-            }
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var now = DateTime.UtcNow;
-            foreach (var userBoost in userBoosts)
-            {
-                // Skip if unlimited uses
-                if (userBoost.RemainingUses == -1)
+                var userBoosts = await context.UserFishingBoosts
+                    .Include(b => b.ShopItem)
+                    .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
+                    .ToListAsync();
+
+                if (userBoosts.Count == 0)
                 {
-                    userBoost.LastUsedAt = now;
-                    continue;
+                    return;
                 }
 
-                // Only decrement if we have uses remaining (prevent going below 0)
-                if (userBoost.RemainingUses > 0)
+                foreach (var userBoost in userBoosts)
                 {
-                    userBoost.RemainingUses--;
-                }
-                userBoost.LastUsedAt = now;
-
-                if (userBoost.RemainingUses <= 0)
-                {
-                    userBoost.IsEquipped = false;
-
-                    // Consumables are removed entirely once out of uses
-                    if (userBoost.ShopItem!.IsConsumable)
+                    // Skip if unlimited uses
+                    if (userBoost.RemainingUses == -1)
                     {
-                        context.UserFishingBoosts.Remove(userBoost);
+                        continue;
+                    }
+
+                    // Only decrement if we have uses remaining (prevent going below 0)
+                    if (userBoost.RemainingUses > 0)
+                    {
+                        userBoost.RemainingUses--;
+                    }
+
+                    if (userBoost.RemainingUses <= 0)
+                    {
+                        userBoost.IsEquipped = false;
+
+                        // Consumables are removed entirely once out of uses
+                        if (userBoost.ShopItem!.IsConsumable)
+                        {
+                            context.UserFishingBoosts.Remove(userBoost);
+                        }
                     }
                 }
-            }
 
-            await context.SaveChangesAsync();
+                await context.SaveChangesAsync();
+            }
+            finally
+            {
+                userLock.Release();
+            }
         }
 
         public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
@@ -342,8 +354,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     item.RemainingUses--;
                 }
                 var remainingUsesAfter = item.RemainingUses;
-
-                item.LastUsedAt = DateTime.UtcNow;
 
                 var usesLost = Math.Max(0, remainingUsesBefore - remainingUsesAfter);
                 if (usesLost > 0)

@@ -14,6 +14,5 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         // Equipment and usage tracking
         public bool IsEquipped { get; set; } = false;
         public int RemainingUses { get; set; } = 0; // -1 = unlimited
-        public DateTime? LastUsedAt { get; set; }
     }
 }

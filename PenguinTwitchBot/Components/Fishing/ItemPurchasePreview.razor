@@ -47,13 +47,13 @@
                 @* Secondary Boost *@
                 @if (ShopItem.BoostType2.HasValue && ShopItem.BoostAmount2.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, null, null)
+                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
 
                 @* Tertiary Boost *@
                 @if (ShopItem.BoostType3.HasValue && ShopItem.BoostAmount3.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, null, null)
+                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
             </MudStack>
 

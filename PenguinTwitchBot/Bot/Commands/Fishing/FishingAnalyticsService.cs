@@ -48,8 +48,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             result.StarCounts[2] = 0;
             result.StarCounts[3] = 0;
 
-            // Get enabled fish types
-            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
+            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 throw new InvalidOperationException("No fish types available for simulation");
@@ -187,8 +187,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Get enabled fish types
-            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
+            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 return new Dictionary<int, FishProbability>();
@@ -247,7 +247,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             var shopItems = await context.FishingShopItems
                 .AsNoTracking()
                 .Include(s => s.TargetFishType)
@@ -1153,7 +1153,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .Include(i => i.TargetFishType)
                 .Where(i => i.Enabled)
                 .ToListAsync();
-            var enabledFishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
+            var enabledFishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
             var medianUserGold = userGoldTotals.Count > 0
                 ? (userGoldTotals.Count % 2 == 0

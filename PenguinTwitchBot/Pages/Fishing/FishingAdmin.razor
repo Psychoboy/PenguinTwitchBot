@@ -1664,6 +1664,15 @@
     {
         if (editingShopItem == null) return;
 
+        var usesCategoryBoost = editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
+                                 editingShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+                                 editingShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost;
+        if (usesCategoryBoost && string.IsNullOrWhiteSpace(editingShopItem.TargetCategory))
+        {
+            Snackbar.Add("Target Category is required when using a Specific Category Boost", Severity.Error);
+            return;
+        }
+
         try
         {
             // Set MaxUses based on checkbox

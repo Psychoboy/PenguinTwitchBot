@@ -10,54 +10,37 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateIndex(
-                name: "IX_UserFishingBoosts_UserId_IsEquipped",
-                table: "UserFishingBoosts",
-                columns: new[] { "UserId", "IsEquipped" });
+            // CONCURRENTLY avoids locking these tables for writes while the index builds;
+            // each statement must run outside the migration's ambient transaction.
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"IX_UserFishingBoosts_UserId_IsEquipped\" ON \"UserFishingBoosts\" (\"UserId\", \"IsEquipped\");",
+                suppressTransaction: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_FishingGolds_UserId",
-                table: "FishingGolds",
-                column: "UserId");
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"IX_FishingGolds_UserId\" ON \"FishingGolds\" (\"UserId\");",
+                suppressTransaction: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_FishCatches_CaughtAt",
-                table: "FishCatches",
-                column: "CaughtAt");
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"IX_FishCatches_CaughtAt\" ON \"FishCatches\" (\"CaughtAt\");",
+                suppressTransaction: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_FishCatches_GoldEarned",
-                table: "FishCatches",
-                column: "GoldEarned");
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"IX_FishCatches_GoldEarned\" ON \"FishCatches\" (\"GoldEarned\");",
+                suppressTransaction: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_FishCatches_UserId_FishTypeId",
-                table: "FishCatches",
-                columns: new[] { "UserId", "FishTypeId" });
+            migrationBuilder.Sql(
+                "CREATE INDEX CONCURRENTLY IF NOT EXISTS \"IX_FishCatches_UserId_FishTypeId\" ON \"FishCatches\" (\"UserId\", \"FishTypeId\");",
+                suppressTransaction: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_UserFishingBoosts_UserId_IsEquipped",
-                table: "UserFishingBoosts");
-
-            migrationBuilder.DropIndex(
-                name: "IX_FishingGolds_UserId",
-                table: "FishingGolds");
-
-            migrationBuilder.DropIndex(
-                name: "IX_FishCatches_CaughtAt",
-                table: "FishCatches");
-
-            migrationBuilder.DropIndex(
-                name: "IX_FishCatches_GoldEarned",
-                table: "FishCatches");
-
-            migrationBuilder.DropIndex(
-                name: "IX_FishCatches_UserId_FishTypeId",
-                table: "FishCatches");
+            migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS \"IX_UserFishingBoosts_UserId_IsEquipped\";", suppressTransaction: true);
+            migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS \"IX_FishingGolds_UserId\";", suppressTransaction: true);
+            migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS \"IX_FishCatches_CaughtAt\";", suppressTransaction: true);
+            migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS \"IX_FishCatches_GoldEarned\";", suppressTransaction: true);
+            migrationBuilder.Sql("DROP INDEX CONCURRENTLY IF EXISTS \"IX_FishCatches_UserId_FishTypeId\";", suppressTransaction: true);
         }
     }
 }

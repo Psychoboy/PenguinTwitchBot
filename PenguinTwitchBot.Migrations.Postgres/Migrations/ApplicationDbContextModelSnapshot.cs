@@ -1303,9 +1303,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTime>("PurchasedAt")
                         .HasColumnType("timestamp with time zone");
 
