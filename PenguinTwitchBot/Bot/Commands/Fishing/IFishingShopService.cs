@@ -15,5 +15,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<int, EquipmentTier>> CalculateDynamicTiers();
         Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> shopItems);
         EquipmentTier GetDynamicTier(FishingShopItem item, List<FishingShopItem> allItems);
+
+        /// <summary>
+        /// Cached tier map covering every shop item; recomputed automatically after any mutation.
+        /// </summary>
+        Task<Dictionary<int, EquipmentTier>> GetTierMap();
     }
 }

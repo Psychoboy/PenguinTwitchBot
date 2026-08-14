@@ -255,7 +255,7 @@
                                             <MudText><strong>@context.ShopItem!.Name</strong></MudText>
                                             @if (!context.ShopItem!.IsConsumable)
                                             {
-                                                var tier = tierMap.ContainsKey(context.ShopItem!.Id) ? tierMap[context.ShopItem!.Id] : context.ShopItem!.GetTier();
+                                                var tier = tierMap.GetValueOrDefault(context.ShopItem!.Id, EquipmentTier.Entry);
                                                 var (tierColor, tierIcon) = GetTierDisplay(tier);
                                                 <MudChip T="string" Color="@tierColor" Size="Size.Small" Icon="@tierIcon">@tier</MudChip>
                                             }
@@ -563,9 +563,8 @@
             equippedBySlot = await inventoryService.GetUserEquipmentBySlot(userId);
             fishTypes = await fishingService.GetAllFishTypes();
 
-            // Calculate tiers from shop items (single query, optimized grouping)
-            var shopItems = await shopService.GetAllShopItems();
-            tierMap = shopService.CalculateDynamicTiers(shopItems);
+            // Cached tier map (recomputed automatically after any shop mutation) - avoids an extra full shop item query here.
+            tierMap = await shopService.GetTierMap();
 
             // Build fish type lookup for O(1) access
             fishTypeLookup = fishTypes.ToDictionary(f => f.Id, f => f.Name);

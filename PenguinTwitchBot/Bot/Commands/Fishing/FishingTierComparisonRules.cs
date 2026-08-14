@@ -34,8 +34,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return TierComparisonResult.Equipped;
             }
 
-            var itemTier = tierMap.TryGetValue(item.Id, out var computedItemTier) ? computedItemTier : item.GetTier();
-            var equippedTier = tierMap.TryGetValue(equippedItem.Id, out var computedEquippedTier) ? computedEquippedTier : equippedItem.GetTier();
+            var itemTier = tierMap.GetValueOrDefault(item.Id, EquipmentTier.Entry);
+            var equippedTier = tierMap.GetValueOrDefault(equippedItem.Id, EquipmentTier.Entry);
 
             if (itemTier > equippedTier)
             {

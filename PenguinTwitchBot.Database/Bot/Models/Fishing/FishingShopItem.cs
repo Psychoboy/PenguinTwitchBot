@@ -32,22 +32,6 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int? MaxUses { get; set; } // null = unlimited uses
         public bool IsConsumable { get; set; } = false; // If true, item is removed after uses expire
         public bool IsAdminOnly { get; set; } = false; // If true, item is not shown in shop and can only be given by admins
-
-        // Helper method to determine equipment tier based on cost (for permanent items only)
-        // LEGACY: Static thresholds - consider using GetDynamicTier() from FishingShopService for price-based ranking
-        // Tiers aligned with 6-month progression: Entry=2wk, Mid=6wk, High=12wk, Top=26wk
-        public EquipmentTier GetTier()
-        {
-            if (IsConsumable) return EquipmentTier.Consumable;
-
-            return Cost switch
-            {
-                <= 200 => EquipmentTier.Entry,   // ~2 weeks for median player
-                <= 500 => EquipmentTier.Mid,     // ~6 weeks cumulative
-                <= 1500 => EquipmentTier.High,    // ~12 weeks cumulative
-                _ => EquipmentTier.Top           // ~26 weeks cumulative
-            };
-        }
     }
 
     public enum EquipmentTier
