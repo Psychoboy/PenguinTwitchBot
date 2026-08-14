@@ -1130,8 +1130,8 @@ try
             w.Log(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);
 
             // SQLite emits this warning when it needs PRAGMA foreign_keys toggles around
-            // schema updates. This is expected for provider-generated migration SQL.
-            if (provider == "sqlite")
+            // schema updates, and PostgreSQL emits it for CREATE INDEX CONCURRENTLY.
+            if (provider is "sqlite" or "postgres")
             {
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.NonTransactionalMigrationOperationWarning);
             }
