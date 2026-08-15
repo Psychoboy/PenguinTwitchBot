@@ -71,6 +71,9 @@
 @code {
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
 
+    // Blazor Server streams downloads over SignalR, so cap the payload to keep large logs downloadable.
+    private const long MaxLogDownloadBytes = 5L * 1024 * 1024;
+
     private bool _checkingUpdates;
     private bool _startingUpdate;
     private bool _restoringRecovery;
@@ -210,18 +213,64 @@
                 return;
             }
 
-            await using var stream = new FileStream(
+            await using var source = new FileStream(
                 latest,
                 FileMode.Open,
                 FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete);
-            using var streamRef = new DotNetStreamReference(stream);
-            await JS.InvokeVoidAsync("downloadFile", Path.GetFileName(latest), streamRef);
-            Snackbar.Add("Log download started.", Severity.Success);
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: 64 * 1024,
+                useAsync: true);
+
+            var truncated = source.Length > MaxLogDownloadBytes;
+            if (truncated)
+            {
+                source.Seek(source.Length - MaxLogDownloadBytes, SeekOrigin.Begin);
+            }
+
+            // Buffer in memory so the browser gets a complete payload even if the log keeps growing.
+            var buffer = new MemoryStream(capacity: (int)Math.Min(source.Length, MaxLogDownloadBytes) + 1024);
+            await using (buffer.ConfigureAwait(false))
+            {
+                await source.CopyToAsync(buffer);
+                buffer.Position = 0;
+
+                if (truncated)
+                {
+                    SkipPartialFirstLine(buffer);
+                }
+
+                var fileName = truncated
+                    ? $"{Path.GetFileNameWithoutExtension(latest)}_tail{Path.GetExtension(latest)}"
+                    : Path.GetFileName(latest);
+
+                using var streamRef = new DotNetStreamReference(buffer, leaveOpen: true);
+                await JS.InvokeVoidAsync("downloadFile", fileName, streamRef);
+            }
+
+            Snackbar.Add(
+                truncated
+                    ? $"Log download started (last {MaxLogDownloadBytes / (1024 * 1024)} MB only)."
+                    : "Log download started.",
+                Severity.Success);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to download latest log: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // Tail reads start mid-line; advance past it so the file opens cleanly.
+    private static void SkipPartialFirstLine(MemoryStream buffer)
+    {
+        var data = buffer.GetBuffer();
+        var length = (int)buffer.Length;
+        for (var i = 0; i < length; i++)
+        {
+            if (data[i] == (byte)'\n')
+            {
+                buffer.Position = i + 1;
+                return;
+            }
         }
     }
 }
