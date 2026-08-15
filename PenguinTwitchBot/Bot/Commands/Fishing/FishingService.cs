@@ -330,6 +330,59 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToList();
         }
 
+        public async Task<Dictionary<int, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(int tournamentId)
+        {
+            var results = new Dictionary<int, FishingTournamentRewardStanding>();
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var tournament = await context.FishingTournaments
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
+                .Include(t => t.RewardRules)
+                .FirstOrDefaultAsync(t => t.Id == tournamentId);
+
+            if (tournament == null || tournament.RewardRules.Count == 0)
+            {
+                return results;
+            }
+
+            // Mirrors settlement: a completed tournament has EndsAtUtc set, so the window matches what was awarded.
+            var catches = await GetTournamentCatches(context, tournament, null, useLinkedCatchesOnly: false);
+            if (catches.Count == 0)
+            {
+                return results;
+            }
+
+            foreach (var rewardRule in tournament.RewardRules.Where(rule => rule.Enabled))
+            {
+                var winner = CalculateStandings(catches, rewardRule)
+                    .Take(rewardRule.Placement)
+                    .LastOrDefault();
+
+                if (winner == null)
+                {
+                    continue;
+                }
+
+                results[rewardRule.Id] = new FishingTournamentRewardStanding
+                {
+                    RewardRuleId = rewardRule.Id,
+                    UserId = winner.UserId,
+                    Username = winner.Username,
+                    Score = winner.Score,
+                    CatchCount = winner.CatchCount
+                };
+            }
+
+            return results;
+        }
+
         public async Task<FishingTournament?> StartFishingTournament(int id)
         {
             using var scope = _scopeFactory.CreateScope();
