@@ -27,6 +27,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("fishing_tournaments", "Fishing Tournaments", "/fishing-tournaments.html", 620, 380),
             new("wheel",     "Wheel",     "/wheel.html",      1920,  1080),
             new("chat",      "Chat",      "/chat.html",       400,  600),
+            new("timer",     "Timer",     "/timer.html",      420,  160),
         ];
 
         public static WidgetDefinition? Find(string type) =>

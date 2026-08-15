@@ -162,7 +162,7 @@
                  @onclick="() => _selected = null">
                 @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
                 {
-                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType is "chat" or "timer" ? "widget-tile--chat-preview" : "")"
                          data-widget-id="@w.TempId"
                          data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
                          data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
@@ -213,6 +213,14 @@
                                         <span class="chat-preview-text">Hydrate check</span>
                                     </div>
                                 }
+                            </div>
+                            <span class="widget-label widget-label--corner">@w.DisplayName</span>
+                        }
+                        else if (w.WidgetType == "timer")
+                        {
+                            var timerPreview = GetPreviewTimerSettings(w);
+                            <div class="timer-preview" style="@BuildTimerPreviewStyle(timerPreview)">
+                                @(timerPreview.Prefix)00:00@(timerPreview.Suffix)
                             </div>
                             <span class="widget-label widget-label--corner">@w.DisplayName</span>
                         }
@@ -497,6 +505,110 @@
                               Value="_chatSettings.IgnoredUsers"
                               ValueChanged="@((string v) => { _chatSettings.IgnoredUsers = v; SaveChatSettings(); })" />
 
+            }
+
+            @* ---- Timer widget configuration ---- *@
+            @if (_selected.WidgetType == "timer" && _timerSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Timer Settings</b></MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    The timer never starts on its own. Use the Overlay Timer sub-actions to start, stop, add, or remove time.
+                </MudAlert>
+
+                <MudAutocomplete T="string" Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 SearchFunc="SearchFontFamilies" CoerceValue="true" ResetValueOnEmptyText="true"
+                                 HelperText="Any CSS font stack; the font must be installed on the streaming machine"
+                                 Value="_timerSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _timerSettings.FontFamily = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="8" Max="400"
+                                 Value="_timerSettings.FontSize"
+                                 ValueChanged="@(v => { _timerSettings.FontSize = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font weight"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="900" Step="100"
+                                 Value="_timerSettings.FontWeight"
+                                 ValueChanged="@(v => { _timerSettings.FontWeight = v; SaveTimerSettings(); })" />
+
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_timerSettings.Color"
+                           @oninput="@(e => { _timerSettings.Color = e.Value?.ToString() ?? "#000000"; SaveTimerSettings(); })"
+                           title="Pick font colour"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Font color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_timerSettings.Color"
+                                  ValueChanged="@((string v) => { _timerSettings.Color = v; SaveTimerSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudTextField Label="Background color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Any CSS color; use transparent for none"
+                              Value="_timerSettings.BgColor"
+                              ValueChanged="@((string v) => { _timerSettings.BgColor = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Text shadow"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="CSS text-shadow, e.g. 2px 2px 6px #000000"
+                              Value="_timerSettings.TextShadow"
+                              ValueChanged="@((string v) => { _timerSettings.TextShadow = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Letter spacing (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="-10" Max="40"
+                                 Value="_timerSettings.LetterSpacing"
+                                 ValueChanged="@(v => { _timerSettings.LetterSpacing = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Padding (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.Padding"
+                                 ValueChanged="@(v => { _timerSettings.Padding = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Corner radius (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.BorderRadius"
+                                 ValueChanged="@(v => { _timerSettings.BorderRadius = v; SaveTimerSettings(); })" />
+
+                <MudSelect T="string" Label="Format"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_timerSettings.Format"
+                           ValueChanged="@(v => { _timerSettings.Format = v; SaveTimerSettings(); })">
+                    <MudSelectItem Value="@("auto")">Auto (adds hours when needed)</MudSelectItem>
+                    <MudSelectItem Value="@("mm:ss")">mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("hh:mm:ss")">hh:mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("ss")">Seconds only</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField Label="Prefix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Prefix"
+                              ValueChanged="@((string v) => { _timerSettings.Prefix = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Suffix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Suffix"
+                              ValueChanged="@((string v) => { _timerSettings.Suffix = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.ShowTenths" Label="Show tenths of a second"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.ShowTenths = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenStopped" Label="Hide when stopped"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenStopped = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenZero" Label="Hide when stopped at zero"
+                           Color="Color.Primary" Class="mb-2"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenZero = v; SaveTimerSettings(); })" />
             }
 
             <MudDivider Class="mb-3" />
@@ -951,6 +1063,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         LoadChatSettings();
         LoadAlertChannel();
         LoadFireworksSettings();
+        LoadTimerSettings();
     }
 
     private void RemoveSelectedWidget()
@@ -1080,12 +1193,14 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "fishing_tournaments" => "#2E7D8A",
         "wheel"     => "#6A1B9A",
         "chat"      => "#00838F",
+        "timer"     => "#4527A0",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----
 
     private ChatSettings? _chatSettings;
     private FireworksSettings? _fireworksSettings;
+    private TimerSettings? _timerSettings;
     private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
@@ -1263,6 +1378,58 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         if (_selected != null && _fireworksSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_fireworksSettings, _chatJsonOptions);
     }
+
+    private void LoadTimerSettings()
+    {
+        if (_selected?.WidgetType == "timer")
+        {
+            try
+            {
+                _timerSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new TimerSettings()
+                    : (JsonSerializer.Deserialize<TimerSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+            }
+            catch
+            {
+                _timerSettings = new TimerSettings();
+            }
+        }
+        else
+        {
+            _timerSettings = null;
+        }
+    }
+
+    private void SaveTimerSettings()
+    {
+        if (_selected != null && _timerSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_timerSettings, _chatJsonOptions);
+    }
+
+    private TimerSettings GetPreviewTimerSettings(WidgetModel widget)
+    {
+        if (widget.WidgetType != "timer") return new TimerSettings();
+
+        try
+        {
+            return string.IsNullOrWhiteSpace(widget.CustomSettings)
+                ? new TimerSettings()
+                : (JsonSerializer.Deserialize<TimerSettings>(widget.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+        }
+        catch
+        {
+            return new TimerSettings();
+        }
+    }
+
+    private string BuildTimerPreviewStyle(TimerSettings settings)
+    {
+        var fontFamily = string.IsNullOrWhiteSpace(settings.FontFamily) ? "inherit" : settings.FontFamily;
+        var fontSizePx = Math.Clamp((int)Math.Round(settings.FontSize * Scale), 8, 96);
+        return $"background:{settings.BgColor}; color:{settings.Color}; font-size:{fontSizePx}px; "
+             + $"font-weight:{settings.FontWeight}; font-family:{fontFamily}; letter-spacing:{settings.LetterSpacing}px; "
+             + $"border-radius:{settings.BorderRadius}px; text-shadow:{settings.TextShadow};";
+    }
     // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
@@ -1300,7 +1467,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     }
 
     private sealed class FireworksSettings
-    {
+    {        
         public string QualityMode { get; set; } = "auto";
         public string Shell { get; set; } = "Random";
         public int Size { get; set; } = 3;
@@ -1312,5 +1479,24 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         public int CriticalParticleCount { get; set; } = 2200;
         public bool ForceLowEnd { get; set; } = false;
         public int ClearCanvasDelayMs { get; set; } = 15000;
+    }
+
+    private sealed class TimerSettings
+    {
+        public string FontFamily { get; set; } = "";
+        public int FontSize { get; set; } = 72;
+        public int FontWeight { get; set; } = 700;
+        public string Color { get; set; } = "#000000";
+        public string BgColor { get; set; } = "transparent";
+        public string TextShadow { get; set; } = "none";
+        public int LetterSpacing { get; set; } = 0;
+        public int Padding { get; set; } = 0;
+        public int BorderRadius { get; set; } = 0;
+        public string Format { get; set; } = "auto";
+        public string Prefix { get; set; } = "";
+        public string Suffix { get; set; } = "";
+        public bool ShowTenths { get; set; } = false;
+        public bool HideWhenStopped { get; set; } = false;
+        public bool HideWhenZero { get; set; } = false;
     }
 }

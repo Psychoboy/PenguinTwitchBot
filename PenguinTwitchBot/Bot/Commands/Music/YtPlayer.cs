@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Extensions;
+using PenguinTwitchBot.Helpers;
 using PenguinTwitchBot.Database.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
@@ -16,6 +17,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private readonly IHubContext<YtHub> _hubContext;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<YtPlayer> _logger;
+        private readonly IBannedSongService _bannedSongService;
         private YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
 
@@ -58,13 +60,15 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IBannedSongService bannedSongService
         ) : base(serviceBackbone, commandHandler, "YtPlayer", dispatcher)
         {
             _configuration = configuration;
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _bannedSongService = bannedSongService;
             _youtubeService = CreateYouTubeService();
             SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
             SongsInBackupQueueMetric = Prometheus.Metrics.CreateGauge("songs_in_backup_queue", "Songs in Backup Queue");
@@ -494,6 +498,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public async Task AddSongToRequests(string url)
         {
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(url);
+            if (bannedSong != null)
+            {
+                _logger.LogWarning("Refused to queue banned song {SongId}.", bannedSong.SongId);
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, ServiceBackbone.BroadcasterName, url);
+                return;
+            }
+
             var song = await GetSongByLinkOrId(url);
             if (song == null)
             {
@@ -1057,15 +1069,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
             songLink = songLink.Trim();
-            string songId;
-            if (songLink.Contains("https://"))
-            {
-                songId = await GetSongId(songLink);
-            }
-            else
-            {
-                songId = songLink.Trim();
-            }
+            var songId = YouTubeUrlHelper.ExtractVideoId(songLink) ?? await GetSongId(songLink);
             if (string.IsNullOrWhiteSpace(songId))
             {
                 return null;
@@ -1125,6 +1129,12 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.ResponseWithMessage(e, "Could not get or had an issue finding your song request");
                 throw new SkipCooldownException();
             }
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(searchResult);
+            if (bannedSong != null)
+            {
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, e.DisplayName, e.Arg);
+                throw new SkipCooldownException();
+            }
             Song? songInQueue = null;
             try
             {
@@ -1167,14 +1177,24 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var timeToWait = new TimeSpan(currentRequestedSongs.Sum(r => r.Duration.Ticks));
             timeToWait += GetCurrentSongTimeLeft();
             var songRequestedCount = await AddSongToRequests(song);
+            if (songRequestedCount == null) return;
             if (e.IsWhisper) return;
 
             requestCount++;
             await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), songRequestedCount));
         }
 
-        private async Task<int> AddSongToRequests(Song song)
+        /// <summary>Returns the times the song has been requested, or null when it was rejected.</summary>
+        private async Task<int?> AddSongToRequests(Song song)
         {
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(song.SongId);
+            if (bannedSong != null)
+            {
+                _logger.LogWarning("Refused to queue banned song {SongId}.", bannedSong.SongId);
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, song.RequestedBy, song.SongId);
+                return null;
+            }
+
             try
             {
                 await _semaphoreSlim.WaitAsync();

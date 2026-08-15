@@ -87,6 +87,8 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<OverlayLayout> OverlayLayouts { get; set; } = null!;
         public DbSet<OverlayWidget> OverlayWidgets { get; set; } = null!;
 
+        public DbSet<BannedSong> BannedSongs { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Configure DateTime properties for database provider compatibility
@@ -127,6 +129,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
 
             modelBuilder.Entity<Models.Queues.QueueConfiguration>()
                 .HasIndex(q => q.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<BannedSong>()
+                .HasIndex(b => b.SongId)
                 .IsUnique();
 
             modelBuilder.Entity<Viewer>()

@@ -528,6 +528,7 @@
             TriggerTypes.FishingTournamentCatch => Color.Success,
             TriggerTypes.FishingTournamentStart => Color.Info,
             TriggerTypes.FishingTournamentEnd => Color.Warning,
+            TriggerTypes.BannedSongRequest => Color.Error,
             _ => Color.Default
         };
     }
@@ -542,6 +543,7 @@
             TriggerTypes.FishingTournamentStart => "Tournament Start",
             TriggerTypes.FishingTournamentEnd => "Tournament End",
             TriggerTypes.FishCatch => "Fish Catch",
+            TriggerTypes.BannedSongRequest => "Banned Song Request",
             _ => type.ToString()
         };
     }
@@ -553,7 +555,8 @@
             or TriggerTypes.FishingTournamentCatch
             or TriggerTypes.FishingTournamentStart
             or TriggerTypes.FishingTournamentEnd
-            or TriggerTypes.FishCatch;
+            or TriggerTypes.FishCatch
+            or TriggerTypes.BannedSongRequest;
     }
 
     private static string GetFriendlyTriggerName(TriggerType trigger)
@@ -564,6 +567,7 @@
             TriggerTypes.FishingTournamentCatch => "Tournament Eligible Catch",
             TriggerTypes.FishingTournamentStart => "Tournament Started",
             TriggerTypes.FishingTournamentEnd => "Tournament Ended",
+            TriggerTypes.BannedSongRequest => "Banned Song Requested",
             _ => trigger.Name
         };
     }

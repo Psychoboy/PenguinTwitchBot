@@ -122,6 +122,19 @@
                         </MudListItem>
                         <MudDivider />
                     }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.BannedSongRequest))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-bannedsongrequest" OnClick="@(() => SelectType(TriggerTypes.BannedSongRequest))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.MusicOff" Color="Color.Error" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Banned Song Request</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when someone requests a song that has been banned</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
                      <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
@@ -308,7 +321,6 @@
                 else if (_selectedType == TriggerTypes.FishCatch)
                 {
                     <MudText Typo="Typo.h6">Configure Fish Catch Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever a fish is successfully caught. All filters are optional — leave empty to match any catch.
                         Variables added: %fish_type%, %fish_type_id%, %fish_rarity%, %fish_stars%, %fish_weight%, %fish_gold%, %fish_categories%.
@@ -362,6 +374,19 @@
 
                     <MudSwitch T="bool" @bind-Value="_fishCatchRequireActiveTournament" Color="Color.Primary"
                                Label="Only fire when fish is eligible for an active tournament" />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.BannedSongRequest)
+                {
+                    <MudText Typo="Typo.h6">Configure Banned Song Request Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires whenever someone requests a song that is on the banned songs list.
+                        Variables added: %user%, %banned_song_id%, %banned_song_title%, %banned_song_reason%,
+                        %banned_song_banned_by%, %banned_song_url%, %banned_song_request%.
+                    </MudAlert>
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
@@ -576,6 +601,7 @@
             TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
             TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
             TriggerTypes.FishCatch => "Fishing.FishCaught",
+            TriggerTypes.BannedSongRequest => "Song.BannedRequest",
             _ => $"{type} Trigger"
         };
     }
@@ -914,6 +940,10 @@
             };
             configuration = System.Text.Json.JsonSerializer.Serialize(config);
             _triggerName = "Fishing.FishCaught";
+        }
+        else if (_selectedType == TriggerTypes.BannedSongRequest)
+        {
+            _triggerName = "Song.BannedRequest";
         }
 
         var result = new

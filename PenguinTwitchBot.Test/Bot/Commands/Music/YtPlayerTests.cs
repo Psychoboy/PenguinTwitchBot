@@ -132,7 +132,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             var method = typeof(YtPlayer).GetMethod("UpdateState", 
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -158,7 +159,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             var method = typeof(YtPlayer).GetMethod("GetCurrentSongTimeLeft", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -180,7 +182,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             Assert.NotNull(ytPlayer);
         }
@@ -199,7 +202,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             Assert.NotNull(ytPlayer);
         }
@@ -211,6 +215,91 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             
             Assert.NotNull(method);
+        }
+
+        [Fact]
+        public async Task AddSongToRequests_ByUrl_BannedSong_RaisesTriggerAndDoesNotQueue()
+        {
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            bannedSongService.GetBannedSongAsync(Arg.Any<string>()).Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+
+            await ytPlayer.AddSongToRequests("https://youtu.be/dQw4w9WgXcQ");
+
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, Arg.Any<string>(), Arg.Any<string>());
+            Assert.Empty(GetRequests(ytPlayer));
+        }
+
+        [Fact]
+        public async Task AddSongToQueue_BannedSong_RaisesTriggerAndDoesNotQueue()
+        {
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+            var song = new Song { SongId = "dQw4w9WgXcQ", Title = "Nope", RequestedBy = "viewer", Duration = TimeSpan.FromMinutes(3) };
+
+            await ytPlayer.AddSongToQueue(song);
+
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, "viewer", "dQw4w9WgXcQ");
+            Assert.Empty(GetRequests(ytPlayer));
+        }
+
+        [Fact]
+        public async Task AddSongToRequests_BanAppliedAfterInitialCheck_ReturnsRejection()
+        {
+            // A song can be banned between the request-time check and reaching the queue boundary.
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope", Reason = "Banned mid-request" };
+            bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+            var song = new Song { SongId = "dQw4w9WgXcQ", Title = "Nope", RequestedBy = "viewer", Duration = TimeSpan.FromMinutes(3) };
+
+            var result = await InvokeAddSongToRequests(ytPlayer, song);
+
+            Assert.Null(result);
+            Assert.Empty(GetRequests(ytPlayer));
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, "viewer", "dQw4w9WgXcQ");
+        }
+
+        private static async Task<int?> InvokeAddSongToRequests(YtPlayer ytPlayer, Song song)
+        {
+            var method = typeof(YtPlayer).GetMethod("AddSongToRequests",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                binder: null,
+                types: [typeof(Song)],
+                modifiers: null);
+
+            return await (Task<int?>)method!.Invoke(ytPlayer, [song])!;
+        }
+
+        private static YtPlayer CreateYtPlayer(IBannedSongService bannedSongService)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            return new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                bannedSongService);
+        }
+
+        private static List<Song> GetRequests(YtPlayer ytPlayer)
+        {
+            var field = typeof(YtPlayer).GetField("Requests",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            return (List<Song>)field!.GetValue(ytPlayer)!;
         }
 
         [Fact]
@@ -227,7 +316,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             var song1 = new Song { SongId = "song1", Title = "Song 1", Duration = TimeSpan.FromMinutes(3) };
             var song2 = new Song { SongId = "song2", Title = "Song 2", Duration = TimeSpan.FromMinutes(4) };
@@ -255,7 +345,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
-                Substitute.For<ICommandHandler>());
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
 
             var method = typeof(YtPlayer).GetMethod("GetRecentlyPlayedSongs", 
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);

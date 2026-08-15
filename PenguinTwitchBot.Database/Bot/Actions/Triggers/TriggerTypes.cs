@@ -11,6 +11,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
         FishingTournamentCatch,
         FishingTournamentStart,
         FishingTournamentEnd,
-        FishCatch
+        FishCatch,
+        BannedSongRequest
     }
 }

@@ -52,11 +52,13 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "overlay/editor")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "overlay/editor", "overlay/timer")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.MusicOff" Href="/bannedsongs" Match="NavLinkMatch.Prefix">Banned Songs</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "commands/default", "commands/aliases", "commands/cooldowns", "commands/external", "actions/commands", "actions/keywords", "actions/audiocommands")">
                 <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/commands/default" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
@@ -264,7 +266,9 @@
             CreateQuickLink("Raid History", "/raidhistory", Icons.Material.Filled.Groups, "Stream Tools"),
             CreateQuickLink("Music Player", "/musicplayer", Icons.Material.Filled.PlayCircle, "Stream Tools", "music"),
             CreateQuickLink("Playlists", "/playlists", Icons.Material.Filled.QueueMusic, "Stream Tools", "music", "playlist"),
+            CreateQuickLink("Banned Songs", "/bannedsongs", Icons.Material.Filled.MusicOff, "Stream Tools", "music", "banned", "song requests"),
             CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),
+            CreateQuickLink("Stream Timer", "/overlay/timer", Icons.Material.Filled.Timer, "Stream Tools", "overlay", "timer", "countdown"),
             CreateQuickLink("Default Commands", "/commands/default", Icons.Material.Filled.Code, "Commands", "chat commands"),
             CreateQuickLink("Command Cooldowns", "/commands/cooldowns", Icons.Material.Filled.Schedule, "Commands", "cooldown"),
             CreateQuickLink("External Commands", "/commands/external", Icons.Material.Filled.Extension, "Commands", "chat commands"),
