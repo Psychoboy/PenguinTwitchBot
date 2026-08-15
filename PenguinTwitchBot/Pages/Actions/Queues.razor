@@ -355,8 +355,16 @@
 
         if (result == true)
         {
-            Snackbar.Add($"Queue '{queueStats.QueueName}' would be cleared (feature not yet implemented)", Severity.Info);
-            // Note: Clear functionality would need to be added to IQueueManager
+            try
+            {
+                var clearedCount = await QueueManager.ClearQueueAsync(queueStats.QueueName);
+                Snackbar.Add($"Cleared {clearedCount} pending action(s) from queue '{queueStats.QueueName}'", Severity.Success);
+                await LoadQueues();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error clearing queue: {ex.Message}", Severity.Error);
+            }
         }
     }
 

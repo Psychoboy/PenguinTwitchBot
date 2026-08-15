@@ -128,6 +128,43 @@ namespace PenguinTwitchBot.Test.Bot.Queues
         }
 
         [Fact]
+        public void UpdateActionCancelled_TransitionsStateToCancelledWithReason()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(logger, hubContext);
+            var variables = new ConcurrentDictionary<string, string>();
+            var logId = executionLogger.LogActionEnqueued("TestAction", null, "default", variables);
+
+            // Act
+            executionLogger.UpdateActionCancelled(logId, "Cleared from queue by user");
+
+            // Assert
+            var logs = executionLogger.GetRecentLogs();
+            Assert.Single(logs);
+            Assert.Equal(ActionExecutionState.Cancelled, logs[0].State);
+            Assert.Null(logs[0].StartedAt);
+            Assert.NotNull(logs[0].CompletedAt);
+            Assert.Equal("Cleared from queue by user", logs[0].ErrorMessage);
+        }
+
+        [Fact]
+        public void UpdateActionCancelled_DoesNothing_WhenLogIdNotFound()
+        {
+            // Arrange
+            var logger = Substitute.For<ILogger<ActionExecutionLogger>>();
+            var hubContext = Substitute.For<IHubContext<MainHub>>();
+            var executionLogger = new ActionExecutionLogger(logger, hubContext);
+
+            // Act
+            executionLogger.UpdateActionCancelled(Guid.NewGuid(), "Cleared from queue by user");
+
+            // Assert
+            Assert.Equal(0, executionLogger.GetLogCount());
+        }
+
+        [Fact]
         public void GetLogsByQueue_ReturnsOnlyMatchingQueueLogs()
         {
             // Arrange

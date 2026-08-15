@@ -315,6 +315,16 @@ namespace PenguinTwitchBot.Bot.Queues
             }
         }
 
+        public async Task<int> ClearQueueAsync(string queueName)
+        {
+            if (!_queues.TryGetValue(queueName, out var queue))
+            {
+                throw new InvalidOperationException($"Queue with name '{queueName}' not found");
+            }
+
+            return await queue.ClearPendingAsync();
+        }
+
         public async Task<List<QueueConfiguration>> GetAllQueuesAsync()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
