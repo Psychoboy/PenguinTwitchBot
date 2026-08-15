@@ -2,41 +2,9 @@ using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using System.Collections.Concurrent;
-using System.Globalization;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    /// <summary>
-    /// Parses the "seconds or hh:mm:ss" duration format shared by the overlay timer sub-actions.
-    /// </summary>
-    internal static class OverlayTimerDuration
-    {
-        public static bool TryParse(string? value, out double seconds)
-        {
-            seconds = 0;
-            if (string.IsNullOrWhiteSpace(value)) return false;
-
-            value = value.Trim();
-
-            if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-                return IsUsable(parsed, out seconds);
-
-            if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
-                return IsUsable(timeSpan.TotalSeconds, out seconds);
-
-            return false;
-        }
-
-        private static bool IsUsable(double value, out double seconds)
-        {
-            seconds = 0;
-            if (!double.IsFinite(value) || value < 0) return false;
-
-            seconds = value;
-            return true;
-        }
-    }
-
     public class OverlayTimerStartHandler(IStreamTimerService timerService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.OverlayTimerStart;
@@ -50,7 +18,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var rawStartTime = VariableReplacer.ReplaceVariables(start.StartTime, variables);
             if (!string.IsNullOrWhiteSpace(rawStartTime))
             {
-                if (OverlayTimerDuration.TryParse(rawStartTime, out var parsed))
+                if (TimerDuration.TryParse(rawStartTime, out var parsed))
                 {
                     startSeconds = parsed;
                 }
@@ -89,7 +57,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerAddTimeType)} but got {subAction.GetType().Name}");
 
             var raw = VariableReplacer.ReplaceVariables(addTime.Amount, variables);
-            if (!OverlayTimerDuration.TryParse(raw, out var seconds))
+            if (!TimerDuration.TryParse(raw, out var seconds))
             {
                 context?.LogMessage(subActionIndex, $"Invalid time value: {raw}");
                 return;
@@ -110,7 +78,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, $"Expected {nameof(OverlayTimerRemoveTimeType)} but got {subAction.GetType().Name}");
 
             var raw = VariableReplacer.ReplaceVariables(removeTime.Amount, variables);
-            if (!OverlayTimerDuration.TryParse(raw, out var seconds))
+            if (!TimerDuration.TryParse(raw, out var seconds))
             {
                 context?.LogMessage(subActionIndex, $"Invalid time value: {raw}");
                 return;

@@ -162,7 +162,7 @@
                  @onclick="() => _selected = null">
                 @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
                 {
-                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType is "chat" or "timer" ? "widget-tile--chat-preview" : "")"
                          data-widget-id="@w.TempId"
                          data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
                          data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
@@ -213,6 +213,14 @@
                                         <span class="chat-preview-text">Hydrate check</span>
                                     </div>
                                 }
+                            </div>
+                            <span class="widget-label widget-label--corner">@w.DisplayName</span>
+                        }
+                        else if (w.WidgetType == "timer")
+                        {
+                            var timerPreview = GetPreviewTimerSettings(w);
+                            <div class="timer-preview" style="@BuildTimerPreviewStyle(timerPreview)">
+                                @(timerPreview.Prefix)00:00@(timerPreview.Suffix)
                             </div>
                             <span class="widget-label widget-label--corner">@w.DisplayName</span>
                         }
@@ -527,11 +535,18 @@
                                  Value="_timerSettings.FontWeight"
                                  ValueChanged="@(v => { _timerSettings.FontWeight = v; SaveTimerSettings(); })" />
 
-                <MudTextField Label="Text color"
-                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
-                              HelperText="Any CSS color, e.g. #ffffff"
-                              Value="_timerSettings.Color"
-                              ValueChanged="@((string v) => { _timerSettings.Color = v; SaveTimerSettings(); })" />
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_timerSettings.Color"
+                           @oninput="@(e => { _timerSettings.Color = e.Value?.ToString() ?? "#000000"; SaveTimerSettings(); })"
+                           title="Pick font colour"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Font color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_timerSettings.Color"
+                                  ValueChanged="@((string v) => { _timerSettings.Color = v; SaveTimerSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
 
                 <MudTextField Label="Background color"
                               Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
@@ -1390,6 +1405,31 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         if (_selected != null && _timerSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_timerSettings, _chatJsonOptions);
     }
+
+    private TimerSettings GetPreviewTimerSettings(WidgetModel widget)
+    {
+        if (widget.WidgetType != "timer") return new TimerSettings();
+
+        try
+        {
+            return string.IsNullOrWhiteSpace(widget.CustomSettings)
+                ? new TimerSettings()
+                : (JsonSerializer.Deserialize<TimerSettings>(widget.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+        }
+        catch
+        {
+            return new TimerSettings();
+        }
+    }
+
+    private string BuildTimerPreviewStyle(TimerSettings settings)
+    {
+        var fontFamily = string.IsNullOrWhiteSpace(settings.FontFamily) ? "inherit" : settings.FontFamily;
+        var fontSizePx = Math.Clamp((int)Math.Round(settings.FontSize * Scale), 8, 96);
+        return $"background:{settings.BgColor}; color:{settings.Color}; font-size:{fontSizePx}px; "
+             + $"font-weight:{settings.FontWeight}; font-family:{fontFamily}; letter-spacing:{settings.LetterSpacing}px; "
+             + $"border-radius:{settings.BorderRadius}px; text-shadow:{settings.TextShadow};";
+    }
     // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
@@ -1446,7 +1486,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         public string FontFamily { get; set; } = "";
         public int FontSize { get; set; } = 72;
         public int FontWeight { get; set; } = 700;
-        public string Color { get; set; } = "#ffffff";
+        public string Color { get; set; } = "#000000";
         public string BgColor { get; set; } = "transparent";
         public string TextShadow { get; set; } = "none";
         public int LetterSpacing { get; set; } = 0;

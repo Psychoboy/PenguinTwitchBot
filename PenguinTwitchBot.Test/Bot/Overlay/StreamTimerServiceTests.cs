@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using PenguinTwitchBot.Bot.Hubs;
@@ -12,6 +13,7 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
         {
             return new StreamTimerService(
                 Substitute.For<IHubContext<MainHub>>(),
+                Substitute.For<IServiceScopeFactory>(),
                 Substitute.For<ILogger<StreamTimerService>>());
         }
 
@@ -85,6 +87,32 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
             await service.StopAsync();
 
             Assert.Equal(0, service.GetState().Seconds);
+        }
+
+        [Fact]
+        public async Task ConfigureAsync_SetsDirectionAndValueWithoutStarting()
+        {
+            var service = CreateService();
+
+            await service.ConfigureAsync("down", 300);
+
+            var state = service.GetState();
+            Assert.False(state.IsRunning);
+            Assert.Equal("down", state.Direction);
+            Assert.Equal(300, state.Seconds, 3);
+        }
+
+        [Fact]
+        public async Task ConfigureAsync_LeavesARunningTimerRunning()
+        {
+            var service = CreateService();
+            await service.StartAsync("up", 10);
+
+            await service.ConfigureAsync("down", 60);
+
+            var state = service.GetState();
+            Assert.True(state.IsRunning);
+            Assert.Equal("down", state.Direction);
         }
     }
 }

@@ -2,6 +2,14 @@
 (function () {
     const containerEl = document.getElementById("timer-container");
     const textEl = document.getElementById("timer-text");
+    const statusEl = document.getElementById("timer-status");
+
+    function setStatus(message, connected) {
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.classList.toggle("connected", connected);
+        statusEl.classList.toggle("hidden", connected);
+    }
 
     const params = new URLSearchParams(window.location.search);
 
@@ -14,7 +22,7 @@
         fontFamily: param("fontFamily", '"Segoe UI", sans-serif'),
         fontSize: parseInt(param("fontSize", "72"), 10),
         fontWeight: param("fontWeight", "700"),
-        color: param("color", "#ffffff"),
+        color: param("color", "#000000"),
         bgColor: param("bgColor", "transparent"),
         textShadow: param("textShadow", "none"),
         letterSpacing: parseInt(param("letterSpacing", "0"), 10),
@@ -127,17 +135,33 @@
     }
 
     async function connect() {
+        if (typeof signalR === "undefined") {
+            setStatus("Timer: SignalR failed to load", false);
+            console.error("SignalR client library is not available");
+            return;
+        }
+
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/mainhub")
             .withAutomaticReconnect()
             .build();
 
         connection.on("StreamTimerUpdate", applyState);
-        connection.onreconnected(loadInitialState);
+        connection.onreconnecting(() => setStatus("Timer: reconnecting...", false));
+        connection.onreconnected(() => {
+            setStatus("Timer: connected", true);
+            loadInitialState();
+        });
+        connection.onclose(() => {
+            setStatus("Timer: disconnected", false);
+            setTimeout(connect, 5000);
+        });
 
         try {
             await connection.start();
+            setStatus("Timer: connected", true);
         } catch (err) {
+            setStatus("Timer: connection failed", false);
             console.error("Failed connecting to the timer hub, retrying shortly", err);
             setTimeout(connect, 5000);
         }

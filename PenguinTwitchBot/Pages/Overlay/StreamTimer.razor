@@ -1,0 +1,212 @@
+@page "/overlay/timer"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Overlay
+@implements IDisposable
+@inject IStreamTimerService TimerService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Stream Timer</PageTitle>
+
+<MudContainer Class="pa-4" MaxWidth="MaxWidth.Medium">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h4">
+            <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
+            Stream Timer
+        </MudText>
+
+        <MudAlert Severity="Severity.Info" Dense="true">
+            Controls the Timer overlay widget. Add a <b>Timer</b> widget to a layout in the Overlay Editor to show it on stream.
+        </MudAlert>
+
+        <MudPaper Elevation="3" Class="pa-6">
+            <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                <MudText Typo="Typo.h2" Style="font-variant-numeric: tabular-nums;">@TimerDuration.Format(_currentSeconds)</MudText>
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                    <MudChip T="string" Color="@(_state.IsRunning ? Color.Success : Color.Default)" Variant="Variant.Filled" Size="Size.Small">
+                        @(_state.IsRunning ? "Running" : "Stopped")
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                        @(_state.Direction == "down" ? "Counting down" : "Counting up")
+                    </MudChip>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-1">Setup</MudText>
+            <MudText Typo="Typo.caption" Class="mb-3" Style="color: var(--mud-palette-text-secondary);">
+                Choose the direction and starting value, then apply it to the overlay without starting the countdown.
+            </MudText>
+
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+                <MudSelect T="string" @bind-Value="_direction" Label="Direction" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Style="max-width: 180px;">
+                    <MudSelectItem Value="@("up")">Count up</MudSelectItem>
+                    <MudSelectItem Value="@("down")">Count down</MudSelectItem>
+                </MudSelect>
+                <MudTextField @bind-Value="_startingTime" Label="Starting time" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Style="max-width: 200px;" Immediate="true"
+                              HelperText="Seconds or hh:mm:ss" />
+                <MudButton Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="Apply">Apply (don't start)</MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Playback</MudText>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.PlayArrow"
+                           Disabled="_state.IsRunning" OnClick="Start">Start</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Stop"
+                           Disabled="!_state.IsRunning" OnClick="Stop">Stop</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="Reset">Reset to zero</MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-1">Adjust time</MudText>
+            <MudText Typo="Typo.caption" Class="mb-3" Style="color: var(--mud-palette-text-secondary);">
+                Enter seconds (90) or hh:mm:ss (00:01:30).
+            </MudText>
+
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Class="mb-3" Wrap="Wrap.Wrap">
+                <MudTextField @bind-Value="_amount" Label="Amount" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Style="max-width: 200px;" Immediate="true" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddTime">Add</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Remove"
+                           OnClick="RemoveTime">Remove</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="SetTime">Set to</MudButton>
+            </MudStack>
+
+            <MudDivider Class="mb-3" />
+            <MudText Typo="Typo.subtitle2" Class="mb-2">Quick adjust</MudText>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                @foreach (var quick in QuickAmounts)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                               OnClick="@(() => Adjust(quick.Seconds))">+@quick.Label</MudButton>
+                }
+                @foreach (var quick in QuickAmounts)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                               OnClick="@(() => Adjust(-quick.Seconds))">-@quick.Label</MudButton>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private static readonly (string Label, double Seconds)[] QuickAmounts =
+    [
+        ("10s", 10),
+        ("30s", 30),
+        ("1m", 60),
+        ("5m", 300),
+        ("10m", 600)
+    ];
+
+    private StreamTimerState _state = null!;
+    private double _currentSeconds;
+    private string _direction = "up";
+    private string _startingTime = "00:05:00";
+    private string _amount = "60";
+
+    private Timer? _refreshTimer;
+
+    protected override void OnInitialized()
+    {
+        RefreshState();
+        _direction = _state.Direction;
+
+        _refreshTimer = new Timer(_ =>
+        {
+            RefreshState();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromMilliseconds(250), TimeSpan.FromMilliseconds(250));
+    }
+
+    private void RefreshState()
+    {
+        _state = TimerService.GetState();
+        _currentSeconds = TimerService.GetCurrentSeconds();
+    }
+
+    private async Task Start()
+    {
+        await TimerService.StartAsync(_direction);
+        RefreshState();
+    }
+
+    private async Task Apply()
+    {
+        if (!TimerDuration.TryParse(_startingTime, out var seconds))
+        {
+            Snackbar.Add("Enter a positive number of seconds or an hh:mm:ss starting time.", Severity.Error);
+            return;
+        }
+
+        await TimerService.ConfigureAsync(_direction, seconds);
+        RefreshState();
+        Snackbar.Add($"Timer set to {TimerDuration.Format(seconds)} counting {_direction}. Press Start when ready.", Severity.Success);
+    }
+
+    private async Task Stop()
+    {
+        await TimerService.StopAsync();
+        RefreshState();
+    }
+
+    private async Task Reset()
+    {
+        await TimerService.StopAsync(reset: true);
+        RefreshState();
+    }
+
+    private async Task AddTime()
+    {
+        if (!TryGetAmount(out var seconds)) return;
+        await TimerService.AddTimeAsync(seconds);
+        RefreshState();
+    }
+
+    private async Task RemoveTime()
+    {
+        if (!TryGetAmount(out var seconds)) return;
+        await TimerService.RemoveTimeAsync(seconds);
+        RefreshState();
+    }
+
+    private async Task SetTime()
+    {
+        if (!TryGetAmount(out var seconds)) return;
+        await TimerService.SetTimeAsync(seconds);
+        RefreshState();
+    }
+
+    private async Task Adjust(double seconds)
+    {
+        if (seconds >= 0)
+            await TimerService.AddTimeAsync(seconds);
+        else
+            await TimerService.RemoveTimeAsync(-seconds);
+
+        RefreshState();
+    }
+
+    private bool TryGetAmount(out double seconds)
+    {
+        if (TimerDuration.TryParse(_amount, out seconds)) return true;
+
+        Snackbar.Add("Enter a positive number of seconds or an hh:mm:ss value.", Severity.Error);
+        return false;
+    }
+
+    public void Dispose()
+    {
+        _refreshTimer?.Dispose();
+    }
+}
