@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Bot.Overlay
         {
             await RestoreAsync();
 
-            _persistTimer = new Timer(_ => _ = PersistTickAsync(), null, PersistInterval, PersistInterval);
+            _persistTimer = new Timer(state => _ = PersistTickAsync(), null, PersistInterval, PersistInterval);
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
