@@ -248,6 +248,35 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
             Assert.Empty(GetRequests(ytPlayer));
         }
 
+        [Fact]
+        public async Task AddSongToRequests_BanAppliedAfterInitialCheck_ReturnsRejection()
+        {
+            // A song can be banned between the request-time check and reaching the queue boundary.
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope", Reason = "Banned mid-request" };
+            bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+            var song = new Song { SongId = "dQw4w9WgXcQ", Title = "Nope", RequestedBy = "viewer", Duration = TimeSpan.FromMinutes(3) };
+
+            var result = await InvokeAddSongToRequests(ytPlayer, song);
+
+            Assert.Null(result);
+            Assert.Empty(GetRequests(ytPlayer));
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, "viewer", "dQw4w9WgXcQ");
+        }
+
+        private static async Task<int?> InvokeAddSongToRequests(YtPlayer ytPlayer, Song song)
+        {
+            var method = typeof(YtPlayer).GetMethod("AddSongToRequests",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                binder: null,
+                types: [typeof(Song)],
+                modifiers: null);
+
+            return await (Task<int?>)method!.Invoke(ytPlayer, [song])!;
+        }
+
         private static YtPlayer CreateYtPlayer(IBannedSongService bannedSongService)
         {
             var configuration = new ConfigurationBuilder()

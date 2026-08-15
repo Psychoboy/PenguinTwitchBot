@@ -70,14 +70,16 @@ namespace PenguinTwitchBot.Test.Bot.Overlay
             var original = CreateService();
             await original.StartAsync(CancellationToken.None);
             await original.StartAsync("up", 60);
-            await original.StopAsync(CancellationToken.None);
 
+            // Restore while the original is still running, mimicking a crash rather than a clean shutdown.
             var restarted = CreateService();
             await restarted.StartAsync(CancellationToken.None);
 
-            // The timer must never resume on its own after a restart.
+            Assert.True(original.GetState().IsRunning);
             Assert.False(restarted.GetState().IsRunning);
+            Assert.Equal(60, restarted.GetState().Seconds, 0);
 
+            await original.StopAsync(CancellationToken.None);
             await restarted.StopAsync(CancellationToken.None);
         }
 

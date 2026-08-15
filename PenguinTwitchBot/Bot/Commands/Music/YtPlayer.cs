@@ -1177,20 +1177,22 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var timeToWait = new TimeSpan(currentRequestedSongs.Sum(r => r.Duration.Ticks));
             timeToWait += GetCurrentSongTimeLeft();
             var songRequestedCount = await AddSongToRequests(song);
+            if (songRequestedCount == null) return;
             if (e.IsWhisper) return;
 
             requestCount++;
             await ServiceBackbone.SendChatMessageWithTitle(e.Name, string.Format("{0} was added in position #{1}, you have a total of {2} requested. Will play in ~{3}. It has been requested {4} times.", song.Title, requestCount, songsInQueue + 1, timeToWait.ToFriendlyString(), songRequestedCount));
         }
 
-        private async Task<int> AddSongToRequests(Song song)
+        /// <summary>Returns the times the song has been requested, or null when it was rejected.</summary>
+        private async Task<int?> AddSongToRequests(Song song)
         {
             var bannedSong = await _bannedSongService.GetBannedSongAsync(song.SongId);
             if (bannedSong != null)
             {
                 _logger.LogWarning("Refused to queue banned song {SongId}.", bannedSong.SongId);
                 await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, song.RequestedBy, song.SongId);
-                return 0;
+                return null;
             }
 
             try

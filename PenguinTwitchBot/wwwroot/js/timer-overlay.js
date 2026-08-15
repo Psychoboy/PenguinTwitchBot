@@ -57,19 +57,27 @@
         anchorClientMs: performance.now()
     };
 
+    let lastAppliedUpdatedAtMs = Number.NEGATIVE_INFINITY;
+
     function applyState(payload) {
         if (!payload) return;
+
+        const updatedAtMs = Date.parse(payload.updatedAtUtc);
+
+        // The initial fetch can land after a hub push, so never let an older snapshot win.
+        if (Number.isFinite(updatedAtMs) && updatedAtMs < lastAppliedUpdatedAtMs) return;
 
         const direction = payload.direction === "down" ? "down" : "up";
         let seconds = Number(payload.seconds) || 0;
 
         // payload.seconds is the value at updatedAtUtc, so advance it to the server's current time.
-        const updatedAtMs = Date.parse(payload.updatedAtUtc);
         const serverNowMs = Date.parse(payload.serverNowUtc);
         if (payload.isRunning && Number.isFinite(updatedAtMs) && Number.isFinite(serverNowMs) && serverNowMs > updatedAtMs) {
             const elapsed = (serverNowMs - updatedAtMs) / 1000;
             seconds = direction === "down" ? Math.max(0, seconds - elapsed) : seconds + elapsed;
         }
+
+        if (Number.isFinite(updatedAtMs)) lastAppliedUpdatedAtMs = updatedAtMs;
 
         state = {
             isRunning: !!payload.isRunning,
