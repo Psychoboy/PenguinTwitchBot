@@ -1,4 +1,3 @@
-@using System.Globalization
 @using PenguinTwitchBot.Bot.Commands.Fishing
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
@@ -62,25 +61,13 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="editorStartsAtText" Label="Starts At (UTC)" Placeholder="2026-07-04 18:00" HelperText="Leave blank for draft tournaments." />
+                        <MudNumericField @bind-Value="editorRunDurationMinutes" Label="Run Duration (minutes)" Min="1" HelperText="Ends automatically this many minutes after it starts." />
                     </MudItem>
                     <MudItem xs="12" md="4">
                         <MudSwitch T="bool" @bind-Value="editorStartImmediately" Color="Color.Info" Label="Start Immediately" />
                     </MudItem>
                     <MudItem xs="12" md="4">
-                        <MudTextField @bind-Value="editorEndsAtText" Label="Ends At (UTC)" Placeholder="2026-07-04 22:00" HelperText="Optional end time in UTC." />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
                         <MudSwitch T="bool" @bind-Value="editorEnabled" Color="Color.Success" Label="Enabled" />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudSwitch T="bool" @bind-Value="editorAutoScheduleEnabled" Color="Color.Warning" Label="Auto Schedule" />
-                    </MudItem>
-                    <MudItem xs="12" md="4">
-                        <MudNumericField @bind-Value="editorRunDurationMinutes" Label="Run Duration (minutes)" Min="1" />
-                    </MudItem>
-                    <MudItem xs="12" md="8">
-                        <MudTextField @bind-Value="editorAutoScheduleCron" Label="Cron Expression" HelperText="Used when Auto Schedule is enabled." />
                     </MudItem>
                     <MudItem xs="12" md="4">
                         <MudNumericField @bind-Value="editorEntryFeeAmount" Label="Entry Fee Amount" Min="0" />
@@ -210,7 +197,7 @@
                                         <MudSelect T="int" @bind-Value="item.Rule.PointTypeId" Label="Point Type" ToStringFunc="@GetPointTypeName">
                                             @foreach (var pointType in pointTypes)
                                             {
-                                                <MudSelectItem Value="@pointType.Id">@pointType.Name</MudSelectItem>
+                                                <MudSelectItem T="int" Value="@pointType.GetId()">@pointType.Name</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </MudItem>
@@ -280,6 +267,12 @@
                         <MudTd DataLabel="Actions">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => BeginEditTournament(context)" />
                             <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Color="Color.Info" OnClick="() => ConfirmDuplicateTournament(context)" />
+                            @if (context.Status == FishingTournamentStatus.Draft || context.Status == FishingTournamentStatus.Scheduled)
+                            {
+                                <MudTooltip Text="@($"Start now and end automatically after {context.RunDurationMinutes} minutes.")">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" OnClick="() => StartTournament(context)" />
+                                </MudTooltip>
+                            }
                             @if (context.Status == FishingTournamentStatus.Active || context.Status == FishingTournamentStatus.Scheduled)
                             {
                                 <MudIconButton Icon="@Icons.Material.Filled.StopCircle" Color="Color.Warning" OnClick="() => ConfirmEndTournament(context)" />
@@ -325,12 +318,9 @@
     private string editorDescription = string.Empty;
     private FishingTournamentStatus editorStatus = FishingTournamentStatus.Draft;
     private FishingTournamentScoreCategory editorPrimaryScoreCategory = FishingTournamentScoreCategory.Largest;
-    private string? editorStartsAtText;
-    private string? editorEndsAtText;
+    private DateTime? editorStartsAtUtc;
     private bool editorStartImmediately;
     private bool editorEnabled = true;
-    private bool editorAutoScheduleEnabled;
-    private string editorAutoScheduleCron = string.Empty;
     private int editorRunDurationMinutes = 60;
     private long? editorEntryFeeAmount;
     private int? editorEntryFeePointTypeId;
@@ -384,12 +374,9 @@
         editorDescription = string.Empty;
         editorStatus = FishingTournamentStatus.Draft;
         editorPrimaryScoreCategory = FishingTournamentScoreCategory.Largest;
-        editorStartsAtText = null;
+        editorStartsAtUtc = null;
         editorStartImmediately = false;
-        editorEndsAtText = null;
         editorEnabled = true;
-        editorAutoScheduleEnabled = false;
-        editorAutoScheduleCron = string.Empty;
         editorRunDurationMinutes = 60;
         editorEntryFeeAmount = null;
         editorEntryFeePointTypeId = pointTypes.FirstOrDefault()?.Id;
@@ -410,14 +397,9 @@
         editorDescription = tournament.Description;
         editorStatus = tournament.Status;
         editorPrimaryScoreCategory = tournament.PrimaryScoreCategory;
-        editorStartsAtText = tournament.StartsAtUtc?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
-        editorStartImmediately = tournament.Status == FishingTournamentStatus.Active &&
-                     tournament.StartsAtUtc.HasValue &&
-                     tournament.StartsAtUtc.Value <= DateTime.UtcNow.AddMinutes(1);
-        editorEndsAtText = tournament.EndsAtUtc?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+        editorStartsAtUtc = tournament.StartsAtUtc;
+        editorStartImmediately = false;
         editorEnabled = tournament.Enabled;
-        editorAutoScheduleEnabled = tournament.AutoScheduleEnabled;
-        editorAutoScheduleCron = tournament.AutoScheduleCron;
         editorRunDurationMinutes = tournament.RunDurationMinutes;
         editorEntryFeeAmount = tournament.EntryFeeAmount;
         editorEntryFeePointTypeId = tournament.EntryFeePointTypeId ?? pointTypes.FirstOrDefault()?.Id;
@@ -587,8 +569,10 @@
                 }
             }
 
-            var startsAtUtc = editorStartImmediately ? DateTime.UtcNow : ParseUtcDateTime(editorStartsAtText);
+            var runDurationMinutes = Math.Max(1, editorRunDurationMinutes);
+            var startsAtUtc = editorStartImmediately ? DateTime.UtcNow : editorStartsAtUtc;
             var status = editorStartImmediately ? FishingTournamentStatus.Active : editorStatus;
+            var endsAtUtc = startsAtUtc?.AddMinutes(runDurationMinutes);
 
             var tournament = new FishingTournament
             {
@@ -599,10 +583,8 @@
                 Status = status,
                 PrimaryScoreCategory = editorPrimaryScoreCategory,
                 StartsAtUtc = startsAtUtc,
-                EndsAtUtc = ParseUtcDateTime(editorEndsAtText),
-                AutoScheduleEnabled = editorAutoScheduleEnabled,
-                AutoScheduleCron = editorAutoScheduleCron?.Trim() ?? string.Empty,
-                RunDurationMinutes = editorRunDurationMinutes,
+                EndsAtUtc = endsAtUtc,
+                RunDurationMinutes = runDurationMinutes,
                 EntryFeeAmount = editorEntryFeeAmount,
                 EntryFeePointTypeId = editorEntryFeePointTypeId,
                 EligibleFish = selectedFishTypeIds
@@ -670,8 +652,7 @@
         }
     }
 
-    private async Task EndTournament(FishingTournament tournament)
-    {
+    private async Task EndTournament(FishingTournament tournament)    {
         isSaving = true;
         try
         {
@@ -692,7 +673,28 @@
             isSaving = false;
         }
     }
-
+    private async Task StartTournament(FishingTournament tournament)
+    {
+        isSaving = true;
+        try
+        {
+            var startedTournament = await FishingService.StartFishingTournament(tournament.Id);
+            statusMessage = startedTournament == null
+                ? "Tournament not found."
+                : $"Started tournament '{startedTournament.Name}'. It ends at {startedTournament.EndsAtUtc:yyyy-MM-dd HH:mm} UTC.";
+            Snackbar.Add(statusMessage, startedTournament == null ? Severity.Warning : Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Unable to start tournament. Please try again.";
+            Snackbar.Add($"Error starting tournament: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
     private async Task ReopenTournament(FishingTournament tournament)
     {
         isSaving = true;
@@ -731,8 +733,6 @@
                 PrimaryScoreCategory = tournament.PrimaryScoreCategory,
                 StartsAtUtc = null,
                 EndsAtUtc = null,
-                AutoScheduleEnabled = tournament.AutoScheduleEnabled,
-                AutoScheduleCron = tournament.AutoScheduleCron,
                 RunDurationMinutes = tournament.RunDurationMinutes,
                 EntryFeeAmount = tournament.EntryFeeAmount,
                 EntryFeePointTypeId = tournament.EntryFeePointTypeId,
@@ -873,25 +873,5 @@
             10 => "10th place",
             _ => $"Top {placement}"
         };
-    }
-
-    private static DateTime? ParseUtcDateTime(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        if (DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dateTimeOffset))
-        {
-            return dateTimeOffset.UtcDateTime;
-        }
-
-        if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dateTime))
-        {
-            return DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
-        }
-
-        return null;
     }
 }
