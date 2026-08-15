@@ -16,6 +16,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private readonly IHubContext<YtHub> _hubContext;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<YtPlayer> _logger;
+        private readonly IBannedSongService _bannedSongService;
         private YouTubeService _youtubeService;
         private readonly ICollector<IGauge> SongRequestsInQueue;
 
@@ -58,13 +59,15 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             IServiceScopeFactory scopeFactory,
             IServiceBackbone serviceBackbone,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            IBannedSongService bannedSongService
         ) : base(serviceBackbone, commandHandler, "YtPlayer", dispatcher)
         {
             _configuration = configuration;
             _hubContext = hubContext;
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _bannedSongService = bannedSongService;
             _youtubeService = CreateYouTubeService();
             SongRequestsInQueue = Prometheus.Metrics.WithManagedLifetime(TimeSpan.FromHours(2)).CreateGauge("song_requests_in_queue", "Song Requests in Queue", labelNames: ["viewer"]).WithExtendLifetimeOnUse();
             SongsInBackupQueueMetric = Prometheus.Metrics.CreateGauge("songs_in_backup_queue", "Songs in Backup Queue");
@@ -494,6 +497,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         public async Task AddSongToRequests(string url)
         {
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(url);
+            if (bannedSong != null)
+            {
+                _logger.LogWarning("Refused to queue banned song {SongId}.", bannedSong.SongId);
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, ServiceBackbone.BroadcasterName, url);
+                return;
+            }
+
             var song = await GetSongByLinkOrId(url);
             if (song == null)
             {
@@ -1123,6 +1134,12 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             if (string.IsNullOrWhiteSpace(searchResult))
             {
                 await ServiceBackbone.ResponseWithMessage(e, "Could not get or had an issue finding your song request");
+                throw new SkipCooldownException();
+            }
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(searchResult);
+            if (bannedSong != null)
+            {
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, e.DisplayName, e.Arg);
                 throw new SkipCooldownException();
             }
             Song? songInQueue = null;

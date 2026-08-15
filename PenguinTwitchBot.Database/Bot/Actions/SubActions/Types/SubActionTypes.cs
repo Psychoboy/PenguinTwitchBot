@@ -61,6 +61,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         ResetCooldowns,
         SetGlobalVariable,
         GetGlobalVariable,
-        FishingGiveItemToPlayer
+        FishingGiveItemToPlayer,
+        OverlayTimerStart,
+        OverlayTimerStop,
+        OverlayTimerAddTime,
+        OverlayTimerRemoveTime
     }
 }

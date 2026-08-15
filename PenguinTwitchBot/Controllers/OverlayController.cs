@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
@@ -14,12 +15,14 @@ namespace PenguinTwitchBot.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFishingService _fishingService;
+        private readonly IStreamTimerService _streamTimerService;
         private readonly ILogger<OverlayController> _logger;
 
-        public OverlayController(IUnitOfWork unitOfWork, IFishingService fishingService, ILogger<OverlayController> logger)
+        public OverlayController(IUnitOfWork unitOfWork, IFishingService fishingService, IStreamTimerService streamTimerService, ILogger<OverlayController> logger)
         {
             _unitOfWork = unitOfWork;
             _fishingService = fishingService;
+            _streamTimerService = streamTimerService;
             _logger = logger;
         }
 
@@ -181,6 +184,16 @@ namespace PenguinTwitchBot.Controllers
                 w.DefaultWidth,
                 w.DefaultHeight
             }));
+        }
+
+        /// <summary>
+        /// Returns the current on-stream timer state so the timer overlay can synchronise on load.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("timer-state")]
+        public IActionResult GetTimerState()
+        {
+            return Ok(_streamTimerService.GetState());
         }
 
         /// <summary>

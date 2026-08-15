@@ -314,6 +314,8 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Passive tax timer that runs after stream end."
             );
+            services.AddSingleton<Bot.Overlay.IStreamTimerService, Bot.Overlay.StreamTimerService>();
+            services.AddSingleton<Bot.Commands.Music.IBannedSongService, Bot.Commands.Music.BannedSongService>();
             services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
                 FeatureKeys.MusicPlayer,
                 "Music Player",

@@ -499,6 +499,103 @@
 
             }
 
+            @* ---- Timer widget configuration ---- *@
+            @if (_selected.WidgetType == "timer" && _timerSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Timer Settings</b></MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    The timer never starts on its own. Use the Overlay Timer sub-actions to start, stop, add, or remove time.
+                </MudAlert>
+
+                <MudAutocomplete T="string" Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 SearchFunc="SearchFontFamilies" CoerceValue="true" ResetValueOnEmptyText="true"
+                                 HelperText="Any CSS font stack; the font must be installed on the streaming machine"
+                                 Value="_timerSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _timerSettings.FontFamily = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="8" Max="400"
+                                 Value="_timerSettings.FontSize"
+                                 ValueChanged="@(v => { _timerSettings.FontSize = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font weight"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="900" Step="100"
+                                 Value="_timerSettings.FontWeight"
+                                 ValueChanged="@(v => { _timerSettings.FontWeight = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Text color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Any CSS color, e.g. #ffffff"
+                              Value="_timerSettings.Color"
+                              ValueChanged="@((string v) => { _timerSettings.Color = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Background color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Any CSS color; use transparent for none"
+                              Value="_timerSettings.BgColor"
+                              ValueChanged="@((string v) => { _timerSettings.BgColor = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Text shadow"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="CSS text-shadow, e.g. 2px 2px 6px #000000"
+                              Value="_timerSettings.TextShadow"
+                              ValueChanged="@((string v) => { _timerSettings.TextShadow = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Letter spacing (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="-10" Max="40"
+                                 Value="_timerSettings.LetterSpacing"
+                                 ValueChanged="@(v => { _timerSettings.LetterSpacing = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Padding (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.Padding"
+                                 ValueChanged="@(v => { _timerSettings.Padding = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Corner radius (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.BorderRadius"
+                                 ValueChanged="@(v => { _timerSettings.BorderRadius = v; SaveTimerSettings(); })" />
+
+                <MudSelect T="string" Label="Format"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_timerSettings.Format"
+                           ValueChanged="@(v => { _timerSettings.Format = v; SaveTimerSettings(); })">
+                    <MudSelectItem Value="@("auto")">Auto (adds hours when needed)</MudSelectItem>
+                    <MudSelectItem Value="@("mm:ss")">mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("hh:mm:ss")">hh:mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("ss")">Seconds only</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField Label="Prefix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Prefix"
+                              ValueChanged="@((string v) => { _timerSettings.Prefix = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Suffix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Suffix"
+                              ValueChanged="@((string v) => { _timerSettings.Suffix = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.ShowTenths" Label="Show tenths of a second"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.ShowTenths = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenStopped" Label="Hide when stopped"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenStopped = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenZero" Label="Hide when stopped at zero"
+                           Color="Color.Primary" Class="mb-2"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenZero = v; SaveTimerSettings(); })" />
+            }
+
             <MudDivider Class="mb-3" />
             <MudButton FullWidth="true" Color="Color.Error" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Delete"
@@ -951,6 +1048,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         LoadChatSettings();
         LoadAlertChannel();
         LoadFireworksSettings();
+        LoadTimerSettings();
     }
 
     private void RemoveSelectedWidget()
@@ -1080,12 +1178,14 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "fishing_tournaments" => "#2E7D8A",
         "wheel"     => "#6A1B9A",
         "chat"      => "#00838F",
+        "timer"     => "#4527A0",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----
 
     private ChatSettings? _chatSettings;
     private FireworksSettings? _fireworksSettings;
+    private TimerSettings? _timerSettings;
     private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
@@ -1263,6 +1363,33 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         if (_selected != null && _fireworksSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_fireworksSettings, _chatJsonOptions);
     }
+
+    private void LoadTimerSettings()
+    {
+        if (_selected?.WidgetType == "timer")
+        {
+            try
+            {
+                _timerSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new TimerSettings()
+                    : (JsonSerializer.Deserialize<TimerSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+            }
+            catch
+            {
+                _timerSettings = new TimerSettings();
+            }
+        }
+        else
+        {
+            _timerSettings = null;
+        }
+    }
+
+    private void SaveTimerSettings()
+    {
+        if (_selected != null && _timerSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_timerSettings, _chatJsonOptions);
+    }
     // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
@@ -1300,7 +1427,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     }
 
     private sealed class FireworksSettings
-    {
+    {        
         public string QualityMode { get; set; } = "auto";
         public string Shell { get; set; } = "Random";
         public int Size { get; set; } = 3;
@@ -1312,5 +1439,24 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         public int CriticalParticleCount { get; set; } = 2200;
         public bool ForceLowEnd { get; set; } = false;
         public int ClearCanvasDelayMs { get; set; } = 15000;
+    }
+
+    private sealed class TimerSettings
+    {
+        public string FontFamily { get; set; } = "";
+        public int FontSize { get; set; } = 72;
+        public int FontWeight { get; set; } = 700;
+        public string Color { get; set; } = "#ffffff";
+        public string BgColor { get; set; } = "transparent";
+        public string TextShadow { get; set; } = "none";
+        public int LetterSpacing { get; set; } = 0;
+        public int Padding { get; set; } = 0;
+        public int BorderRadius { get; set; } = 0;
+        public string Format { get; set; } = "auto";
+        public string Prefix { get; set; } = "";
+        public string Suffix { get; set; } = "";
+        public bool ShowTenths { get; set; } = false;
+        public bool HideWhenStopped { get; set; } = false;
+        public bool HideWhenZero { get; set; } = false;
     }
 }

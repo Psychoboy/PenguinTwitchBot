@@ -9,6 +9,7 @@
 @inject ISnackbar Snackbar
 @inject ILogger<MusicPlayer> logger
 @inject IDialogService DialogService
+@inject PenguinTwitchBot.Bot.Commands.Music.IBannedSongService BannedSongService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Player</PageTitle>
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
@@ -137,6 +138,10 @@
                                         <MudTooltip Text="Move to Next">
                                             <MudIconButton Icon="@Icons.Material.Filled.PriorityHigh" Color="Color.Warning" Size="Size.Small" 
                                                            OnClick="() => Priority(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Ban Song">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Block" Color="Color.Error" Size="Size.Small"
+                                                           OnClick="() => BanSongRequest(context)" />
                                         </MudTooltip>
                                         <MudTooltip Text="Remove">
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
@@ -373,6 +378,19 @@
     private async Task RemoveSongRequest(Song song)
     {
         await YtPlayer.RemoveSongRequest(song);
+    }
+
+    private async Task BanSongRequest(Song song)
+    {
+        var banned = await BannedSongService.BanSongAsync(song.SongId, song.Title, "Banned from the music player", "UI");
+        if (banned == null)
+        {
+            Snackbar.Add("Could not resolve a YouTube video id for that song.", Severity.Error);
+            return;
+        }
+
+        await YtPlayer.RemoveSongRequest(song);
+        Snackbar.Add($"Banned {song.Title}", Severity.Success);
     }
 
     private async Task AddSongRequest()

@@ -12,7 +12,8 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 [TriggerTypes.FishingTournamentCatch] = FeatureKeys.Fishing,
                 [TriggerTypes.FishingTournamentStart] = FeatureKeys.Fishing,
                 [TriggerTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
-                [TriggerTypes.FishCatch] = FeatureKeys.Fishing
+                [TriggerTypes.FishCatch] = FeatureKeys.Fishing,
+                [TriggerTypes.BannedSongRequest] = FeatureKeys.MusicPlayer
             };
 
         public static bool IsAvailable(TriggerTypes triggerType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)
