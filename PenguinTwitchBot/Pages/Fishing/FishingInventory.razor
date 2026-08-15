@@ -2,6 +2,7 @@
 @using PenguinTwitchBot.Bot.Commands.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
 @using PenguinTwitchBot.Components.Fishing
+@using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using System.Security.Claims
 @inject IDialogService DialogService
@@ -107,7 +108,7 @@
                                                     }
                                                     <MudStack Row="true" Spacing="1">
                                                         <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(equippedItem.ShopItem!.BoostType)</MudChip>
-                                                        <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((equippedItem.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                                        <MudChip T="string" Color="@(equippedItem.ShopItem!.BoostAmount < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(equippedItem.ShopItem!.BoostAmount)</MudChip>
                                                     </MudStack>
                                                     @if (equippedItem.RemainingUses >= 0)
                                                     {
@@ -287,20 +288,20 @@
                                     <MudStack Spacing="1">
                                         <MudStack Row="true" Spacing="1">
                                             <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType)</MudChip>
-                                            <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                            <MudChip T="string" Color="@(context.ShopItem!.BoostAmount < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.ShopItem!.BoostAmount)</MudChip>
                                         </MudStack>
                                         @if (context.ShopItem!.BoostType2.HasValue && context.ShopItem!.BoostAmount2.HasValue)
                                         {
                                             <MudStack Row="true" Spacing="1">
                                                 <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType2.Value)</MudChip>
-                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount2.Value * 100).ToString("F0"))%</MudChip>
+                                                <MudChip T="string" Color="@(context.ShopItem!.BoostAmount2.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.ShopItem!.BoostAmount2.Value)</MudChip>
                                             </MudStack>
                                         }
                                         @if (context.ShopItem!.BoostType3.HasValue && context.ShopItem!.BoostAmount3.HasValue)
                                         {
                                             <MudStack Row="true" Spacing="1">
                                                 <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.ShopItem!.BoostType3.Value)</MudChip>
-                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((context.ShopItem!.BoostAmount3.Value * 100).ToString("F0"))%</MudChip>
+                                                <MudChip T="string" Color="@(context.ShopItem!.BoostAmount3.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.ShopItem!.BoostAmount3.Value)</MudChip>
                                             </MudStack>
                                         }
                                     </MudStack>
@@ -425,7 +426,7 @@
                                     }
                                 </MudStack>
                                 <MudStack Row="true" Spacing="1">
-                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">+@((item.ShopItem!.BoostAmount * 100).ToString("F0"))%</MudChip>
+                                    <MudChip T="string" Color="@(item.ShopItem!.BoostAmount < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(item.ShopItem!.BoostAmount)</MudChip>
                                     @if (item.RemainingUses >= 0)
                                     {
                                         <MudChip T="string" Color="@GetUsesColor(item)" Size="Size.Small">@item.RemainingUses</MudChip>

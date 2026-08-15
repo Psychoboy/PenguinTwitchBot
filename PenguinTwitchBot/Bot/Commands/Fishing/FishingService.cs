@@ -60,6 +60,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task AddFishType(FishType fishType)
         {
+            FishingValueRules.NormalizeAndValidate(fishType);
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishTypes.Add(fishType);
@@ -68,6 +69,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task UpdateFishType(FishType fishType)
         {
+            FishingValueRules.NormalizeAndValidate(fishType);
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 

@@ -172,7 +172,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public static double CalculateWeight(FishType fishType, int stars, List<UserFishingBoost> boosts)
         {
-            var boostMultiplier = 1.0 + GetTotalBoostAmount(boosts, FishingBoostType.WeightBoost);
+            // Clamp to a positive floor so stacked negative WeightBoost items can't zero out or invert weight.
+            var boostMultiplier = Math.Max(0.01, 1.0 + GetTotalBoostAmount(boosts, FishingBoostType.WeightBoost));
 
             // Star multipliers increase weight for higher quality catches
             var starMultiplier = stars switch
@@ -189,7 +190,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var weightMultiplier = minMultiplier + (randomValue * (maxMultiplier - minMultiplier));
 
             var weight = fishType.BaseWeight * weightMultiplier * starMultiplier * boostMultiplier;
-            return Math.Round(weight, 2);
+            return Math.Max(0.01, Math.Round(weight, 2));
         }
 
         public static int CalculateGold(FishType fishType, int stars, double actualWeight)

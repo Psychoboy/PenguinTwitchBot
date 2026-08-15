@@ -38,6 +38,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task AddShopItem(FishingShopItem item)
         {
+            FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishingShopItems.Add(item);
@@ -47,6 +48,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task UpdateShopItem(FishingShopItem item)
         {
+            FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             context.FishingShopItems.Update(item);
