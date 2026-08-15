@@ -14,6 +14,7 @@ namespace PenguinTwitchBot.Bot.Queues
         int CurrentlyExecuting { get; }
 
         Task EnqueueAsync(ActionType action, ConcurrentDictionary<string, string> variables, Guid? parentLogId = null, int? parentSubActionIndex = null);
+        Task<int> ClearPendingAsync();
         Task StartAsync(CancellationToken cancellationToken);
         Task StopAsync();
     }

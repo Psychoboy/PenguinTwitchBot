@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.Queues
         Task<QueueConfiguration> CreateQueueAsync(QueueConfiguration config);
         Task<QueueConfiguration> UpdateQueueAsync(QueueConfiguration config);
         Task DeleteQueueAsync(string queueName);
+        Task<int> ClearQueueAsync(string queueName);
         Task<List<QueueConfiguration>> GetAllQueuesAsync();
         Task<QueueStatistics> GetQueueStatisticsAsync(string queueName);
         Task<List<QueueStatistics>> GetAllQueueStatisticsAsync();

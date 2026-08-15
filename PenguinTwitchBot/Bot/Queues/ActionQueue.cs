@@ -156,6 +156,26 @@ namespace PenguinTwitchBot.Bot.Queues
             await SendQueueStatsUpdateAsync();
         }
 
+        public async Task<int> ClearPendingAsync()
+        {
+            var clearedCount = 0;
+
+            while (_channel.Reader.TryRead(out var queuedAction))
+            {
+                Interlocked.Decrement(ref _pendingCount);
+                _executionLogger.UpdateActionCancelled(queuedAction.LogId, "Cleared from queue by user");
+                clearedCount++;
+            }
+
+            if (clearedCount > 0)
+            {
+                _logger.LogInformation("Cleared {ClearedCount} pending action(s) from queue {QueueName}", clearedCount, Name);
+                await SendQueueStatsUpdateAsync();
+            }
+
+            return clearedCount;
+        }
+
         private async Task DeferForThreadPressureAsync(string actionName)
         {
             var deferStart = DateTime.UtcNow;

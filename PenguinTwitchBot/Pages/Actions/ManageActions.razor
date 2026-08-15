@@ -284,6 +284,7 @@
                                             <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
                                             <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
                                             <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
+                                            <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Cancelled">Cancelled</MudSelectItem>
                                         </MudSelect>
                                     </MudStack>
 
@@ -1074,6 +1075,7 @@
             ActionExecutionState.Running => Color.Info,
             ActionExecutionState.Completed => Color.Success,
             ActionExecutionState.Failed => Color.Error,
+            ActionExecutionState.Cancelled => Color.Default,
             _ => Color.Default
         };
     }

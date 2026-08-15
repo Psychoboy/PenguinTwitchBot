@@ -306,6 +306,7 @@
             ActionExecutionState.Running => Color.Info,
             ActionExecutionState.Completed => Color.Success,
             ActionExecutionState.Failed => Color.Error,
+            ActionExecutionState.Cancelled => Color.Default,
             _ => Color.Default
         };
     }

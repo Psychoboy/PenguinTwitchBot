@@ -5,6 +5,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Queues
         Pending,
         Running,
         Completed,
-        Failed
+        Failed,
+        Cancelled
     }
 }
