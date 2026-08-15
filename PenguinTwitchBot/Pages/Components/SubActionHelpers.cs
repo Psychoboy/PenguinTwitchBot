@@ -26,7 +26,7 @@ namespace PenguinTwitchBot.Pages.Components
                 ExecuteActionType exec => $"Execute Action: {exec.ActionName}",
                 BreakType => "Breaks from current Action",
                 DelayType delay => $"Delay: {delay.Duration}ms",
-                OverlayTimerStartType timerStart => $"Overlay Timer: start counting {timerStart.Direction}{(string.IsNullOrWhiteSpace(timerStart.StartTime) ? "" : $" from {timerStart.StartTime}")}",
+                OverlayTimerStartType timerStart => $"Overlay Timer: start counting {timerStart.Direction}{(string.IsNullOrWhiteSpace(timerStart.StartTime) ? (timerStart.ResetOnStart ? " from zero" : "") : $" from {timerStart.StartTime}")}",
                 OverlayTimerStopType timerStop => $"Overlay Timer: stop{(timerStop.ResetOnStop ? " and reset" : "")}",
                 OverlayTimerAddTimeType timerAdd => $"Overlay Timer: add {timerAdd.Amount}",
                 OverlayTimerRemoveTimeType timerRemove => $"Overlay Timer: remove {timerRemove.Amount}",

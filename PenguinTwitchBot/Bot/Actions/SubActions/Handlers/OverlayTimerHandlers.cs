@@ -18,16 +18,22 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             value = value.Trim();
 
-            if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds))
-                return true;
+            if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+                return IsUsable(parsed, out seconds);
 
             if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
-            {
-                seconds = timeSpan.TotalSeconds;
-                return true;
-            }
+                return IsUsable(timeSpan.TotalSeconds, out seconds);
 
             return false;
+        }
+
+        private static bool IsUsable(double value, out double seconds)
+        {
+            seconds = 0;
+            if (!double.IsFinite(value) || value < 0) return false;
+
+            seconds = value;
+            return true;
         }
     }
 

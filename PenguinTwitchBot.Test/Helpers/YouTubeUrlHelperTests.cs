@@ -34,11 +34,20 @@ namespace PenguinTwitchBot.Test.Helpers
             Assert.Null(YouTubeUrlHelper.ExtractVideoId(input));
         }
 
-        [Fact]
-        public void ExtractVideoId_ReturnsId_FromNonYouTubeHostWithVParameter()
+        [Theory]
+        [InlineData("https://music.youtube.com/watch?v=dQw4w9WgXcQ")]
+        [InlineData("https://m.youtube.com/watch?v=dQw4w9WgXcQ")]
+        public void ExtractVideoId_ReturnsId_ForYouTubeSubdomains(string input)
         {
-            // Proxy/mirror front-ends still use the ?v= convention.
-            Assert.Equal("dQw4w9WgXcQ", YouTubeUrlHelper.ExtractVideoId("https://piped.video/watch?v=dQw4w9WgXcQ"));
+            Assert.Equal("dQw4w9WgXcQ", YouTubeUrlHelper.ExtractVideoId(input));
+        }
+
+        [Theory]
+        [InlineData("https://piped.video/watch?v=dQw4w9WgXcQ")]
+        [InlineData("https://youtube.com.evil.test/watch?v=dQw4w9WgXcQ")]
+        public void ExtractVideoId_ReturnsNull_ForNonYouTubeHosts(string input)
+        {
+            Assert.Null(YouTubeUrlHelper.ExtractVideoId(input));
         }
     }
 }

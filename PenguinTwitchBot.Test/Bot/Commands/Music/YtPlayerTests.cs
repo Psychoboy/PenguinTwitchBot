@@ -218,6 +218,62 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
         }
 
         [Fact]
+        public async Task AddSongToRequests_ByUrl_BannedSong_RaisesTriggerAndDoesNotQueue()
+        {
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            bannedSongService.GetBannedSongAsync(Arg.Any<string>()).Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+
+            await ytPlayer.AddSongToRequests("https://youtu.be/dQw4w9WgXcQ");
+
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, Arg.Any<string>(), Arg.Any<string>());
+            Assert.Empty(GetRequests(ytPlayer));
+        }
+
+        [Fact]
+        public async Task AddSongToQueue_BannedSong_RaisesTriggerAndDoesNotQueue()
+        {
+            var bannedSongService = Substitute.For<IBannedSongService>();
+            var bannedSong = new BannedSong { Id = 1, SongId = "dQw4w9WgXcQ", Title = "Nope" };
+            bannedSongService.GetBannedSongAsync("dQw4w9WgXcQ").Returns(bannedSong);
+
+            var ytPlayer = CreateYtPlayer(bannedSongService);
+            var song = new Song { SongId = "dQw4w9WgXcQ", Title = "Nope", RequestedBy = "viewer", Duration = TimeSpan.FromMinutes(3) };
+
+            await ytPlayer.AddSongToQueue(song);
+
+            await bannedSongService.Received(1).RaiseBannedSongRequestedAsync(bannedSong, "viewer", "dQw4w9WgXcQ");
+            Assert.Empty(GetRequests(ytPlayer));
+        }
+
+        private static YtPlayer CreateYtPlayer(IBannedSongService bannedSongService)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?> { ["youtubeApi"] = "test-api-key" })
+                .Build();
+
+            return new YtPlayer(
+                configuration,
+                Substitute.For<ILogger<YtPlayer>>(),
+                Substitute.For<Microsoft.AspNetCore.SignalR.IHubContext<YtHub>>(),
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                bannedSongService);
+        }
+
+        private static List<Song> GetRequests(YtPlayer ytPlayer)
+        {
+            var field = typeof(YtPlayer).GetField("Requests",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            return (List<Song>)field!.GetValue(ytPlayer)!;
+        }
+
+        [Fact]
         public void SongExistsInBackupList_MultipleSongs_ReturnsTrue()
         {
             var configuration = new ConfigurationBuilder()

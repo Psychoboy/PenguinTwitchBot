@@ -49,15 +49,21 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var bannedSong = new BannedSong
             {
                 SongId = songId,
-                Title = title ?? "",
-                Reason = reason ?? "",
-                BannedBy = bannedBy ?? "",
+                Title = Clamp(title, 512),
+                Reason = Clamp(reason, 512),
+                BannedBy = Clamp(bannedBy, 128),
                 BannedAt = DateTime.UtcNow
             };
 
             await unitOfWork.BannedSongs.AddAsync(bannedSong);
             await unitOfWork.SaveChangesAsync();
             return bannedSong;
+        }
+
+        private static string Clamp(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value.Length <= maxLength ? value : value[..maxLength];
         }
 
         public async Task<bool> UnbanSongAsync(int id)

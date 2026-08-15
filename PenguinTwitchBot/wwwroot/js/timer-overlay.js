@@ -1,3 +1,4 @@
+/* global signalR */
 (function () {
     const containerEl = document.getElementById("timer-container");
     const textEl = document.getElementById("timer-text");
@@ -51,10 +52,21 @@
     function applyState(payload) {
         if (!payload) return;
 
+        const direction = payload.direction === "down" ? "down" : "up";
+        let seconds = Number(payload.seconds) || 0;
+
+        // payload.seconds is the value at updatedAtUtc, so advance it to the server's current time.
+        const updatedAtMs = Date.parse(payload.updatedAtUtc);
+        const serverNowMs = Date.parse(payload.serverNowUtc);
+        if (payload.isRunning && Number.isFinite(updatedAtMs) && Number.isFinite(serverNowMs) && serverNowMs > updatedAtMs) {
+            const elapsed = (serverNowMs - updatedAtMs) / 1000;
+            seconds = direction === "down" ? Math.max(0, seconds - elapsed) : seconds + elapsed;
+        }
+
         state = {
             isRunning: !!payload.isRunning,
-            direction: payload.direction === "down" ? "down" : "up",
-            seconds: Number(payload.seconds) || 0,
+            direction: direction,
+            seconds: seconds,
             anchorClientMs: performance.now()
         };
 
@@ -77,6 +89,7 @@
     function format(totalSeconds) {
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const totalMinutes = Math.floor(totalSeconds / 60);
         const seconds = Math.floor(totalSeconds % 60);
         const tenths = Math.floor((totalSeconds % 1) * 10);
 
@@ -86,7 +99,7 @@
         } else if (settings.format === "ss") {
             text = pad(totalSeconds, 2);
         } else {
-            text = `${pad(minutes, 2)}:${pad(seconds, 2)}`;
+            text = `${pad(totalMinutes, 2)}:${pad(seconds, 2)}`;
         }
 
         if (settings.showTenths) text += `.${tenths}`;

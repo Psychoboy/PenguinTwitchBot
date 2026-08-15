@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Extensions;
+using PenguinTwitchBot.Helpers;
 using PenguinTwitchBot.Database.Repository;
 using Google.Apis.YouTube.v3;
 using Microsoft.AspNetCore.SignalR;
@@ -1068,15 +1069,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         private async Task<Song?> GetSongByLinkOrId(string songLink)
         {
             songLink = songLink.Trim();
-            string songId;
-            if (songLink.Contains("https://"))
-            {
-                songId = await GetSongId(songLink);
-            }
-            else
-            {
-                songId = songLink.Trim();
-            }
+            var songId = YouTubeUrlHelper.ExtractVideoId(songLink) ?? await GetSongId(songLink);
             if (string.IsNullOrWhiteSpace(songId))
             {
                 return null;
@@ -1192,6 +1185,14 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
         private async Task<int> AddSongToRequests(Song song)
         {
+            var bannedSong = await _bannedSongService.GetBannedSongAsync(song.SongId);
+            if (bannedSong != null)
+            {
+                _logger.LogWarning("Refused to queue banned song {SongId}.", bannedSong.SongId);
+                await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, song.RequestedBy, song.SongId);
+                return 0;
+            }
+
             try
             {
                 await _semaphoreSlim.WaitAsync();
