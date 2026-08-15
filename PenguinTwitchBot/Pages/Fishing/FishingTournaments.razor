@@ -139,9 +139,12 @@
                                         <MudStack Spacing="1">
                                             @foreach (var rewardRule in context.RewardRules.OrderBy(rule => rule.Placement))
                                             {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
-                                                    @FormatRewardRule(rewardRule)
-                                                </MudChip>
+                                                <MudStack Spacing="0">
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                                        @FormatRewardRule(rewardRule)
+                                                    </MudChip>
+                                                    @RenderRewardHolder(context, rewardRule)
+                                                </MudStack>
                                             }
                                         </MudStack>
                                     }
@@ -264,9 +267,12 @@
                                         <MudStack Spacing="1">
                                             @foreach (var rewardRule in context.RewardRules.OrderBy(rule => rule.Placement))
                                             {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
-                                                    @FormatRewardRule(rewardRule)
-                                                </MudChip>
+                                                <MudStack Spacing="0">
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Outlined">
+                                                        @FormatRewardRule(rewardRule)
+                                                    </MudChip>
+                                                    @RenderRewardHolder(context, rewardRule)
+                                                </MudStack>
                                             }
                                         </MudStack>
                                     }
@@ -290,6 +296,35 @@
     private const int eligibleFishCollapsedCount = 3;
     private readonly HashSet<int> expandedEligibleFishTournamentIds = [];
     private readonly Dictionary<int, List<FishingTournamentStanding>> tournamentStandings = new();
+    private readonly Dictionary<int, Dictionary<int, FishingTournamentRewardStanding>> tournamentRewardStandings = new();
+
+    private RenderFragment RenderRewardHolder(FishingTournament tournament, FishingTournamentRewardRule rewardRule) => __builder =>
+    {
+        if (!rewardRule.Enabled)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">Disabled</MudText>
+            return;
+        }
+
+        var holder = GetRewardStanding(tournament.Id, rewardRule.Id);
+        var isSettled = tournament.Status is FishingTournamentStatus.Completed or FishingTournamentStatus.Cancelled;
+
+        if (holder == null)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
+                @(isSettled ? "No winner" : "No qualifying catches yet")
+            </MudText>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Class="ml-2">
+                <MudIcon Icon="@(isSettled ? Icons.Material.Filled.EmojiEvents : Icons.Material.Filled.TrendingUp)"
+                         Size="Size.Small"
+                         Color="@(isSettled ? Color.Warning : Color.Success)" />
+                @(isSettled ? "Won by" : "Currently winning"): <b>@holder.Username</b> (@FormatScore(holder.Score))
+            </MudText>
+        }
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -300,6 +335,7 @@
     {
         isLoading = true;
         tournamentStandings.Clear();
+        tournamentRewardStandings.Clear();
         expandedEligibleFishTournamentIds.Clear();
         currentTournaments = await FishingService.GetCurrentFishingTournaments();
         pastTournaments = await FishingService.GetPastFishingTournaments();
@@ -310,6 +346,7 @@
             .Select(async tournament =>
             {
                 tournamentStandings[tournament.Id] = await FishingService.GetFishingTournamentStandings(tournament.Id);
+                tournamentRewardStandings[tournament.Id] = await FishingService.GetFishingTournamentRewardStandings(tournament.Id);
             });
 
         await Task.WhenAll(standingTasks);
@@ -360,6 +397,14 @@
         return tournamentStandings.TryGetValue(tournamentId, out var standings)
             ? standings
             : [];
+    }
+
+    private FishingTournamentRewardStanding? GetRewardStanding(int tournamentId, int rewardRuleId)
+    {
+        return tournamentRewardStandings.TryGetValue(tournamentId, out var rewards)
+            && rewards.TryGetValue(rewardRuleId, out var standing)
+                ? standing
+                : null;
     }
 
     private List<string> GetEligibleFishNames(FishingTournament tournament)

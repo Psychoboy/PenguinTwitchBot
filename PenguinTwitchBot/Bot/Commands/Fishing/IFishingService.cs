@@ -28,6 +28,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<List<FishingTournament>> GetPastFishingTournaments(int count = 25);
         Task<FishingTournament?> GetFishingTournamentById(int id);
         Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10);
+
+        /// <summary>
+        /// Returns the player currently holding (or that finished in) each enabled reward rule's placement,
+        /// keyed by reward rule id.
+        /// </summary>
+        Task<Dictionary<int, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(int tournamentId);
         Task<FishingTournament?> StartFishingTournament(int id);
         Task<FishingTournament?> CloneAndStartFishingTournament(int templateTournamentId);
         Task<FishingTournament?> ReopenFishingTournament(int id);
