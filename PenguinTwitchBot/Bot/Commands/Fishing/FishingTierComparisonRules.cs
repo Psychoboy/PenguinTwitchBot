@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             IReadOnlyDictionary<EquipmentSlot, FishingShopItem> equippedShopItemBySlot,
             IReadOnlyDictionary<int, EquipmentTier> tierMap)
         {
-            if (item.IsConsumable || !item.EquipmentSlot.HasValue)
+            if (item.MaxUses.HasValue || !item.EquipmentSlot.HasValue)
             {
                 return TierComparisonResult.None;
             }

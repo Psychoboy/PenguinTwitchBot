@@ -77,7 +77,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
-        public async Task ConsumeItemUses_UnequipsNonConsumableWhenDepleted()
+        public async Task ConsumeItemUses_RemovesLimitedUseItemWhenDepleted()
         {
             var shopItem = new FishingShopItem { Id = 1, Name = "Rod", MaxUses = 1, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
@@ -87,9 +87,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             await _sut.ConsumeItemUses("user1", new[] { 1 });
 
-            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 1);
-            Assert.Equal(0, updated.RemainingUses);
-            Assert.False(updated.IsEquipped);
+            var remaining = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == 1);
+            Assert.Null(remaining);
+        }
+
+        [Fact]
+        public async Task ConsumeItemUses_EquipsNextAvailableCopyWhenDepleted()
+        {
+            var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 1, IsConsumable = false };
+            _context.FishingShopItems.Add(shopItem);
+            _context.UserFishingBoosts.AddRange(
+                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 },
+                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1 });
+            await _context.SaveChangesAsync();
+
+            await _sut.ConsumeItemUses("user1", new[] { 1 });
+
+            var replacement = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 2);
+            Assert.True(replacement.IsEquipped);
         }
 
         [Fact]
@@ -105,8 +120,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var second = _sut.ConsumeItemUses("user1", new[] { 1 });
             await Task.WhenAll(first, second);
 
-            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 1);
-            Assert.Equal(0, updated.RemainingUses);
+            var updated = await _context.UserFishingBoosts.AsNoTracking().SingleOrDefaultAsync(b => b.Id == 1);
+            Assert.Null(updated);
         }
 
         [Fact]
@@ -123,6 +138,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var updated = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 1);
             Assert.Equal(-1, updated.RemainingUses);
             Assert.True(updated.IsEquipped);
+        }
+
+        [Fact]
+        public async Task PurchaseBoost_CreatesMultipleLimitedUseItems()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bait",
+                Cost = 100,
+                MaxUses = 5,
+                Enabled = true
+            });
+            _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
+            await _context.SaveChangesAsync();
+
+            await _sut.PurchaseBoost("user1", 1, 3);
+
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
+            var gold = await _context.FishingGolds.AsNoTracking().SingleAsync(g => g.UserId == "user1");
+            Assert.Equal(3, items.Count);
+            Assert.All(items, item => Assert.Equal(5, item.RemainingUses));
+            Assert.Equal(200, gold.TotalGold);
         }
     }
 }

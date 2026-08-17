@@ -1177,7 +1177,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     ItemName = item.Name,
                     Cost = item.Cost,
-                    IsConsumable = item.IsConsumable,
+                    IsConsumable = item.MaxUses.HasValue,
                     MaxUses = item.MaxUses,
                     EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
                     CostPerUse = item.IsConsumable && item.MaxUses.HasValue && item.MaxUses > 0

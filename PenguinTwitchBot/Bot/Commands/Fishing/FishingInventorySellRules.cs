@@ -43,7 +43,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return SellEligibilityReason.LimitedUses;
             }
 
-            if (resolvedShopItem.IsConsumable)
+            if (resolvedShopItem.MaxUses.HasValue)
             {
                 return SellEligibilityReason.Consumable;
             }

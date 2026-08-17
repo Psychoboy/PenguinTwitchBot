@@ -110,7 +110,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             // Filter by permanent items if specified
             if (permanentOnly)
             {
-                query = query.Where(i => !i.IsConsumable);
+                query = query.Where(i => !i.MaxUses.HasValue);
             }
 
             // Filter by equipment slot if specified
@@ -197,7 +197,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Pre-group by equipment slot to avoid O(n�) - each slot is sorted once
             var itemsBySlot = allItems
-                .Where(i => !i.IsConsumable && i.Enabled && i.EquipmentSlot.HasValue)
+                .Where(i => !i.MaxUses.HasValue && i.Enabled && i.EquipmentSlot.HasValue)
                 .GroupBy(i => i.EquipmentSlot!.Value)
                 .ToDictionary(
                     g => g.Key,
@@ -227,8 +227,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            // Consumables always tier as Consumable
-            foreach (var item in allItems.Where(i => i.IsConsumable))
+            // Limited-use items always tier as Consumable
+            foreach (var item in allItems.Where(i => i.MaxUses.HasValue))
             {
                 tierMap[item.Id] = EquipmentTier.Consumable;
             }
@@ -254,15 +254,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// </summary>
         public EquipmentTier GetDynamicTier(FishingShopItem item, List<FishingShopItem> allItems)
         {
-            // Consumables always get Consumable tier
-            if (item.IsConsumable) return EquipmentTier.Consumable;
+            // Limited-use items always get Consumable tier
+            if (item.MaxUses.HasValue) return EquipmentTier.Consumable;
 
             // Items without equipment slot get Entry tier by default
             if (!item.EquipmentSlot.HasValue) return EquipmentTier.Entry;
 
             // Get all permanent items in the same equipment slot, ordered by price (descending)
             var itemsInSlot = allItems
-                .Where(i => i.EquipmentSlot == item.EquipmentSlot && !i.IsConsumable && i.Enabled)
+                .Where(i => i.EquipmentSlot == item.EquipmentSlot && !i.MaxUses.HasValue && i.Enabled)
                 .OrderByDescending(i => i.Cost)
                 .ToList();
 
