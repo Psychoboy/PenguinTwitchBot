@@ -84,7 +84,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Limited-use items must have at least 1 max use");
             }
 
-            var totalCost = checked(shopItem.Cost * quantity);
+            var totalCost = shopItem.Cost * quantity;
             await using var transaction = await context.Database.BeginTransactionAsync();
 
             var affectedRows = await context.FishingGolds
