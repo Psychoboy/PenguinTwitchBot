@@ -7,7 +7,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<List<UserFishingBoost>> GetUserBoosts(string userId);
         Task<List<UserFishingBoost>> GetUserEquippedItems(string userId);
         Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId);
-        Task PurchaseBoost(string userId, int shopItemId);
+        Task PurchaseBoost(string userId, int shopItemId, int quantity = 1);
         Task GiveItemToUser(string userId, int shopItemId);
         Task SellItem(string userId, int userBoostId);
         Task EquipItem(string userId, int userBoostId);

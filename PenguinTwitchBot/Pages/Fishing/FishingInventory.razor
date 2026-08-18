@@ -78,7 +78,7 @@
                         @foreach (EquipmentSlot slot in Enum.GetValues(typeof(EquipmentSlot)))
                         {
                             var equippedItem = equippedBySlot.GetValueOrDefault(slot);
-                            var availableCount = allItems.Count(i => i.ShopItem?.EquipmentSlot == slot && !i.IsEquipped && !(i.ShopItem!.IsConsumable && i.RemainingUses == 0));
+                            var availableCount = allItems.Count(i => i.ShopItem?.EquipmentSlot == slot && !i.IsEquipped && !(i.ShopItem!.MaxUses.HasValue && i.RemainingUses == 0));
                             <MudItem xs="12" sm="6" md="4" lg="3">
                                 <MudCard Elevation="1" Class="@(equippedItem != null ? "mud-theme-primary" : "")" Style="min-height: 120px">
                                     <MudCardContent Class="pa-2">
@@ -254,7 +254,7 @@
                                     <MudStack Spacing="1">
                                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                             <MudText><strong>@context.ShopItem!.Name</strong></MudText>
-                                            @if (!context.ShopItem!.IsConsumable)
+                                            @if (!context.ShopItem!.MaxUses.HasValue)
                                             {
                                                 var tier = tierMap.GetValueOrDefault(context.ShopItem!.Id, EquipmentTier.Entry);
                                                 var (tierColor, tierIcon) = GetTierDisplay(tier);
@@ -327,7 +327,7 @@
                                             Equipped
                                         </MudChip>
                                     }
-                                    else if (context.ShopItem!.IsConsumable && context.RemainingUses == 0)
+                                    else if (context.ShopItem!.MaxUses.HasValue && context.RemainingUses == 0)
                                     {
                                         <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Cancel">
                                             Depleted
@@ -361,7 +361,7 @@
                                         </MudTooltip>
                                     }
                                         
-                                    @if (!context.IsEquipped && !(context.ShopItem!.IsConsumable && context.RemainingUses == 0))
+                                    @if (!context.IsEquipped && !(context.ShopItem!.MaxUses.HasValue && context.RemainingUses == 0))
                                     {
                                         <MudButton Variant="Variant.Text" 
                                                   Color="Color.Primary" 
@@ -717,7 +717,7 @@
         availableItemsForSlot = allItems
             .Where(i => i.ShopItem?.EquipmentSlot == slot && 
                        !i.IsEquipped && 
-                       !(i.ShopItem!.IsConsumable && i.RemainingUses == 0))
+                       !(i.ShopItem!.MaxUses.HasValue && i.RemainingUses == 0))
             .ToList();
         equipDialogVisible = true;
     }

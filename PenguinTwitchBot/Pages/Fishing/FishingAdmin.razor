@@ -157,9 +157,9 @@
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                 <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Size="Size.Small" Color="Color.Primary" />
                                 <MudText><strong>@context.Name</strong></MudText>
-                                @if (context.IsConsumable)
+                                @if (context.MaxUses.HasValue)
                                 {
-                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Consumable</MudChip>
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Limited Use</MudChip>
                                 }
                             </MudStack>
                         </MudTd>
@@ -1151,14 +1151,6 @@
                     {
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Unlimited uses</MudText>
                     }
-                </MudStack>
-
-                <MudStack Spacing="1">
-                    <MudSwitch @bind-Value="editingShopItem.IsConsumable" 
-                               Label="Consumable" 
-                               Color="Color.Error"
-                               ThumbIcon="@(editingShopItem.IsConsumable ? Icons.Material.Filled.DeleteForever : Icons.Material.Filled.Loop)" />
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, item is removed from inventory when uses run out</MudText>
                 </MudStack>
 
                 <MudDivider />
@@ -2279,12 +2271,12 @@
                                  AdornmentText="x"
                                  Variant="Variant.Outlined" />
 
-                <MudSwitch @bind-Value="updatePermanentOnly" Color="Color.Primary" Label="Permanent Equipment Only (Don't update consumables)" />
+                <MudSwitch @bind-Value="updatePermanentOnly" Color="Color.Primary" Label="Permanent Equipment Only (Don't update limited-use items)" />
 
                 @if (!updatePermanentOnly)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true">
-                        <strong>Note:</strong> Consumables are already well-balanced according to production data. Consider updating permanent items only.
+                        <strong>Note:</strong> Limited-use items are already well-balanced according to production data. Consider updating permanent items only.
                     </MudAlert>
                 }
 

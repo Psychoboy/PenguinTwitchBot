@@ -1173,14 +1173,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             foreach (var item in shopItems)
             {
+                var isLimitedUse = item.MaxUses.HasValue;
+
                 var affordability = new ItemAffordability
                 {
                     ItemName = item.Name,
                     Cost = item.Cost,
-                    IsConsumable = item.IsConsumable,
+                    IsConsumable = isLimitedUse,
                     MaxUses = item.MaxUses,
                     EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
-                    CostPerUse = item.IsConsumable && item.MaxUses.HasValue && item.MaxUses > 0
+                    CostPerUse = isLimitedUse && item.MaxUses.HasValue && item.MaxUses > 0
                         ? Math.Round((double)item.Cost / item.MaxUses.Value, 2)
                         : item.Cost,
                     MedianUserGold = medianUserGold
@@ -1213,7 +1215,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 // Affordability rating for permanent items
                 // Based on sessions needed for active players (median engagement, 2-3 sessions/week)
                 // Starter=<2 sessions, Low=2-5 sessions, Mid=5-10 sessions, High=10-20 sessions, Endgame=20+ sessions
-                if (!item.IsConsumable)
+                if (!isLimitedUse)
                 {
                     var sessionsNeeded = affordability.SessionsToAffordActive;
 
@@ -1232,7 +1234,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
 
                 // Value rating for consumables
-                if (item.IsConsumable)
+                if (isLimitedUse)
                 {
                     var goldPerUseRatio = affordability.CostPerUse / report.AverageGoldPerCatch;
                     affordability.ValueRating = goldPerUseRatio switch
@@ -1257,7 +1259,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var topGearItems = shopItems
-                .Where(i => i.Enabled && !i.IsConsumable && i.EquipmentSlot.HasValue &&
+                .Where(i => i.Enabled && !i.MaxUses.HasValue && i.EquipmentSlot.HasValue &&
                             i.EquipmentSlot != EquipmentSlot.Bait && i.EquipmentSlot != EquipmentSlot.Lure)
                 .GroupBy(i => i.EquipmentSlot!.Value)
                 .Select(g => g.OrderByDescending(i => i.Cost).First())
