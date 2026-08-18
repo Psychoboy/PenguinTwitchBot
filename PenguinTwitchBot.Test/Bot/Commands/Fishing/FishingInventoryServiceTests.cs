@@ -162,5 +162,72 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.All(items, item => Assert.Equal(5, item.RemainingUses));
             Assert.Equal(200, gold.TotalGold);
         }
+
+        [Fact]
+        public async Task PurchaseBoost_ConcurrentPurchases_OnlyOneSucceedsWithSingleBalance()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bait",
+                Cost = 100,
+                MaxUses = 1,
+                Enabled = true
+            });
+            _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 100 });
+            await _context.SaveChangesAsync();
+
+            async Task<bool> TryPurchase()
+            {
+                try
+                {
+                    await _sut.PurchaseBoost("user1", 1, 1);
+                    return true;
+                }
+                catch (InvalidOperationException ex) when (ex.Message == "Not enough gold")
+                {
+                    return false;
+                }
+            }
+
+            var results = await Task.WhenAll(TryPurchase(), TryPurchase());
+
+            Assert.Equal(1, results.Count(success => success));
+
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
+            var gold = await _context.FishingGolds.AsNoTracking().SingleAsync(g => g.UserId == "user1");
+            Assert.Single(items);
+            Assert.Equal(0, gold.TotalGold);
+        }
+
+        [Fact]
+        public async Task ConsumeItemsOnLineSnap_ConcurrentWithConsumeItemUses_LeavesConsistentState()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bait",
+                Cost = 100,
+                MaxUses = 1,
+                EquipmentSlot = EquipmentSlot.Bait,
+                Enabled = true
+            });
+            _context.UserFishingBoosts.AddRange(
+                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 },
+                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1 });
+            await _context.SaveChangesAsync();
+
+            var snapTask = _sut.ConsumeItemsOnLineSnap("user1", "user1");
+            var consumeTask = _sut.ConsumeItemUses("user1", new[] { 1, 2 });
+            await Task.WhenAll(snapTask, consumeTask);
+
+            var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
+            var equippedItems = remainingItems.Where(b => b.IsEquipped).ToList();
+            var snapEvents = await _context.FishingSnapEvents.AsNoTracking().Where(e => e.UserId == "user1").ToListAsync();
+
+            Assert.Empty(remainingItems);
+            Assert.Empty(equippedItems);
+            Assert.Single(snapEvents);
+        }
     }
 }

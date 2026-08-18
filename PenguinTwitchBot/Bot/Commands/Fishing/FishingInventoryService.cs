@@ -79,14 +79,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Only limited-use items can be purchased in multiples");
             }
 
-            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
             var totalCost = checked(shopItem.Cost * quantity);
-            if (gold == null || gold.TotalGold < totalCost)
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            var affectedRows = await context.FishingGolds
+                .Where(g => g.UserId == userId && g.TotalGold >= totalCost)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(g => g.TotalGold, g => g.TotalGold - totalCost));
+
+            if (affectedRows != 1)
             {
                 throw new InvalidOperationException("Not enough gold");
             }
-
-            gold.TotalGold -= totalCost;
 
             var userBoosts = Enumerable.Range(0, shopItem.MaxUses.HasValue ? quantity : 1)
                 .Select(_ => new UserFishingBoost
@@ -100,6 +104,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             context.UserFishingBoosts.AddRange(userBoosts);
 
             await context.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
 
         public async Task GiveItemToUser(string userId, int shopItemId)
@@ -288,26 +293,44 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+            await userLock.WaitAsync();
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
-            var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
-            context.FishingSnapEvents.Add(snapEvent);
-            await context.SaveChangesAsync();
-            return snapEvent;
+                var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
+                var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
+                context.FishingSnapEvents.Add(snapEvent);
+                await context.SaveChangesAsync();
+                return snapEvent;
+            }
+            finally
+            {
+                userLock.Release();
+            }
         }
 
         public async Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+            await userLock.WaitAsync();
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
-            var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
-            context.FishingSnapEvents.Add(snapEvent);
-            await context.SaveChangesAsync();
-            return snapEvent;
+                var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
+                var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
+                context.FishingSnapEvents.Add(snapEvent);
+                await context.SaveChangesAsync();
+                return snapEvent;
+            }
+            finally
+            {
+                userLock.Release();
+            }
         }
 
         private static FishingSnapEvent BuildSnapEvent(string userId, string username, string snapType, FishingSnapLossResult lossResult)
