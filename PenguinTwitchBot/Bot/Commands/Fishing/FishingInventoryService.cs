@@ -79,6 +79,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Only limited-use items can be purchased in multiples");
             }
 
+            if (shopItem.MaxUses.HasValue && shopItem.MaxUses.Value <= 0)
+            {
+                throw new InvalidOperationException("Limited-use items must have at least 1 max use");
+            }
+
             var totalCost = checked(shopItem.Cost * quantity);
             await using var transaction = await context.Database.BeginTransactionAsync();
 

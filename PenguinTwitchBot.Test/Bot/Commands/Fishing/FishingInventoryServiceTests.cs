@@ -201,6 +201,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
+        public async Task PurchaseBoost_RejectsLimitedUseItemWithZeroMaxUses_WithoutDebitingGold()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Broken Bait",
+                Cost = 100,
+                MaxUses = 0,
+                Enabled = true
+            });
+            _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 500 });
+            await _context.SaveChangesAsync();
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.PurchaseBoost("user1", 1, 1));
+            Assert.Equal("Limited-use items must have at least 1 max use", ex.Message);
+
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").ToListAsync();
+            var gold = await _context.FishingGolds.AsNoTracking().SingleAsync(g => g.UserId == "user1");
+            Assert.Empty(items);
+            Assert.Equal(500, gold.TotalGold);
+        }
+
+        [Fact]
         public async Task ConsumeItemsOnLineSnap_ConcurrentWithConsumeItemUses_LeavesConsistentState()
         {
             _context.FishingShopItems.Add(new FishingShopItem
