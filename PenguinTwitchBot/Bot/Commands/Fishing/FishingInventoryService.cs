@@ -1,7 +1,7 @@
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Helpers;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -12,9 +12,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private readonly ILogger<FishingInventoryService> _logger;
 
         // Serializes ConsumeItemUses per user so two concurrent fishing attempts for the same
-        // user can't both read/decrement the same RemainingUses value. Service is a singleton,
-        // so these locks live for the app's lifetime (negligible memory cost per user).
-        private readonly ConcurrentDictionary<string, SemaphoreSlim> _userConsumeLocks = new();
+        // user can't both read/decrement the same RemainingUses value.
+        private readonly KeyedSemaphore _userConsumeLocks = new();
 
         public FishingInventoryService(IServiceScopeFactory scopeFactory, ILogger<FishingInventoryService> logger)
         {
@@ -234,108 +233,84 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return;
             }
 
-            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-            await userLock.WaitAsync();
-            try
+            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var userBoosts = await context.UserFishingBoosts
+                .Include(b => b.ShopItem)
+                .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
+                .ToListAsync();
+
+            if (userBoosts.Count == 0)
             {
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                return;
+            }
 
-                var userBoosts = await context.UserFishingBoosts
-                    .Include(b => b.ShopItem)
-                    .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
-                    .ToListAsync();
-
-                if (userBoosts.Count == 0)
+            foreach (var userBoost in userBoosts)
+            {
+                // Skip if unlimited uses
+                if (userBoost.RemainingUses == -1)
                 {
-                    return;
+                    continue;
                 }
 
-                foreach (var userBoost in userBoosts)
+                // Only decrement if we have uses remaining (prevent going below 0)
+                if (userBoost.RemainingUses > 0)
                 {
-                    // Skip if unlimited uses
-                    if (userBoost.RemainingUses == -1)
-                    {
-                        continue;
-                    }
-
-                    // Only decrement if we have uses remaining (prevent going below 0)
-                    if (userBoost.RemainingUses > 0)
-                    {
-                        userBoost.RemainingUses--;
-                    }
-
-                    if (userBoost.RemainingUses <= 0)
-                    {
-                        userBoost.IsEquipped = false;
-
-                        context.UserFishingBoosts.Remove(userBoost);
-
-                        var replacement = await context.UserFishingBoosts
-                            .Include(b => b.ShopItem)
-                            .Where(b => b.UserId == userId &&
-                                       b.ShopItemId == userBoost.ShopItemId &&
-                                       b.Id != userBoost.Id &&
-                                       !b.IsEquipped &&
-                                       b.RemainingUses != 0)
-                            .OrderBy(b => b.PurchasedAt)
-                            .FirstOrDefaultAsync();
-
-                        if (replacement != null)
-                        {
-                            replacement.IsEquipped = true;
-                        }
-                    }
+                    userBoost.RemainingUses--;
                 }
 
-                await context.SaveChangesAsync();
+                if (userBoost.RemainingUses <= 0)
+                {
+                    userBoost.IsEquipped = false;
+
+                    context.UserFishingBoosts.Remove(userBoost);
+
+                    var replacement = await context.UserFishingBoosts
+                        .Include(b => b.ShopItem)
+                        .Where(b => b.UserId == userId &&
+                                   b.ShopItemId == userBoost.ShopItemId &&
+                                   b.Id != userBoost.Id &&
+                                   !b.IsEquipped &&
+                                   b.RemainingUses != 0)
+                        .OrderBy(b => b.PurchasedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (replacement != null)
+                    {
+                        replacement.IsEquipped = true;
+                    }
+                }
             }
-            finally
-            {
-                userLock.Release();
-            }
+
+            await context.SaveChangesAsync();
         }
 
         public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
         {
-            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-            await userLock.WaitAsync();
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
-                var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
-                context.FishingSnapEvents.Add(snapEvent);
-                await context.SaveChangesAsync();
-                return snapEvent;
-            }
-            finally
-            {
-                userLock.Release();
-            }
+            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
+            var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
+            context.FishingSnapEvents.Add(snapEvent);
+            await context.SaveChangesAsync();
+            return snapEvent;
         }
 
         public async Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
         {
-            var userLock = _userConsumeLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-            await userLock.WaitAsync();
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
-                var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
-                context.FishingSnapEvents.Add(snapEvent);
-                await context.SaveChangesAsync();
-                return snapEvent;
-            }
-            finally
-            {
-                userLock.Release();
-            }
+            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
+            var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
+            context.FishingSnapEvents.Add(snapEvent);
+            await context.SaveChangesAsync();
+            return snapEvent;
         }
 
         private static FishingSnapEvent BuildSnapEvent(string userId, string username, string snapType, FishingSnapLossResult lossResult)

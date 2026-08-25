@@ -12,7 +12,7 @@ using System.Text;
 using System.Globalization;
 using System.Collections.ObjectModel;
 using Timer = System.Timers.Timer;
-using System.Collections.Concurrent;
+using PenguinTwitchBot.Helpers;
 
 namespace PenguinTwitchBot.Bot.Commands.Features
 {
@@ -66,7 +66,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             "- The streamer reserves the right to change giveaways at any time\n" +
             "- Must be **18+** to participate\n" +
             "- Void where prohibited by law";
-        private static readonly ConcurrentDictionary<string, Lazy<SemaphoreSlim>> UserLocks = new();
+        private static readonly KeyedSemaphore UserLocks = new();
         private readonly SemaphoreSlim fairnessReportLock = new(1, 1);
         private readonly List<GiveawayFairnessReport> fairnessReports = new();
         private readonly Timer _timer = new(TimeSpan.FromSeconds(5).TotalMilliseconds);
@@ -805,89 +805,81 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public async Task<string> Enter(string sender, string amount, bool fromUi)
         {
-            var userLock = UserLocks.GetOrAdd(sender, _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;
-            await userLock.WaitAsync();
-            try
+            using var userLock = await UserLocks.AcquireAsync(sender, CancellationToken.None);
+            if (isClosed) 
             {
-                if (isClosed) 
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.closed", "the giveaway is closed and not accepting entries."); 
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
-                    throw new SkipCooldownException(message);
-                }
-
-                amount = amount.ToLower();
-                var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points;
-                if (amount == "max" || amount == "all")
-                {
-                    amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points.ToString();
-                }
-                var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
-                if (!Int32.TryParse(amount, out var points))
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
-
-                    throw new SkipCooldownException(message);
-                }
-                if (points == 0 || points > viewerPoints)
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
-
-                    throw new SkipCooldownException(message);
-                }
-
-                if (points < 0)
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb."); //language.Get("giveawayfeature.enter.minus");
-                    await ServiceBackbone.SendChatMessage(displayName, message);
-                    throw new SkipCooldownException(message);
-                }
-
-                if(viewerPoints - points < 0)
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
-
-                    throw new SkipCooldownException(message);
-                }
-                
-                
-                if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
-                    if (!fromUi)
-                    {
-                        await ServiceBackbone.SendChatMessage(displayName, message);
-                    }
-
-                    throw new SkipCooldownException(message);
-                }
-
-                using (var scope = scopeFactory.CreateAsyncScope())
-                {
-                    var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                    var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
-                    giveawayEntries ??= new GiveawayEntry
-                    {
-                        Username = sender
-                    };
-                    giveawayEntries.Tickets += points;
-                    db.GiveawayEntries.Update(giveawayEntries);
-                    await db.SaveChangesAsync();
-                }
-                NumberOfTicketsEntered.WithLabels(sender).Inc(points);
-                {
-                    var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries."); //language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
-                    message = message.Replace("(amount)", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
-                    if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
-                    return message;
-                }
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.closed", "the giveaway is closed and not accepting entries."); 
+                if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                throw new SkipCooldownException(message);
             }
-            finally
+
+            amount = amount.ToLower();
+            var viewerPoints = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points;
+            if (amount == "max" || amount == "all")
             {
-                userLock.Release();
+                amount = (await pointsSystem.GetUserPointsByUsernameAndGame(sender, ModuleName)).Points.ToString();
+            }
+            var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
+            if (!Int32.TryParse(amount, out var points))
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
+                if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+
+                throw new SkipCooldownException(message);
+            }
+            if (points == 0 || points > viewerPoints)
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
+                if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+
+                throw new SkipCooldownException(message);
+            }
+
+            if (points < 0)
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb."); //language.Get("giveawayfeature.enter.minus");
+                await ServiceBackbone.SendChatMessage(displayName, message);
+                throw new SkipCooldownException(message);
+            }
+
+            if(viewerPoints - points < 0)
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
+                if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
+
+                throw new SkipCooldownException(message);
+            }
+            
+            
+            if(!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, points)))
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
+                if (!fromUi)
+                {
+                    await ServiceBackbone.SendChatMessage(displayName, message);
+                }
+
+                throw new SkipCooldownException(message);
+            }
+
+            using (var scope = scopeFactory.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var giveawayEntries = await db.GiveawayEntries.Find(x => x.Username.Equals(sender)).FirstOrDefaultAsync();
+                giveawayEntries ??= new GiveawayEntry
+                {
+                    Username = sender
+                };
+                giveawayEntries.Tickets += points;
+                db.GiveawayEntries.Update(giveawayEntries);
+                await db.SaveChangesAsync();
+            }
+            NumberOfTicketsEntered.WithLabels(sender).Inc(points);
+            {
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries."); //language.Get("giveawayfeature.enter.success").Replace("(amount)", points.ToString());
+                message = message.Replace("(amount)", points.ToString("N0"), StringComparison.OrdinalIgnoreCase);
+                if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
+                return message;
             }
         }
         public async Task<long> GetEntriesCount(string sender)

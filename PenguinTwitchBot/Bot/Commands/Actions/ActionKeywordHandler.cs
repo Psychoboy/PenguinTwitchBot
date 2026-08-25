@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Helpers;
 using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Commands.Actions
@@ -15,9 +15,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         IActionKeywordCache keywordCache,
         ILogger<ActionKeywordHandler> logger) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
-        static readonly ConcurrentDictionary<string, SemaphoreSlim> keywordLocks = new(StringComparer.OrdinalIgnoreCase);
-
-        static SemaphoreSlim GetLock(string keywordName) => keywordLocks.GetOrAdd(keywordName, _ => new SemaphoreSlim(1, 1));
+        static readonly KeyedSemaphore keywordLocks = new(StringComparer.OrdinalIgnoreCase);
 
         public async Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {
@@ -98,65 +96,57 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                         continue;
                     }
 
-                    var keywordLock = GetLock($"keyword {keyword.CommandName}");
-                    await keywordLock.WaitAsync(cancellationToken);
-                    try
+                    using var keywordLock = await keywordLocks.AcquireAsync($"keyword {keyword.CommandName}", cancellationToken);
+                    // Check cooldowns
+                    if (keyword.SayCooldown)
                     {
-                        // Check cooldowns
-                        if (keyword.SayCooldown)
-                        {
-                            if (!await commandHandler.IsGlobalCoolDownExpiredWithMessageForAction(
-                                notification.EventArgs.Name,
-                                notification.EventArgs.DisplayName,
-                                $"keyword {keyword.CommandName}"))
-                                continue;
-                        }
-                        else
-                        {
-                            if (!await commandHandler.IsCoolDownExpired(
-                                notification.EventArgs.Name,
-                                $"keyword {keyword.CommandName}"))
-                                continue;
-                        }
-
-                        // Get and execute actions triggered by this keyword
-                        await using var scope = serviceScopeFactory.CreateAsyncScope();
-                        var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                        var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                        var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
-                             TriggerTypes.Keyword,
-                            keyword.CommandName);
-
-                        var dictionary = CommandEventArgsConverter.ToDictionary(commandEventArgs);
-                        dictionary[ActionExecutionVariableKeys.CooldownCommandName] = $"keyword {keyword.CommandName}";
-                        dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;
-                        dictionary[ActionExecutionVariableKeys.TriggerDisplayName] = notification.EventArgs.DisplayName;
-
-                        // Set cooldowns before enqueue to close race windows between rapid invocations.
-                        if (keyword.GlobalCooldown > 0)
-                        {
-                            var globalCooldown = CooldownHelper.CalculateCooldown(keyword.GlobalCooldown, keyword.GlobalCooldownMax);
-                            await commandHandler.AddGlobalCooldown($"keyword {keyword.CommandName}", globalCooldown);
-                        }
-
-                        if (keyword.UserCooldown > 0)
-                        {
-                            var userCooldown = CooldownHelper.CalculateCooldown(keyword.UserCooldown, keyword.UserCooldownMax);
-                            await commandHandler.AddCoolDown(
-                                notification.EventArgs.Name,
-                                $"keyword {keyword.CommandName}",
-                                userCooldown);
-                        }
-
-                        foreach (var action in actions)
-                        {
-                            await actionService.EnqueueAction(dictionary, action);
-                        }
+                        if (!await commandHandler.IsGlobalCoolDownExpiredWithMessageForAction(
+                            notification.EventArgs.Name,
+                            notification.EventArgs.DisplayName,
+                            $"keyword {keyword.CommandName}"))
+                            continue;
                     }
-                    finally
+                    else
                     {
-                        keywordLock.Release();
+                        if (!await commandHandler.IsCoolDownExpired(
+                            notification.EventArgs.Name,
+                            $"keyword {keyword.CommandName}"))
+                            continue;
+                    }
+
+                    // Get and execute actions triggered by this keyword
+                    await using var scope = serviceScopeFactory.CreateAsyncScope();
+                    var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                    var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                    var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                         TriggerTypes.Keyword,
+                        keyword.CommandName);
+
+                    var dictionary = CommandEventArgsConverter.ToDictionary(commandEventArgs);
+                    dictionary[ActionExecutionVariableKeys.CooldownCommandName] = $"keyword {keyword.CommandName}";
+                    dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;
+                    dictionary[ActionExecutionVariableKeys.TriggerDisplayName] = notification.EventArgs.DisplayName;
+
+                    // Set cooldowns before enqueue to close race windows between rapid invocations.
+                    if (keyword.GlobalCooldown > 0)
+                    {
+                        var globalCooldown = CooldownHelper.CalculateCooldown(keyword.GlobalCooldown, keyword.GlobalCooldownMax);
+                        await commandHandler.AddGlobalCooldown($"keyword {keyword.CommandName}", globalCooldown);
+                    }
+
+                    if (keyword.UserCooldown > 0)
+                    {
+                        var userCooldown = CooldownHelper.CalculateCooldown(keyword.UserCooldown, keyword.UserCooldownMax);
+                        await commandHandler.AddCoolDown(
+                            notification.EventArgs.Name,
+                            $"keyword {keyword.CommandName}",
+                            userCooldown);
+                    }
+
+                    foreach (var action in actions)
+                    {
+                        await actionService.EnqueueAction(dictionary, action);
                     }
 
                     // Only trigger the first matching keyword

@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
+using PenguinTwitchBot.Helpers;
 
 namespace PenguinTwitchBot.Bot.Commands.Actions
 {
@@ -10,17 +10,14 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         ICommandHandler commandHandler,
         ILogger<ActionCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
-        static readonly ConcurrentDictionary<string, SemaphoreSlim> commandLocks = new(StringComparer.OrdinalIgnoreCase);
-
-        static SemaphoreSlim GetLock(string commandName) => commandLocks.GetOrAdd(commandName, _ => new SemaphoreSlim(1, 1));
+        static readonly KeyedSemaphore commandLocks = new(StringComparer.OrdinalIgnoreCase);
 
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
             if (notification.EventArgs == null || string.IsNullOrWhiteSpace(notification.EventArgs.Command))
                 return;
 
-            var cmdLock = GetLock(notification.EventArgs.Command);
-            await cmdLock.WaitAsync(cancellationToken);
+            using var cmdLock = await commandLocks.AcquireAsync(notification.EventArgs.Command, cancellationToken);
             try
             {
                 await using var scope = serviceScopeFactory.CreateAsyncScope();
@@ -101,10 +98,6 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error handling action command {Command}", notification.EventArgs?.Command);
-            }
-            finally
-            {
-                cmdLock.Release();
             }
         }
     }
