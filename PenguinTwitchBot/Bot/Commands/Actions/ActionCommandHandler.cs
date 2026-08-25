@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
@@ -9,16 +10,19 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         ICommandHandler commandHandler,
         ILogger<ActionCommandHandler> logger) : Application.Notifications.INotificationHandler<RunCommandNotification>
     {
-        SemaphoreSlim cmdLock = new(1, 1);
+        static readonly ConcurrentDictionary<string, SemaphoreSlim> commandLocks = new(StringComparer.OrdinalIgnoreCase);
+
+        static SemaphoreSlim GetLock(string commandName) => commandLocks.GetOrAdd(commandName, _ => new SemaphoreSlim(1, 1));
 
         public async Task Handle(RunCommandNotification notification, CancellationToken cancellationToken)
         {
+            if (notification.EventArgs == null || string.IsNullOrWhiteSpace(notification.EventArgs.Command))
+                return;
+
+            var cmdLock = GetLock(notification.EventArgs.Command);
+            await cmdLock.WaitAsync(cancellationToken);
             try
             {
-                await cmdLock.WaitAsync(cancellationToken);
-                if (notification.EventArgs == null || string.IsNullOrWhiteSpace(notification.EventArgs.Command))
-                    return;
-
                 await using var scope = serviceScopeFactory.CreateAsyncScope();
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
