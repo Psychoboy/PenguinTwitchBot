@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Helpers;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -8,12 +8,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
     public class FishingInventoryService : IFishingInventoryService
     {
+        private const string ShopItemInclude = "ShopItem.TargetFishType";
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingInventoryService> _logger;
 
-        // Serializes ConsumeItemUses per user so two concurrent fishing attempts for the same
-        // user can't both read/decrement the same RemainingUses value.
-        private readonly KeyedSemaphore _userConsumeLocks = new();
+        // Serializes gold/use mutations per user so two concurrent actions for the same user
+        // can't both read/decrement the same balance or RemainingUses value.
+        private readonly KeyedSemaphore _userLocks = new();
 
         public FishingInventoryService(IServiceScopeFactory scopeFactory, ILogger<FishingInventoryService> logger)
         {
@@ -24,37 +26,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<UserFishingBoost>> GetUserBoosts(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .ThenInclude(s => s!.TargetFishType)
-                .Where(b => b.UserId == userId)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.UserFishingBoosts.GetAsync(b => b.UserId == userId, includeProperties: ShopItemInclude);
         }
 
         public async Task<List<UserFishingBoost>> GetUserEquippedItems(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .ThenInclude(s => s!.TargetFishType)
-                .Where(b => b.UserId == userId && b.IsEquipped)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.UserFishingBoosts.GetAsync(b => b.UserId == userId && b.IsEquipped, includeProperties: ShopItemInclude);
         }
 
         public async Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var equipped = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .ThenInclude(s => s!.TargetFishType)
-                .Where(b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot != null)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var equipped = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot != null,
+                includeProperties: ShopItemInclude);
 
-            return equipped.Where(e => e.ShopItem?.EquipmentSlot != null)
-                          .ToDictionary(e => e.ShopItem!.EquipmentSlot!.Value, e => e);
+            return equipped.ToDictionary(e => e.ShopItem!.EquipmentSlot!.Value, e => e);
         }
 
         public async Task PurchaseBoost(string userId, int shopItemId, int quantity = 1)
@@ -64,10 +55,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Purchase quantity must be at least 1");
             }
 
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
+            var shopItem = await db.FishingShopItems.GetByIdAsync(shopItemId);
             if (shopItem == null || !shopItem.Enabled || shopItem.IsAdminOnly)
             {
                 throw new InvalidOperationException("Shop item not found, disabled, or not available for purchase");
@@ -84,67 +76,43 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var totalCost = shopItem.Cost * quantity;
-            var strategy = context.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
+            if (gold == null || gold.TotalGold < totalCost)
             {
-                await using var transaction = await context.Database.BeginTransactionAsync();
+                throw new InvalidOperationException("Not enough gold");
+            }
 
-                var affectedRows = await context.FishingGolds
-                    .Where(g => g.UserId == userId && g.TotalGold >= totalCost)
-                    .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(g => g.TotalGold, g => g.TotalGold - totalCost));
+            gold.TotalGold -= totalCost;
+            db.UserFishingBoosts.AddRange(Enumerable
+                .Range(0, shopItem.MaxUses.HasValue ? quantity : 1)
+                .Select(_ => NewBoost(userId, shopItem)));
 
-                if (affectedRows != 1)
-                {
-                    throw new InvalidOperationException("Not enough gold");
-                }
-
-                var userBoosts = Enumerable.Range(0, shopItem.MaxUses.HasValue ? quantity : 1)
-                    .Select(_ => new UserFishingBoost
-                    {
-                        UserId = userId,
-                        ShopItemId = shopItemId,
-                        RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
-                    })
-                    .ToList();
-
-                context.UserFishingBoosts.AddRange(userBoosts);
-
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
-            });
+            // The debit and the new boosts share one SaveChanges, so they commit or roll back together.
+            await db.SaveChangesAsync();
         }
 
         public async Task GiveItemToUser(string userId, int shopItemId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var shopItem = await context.FishingShopItems.FindAsync(shopItemId);
+            var shopItem = await db.FishingShopItems.GetByIdAsync(shopItemId);
             if (shopItem == null)
             {
                 throw new InvalidOperationException("Shop item not found");
             }
 
-            var userBoost = new UserFishingBoost
-            {
-                UserId = userId,
-                ShopItemId = shopItemId,
-                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
-            };
-
-            context.UserFishingBoosts.Add(userBoost);
-
-            await context.SaveChangesAsync();
+            db.UserFishingBoosts.Add(NewBoost(userId, shopItem));
+            await db.SaveChangesAsync();
         }
 
         public async Task SellItem(string userId, int userBoostId)
         {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var userBoost = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var userBoost = await FindUserBoost(db, userId, userBoostId);
 
             var sellEligibility = FishingInventorySellRules.GetSellEligibility(userBoost);
             if (sellEligibility != SellEligibilityReason.Eligible)
@@ -152,33 +120,21 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException(FishingInventorySellRules.GetSellFailureMessage(sellEligibility));
             }
 
-            var sellPrice = FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem);
-            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
-            if (gold == null)
-            {
-               throw new InvalidOperationException("User gold record not found");
-            }
-            else
-            {
-                gold.TotalGold += sellPrice;
-            }
-            context.UserFishingBoosts.Remove(userBoost);
-            await context.SaveChangesAsync();
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("User gold record not found");
+
+            gold.TotalGold += FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem);
+            db.UserFishingBoosts.Remove(userBoost);
+            await db.SaveChangesAsync();
         }
 
         public async Task EquipItem(string userId, int userBoostId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var userBoost = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
-
-            if (userBoost == null)
-            {
-                throw new InvalidOperationException("Item not found");
-            }
+            var userBoost = await FindUserBoost(db, userId, userBoostId)
+                ?? throw new InvalidOperationException("Item not found");
 
             // Limited-use items with no uses left cannot be equipped.
             if (userBoost.ShopItem!.MaxUses.HasValue && userBoost.RemainingUses == 0)
@@ -186,15 +142,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Item has no remaining uses");
             }
 
-            // If item has a slot, unequip any item in that slot
             if (userBoost.ShopItem.EquipmentSlot.HasValue)
             {
-                var slotItems = await context.UserFishingBoosts
-                    .Include(b => b.ShopItem)
-                    .Where(b => b.UserId == userId && 
-                               b.IsEquipped && 
-                               b.ShopItem!.EquipmentSlot == userBoost.ShopItem.EquipmentSlot)
-                    .ToListAsync();
+                var slotItems = await db.UserFishingBoosts.GetAsync(
+                    b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot == userBoost.ShopItem.EquipmentSlot,
+                    includeProperties: "ShopItem");
 
                 foreach (var item in slotItems)
                 {
@@ -203,29 +155,24 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             userBoost.IsEquipped = true;
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task UnequipItem(string userId, int userBoostId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var userBoost = await context.UserFishingBoosts
-                .FirstOrDefaultAsync(b => b.Id == userBoostId && b.UserId == userId);
-
-            if (userBoost == null)
-            {
-                throw new InvalidOperationException("Item not found");
-            }
+            var userBoost = await db.UserFishingBoosts.Find(b => b.Id == userBoostId && b.UserId == userId).FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("Item not found");
 
             userBoost.IsEquipped = false;
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
-        public async Task ConsumeItemUse(string userId, int userBoostId)
+        public Task ConsumeItemUse(string userId, int userBoostId)
         {
-            await ConsumeItemUses(userId, new[] { userBoostId });
+            return ConsumeItemUses(userId, new[] { userBoostId });
         }
 
         // Batches uses across all equipped items in a single query/save instead of one round trip per item.
@@ -237,29 +184,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return;
             }
 
-            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var userBoosts = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .Where(b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped)
-                .ToListAsync();
+            var userBoosts = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped,
+                includeProperties: "ShopItem");
 
             if (userBoosts.Count == 0)
             {
                 return;
             }
 
-            foreach (var userBoost in userBoosts)
+            // RemainingUses == -1 means unlimited, so those items are left untouched.
+            foreach (var userBoost in userBoosts.Where(b => b.RemainingUses != -1))
             {
-                // Skip if unlimited uses
-                if (userBoost.RemainingUses == -1)
-                {
-                    continue;
-                }
-
-                // Only decrement if we have uses remaining (prevent going below 0)
                 if (userBoost.RemainingUses > 0)
                 {
                     userBoost.RemainingUses--;
@@ -267,60 +207,31 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 if (userBoost.RemainingUses <= 0)
                 {
-                    userBoost.IsEquipped = false;
-
-                    context.UserFishingBoosts.Remove(userBoost);
-
-                    var replacement = await context.UserFishingBoosts
-                        .Include(b => b.ShopItem)
-                        .Where(b => b.UserId == userId &&
-                                   b.ShopItemId == userBoost.ShopItemId &&
-                                   b.Id != userBoost.Id &&
-                                   !b.IsEquipped &&
-                                   b.RemainingUses != 0)
-                        .OrderBy(b => b.PurchasedAt)
-                        .ThenBy(b => b.Id)
-                        .FirstOrDefaultAsync();
-
-                    if (replacement != null)
-                    {
-                        replacement.IsEquipped = true;
-                    }
+                    await RemoveAndEquipReplacement(db, userBoost);
                 }
             }
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
-        public async Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
+        public Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
         {
-            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
+            return ApplySnap(userId, username, "Line", includeRodLoss: false);
+        }
+
+        public Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
+        {
+            return ApplySnap(userId, username, "Rod", includeRodLoss: true);
+        }
+
+        private async Task<FishingSnapEvent> ApplySnap(string userId, string username, string snapType, bool includeRodLoss)
+        {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: false);
-            var snapEvent = BuildSnapEvent(userId, username, "Line", lossResult);
-            context.FishingSnapEvents.Add(snapEvent);
-            await context.SaveChangesAsync();
-            return snapEvent;
-        }
-
-        public async Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
-        {
-            using var userLock = await _userConsumeLocks.AcquireAsync(userId, CancellationToken.None);
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var lossResult = await ApplySnapLosses(context, userId, includeRodLoss: true);
-            var snapEvent = BuildSnapEvent(userId, username, "Rod", lossResult);
-            context.FishingSnapEvents.Add(snapEvent);
-            await context.SaveChangesAsync();
-            return snapEvent;
-        }
-
-        private static FishingSnapEvent BuildSnapEvent(string userId, string username, string snapType, FishingSnapLossResult lossResult)
-        {
-            return new FishingSnapEvent
+            var lossResult = await ApplySnapLosses(db, userId, includeRodLoss);
+            var snapEvent = new FishingSnapEvent
             {
                 UserId = userId,
                 Username = username,
@@ -330,40 +241,33 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 LostItemsJson = JsonSerializer.Serialize(lossResult.LostItems),
                 SnappedAt = DateTime.UtcNow
             };
+
+            db.FishingSnapEvents.Add(snapEvent);
+            await db.SaveChangesAsync();
+            return snapEvent;
         }
 
-        private static async Task<FishingSnapLossResult> ApplySnapLosses(ApplicationDbContext context, string userId, bool includeRodLoss)
+        private static async Task<FishingSnapLossResult> ApplySnapLosses(IUnitOfWork db, string userId, bool includeRodLoss)
         {
             var lossResult = new FishingSnapLossResult();
 
-            var equippedItems = await context.UserFishingBoosts
-                .Include(b => b.ShopItem)
-                .Where(b => b.UserId == userId && b.IsEquipped)
-                .ToListAsync();
-
-            if (includeRodLoss)
-            {
-                foreach (var rodItem in equippedItems.Where(i => i.ShopItem?.EquipmentSlot == EquipmentSlot.Rod))
-                {
-                    RegisterFullItemLoss(lossResult, rodItem);
-                    context.UserFishingBoosts.Remove(rodItem);
-                }
-            }
+            var equippedItems = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && b.IsEquipped,
+                includeProperties: "ShopItem");
 
             foreach (var item in equippedItems)
             {
                 var slot = item.ShopItem?.EquipmentSlot;
 
-                if (includeRodLoss && slot == EquipmentSlot.Rod)
-                {
-                    continue;
-                }
+                // Rods only break on a rod snap; line and hook are always lost.
+                var alwaysLost = (includeRodLoss && slot == EquipmentSlot.Rod)
+                    || slot == EquipmentSlot.Line
+                    || slot == EquipmentSlot.Hook;
 
-                // Line/hook are always lost on a snapped line.
-                if (slot == EquipmentSlot.Line || slot == EquipmentSlot.Hook)
+                if (alwaysLost)
                 {
                     RegisterFullItemLoss(lossResult, item);
-                    context.UserFishingBoosts.Remove(item);
+                    db.UserFishingBoosts.Remove(item);
                     continue;
                 }
 
@@ -376,7 +280,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     // Unlimited bait/lure are fully lost on snap.
                     RegisterFullItemLoss(lossResult, item);
-                    context.UserFishingBoosts.Remove(item);
+                    db.UserFishingBoosts.Remove(item);
                     continue;
                 }
 
@@ -384,43 +288,55 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 if (item.RemainingUses > 0)
                 {
                     item.RemainingUses--;
-                }
-                var remainingUsesAfter = item.RemainingUses;
-
-                var usesLost = Math.Max(0, remainingUsesBefore - remainingUsesAfter);
-                if (usesLost > 0)
-                {
-                    RegisterUseLoss(lossResult, item, usesLost, remainingUsesBefore, remainingUsesAfter);
+                    RegisterUseLoss(lossResult, item, remainingUsesBefore - item.RemainingUses, remainingUsesBefore, item.RemainingUses);
                 }
 
-                if (item.ShopItem?.MaxUses.HasValue == true && item.RemainingUses <= 0)
+                if (item.RemainingUses <= 0)
                 {
-                    item.IsEquipped = false;
-                    context.UserFishingBoosts.Remove(item);
-
-                    var replacement = await context.UserFishingBoosts
-                        .Include(b => b.ShopItem)
-                        .Where(b => b.UserId == userId &&
-                                   b.ShopItemId == item.ShopItemId &&
-                                   b.Id != item.Id &&
-                                   !b.IsEquipped &&
-                                   b.RemainingUses != 0)
-                        .OrderBy(b => b.PurchasedAt)
-                        .ThenBy(b => b.Id)
-                        .FirstOrDefaultAsync();
-
-                    if (replacement != null)
-                    {
-                        replacement.IsEquipped = true;
-                    }
-                }
-                else if (item.RemainingUses <= 0)
-                {
-                    item.IsEquipped = false;
+                    await RemoveAndEquipReplacement(db, item);
                 }
             }
 
             return lossResult;
+        }
+
+        private static async Task RemoveAndEquipReplacement(IUnitOfWork db, UserFishingBoost item)
+        {
+            item.IsEquipped = false;
+            db.UserFishingBoosts.Remove(item);
+
+            var replacement = await db.UserFishingBoosts
+                .Find(b => b.UserId == item.UserId &&
+                           b.ShopItemId == item.ShopItemId &&
+                           b.Id != item.Id &&
+                           !b.IsEquipped &&
+                           b.RemainingUses != 0)
+                .OrderBy(b => b.PurchasedAt)
+                .ThenBy(b => b.Id)
+                .FirstOrDefaultAsync();
+
+            if (replacement != null)
+            {
+                replacement.IsEquipped = true;
+            }
+        }
+
+        private static Task<UserFishingBoost?> FindUserBoost(IUnitOfWork db, string userId, int userBoostId)
+        {
+            return db.UserFishingBoosts
+                .Find(b => b.Id == userBoostId && b.UserId == userId)
+                .Include(b => b.ShopItem)
+                .FirstOrDefaultAsync();
+        }
+
+        private static UserFishingBoost NewBoost(string userId, FishingShopItem shopItem)
+        {
+            return new UserFishingBoost
+            {
+                UserId = userId,
+                ShopItemId = shopItem.Id,
+                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+            };
         }
 
         private static void RegisterFullItemLoss(FishingSnapLossResult lossResult, UserFishingBoost item)

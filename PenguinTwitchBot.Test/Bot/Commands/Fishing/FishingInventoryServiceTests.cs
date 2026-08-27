@@ -6,12 +6,13 @@ using NSubstitute;
 using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 {
-    // Uses a real Sqlite connection (not the EF InMemory provider) because ConsumeItemUses
-    // relies on ExecuteUpdateAsync, which the InMemory provider does not support.
+    // Uses a real Sqlite connection (not the EF InMemory provider) so relational query
+    // translation and transactional SaveChanges behaviour match production.
     public class FishingInventoryServiceTests : IDisposable
     {
         private readonly ServiceProvider _serviceProvider;
@@ -27,6 +28,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddLogging(builder => builder.AddConsole());
 
             _serviceProvider = services.BuildServiceProvider();
@@ -96,9 +98,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 1, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
+            // Equal PurchasedAt values so the replacement is picked by Id, not by clock resolution.
+            var purchasedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             _context.UserFishingBoosts.AddRange(
-                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 },
-                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1 });
+                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1, PurchasedAt = purchasedAt },
+                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1, PurchasedAt = purchasedAt });
             await _context.SaveChangesAsync();
 
             await _sut.ConsumeItemUses("user1", new[] { 1 });
