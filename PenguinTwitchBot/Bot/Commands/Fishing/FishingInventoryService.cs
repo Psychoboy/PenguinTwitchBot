@@ -84,31 +84,35 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var totalCost = shopItem.Cost * quantity;
-            await using var transaction = await context.Database.BeginTransactionAsync();
-
-            var affectedRows = await context.FishingGolds
-                .Where(g => g.UserId == userId && g.TotalGold >= totalCost)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(g => g.TotalGold, g => g.TotalGold - totalCost));
-
-            if (affectedRows != 1)
+            var strategy = context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                throw new InvalidOperationException("Not enough gold");
-            }
+                await using var transaction = await context.Database.BeginTransactionAsync();
 
-            var userBoosts = Enumerable.Range(0, shopItem.MaxUses.HasValue ? quantity : 1)
-                .Select(_ => new UserFishingBoost
+                var affectedRows = await context.FishingGolds
+                    .Where(g => g.UserId == userId && g.TotalGold >= totalCost)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(g => g.TotalGold, g => g.TotalGold - totalCost));
+
+                if (affectedRows != 1)
                 {
-                    UserId = userId,
-                    ShopItemId = shopItemId,
-                    RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
-                })
-                .ToList();
+                    throw new InvalidOperationException("Not enough gold");
+                }
 
-            context.UserFishingBoosts.AddRange(userBoosts);
+                var userBoosts = Enumerable.Range(0, shopItem.MaxUses.HasValue ? quantity : 1)
+                    .Select(_ => new UserFishingBoost
+                    {
+                        UserId = userId,
+                        ShopItemId = shopItemId,
+                        RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+                    })
+                    .ToList();
 
-            await context.SaveChangesAsync();
-            await transaction.CommitAsync();
+                context.UserFishingBoosts.AddRange(userBoosts);
+
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            });
         }
 
         public async Task GiveItemToUser(string userId, int shopItemId)
@@ -275,6 +279,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                                    !b.IsEquipped &&
                                    b.RemainingUses != 0)
                         .OrderBy(b => b.PurchasedAt)
+                        .ThenBy(b => b.Id)
                         .FirstOrDefaultAsync();
 
                     if (replacement != null)
@@ -401,6 +406,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                                    !b.IsEquipped &&
                                    b.RemainingUses != 0)
                         .OrderBy(b => b.PurchasedAt)
+                        .ThenBy(b => b.Id)
                         .FirstOrDefaultAsync();
 
                     if (replacement != null)

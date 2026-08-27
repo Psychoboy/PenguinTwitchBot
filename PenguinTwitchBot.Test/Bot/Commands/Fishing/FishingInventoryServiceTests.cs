@@ -108,6 +108,41 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
+        public async Task ConsumeItemUses_AfterBatchPurchase_EquipsNextAvailableItemWhenDepleted()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Worm Bait",
+                Cost = 10,
+                MaxUses = 1,
+                IsConsumable = true,
+                EquipmentSlot = EquipmentSlot.Bait,
+                Enabled = true
+            });
+            _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 100 });
+            await _context.SaveChangesAsync();
+
+            await _sut.PurchaseBoost("user1", 1, 3);
+
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            Assert.Equal(3, items.Count);
+
+            // Equip the first bait
+            await _sut.EquipItem("user1", items[0].Id);
+
+            // Consume first bait
+            await _sut.ConsumeItemUses("user1", new[] { items[0].Id });
+
+            // First item should be deleted, second item should now be equipped
+            var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            Assert.Equal(2, remainingItems.Count);
+            Assert.Equal(items[1].Id, remainingItems[0].Id);
+            Assert.True(remainingItems[0].IsEquipped);
+            Assert.False(remainingItems[1].IsEquipped);
+        }
+
+        [Fact]
         public async Task ConsumeItemUses_SerializesConcurrentCallsForSameUser()
         {
             var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 5, IsConsumable = false };
