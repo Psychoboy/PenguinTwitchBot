@@ -67,13 +67,14 @@ namespace PenguinTwitchBot.Helpers
 
         private sealed class Releaser(KeyedSemaphore owner, string key, Entry entry) : IDisposable
         {
-            private bool disposed;
+            private int disposed;
 
             public void Dispose()
             {
-                if (disposed) return;
-                disposed = true;
-                owner.Release(key, entry);
+                if (Interlocked.Exchange(ref disposed, 1) == 0)
+                {
+                    owner.Release(key, entry);
+                }
             }
         }
     }
