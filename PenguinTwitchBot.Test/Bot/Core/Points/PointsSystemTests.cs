@@ -477,6 +477,118 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         }
 
         [Fact]
+        public async Task AddPointsByUserId_SerializesConcurrentCallsForSameUserAndPointType()
+        {
+            // Arrange
+            var userId = $"user-{Guid.NewGuid():N}";
+            var pointType = 1;
+            var viewer = new Viewer { UserId = userId, Username = "TestUser" };
+            var concurrentCount = 0;
+            var maxObservedConcurrency = 0;
+            var gate = new object();
+
+            async Task<UserPoints?> SimulateSlowLookup(NSubstitute.Core.CallInfo _)
+            {
+                lock (gate)
+                {
+                    concurrentCount++;
+                    maxObservedConcurrency = Math.Max(maxObservedConcurrency, concurrentCount);
+                }
+                await Task.Delay(50);
+                lock (gate)
+                {
+                    concurrentCount--;
+                }
+                return null;
+            }
+
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(SimulateSlowLookup);
+
+            // Act
+            await Task.WhenAll(
+                _pointsSystem.AddPointsByUserId(userId, pointType, 10),
+                _pointsSystem.AddPointsByUserId(userId, pointType, 10));
+
+            // Assert
+            Assert.Equal(1, maxObservedConcurrency);
+        }
+
+        [Fact]
+        public async Task RemovePointsFromUserByUserId_SerializesConcurrentCallsForSameUserAndPointType()
+        {
+            // Arrange
+            var userId = $"user-{Guid.NewGuid():N}";
+            var pointType = 1;
+            var userPoints = new UserPoints { UserId = userId, PointTypeId = pointType, Points = 100 };
+            var concurrentCount = 0;
+            var maxObservedConcurrency = 0;
+            var gate = new object();
+
+            async Task<UserPoints?> SimulateSlowLookup(NSubstitute.Core.CallInfo _)
+            {
+                lock (gate)
+                {
+                    concurrentCount++;
+                    maxObservedConcurrency = Math.Max(maxObservedConcurrency, concurrentCount);
+                }
+                await Task.Delay(50);
+                lock (gate)
+                {
+                    concurrentCount--;
+                }
+                return userPoints;
+            }
+
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId });
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(SimulateSlowLookup);
+
+            // Act
+            var results = await Task.WhenAll(
+                _pointsSystem.RemovePointsFromUserByUserId(userId, pointType, 10),
+                _pointsSystem.RemovePointsFromUserByUserId(userId, pointType, 10));
+
+            // Assert
+            Assert.Equal(1, maxObservedConcurrency);
+            Assert.All(results, Assert.True);
+            Assert.Equal(80, userPoints.Points);
+        }
+
+        [Fact]
+        public async Task AddPointsByUserId_DoesNotSerialize_ConcurrentCallsForDifferentUsers()
+        {
+            // Arrange
+            var userIdA = $"user-{Guid.NewGuid():N}";
+            var userIdB = $"user-{Guid.NewGuid():N}";
+            var pointType = 1;
+            var bothEntered = new TaskCompletionSource();
+            var entryCount = 0;
+
+            async Task<UserPoints?> SimulateSlowLookup(NSubstitute.Core.CallInfo callInfo)
+            {
+                if (Interlocked.Increment(ref entryCount) == 2)
+                {
+                    bothEntered.TrySetResult();
+                }
+                await bothEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                return null;
+            }
+
+            _viewerFeatureMock.GetViewerByUserId(userIdA).Returns(new Viewer { UserId = userIdA });
+            _viewerFeatureMock.GetViewerByUserId(userIdB).Returns(new Viewer { UserId = userIdB });
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userIdA, pointType).Returns(SimulateSlowLookup);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userIdB, pointType).Returns(SimulateSlowLookup);
+
+            // Act
+            await Task.WhenAll(
+                _pointsSystem.AddPointsByUserId(userIdA, pointType, 10),
+                _pointsSystem.AddPointsByUserId(userIdB, pointType, 10));
+
+            // Assert
+            Assert.Equal(2, entryCount);
+        }
+
+        [Fact]
         public async Task AddPointsByUsernameAndGame_ShouldAddPoints()
         {
             // Arrange
