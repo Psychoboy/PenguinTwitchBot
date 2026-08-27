@@ -714,7 +714,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
                 var boosts = new List<UserFishingBoost> { userBoost };
                 var settings = await _fishingService.GetSettings();
@@ -726,15 +725,26 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 }
             }
 
-            // With a 200% boost to Common Bass (normally ~50% chance), we should see more bass
-            // The boost should increase the rarity tier weight, making bass more likely but not dramatically
-            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
+            var baseBassCount = 0;
+            for (int i = 0; i < totalAttempts; i++)
+            {
 
-            // With the boost, bass should be caught more frequently than the baseline ~50%
-            // A more conservative check for > 51% indicates the boost is working
-            // Assert.True(bassPercentage > 51.0, 
-            //     $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}%");
-            Assert.InRange(bassPercentage, 35.0, 40.9);
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost> {  };
+                var settings = await _fishingService.GetSettings();
+
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 1) // Common Bass
+                {
+                    baseBassCount++;
+                }
+            }
+
+            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
+            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
+                $"SpecificFishBoost on BoostType3 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
         }
 
         [Fact]
@@ -742,27 +752,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            // Create specific fish boost item with BoostType3
+            // Create specific fish boost item with BoostType2
             var specificFishBoost = new FishingShopItem
             {
                 Id = 1,
-                Name = "Trout Master Rod",
-                EquipmentSlot = EquipmentSlot.Rod,
-                Cost = 300,
+                Name = "Bass Hunter Lure",
+                EquipmentSlot = EquipmentSlot.Hook,
+                Cost = 200,
                 BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
                 BoostAmount = 0.1,
-                BoostType2 = FishingBoostType.StarBoost, // Secondary boost: star quality
-                BoostAmount2 = 0.15,
-                BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
-                BoostAmount3 = 1.5, // 150% boost to trout
-                TargetFishTypeId = 2, // Uncommon Trout (ID 2)
+                BoostType3 = FishingBoostType.SpecificFishBoost, // Secondary boost: specific fish
+                BoostAmount3 = 2.0, // 200% boost to bass
+                TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
             await _context.SaveChangesAsync();
 
             // Simulate many fishing attempts to verify the boost is working
-            var troutCount = 0;
+            var bassCount = 0;
             var totalAttempts = 1000;
 
             for (int i = 0; i < totalAttempts; i++)
@@ -777,22 +785,37 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
                 var boosts = new List<UserFishingBoost> { userBoost };
                 var settings = await _fishingService.GetSettings();
 
                 var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 2) // Uncommon Trout
+                if (selectedFish.Id == 1) // Common Bass
                 {
-                    troutCount++;
+                    bassCount++;
                 }
             }
 
-            // With a 150% boost to Uncommon Trout (normally ~30% chance), we should see more trout
-            var troutPercentage = (double)troutCount / totalAttempts * 100;
+            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
+            var baseBassCount = 0;
+            for (int i = 0; i < totalAttempts; i++)
+            {
 
-            Assert.InRange(troutPercentage, 27.0, 33.0);
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost> {  };
+                var settings = await _fishingService.GetSettings();
+
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 1) // Common Bass
+                {
+                    baseBassCount++;
+                }
+            }
+
+            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
+            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
+                $"SpecificFishBoost on BoostType3 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
         }
 
         [Fact]
