@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,10 +21,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             // Use the most recent username for display
-            var topPlayers = await context.FishCatches
+            var topPlayers = await db.FishCatches.Query()
                 .AsNoTracking()
                 .GroupBy(c => c.UserId)
                 .Select(g => new 
@@ -52,9 +52,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var topPlayers = await context.FishingSnapEvents
+            var topPlayers = await db.FishingSnapEvents.Query()
                 .AsNoTracking()
                 .GroupBy(e => e.UserId)
                 .Select(g => new
@@ -87,10 +87,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             // Get top catches by gold earned
-            var topCatches = await context.FishCatches
+            var topCatches = await db.FishCatches.Query()
                 .Include(c => c.FishType)
                 .OrderByDescending(c => c.GoldEarned)
                 .ThenByDescending(c => c.CaughtAt)
@@ -105,10 +105,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             // Get most recent catches globally
-            var recentCatches = await context.FishCatches
+            var recentCatches = await db.FishCatches.Query()
                 .Include(c => c.FishType)
                 .OrderByDescending(c => c.CaughtAt)
                 .Take(count)
@@ -122,12 +122,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 1000)); // Clamp between 1 and 1000
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             // Get most recent catches for specific user
-            var userCatches = await context.FishCatches
+            var userCatches = await db.FishCatches
+                .Find(c => c.UserId == userId)
                 .Include(c => c.FishType)
-                .Where(c => c.UserId == userId)
                 .OrderByDescending(c => c.CaughtAt)
                 .Take(count)
                 .ToListAsync();

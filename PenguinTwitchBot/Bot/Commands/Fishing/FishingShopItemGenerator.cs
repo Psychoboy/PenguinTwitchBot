@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -10,9 +10,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     /// </summary>
     public class FishingShopItemGenerator
     {
-        public async Task<int> GenerateDefaultItems(ApplicationDbContext context, bool updateExisting = false)
+        public async Task<int> GenerateDefaultItems(IUnitOfWork db, bool updateExisting = false)
         {
-            var existingItems = await context.FishingShopItems.ToListAsync();
+            var existingItems = (await db.FishingShopItems.GetAllAsync()).ToList();
             var itemsToAdd = new List<FishingShopItem>();
 
             var existingNames = new HashSet<string>(
@@ -60,19 +60,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 if (addList.Any())
                 {
-                    context.FishingShopItems.AddRange(addList);
+                    db.FishingShopItems.AddRange(addList);
                     changedCount += addList.Count;
                 }
             }
             else if (itemsToAdd.Any())
             {
-                context.FishingShopItems.AddRange(itemsToAdd);
+                db.FishingShopItems.AddRange(itemsToAdd);
                 changedCount += itemsToAdd.Count;
             }
 
             if (changedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
 
             return changedCount;

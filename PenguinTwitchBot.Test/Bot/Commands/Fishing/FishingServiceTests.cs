@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddLogging(builder => builder.AddConsole());
 
             _serviceProvider = services.BuildServiceProvider();

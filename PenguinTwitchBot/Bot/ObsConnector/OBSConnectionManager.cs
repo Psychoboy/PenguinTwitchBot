@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Obs;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
@@ -48,27 +48,27 @@ namespace PenguinTwitchBot.Bot.ObsConnector
         public async Task<List<OBSConnection>> GetAllConnectionsAsync()
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await dbContext.OBSConnections.OrderBy(c => c.Name).ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.OBSConnections.GetAsync(orderBy: q => q.OrderBy(c => c.Name));
         }
 
         public async Task<OBSConnection?> GetConnectionAsync(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await dbContext.OBSConnections.FindAsync(id);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.OBSConnections.GetByIdAsync(id);
         }
 
         public async Task<OBSConnection> CreateConnectionAsync(OBSConnection connection)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             connection.CreatedAt = DateTime.UtcNow;
             connection.UpdatedAt = DateTime.UtcNow;
 
-            dbContext.OBSConnections.Add(connection);
-            await dbContext.SaveChangesAsync();
+            db.OBSConnections.Add(connection);
+            await db.SaveChangesAsync();
 
             _logger.LogInformation("Created OBS connection '{Name}' (ID: {Id})", connection.Name, connection.Id);
 
@@ -84,9 +84,9 @@ namespace PenguinTwitchBot.Bot.ObsConnector
         public async Task<OBSConnection> UpdateConnectionAsync(OBSConnection connection)
         {
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var existing = await dbContext.OBSConnections.FindAsync(connection.Id);
+            var existing = await db.OBSConnections.GetByIdAsync(connection.Id);
             if (existing == null)
             {
                 throw new InvalidOperationException($"OBS connection with ID {connection.Id} not found");
@@ -99,7 +99,7 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             existing.Enabled = connection.Enabled;
             existing.UpdatedAt = DateTime.UtcNow;
 
-            await dbContext.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             _logger.LogInformation("Updated OBS connection '{Name}' (ID: {Id})", connection.Name, connection.Id);
 
@@ -129,13 +129,13 @@ namespace PenguinTwitchBot.Bot.ObsConnector
 
             // Delete from database
             using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var connection = await dbContext.OBSConnections.FindAsync(id);
+            var connection = await db.OBSConnections.GetByIdAsync(id);
             if (connection != null)
             {
-                dbContext.OBSConnections.Remove(connection);
-                await dbContext.SaveChangesAsync();
+                db.OBSConnections.Remove(connection);
+                await db.SaveChangesAsync();
                 _logger.LogInformation("Deleted OBS connection '{Name}' (ID: {Id})", connection.Name, connection.Id);
             }
         }
@@ -351,15 +351,15 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                var connection = await dbContext.OBSConnections.FindAsync(e.ConnectionId);
+                var connection = await db.OBSConnections.GetByIdAsync(e.ConnectionId);
                 if (connection != null)
                 {
                     connection.IsConnected = true;
                     connection.LastConnected = DateTime.UtcNow;
                     connection.LastError = null;
-                    await dbContext.SaveChangesAsync();
+                    await db.SaveChangesAsync();
                 }
             }
             catch (Exception ex)
@@ -376,14 +376,14 @@ namespace PenguinTwitchBot.Bot.ObsConnector
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-                var connection = await dbContext.OBSConnections.FindAsync(e.ConnectionId);
+                var connection = await db.OBSConnections.GetByIdAsync(e.ConnectionId);
                 if (connection != null)
                 {
                     connection.IsConnected = false;
                     connection.LastDisconnected = DateTime.UtcNow;
-                    await dbContext.SaveChangesAsync();
+                    await db.SaveChangesAsync();
                 }
             }
             catch (Exception ex)

@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Bot.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -142,7 +142,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var gold = FishingCalculations.CalculateGold(fishType, stars, weight);
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var fishCatch = new FishCatch
             {
@@ -155,12 +155,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 CaughtAt = DateTime.UtcNow
             };
 
-            context.FishCatches.Add(fishCatch);
-            await context.SaveChangesAsync();
+            db.FishCatches.Add(fishCatch);
+            await db.SaveChangesAsync();
 
             fishCatch.FishType = fishType;
 
-            var activeTournaments = await context.FishingTournaments
+            var activeTournaments = await db.FishingTournaments.Query()
                 .AsNoTracking()
                 .Include(t => t.EligibleFish)
                 .Include(t => t.EligibleCategories)
@@ -177,14 +177,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     if (FishingCalculations.IsFishEligible(tournament, fishType.Id, fishCategoryNames))
                     {
-                        context.FishingTournamentCatches.Add(new FishingTournamentCatch
+                        db.FishingTournamentCatches.Add(new FishingTournamentCatch
                         {
                             FishingTournamentId = tournament.Id,
                             FishCatchId = fishCatch.Id
                         });
                     }
                 }
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
 
             await _fishingService.AddGoldToUser(userId, username, gold);
