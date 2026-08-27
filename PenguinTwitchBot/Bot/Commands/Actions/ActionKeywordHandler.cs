@@ -4,6 +4,7 @@ using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Helpers;
 using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Commands.Actions
@@ -14,6 +15,8 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         IActionKeywordCache keywordCache,
         ILogger<ActionKeywordHandler> logger) : Application.Notifications.INotificationHandler<ReceivedChatMessage>
     {
+        static readonly KeyedSemaphore keywordLocks = new(StringComparer.OrdinalIgnoreCase);
+
         public async Task Handle(ReceivedChatMessage notification, CancellationToken cancellationToken)
         {
             try
@@ -93,6 +96,7 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                         continue;
                     }
 
+                    using var keywordLock = await keywordLocks.AcquireAsync($"keyword {keyword.CommandName}", cancellationToken);
                     // Check cooldowns
                     if (keyword.SayCooldown)
                     {
