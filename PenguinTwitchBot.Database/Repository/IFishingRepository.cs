@@ -31,4 +31,28 @@ namespace PenguinTwitchBot.Database.Repository
     public interface IFishingSnapEventRepository : IGenericRepository<FishingSnapEvent>
     {
     }
+
+    public interface IFishCategoryRepository : IGenericRepository<FishCategory>
+    {
+    }
+
+    public interface IFishingTournamentRepository : IGenericRepository<FishingTournament>
+    {
+    }
+
+    public interface IFishingTournamentFishTypeRepository : IGenericRepository<FishingTournamentFishType>
+    {
+    }
+
+    public interface IFishingTournamentRewardRuleRepository : IGenericRepository<FishingTournamentRewardRule>
+    {
+    }
+
+    public interface IFishingTournamentCatchRepository : IGenericRepository<FishingTournamentCatch>
+    {
+    }
+
+    public interface IFishingTournamentEligibleCategoryRepository : IGenericRepository<FishingTournamentEligibleCategory>
+    {
+    }
 }

@@ -68,9 +68,17 @@ namespace PenguinTwitchBot.Database.Repository
         IUserFishingBoostRepository UserFishingBoosts { get; }
         IFishingSettingsRepository FishingSettings { get; }
         IFishingSnapEventRepository FishingSnapEvents { get; }
+        IFishCategoryRepository FishCategories { get; }
+        IFishingTournamentRepository FishingTournaments { get; }
+        IFishingTournamentFishTypeRepository FishingTournamentFishTypes { get; }
+        IFishingTournamentRewardRuleRepository FishingTournamentRewardRules { get; }
+        IFishingTournamentCatchRepository FishingTournamentCatches { get; }
+        IFishingTournamentEligibleCategoryRepository FishingTournamentEligibleCategories { get; }
 
         // Overlay repositories
         IOverlayLayoutRepository OverlayLayouts { get; }
         IOverlayWidgetRepository OverlayWidgets { get; }
+
+        IOBSConnectionsRepository OBSConnections { get; }
     }
 }

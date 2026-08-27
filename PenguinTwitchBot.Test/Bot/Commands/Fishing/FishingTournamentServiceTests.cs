@@ -6,6 +6,7 @@ using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 {
@@ -21,6 +22,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(databaseName));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddLogging();
 
             _serviceProvider = services.BuildServiceProvider();

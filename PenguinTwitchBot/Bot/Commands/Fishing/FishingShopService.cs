@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -21,28 +21,27 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishingShopItem>> GetAllShopItems()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingShopItems
-                .Include(s => s.TargetFishType)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingShopItems.GetAsync(includeProperties: "TargetFishType");
         }
 
         public async Task<FishingShopItem?> GetShopItemById(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingShopItems
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingShopItems
+                .Find(s => s.Id == id)
                 .Include(s => s.TargetFishType)
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .FirstOrDefaultAsync();
         }
 
         public async Task AddShopItem(FishingShopItem item)
         {
             FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishingShopItems.Add(item);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishingShopItems.Add(item);
+            await db.SaveChangesAsync();
             InvalidateTierCache();
         }
 
@@ -50,21 +49,21 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishingShopItems.Update(item);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishingShopItems.Update(item);
+            await db.SaveChangesAsync();
             InvalidateTierCache();
         }
 
         public async Task DeleteShopItem(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var item = await context.FishingShopItems.FindAsync(id);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var item = await db.FishingShopItems.GetByIdAsync(id);
             if (item != null)
             {
-                context.FishingShopItems.Remove(item);
-                await context.SaveChangesAsync();
+                db.FishingShopItems.Remove(item);
+                await db.SaveChangesAsync();
                 InvalidateTierCache();
             }
         }
@@ -72,14 +71,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var itemNames = priceUpdates.Keys.ToList();
 
             // Single query to get all items at once (avoids N+1 problem)
-            var items = await context.FishingShopItems
-                .Where(i => itemNames.Contains(i.Name))
-                .ToListAsync();
+            var items = await db.FishingShopItems.GetAsync(i => itemNames.Contains(i.Name));
 
             var updatedCount = 0;
             foreach (var item in items)
@@ -93,7 +90,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (updatedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
                 InvalidateTierCache();
             }
 
@@ -103,9 +100,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var query = context.FishingShopItems.AsQueryable();
+            var query = db.FishingShopItems.Query();
 
             // Filter by permanent items if specified
             if (permanentOnly)
@@ -134,7 +131,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (updatedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
                 InvalidateTierCache();
             }
 
@@ -144,10 +141,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> GenerateDefaultShopItems(bool updateExisting = false)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var generator = new FishingShopItemGenerator();
-            var changedCount = await generator.GenerateDefaultItems(context, updateExisting);
+            var changedCount = await generator.GenerateDefaultItems(db, updateExisting);
             if (changedCount > 0)
             {
                 InvalidateTierCache();

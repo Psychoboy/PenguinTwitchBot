@@ -6,12 +6,13 @@ using NSubstitute;
 using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 {
-    // Uses a real Sqlite connection (not the EF InMemory provider) because ConsumeItemUses
-    // relies on ExecuteUpdateAsync, which the InMemory provider does not support.
+    // Uses a real Sqlite connection (not the EF InMemory provider) so relational query
+    // translation and transactional SaveChanges behaviour match production.
     public class FishingInventoryServiceTests : IDisposable
     {
         private readonly ServiceProvider _serviceProvider;
@@ -27,6 +28,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddLogging(builder => builder.AddConsole());
 
             _serviceProvider = services.BuildServiceProvider();
@@ -96,15 +98,52 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             var shopItem = new FishingShopItem { Id = 1, Name = "Bait", MaxUses = 1, IsConsumable = false };
             _context.FishingShopItems.Add(shopItem);
+            // Equal PurchasedAt values so the replacement is picked by Id, not by clock resolution.
+            var purchasedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             _context.UserFishingBoosts.AddRange(
-                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1 },
-                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1 });
+                new UserFishingBoost { Id = 1, UserId = "user1", ShopItemId = 1, IsEquipped = true, RemainingUses = 1, PurchasedAt = purchasedAt },
+                new UserFishingBoost { Id = 2, UserId = "user1", ShopItemId = 1, IsEquipped = false, RemainingUses = 1, PurchasedAt = purchasedAt });
             await _context.SaveChangesAsync();
 
             await _sut.ConsumeItemUses("user1", new[] { 1 });
 
             var replacement = await _context.UserFishingBoosts.AsNoTracking().SingleAsync(b => b.Id == 2);
             Assert.True(replacement.IsEquipped);
+        }
+
+        [Fact]
+        public async Task ConsumeItemUses_AfterBatchPurchase_EquipsNextAvailableItemWhenDepleted()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 1,
+                Name = "Worm Bait",
+                Cost = 10,
+                MaxUses = 1,
+                IsConsumable = true,
+                EquipmentSlot = EquipmentSlot.Bait,
+                Enabled = true
+            });
+            _context.FishingGolds.Add(new FishingGold { UserId = "user1", TotalGold = 100 });
+            await _context.SaveChangesAsync();
+
+            await _sut.PurchaseBoost("user1", 1, 3);
+
+            var items = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            Assert.Equal(3, items.Count);
+
+            // Equip the first bait
+            await _sut.EquipItem("user1", items[0].Id);
+
+            // Consume first bait
+            await _sut.ConsumeItemUses("user1", new[] { items[0].Id });
+
+            // First item should be deleted, second item should now be equipped
+            var remainingItems = await _context.UserFishingBoosts.AsNoTracking().Where(b => b.UserId == "user1").OrderBy(b => b.Id).ToListAsync();
+            Assert.Equal(2, remainingItems.Count);
+            Assert.Equal(items[1].Id, remainingItems[0].Id);
+            Assert.True(remainingItems[0].IsEquipped);
+            Assert.False(remainingItems[1].IsEquipped);
         }
 
         [Fact]

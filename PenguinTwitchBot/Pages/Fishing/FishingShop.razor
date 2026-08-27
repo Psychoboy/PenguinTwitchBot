@@ -145,7 +145,7 @@
                         <MudTh>Boost</MudTh>
                         <MudTh>Slot/Uses</MudTh>
                         <MudTh>Cost</MudTh>
-                        <MudTh>Actions</MudTh>
+                        <MudTh Style="text-align: right;">Actions</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Item">
@@ -233,7 +233,7 @@
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Actions">
-                            <MudStack Row="true" Spacing="1">
+                            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Justify="Justify.FlexEnd">
                             @if (context.MaxUses.HasValue)
                             {
                                 <MudNumericField T="int"

@@ -42,6 +42,11 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             return _context.Set<T>().ExecuteDeleteAsync();
         }
 
+        public IQueryable<T> Query()
+        {
+            return _context.Set<T>();
+        }
+
         public IQueryable<T> Find(Expression<Func<T, bool>> expression)
         {
             return _context.Set<T>().Where(expression);

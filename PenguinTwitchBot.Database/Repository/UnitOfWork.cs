@@ -69,10 +69,18 @@ namespace PenguinTwitchBot.Database.Repository
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
             FishingSnapEvents = new FishingSnapEventRepository(_context);
+            FishCategories = new FishCategoryRepository(_context);
+            FishingTournaments = new FishingTournamentRepository(_context);
+            FishingTournamentFishTypes = new FishingTournamentFishTypeRepository(_context);
+            FishingTournamentRewardRules = new FishingTournamentRewardRuleRepository(_context);
+            FishingTournamentCatches = new FishingTournamentCatchRepository(_context);
+            FishingTournamentEligibleCategories = new FishingTournamentEligibleCategoryRepository(_context);
 
             // Initialize overlay repositories
             OverlayLayouts = new OverlayLayoutRepository(_context);
             OverlayWidgets = new OverlayWidgetRepository(_context);
+
+            OBSConnections = new OBSConnectionsRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -132,10 +140,18 @@ namespace PenguinTwitchBot.Database.Repository
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
         public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
+        public IFishCategoryRepository FishCategories { get; private set; }
+        public IFishingTournamentRepository FishingTournaments { get; private set; }
+        public IFishingTournamentFishTypeRepository FishingTournamentFishTypes { get; private set; }
+        public IFishingTournamentRewardRuleRepository FishingTournamentRewardRules { get; private set; }
+        public IFishingTournamentCatchRepository FishingTournamentCatches { get; private set; }
+        public IFishingTournamentEligibleCategoryRepository FishingTournamentEligibleCategories { get; private set; }
 
         // Overlay repository properties
         public IOverlayLayoutRepository OverlayLayouts { get; private set; }
         public IOverlayWidgetRepository OverlayWidgets { get; private set; }
+
+        public IOBSConnectionsRepository OBSConnections { get; private set; }
 
         public void Dispose()
         {
