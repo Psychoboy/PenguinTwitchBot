@@ -100,7 +100,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             section.EffectsNoteHtml = boostText + 
                 "Rarity and weight equipment boosts stack multiplicatively (each compounds the last). Star boosts stack additively. " +
-                "Specific-fish boosts work independently and can exceed the shop item cap.";
+                "Specific-fish boosts increase the chance of catching that fish <em>within</em> its rarity tier — they do not affect overall rarity odds.";
 
             return section;
         }
@@ -180,7 +180,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { "Line", "Fishing line - provides weight boost" },
                 { "Hook", "Fish hook - provides star boost" },
                 { "Bait", "Consumable bait - targets specific fish types" },
-                { "Lure", "Consumable lure - targets specific fish + boosts rarity" },
+                { "Lure", "Consumable lure - targets specific fish types" },
                 { "TackleBox", "Permanent accessory - multiple small boosts" },
                 { "Net", "Permanent accessory - weight bonus" },
                 { "Special", "Reserved for special event items" }

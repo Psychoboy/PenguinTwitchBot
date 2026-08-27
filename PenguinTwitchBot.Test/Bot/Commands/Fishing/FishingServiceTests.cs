@@ -433,7 +433,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         #region Specific Fish Boost Tests
 
         [Fact]
-        public async Task CalculateCatchProbabilities_SpecificFishBoost_IncreasesTargetFishTier()
+        public async Task CalculateCatchProbabilities_SpecificFishBoost_IncreasesWithinRarityChance()
         {
             await SeedTestData();
 
@@ -444,7 +444,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 EquipmentSlot = EquipmentSlot.Bait,
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
-                BoostAmount = 1.0, // +100% to rare tier (where salmon is)
+                BoostAmount = 1.0, // +100% within-rarity weight for salmon
                 TargetFishTypeId = 3, // Rare Salmon
                 IsConsumable = true,
                 MaxUses = 5
@@ -457,56 +457,128 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
             Assert.NotNull(rareSalmon);
 
-            // Rare tier gets +100% boost: 15*2=30
-            // Total = 50+30+30+4+1 = 115
-            // Rare tier = 26.09%
-            Assert.True(rareSalmon.RarityChance > 15.0, $"Rare tier chance was {rareSalmon.RarityChance}%");
+            // SpecificFishBoost no longer changes rarity-tier weights.
+            // Rare tier stays at its baseline 15%.
+            Assert.Equal(15.0, rareSalmon.RarityChance, 1);
+
+            // The boost weights salmon 2x within the rare tier.
+            // If rare has 1 fish (Rare Salmon), within-rarity is 100% with or without boost
+            // (only fish in that tier). Overall chance = rarity * within = 15% * 100% = 15%.
+            Assert.Equal(15.0, rareSalmon.OverallChance, 1);
         }
 
         [Fact]
-        public async Task CalculateCatchProbabilities_MultipleSpecificBoostsSamefish_Stack()
+        public async Task CalculateCatchProbabilities_SpecificFishBoost_IncreasesWithinRarityWhenMultipleFishInTier()
         {
             await SeedTestData();
 
-            var salmonBait = new FishingShopItem
+            // Add a second Common fish so the within-rarity boost is meaningful
+            var commonBass2 = new FishType
+            {
+                Id = 10,
+                Name = "Common Bass 2",
+                Rarity = FishRarity.Common,
+                BaseWeight = 2.0,
+                BaseGold = 10,
+                Enabled = true
+            };
+            _context.FishTypes.Add(commonBass2);
+            await _context.SaveChangesAsync();
+
+            var bassBait = new FishingShopItem
             {
                 Id = 1,
-                Name = "Salmon Bait",
+                Name = "Bass Bait",
                 EquipmentSlot = EquipmentSlot.Bait,
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
-                BoostAmount = 0.5, // +50%
-                TargetFishTypeId = 3,
+                BoostAmount = 1.0, // +100% within-rarity weight for bass (ID 1)
+                TargetFishTypeId = 1, // Common Bass
+                IsConsumable = true,
+                MaxUses = 5
+            };
+            _context.FishingShopItems.Add(bassBait);
+            await _context.SaveChangesAsync();
+
+            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id });
+
+            var bass = result.Values.FirstOrDefault(f => f.FishId == 1);
+            var bass2 = result.Values.FirstOrDefault(f => f.FishId == 10);
+            Assert.NotNull(bass);
+            Assert.NotNull(bass2);
+
+            // Rarity chance is unchanged — still baseline Common %
+            Assert.Equal(bass.RarityChance, bass2.RarityChance, 1);
+
+            // Bass has 2x within-rarity weight vs bass2 (weight 2 vs weight 1 = 66.7% vs 33.3%)
+            Assert.True(bass.WithinRarityChance > bass2.WithinRarityChance,
+                $"Boosted bass should have higher within-rarity chance. Bass: {bass.WithinRarityChance:F2}%, Bass2: {bass2.WithinRarityChance:F2}%");
+
+            // Overall chance should reflect that skew
+            Assert.True(bass.OverallChance > bass2.OverallChance,
+                $"Boosted bass should have higher overall chance. Bass: {bass.OverallChance:F2}%, Bass2: {bass2.OverallChance:F2}%");
+        }
+
+        [Fact]
+        public async Task CalculateCatchProbabilities_MultipleSpecificBoostsSameFish_Stack()
+        {
+            await SeedTestData();
+
+            // Add a second Common fish so within-rarity weighting is meaningful
+            var commonBass2 = new FishType
+            {
+                Id = 10,
+                Name = "Common Bass 2",
+                Rarity = FishRarity.Common,
+                BaseWeight = 2.0,
+                BaseGold = 10,
+                Enabled = true
+            };
+            _context.FishTypes.Add(commonBass2);
+
+            var bassBait = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Bass Bait",
+                EquipmentSlot = EquipmentSlot.Bait,
+                Cost = 100,
+                BoostType = FishingBoostType.SpecificFishBoost,
+                BoostAmount = 0.5, // +50% weight multiplier
+                TargetFishTypeId = 1,
                 IsConsumable = true,
                 MaxUses = 5
             };
 
-            var salmonLure = new FishingShopItem
+            var bassLure = new FishingShopItem
             {
                 Id = 2,
-                Name = "Salmon Lure",
+                Name = "Bass Lure",
                 EquipmentSlot = EquipmentSlot.Lure,
                 Cost = 150,
                 BoostType = FishingBoostType.SpecificFishBoost,
-                BoostAmount = 0.75, // +75%
-                TargetFishTypeId = 3,
+                BoostAmount = 0.75, // +75% weight multiplier
+                TargetFishTypeId = 1,
                 IsConsumable = true,
                 MaxUses = 3
             };
 
-            _context.FishingShopItems.AddRange(salmonBait, salmonLure);
+            _context.FishingShopItems.AddRange(bassBait, bassLure);
             await _context.SaveChangesAsync();
 
-            var result = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { salmonBait.Id, salmonLure.Id });
+            // Single bait only
+            var resultSingle = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id });
+            // Both bait + lure stacked
+            var resultStacked = await _analyticsService.CalculateCatchProbabilities(false, 1.0, new List<int> { bassBait.Id, bassLure.Id });
 
-            var rareSalmon = result.Values.FirstOrDefault(f => f.FishName == "Rare Salmon");
-            Assert.NotNull(rareSalmon);
+            var bassSingle = resultSingle.Values.First(f => f.FishId == 1);
+            var bassStacked = resultStacked.Values.First(f => f.FishId == 1);
 
-            // Both boosts apply to rare tier: 1.5 * 1.75 = 2.625
-            // Rare tier: 15 * 2.625 = 39.375
-            // Total = 50 + 30 + 39.375 + 4 + 1 = 124.375
-            // Rare tier = 31.66%
-            Assert.Equal(31.66, rareSalmon.RarityChance, 1);
+            // Stacking two boosts should increase within-rarity chance further
+            Assert.True(bassStacked.WithinRarityChance > bassSingle.WithinRarityChance,
+                $"Stacked boosts should give higher within-rarity chance. Single: {bassSingle.WithinRarityChance:F2}%, Stacked: {bassStacked.WithinRarityChance:F2}%");
+
+            // Rarity chance is unaffected by either
+            Assert.Equal(bassSingle.RarityChance, bassStacked.RarityChance, 1);
         }
 
         #endregion
@@ -714,7 +786,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
                 var boosts = new List<UserFishingBoost> { userBoost };
                 var settings = await _fishingService.GetSettings();
@@ -726,14 +797,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 }
             }
 
-            // With a 200% boost to Common Bass (normally ~50% chance), we should see more bass
-            // The boost should increase the rarity tier weight, making bass more likely but not dramatically
-            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
+            var baseBassCount = 0;
+            for (int i = 0; i < totalAttempts; i++)
+            {
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost>();
+                var settings = await _fishingService.GetSettings();
 
-            // With the boost, bass should be caught more frequently than the baseline ~50%
-            // A more conservative check for > 51% indicates the boost is working
-            Assert.True(bassPercentage > 51.0, 
-                $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}%");
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 1) // Common Bass
+                {
+                    baseBassCount++;
+                }
+            }
+
+            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
+            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
+                $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
         }
 
         [Fact]
@@ -745,23 +827,21 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var specificFishBoost = new FishingShopItem
             {
                 Id = 1,
-                Name = "Trout Master Rod",
-                EquipmentSlot = EquipmentSlot.Rod,
-                Cost = 300,
+                Name = "Bass Hunter Lure",
+                EquipmentSlot = EquipmentSlot.Hook,
+                Cost = 200,
                 BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
                 BoostAmount = 0.1,
-                BoostType2 = FishingBoostType.StarBoost, // Secondary boost: star quality
-                BoostAmount2 = 0.15,
                 BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
-                BoostAmount3 = 1.5, // 150% boost to trout
-                TargetFishTypeId = 2, // Uncommon Trout (ID 2)
+                BoostAmount3 = 2.0, // 200% boost to bass
+                TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
             await _context.SaveChangesAsync();
 
             // Simulate many fishing attempts to verify the boost is working
-            var troutCount = 0;
+            var bassCount = 0;
             var totalAttempts = 1000;
 
             for (int i = 0; i < totalAttempts; i++)
@@ -776,31 +856,54 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                     RemainingUses = -1 // Unlimited uses
                 };
 
-                // Call FishingCalculations.SelectRandomFish directly (now exposed via InternalsVisibleTo)
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
                 var boosts = new List<UserFishingBoost> { userBoost };
                 var settings = await _fishingService.GetSettings();
 
                 var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 2) // Uncommon Trout
+                if (selectedFish.Id == 1) // Common Bass
                 {
-                    troutCount++;
+                    bassCount++;
                 }
             }
 
-            // With a 150% boost to Uncommon Trout (normally ~30% chance), we should see more trout
-            var troutPercentage = (double)troutCount / totalAttempts * 100;
+            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
+            var baseBassCount = 0;
+            for (int i = 0; i < totalAttempts; i++)
+            {
+                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
+                var boosts = new List<UserFishingBoost>();
+                var settings = await _fishingService.GetSettings();
 
-            // With the boost, trout should be caught more frequently than the baseline ~30%
-            // A conservative check for > 32% indicates the boost is working
-            Assert.True(troutPercentage > 32.0, 
-                $"SpecificFishBoost on BoostType3 should increase trout catch rate. Got {troutPercentage:F1}%");
+                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
+                if (selectedFish.Id == 1) // Common Bass
+                {
+                    baseBassCount++;
+                }
+            }
+
+            var bassPercentage = (double)bassCount / totalAttempts * 100;
+            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
+            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
+                $"SpecificFishBoost on BoostType3 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
         }
 
         [Fact]
         public async Task CalculateCatchProbabilities_ConsistentWithSelectRandomFish_BothUseFishId()
         {
             await SeedTestData();
+
+            // Add a second Common fish so within-rarity weighting is meaningful
+            var commonBass2 = new FishType
+            {
+                Id = 10,
+                Name = "Common Bass 2",
+                Rarity = FishRarity.Common,
+                BaseWeight = 2.0,
+                BaseGold = 10,
+                Enabled = true
+            };
+            _context.FishTypes.Add(commonBass2);
 
             // Add a specific fish boost to test consistency
             var specificFishBoost = new FishingShopItem
@@ -810,7 +913,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 EquipmentSlot = null, // Consumable
                 Cost = 100,
                 BoostType = FishingBoostType.SpecificFishBoost,
-                BoostAmount = 3.0, // 300% boost to bass
+                BoostAmount = 3.0, // 300% within-rarity weight for bass
                 TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = 5
             };
@@ -822,20 +925,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
             // Verify the result uses fish ID as key and includes all enabled fish
             var enabledFishIds = _context.FishTypes.Where(f => f.Enabled).Select(f => f.Id).ToList();
-
             foreach (var fishId in enabledFishIds)
             {
-                Assert.True(probabilities.ContainsKey(fishId), 
+                Assert.True(probabilities.ContainsKey(fishId),
                     $"Probability calculation should include fish with ID {fishId}");
             }
 
-            // Verify that Common Bass (ID 1) has a higher probability due to the specific boost
-            var bassProb = probabilities[1];
-            var otherFishProb = probabilities[2]; // Uncommon Trout
+            // Rarity chances are unchanged by SpecificFishBoost
+            var bassProb = probabilities[1];   // Common Bass (boosted)
+            var bass2Prob = probabilities[10]; // Common Bass 2 (unboosted, same rarity)
+            Assert.Equal(bassProb.RarityChance, bass2Prob.RarityChance, 1);
 
-            // The specific boost should make bass significantly more likely
-            Assert.True(bassProb.OverallChance > otherFishProb.OverallChance * 2,
-                $"Bass with specific boost should have much higher probability. Bass: {bassProb.OverallChance:F2}%, Trout: {otherFishProb.OverallChance:F2}%");
+            // The within-rarity boost should make bass significantly more likely than bass2
+            // Bass weight = 4.0, bass2 weight = 1.0 → bass gets 4x within-rarity share
+            Assert.True(bassProb.WithinRarityChance > bass2Prob.WithinRarityChance * 2,
+                $"Bass with specific boost should have much higher within-rarity chance. Bass: {bassProb.WithinRarityChance:F2}%, Bass2: {bass2Prob.WithinRarityChance:F2}%");
+            Assert.True(bassProb.OverallChance > bass2Prob.OverallChance * 2,
+                $"Bass with specific boost should have much higher overall chance. Bass: {bassProb.OverallChance:F2}%, Bass2: {bass2Prob.OverallChance:F2}%");
         }
 
         #endregion

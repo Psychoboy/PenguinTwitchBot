@@ -147,14 +147,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     }
                 }
             }
-            else if (boostType == FishingBoostType.SpecificFishBoost && targetFishTypeId != null)
-            {
-                var targetFish = fishTypes.FirstOrDefault(f => f.Id == targetFishTypeId);
-                if (targetFish != null)
-                {
-                    rarityWeights[targetFish.Rarity] *= (1.0 + boostAmount);
-                }
-            }
         }
 
         public static int CalculateStars(FishType fishType, List<UserFishingBoost> boosts)
