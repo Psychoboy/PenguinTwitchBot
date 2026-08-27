@@ -227,7 +227,7 @@
         if (ShopItem == null)
             return;
 
-        if (HasGeneralRarityBoost() || HasSpecificFishBoost() || HasSpecificCategoryBoost())
+        if (HasGeneralRarityBoost())
         {
             foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
             {
