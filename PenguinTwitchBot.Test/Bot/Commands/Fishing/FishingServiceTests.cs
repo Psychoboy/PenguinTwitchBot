@@ -801,9 +801,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var baseBassCount = 0;
             for (int i = 0; i < totalAttempts; i++)
             {
-
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost> {  };
+                var boosts = new List<UserFishingBoost>();
                 var settings = await _fishingService.GetSettings();
 
                 var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
@@ -816,7 +815,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var bassPercentage = (double)bassCount / totalAttempts * 100;
             var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
             Assert.True(bassPercentage > baseBassPercentage + 8.0, 
-                $"SpecificFishBoost on BoostType3 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
+                $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
         }
 
         [Fact]
@@ -824,7 +823,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             await SeedTestData();
 
-            // Create specific fish boost item with BoostType2
+            // Create specific fish boost item with BoostType3
             var specificFishBoost = new FishingShopItem
             {
                 Id = 1,
@@ -833,7 +832,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 Cost = 200,
                 BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
                 BoostAmount = 0.1,
-                BoostType3 = FishingBoostType.SpecificFishBoost, // Secondary boost: specific fish
+                BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
                 BoostAmount3 = 2.0, // 200% boost to bass
                 TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = null
@@ -872,9 +871,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var baseBassCount = 0;
             for (int i = 0; i < totalAttempts; i++)
             {
-
                 var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost> {  };
+                var boosts = new List<UserFishingBoost>();
                 var settings = await _fishingService.GetSettings();
 
                 var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);

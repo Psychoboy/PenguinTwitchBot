@@ -227,7 +227,11 @@
         if (ShopItem == null)
             return;
 
-        if (HasGeneralRarityBoost())
+        var equippedItemInSlot = ShopItem.EquipmentSlot.HasValue
+            ? currentEquippedResolved.FirstOrDefault(i => i.EquipmentSlot == ShopItem.EquipmentSlot)
+            : null;
+
+        if (HasGeneralRarityBoost(ShopItem) || HasGeneralRarityBoost(equippedItemInSlot))
         {
             foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
             {
@@ -382,13 +386,15 @@
                ShopItem.BoostType3 == FishingBoostType.StarBoost;
     }
 
-    private bool HasGeneralRarityBoost()
+    private bool HasGeneralRarityBoost(FishingShopItem? item)
     {
-        if (ShopItem == null) return false;
-        return ShopItem.BoostType == FishingBoostType.GeneralRarityBoost ||
-               ShopItem.BoostType2 == FishingBoostType.GeneralRarityBoost ||
-               ShopItem.BoostType3 == FishingBoostType.GeneralRarityBoost;
+        if (item == null) return false;
+        return item.BoostType == FishingBoostType.GeneralRarityBoost ||
+               item.BoostType2 == FishingBoostType.GeneralRarityBoost ||
+               item.BoostType3 == FishingBoostType.GeneralRarityBoost;
     }
+
+    private bool HasGeneralRarityBoost() => HasGeneralRarityBoost(ShopItem);
 
     private Color GetRarityColor(FishRarity rarity) => rarity switch
     {
