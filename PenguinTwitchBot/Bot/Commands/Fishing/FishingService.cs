@@ -794,14 +794,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 $"#{winner.Placement} {winner.Username} won {winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}"));
         }
 
-        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentRewardRule rewardRule)
+        private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentRewardRule rewardRule)
         {
             return CalculateStandings(catches, rewardRule.ScoreCategory, rewardRule.TargetFishTypeId);
         }
 
-        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentScoreCategory scoreCategory, int? targetFishTypeId = null)
+        private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentScoreCategory scoreCategory, int? targetFishTypeId = null)
         {
-            IEnumerable<FishCatch> scopedCatches = catches;
+            IEnumerable<TournamentCatchEntry> scopedCatches = catches;
 
             if (scoreCategory == FishingTournamentScoreCategory.SpecificFish && targetFishTypeId.HasValue)
             {
@@ -834,21 +834,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 : [.. grouped.OrderByDescending(x => x.Score).ThenBy(x => x.CatchCount).ThenBy(x => x.TotalStars)];
         }
 
-        private static async Task<List<FishCatch>> GetTournamentCatches(IUnitOfWork db, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
+        private static async Task<List<TournamentCatchEntry>> GetTournamentCatches(IUnitOfWork db, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
         {
-            var linkedCatchIds = await db.FishingTournamentCatches
+            // Recorded tournament catches are self-contained snapshots, so they stay valid
+            // even after the source FishCatch rows are purged.
+            var recordedCatches = await db.FishingTournamentCatches
                 .Find(link => link.FishingTournamentId == tournament.Id)
                 .AsNoTracking()
-                .Select(link => link.FishCatchId)
+                .Select(link => new TournamentCatchEntry(
+                    link.UserId,
+                    link.Username,
+                    link.FishTypeId,
+                    link.Stars,
+                    link.Weight,
+                    link.GoldEarned,
+                    link.CaughtAt))
                 .ToListAsync();
 
-            if (linkedCatchIds.Count > 0)
+            if (recordedCatches.Count > 0)
             {
-                return await db.FishCatches
-                    .Find(c => linkedCatchIds.Contains(c.Id))
-                    .AsNoTracking()
-                    .Include(c => c.FishType)
-                    .ToListAsync();
+                return recordedCatches;
             }
 
             if (useLinkedCatchesOnly)
@@ -864,8 +869,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var query = db.FishCatches
                 .Find(c => c.CaughtAt >= startUtc && c.CaughtAt <= endUtc)
-                .AsNoTracking()
-                .Include(c => c.FishType);
+                .AsNoTracking();
 
             // No fish and no categories selected means all fish are eligible (default behavior).
             if (hasEligibleFish || hasEligibleCategories)
@@ -885,15 +889,32 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         .ToHashSetAsync();
                 }
 
-                return await query
+                query = query
                     .Where(c =>
                         (hasEligibleFish && eligibleFishTypeIds.Contains(c.FishTypeId)) ||
-                        (hasEligibleCategories && eligibleByCategoryFishTypeIds.Contains(c.FishTypeId)))
-                    .ToListAsync();
+                        (hasEligibleCategories && eligibleByCategoryFishTypeIds.Contains(c.FishTypeId)));
             }
 
-            return await query.ToListAsync();
+            return await query
+                .Select(c => new TournamentCatchEntry(
+                    c.UserId,
+                    c.Username,
+                    c.FishTypeId,
+                    c.Stars,
+                    c.Weight,
+                    c.GoldEarned,
+                    c.CaughtAt))
+                .ToListAsync();
         }
+
+        private sealed record TournamentCatchEntry(
+            string UserId,
+            string Username,
+            int FishTypeId,
+            int Stars,
+            double Weight,
+            int GoldEarned,
+            DateTime CaughtAt);
 
         private sealed class TournamentStanding
         {
@@ -1038,7 +1059,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            // Remove all user catches
+            // FishingTournamentCatches keep their own snapshot of the catch data, so tournament
+            // history survives this (the FK is set to null by the database).
             await db.FishCatches.ExecuteDeleteAllAsync();
 
             // Remove all user gold records

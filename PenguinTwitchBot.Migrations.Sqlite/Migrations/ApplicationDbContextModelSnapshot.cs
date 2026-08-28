@@ -1157,11 +1157,35 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("FishCatchId")
+                    b.Property<DateTime>("CaughtAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FishCatchId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FishTypeId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("FishingTournamentId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<int>("GoldEarned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("REAL");
 
                     b.HasKey("Id");
 
@@ -1170,6 +1194,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasIndex("FishingTournamentId", "FishCatchId")
                         .IsUnique()
                         .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
+
+                    b.HasIndex("FishingTournamentId", "UserId")
+                        .HasDatabaseName("IX_FishingTournamentCatches_Tournament_User");
 
                     b.ToTable("FishingTournamentCatches");
                 });
@@ -3375,8 +3402,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCatch", "FishCatch")
                         .WithMany()
                         .HasForeignKey("FishCatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", "FishingTournament")
                         .WithMany()

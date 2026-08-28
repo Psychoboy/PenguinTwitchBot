@@ -77,7 +77,18 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.FishCatches.AddRange(catches);
             foreach (var fishCatch in catches)
             {
-                _context.FishingTournamentCatches.Add(new FishingTournamentCatch { FishingTournamentId = 1, FishCatchId = fishCatch.Id });
+                _context.FishingTournamentCatches.Add(new FishingTournamentCatch
+                {
+                    FishingTournamentId = 1,
+                    FishCatchId = fishCatch.Id,
+                    UserId = fishCatch.UserId,
+                    Username = fishCatch.Username,
+                    FishTypeId = fishCatch.FishTypeId,
+                    Stars = fishCatch.Stars,
+                    Weight = fishCatch.Weight,
+                    GoldEarned = fishCatch.GoldEarned,
+                    CaughtAt = fishCatch.CaughtAt
+                });
             }
 
             await _context.SaveChangesAsync();

@@ -180,7 +180,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         db.FishingTournamentCatches.Add(new FishingTournamentCatch
                         {
                             FishingTournamentId = tournament.Id,
-                            FishCatchId = fishCatch.Id
+                            FishCatchId = fishCatch.Id,
+                            UserId = fishCatch.UserId,
+                            Username = fishCatch.Username,
+                            FishTypeId = fishCatch.FishTypeId,
+                            Stars = fishCatch.Stars,
+                            Weight = fishCatch.Weight,
+                            GoldEarned = fishCatch.GoldEarned,
+                            CaughtAt = fishCatch.CaughtAt
                         });
                     }
                 }
