@@ -334,9 +334,9 @@ public class ActionCommandHandlerTests
         _commandHandler.CheckPermission(command, notification.EventArgs).Returns(Task.FromResult(true));
         _commandHandler.IsCoolDownExpired("testuser", "test").Returns(Task.FromResult(true));
         _actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
-            TriggerTypes.Command, "!test").Returns(Task.FromResult(new List<ActionType>()));
+            TriggerTypes.Command, "!test").Returns(Task.FromResult(new List<ActionType> { new ActionType { Name = "Action1", SubActions = new List<SubActionType>() } }));
 
-        _actionService.EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>())
+        _actionService.EnqueueAction(Arg.Any<ConcurrentDictionary<string, string>>(), Arg.Any<ActionType>(), Arg.Any<Guid?>(), Arg.Any<int?>())
             .Returns(Task.FromException(new Exception("Test exception")));
 
         var exception = await Record.ExceptionAsync(() => _handler.Handle(notification, CancellationToken.None));

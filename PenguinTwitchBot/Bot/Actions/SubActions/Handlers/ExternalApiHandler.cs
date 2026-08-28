@@ -17,6 +17,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for ExternalApiHandler: {SubActionType}", subAction.GetType().Name);
             }
 
+            var sanitizedUrl = Uri.TryCreate(externalApiType.Text, UriKind.Absolute, out var uri) ? uri.Host : "invalid-or-relative-url";
+
             try
             {
                 using var httpClient = httpClientFactory.CreateClient();
@@ -26,7 +28,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     Method = new HttpMethod(externalApiType.HttpMethod)
                 };
 
-                context?.LogMessage(subActionIndex, $"Sending {externalApiType.HttpMethod} request to {externalApiType.Text}");
+                context?.LogMessage(subActionIndex, $"Sending {externalApiType.HttpMethod} request to {sanitizedUrl}");
 
                 if (!string.IsNullOrEmpty(externalApiType.Headers))
                 {
@@ -51,8 +53,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             } catch (Exception ex)
             {
                 context?.LogMessage(subActionIndex, $"Request failed: {ex.Message}");
-                logger.LogError(ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
-                throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
+                logger.LogError(ex, "Error executing ExternalApiHandler for URL: {Url}", sanitizedUrl);
+                throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", sanitizedUrl);
             }
         }
     }

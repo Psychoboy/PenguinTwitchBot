@@ -123,6 +123,11 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                          TriggerTypes.Keyword,
                         keyword.CommandName);
 
+                    if (actions.Count == 0)
+                    {
+                        continue;
+                    }
+
                     var dictionary = CommandEventArgsConverter.ToDictionary(commandEventArgs);
                     dictionary[ActionExecutionVariableKeys.CooldownCommandName] = $"keyword {keyword.CommandName}";
                     dictionary[ActionExecutionVariableKeys.CooldownUserName] = notification.EventArgs.Name;

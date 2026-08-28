@@ -243,7 +243,10 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
                     {
                         existing.NextRun = nextRun;
                         existing.LastRun = lastRun;
+                        db.TimerGroups.Update(existing);
                         await db.SaveChangesAsync();
+                        group.NextRun = nextRun;
+                        group.LastRun = lastRun;
                     }
                 }
             }
