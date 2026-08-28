@@ -304,16 +304,21 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
 
             modelBuilder.Entity<FishingTournamentCatch>()
+                .HasIndex(e => new { e.FishingTournamentId, e.UserId })
+                .HasDatabaseName("IX_FishingTournamentCatches_Tournament_User");
+
+            modelBuilder.Entity<FishingTournamentCatch>()
                 .HasOne(e => e.FishingTournament)
                 .WithMany()
                 .HasForeignKey(e => e.FishingTournamentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Keep the tournament snapshot when the source catch is purged by a user data reset.
             modelBuilder.Entity<FishingTournamentCatch>()
                 .HasOne(e => e.FishCatch)
                 .WithMany()
                 .HasForeignKey(e => e.FishCatchId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Models.Metrics.SongRequestHistory>()
                 .HasIndex(e => new { e.SongId, e.RequestDate })

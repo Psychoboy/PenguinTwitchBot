@@ -415,7 +415,18 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
                     }
                     var destPath = _fs.Path.Combine(wwwrootDest, subDir);
                     if (_fs.Directory.Exists(destPath))
-                        _fs.Directory.Delete(destPath, true);
+                    {
+                        try
+                        {
+                            _fs.Directory.Delete(destPath, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            // A locked file (OneDrive, open handle) shouldn't abort the restore -
+                            // the copy below overwrites in place, only stale files are left behind.
+                            logger?.LogWarning(ex, "Could not clear wwwroot/{SubDir}, overwriting in place", subDir);
+                        }
+                    }
                     CopyDirectory(sourcePath, destPath, logger);
                     logger?.LogDebug("Restored wwwroot/{SubDir}", subDir);
                 }
@@ -475,43 +486,53 @@ namespace PenguinTwitchBot.Database.Bot.DatabaseTools
             // MAX(Id), the next auto-generated Id collides with an existing row and fails
             // with a duplicate-key error (e.g. PK_FishTypes).
             //
-            // We use ALTER TABLE ... RESTART WITH (not setval/pg_get_serial_sequence)
-            // because pg_get_serial_sequence() returns NULL for GENERATED AS IDENTITY
-            // columns, which would make setval a silent no-op. RESTART WITH is the
-            // authoritative reset for both serial and identity columns.
-            var entityTypes = context.Model.GetEntityTypes()
-                .Where(e => e.FindPrimaryKey()?.Properties.Count == 1)
-                .ToList();
+            // Driven off the catalog rather than the EF model: TPT child tables (e.g.
+            // subactions_*) have an "Id" primary key that is a plain FK column, not an
+            // identity, and ALTER ... RESTART WITH errors out on those.
+            //
+            // ALTER TABLE ... RESTART WITH is used for identity columns (not setval, since
+            // pg_get_serial_sequence returns NULL for GENERATED AS IDENTITY); legacy serial
+            // columns fall back to setval.
+            const string resetSql = """
+                DO $$
+                DECLARE
+                    r record;
+                    next_val bigint;
+                    seq text;
+                BEGIN
+                    FOR r IN
+                        SELECT c.table_name, c.is_identity
+                        FROM information_schema.columns c
+                        JOIN information_schema.tables t
+                          ON t.table_schema = c.table_schema
+                         AND t.table_name = c.table_name
+                         AND t.table_type = 'BASE TABLE'
+                        WHERE c.table_schema = current_schema()
+                          AND c.column_name = 'Id'
+                          AND (c.is_identity = 'YES' OR c.column_default LIKE 'nextval(%')
+                    LOOP
+                        EXECUTE format('SELECT COALESCE(MAX("Id"), 0) + 1 FROM %I', r.table_name) INTO next_val;
 
-            foreach (var entityType in entityTypes)
+                        IF r.is_identity = 'YES' THEN
+                            EXECUTE format('ALTER TABLE %I ALTER COLUMN "Id" RESTART WITH %s', r.table_name, next_val);
+                        ELSE
+                            seq := pg_get_serial_sequence(quote_ident(r.table_name), 'Id');
+                            IF seq IS NOT NULL THEN
+                                PERFORM setval(seq, next_val, false);
+                            END IF;
+                        END IF;
+                    END LOOP;
+                END $$;
+                """;
+
+            try
             {
-                var table = entityType.GetTableName();
-                var keyProperty = entityType.FindPrimaryKey()!.Properties[0];
-                if (string.IsNullOrEmpty(table) || keyProperty.ClrType != typeof(int))
-                {
-                    continue;
-                }
-
-                try
-                {
-#pragma warning disable EF1002
-                    await context.Database.ExecuteSqlRawAsync(
-                        $"SELECT COALESCE(MAX(\"Id\"), 0) + 1 FROM \"{table}\"");
-                    var restartSql = @$"
-                        DO $$
-                        DECLARE next_val int;
-                        BEGIN
-                            SELECT COALESCE(MAX(""Id""), 0) + 1 INTO next_val FROM ""{table}"";
-                            EXECUTE format('ALTER TABLE ""{table}"" ALTER COLUMN ""Id"" RESTART WITH %s', next_val);
-                        END $$;";
-                    await context.Database.ExecuteSqlRawAsync(restartSql);
-#pragma warning restore EF1002
-                    logger?.LogDebug("Reset identity for table {Table}", table);
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogWarning(ex, "Failed to reset identity for table {Table}", table);
-                }
+                await context.Database.ExecuteSqlRawAsync(resetSql);
+                logger?.LogInformation("Reset identity sequences for restored tables");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Failed to reset identity sequences after restore");
             }
         }
     }
