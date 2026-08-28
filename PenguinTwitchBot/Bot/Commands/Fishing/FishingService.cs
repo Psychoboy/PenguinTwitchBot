@@ -728,7 +728,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(triggerType, triggerName);
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(triggerType, triggerName);
                 if (actions.Count == 0)
                 {
                     return;

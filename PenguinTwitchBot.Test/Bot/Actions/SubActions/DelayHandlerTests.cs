@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
@@ -13,7 +14,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidDelayType_DelaysExecution()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var logger = new Mock<ILogger<DelayHandler>>();
+            var handler = new DelayHandler(logger.Object);
 
             var delayType = new DelayType
             {
@@ -35,7 +37,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithVariableReplacement_DelaysCorrectly()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var logger = new Mock<ILogger<DelayHandler>>();
+            var handler = new DelayHandler(logger.Object);
 
             var delayType = new DelayType
             {
@@ -57,7 +60,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task DelayType_WithInvalidDuration_DoesNotDelay()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var logger = new Mock<ILogger<DelayHandler>>();
+            var handler = new DelayHandler(logger.Object);
 
             var delayType = new DelayType
             {
@@ -80,7 +84,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             // Arrange
-            var handler = new DelayHandler();
+            var logger = new Mock<ILogger<DelayHandler>>();
+            var handler = new DelayHandler(logger.Object);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
