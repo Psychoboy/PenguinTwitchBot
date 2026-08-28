@@ -331,7 +331,13 @@
         // Update URL with timerGroupId for browser history support (only if not already navigating via back/forward)
         if (timerGroup.Id.HasValue && !_isNavigating)
         {
-            NavigationManager.NavigateTo($"/actions/timers?timerGroupId={timerGroup.Id.Value}", false);
+            var uri = new Uri(NavigationManager.Uri);
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            var currentTimerGroupId = query["timerGroupId"];
+            if (currentTimerGroupId != timerGroup.Id.Value.ToString())
+            {
+                NavigationManager.NavigateTo($"/actions/timers?timerGroupId={timerGroup.Id.Value}", false);
+            }
         }
     }
 
