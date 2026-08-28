@@ -13,7 +13,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task ValidType_TogglesDisabledState()
         {
             var commandService = Substitute.For<IActionCommandService>();
-            var handler = new ToggleCommandDisabledHandler(commandService);
+            var logger = Substitute.For<ILogger<ToggleCommandDisabledHandler>>();
+            var handler = new ToggleCommandDisabledHandler(commandService, logger);
 
             var command = new PenguinTwitchBot.Database.Bot.Models.Commands.ActionCommand { Id = 1, CommandName = "!test", Disabled = false };
             commandService.GetByCommandNameAsync("!test").Returns(command);
@@ -31,7 +32,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task WrongType_ThrowsException()
         {
             var commandService = Substitute.For<IActionCommandService>();
-            var handler = new ToggleCommandDisabledHandler(commandService);
+            var logger = Substitute.For<ILogger<ToggleCommandDisabledHandler>>();
+            var handler = new ToggleCommandDisabledHandler(commandService, logger);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -43,7 +45,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public async Task CommandNotFound_ThrowsException()
         {
             var commandService = Substitute.For<IActionCommandService>();
-            var handler = new ToggleCommandDisabledHandler(commandService);
+            var logger = Substitute.For<ILogger<ToggleCommandDisabledHandler>>();
+            var handler = new ToggleCommandDisabledHandler(commandService, logger);
 
             commandService.GetByCommandNameAsync("!missing").Returns((PenguinTwitchBot.Database.Bot.Models.Commands.ActionCommand?)null);
 

@@ -76,7 +76,7 @@
         {
             TouchProgress();
             _logger.LogSubActionMessage(ActionLogId, subActionIndex, message);
-            _contextLogger.LogTrace("SubAction message at index {Index} for action {ActionLogId}: {Message}", 
+            _contextLogger.LogDebug("SubAction message at index {Index} for action {ActionLogId}: {Message}", 
                 subActionIndex, ActionLogId, message);
         }
 
@@ -98,7 +98,7 @@
         {
             TouchProgress();
             _logger.LogSubActionFailed(ActionLogId, subActionIndex, errorMessage);
-            _contextLogger.LogTrace("SubAction failed at index {Index} for action {ActionLogId}: {Error}", 
+            _contextLogger.LogWarning("SubAction failed at index {Index} for action {ActionLogId}: {Error}", 
                 subActionIndex, ActionLogId, errorMessage);
         }
 

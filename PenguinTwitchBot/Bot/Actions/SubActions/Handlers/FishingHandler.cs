@@ -174,7 +174,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                     TriggerTypes.FishingTournamentCatch,
                     FishingTournamentCatchTriggerName);
 
@@ -354,7 +354,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                     TriggerTypes.FishCatch,
                     FishCatchTriggerName);
 
