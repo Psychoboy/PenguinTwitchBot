@@ -65,9 +65,15 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                 }
 
                 // Get and execute actions
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                      TriggerTypes.Command,
                     "!" + notification.EventArgs.Command);
+
+                if(actions.Count == 0)
+                {
+                    logger.LogDebug("No actions found or all disabled for command {Command}", notification.EventArgs.Command);
+                    return;
+                }
 
                 var dictionary = CommandEventArgsConverter.ToDictionary(notification.EventArgs);
                 dictionary[ActionExecutionVariableKeys.CooldownCommandName] = actionCommand.CommandName;

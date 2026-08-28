@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Queues;
@@ -5,7 +6,7 @@ using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ToggleCommandDisabledHandler(IActionCommandService commandService) : ISubActionHandler
+    public class ToggleCommandDisabledHandler(IActionCommandService commandService, ILogger<ToggleCommandDisabledHandler> logger) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ToggleCommandDisabledState;
 
@@ -27,6 +28,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             await commandService.UpdateAsync(command);
             var state = toggleCommandDisabled.IsDisabled ? "disabled" : "enabled";
             context?.LogMessage(subActionIndex, $"Command {command.CommandName} (ID: {command.Id}) set to {state}");
+            logger.LogInformation("Command {CommandName} (ID: {CommandId}) set to {State}", command.CommandName, command.Id, state);
         }
     }
 }

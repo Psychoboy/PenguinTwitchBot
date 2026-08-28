@@ -5,7 +5,8 @@ using System.Collections.Concurrent;
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class ExternalApiHandler(
-        IHttpClientFactory httpClientFactory) : ISubActionHandler
+        IHttpClientFactory httpClientFactory,
+        ILogger<ExternalApiHandler> logger) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ExternalApi;
 
@@ -50,6 +51,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             } catch (Exception ex)
             {
                 context?.LogMessage(subActionIndex, $"Request failed: {ex.Message}");
+                logger.LogError(ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
                 throw new SubActionHandlerException(subAction, ex, "Error executing ExternalApiHandler for URL: {Url}", externalApiType.Text);
             }
         }

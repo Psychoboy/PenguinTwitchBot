@@ -64,7 +64,7 @@
         {
             TouchProgress();
             var actualIndex = _logger.LogSubActionStarted(ActionLogId, subActionType, description, _depth);
-            _contextLogger.LogTrace("SubAction {SubActionType} started at index {ActualIndex} (requested {RequestedIndex}, depth {Depth}) for action {ActionLogId}", 
+            _contextLogger.LogDebug("SubAction {SubActionType} started at index {ActualIndex} (requested {RequestedIndex}, depth {Depth}) for action {ActionLogId}", 
                 subActionType, actualIndex, subActionIndex, _depth, ActionLogId);
             return actualIndex;
         }
@@ -76,7 +76,7 @@
         {
             TouchProgress();
             _logger.LogSubActionMessage(ActionLogId, subActionIndex, message);
-            _contextLogger.LogTrace("SubAction message at index {Index} for action {ActionLogId}: {Message}", 
+            _contextLogger.LogDebug("SubAction message at index {Index} for action {ActionLogId}: {Message}", 
                 subActionIndex, ActionLogId, message);
         }
 
@@ -87,7 +87,7 @@
         {
             TouchProgress();
             _logger.LogSubActionCompleted(ActionLogId, subActionIndex);
-            _contextLogger.LogTrace("SubAction completed at index {Index} for action {ActionLogId}", 
+            _contextLogger.LogDebug("SubAction completed at index {Index} for action {ActionLogId}", 
                 subActionIndex, ActionLogId);
         }
 
@@ -98,7 +98,7 @@
         {
             TouchProgress();
             _logger.LogSubActionFailed(ActionLogId, subActionIndex, errorMessage);
-            _contextLogger.LogTrace("SubAction failed at index {Index} for action {ActionLogId}: {Error}", 
+            _contextLogger.LogDebug("SubAction failed at index {Index} for action {ActionLogId}: {Error}", 
                 subActionIndex, ActionLogId, errorMessage);
         }
 
@@ -109,7 +109,7 @@
         {
             TouchProgress();
             _logger.LinkChildAction(ActionLogId, subActionIndex, childActionLogId);
-            _contextLogger.LogTrace("Child action {ChildActionLogId} linked to subaction at index {Index} for action {ActionLogId}", 
+            _contextLogger.LogDebug("Child action {ChildActionLogId} linked to subaction at index {Index} for action {ActionLogId}", 
                 childActionLogId, subActionIndex, ActionLogId);
         }
 
