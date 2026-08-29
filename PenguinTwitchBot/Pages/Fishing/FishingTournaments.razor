@@ -367,6 +367,11 @@
             ? $"{rewardRule.EntryFeePercentage ?? 0}% of entry fees"
             : $"{rewardRule.Points:N0} {rewardRule.PointType?.Name ?? "points"}";
 
+        if (rewardRule.GoldAmount is > 0)
+        {
+            rewardLabel += $" + {rewardRule.GoldAmount:N0} gold";
+        }
+
         var categoryLabel = rewardRule.ScoreCategory == FishingTournamentScoreCategory.SpecificFish && rewardRule.TargetFishType != null
             ? $"{rewardRule.TargetFishType.Name}"
             : rewardRule.ScoreCategory.ToString();

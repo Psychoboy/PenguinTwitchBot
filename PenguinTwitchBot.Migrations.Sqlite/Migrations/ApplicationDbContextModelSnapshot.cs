@@ -1260,6 +1260,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<int>("FishingTournamentId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("GoldAmount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Placement")
                         .HasColumnType("INTEGER");
 

@@ -134,6 +134,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int? EntryFeePercentage { get; set; }
         public int PointTypeId { get; set; }
         public PointType PointType { get; set; } = null!;
+
+        /// <summary>Optional additive gold reward on top of the Points/EntryFeePercentage payout above. Null/0 = no gold.</summary>
+        public long? GoldAmount { get; set; }
         public bool Enabled { get; set; } = true;
     }
 }
