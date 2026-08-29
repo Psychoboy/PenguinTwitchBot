@@ -634,7 +634,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return tournament;
             }
 
-            var rewardWinners = await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
+            // Gold credits and the completion flip share this db/SaveChangesAsync so a failed save can't leave gold
+            // credited against a tournament that a retry would settle again.
+            var rewardWinners = await SettleFishingTournamentRewards(db, tournament, DateTime.UtcNow);
 
             tournament.Status = FishingTournamentStatus.Completed;
             tournament.Enabled = false;
@@ -651,7 +653,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return tournament;
         }
 
-        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
+        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(IUnitOfWork db, FishingTournament tournament, DateTime settlementEndUtc)
         {
             var winners = new List<TournamentRewardWinner>();
 
@@ -659,9 +661,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 return winners;
             }
-
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var catches = await GetTournamentCatches(db, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
 
@@ -700,15 +699,21 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 if (goldAmount > 0)
                 {
-                    var goldValue = (int)Math.Min(goldAmount, int.MaxValue);
                     var gold = await db.FishingGolds.Find(g => g.UserId == winner.UserId).FirstOrDefaultAsync();
+                    var existingTotal = gold?.TotalGold ?? 0;
+
+                    // TotalGold is a 32-bit column; clamp the sum (not just the reward) so the persisted
+                    // balance and the reported/logged amount never diverge or silently wrap.
+                    var clampedTotal = Math.Clamp(existingTotal + goldAmount, 0L, int.MaxValue);
+                    goldAmount = clampedTotal - existingTotal;
+
                     if (gold == null)
                     {
-                        db.FishingGolds.Add(new FishingGold { UserId = winner.UserId, Username = winner.Username, TotalGold = goldValue });
+                        db.FishingGolds.Add(new FishingGold { UserId = winner.UserId, Username = winner.Username, TotalGold = (int)clampedTotal });
                     }
                     else
                     {
-                        gold.TotalGold += goldValue;
+                        gold.TotalGold = (int)clampedTotal;
                         gold.Username = winner.Username;
                     }
                 }
@@ -736,8 +741,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     rewardRule.PointTypeId,
                     goldAmount);
             }
-
-            await db.SaveChangesAsync();
 
             return winners;
         }
