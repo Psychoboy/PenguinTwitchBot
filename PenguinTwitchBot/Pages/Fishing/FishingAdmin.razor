@@ -899,9 +899,9 @@
 
                 <MudNumericField @bind-Value="editingFish.BaseWeight" 
                                  Label="Base Weight (kg)" 
-                                 HelperText="Actual weight will vary between 0.8x and 1.13x of base, modified by stars"
-                                 Min="0.05" 
-                                 Step="0.05"
+                                 HelperText="Actual weight varies between 0.8x and 1.13x of base, modified by stars, with a 0.01 kg catch floor"
+                                 Min="0.0" 
+                                 Step="0.01"
                                  Format="F2"
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.End"
