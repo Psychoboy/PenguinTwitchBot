@@ -480,6 +480,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         Points = rule.Points,
                         EntryFeePercentage = rule.EntryFeePercentage,
                         PointTypeId = rule.PointTypeId,
+                        GoldAmount = rule.GoldAmount,
                         Enabled = rule.Enabled
                     })
                     .ToList()
@@ -595,6 +596,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     Points = rule.Points,
                     EntryFeePercentage = rule.EntryFeePercentage,
                     PointTypeId = rule.PointTypeId,
+                    GoldAmount = rule.GoldAmount,
                     Enabled = rule.Enabled
                 })
                 .ToList();
@@ -632,7 +634,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return tournament;
             }
 
-            var rewardWinners = await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
+            // Gold credits and the completion flip share this db/SaveChangesAsync so a failed save can't leave gold
+            // credited against a tournament that a retry would settle again.
+            var rewardWinners = await SettleFishingTournamentRewards(db, tournament, DateTime.UtcNow);
 
             tournament.Status = FishingTournamentStatus.Completed;
             tournament.Enabled = false;
@@ -649,7 +653,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return tournament;
         }
 
-        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
+        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(IUnitOfWork db, FishingTournament tournament, DateTime settlementEndUtc)
         {
             var winners = new List<TournamentRewardWinner>();
 
@@ -657,9 +661,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 return winners;
             }
-
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var catches = await GetTournamentCatches(db, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
 
@@ -684,12 +685,38 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     ? Math.Max(0L, (long)Math.Round((tournament.EntryFeeAmount ?? 0L) * ((rewardRule.EntryFeePercentage ?? 0) / 100.0), MidpointRounding.AwayFromZero))
                     : Math.Max(0L, rewardRule.Points);
 
-                if (rewardAmount <= 0)
+                var goldAmount = Math.Max(0L, rewardRule.GoldAmount ?? 0L);
+
+                if (rewardAmount <= 0 && goldAmount <= 0)
                 {
                     continue;
                 }
 
-                await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
+                if (rewardAmount > 0)
+                {
+                    await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
+                }
+
+                if (goldAmount > 0)
+                {
+                    var gold = await db.FishingGolds.Find(g => g.UserId == winner.UserId).FirstOrDefaultAsync();
+                    var existingTotal = gold?.TotalGold ?? 0;
+
+                    // TotalGold is a 32-bit column; clamp the sum (not just the reward) so the persisted
+                    // balance and the reported/logged amount never diverge or silently wrap.
+                    var clampedTotal = Math.Clamp(existingTotal + goldAmount, 0L, int.MaxValue);
+                    goldAmount = clampedTotal - existingTotal;
+
+                    if (gold == null)
+                    {
+                        db.FishingGolds.Add(new FishingGold { UserId = winner.UserId, Username = winner.Username, TotalGold = (int)clampedTotal });
+                    }
+                    else
+                    {
+                        gold.TotalGold = (int)clampedTotal;
+                        gold.Username = winner.Username;
+                    }
+                }
 
                 winners.Add(new TournamentRewardWinner
                 {
@@ -700,17 +727,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     PointTypeName = rewardRule.PointType?.Name ?? string.Empty,
                     ScoreCategory = rewardRule.ScoreCategory,
                     RewardKind = rewardRule.RewardKind,
-                    RewardAmount = rewardAmount
+                    RewardAmount = rewardAmount,
+                    GoldAmount = goldAmount
                 });
 
                 _logger.LogInformation(
-                    "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}",
+                    "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}, gold {Gold}",
                     tournament.Id,
                     winner.Username,
                     rewardRule.Placement,
                     rewardRule.ScoreCategory,
                     rewardAmount,
-                    rewardRule.PointTypeId);
+                    rewardRule.PointTypeId,
+                    goldAmount);
             }
 
             return winners;
@@ -791,7 +820,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             variables["fishing_tournament_reward_winner_names"] = string.Join(", ", rewardWinners.Select(winner => winner.Username).Distinct(StringComparer.OrdinalIgnoreCase));
             variables["fishing_tournament_reward_winner_ids"] = string.Join(",", rewardWinners.Select(winner => winner.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
             variables["fishing_tournament_reward_summary"] = string.Join("; ", rewardWinners.Select(winner =>
-                $"#{winner.Placement} {winner.Username} won {winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}"));
+            {
+                var parts = new List<string>();
+                if (winner.RewardAmount > 0)
+                {
+                    parts.Add($"{winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}");
+                }
+                if (winner.GoldAmount > 0)
+                {
+                    parts.Add($"{winner.GoldAmount} Gold");
+                }
+                return $"#{winner.Placement} {winner.Username} won {string.Join(" + ", parts)}";
+            }));
         }
 
         private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentRewardRule rewardRule)
@@ -936,6 +976,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public FishingTournamentScoreCategory ScoreCategory { get; set; }
             public FishingTournamentRewardKind RewardKind { get; set; }
             public long RewardAmount { get; set; }
+            public long GoldAmount { get; set; }
         }
 
         public async Task DeleteFishingTournament(int id)

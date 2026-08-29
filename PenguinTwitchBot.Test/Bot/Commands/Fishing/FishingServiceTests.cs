@@ -825,59 +825,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
                 BoostAmount = 0.1,
                 BoostType2 = FishingBoostType.SpecificFishBoost, // Secondary boost: specific fish
-                BoostAmount2 = 2.0, // 200% boost to bass
+                BoostAmount2 = 2.0, // +200% within-rarity weight for bass
                 TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
             await _context.SaveChangesAsync();
 
-            // Simulate many fishing attempts to verify the boost is working
-            var bassCount = 0;
-            var totalAttempts = 1000;
+            // Deterministic check (avoids Monte-Carlo sampling flakiness): Common tier has two fish
+            // (Common Bass + Invalid Fish), so baseline within-rarity share is 50%, and a x3 weight
+            // (1 + BoostAmount2 of 2.0) on bass shifts it to 3/(3+1) = 75%.
+            var baseline = await _analyticsService.CalculateCatchProbabilities(false, 1.0, []);
+            var boosted = await _analyticsService.CalculateCatchProbabilities(false, 1.0, [specificFishBoost.Id]);
 
-            for (int i = 0; i < totalAttempts; i++)
-            {
-                var userBoost = new UserFishingBoost
-                {
-                    Id = i + 100,
-                    UserId = "test-user",
-                    ShopItemId = 1,
-                    ShopItem = specificFishBoost,
-                    IsEquipped = true,
-                    RemainingUses = -1 // Unlimited uses
-                };
+            var baselineBass = baseline.Values.First(f => f.FishName == "Common Bass");
+            var boostedBass = boosted.Values.First(f => f.FishName == "Common Bass");
 
-                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost> { userBoost };
-                var settings = await _fishingService.GetSettings();
-
-                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 1) // Common Bass
-                {
-                    bassCount++;
-                }
-            }
-
-            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
-            var baseBassCount = 0;
-            for (int i = 0; i < totalAttempts; i++)
-            {
-                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost>();
-                var settings = await _fishingService.GetSettings();
-
-                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 1) // Common Bass
-                {
-                    baseBassCount++;
-                }
-            }
-
-            var bassPercentage = (double)bassCount / totalAttempts * 100;
-            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
-            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
-                $"SpecificFishBoost on BoostType2 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
+            Assert.Equal(50.0, baselineBass.WithinRarityChance, 1);
+            Assert.Equal(75.0, boostedBass.WithinRarityChance, 1);
         }
 
         [Fact]
@@ -895,59 +860,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 BoostType = FishingBoostType.WeightBoost, // Primary boost: weight
                 BoostAmount = 0.1,
                 BoostType3 = FishingBoostType.SpecificFishBoost, // Tertiary boost: specific fish
-                BoostAmount3 = 2.0, // 200% boost to bass
+                BoostAmount3 = 2.0, // +200% within-rarity weight for bass
                 TargetFishTypeId = 1, // Common Bass (ID 1)
                 MaxUses = null
             };
             _context.FishingShopItems.Add(specificFishBoost);
             await _context.SaveChangesAsync();
 
-            // Simulate many fishing attempts to verify the boost is working
-            var bassCount = 0;
-            var totalAttempts = 1000;
+            // Deterministic check (avoids Monte-Carlo sampling flakiness): Common tier has two fish
+            // (Common Bass + Invalid Fish), so baseline within-rarity share is 50%, and a x3 weight
+            // (1 + BoostAmount3 of 2.0) on bass shifts it to 3/(3+1) = 75%.
+            var baseline = await _analyticsService.CalculateCatchProbabilities(false, 1.0, []);
+            var boosted = await _analyticsService.CalculateCatchProbabilities(false, 1.0, [specificFishBoost.Id]);
 
-            for (int i = 0; i < totalAttempts; i++)
-            {
-                var userBoost = new UserFishingBoost
-                {
-                    Id = i + 100,
-                    UserId = "test-user",
-                    ShopItemId = 1,
-                    ShopItem = specificFishBoost,
-                    IsEquipped = true,
-                    RemainingUses = -1 // Unlimited uses
-                };
+            var baselineBass = baseline.Values.First(f => f.FishName == "Common Bass");
+            var boostedBass = boosted.Values.First(f => f.FishName == "Common Bass");
 
-                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost> { userBoost };
-                var settings = await _fishingService.GetSettings();
-
-                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 1) // Common Bass
-                {
-                    bassCount++;
-                }
-            }
-
-            // Calculate Baseline probability for Common Bass (ID 1) without boosts: ~50%
-            var baseBassCount = 0;
-            for (int i = 0; i < totalAttempts; i++)
-            {
-                var fishTypes = _context.FishTypes.Where(f => f.Enabled).ToList();
-                var boosts = new List<UserFishingBoost>();
-                var settings = await _fishingService.GetSettings();
-
-                var selectedFish = FishingCalculations.SelectRandomFish(fishTypes, settings, boosts);
-                if (selectedFish.Id == 1) // Common Bass
-                {
-                    baseBassCount++;
-                }
-            }
-
-            var bassPercentage = (double)bassCount / totalAttempts * 100;
-            var baseBassPercentage = (double)baseBassCount / totalAttempts * 100;
-            Assert.True(bassPercentage > baseBassPercentage + 8.0, 
-                $"SpecificFishBoost on BoostType3 should increase bass catch rate. Got {bassPercentage:F1}% vs baseline {baseBassPercentage:F1}%");
+            Assert.Equal(50.0, baselineBass.WithinRarityChance, 1);
+            Assert.Equal(75.0, boostedBass.WithinRarityChance, 1);
         }
 
         [Fact]

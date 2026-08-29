@@ -201,7 +201,10 @@
                                             }
                                         </MudSelect>
                                     </MudItem>
-                                    <MudItem xs="12" md="9">
+                                    <MudItem xs="12" md="2">
+                                        <MudNumericField @bind-Value="item.Rule.GoldAmount" Label="Bonus Gold (optional)" Min="0" HelperText="Awarded on top of the reward above." />
+                                    </MudItem>
+                                    <MudItem xs="12" md="7">
                                         <MudSwitch T="bool" @bind-Value="item.Rule.Enabled" Color="Color.Success" Label="Enabled" />
                                     </MudItem>
                                     <MudItem xs="12" md="3" Class="d-flex justify-end align-center">
@@ -416,6 +419,7 @@
             Points = rule.Points,
             EntryFeePercentage = rule.EntryFeePercentage,
             PointTypeId = rule.PointTypeId,
+            GoldAmount = rule.GoldAmount,
             Enabled = rule.Enabled
         }));
 
@@ -556,6 +560,12 @@
                     return;
                 }
 
+                if (rule.GoldAmount.HasValue && rule.GoldAmount.Value < 0)
+                {
+                    errorMessage = "Bonus gold cannot be negative.";
+                    return;
+                }
+
                 if (rule.RewardKind == FishingTournamentRewardKind.EntryFeePercentage && (!rule.EntryFeePercentage.HasValue || rule.EntryFeePercentage.Value < 0))
                 {
                     errorMessage = "Entry fee percentage must be 0 or higher.";
@@ -605,6 +615,7 @@
                         Points = rule.Points,
                         EntryFeePercentage = rule.EntryFeePercentage,
                         PointTypeId = rule.PointTypeId,
+                        GoldAmount = rule.GoldAmount,
                         Enabled = rule.Enabled
                     })
                     .ToList()
@@ -752,6 +763,7 @@
                         Points = rule.Points,
                         EntryFeePercentage = rule.EntryFeePercentage,
                         PointTypeId = rule.PointTypeId,
+                        GoldAmount = rule.GoldAmount,
                         Enabled = rule.Enabled
                     })
                     .ToList()
