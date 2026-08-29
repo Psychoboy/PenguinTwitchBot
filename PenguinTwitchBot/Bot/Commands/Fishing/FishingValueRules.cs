@@ -6,9 +6,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         public static void NormalizeAndValidate(FishType fishType)
         {
-            if (double.IsNaN(fishType.BaseWeight) || double.IsInfinity(fishType.BaseWeight) || fishType.BaseWeight < 0.05)
+            if (double.IsNaN(fishType.BaseWeight) || double.IsInfinity(fishType.BaseWeight) || fishType.BaseWeight < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(fishType.BaseWeight), "Base weight must be at least 0.05.");
+                throw new ArgumentOutOfRangeException(nameof(fishType.BaseWeight), "Base weight cannot be negative.");
             }
 
             fishType.BaseWeight = Math.Round(fishType.BaseWeight, 2, MidpointRounding.AwayFromZero);

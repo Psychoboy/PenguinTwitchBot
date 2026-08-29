@@ -113,6 +113,66 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
 
         #endregion
 
+        #region Fish Weight Tests
+
+        [Fact]
+        public async Task AddFishType_BaseWeightBelowPointZeroFive_PersistsRoundedValue()
+        {
+            var fishType = new FishType
+            {
+                Name = "Tiny Minnow",
+                Rarity = FishRarity.Common,
+                BaseWeight = 0.01,
+                BaseGold = 1,
+                Enabled = true
+            };
+
+            await _fishingService.AddFishType(fishType);
+
+            var savedFish = await _context.FishTypes.SingleAsync(f => f.Name == "Tiny Minnow");
+            Assert.Equal(0.01, savedFish.BaseWeight);
+        }
+
+        [Fact]
+        public async Task AddFishType_NegativeBaseWeight_Throws()
+        {
+            var fishType = new FishType
+            {
+                Name = "Impossible Minnow",
+                Rarity = FishRarity.Common,
+                BaseWeight = -0.01,
+                BaseGold = 1,
+                Enabled = true
+            };
+
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _fishingService.AddFishType(fishType));
+        }
+
+        [Fact]
+        public void CalculateWeight_BasePointZeroFiveWithoutBoosts_StaysBelowPointZeroNine()
+        {
+            var fishType = new FishType
+            {
+                Name = "Small Fry",
+                Rarity = FishRarity.Common,
+                BaseWeight = 0.05,
+                BaseGold = 1,
+                Enabled = true
+            };
+
+            for (var stars = 1; stars <= 3; stars++)
+            {
+                for (var attempt = 0; attempt < 100; attempt++)
+                {
+                    var weight = FishingCalculations.CalculateWeight(fishType, stars, new List<UserFishingBoost>());
+
+                    Assert.InRange(weight, 0.01, 0.08);
+                }
+            }
+        }
+
+        #endregion
+
         #region Baseline Probability Tests
 
         [Fact]
