@@ -612,6 +612,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
                 .Include(a => a.CatchSubActions)
+                .AsSplitQuery()
                 .ToListAsync();
 
             bool hasChanges = false;
@@ -747,6 +748,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
                 .Include(a => a.CatchSubActions)
+                .AsSplitQuery()
                 .ToListAsync();
 
             bool hasChanges = false;
@@ -778,6 +780,7 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             var allActions = await _context.Actions
                 .Include(a => a.SubActions)
                 .Include(a => a.CatchSubActions)
+                .AsSplitQuery()
                 .ToListAsync();
 
             bool hasChanges = false;

@@ -162,6 +162,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var activeTournaments = await db.FishingTournaments.Query()
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(t => t.EligibleFish)
                 .Include(t => t.EligibleCategories)
                 .Where(t => t.Enabled && t.Status == FishingTournamentStatus.Active)
