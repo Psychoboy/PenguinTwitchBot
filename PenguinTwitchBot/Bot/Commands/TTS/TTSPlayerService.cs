@@ -1,11 +1,13 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Google.Cloud.TextToSpeech.V1;
+using Grpc.Core;
 using PenguinTwitchBot.Extensions;
 
 namespace PenguinTwitchBot.Bot.Commands.TTS
 {
     public class TTSPlayerService(ILogger<TTSPlayerService> logger, IWebHostEnvironment environment) : ITTSPlayerService
     {
+        private const string DefaultGeminiTtsModel = "gemini-2.5-flash-tts";
         private string LastFileName = string.Empty;
         public async Task<string> CreateTTSFile(TTSRequest request)
         {
@@ -35,11 +37,29 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 };
                 var tts = await builder.BuildAsync();
                 logger.LogInformation("Starting to compile Google Voice: {voiceName}", request.RegisteredVoice.Name);
-                var result = await tts.SynthesizeSpeechAsync(
-                    new SynthesisInput { Text = request.Message },
-                    new VoiceSelectionParams { LanguageCode = request.RegisteredVoice.LanguageCode, Name = request.RegisteredVoice.Name },
-                    new AudioConfig { AudioEncoding = AudioEncoding.Mp3 }
-                    );
+                var voiceSelectionParams = new VoiceSelectionParams
+                {
+                    LanguageCode = request.RegisteredVoice.LanguageCode,
+                    Name = request.RegisteredVoice.Name
+                };
+                SynthesizeSpeechResponse result;
+                try
+                {
+                    result = await tts.SynthesizeSpeechAsync(
+                        new SynthesisInput { Text = request.Message },
+                        voiceSelectionParams,
+                        new AudioConfig { AudioEncoding = AudioEncoding.Mp3 }
+                        );
+                }
+                catch (RpcException ex) when (ex.Status.Detail.Contains("requires a model name", StringComparison.OrdinalIgnoreCase))
+                {
+                    voiceSelectionParams.ModelName = DefaultGeminiTtsModel;
+                    result = await tts.SynthesizeSpeechAsync(
+                        new SynthesisInput { Text = request.Message },
+                        voiceSelectionParams,
+                        new AudioConfig { AudioEncoding = AudioEncoding.Mp3 }
+                        );
+                }
                 var fileName = Guid.NewGuid().ToString();
                 using (var output = File.Create("wwwroot/tts/" + fileName + ".mp3"))
                 {
