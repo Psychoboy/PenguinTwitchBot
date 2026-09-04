@@ -62,6 +62,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddTransient<IWebsocketClient, WebsocketClient>();
             services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<IWebsocketClient>()));
 
+
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
@@ -137,6 +138,12 @@ namespace PenguinTwitchBot.CustomMiddleware
 
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
+
+            // Raid Reward feature
+            services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardSettingsService, PenguinTwitchBot.Services.RaidRewardSettingsService>();
+            services.AddSingleton<PenguinTwitchBot.Services.RaidRewardService>();
+            services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardService>(x => x.GetRequiredService<PenguinTwitchBot.Services.RaidRewardService>());
+            services.AddHostedService(x => x.GetRequiredService<PenguinTwitchBot.Services.RaidRewardService>());
 
             services.AddScoped(typeof(PenguinTwitchBot.Database.Repository.IGenericRepository<>), typeof(PenguinTwitchBot.Database.Repository.Repositories.GenericRepository<>));
             services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();

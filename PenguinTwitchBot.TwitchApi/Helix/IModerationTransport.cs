@@ -11,4 +11,6 @@ public interface IModerationTransport
     Task BanUserAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, BanUserRequest request);
     Task DeleteChatMessagesAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string? messageId);
     Task<EventSubSubscriptionResult> CreateEventSubSubscriptionAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId);
+    Task<CreateEventSubSubscriptionResult> CreateEventSubSubscriptionDetailedAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId);
+    Task DeleteEventSubSubscriptionAsync(string clientId, string? accessToken, string subscriptionId);
 }

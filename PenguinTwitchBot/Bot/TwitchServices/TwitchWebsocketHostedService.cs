@@ -41,6 +41,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
 
+            // Ignore chat messages that are not for OUR channel. The shared websocket can
+            // temporarily carry a channel.chat.message subscription for a raided channel
+            // (Raid Reward feature); those must not be processed as our own chat.
+            var broadcasterId = await twitchService.GetBroadcasterUserId();
+            if (!string.IsNullOrEmpty(broadcasterId) &&
+                !string.Equals(payload.Event.BroadcasterUserId, broadcasterId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             var message = payload.Event.Message;
             var messageText = MessageRegex().Replace(message.Text, string.Empty).Trim();
 
@@ -416,6 +426,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(payload.Metadata)) return;
+
+                var broadcasterId = await twitchService.GetBroadcasterUserId();
+                var isOutgoing = !string.IsNullOrEmpty(broadcasterId) &&
+                    string.Equals(payload.Event.FromBroadcasterUserId, broadcasterId, StringComparison.OrdinalIgnoreCase);
+
+                if (isOutgoing)
+                {
+                    logger.LogInformation("OnChannelRaid OUTGOING to {TargetName}", payload.Event.ToBroadcasterUserName);
+                    await eventService.OnOutgoingRaid(new Events.OutgoingRaidEventArgs
+                    {
+                        TargetUserId = payload.Event.ToBroadcasterUserId,
+                        TargetUserName = payload.Event.ToBroadcasterUserLogin,
+                        TargetDisplayName = payload.Event.ToBroadcasterUserName,
+                        NumberOfViewers = payload.Event.Viewers
+                    });
+                    return;
+                }
 
                 logger.LogInformation("OnChannelRaid from {BroadcasterName}", payload.Event.FromBroadcasterUserName);
 
