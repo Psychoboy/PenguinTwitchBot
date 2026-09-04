@@ -173,6 +173,37 @@ namespace PenguinTwitchBot.Test.Services
         }
 
         [Fact]
+        public async Task AwardFails_ReservationRolledBack_RetryAwards()
+        {
+            await StartAndOpenRaidWindowAsync(DefaultConfig());
+
+            // First attempt: point write throws -> reservation must roll back.
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+                .Returns<long>(_ => throw new Exception("db down"));
+            await SendChatMessageAsync("viewer1", "uid-1", "penguin raid");
+            await Task.Delay(10);
+
+            // Second attempt after recovery -> should be awarded.
+            _pointsSystem.AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>())
+                .Returns(1000L);
+            await SendChatMessageAsync("viewer1", "uid-1", "penguin raid again");
+            await Task.Delay(10);
+
+            await _pointsSystem.Received(2).AddPointsByUserId("uid-1", 5, 100);
+        }
+
+        [Fact]
+        public async Task AnnouncementThrows_RaidNotBlocked()
+        {
+            // Settings access throws; AnnounceRaidInitiatedAsync must swallow it (not propagate to RaidTracker).
+            _settings.GetConfigAsync().Returns<RaidRewardConfig>(_ => throw new Exception("settings unavailable"));
+            await _service.StartAsync(CancellationToken.None);
+
+            // Should not throw.
+            await _service.AnnounceRaidInitiatedAsync("Target");
+        }
+
+        [Fact]
         public async Task DisabledFeature_NoSubscriptionCreated()
         {
             var config = DefaultConfig() with { Enabled = false };

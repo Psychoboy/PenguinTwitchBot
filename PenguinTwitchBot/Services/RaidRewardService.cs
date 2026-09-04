@@ -104,15 +104,24 @@ namespace PenguinTwitchBot.Services
         /// </summary>
         public async Task AnnounceRaidInitiatedAsync(string targetDisplayName)
         {
-            var config = await _settings.GetConfigAsync();
-            if (!config.Enabled || !config.PostAnnouncement)
-                return;
-            if (string.IsNullOrWhiteSpace(config.Message))
-                return;
+            try
+            {
+                var config = await _settings.GetConfigAsync();
+                if (!config.Enabled || !config.PostAnnouncement)
+                    return;
+                if (string.IsNullOrWhiteSpace(config.Message))
+                    return;
 
-            var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
-            var message = BuildAnnouncement(config, targetDisplayName, pointTypeName);
-            await _serviceBackbone.SendChatMessage(message);
+                var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
+                var message = BuildAnnouncement(config, targetDisplayName, pointTypeName);
+                await _serviceBackbone.SendChatMessage(message);
+            }
+            catch (Exception ex)
+            {
+                // Never let announcement failures (settings, point lookup, chat dispatch)
+                // propagate to RaidTracker.Raid and prevent the raid from starting.
+                _logger.LogError(ex, "Raid reward: failed to post announcement for {Target}", targetDisplayName);
+            }
         }
 
         internal async Task OnOutgoingRaid(object? sender, OutgoingRaidEventArgs e)
@@ -140,13 +149,28 @@ namespace PenguinTwitchBot.Services
                     Config = config
                 };
 
+                // Close any prior window (deleting its chat subscription) before swapping in the new one.
+                await CloseActiveWindowAsync();
+
                 lock (_windowLock)
                 {
                     _activeWindow = window;
                 }
 
-                await CreateChatSubscriptionAsync(window);
-                StartExpiryTimer(window);
+                try
+                {
+                    await CreateChatSubscriptionAsync(window);
+                }
+                catch (Exception ex)
+                {
+                    window.SubscriptionFailed = true;
+                    _logger.LogError(ex, "Raid reward: error creating chat subscription for {Target}", window.TargetDisplayName);
+                }
+                finally
+                {
+                    // Always schedule expiry for THIS window, even if subscription creation failed/threw.
+                    StartExpiryTimer(window);
+                }
 
                 _logger.LogInformation("Raid reward window opened for {Target} until {Expiry} with {Count} eligible viewers",
                     e.TargetDisplayName, window.ExpiresAtUtc, eligible.Count);
@@ -201,8 +225,11 @@ namespace PenguinTwitchBot.Services
             _expiryTimer?.Dispose();
             var delay = window.ExpiresAtUtc - _timeProvider.GetUtcNow().UtcDateTime;
             if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
-            _expiryTimer = new Timer(_ => _ = CloseActiveWindowAsync(), null, delay, Timeout.InfiniteTimeSpan);
+            _expiryTimer = new Timer(_ => FireExpiry(window), null, delay, Timeout.InfiniteTimeSpan);
         }
+
+        // Timer callbacks can't be async; fire-and-forget the window close.
+        private void FireExpiry(RaidWindow window) => _ = CloseWindowAsync(window);
 
         internal async Task OnChannelChatMessage(object? sender, ChannelChatMessageEventArgs e)
         {
@@ -239,17 +266,19 @@ namespace PenguinTwitchBot.Services
             if (!matched)
                 return;
 
-            // Award once per raid event.
+            // Award once per raid event. Reserve atomically for concurrency; roll back on failure.
             if (!window.AwardedUsernames.Add(username))
                 return;
 
-            await AwardAsync(window, username, evt.ChatterUserId, evt.ChatterUserName);
+            var awarded = await AwardAsync(window, username, evt.ChatterUserId, evt.ChatterUserName);
+            if (!awarded)
+                window.AwardedUsernames.Remove(username);
         }
 
         private static bool ContainsPhrase(string text, string phrase)
             => text.Contains(phrase, StringComparison.OrdinalIgnoreCase);
 
-        private async Task AwardAsync(RaidWindow window, string username, string chatterUserId, string chatterDisplayName)
+        private async Task<bool> AwardAsync(RaidWindow window, string username, string chatterUserId, string chatterDisplayName)
         {
             try
             {
@@ -262,7 +291,7 @@ namespace PenguinTwitchBot.Services
                 if (string.IsNullOrWhiteSpace(userId))
                 {
                     _logger.LogWarning("Raid reward: could not resolve user id for {Username}, skipping award", username);
-                    return;
+                    return false;
                 }
 
                 var newTotal = await _pointsSystem.AddPointsByUserId(userId, config.PointTypeId, config.PointsToAward);
@@ -272,10 +301,12 @@ namespace PenguinTwitchBot.Services
                 _logger.LogInformation(
                     "RaidReward awarded: user={Username} ({UserId}) amount={Amount} pointType={PointType} (id {PointTypeId}) raidTarget={Target} newTotal={NewTotal}",
                     chatterDisplayName, userId, config.PointsToAward, pointTypeName, config.PointTypeId, window.TargetDisplayName, newTotal);
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Raid reward: error awarding points to {Username}", username);
+                return false;
             }
         }
 
@@ -301,7 +332,7 @@ namespace PenguinTwitchBot.Services
             return message;
         }
 
-        private async Task CloseActiveWindowAsync()
+        private Task CloseActiveWindowAsync()
         {
             RaidWindow? window;
             lock (_windowLock)
@@ -309,11 +340,20 @@ namespace PenguinTwitchBot.Services
                 window = _activeWindow;
                 _activeWindow = null;
             }
-            _expiryTimer?.Dispose();
-            _expiryTimer = null;
+            return CloseWindowAsync(window);
+        }
 
+        private async Task CloseWindowAsync(RaidWindow? window)
+        {
             if (window == null)
                 return;
+
+            // If this window is the currently-active one, clear it (idempotent).
+            lock (_windowLock)
+            {
+                if (ReferenceEquals(_activeWindow, window))
+                    _activeWindow = null;
+            }
 
             if (!string.IsNullOrWhiteSpace(window.SubscriptionId))
             {
