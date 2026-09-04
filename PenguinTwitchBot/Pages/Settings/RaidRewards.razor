@@ -1,0 +1,138 @@
+@page "/settings/raidrewards"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Services
+@inject IRaidRewardSettingsService RaidRewardSettings
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid Rewards</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudText Typo="Typo.h5" Class="mb-2">Raid Rewards</MudText>
+    <MudText Class="mb-4">
+        When you raid out to another channel, viewers who were in your chat before the raid can
+        post the configured message in the raided channel's chat within the time window to earn points.
+        Points are awarded once per raid. Subscribers may use the optional subscriber message instead.
+    </MudText>
+
+    @if (_config == null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudSwitch T="bool" @bind-Value="_enabled" Label="Enable Raid Rewards" Color="Color.Primary" />
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="PointType" @bind-Value="_selectedPointType"
+                                   Label="Point Type"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   HelperText="The type of points to award."
+                                   ToStringFunc="@(pt => pt?.Name ?? string.Empty)">
+                            @foreach (var pt in _pointTypes)
+                            {
+                                <MudSelectItem T="PointType" Value="pt">@pt.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="long" @bind-Value="_pointsToAward" Label="Points to Award" Min="1" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="int" @bind-Value="_timeWindowMinutes" Label="Time Window (minutes)" Min="1" Max="120" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudTextField @bind-Value="_message" Label="Message viewers must send"
+                              Variant="Variant.Outlined" Required="true"
+                              HelperText="Awarded if a viewer's chat message contains this phrase (case-insensitive)." />
+
+                <MudTextField @bind-Value="_subscriberMessage" Label="Subscriber-only message (optional)"
+                              Variant="Variant.Outlined"
+                              HelperText="Alternative phrase only subscribers may use (e.g. contains sub-only emotes). Leave blank to disable." />
+
+                <MudSwitch T="bool" @bind-Value="_postAnnouncement" Label="Post announcement in my chat when the raid starts" Color="Color.Primary" />
+
+                <MudTextField @bind-Value="_announcementTemplate" Label="Announcement template"
+                              Variant="Variant.Outlined" Lines="3"
+                              HelperText="Placeholders: {target} {message} {submessage} {minutes} {points} {pointtype}" />
+
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveAsync" Disabled="_saving">
+                        Save
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private RaidRewardConfig? _config;
+    private List<PointType> _pointTypes = [];
+    private PointType? _selectedPointType;
+
+    private bool _enabled;
+    private long _pointsToAward;
+    private int _timeWindowMinutes;
+    private string _message = string.Empty;
+    private string _subscriberMessage = string.Empty;
+    private string _announcementTemplate = string.Empty;
+    private bool _postAnnouncement;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
+        _config = await RaidRewardSettings.GetConfigAsync();
+
+        _enabled = _config.Enabled;
+        _pointsToAward = _config.PointsToAward;
+        _timeWindowMinutes = _config.TimeWindowMinutes;
+        _message = _config.Message;
+        _subscriberMessage = _config.SubscriberMessage ?? string.Empty;
+        _announcementTemplate = _config.AnnouncementTemplate;
+        _postAnnouncement = _config.PostAnnouncement;
+        _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_selectedPointType == null)
+        {
+            Snackbar.Add("Select a point type.", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var config = new RaidRewardConfig(
+                Enabled: _enabled,
+                PointTypeId: _selectedPointType.Id ?? 0,
+                PointsToAward: _pointsToAward,
+                TimeWindowMinutes: _timeWindowMinutes,
+                Message: _message,
+                SubscriberMessage: string.IsNullOrWhiteSpace(_subscriberMessage) ? null : _subscriberMessage,
+                AnnouncementTemplate: _announcementTemplate,
+                PostAnnouncement: _postAnnouncement);
+
+            await RaidRewardSettings.SaveConfigAsync(config);
+            Snackbar.Add("Raid Reward settings saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

@@ -1293,6 +1293,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             response = await CreateWebsocketEventSubscription("channel.raid", "1", new() { { "to_broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.raid");
 
+            // Outgoing raids (we raid someone else). Needed for the Raid Reward feature.
+            response = await CreateWebsocketEventSubscription("channel.raid", "1", new() { { "from_broadcaster_user_id", userId } }, sessionId);
+            ValidateEventSubscription(response, "channel.raid (outgoing)");
+
             response = await CreateWebsocketEventSubscription("channel.ban", "1", new() { { "broadcaster_user_id", userId } }, sessionId);
             ValidateEventSubscription(response, "channel.ban");
 

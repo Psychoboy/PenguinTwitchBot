@@ -35,7 +35,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var queryable = new List<RaidHistoryEntry> { new RaidHistoryEntry() }.AsQueryable();
             dbContext.RaidHistory.GetAllAsync().Returns(queryable);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchService>(), Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, Substitute.For<ITwitchService>(), Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
             var result = await raidTracker.GetHistory();
 
@@ -65,7 +65,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var twitchService = Substitute.For<ITwitchService>();
             twitchService.GetUserByName("").ReturnsNull();
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
 
 
@@ -96,7 +96,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             twitchService.GetUserByName("").Returns(new User(Id: "", Login: "", DisplayName: "", Description: "", CreatedAt: default));
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(false);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, Substitute.For<IServiceBackbone>(), dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
 
 
@@ -127,7 +127,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             twitchService.GetUserByName("").Returns(new User(Id: "", Login: "", DisplayName: "", Description: "", CreatedAt: default));
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
             await raidTracker.Raid("");
 
@@ -156,7 +156,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.Find(x => true).ReturnsForAnyArgs(queryable);
 
             twitchService.GetUserId(Arg.Any<string>()).Returns("");
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
 
             //Act
             await raidTracker.OnIncomingRaid(new PenguinTwitchBot.Bot.Events.RaidEventArgs());
@@ -192,7 +192,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             serviceBackbone.IsOnline = true;
 
             twitchService.AreStreamsOnline(Arg.Any<List<string>>()).ReturnsForAnyArgs([new()]);
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>());
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
 
             //Act
             await raidTracker.UpdateOnlineStatus();
@@ -228,7 +228,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
 
             commandHandler.GetCommandDefaultName("raid").Returns("raid");
 
-            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, commandHandler);
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, commandHandler, Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
             await raidTracker.OnCommand(null, new PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs
             {

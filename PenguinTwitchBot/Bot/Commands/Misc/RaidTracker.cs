@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         private readonly ILogger<RaidTracker> _logger;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly PenguinTwitchBot.Services.IRaidRewardService _raidReward;
         private readonly Timer _timer = new(60000);
 
         public RaidTracker(
@@ -20,13 +21,15 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            PenguinTwitchBot.Services.IRaidRewardService raidReward
             ) : base(serviceBackbone, commandHandler, "RaidTraicker", dispatcher)
         {
             _scopeFactory = scopeFactory;
             ServiceBackbone.IncomingRaidEvent += OnIncomingRaid;
             _logger = logger;
             _twitchService = twitchService;
+            _raidReward = raidReward;
             _timer.Elapsed += UpdateOnlineStatus;
             _timer.Start();
         }
@@ -178,6 +181,9 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
             try
             {
+                // Announce the raid (and the message viewers should send) at initiation.
+                await _raidReward.AnnounceRaidInitiatedAsync(user.DisplayName);
+
                 await _twitchService.RaidStreamer(user.Id);
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {

@@ -103,7 +103,7 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
                 }
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "obs/connections", "settings/updates")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates")">
                 <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/settings/bot-auth" Match="NavLinkMatch.Prefix">Bot Authentication</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SettingsSuggest" Href="/settings/app" Match="NavLinkMatch.Prefix">Bot Settings</MudNavLink>
@@ -118,11 +118,12 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/games", "settings/loyalty-bonuses", "settings/channel-points")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/games", "settings/loyalty-bonuses", "settings/channel-points", "settings/raidrewards")">
                     <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/settings/channel-points" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/settings/loyalty-bonuses" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Money" Href="/settings/points" Match="NavLinkMatch.Prefix">Point Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Games" Href="/settings/games" Match="NavLinkMatch.Prefix">Game Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.GroupAdd" Href="/settings/raidrewards" Match="NavLinkMatch.Prefix">Raid Rewards</MudNavLink>
                 </MudNavGroup>
                 <MudNavLink Icon="@Icons.Material.Filled.Videocam" Href="/obs/connections" Match="NavLinkMatch.Prefix">OBS Connections</MudNavLink>
             </MudNavGroup>
