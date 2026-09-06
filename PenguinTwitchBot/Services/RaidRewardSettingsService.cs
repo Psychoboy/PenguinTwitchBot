@@ -12,7 +12,8 @@ public sealed record RaidRewardConfig(
     string Message,
     string? SubscriberMessage,
     string AnnouncementTemplate,
-    bool PostAnnouncement);
+    bool PostAnnouncement,
+    bool PostPreRaidAnnouncement);
 
 public interface IRaidRewardSettingsService
 {
@@ -34,6 +35,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
     public const string SubscriberMessageName = "RaidRewardSubscriberMessage";
     public const string AnnouncementTemplateName = "RaidRewardAnnouncementTemplate";
     public const string PostAnnouncementName = "RaidRewardPostAnnouncement";
+    public const string PostPreRaidAnnouncementName = "RaidRewardPostPreRaidAnnouncement";
 
     public const string DefaultMessage = "TombRaid twitchRaid";
 
@@ -47,7 +49,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         var settings = await db.Settings.GetAsync(x =>
             x.Name == EnabledName || x.Name == PointTypeIdName || x.Name == PointsToAwardName ||
             x.Name == TimeWindowMinutesName || x.Name == MessageName || x.Name == SubscriberMessageName ||
-            x.Name == AnnouncementTemplateName || x.Name == PostAnnouncementName);
+            x.Name == AnnouncementTemplateName || x.Name == PostAnnouncementName || x.Name == PostPreRaidAnnouncementName);
         var map = settings.ToDictionary(x => x.Name, x => x);
 
         return new RaidRewardConfig(
@@ -62,7 +64,8 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
             AnnouncementTemplate: string.IsNullOrWhiteSpace(GetString(map, AnnouncementTemplateName))
                 ? DefaultAnnouncementTemplate
                 : GetString(map, AnnouncementTemplateName),
-            PostAnnouncement: GetInt(map, PostAnnouncementName, 1) == 1);
+            PostAnnouncement: GetInt(map, PostAnnouncementName, 1) == 1,
+            PostPreRaidAnnouncement: GetInt(map, PostPreRaidAnnouncementName, 0) == 1);
     }
 
     public async Task SaveConfigAsync(RaidRewardConfig config)
@@ -78,6 +81,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         await UpsertString(db, SubscriberMessageName, config.SubscriberMessage ?? string.Empty);
         await UpsertString(db, AnnouncementTemplateName, config.AnnouncementTemplate);
         await UpsertInt(db, PostAnnouncementName, config.PostAnnouncement ? 1 : 0);
+        await UpsertInt(db, PostPreRaidAnnouncementName, config.PostPreRaidAnnouncement ? 1 : 0);
 
         await db.SaveChangesAsync();
     }
