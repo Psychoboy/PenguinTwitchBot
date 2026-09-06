@@ -58,6 +58,7 @@ namespace PenguinTwitchBot.Services
         private readonly object _windowLock = new();
         private RaidWindow? _activeWindow;
         private Timer? _expiryTimer;
+        private Timer? _preRaidReminderTimer;
 
         public RaidRewardService(
             ILogger<RaidRewardService> logger,
@@ -95,6 +96,7 @@ namespace PenguinTwitchBot.Services
         {
             _serviceBackbone.OutgoingRaidEvent -= OnOutgoingRaid;
             _eventSubClient.ChannelChatMessage -= OnChannelChatMessage;
+            CancelPreRaidReminder();
             await CloseActiveWindowAsync();
         }
 
@@ -112,9 +114,8 @@ namespace PenguinTwitchBot.Services
                 if (string.IsNullOrWhiteSpace(config.Message))
                     return;
 
-                var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
-                var message = BuildAnnouncement(config, targetDisplayName, pointTypeName);
-                await _twitchService.Announcement(message);
+                await PostAnnouncementAsync(targetDisplayName, config, "pre-raid");
+                StartPreRaidReminder(targetDisplayName);
             }
             catch (Exception ex)
             {
@@ -122,6 +123,59 @@ namespace PenguinTwitchBot.Services
                 // propagate to RaidTracker.Raid and prevent the raid from starting.
                 _logger.LogError(ex, "Raid reward: failed to post pre-raid announcement for {Target}", targetDisplayName);
             }
+        }
+
+        private void StartPreRaidReminder(string targetDisplayName)
+        {
+            CancelPreRaidReminder();
+            _preRaidReminderTimer = new Timer(_ => _ = SendPreRaidReminderAsync(targetDisplayName), null, TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+        }
+
+        private void CancelPreRaidReminder()
+        {
+            _preRaidReminderTimer?.Dispose();
+            _preRaidReminderTimer = null;
+        }
+
+        private async Task SendPreRaidReminderAsync(string targetDisplayName)
+        {
+            try
+            {
+                // Skip if the raid already fired (a window is open).
+                lock (_windowLock)
+                {
+                    if (_activeWindow != null)
+                    {
+                        CancelPreRaidReminder();
+                        return;
+                    }
+                }
+
+                var config = await _settings.GetConfigAsync();
+                if (!config.Enabled || !config.PostPreRaidAnnouncement || string.IsNullOrWhiteSpace(config.Message))
+                {
+                    CancelPreRaidReminder();
+                    return;
+                }
+
+                await PostAnnouncementAsync(targetDisplayName, config, "pre-raid reminder");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Raid reward: failed to post pre-raid reminder for {Target}", targetDisplayName);
+            }
+            finally
+            {
+                CancelPreRaidReminder();
+            }
+        }
+
+        private async Task PostAnnouncementAsync(string targetDisplayName, RaidRewardConfig config, string kind)
+        {
+            var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
+            var message = BuildAnnouncement(config, targetDisplayName, pointTypeName);
+            await _twitchService.Announcement(message);
+            _logger.LogInformation("Raid reward: posted {Kind} announcement for {Target}", kind, targetDisplayName);
         }
 
         internal async Task OnOutgoingRaid(object? sender, OutgoingRaidEventArgs e)
@@ -148,6 +202,9 @@ namespace PenguinTwitchBot.Services
                     EligibleUsernames = eligible,
                     Config = config
                 };
+
+                // The raid fired; no need for the pre-raid reminder anymore.
+                CancelPreRaidReminder();
 
                 // Close any prior window (deleting its chat subscription) before swapping in the new one.
                 await CloseActiveWindowAsync();
@@ -179,9 +236,7 @@ namespace PenguinTwitchBot.Services
                 {
                     try
                     {
-                        var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
-                        var message = BuildAnnouncement(config, e.TargetDisplayName, pointTypeName);
-                        await _twitchService.Announcement(message);
+                        await PostAnnouncementAsync(e.TargetDisplayName, config, "raid-start");
                     }
                     catch (Exception ex)
                     {
