@@ -59,6 +59,7 @@ namespace PenguinTwitchBot.Services
         private RaidWindow? _activeWindow;
         private Timer? _expiryTimer;
         private Timer? _preRaidReminderTimer;
+        private int _preRaidReminderGeneration;
 
         public RaidRewardService(
             ILogger<RaidRewardService> logger,
@@ -128,36 +129,52 @@ namespace PenguinTwitchBot.Services
         private void StartPreRaidReminder(string targetDisplayName)
         {
             CancelPreRaidReminder();
-            _preRaidReminderTimer = new Timer(_ => _ = SendPreRaidReminderAsync(targetDisplayName), null, TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            var generation = Interlocked.Increment(ref _preRaidReminderGeneration);
+            _preRaidReminderTimer = new Timer(_ => _ = SendPreRaidReminderAsync(targetDisplayName, generation), null, TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
         }
 
         private void CancelPreRaidReminder()
         {
+            Interlocked.Increment(ref _preRaidReminderGeneration);
             _preRaidReminderTimer?.Dispose();
             _preRaidReminderTimer = null;
         }
 
-        private async Task SendPreRaidReminderAsync(string targetDisplayName)
+        private bool IsCurrentReminder(int generation)
+            => generation == _preRaidReminderGeneration;
+
+        private void CancelPreRaidReminderIfCurrent(int generation)
+        {
+            if (!IsCurrentReminder(generation)) return;
+            var timer = _preRaidReminderTimer;
+            _preRaidReminderTimer = null;
+            timer?.Dispose();
+        }
+
+        internal async Task SendPreRaidReminderAsync(string targetDisplayName, int generation)
         {
             try
             {
-                // Skip if the raid already fired (a window is open).
+                // Skip if the raid already fired (a window is open) or a newer raid superseded this reminder.
                 lock (_windowLock)
                 {
-                    if (_activeWindow != null)
+                    if (_activeWindow != null || !IsCurrentReminder(generation))
                     {
-                        CancelPreRaidReminder();
+                        CancelPreRaidReminderIfCurrent(generation);
                         return;
                     }
                 }
 
                 var config = await _settings.GetConfigAsync();
+                if (!IsCurrentReminder(generation)) return;
+
                 if (!config.Enabled || !config.PostPreRaidAnnouncement || string.IsNullOrWhiteSpace(config.Message))
                 {
-                    CancelPreRaidReminder();
+                    CancelPreRaidReminderIfCurrent(generation);
                     return;
                 }
 
+                if (!IsCurrentReminder(generation)) return;
                 await PostAnnouncementAsync(targetDisplayName, config, "pre-raid reminder");
             }
             catch (Exception ex)
@@ -166,7 +183,7 @@ namespace PenguinTwitchBot.Services
             }
             finally
             {
-                CancelPreRaidReminder();
+                CancelPreRaidReminderIfCurrent(generation);
             }
         }
 
@@ -323,7 +340,7 @@ namespace PenguinTwitchBot.Services
             // on broadcaster_user_id == the raided target correctly scopes to that channel.
             if (!string.Equals(evt.BroadcasterUserId, window.TargetUserId, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Raid reward chat ignored: BroadcasterUserId '{BId}' does not match TargetUserId '{TId}' for {Target}",
+                _logger.LogDebug("Raid reward chat ignored: BroadcasterUserId '{BId}' does not match TargetUserId '{TId}' for {Target}",
                     evt.BroadcasterUserId, window.TargetUserId, window.TargetDisplayName);
                 return;
             }

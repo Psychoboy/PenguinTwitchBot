@@ -218,5 +218,30 @@ namespace PenguinTwitchBot.Test.Services
                 Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
                 Arg.Any<Dictionary<string, string>>(), Arg.Any<EventSubTransportMethod>(), Arg.Any<string>());
         }
+
+        [Fact]
+        public async Task PreRaidReminder_SupersededByNewerRaid_DoesNotPost()
+        {
+            // Interleaving: reminder for raid A pauses during settings retrieval; a newer
+            // raid B starts (bumping the generation); A's callback must not post.
+            var config = DefaultConfig();
+            var settingsTcs = new TaskCompletionSource<RaidRewardConfig>();
+            _settings.GetConfigAsync().Returns(settingsTcs.Task);
+            _pointsSystem.GetPointTypeById(config.PointTypeId).Returns(new PointType { Id = config.PointTypeId, Name = "Points" });
+            await _service.StartAsync(CancellationToken.None);
+
+            // Fire the reminder callback for raid A with a stale generation (0). It will block on settings.
+            var reminderTask = _service.SendPreRaidReminderAsync("RaidA", 0);
+
+            // A newer raid starts, bumping the generation past the stale one. This also awaits
+            // settings, so run it without awaiting to avoid deadlock on the shared TCS.
+            var newRaidTask = _service.AnnounceRaidInitiatedAsync("RaidB"); // bumps generation to 1, then blocks on settings
+
+            // Complete settings; A's callback re-checks generation (now stale) and bails before posting.
+            settingsTcs.SetResult(config);
+            await Task.WhenAll(reminderTask, newRaidTask);
+
+            await _twitchService.DidNotReceive().Announcement(Arg.Is<string>(m => m.Contains("RaidA")));
+        }
     }
 }
