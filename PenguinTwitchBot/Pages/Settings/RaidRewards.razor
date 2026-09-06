@@ -58,6 +58,8 @@
 
                 <MudSwitch T="bool" @bind-Value="_postAnnouncement" Label="Announce raid reward message" Color="Color.Primary" />
 
+                <MudSwitch T="bool" @bind-Value="_postReminders" Label="Send reminders after 30 and 60 seconds if the raid has not happened" Color="Color.Primary" Disabled="@(!_postAnnouncement)" />
+
                 <MudTextField @bind-Value="_announcementTemplate" Label="Announcement template"
                               Variant="Variant.Outlined" Lines="3"
                               HelperText="Placeholders: {target} {message} {submessage} {minutes} {points} {pointtype}" />
@@ -85,6 +87,7 @@
     private string _subscriberMessage = string.Empty;
     private string _announcementTemplate = string.Empty;
     private bool _postAnnouncement;
+    private bool _postReminders;
     private bool _saving;
 
     protected override async Task OnInitializedAsync()
@@ -99,6 +102,7 @@
         _subscriberMessage = _config.SubscriberMessage ?? string.Empty;
         _announcementTemplate = _config.AnnouncementTemplate;
         _postAnnouncement = _config.PostAnnouncement;
+        _postReminders = _config.PostReminders;
         _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
     }
 
@@ -121,7 +125,8 @@
                 Message: _message,
                 SubscriberMessage: string.IsNullOrWhiteSpace(_subscriberMessage) ? null : _subscriberMessage,
                 AnnouncementTemplate: _announcementTemplate,
-                PostAnnouncement: _postAnnouncement);
+                PostAnnouncement: _postAnnouncement,
+                PostReminders: _postReminders);
 
             await RaidRewardSettings.SaveConfigAsync(config);
             Snackbar.Add("Raid Reward settings saved.", Severity.Success);

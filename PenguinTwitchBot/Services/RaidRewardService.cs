@@ -89,6 +89,7 @@ namespace PenguinTwitchBot.Services
         {
             _serviceBackbone.OutgoingRaidEvent += OnOutgoingRaid;
             _eventSubClient.ChannelChatMessage += OnChannelChatMessage;
+            _eventSubClient.ChannelChatNotification += OnChannelChatNotification;
             _logger.LogInformation("RaidRewardService started");
             return Task.CompletedTask;
         }
@@ -97,6 +98,7 @@ namespace PenguinTwitchBot.Services
         {
             _serviceBackbone.OutgoingRaidEvent -= OnOutgoingRaid;
             _eventSubClient.ChannelChatMessage -= OnChannelChatMessage;
+            _eventSubClient.ChannelChatNotification -= OnChannelChatNotification;
             CancelPreRaidReminder();
             await CloseActiveWindowAsync();
         }
@@ -116,7 +118,8 @@ namespace PenguinTwitchBot.Services
                     return;
 
                 await PostAnnouncementAsync(targetDisplayName, config, "pre-raid");
-                StartPreRaidReminder(targetDisplayName);
+                if (config.PostReminders)
+                    StartPreRaidReminder(targetDisplayName);
             }
             catch (Exception ex)
             {
@@ -130,7 +133,13 @@ namespace PenguinTwitchBot.Services
         {
             CancelPreRaidReminder();
             var generation = Interlocked.Increment(ref _preRaidReminderGeneration);
-            _preRaidReminderTimer = new Timer(_ => _ = SendPreRaidReminderAsync(targetDisplayName, generation), null, TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+            SchedulePreRaidReminder(targetDisplayName, generation, 1);
+        }
+
+        private void SchedulePreRaidReminder(string targetDisplayName, int generation, int reminderNumber)
+        {
+            _preRaidReminderTimer?.Dispose();
+            _preRaidReminderTimer = new Timer(_ => _ = SendPreRaidReminderAsync(targetDisplayName, generation, reminderNumber), null, TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
         }
 
         private void CancelPreRaidReminder()
@@ -151,8 +160,9 @@ namespace PenguinTwitchBot.Services
             timer?.Dispose();
         }
 
-        internal async Task SendPreRaidReminderAsync(string targetDisplayName, int generation)
+        internal async Task SendPreRaidReminderAsync(string targetDisplayName, int generation, int reminderNumber = 1)
         {
+            var scheduledNextReminder = false;
             try
             {
                 // Skip if the raid already fired (a window is open) or a newer raid superseded this reminder.
@@ -168,7 +178,7 @@ namespace PenguinTwitchBot.Services
                 var config = await _settings.GetConfigAsync();
                 if (!IsCurrentReminder(generation)) return;
 
-                if (!config.Enabled || !config.PostAnnouncement || string.IsNullOrWhiteSpace(config.Message))
+                if (!config.Enabled || !config.PostAnnouncement || !config.PostReminders || string.IsNullOrWhiteSpace(config.Message))
                 {
                     CancelPreRaidReminderIfCurrent(generation);
                     return;
@@ -176,6 +186,12 @@ namespace PenguinTwitchBot.Services
 
                 if (!IsCurrentReminder(generation)) return;
                 await PostAnnouncementAsync(targetDisplayName, config, "pre-raid reminder");
+
+                if (reminderNumber < 2 && IsCurrentReminder(generation))
+                {
+                    SchedulePreRaidReminder(targetDisplayName, generation, reminderNumber + 1);
+                    scheduledNextReminder = true;
+                }
             }
             catch (Exception ex)
             {
@@ -183,8 +199,19 @@ namespace PenguinTwitchBot.Services
             }
             finally
             {
-                CancelPreRaidReminderIfCurrent(generation);
+                if (!scheduledNextReminder)
+                    CancelPreRaidReminderIfCurrent(generation);
             }
+        }
+
+        internal Task OnChannelChatNotification(object? sender, ChannelChatNotificationEventArgs e)
+        {
+            if (!string.Equals(e.Event.NoticeType, "unraid", StringComparison.OrdinalIgnoreCase))
+                return Task.CompletedTask;
+
+            CancelPreRaidReminder();
+            _logger.LogInformation("Raid reward: Twitch reported an unraid; cancelled pending pre-raid reminders");
+            return Task.CompletedTask;
         }
 
         private async Task PostAnnouncementAsync(string targetDisplayName, RaidRewardConfig config, string kind)
