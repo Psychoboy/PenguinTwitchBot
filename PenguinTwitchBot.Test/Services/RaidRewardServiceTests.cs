@@ -64,8 +64,7 @@ namespace PenguinTwitchBot.Test.Services
             Message: "penguin raid",
             SubscriberMessage: "penguin sub raid",
             AnnouncementTemplate: "tpl",
-            PostAnnouncement: true,
-            PostPreRaidAnnouncement: true);
+            PostAnnouncement: true);
 
         private async Task StartAndOpenRaidWindowAsync(RaidRewardConfig config, List<string>? current = null, List<string>? active = null)
         {

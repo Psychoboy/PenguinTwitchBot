@@ -12,8 +12,7 @@ public sealed record RaidRewardConfig(
     string Message,
     string? SubscriberMessage,
     string AnnouncementTemplate,
-    bool PostAnnouncement,
-    bool PostPreRaidAnnouncement);
+    bool PostAnnouncement);
 
 public interface IRaidRewardSettingsService
 {
@@ -64,8 +63,9 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
             AnnouncementTemplate: string.IsNullOrWhiteSpace(GetString(map, AnnouncementTemplateName))
                 ? DefaultAnnouncementTemplate
                 : GetString(map, AnnouncementTemplateName),
-            PostAnnouncement: GetInt(map, PostAnnouncementName, 1) == 1,
-            PostPreRaidAnnouncement: GetInt(map, PostPreRaidAnnouncementName, 0) == 1);
+            // Respect either old toggle when upgrading, then persist the single setting on save.
+            PostAnnouncement: GetInt(map, PostAnnouncementName, 0) == 1 ||
+                GetInt(map, PostPreRaidAnnouncementName, 0) == 1);
     }
 
     public async Task SaveConfigAsync(RaidRewardConfig config)
@@ -81,7 +81,6 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         await UpsertString(db, SubscriberMessageName, config.SubscriberMessage ?? string.Empty);
         await UpsertString(db, AnnouncementTemplateName, config.AnnouncementTemplate);
         await UpsertInt(db, PostAnnouncementName, config.PostAnnouncement ? 1 : 0);
-        await UpsertInt(db, PostPreRaidAnnouncementName, config.PostPreRaidAnnouncement ? 1 : 0);
 
         await db.SaveChangesAsync();
     }

@@ -110,7 +110,7 @@ namespace PenguinTwitchBot.Services
             try
             {
                 var config = await _settings.GetConfigAsync();
-                if (!config.Enabled || !config.PostPreRaidAnnouncement)
+                if (!config.Enabled || !config.PostAnnouncement)
                     return;
                 if (string.IsNullOrWhiteSpace(config.Message))
                     return;
@@ -168,7 +168,7 @@ namespace PenguinTwitchBot.Services
                 var config = await _settings.GetConfigAsync();
                 if (!IsCurrentReminder(generation)) return;
 
-                if (!config.Enabled || !config.PostPreRaidAnnouncement || string.IsNullOrWhiteSpace(config.Message))
+                if (!config.Enabled || !config.PostAnnouncement || string.IsNullOrWhiteSpace(config.Message))
                 {
                     CancelPreRaidReminderIfCurrent(generation);
                     return;
@@ -248,18 +248,6 @@ namespace PenguinTwitchBot.Services
 
                 _logger.LogInformation("Raid reward window opened for {Target} until {Expiry} with {Count} eligible viewers",
                     e.TargetDisplayName, window.ExpiresAtUtc, eligible.Count);
-
-                if (config.PostAnnouncement)
-                {
-                    try
-                    {
-                        await PostAnnouncementAsync(e.TargetDisplayName, config, "raid-start");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Raid reward: failed to post raid-start announcement for {Target}", e.TargetDisplayName);
-                    }
-                }
             }
             catch (Exception ex)
             {
