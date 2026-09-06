@@ -107,20 +107,20 @@ namespace PenguinTwitchBot.Services
             try
             {
                 var config = await _settings.GetConfigAsync();
-                if (!config.Enabled || !config.PostAnnouncement)
+                if (!config.Enabled || !config.PostPreRaidAnnouncement)
                     return;
                 if (string.IsNullOrWhiteSpace(config.Message))
                     return;
 
                 var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
                 var message = BuildAnnouncement(config, targetDisplayName, pointTypeName);
-                await _serviceBackbone.SendChatMessage(message);
+                await _twitchService.Announcement(message);
             }
             catch (Exception ex)
             {
                 // Never let announcement failures (settings, point lookup, chat dispatch)
                 // propagate to RaidTracker.Raid and prevent the raid from starting.
-                _logger.LogError(ex, "Raid reward: failed to post announcement for {Target}", targetDisplayName);
+                _logger.LogError(ex, "Raid reward: failed to post pre-raid announcement for {Target}", targetDisplayName);
             }
         }
 
@@ -174,6 +174,20 @@ namespace PenguinTwitchBot.Services
 
                 _logger.LogInformation("Raid reward window opened for {Target} until {Expiry} with {Count} eligible viewers",
                     e.TargetDisplayName, window.ExpiresAtUtc, eligible.Count);
+
+                if (config.PostAnnouncement)
+                {
+                    try
+                    {
+                        var pointTypeName = await GetPointTypeNameAsync(config.PointTypeId);
+                        var message = BuildAnnouncement(config, e.TargetDisplayName, pointTypeName);
+                        await _twitchService.Announcement(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Raid reward: failed to post raid-start announcement for {Target}", e.TargetDisplayName);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -242,6 +256,10 @@ namespace PenguinTwitchBot.Services
                 return;
 
             var evt = e.Event;
+            var text = evt.Message.Text ?? string.Empty;
+
+            _logger.LogInformation("Raid reward chat received (window for {Target}): Chatter={Chatter} ({ChatterId}) BroadcasterId={BId} TargetId={TId} Text='{Text}'",
+                window.TargetDisplayName, evt.ChatterUserLogin, evt.ChatterUserId, evt.BroadcasterUserId, window.TargetUserId, text);
 
             // Only count messages that actually occurred in the raided channel. Verified:
             // broadcaster_user_id is the channel we joined/raided; in a shared-chat session,
@@ -249,26 +267,45 @@ namespace PenguinTwitchBot.Services
             // while source_broadcaster_user_id stays null for direct messages. So filtering
             // on broadcaster_user_id == the raided target correctly scopes to that channel.
             if (!string.Equals(evt.BroadcasterUserId, window.TargetUserId, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Raid reward chat ignored: BroadcasterUserId '{BId}' does not match TargetUserId '{TId}' for {Target}",
+                    evt.BroadcasterUserId, window.TargetUserId, window.TargetDisplayName);
                 return;
+            }
 
             var username = UsernameNormalizer.Normalize(evt.ChatterUserLogin);
-            if (string.IsNullOrWhiteSpace(username) || !window.EligibleUsernames.Contains(username))
-                return;
 
-            // Match: message contains the configured phrase (case-insensitive). Subs may
-            // also use the optional subscriber phrase.
-            var text = evt.Message.Text ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(username) || !window.EligibleUsernames.Contains(username))
+            {
+                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> SKIPPED (chatter '{ChatterNormalized}' not in pre-raid chatter list of {Count} viewers)",
+                    evt.ChatterUserLogin, window.TargetDisplayName, text, username, window.EligibleUsernames.Count);
+                return;
+            }
+
+            // Match: message contains the configured phrase (case-insensitive & punctuation-insensitive).
+            // Subs may also use the optional subscriber phrase.
             var isSub = await _viewerFeature.IsSubscriber(username);
             var matched = ContainsPhrase(text, window.Config.Message);
             if (!matched && isSub && !string.IsNullOrWhiteSpace(window.Config.SubscriberMessage))
                 matched = ContainsPhrase(text, window.Config.SubscriberMessage);
 
             if (!matched)
+            {
+                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> NO MATCH for phrase '{Message}' (subPhrase='{SubMessage}', isSub={IsSub})",
+                    evt.ChatterUserLogin, window.TargetDisplayName, text, window.Config.Message, window.Config.SubscriberMessage ?? "", isSub);
                 return;
+            }
 
             // Award once per raid event. Reserve atomically for concurrency; roll back on failure.
             if (!window.AwardedUsernames.Add(username))
+            {
+                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> ALREADY AWARDED in this raid",
+                    evt.ChatterUserLogin, window.TargetDisplayName, text);
                 return;
+            }
+
+            _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> MATCHED! Awarding points...",
+                evt.ChatterUserLogin, window.TargetDisplayName, text);
 
             var awarded = await AwardAsync(window, username, evt.ChatterUserId, evt.ChatterUserName);
             if (!awarded)
@@ -276,7 +313,39 @@ namespace PenguinTwitchBot.Services
         }
 
         private static bool ContainsPhrase(string text, string phrase)
-            => text.Contains(phrase, StringComparison.OrdinalIgnoreCase);
+        {
+            if (string.IsNullOrWhiteSpace(phrase) || string.IsNullOrWhiteSpace(text))
+                return false;
+
+            // 1. Direct case-insensitive substring match
+            if (text.Contains(phrase, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // 2. Normalized match (strip non-alphanumeric punctuation and collapse extra spaces)
+            var normText = NormalizeForMatching(text);
+            var normPhrase = NormalizeForMatching(phrase);
+
+            if (string.IsNullOrWhiteSpace(normPhrase))
+                return false;
+
+            return normText.Contains(normPhrase, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeForMatching(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            var sb = new System.Text.StringBuilder(input.Length);
+            foreach (var c in input)
+            {
+                if (char.IsLetterOrDigit(c) || c == '_')
+                    sb.Append(c);
+                else
+                    sb.Append(' ');
+            }
+            return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim().ToLowerInvariant();
+        }
 
         private async Task<bool> AwardAsync(RaidWindow window, string username, string chatterUserId, string chatterDisplayName)
         {
