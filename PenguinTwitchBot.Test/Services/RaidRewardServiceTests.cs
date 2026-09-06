@@ -65,7 +65,7 @@ namespace PenguinTwitchBot.Test.Services
             SubscriberMessage: "penguin sub raid",
             AnnouncementTemplate: "tpl",
             PostAnnouncement: true,
-            PostPreRaidAnnouncement: true);
+            PostReminders: true);
 
         private async Task StartAndOpenRaidWindowAsync(RaidRewardConfig config, List<string>? current = null, List<string>? active = null)
         {
@@ -242,6 +242,26 @@ namespace PenguinTwitchBot.Test.Services
             await Task.WhenAll(reminderTask, newRaidTask);
 
             await _twitchService.DidNotReceive().Announcement(Arg.Is<string>(m => m.Contains("RaidA")));
+        }
+
+        [Fact]
+        public async Task UnraidNotification_CancelsPendingReminder()
+        {
+            var config = DefaultConfig();
+            _settings.GetConfigAsync().Returns(config);
+            _pointsSystem.GetPointTypeById(config.PointTypeId).Returns(new PointType { Id = config.PointTypeId, Name = "Points" });
+            await _service.StartAsync(CancellationToken.None);
+
+            await _service.OnChannelChatNotification(_eventSubClient, new ChannelChatNotificationEventArgs
+            {
+                Metadata = new ConcreteEventSubMetadata { MessageId = "unraid-1", MessageType = "notification", MessageTimestamp = DateTime.UtcNow },
+                Event = new ChannelChatNotification { NoticeType = "unraid" }
+            });
+
+            // The notification invalidates generation 0, so a pending callback for it cannot post.
+            await _service.SendPreRaidReminderAsync("Target", 0);
+
+            await _twitchService.DidNotReceive().Announcement(Arg.Any<string>());
         }
     }
 }

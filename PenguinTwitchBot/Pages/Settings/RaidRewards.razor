@@ -56,9 +56,9 @@
                               Variant="Variant.Outlined"
                               HelperText="Alternative phrase only subscribers may use (e.g. contains sub-only emotes). Leave blank to disable." />
 
-                <MudSwitch T="bool" @bind-Value="_postAnnouncement" Label="Post announcement in my chat when the raid starts" Color="Color.Primary" />
+                <MudSwitch T="bool" @bind-Value="_postAnnouncement" Label="Announce raid reward message" Color="Color.Primary" />
 
-                <MudSwitch T="bool" @bind-Value="_postPreRaidAnnouncement" Label="Post announcement in my chat when raid is initiated (!raid command)" Color="Color.Primary" />
+                <MudSwitch T="bool" @bind-Value="_postReminders" Label="Send reminders after 30 and 60 seconds if the raid has not happened" Color="Color.Primary" Disabled="@(!_postAnnouncement)" />
 
                 <MudTextField @bind-Value="_announcementTemplate" Label="Announcement template"
                               Variant="Variant.Outlined" Lines="3"
@@ -87,7 +87,7 @@
     private string _subscriberMessage = string.Empty;
     private string _announcementTemplate = string.Empty;
     private bool _postAnnouncement;
-    private bool _postPreRaidAnnouncement;
+    private bool _postReminders;
     private bool _saving;
 
     protected override async Task OnInitializedAsync()
@@ -102,7 +102,7 @@
         _subscriberMessage = _config.SubscriberMessage ?? string.Empty;
         _announcementTemplate = _config.AnnouncementTemplate;
         _postAnnouncement = _config.PostAnnouncement;
-        _postPreRaidAnnouncement = _config.PostPreRaidAnnouncement;
+        _postReminders = _config.PostReminders;
         _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
     }
 
@@ -126,7 +126,7 @@
                 SubscriberMessage: string.IsNullOrWhiteSpace(_subscriberMessage) ? null : _subscriberMessage,
                 AnnouncementTemplate: _announcementTemplate,
                 PostAnnouncement: _postAnnouncement,
-                PostPreRaidAnnouncement: _postPreRaidAnnouncement);
+                PostReminders: _postReminders);
 
             await RaidRewardSettings.SaveConfigAsync(config);
             Snackbar.Add("Raid Reward settings saved.", Severity.Success);
