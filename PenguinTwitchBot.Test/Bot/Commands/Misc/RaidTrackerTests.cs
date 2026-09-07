@@ -126,6 +126,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var twitchService = Substitute.For<ITwitchService>();
             twitchService.GetUserByName("").Returns(new User(Id: "", Login: "", DisplayName: "", Description: "", CreatedAt: default));
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
+            twitchService.RaidStreamer(Arg.Any<string>()).Returns(true);
 
             var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>(), Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
             //Act
@@ -135,6 +136,38 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             dbContext.RaidHistory.Received(1).Update(Arg.Any<RaidHistoryEntry>());
             await dbContext.Received(1).SaveChangesAsync();
             await serviceBackbone.Received(1).SendChatMessage(Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task Raid_WhenStartFails_DoesNotAnnounce()
+        {
+            //Arrange
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            var dispatcherSubstitute = Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>();
+            var raidReward = Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            var twitchService = Substitute.For<ITwitchService>();
+            twitchService.GetUserByName("").Returns(new User(Id: "", Login: "", DisplayName: "", Description: "", CreatedAt: default));
+            twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
+            twitchService.RaidStreamer(Arg.Any<string>()).Returns(false);
+
+            var raidTracker = new RaidTracker(Substitute.For<ILogger<RaidTracker>>(), scopeFactory, twitchService, serviceBackbone, dispatcherSubstitute, Substitute.For<ICommandHandler>(), raidReward);
+
+            //Act
+            await raidTracker.Raid("");
+
+            //Assert
+            await raidReward.DidNotReceive().AnnounceRaidInitiatedAsync(Arg.Any<string>());
+            dbContext.RaidHistory.DidNotReceive().Update(Arg.Any<RaidHistoryEntry>());
+            await serviceBackbone.DidNotReceive().SendChatMessage(Arg.Is<string>(m => m.Contains("Starting a raid")));
         }
 
         [Fact]
@@ -225,6 +258,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var twitchService = Substitute.For<ITwitchService>();
             twitchService.GetUserByName("").Returns(new User(Id: "", Login: "", DisplayName: "", Description: "", CreatedAt: default));
             twitchService.IsStreamOnline(Arg.Any<string>()).Returns(true);
+            twitchService.RaidStreamer(Arg.Any<string>()).Returns(true);
 
             commandHandler.GetCommandDefaultName("raid").Returns("raid");
 

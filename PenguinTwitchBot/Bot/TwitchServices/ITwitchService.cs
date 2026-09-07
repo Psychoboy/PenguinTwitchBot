@@ -30,7 +30,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> IsStreamOnline(string userId);
         Task<bool> IsUserMod(string user);
         Task<bool> IsUserSub(string user);
-        Task RaidStreamer(string userId);
+        Task<bool> RaidStreamer(string userId);
         Task<ShoutoutResponseEnum> ShoutoutStreamer(string userId);
         Task<DateTime> StreamStartedAt();
         Task<bool> SubscribeToAllTheStuffs(string sessionId);
