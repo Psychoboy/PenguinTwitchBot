@@ -39,7 +39,9 @@ namespace PenguinTwitchBot.Services
             public required string SubscriptionId { get; set; }
             public required DateTime ExpiresAtUtc { get; init; }
             public required HashSet<string> EligibleUsernames { get; init; }
+            public object AwardLock { get; } = new();
             public HashSet<string> AwardedUsernames { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public List<string> AwardedDisplayNames { get; } = [];
             public required RaidRewardConfig Config { get; init; }
             public bool SubscriptionFailed { get; set; }
         }
@@ -384,7 +386,13 @@ namespace PenguinTwitchBot.Services
             }
 
             // Award once per raid event. Reserve atomically for concurrency; roll back on failure.
-            if (!window.AwardedUsernames.Add(username))
+            bool reserved;
+            lock (window.AwardLock)
+            {
+                reserved = window.AwardedUsernames.Add(username);
+            }
+
+            if (!reserved)
             {
                 _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> ALREADY AWARDED in this raid",
                     evt.ChatterUserLogin, window.TargetDisplayName, text);
@@ -395,8 +403,13 @@ namespace PenguinTwitchBot.Services
                 evt.ChatterUserLogin, window.TargetDisplayName, text);
 
             var awarded = await AwardAsync(window, username, evt.ChatterUserId, evt.ChatterUserName);
-            if (!awarded)
-                window.AwardedUsernames.Remove(username);
+            lock (window.AwardLock)
+            {
+                if (awarded)
+                    window.AwardedDisplayNames.Add(evt.ChatterUserName);
+                else
+                    window.AwardedUsernames.Remove(username);
+            }
         }
 
         private static bool ContainsPhrase(string text, string phrase)
@@ -526,7 +539,15 @@ namespace PenguinTwitchBot.Services
                 }
             }
 
-            _logger.LogInformation("Raid reward window closed for {Target}; awarded {Count} viewer(s)", window.TargetDisplayName, window.AwardedUsernames.Count);
+            string[] awardedNames;
+            lock (window.AwardLock)
+            {
+                awardedNames = [.. window.AwardedDisplayNames];
+            }
+
+            _logger.LogInformation("Raid reward window closed for {Target}; awarded {Count} viewer(s) x{PointsEach} points: {Awarded}",
+                window.TargetDisplayName, awardedNames.Length, window.Config.PointsToAward,
+                awardedNames.Length == 0 ? "(none)" : string.Join(", ", awardedNames));
         }
     }
 }

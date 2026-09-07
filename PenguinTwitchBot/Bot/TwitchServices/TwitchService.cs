@@ -991,7 +991,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return "";
         }
 
-        public async Task RaidStreamer(string userId)
+        public async Task<bool> RaidStreamer(string userId)
         {
             var broadcasterId = await GetBroadcasterUserId() ?? throw new Exception("Error getting stream status.");
             try
@@ -1001,16 +1001,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     _accessToken,
                     broadcasterId,
                     userId);
+                return true;
             }
             catch (Exception ex) when (ex.GetType().Name == "HttpResponseException")
             {
                 var error = ex.Message;
                 _logger.LogError("Error doing Raid: {error}", error);
+                return false;
             }
             catch (Exception ex)
             {
                 var error = ex.Message;
                 _logger.LogError("Error doing RaidStreamer(): {error}", error);
+                return false;
             }
         }
 

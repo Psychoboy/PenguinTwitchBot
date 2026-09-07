@@ -181,10 +181,15 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
             try
             {
-                // Announce the raid (and the message viewers should send) at initiation.
+                if (!await _twitchService.RaidStreamer(user.Id))
+                {
+                    // A failed start (e.g. 409 when a raid is already pending) must not announce.
+                    _logger.LogWarning("Raid to {DisplayName} did not start; skipping announcement.", user.DisplayName);
+                    return;
+                }
+
                 await _raidReward.AnnounceRaidInitiatedAsync(user.DisplayName);
 
-                await _twitchService.RaidStreamer(user.Id);
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
