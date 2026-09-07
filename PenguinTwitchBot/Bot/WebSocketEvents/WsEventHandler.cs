@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace PenguinTwitchBot.Bot.WebSocketEvents
 {
@@ -16,11 +17,14 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
         private int maxQueueSize = 1000;
         private JsonSerializerOptions serializerOptions;
         private readonly CancellationTokenSource _shutdownCts = new();
+        private Task? _broadcastTask;
+        private const int PerSocketQueueCapacity = 1000;
 
         public WsEventHandler(ILogger<WsEventHandler> logger)
         {
             this.logger = logger;
             SetupCleanupTasks();
+            SetupBroadcastTask();
             serializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         }
 
@@ -53,17 +57,25 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
         public async Task Handle(Guid id, WebSocket webSocket)
         {
             logger.LogInformation("Adding Websocket: {id}", id.ToString());
+            var connection = new SocketConnection
+            {
+                Id = id,
+                WebSocket = webSocket,
+                SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
+                OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(PerSocketQueueCapacity)
+                {
+                    FullMode = BoundedChannelFullMode.DropWrite,
+                    SingleReader = true
+                })
+            };
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                websocketConnections.Add(new SocketConnection
-                {
-                    Id = id,
-                    WebSocket = webSocket
-                });
+                websocketConnections.Add(connection);
             }
             finally { _semaphoreSlim.Release(); }
-            var pushTask = Task.Run(() => PushMessages(webSocket, _shutdownCts.Token));
+
+            connection.SendTask = Task.Run(() => SendMessagesAsync(connection, connection.SenderCancellation.Token));
             try
             {
                 await ReceiveMessage(webSocket, _shutdownCts.Token);
@@ -76,7 +88,12 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             {
                 logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
-            await pushTask;
+            connection.SenderCancellation.Cancel();
+            connection.OutboundMessages.Writer.TryComplete();
+            await RemoveSocketsById([connection.Id]);
+            if (connection.SendTask != null)
+                await connection.SendTask;
+            connection.SenderCancellation.Dispose();
             try
             {
                 await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
@@ -88,15 +105,20 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             logger.LogInformation("Websocket closed: {id}", id.ToString());
         }
 
-        private async Task PushMessages(WebSocket webSocket, CancellationToken cancellationToken)
+        private void SetupBroadcastTask()
+        {
+            _broadcastTask = Task.Run(() => RunBroadcastLoopAsync(_shutdownCts.Token));
+        }
+
+        private async Task RunBroadcastLoopAsync(CancellationToken cancellationToken)
         {
             try
             {
-                while (webSocket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     if (queue.TryTake(out var result, 5000, cancellationToken))
                     {
-                        if (paused == false)
+                        if (!paused)
                         {
                             await SendMessageToSockets(result);
                         }
@@ -105,7 +127,7 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             }
             catch (OperationCanceledException)
             {
-                logger.LogDebug("PushMessages cancelled for shutdown.");
+                logger.LogDebug("Broadcast task cancelled for shutdown.");
             }
         }
 
@@ -179,6 +201,8 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             });
 
             await Task.WhenAll(closeTasks);
+            if (_broadcastTask != null)
+                await _broadcastTask;
             logger.LogDebug("Closed all sockets");
         }
 
@@ -204,23 +228,45 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             }
             finally { _semaphoreSlim.Release(); }
 
-            var tasks = toSentTo.Select(async websocketConnection =>
+            var serializedMessage = JsonSerializer.Serialize(message, serializerOptions);
+            foreach (var websocketConnection in toSentTo)
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message, serializerOptions));
-                    var arraySegment = new ArraySegment<byte>(bytes);
-                    await websocketConnection.WebSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    if (!websocketConnection.OutboundMessages.Writer.TryWrite(serializedMessage))
+                    {
+                        logger.LogWarning("Outbound websocket queue is full for {id}; dropping event.", websocketConnection.Id);
+                    }
                 }
-            });
-            await Task.WhenAll(tasks);
+            }
+        }
+
+        private async Task SendMessagesAsync(SocketConnection connection, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await foreach (var message in connection.OutboundMessages.Reader.ReadAllAsync(cancellationToken))
+                {
+                    var bytes = Encoding.UTF8.GetBytes(message);
+                    await connection.WebSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogDebug("Websocket sender cancelled for {id}.", connection.Id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Error sending websocket event to {id}", connection.Id);
+                await RemoveSocketsById([connection.Id]);
+            }
         }
 
         private void SetupCleanupTasks()
         {
             Task.Run(async () =>
             {
-                while (true)
+                while (! _shutdownCts.IsCancellationRequested)
                 {
                     IEnumerable<SocketConnection> openSockets;
                     IEnumerable<SocketConnection> closedSockets;
@@ -232,24 +278,54 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
                         closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting);
 
                         websocketConnections = openSockets.ToList();
+                        if (!openSockets.Any())
+                            queue.Clear();
                     }
                     finally { _semaphoreSlim.Release(); }
 
                     foreach (var closedWebsocketConnection in closedSockets)
                     {
+                        closedWebsocketConnection.SenderCancellation.Cancel();
+                        closedWebsocketConnection.OutboundMessages.Writer.TryComplete();
                         logger.LogInformation("Closing Socket: {id}", closedWebsocketConnection.Id);
                     }
 
-                    await Task.Delay(5000);
+                    await Task.Delay(5000, _shutdownCts.Token);
                 }
 
             });
+        }
+
+        private async Task RemoveSocketsById(HashSet<Guid> socketIds)
+        {
+            List<SocketConnection> removedSockets;
+            bool noConnections;
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                removedSockets = websocketConnections.Where(x => socketIds.Contains(x.Id)).ToList();
+                websocketConnections = websocketConnections.Where(x => !socketIds.Contains(x.Id)).ToList();
+                noConnections = websocketConnections.Count == 0;
+            }
+            finally { _semaphoreSlim.Release(); }
+
+            if (noConnections)
+                queue.Clear();
+
+            foreach (var socket in removedSockets)
+            {
+                socket.SenderCancellation.Cancel();
+                socket.OutboundMessages.Writer.TryComplete();
+            }
         }
     }
     public class SocketConnection
     {
         public Guid Id { get; set; }
         public WebSocket WebSocket { get; set; } = null!;
+        public Channel<string> OutboundMessages { get; set; } = null!;
+        public Task? SendTask { get; set; }
+        public CancellationTokenSource SenderCancellation { get; set; } = null!;
         public List<string> SubscribedEventTypes { get; set; } = []; //ignored for now, future enhancement to allow clients to subscribe to specific event types
     }
 }

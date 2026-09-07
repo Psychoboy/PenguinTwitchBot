@@ -684,8 +684,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		// Single-shell launcher for websocket-triggered fireworks.
 		// Each event fires exactly one shell (not a burst sequence) so a rapid
-		// stream of events produces a continuous show. Keeps the perf rate-limit
-		// and load guards so under heavy load we skip instead of queuing bursts.
+		// stream of events produces a continuous show. Under heavy load, use a
+		// smaller fast shell instead of dropping every event.
 		function fireSingleOptimized() {
 			const now = Date.now();
 			if (now - lastOptimizedLaunchAt < PERF_LIMITS.minLaunchGapMs) {
@@ -695,14 +695,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			const particles = getActiveParticleCount();
 			lastOptimizedLaunchAt = now;
 
-			if (particles > PERF_LIMITS.criticalParticleCount) {
-				return 0;
-			}
-
 			const size = getRandomShellSize();
-			const shell = new Shell(isLowEndRuntime() || particles > PERF_LIMITS.highParticleCount
-				? randomFastShell()(size.size)
-				: shellFromConfig(size.size));
+			const underHeavyLoad = isLowEndRuntime() || particles > PERF_LIMITS.highParticleCount;
+			const underCriticalLoad = particles > PERF_LIMITS.criticalParticleCount;
+			const shell = underCriticalLoad
+				? new Shell({
+					shellSize: 0,
+					spreadSize: 180,
+					starCount: 6,
+					starLife: 500,
+					starLifeVariation: 0.1,
+					color: randomColor()
+				})
+				: new Shell(underHeavyLoad
+					? randomFastShell()(size.size)
+					: shellFromConfig(size.size));
 			shell.launch(size.x, size.height);
 			return 0;
 		}
