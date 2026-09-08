@@ -68,7 +68,7 @@ namespace PenguinTwitchBot.Bot.Notifications
                 SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
                 OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(PerSocketQueueCapacity)
                 {
-                    FullMode = BoundedChannelFullMode.DropWrite,
+                    FullMode = BoundedChannelFullMode.Wait,
                     SingleReader = true
                 })
             };
@@ -93,8 +93,6 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
-            connection.SenderCancellation.Cancel();
-            connection.OutboundMessages.Writer.TryComplete();
             await RemoveSocketsById([connection.Id]);
             if (connection.SendTask != null)
                 await connection.SendTask;
@@ -348,17 +346,18 @@ namespace PenguinTwitchBot.Bot.Notifications
                 removedSockets = websocketConnections.Where(x => socketIds.Contains(x.Id)).ToList();
                 websocketConnections = websocketConnections.Where(x => !socketIds.Contains(x.Id)).ToList();
                 noConnections = websocketConnections.Count == 0;
+
+                foreach (var socket in removedSockets)
+                {
+                    socket.SenderCancellation.Cancel();
+                    socket.OutboundMessages.Writer.TryComplete();
+                }
             }
             finally { _semaphoreSlim.Release(); }
 
             if (noConnections)
                 _queue.Clear();
 
-            foreach (var socket in removedSockets)
-            {
-                socket.SenderCancellation.Cancel();
-                socket.OutboundMessages.Writer.TryComplete();
-            }
         }
 
         private async Task<List<SocketConnection>> PruneClosedSockets(CancellationToken cancellationToken)
@@ -371,6 +370,12 @@ namespace PenguinTwitchBot.Bot.Notifications
 
                 var openSockets = websocketConnections.Where(x => x.WebSocket.State == WebSocketState.Open || x.WebSocket.State == WebSocketState.Connecting).ToList();
                 var closedSockets = websocketConnections.Where(x => x.WebSocket.State != WebSocketState.Open && x.WebSocket.State != WebSocketState.Connecting).ToList();
+
+                foreach (var socket in closedSockets)
+                {
+                    socket.SenderCancellation.Cancel();
+                    socket.OutboundMessages.Writer.TryComplete();
+                }
 
                 websocketConnections = openSockets;
                 return closedSockets;
