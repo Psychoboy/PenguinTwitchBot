@@ -347,18 +347,14 @@ namespace PenguinTwitchBot.Services
             var evt = e.Event;
             var text = evt.Message.Text ?? string.Empty;
 
-            _logger.LogInformation("Raid reward chat received (window for {Target}): Chatter={Chatter} ({ChatterId}) BroadcasterId={BId} TargetId={TId} Text='{Text}'",
-                window.TargetDisplayName, evt.ChatterUserLogin, evt.ChatterUserId, evt.BroadcasterUserId, window.TargetUserId, text);
-
-            // Only count messages that actually occurred in the raided channel. Verified:
-            // broadcaster_user_id is the channel we joined/raided; in a shared-chat session,
-            // messages from OTHER (guest) channels report a different broadcaster_user_id,
-            // while source_broadcaster_user_id stays null for direct messages. So filtering
-            // on broadcaster_user_id == the raided target correctly scopes to that channel.
+            // Verified: broadcaster_user_id is the channel we joined/raided; in a shared-chat
+            // session, messages from OTHER (guest) channels report a different broadcaster_user_id,
+            // while source_broadcaster_user_id stays null for direct messages. So filtering on
+            // broadcaster_user_id == the raided target correctly scopes to that channel.
             if (!string.Equals(evt.BroadcasterUserId, window.TargetUserId, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogDebug("Raid reward chat ignored: BroadcasterUserId '{BId}' does not match TargetUserId '{TId}' for {Target}",
-                    evt.BroadcasterUserId, window.TargetUserId, window.TargetDisplayName);
+                _logger.LogDebug("Raid reward [{Target}] ignored msg from {Chatter}: broadcaster {BId} != target {TId}",
+                    window.TargetDisplayName, evt.ChatterUserLogin, evt.BroadcasterUserId, window.TargetUserId);
                 return;
             }
 
@@ -366,8 +362,8 @@ namespace PenguinTwitchBot.Services
 
             if (string.IsNullOrWhiteSpace(username) || !window.EligibleUsernames.Contains(username))
             {
-                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> SKIPPED (chatter '{ChatterNormalized}' not in pre-raid chatter list of {Count} viewers)",
-                    evt.ChatterUserLogin, window.TargetDisplayName, text, username, window.EligibleUsernames.Count);
+                _logger.LogDebug("Raid reward [{Target}] skipped {Chatter} (not a pre-raid viewer): '{Text}'",
+                    window.TargetDisplayName, evt.ChatterUserLogin, text);
                 return;
             }
 
@@ -380,8 +376,8 @@ namespace PenguinTwitchBot.Services
 
             if (!matched)
             {
-                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> NO MATCH for phrase '{Message}' (subPhrase='{SubMessage}', isSub={IsSub})",
-                    evt.ChatterUserLogin, window.TargetDisplayName, text, window.Config.Message, window.Config.SubscriberMessage ?? "", isSub);
+                _logger.LogDebug("Raid reward [{Target}] no phrase match from {Chatter}: '{Text}'",
+                    window.TargetDisplayName, evt.ChatterUserLogin, text);
                 return;
             }
 
@@ -394,13 +390,10 @@ namespace PenguinTwitchBot.Services
 
             if (!reserved)
             {
-                _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> ALREADY AWARDED in this raid",
-                    evt.ChatterUserLogin, window.TargetDisplayName, text);
+                _logger.LogDebug("Raid reward [{Target}] {Chatter} already awarded, ignoring duplicate: '{Text}'",
+                    window.TargetDisplayName, evt.ChatterUserLogin, text);
                 return;
             }
-
-            _logger.LogInformation("Raid reward chat from {Chatter} in {Target}: '{Text}' -> MATCHED! Awarding points...",
-                evt.ChatterUserLogin, window.TargetDisplayName, text);
 
             var awarded = await AwardAsync(window, username, evt.ChatterUserId, evt.ChatterUserName);
             lock (window.AwardLock)
