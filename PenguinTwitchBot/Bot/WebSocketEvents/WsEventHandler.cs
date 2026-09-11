@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
         private JsonSerializerOptions serializerOptions;
         private readonly CancellationTokenSource _shutdownCts = new();
         private Task? _broadcastTask;
-        private const int PerSocketQueueCapacity = 1000;
+        private const int PerSocketQueueCapacity = 100;
 
         public WsEventHandler(ILogger<WsEventHandler> logger)
         {
