@@ -71,6 +71,11 @@
     <div id="timer-status">Timer: connecting...</div>
 
     <script src="/js/signalr/dist/browser/signalr.js"></script>
-    <script src="/js/timer-overlay.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = '/js/timer-overlay.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>

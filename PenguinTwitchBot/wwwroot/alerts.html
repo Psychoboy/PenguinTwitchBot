@@ -165,6 +165,11 @@
     <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="js/ws-status.js"></script>
-    <script src="js/alert.js" asp-append-version="true"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = 'js/alert.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>

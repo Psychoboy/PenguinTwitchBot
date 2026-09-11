@@ -56,10 +56,15 @@
         (async () => {
             const params = new URLSearchParams(window.location.search);
             const layoutName = params.get('layout') || '';
-            const apiUrl = '/api/overlay/config' + (layoutName ? '?layout=' + encodeURIComponent(layoutName) : '');
+            const cacheBust = Date.now().toString();
+            const apiUrl = new URL('/api/overlay/config', window.location.origin);
+            if (layoutName) {
+                apiUrl.searchParams.set('layout', layoutName);
+            }
+            apiUrl.searchParams.set('_cb', cacheBust);
 
             try {
-                const resp = await fetch(apiUrl);
+                const resp = await fetch(apiUrl, { cache: 'no-store' });
                 if (!resp.ok) {
                     showError('Overlay config request failed: ' + resp.status);
                     return;
@@ -83,13 +88,8 @@
                     .sort((a, b) => a.zIndex - b.zIndex);
 
                 for (const w of enabledWidgets) {
-                    // Append a cache-busting token so iframe widget pages (e.g.
-                    // fireworks.html) always reload the latest version instead of
-                    // serving a stale cached copy.
-                    const sep = w.sourcePath.includes('?') ? '&' : '?';
-                    const src = w.sourcePath + sep + '_cb=' + Date.now();
                     const iframe = document.createElement('iframe');
-                    iframe.src = src;
+                    iframe.src = withCacheBust(w.sourcePath, cacheBust);
                     iframe.className = 'overlay-widget';
                     iframe.style.left   = w.x + 'px';
                     iframe.style.top    = w.y + 'px';
@@ -111,6 +111,14 @@
             const el = document.getElementById('overlay-error');
             el.textContent = msg;
             el.style.display = 'block';
+        }
+
+        function withCacheBust(sourcePath, cacheBust) {
+            const url = new URL(sourcePath, window.location.origin);
+            url.searchParams.set('_cb', cacheBust);
+            return url.origin === window.location.origin
+                ? url.pathname + url.search + url.hash
+                : url.toString();
         }
     </script>
 

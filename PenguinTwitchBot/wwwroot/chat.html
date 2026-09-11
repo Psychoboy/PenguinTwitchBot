@@ -172,10 +172,10 @@
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="js/ws-status.js"></script>
     <script>
-        // Load chat.js with a cache-busting timestamp so stale versions are never served
-        const s = document.createElement('script');
-        s.src = 'js/chat.js?v=' + Date.now();
-        document.head.appendChild(s);
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = 'js/chat.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
     </script>
 </body>
 </html>
