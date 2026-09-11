@@ -13,6 +13,9 @@ namespace PenguinTwitchBot.Bot.Notifications
 
         public static readonly IReadOnlyList<string> All = [Chat, Alerts, Clips, Fishing, Wheel, Overlay, Events];
 
+        private static readonly HashSet<string> Known = new(All, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Filters client-supplied topics down to the known set; unknown values are discarded.</summary>
         public static HashSet<string> Parse(IEnumerable<string?>? topics)
         {
             var parsed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -22,7 +25,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 if (string.IsNullOrWhiteSpace(topic)) continue;
                 foreach (var part in topic.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    parsed.Add(part);
+                {
+                    if (Known.Contains(part))
+                        parsed.Add(part.ToLowerInvariant());
+                }
             }
             return parsed;
         }

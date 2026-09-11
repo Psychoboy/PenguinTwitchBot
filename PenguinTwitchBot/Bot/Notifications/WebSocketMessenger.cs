@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Bot.Notifications
         private static readonly TimeSpan _cleanupInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan _shutdownTimeout = TimeSpan.FromSeconds(5);
         private static readonly JsonSerializerOptions _serializerOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        private const int MaxDisplayNameLength = 64;
         private int _maxQueueSize = 1000;
         private int _perSocketQueueCapacity = 100;
 
@@ -72,14 +73,9 @@ namespace PenguinTwitchBot.Bot.Notifications
             var connection = new SocketConnection
             {
                 Id = id,
-                DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Unknown" : displayName,
+                DisplayName = SanitizeDisplayName(displayName),
                 WebSocket = webSocket,
-                SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
-                OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(Volatile.Read(ref _perSocketQueueCapacity))
-                {
-                    FullMode = BoundedChannelFullMode.Wait,
-                    SingleReader = true
-                })
+                SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token)
             };
 
             var initialTopics = WsTopics.Parse(topics);
@@ -89,6 +85,13 @@ namespace PenguinTwitchBot.Bot.Notifications
             try
             {
                 await _semaphoreSlim.WaitAsync();
+                // Capacity read, channel creation and registration must be atomic so a settings
+                // change cannot snapshot the connection list in between and leave a stale channel.
+                connection.OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(_perSocketQueueCapacity)
+                {
+                    FullMode = BoundedChannelFullMode.Wait,
+                    SingleReader = true
+                });
                 websocketConnections.Add(connection);
             }
             finally { _semaphoreSlim.Release(); }
@@ -97,7 +100,8 @@ namespace PenguinTwitchBot.Bot.Notifications
 
             try
             {
-                await ReceiveMessage(connection, _shutdownCts.Token);
+                // Per-connection token so a forced disconnect ends the receive loop even when the peer never acks the close frame.
+                await ReceiveMessage(connection, connection.SenderCancellation.Token);
             }
             catch (OperationCanceledException)
             {
@@ -120,6 +124,24 @@ namespace PenguinTwitchBot.Bot.Notifications
                 _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
             _logger.LogInformation("Websocket closed: {id}", id.ToString());
+        }
+
+        /// <summary>Strips control characters and caps length so the client-supplied name is safe to log and display.</summary>
+        public static string SanitizeDisplayName(string? displayName)
+        {
+            if (string.IsNullOrWhiteSpace(displayName)) return "Unknown";
+
+            var trimmed = displayName.Trim();
+            if (trimmed.Length > MaxDisplayNameLength)
+                trimmed = trimmed[..MaxDisplayNameLength];
+
+            var cleaned = string.Create(trimmed.Length, trimmed, (span, source) =>
+            {
+                for (var i = 0; i < source.Length; i++)
+                    span[i] = char.IsControl(source[i]) ? '_' : source[i];
+            });
+
+            return string.IsNullOrWhiteSpace(cleaned) ? "Unknown" : cleaned;
         }
 
         public async Task<WebSocketMessengerStatus> GetStatusAsync()
@@ -154,8 +176,14 @@ namespace PenguinTwitchBot.Bot.Notifications
             if (newPerSocketQueueCapacity is < 1 or > 10_000)
                 throw new ArgumentOutOfRangeException(nameof(newPerSocketQueueCapacity), "Per-socket queue capacity must be between 1 and 10,000.");
 
-            Volatile.Write(ref _maxQueueSize, newMaxQueueSize);
-            Volatile.Write(ref _perSocketQueueCapacity, newPerSocketQueueCapacity);
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                _maxQueueSize = newMaxQueueSize;
+                _perSocketQueueCapacity = newPerSocketQueueCapacity;
+            }
+            finally { _semaphoreSlim.Release(); }
+
             await ReconnectAllSocketsAsync();
         }
 
