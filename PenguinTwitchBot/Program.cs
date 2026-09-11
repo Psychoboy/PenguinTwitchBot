@@ -311,6 +311,7 @@ internal class Program
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot/1.0");
         });
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.IEmoteService, PenguinTwitchBot.Services.EmoteService>();
 
         builder.Services.AddSingleton<PenguinTwitchBot.Bot.Services.Chat.IChatColorService,
             PenguinTwitchBot.Bot.Services.Chat.ChatColorService>();
