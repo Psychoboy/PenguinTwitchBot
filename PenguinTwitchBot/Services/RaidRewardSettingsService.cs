@@ -12,6 +12,7 @@ public sealed record RaidRewardConfig(
     string Message,
     string? SubscriberMessage,
     string AnnouncementTemplate,
+    string SubscriberExtendedTemplate,
     bool PostAnnouncement,
     bool PostReminders);
 
@@ -34,6 +35,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
     public const string MessageName = "RaidRewardMessage";
     public const string SubscriberMessageName = "RaidRewardSubscriberMessage";
     public const string AnnouncementTemplateName = "RaidRewardAnnouncementTemplate";
+    public const string SubscriberExtendedTemplateName = "RaidRewardSubscriberExtendedTemplate";
     public const string PostAnnouncementName = "RaidRewardPostAnnouncement";
     public const string PostPreRaidAnnouncementName = "RaidRewardPostPreRaidAnnouncement";
     public const string PostRemindersName = "RaidRewardPostReminders";
@@ -41,7 +43,10 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
     public const string DefaultMessage = "TombRaid twitchRaid";
 
     public const string DefaultAnnouncementTemplate =
-        "We're raiding {target}! Type \"{message}\" in their chat within {minutes} minutes to earn {points} {pointtype}!";
+        "We're raiding {target}! Type \" {message} \" in their chat within {minutes} minutes to earn {points} {pointtype}!";
+
+    public const string DefaultSubscriberExtendedTemplate =
+        "Subscribers can use \" {submessage} \" instead!";
 
     public async Task<RaidRewardConfig> GetConfigAsync()
     {
@@ -50,7 +55,8 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         var settings = await db.Settings.GetAsync(x =>
             x.Name == EnabledName || x.Name == PointTypeIdName || x.Name == PointsToAwardName ||
             x.Name == TimeWindowMinutesName || x.Name == MessageName || x.Name == SubscriberMessageName ||
-            x.Name == AnnouncementTemplateName || x.Name == PostAnnouncementName || x.Name == PostPreRaidAnnouncementName ||
+            x.Name == AnnouncementTemplateName || x.Name == SubscriberExtendedTemplateName ||
+            x.Name == PostAnnouncementName || x.Name == PostPreRaidAnnouncementName ||
             x.Name == PostRemindersName);
         var map = settings.ToDictionary(x => x.Name, x => x);
 
@@ -66,6 +72,9 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
             AnnouncementTemplate: string.IsNullOrWhiteSpace(GetString(map, AnnouncementTemplateName))
                 ? DefaultAnnouncementTemplate
                 : GetString(map, AnnouncementTemplateName),
+            SubscriberExtendedTemplate: string.IsNullOrWhiteSpace(GetString(map, SubscriberExtendedTemplateName))
+                ? DefaultSubscriberExtendedTemplate
+                : GetString(map, SubscriberExtendedTemplateName),
             // Respect either old toggle when upgrading, then persist the single setting on save.
             PostAnnouncement: GetInt(map, PostAnnouncementName, 0) == 1 ||
                 GetInt(map, PostPreRaidAnnouncementName, 0) == 1,
@@ -84,6 +93,7 @@ public class RaidRewardSettingsService(IServiceScopeFactory scopeFactory) : IRai
         await UpsertString(db, MessageName, config.Message);
         await UpsertString(db, SubscriberMessageName, config.SubscriberMessage ?? string.Empty);
         await UpsertString(db, AnnouncementTemplateName, config.AnnouncementTemplate);
+        await UpsertString(db, SubscriberExtendedTemplateName, config.SubscriberExtendedTemplate);
         await UpsertInt(db, PostAnnouncementName, config.PostAnnouncement ? 1 : 0);
         await UpsertInt(db, PostRemindersName, config.PostReminders ? 1 : 0);
 

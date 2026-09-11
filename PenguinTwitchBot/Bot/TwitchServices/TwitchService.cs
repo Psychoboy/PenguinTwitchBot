@@ -1506,5 +1506,40 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return result;
         }
 
+        /// <inheritdoc />
+        public async Task<Dictionary<string, string>> GetChatEmotesAsync()
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            try
+            {
+                var globalEmotes = await _chatClient.GetGlobalEmotesAsync(
+                    _configuration["twitchClientId"]!,
+                    _accessToken);
+                foreach (var emote in globalEmotes)
+                {
+                    result[emote.Name] = emote.ImageUrl1x;
+                }
+
+                var broadcasterId = await GetBroadcasterUserId();
+                if (!string.IsNullOrEmpty(broadcasterId))
+                {
+                    var channelEmotes = await _chatClient.GetChannelEmotesAsync(
+                        _configuration["twitchClientId"]!,
+                        _accessToken,
+                        broadcasterId);
+                    foreach (var emote in channelEmotes)
+                    {
+                        // Channel emotes override globals for the same name
+                        result[emote.Name] = emote.ImageUrl1x;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch chat emotes");
+            }
+            return result;
+        }
+
     }
 }

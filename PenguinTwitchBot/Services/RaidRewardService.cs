@@ -488,8 +488,8 @@ namespace PenguinTwitchBot.Services
                 .Replace("{points}", config.PointsToAward.ToString())
                 .Replace("{pointtype}", pointTypeName);
 
-            if (!string.IsNullOrWhiteSpace(config.SubscriberMessage))
-                message += $" Subscribers can use \"{config.SubscriberMessage}\" instead!";
+            if (!string.IsNullOrWhiteSpace(config.SubscriberMessage) && !string.IsNullOrWhiteSpace(config.SubscriberExtendedTemplate))
+                message += " " + config.SubscriberExtendedTemplate.Replace("{submessage}", config.SubscriberMessage);
 
             return message;
         }

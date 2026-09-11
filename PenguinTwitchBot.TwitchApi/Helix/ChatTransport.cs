@@ -99,6 +99,27 @@ public sealed class ChatTransport : IChatTransport
         return MapToBadgeSets(payload.Data);
     }
 
+    public async Task<IReadOnlyList<ChatEmoteSetItem>> GetGlobalEmotesAsync(string clientId, string? accessToken)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var response = await http.GetAsync("chat/emotes/global");
+        response.EnsureSuccessStatusCode();
+        var payload = await HelixJson.DeserializeAsync<HelixDataResponse<ChatEmoteApiItem>>(response) ?? new HelixDataResponse<ChatEmoteApiItem>([]);
+        return MapToEmoteItems(payload.Data);
+    }
+
+    public async Task<IReadOnlyList<ChatEmoteSetItem>> GetChannelEmotesAsync(string clientId, string? accessToken, string broadcasterId)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var response = await http.GetAsync(HelixQuery.Build("chat/emotes", new (string Key, string? Value)[]
+        {
+            ("broadcaster_id", broadcasterId)
+        }));
+        response.EnsureSuccessStatusCode();
+        var payload = await HelixJson.DeserializeAsync<HelixDataResponse<ChatEmoteApiItem>>(response) ?? new HelixDataResponse<ChatEmoteApiItem>([]);
+        return MapToEmoteItems(payload.Data);
+    }
+
     private static SendChatMessageResponse MapToResponse(HelixDataResponse<SendChatMessageApiResult> source)
     {
         var data = source.Data
@@ -147,6 +168,19 @@ public sealed class ChatTransport : IChatTransport
             Versions: versions);
     }
 
+    private static IReadOnlyList<ChatEmoteSetItem> MapToEmoteItems(IReadOnlyList<ChatEmoteApiItem> source)
+    {
+        if (source.Count == 0)
+        {
+            return [];
+        }
+
+        return source
+            .Where(item => !string.IsNullOrEmpty(item.Images.Url1x))
+            .Select(item => new ChatEmoteSetItem(item.Id, item.Name, item.Images.Url1x))
+            .ToList();
+    }
+
     private sealed record SendChatMessageRequestBody(
         [property: JsonPropertyName("broadcaster_id")] string BroadcasterId,
         [property: JsonPropertyName("sender_id")] string SenderId,
@@ -177,5 +211,13 @@ public sealed class ChatTransport : IChatTransport
     private sealed record ChatBadgeVersionApiItem(
         [property: JsonPropertyName("id")] string Id,
         [property: JsonPropertyName("image_url_1x")] string ImageUrl1x);
+
+    private sealed record ChatEmoteApiItem(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("images")] ChatEmoteImagesApiItem Images);
+
+    private sealed record ChatEmoteImagesApiItem(
+        [property: JsonPropertyName("url_1x")] string Url1x);
 
 }
