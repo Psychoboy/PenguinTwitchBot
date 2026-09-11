@@ -15,11 +15,10 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
         private readonly ILogger<WsEventHandler> logger;
         private bool paused = false;
         private int maxQueueSize = 1000;
+        private int perSocketQueueCapacity = 100;
         private JsonSerializerOptions serializerOptions;
         private readonly CancellationTokenSource _shutdownCts = new();
         private Task? _broadcastTask;
-        private const int PerSocketQueueCapacity = 100;
-
         public WsEventHandler(ILogger<WsEventHandler> logger)
         {
             this.logger = logger;
@@ -54,15 +53,16 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             }
         }
 
-        public async Task Handle(Guid id, WebSocket webSocket)
+        public async Task Handle(Guid id, WebSocket webSocket, string? displayName = null)
         {
             logger.LogInformation("Adding Websocket: {id}", id.ToString());
             var connection = new SocketConnection
             {
                 Id = id,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Unknown" : displayName,
                 WebSocket = webSocket,
                 SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
-                OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(PerSocketQueueCapacity)
+                OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(Volatile.Read(ref perSocketQueueCapacity))
                 {
                     FullMode = BoundedChannelFullMode.Wait,
                     SingleReader = true
@@ -101,6 +101,96 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
                 logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
             logger.LogInformation("Websocket closed: {id}", id.ToString());
+        }
+
+        public async Task<WsEventHandlerStatus> GetStatusAsync()
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                return new WsEventHandlerStatus(
+                    queue.Count,
+                    Volatile.Read(ref maxQueueSize),
+                    Volatile.Read(ref perSocketQueueCapacity),
+                    websocketConnections.Select(connection => new WsSocketStatus(
+                        connection.Id,
+                        connection.DisplayName,
+                        connection.WebSocket.State,
+                        Volatile.Read(ref connection.SentMessages),
+                        Volatile.Read(ref connection.DroppedMessages),
+                        Volatile.Read(ref connection.PeakPendingMessages))).ToList());
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        public async Task ApplySettingsAsync(int newMaxQueueSize, int newPerSocketQueueCapacity)
+        {
+            if (newMaxQueueSize is < 1 or > 100_000)
+                throw new ArgumentOutOfRangeException(nameof(newMaxQueueSize), "Global queue capacity must be between 1 and 100,000.");
+            if (newPerSocketQueueCapacity is < 1 or > 10_000)
+                throw new ArgumentOutOfRangeException(nameof(newPerSocketQueueCapacity), "Per-socket queue capacity must be between 1 and 10,000.");
+
+            Volatile.Write(ref maxQueueSize, newMaxQueueSize);
+            Volatile.Write(ref perSocketQueueCapacity, newPerSocketQueueCapacity);
+            await ReconnectAllSocketsAsync();
+        }
+
+        public void ClearGlobalQueue() => queue.Clear();
+
+        public async Task<bool> ReconnectSocketAsync(Guid id)
+        {
+            SocketConnection? connection;
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                connection = websocketConnections.FirstOrDefault(item => item.Id == id);
+            }
+            finally { _semaphoreSlim.Release(); }
+
+            if (connection is null) return false;
+
+            try
+            {
+                await connection.WebSocket.CloseOutputAsync(
+                    WebSocketCloseStatus.EndpointUnavailable,
+                    "Reconnect requested",
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Error requesting websocket reconnect for {id}", id);
+            }
+            await RemoveSocketsById([id]);
+            return true;
+        }
+
+        public async Task<int> ReconnectAllSocketsAsync()
+        {
+            List<SocketConnection> connections;
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                connections = websocketConnections.ToList();
+            }
+            finally { _semaphoreSlim.Release(); }
+
+            foreach (var connection in connections)
+            {
+                try
+                {
+                    await connection.WebSocket.CloseOutputAsync(
+                        WebSocketCloseStatus.EndpointUnavailable,
+                        "Websocket settings changed",
+                        CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Error requesting websocket reconnect for {id}", connection.Id);
+                }
+            }
+
+            await RemoveSocketsById(connections.Select(connection => connection.Id).ToHashSet());
+            return connections.Count;
         }
 
         private void SetupBroadcastTask()
@@ -231,8 +321,12 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
+                    Interlocked.Increment(ref websocketConnection.PendingMessages);
+                    UpdatePeak(ref websocketConnection.PeakPendingMessages, websocketConnection.PendingMessages);
                     if (!websocketConnection.OutboundMessages.Writer.TryWrite(serializedMessage))
                     {
+                        Interlocked.Decrement(ref websocketConnection.PendingMessages);
+                        Interlocked.Increment(ref websocketConnection.DroppedMessages);
                         logger.LogWarning("Outbound websocket queue is full for {id}; dropping event.", websocketConnection.Id);
                     }
                 }
@@ -245,8 +339,10 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             {
                 await foreach (var message in connection.OutboundMessages.Reader.ReadAllAsync(cancellationToken))
                 {
+                    Interlocked.Decrement(ref connection.PendingMessages);
                     var bytes = Encoding.UTF8.GetBytes(message);
                     await connection.WebSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+                    Interlocked.Increment(ref connection.SentMessages);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -258,6 +354,17 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
                 logger.LogDebug(ex, "Error sending websocket event to {id}", connection.Id);
                 await RemoveSocketsById([connection.Id]);
             }
+        }
+
+        private static void UpdatePeak(ref int peak, int value)
+        {
+            int current;
+            do
+            {
+                current = Volatile.Read(ref peak);
+                if (value <= current) return;
+            }
+            while (Interlocked.CompareExchange(ref peak, value, current) != current);
         }
 
         private void SetupCleanupTasks()
@@ -324,6 +431,11 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
     public class SocketConnection
     {
         public Guid Id { get; set; }
+        public string DisplayName { get; set; } = "Unknown";
+        public int PendingMessages;
+        public int SentMessages;
+        public int DroppedMessages;
+        public int PeakPendingMessages;
         public WebSocket WebSocket { get; set; } = null!;
         public Channel<string> OutboundMessages { get; set; } = null!;
         public Task? SendTask { get; set; }
