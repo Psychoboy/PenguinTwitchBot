@@ -35,7 +35,7 @@ namespace PenguinTwitchBot.Bot.Commands.Shoutout
                     await WatchRequestedClip(e);
                     break;
                 case "stop":
-                    await dispatcher.Publish(new QueueAlert(new StopClip().Generate()));
+                    await dispatcher.Publish(new QueueAlert(new StopClip().Generate(), PenguinTwitchBot.Bot.Notifications.WsTopics.Clips));
                     break;
             }
         }

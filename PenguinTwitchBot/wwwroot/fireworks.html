@@ -152,6 +152,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/Stage%400.1.4.js'></script>
 	<script src='https://s3-us-west-2.amazonaws.com/s.cdpn.io/329180/MyMath.js'></script>
 	<script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
+	<script src="js/ws-client.js"></script>
 	<script src="js/ws-status.js"></script>
 	<script>
 		'use strict';
@@ -2006,24 +2007,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		
 		
-		var scheme = document.location.protocol === "https:" ? "wss" : "ws";
-		var port = document.location.port ? (":" + document.location.port) : "";
-		var socketUri = scheme + "://" + document.location.hostname + port + "/ws/events?clientName=" + encodeURIComponent('Fireworks');
-		var ws = new ReconnectingWebSocket(socketUri, null, { reconnectInterval: 5000 });
+		var ws = createWsSocket('Fireworks', [WS_TOPICS.events]);
 
 		ws.onopen = function () {
 			wsStatusShow(true);
-			ws.send(JSON.stringify(
-				{
-					"request": "Subscribe",
-					"events": {
-						"Raw": [
-							"Action"
-						]
-					},
-					"id": "123"
-				}
-			));
 		};
 		ws.onclose = function () {
 			wsStatusShow(false);

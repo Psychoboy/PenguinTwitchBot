@@ -931,8 +931,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
             // Notify any overlay.html page showing this layout to reload
             var layoutName = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId.Value)?.Name ?? "";
             var reloadJson = System.Text.Json.JsonSerializer.Serialize(new { type = "overlay_reload", layout = layoutName });
-            await WebSocketMessenger.AddToQueue(reloadJson);
-
+        await WebSocketMessenger.AddToQueue(PenguinTwitchBot.Bot.Notifications.WsTopics.Overlay, reloadJson);
             Snackbar.Add("Layout saved!", Severity.Success);
         }
         catch (Exception ex)

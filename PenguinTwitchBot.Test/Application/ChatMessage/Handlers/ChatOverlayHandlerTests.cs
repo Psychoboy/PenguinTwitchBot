@@ -33,7 +33,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
 
             await handler.Handle(notification, CancellationToken.None);
 
-            await webSocketMessenger.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, Arg.Any<string>());
         }
 
         [Fact]
@@ -82,7 +82,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
 
             await handler.Handle(notification, cts.Token);
 
-            await webSocketMessenger.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, Arg.Any<string>());
         }
 
         [Fact]

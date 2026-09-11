@@ -388,12 +388,7 @@ function handleBrowserInteraction() {
 }
 
 function getWebSocket() {
-    let socketUri = ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws?clientName=' + encodeURIComponent('Clips')), // URI of the socket.
-        reconnectInterval = 5000; // How often in milliseconds we should try reconnecting.
-
-    return new ReconnectingWebSocket(socketUri, null, {
-        reconnectInterval: reconnectInterval
-    });
+    return createWsSocket('Clips', [WS_TOPICS.clips]);
 }
 
 var socket;

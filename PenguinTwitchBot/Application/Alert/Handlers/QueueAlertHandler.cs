@@ -7,7 +7,7 @@ namespace PenguinTwitchBot.Application.Alert.Handlers
     {
         public async Task Handle(QueueAlert request, CancellationToken cancellationToken)
         {
-            await webSocketMessenger.AddToQueue(request.Alert);
+            await webSocketMessenger.AddToQueue(request.Topic, request.Alert);
         }
     }
 }

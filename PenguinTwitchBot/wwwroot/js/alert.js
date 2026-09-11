@@ -461,12 +461,7 @@ function handleBrowserInteraction() {
 }
 
 function getWebSocket() {
-    let socketUri = ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws?clientName=' + encodeURIComponent('Alerts')), // URI of the socket.
-        reconnectInterval = 5000; // How often in milliseconds we should try reconnecting.
-
-    return new ReconnectingWebSocket(socketUri, null, {
-        reconnectInterval: reconnectInterval
-    });
+    return createWsSocket('Alerts', [WS_TOPICS.alerts]);
 }
 
 // var connectionUrl = document.getElementById("connectionUrl");

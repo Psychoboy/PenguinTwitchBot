@@ -4,6 +4,7 @@ using PenguinTwitchBot.Database.Bot.Models.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.Queues;
+using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
@@ -41,7 +42,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 logger,
                 scopeFactory,
                 executionLogger,
-                wsEventHandler);
+                webSocketMessenger);
 
             var action = new ActionType
             {
@@ -77,7 +78,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddScoped<ActionService>();
@@ -93,7 +94,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 logger,
                 scopeFactory,
                 executionLogger,
-                wsEventHandler);
+                webSocketMessenger);
 
             var action = new ActionType
             {
@@ -142,7 +143,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
@@ -160,7 +161,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 logger,
                 scopeFactory,
                 executionLogger,
-                wsEventHandler);
+                webSocketMessenger);
 
             var variables = new ConcurrentDictionary<string, string>();
             await queue.EnqueueAsync(new ActionType { Name = "Action1", QueueName = "test-queue", SubActions = [] }, variables);
@@ -192,7 +193,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
@@ -209,7 +210,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 logger,
                 scopeFactory,
                 executionLogger,
-                wsEventHandler);
+                webSocketMessenger);
 
             // Act
             var clearedCount = await queue.ClearPendingAsync();
@@ -226,7 +227,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var logger = Substitute.For<ILogger<ActionQueue>>();
             var executionLoggerLogger = Substitute.For<ILogger<ActionExecutionLogger>>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
             var executionLogger = new ActionExecutionLogger(executionLoggerLogger, hubContext);
 
             var serviceCollection = new ServiceCollection();
@@ -243,7 +244,7 @@ namespace PenguinTwitchBot.Test.Bot.Queues
                 logger,
                 scopeFactory,
                 executionLogger,
-                wsEventHandler);
+                webSocketMessenger);
 
             var variables = new ConcurrentDictionary<string, string>();
             var cancellationTokenSource = new CancellationTokenSource();

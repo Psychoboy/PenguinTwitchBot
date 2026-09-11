@@ -98,7 +98,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                             }
                         };
 
-                        await _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(snappedMessage));
+                        await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(snappedMessage));
 
                         if (attempts > 1 && i < attempts - 1)
                         {
@@ -136,7 +136,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         }
                     };
 
-                    await _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(message));
+                    await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(message));
 
                     if (attempts > 1 && i < attempts - 1)
                     {

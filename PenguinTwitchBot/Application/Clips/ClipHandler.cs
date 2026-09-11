@@ -47,8 +47,8 @@ namespace PenguinTwitchBot.Application.Clips
                     GameImageUrl = request.GameUrl
                 };
                 File.SetLastWriteTime(clipPath, DateTime.Now);
-                var alert = new QueueAlert(playClip.Generate());
-                await webSocketMessenger.AddToQueue(alert.Alert);
+                var alert = new QueueAlert(playClip.Generate(), WsTopics.Clips);
+                await webSocketMessenger.AddToQueue(alert.Topic, alert.Alert);
             }
             catch (Exception ex)
             {

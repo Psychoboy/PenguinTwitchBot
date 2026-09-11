@@ -3,6 +3,7 @@ using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Bot.WebSocketEvents;
+using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,9 +24,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
 
             var config = new QueueConfiguration
             {
@@ -61,8 +62,8 @@ namespace PenguinTwitchBot.Test.Bot.Queues
 
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
             await queueManager.StartAsync(CancellationToken.None);
 
             // Act
@@ -97,8 +98,8 @@ namespace PenguinTwitchBot.Test.Bot.Queues
 
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
             await queueManager.StartAsync(CancellationToken.None);
 
             // Act
@@ -121,9 +122,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -139,9 +140,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
 
             var config = new QueueConfiguration
             {
@@ -163,9 +164,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
             var executionLogger = Substitute.For<IActionExecutionLogger>();
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
 
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -184,9 +185,9 @@ namespace PenguinTwitchBot.Test.Bot.Queues
 
             var executionLogger = new ActionExecutionLogger(Substitute.For<ILogger<ActionExecutionLogger>>(), Substitute.For<IHubContext<MainHub>>());
             var hubContext = Substitute.For<IHubContext<MainHub>>();
-            var wsEventHandler = Substitute.For<IWsEventHandler>();
+            var webSocketMessenger = Substitute.For<IWebSocketMessenger>();
             var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, wsEventHandler, hubContext, new GlobalConcurrencyLimiter());
+            var queueManager = new QueueManager(logger, scopeFactory, loggerFactory, executionLogger, webSocketMessenger, hubContext, new GlobalConcurrencyLimiter());
 
             // Intentionally do not call StartAsync: GetQueueAsync will create a fallback
             // Default queue without starting its processing loop, so enqueued actions stay

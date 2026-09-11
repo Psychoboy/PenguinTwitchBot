@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
         {
             var payload = new { type = "chat_user_banned", userId = request.UserId };
             var json = JsonSerializer.Serialize(payload, JsonOptions);
-            await webSocketMessenger.AddToQueue(json);
+            await webSocketMessenger.AddToQueue(WsTopics.Chat, json);
         }
     }
 }

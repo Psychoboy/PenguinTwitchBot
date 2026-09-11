@@ -120,7 +120,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedService<OBSConnectionHostedService>();
 
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
-            services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
 
             services.AddRuntimeFeatureService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>(
                 FeatureKeys.KnownBots,
