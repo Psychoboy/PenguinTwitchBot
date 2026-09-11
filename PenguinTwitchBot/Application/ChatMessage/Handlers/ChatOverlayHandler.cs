@@ -54,7 +54,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
             };
 
             var json = JsonSerializer.Serialize(message, JsonOptions);
-            await webSocketMessenger.AddToQueue(json);
+            await webSocketMessenger.AddToQueue(WsTopics.Chat, json);
         }
 
         // ---------- Private DTOs ----------

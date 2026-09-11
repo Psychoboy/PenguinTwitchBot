@@ -143,7 +143,7 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         {
             try
             {
-                await webSocketMessenger.AddToQueue(json);
+                await webSocketMessenger.AddToQueue(PenguinTwitchBot.Bot.Notifications.WsTopics.Wheel, json);
             }
             catch (Exception ex)
             {

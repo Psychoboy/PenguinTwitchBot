@@ -15,7 +15,11 @@ namespace PenguinTwitchBot.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await WebSocketMessenger.Handle(Guid.NewGuid(), webSocket, HttpContext.Request.Query["clientName"]);
+                await WebSocketMessenger.Handle(
+                    Guid.NewGuid(),
+                    webSocket,
+                    HttpContext.Request.Query["clientName"],
+                    HttpContext.Request.Query["topics"].ToArray());
             }
             else
             {

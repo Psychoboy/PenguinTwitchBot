@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.WebSocketEvents;
+using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Core;
 using Microsoft.AspNetCore.SignalR;
@@ -25,7 +26,7 @@ namespace PenguinTwitchBot.Bot.Queues
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IActionExecutionLogger _executionLogger;
         private readonly IHubContext<MainHub>? _hubContext;
-        private readonly IWsEventHandler _wsEventHandler;
+        private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly SemaphoreSlim _semaphore;
         private readonly GlobalConcurrencyLimiter? _globalLimiter;
         private readonly int _maxPendingActions;
@@ -59,7 +60,7 @@ namespace PenguinTwitchBot.Bot.Queues
             ILogger<ActionQueue> logger,
             IServiceScopeFactory scopeFactory,
             IActionExecutionLogger executionLogger,
-            IWsEventHandler wsEventHandler,
+            IWebSocketMessenger webSocketMessenger,
             IHubContext<MainHub>? hubContext = null,
             GlobalConcurrencyLimiter? globalLimiter = null)
         {
@@ -72,7 +73,7 @@ namespace PenguinTwitchBot.Bot.Queues
             _scopeFactory = scopeFactory;
             _executionLogger = executionLogger;
             _hubContext = hubContext;
-            _wsEventHandler = wsEventHandler;
+            _webSocketMessenger = webSocketMessenger;
 
             // Keep queue growth bounded to avoid unbounded memory growth and runaway latency.
             _maxPendingActions = Math.Max(maxConcurrentActions * 200, 1000);
@@ -233,7 +234,7 @@ namespace PenguinTwitchBot.Bot.Queues
             };
 
             // Fire-and-forget: Don't block enqueue operation for WebSocket notifications
-            var task = _wsEventHandler.AddToQueue(wsEvent);
+            var task = _webSocketMessenger.AddToQueue(wsEvent);
             if (!task.IsCompleted)
             {
                 _ = task.ContinueWith(t =>

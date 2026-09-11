@@ -390,9 +390,7 @@
 
     // ── WebSocket ─────────────────────────────────────────────────────────────
     function getWebSocket() {
-        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const socketUri = scheme + '://' + window.location.host + '/ws?clientName=' + encodeURIComponent('Chat');
-        return new ReconnectingWebSocket(socketUri, null, { reconnectInterval: 5000 });
+        return createWsSocket('Chat', [WS_TOPICS.chat]);
     }
 
     const socket = getWebSocket();

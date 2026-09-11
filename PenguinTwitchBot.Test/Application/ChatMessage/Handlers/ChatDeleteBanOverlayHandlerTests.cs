@@ -32,7 +32,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
             { 
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
             });
-            await webSocketMessenger.Received(1).AddToQueue(expectedJson);
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, expectedJson);
         }
 
         [Fact]
@@ -53,7 +53,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
 
             await handler.Handle(notification, cts.Token);
 
-            await webSocketMessenger.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, Arg.Any<string>());
         }
 
         [Fact]
@@ -80,7 +80,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
             { 
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
             });
-            await webSocketMessenger.Received(1).AddToQueue(expectedJson);
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, expectedJson);
         }
 
         [Fact]
@@ -93,7 +93,7 @@ namespace PenguinTwitchBot.Test.Application.ChatMessage.Handlers
 
             await handler.Handle(notification, cts.Token);
 
-            await webSocketMessenger.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Chat, Arg.Any<string>());
         }
 
         [Fact]

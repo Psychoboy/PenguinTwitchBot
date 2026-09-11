@@ -10,7 +10,7 @@ let scaleFrameHandle = 0;
 
 function connectWS() {
     try {
-        ws = new ReconnectingWebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws?clientName=' + encodeURIComponent('Fishing')); 
+        ws = createWsSocket('Fishing', [WS_TOPICS.fishing]);
         ws.addEventListener('open', (event) => {
             printDebug('WebSocket connected');
             wsReady = true;

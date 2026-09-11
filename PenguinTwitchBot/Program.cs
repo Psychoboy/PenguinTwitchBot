@@ -443,7 +443,6 @@ internal class Program
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger>();
-        var wsEventHandler = app.Services.GetRequiredService<PenguinTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
         lifetime.ApplicationStopping.Register(() =>
             {
                 logger?.LogInformation("Application trying to stop.");
@@ -453,10 +452,7 @@ internal class Program
                 {
                     try
                     {
-                        var closeTask = Task.WhenAll(
-                            websocketMessenger.CloseAllSockets(),
-                            wsEventHandler.CloseAllSockets()
-                        );
+                        var closeTask = websocketMessenger.CloseAllSockets();
                         if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
                         {
                             logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");

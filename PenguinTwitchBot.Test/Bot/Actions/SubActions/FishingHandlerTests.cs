@@ -128,7 +128,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await handler.ExecuteAsync(type, variables);
 
-            await webSocket.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Any<string>());
         }
 
         [Fact]
@@ -154,7 +154,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await handler.ExecuteAsync(type, variables);
 
-            await webSocket.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Any<string>());
         }
 
         [Fact]
@@ -188,7 +188,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await handler.ExecuteAsync(type, variables);
 
-            await webSocket.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Any<string>());
         }
 
         [Fact]
@@ -240,7 +240,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await handler.ExecuteAsync(type, variables);
 
-            await webSocket.Received(3).AddToQueue(Arg.Any<string>());
+            await webSocket.Received(3).AddToQueue(WsTopics.Fishing, Arg.Any<string>());
         }
 
         [Fact]

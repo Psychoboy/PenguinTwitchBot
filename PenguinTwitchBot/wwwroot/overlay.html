@@ -123,14 +123,14 @@
     </script>
 
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
     <script>
         (function () {
             const params = new URLSearchParams(window.location.search);
             const layoutName = (params.get('layout') || '').toLowerCase();
 
-            const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
             const clientName = layoutName ? 'Overlay: ' + layoutName : 'Overlay';
-            const ws = new ReconnectingWebSocket(scheme + '://' + window.location.host + '/ws?clientName=' + encodeURIComponent(clientName), null, { reconnectInterval: 5000 });
+            const ws = createWsSocket(clientName, [WS_TOPICS.overlay]);
 
             ws.onmessage = function (event) {
                 try {
