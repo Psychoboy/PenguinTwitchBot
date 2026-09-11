@@ -25,17 +25,33 @@ public class EmoteService(
 {
     private const string EmoteCacheKey = "chat_emotes_v1";
     private static readonly TimeSpan EmoteCacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan EmptyEmoteCacheDuration = TimeSpan.FromSeconds(30);
+    private readonly SemaphoreSlim _fetchLock = new(1, 1);
 
     public async Task<Dictionary<string, string>> GetEmotesAsync()
     {
-        if (!memoryCache.TryGetValue(EmoteCacheKey, out Dictionary<string, string>? emotes) || emotes == null)
-        {
-            emotes = await FetchAllEmotesAsync();
-            memoryCache.Set(EmoteCacheKey, emotes, EmoteCacheDuration);
-            logger.LogInformation("Fetched {Count} emotes (native + third-party) and cached result", emotes.Count);
-        }
+        if (memoryCache.TryGetValue(EmoteCacheKey, out Dictionary<string, string>? emotes) && emotes != null)
+            return emotes;
 
-        return emotes;
+        // Serialize cache-miss fetches so concurrent chat overlay / RaidRewards requests
+        // don't each hit BTTV/FFZ/7TV/Twitch at once.
+        await _fetchLock.WaitAsync();
+        try
+        {
+            if (memoryCache.TryGetValue(EmoteCacheKey, out emotes) && emotes != null)
+                return emotes;
+
+            emotes = await FetchAllEmotesAsync();
+            // Don't let a transient upstream failure pin an empty result for the full duration.
+            var ttl = emotes.Count == 0 ? EmptyEmoteCacheDuration : EmoteCacheDuration;
+            memoryCache.Set(EmoteCacheKey, emotes, ttl);
+            logger.LogInformation("Fetched {Count} emotes (native + third-party) and cached result", emotes.Count);
+            return emotes;
+        }
+        finally
+        {
+            _fetchLock.Release();
+        }
     }
 
     private async Task<Dictionary<string, string>> FetchAllEmotesAsync()
