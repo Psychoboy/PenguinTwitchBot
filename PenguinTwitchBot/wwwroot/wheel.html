@@ -49,7 +49,12 @@
     <script src="https://cdn.jsdelivr.net/npm/spin-wheel@5.0.2/dist/spin-wheel-iife.js"></script>
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="js/ws-status.js"></script>
-    <script src="js/wheel.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = 'js/wheel.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </head>
 <body>
     <div id="ws-status" data-overlay="🎡 Wheel">Disconnected</div>
