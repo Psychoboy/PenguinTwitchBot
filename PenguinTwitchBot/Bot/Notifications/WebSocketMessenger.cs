@@ -290,8 +290,8 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    Interlocked.Increment(ref websocketConnection.PendingMessages);
-                    UpdatePeak(ref websocketConnection.PeakPendingMessages, websocketConnection.PendingMessages);
+                    var pendingMessages = Interlocked.Increment(ref websocketConnection.PendingMessages);
+                    UpdatePeak(ref websocketConnection.PeakPendingMessages, pendingMessages);
                     if (!websocketConnection.OutboundMessages.Writer.TryWrite(message))
                     {
                         Interlocked.Decrement(ref websocketConnection.PendingMessages);

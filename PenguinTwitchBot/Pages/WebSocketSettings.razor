@@ -42,7 +42,7 @@
             <MudPaper Elevation="2" Class="pa-4">
                 <MudStack Spacing="2">
                     <MudText Typo="Typo.h6">Current Status</MudText>
-                    <MudText>Global queue capacity: @_status.GlobalQueueCapacity</MudText>
+                    <MudText>Global queue: @_status.GlobalQueueDepth / @_status.GlobalQueueCapacity</MudText>
                     <MudText>Per-websocket queue capacity: @_status.PerSocketQueueCapacity</MudText>
                     <MudTable Items="_status.Connections" Dense="true" Hover="true" Striped="true">
                         <HeaderContent>

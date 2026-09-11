@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
                     return;
                 }
 
-                if (queue.Count > maxQueueSize)
+                if (queue.Count >= maxQueueSize)
                 {
                     logger.LogInformation("Queue is full, skipping event");
                     return;
@@ -321,8 +321,8 @@ namespace PenguinTwitchBot.Bot.WebSocketEvents
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    Interlocked.Increment(ref websocketConnection.PendingMessages);
-                    UpdatePeak(ref websocketConnection.PeakPendingMessages, websocketConnection.PendingMessages);
+                    var pendingMessages = Interlocked.Increment(ref websocketConnection.PendingMessages);
+                    UpdatePeak(ref websocketConnection.PeakPendingMessages, pendingMessages);
                     if (!websocketConnection.OutboundMessages.Writer.TryWrite(serializedMessage))
                     {
                         Interlocked.Decrement(ref websocketConnection.PendingMessages);
