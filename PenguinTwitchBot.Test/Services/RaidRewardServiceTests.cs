@@ -64,6 +64,7 @@ namespace PenguinTwitchBot.Test.Services
             Message: "penguin raid",
             SubscriberMessage: "penguin sub raid",
             AnnouncementTemplate: "tpl",
+            SubscriberExtendedTemplate: RaidRewardSettingsService.DefaultSubscriberExtendedTemplate,
             PostAnnouncement: true,
             PostReminders: true);
 

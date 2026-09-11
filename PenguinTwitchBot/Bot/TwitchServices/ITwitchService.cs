@@ -64,6 +64,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         /// Combines global and channel-specific badges; channel badges override globals.
         /// </summary>
         Task<Dictionary<string, string>> GetChatBadgesAsync();
+        /// <summary>
+        /// Returns a flat dictionary mapping native Twitch emote name to its image URL (1x).
+        /// Combines global and channel-specific emotes; channel emotes override globals.
+        /// </summary>
+        Task<Dictionary<string, string>> GetChatEmotesAsync();
         Task<string?> GetBroadcasterProfileImageUrl();
     }
 }
