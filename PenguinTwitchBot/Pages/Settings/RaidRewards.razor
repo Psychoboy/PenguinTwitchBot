@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Services
 @inject IRaidRewardSettingsService RaidRewardSettings
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+@inject IEmoteService EmoteService
 @inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid Rewards</PageTitle>
@@ -64,6 +65,15 @@
                               Variant="Variant.Outlined" Lines="3"
                               HelperText="Placeholders: {target} {message} {submessage} {minutes} {points} {pointtype}" />
 
+                <MudTextField @bind-Value="_subscriberExtendedTemplate" Label="Subscriber extended message"
+                              Variant="Variant.Outlined" Lines="2"
+                              HelperText="Appended to the announcement when a subscriber message is set. Placeholder: {submessage}" />
+
+                <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Preview</MudText>
+                    <MudText>@RenderPreview()</MudText>
+                </MudPaper>
+
                 <div>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
                                OnClick="SaveAsync" Disabled="_saving">
@@ -86,14 +96,17 @@
     private string _message = string.Empty;
     private string _subscriberMessage = string.Empty;
     private string _announcementTemplate = string.Empty;
+    private string _subscriberExtendedTemplate = string.Empty;
     private bool _postAnnouncement;
     private bool _postReminders;
     private bool _saving;
+    private Dictionary<string, string> _emotes = new(StringComparer.Ordinal);
 
     protected override async Task OnInitializedAsync()
     {
         _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
         _config = await RaidRewardSettings.GetConfigAsync();
+        _emotes = await EmoteService.GetEmotesAsync();
 
         _enabled = _config.Enabled;
         _pointsToAward = _config.PointsToAward;
@@ -101,9 +114,43 @@
         _message = _config.Message;
         _subscriberMessage = _config.SubscriberMessage ?? string.Empty;
         _announcementTemplate = _config.AnnouncementTemplate;
+        _subscriberExtendedTemplate = _config.SubscriberExtendedTemplate;
         _postAnnouncement = _config.PostAnnouncement;
         _postReminders = _config.PostReminders;
         _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
+    }
+
+    /// <summary>
+    /// Builds the announcement text using the current (unsaved) field values and replaces
+    /// any word that matches a known emote (native Twitch, BTTV, FFZ or 7TV) with its image,
+    /// same word-scan approach as the plain-text fallback in wwwroot/js/chat.js.
+    /// </summary>
+    private MarkupString RenderPreview()
+    {
+        var pointTypeName = _selectedPointType?.Name ?? "points";
+        var text = _announcementTemplate
+            .Replace("{target}", "SomeStreamer")
+            .Replace("{message}", _message)
+            .Replace("{submessage}", _subscriberMessage)
+            .Replace("{minutes}", _timeWindowMinutes.ToString())
+            .Replace("{points}", _pointsToAward.ToString())
+            .Replace("{pointtype}", pointTypeName);
+
+        if (!string.IsNullOrWhiteSpace(_subscriberMessage) && !string.IsNullOrWhiteSpace(_subscriberExtendedTemplate))
+            text += " " + _subscriberExtendedTemplate.Replace("{submessage}", _subscriberMessage);
+
+        // Same tokenizing as wwwroot/js/chat.js buildTextWithEmotes: split on whitespace
+        // runs (keeping them) so only whole words are matched against the emote map.
+        var sb = new System.Text.StringBuilder();
+        foreach (var token in System.Text.RegularExpressions.Regex.Split(text, @"(\s+)"))
+        {
+            if (_emotes.TryGetValue(token, out var url))
+                sb.Append($"<img src=\"{System.Net.WebUtility.HtmlEncode(url)}\" alt=\"{System.Net.WebUtility.HtmlEncode(token)}\" style=\"height:1.5em;vertical-align:middle;\" />");
+            else
+                sb.Append(System.Net.WebUtility.HtmlEncode(token));
+        }
+
+        return (MarkupString)sb.ToString();
     }
 
     private async Task SaveAsync()
@@ -125,6 +172,7 @@
                 Message: _message,
                 SubscriberMessage: string.IsNullOrWhiteSpace(_subscriberMessage) ? null : _subscriberMessage,
                 AnnouncementTemplate: _announcementTemplate,
+                SubscriberExtendedTemplate: _subscriberExtendedTemplate,
                 PostAnnouncement: _postAnnouncement,
                 PostReminders: _postReminders);
 
