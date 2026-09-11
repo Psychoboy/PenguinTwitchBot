@@ -114,13 +114,17 @@ namespace PenguinTwitchBot.Bot.Notifications
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                return websocketConnections.Select(connection => new WebSocketClientStatus(
-                    connection.Id,
-                    connection.DisplayName,
-                    connection.WebSocket.State,
-                    Volatile.Read(ref connection.SentMessages),
-                    Volatile.Read(ref connection.DroppedMessages),
-                    Volatile.Read(ref connection.PeakPendingMessages))).ToList();
+                return websocketConnections.Select(connection =>
+                {
+                    var telemetry = connection.GetTelemetry();
+                    return new WebSocketClientStatus(
+                        connection.Id,
+                        connection.DisplayName,
+                        connection.WebSocket.State,
+                        telemetry.SentMessages,
+                        telemetry.DroppedMessages,
+                        telemetry.PeakPendingMessages);
+                }).ToList();
             }
             finally { _semaphoreSlim.Release(); }
         }
@@ -290,12 +294,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
-                    var pendingMessages = Interlocked.Increment(ref websocketConnection.PendingMessages);
-                    UpdatePeak(ref websocketConnection.PeakPendingMessages, pendingMessages);
+                    websocketConnection.MessageQueued();
                     if (!websocketConnection.OutboundMessages.Writer.TryWrite(message))
                     {
-                        Interlocked.Decrement(ref websocketConnection.PendingMessages);
-                        Interlocked.Increment(ref websocketConnection.DroppedMessages);
+                        websocketConnection.MessageDropped();
                         _logger.LogWarning("Outbound websocket queue is full for {id}; dropping message.", websocketConnection.Id);
                     }
                 }
@@ -308,10 +310,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 await foreach (var message in connection.OutboundMessages.Reader.ReadAllAsync(cancellationToken))
                 {
-                    Interlocked.Decrement(ref connection.PendingMessages);
+                    connection.MessageDequeued();
                     var bytes = Encoding.UTF8.GetBytes(message);
                     await connection.WebSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
-                    Interlocked.Increment(ref connection.SentMessages);
+                    connection.MessageSent();
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -323,17 +325,6 @@ namespace PenguinTwitchBot.Bot.Notifications
                 _logger.LogDebug(ex, "Error sending websocket message to {id}", connection.Id);
                 await RemoveSocketsById([connection.Id]);
             }
-        }
-
-        private static void UpdatePeak(ref int peak, int value)
-        {
-            int current;
-            do
-            {
-                current = Volatile.Read(ref peak);
-                if (value <= current) return;
-            }
-            while (Interlocked.CompareExchange(ref peak, value, current) != current);
         }
 
         private void SetupCleanUpTask()
@@ -466,13 +457,43 @@ namespace PenguinTwitchBot.Bot.Notifications
     {
         public Guid Id { get; set; }
         public string DisplayName { get; set; } = "Unknown";
-        public int PendingMessages;
-        public int SentMessages;
-        public int DroppedMessages;
-        public int PeakPendingMessages;
+        private int _pendingMessages;
+        private int _sentMessages;
+        private int _droppedMessages;
+        private int _peakPendingMessages;
         public WebSocket WebSocket { get; set; } = null!;
         public Channel<string> OutboundMessages { get; set; } = null!;
         public Task? SendTask { get; set; }
         public CancellationTokenSource SenderCancellation { get; set; } = null!;
+
+        public void MessageQueued()
+        {
+            var pendingMessages = Interlocked.Increment(ref _pendingMessages);
+            UpdatePeak(ref _peakPendingMessages, pendingMessages);
+        }
+
+        public void MessageDequeued() => Interlocked.Decrement(ref _pendingMessages);
+
+        public void MessageSent() => Interlocked.Increment(ref _sentMessages);
+
+        public void MessageDropped()
+        {
+            Interlocked.Decrement(ref _pendingMessages);
+            Interlocked.Increment(ref _droppedMessages);
+        }
+
+        public (int SentMessages, int DroppedMessages, int PeakPendingMessages) GetTelemetry()
+            => (Volatile.Read(ref _sentMessages), Volatile.Read(ref _droppedMessages), Volatile.Read(ref _peakPendingMessages));
+
+        private static void UpdatePeak(ref int peak, int value)
+        {
+            int current;
+            do
+            {
+                current = Volatile.Read(ref peak);
+                if (value <= current) return;
+            }
+            while (Interlocked.CompareExchange(ref peak, value, current) != current);
+        }
     }
 }
