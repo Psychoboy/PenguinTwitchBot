@@ -104,9 +104,10 @@
                 }
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates")">
-                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app", "settings/websockets")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/settings/bot-auth" Match="NavLinkMatch.Prefix">Bot Authentication</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SettingsSuggest" Href="/settings/app" Match="NavLinkMatch.Prefix">Bot Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Cable" Href="/settings/websockets" Match="NavLinkMatch.Prefix">Websocket Queues</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/settings/integrations" Match="NavLinkMatch.Prefix">Integrations</MudNavLink>
                     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TTS))
                     {

@@ -58,12 +58,13 @@ namespace PenguinTwitchBot.Bot.Notifications
 
         }
 
-        public async Task Handle(Guid id, WebSocket webSocket)
+        public async Task Handle(Guid id, WebSocket webSocket, string? displayName = null)
         {
             _logger.LogInformation("Adding Websocket: {id}", id.ToString());
             var connection = new SocketConnection
             {
                 Id = id,
+                DisplayName = string.IsNullOrWhiteSpace(displayName) ? "Unknown" : displayName,
                 WebSocket = webSocket,
                 SenderCancellation = CancellationTokenSource.CreateLinkedTokenSource(_shutdownCts.Token),
                 OutboundMessages = Channel.CreateBounded<string>(new BoundedChannelOptions(PerSocketQueueCapacity)
@@ -106,6 +107,53 @@ namespace PenguinTwitchBot.Bot.Notifications
                 _logger.LogDebug("Exception thrown in websocket messenger. This is expected when closing.");
             }
             _logger.LogInformation("Websocket closed: {id}", id.ToString());
+        }
+
+        public async Task<IReadOnlyList<WebSocketClientStatus>> GetStatusAsync()
+        {
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                return websocketConnections.Select(connection =>
+                {
+                    var telemetry = connection.GetTelemetry();
+                    return new WebSocketClientStatus(
+                        connection.Id,
+                        connection.DisplayName,
+                        connection.WebSocket.State,
+                        telemetry.SentMessages,
+                        telemetry.DroppedMessages,
+                        telemetry.PeakPendingMessages);
+                }).ToList();
+            }
+            finally { _semaphoreSlim.Release(); }
+        }
+
+        public async Task<bool> ReconnectSocketAsync(Guid id)
+        {
+            SocketConnection? connection;
+            try
+            {
+                await _semaphoreSlim.WaitAsync();
+                connection = websocketConnections.FirstOrDefault(item => item.Id == id);
+            }
+            finally { _semaphoreSlim.Release(); }
+
+            if (connection is null) return false;
+
+            try
+            {
+                await connection.WebSocket.CloseOutputAsync(
+                    WebSocketCloseStatus.EndpointUnavailable,
+                    "Reconnect requested",
+                    CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error requesting websocket reconnect for {id}", id);
+            }
+            await RemoveSocketsById([id]);
+            return true;
         }
 
         private void SetupBroadcastTask()
@@ -246,8 +294,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 if (websocketConnection.WebSocket.State == WebSocketState.Open)
                 {
+                    websocketConnection.MessageQueued();
                     if (!websocketConnection.OutboundMessages.Writer.TryWrite(message))
                     {
+                        websocketConnection.MessageDropped();
                         _logger.LogWarning("Outbound websocket queue is full for {id}; dropping message.", websocketConnection.Id);
                     }
                 }
@@ -260,8 +310,10 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 await foreach (var message in connection.OutboundMessages.Reader.ReadAllAsync(cancellationToken))
                 {
+                    connection.MessageDequeued();
                     var bytes = Encoding.UTF8.GetBytes(message);
                     await connection.WebSocket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+                    connection.MessageSent();
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -404,9 +456,44 @@ namespace PenguinTwitchBot.Bot.Notifications
     public class SocketConnection
     {
         public Guid Id { get; set; }
+        public string DisplayName { get; set; } = "Unknown";
+        private int _pendingMessages;
+        private int _sentMessages;
+        private int _droppedMessages;
+        private int _peakPendingMessages;
         public WebSocket WebSocket { get; set; } = null!;
         public Channel<string> OutboundMessages { get; set; } = null!;
         public Task? SendTask { get; set; }
         public CancellationTokenSource SenderCancellation { get; set; } = null!;
+
+        public void MessageQueued()
+        {
+            var pendingMessages = Interlocked.Increment(ref _pendingMessages);
+            UpdatePeak(ref _peakPendingMessages, pendingMessages);
+        }
+
+        public void MessageDequeued() => Interlocked.Decrement(ref _pendingMessages);
+
+        public void MessageSent() => Interlocked.Increment(ref _sentMessages);
+
+        public void MessageDropped()
+        {
+            Interlocked.Decrement(ref _pendingMessages);
+            Interlocked.Increment(ref _droppedMessages);
+        }
+
+        public (int SentMessages, int DroppedMessages, int PeakPendingMessages) GetTelemetry()
+            => (Volatile.Read(ref _sentMessages), Volatile.Read(ref _droppedMessages), Volatile.Read(ref _peakPendingMessages));
+
+        private static void UpdatePeak(ref int peak, int value)
+        {
+            int current;
+            do
+            {
+                current = Volatile.Read(ref peak);
+                if (value <= current) return;
+            }
+            while (Interlocked.CompareExchange(ref peak, value, current) != current);
+        }
     }
 }

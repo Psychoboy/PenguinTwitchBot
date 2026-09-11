@@ -1,0 +1,230 @@
+@page "/settings/websockets"
+@attribute [Authorize(Roles = "Streamer")]
+@implements IDisposable
+@using PenguinTwitchBot.Bot.WebSocketEvents
+@inject IWsEventHandler WsEventHandler
+@inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Websocket Settings</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">Websocket Queue Management</MudText>
+        <MudText>Monitor connected overlays and control the event queues used by websocket clients.</MudText>
+
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+            Changing queue capacities disconnects all websocket clients. Clients with automatic reconnect enabled should reconnect automatically, but events during the restart window may be dropped.
+        </MudAlert>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.h6">Queue Capacities</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="_maxQueueSize" Label="Global queue capacity" Min="1" Max="100000" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="_perSocketQueueCapacity" Label="Per-websocket queue capacity" Min="1" Max="10000" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="ApplySettingsAsync" Disabled="_busy">Apply and reconnect clients</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.ClearAll" OnClick="ClearGlobalQueueAsync" Disabled="_busy">Clear global queue</MudButton>
+                    <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshAsync" Disabled="_busy">Refresh</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        @if (_status is not null)
+        {
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">Current Status</MudText>
+                    <MudText>Global queue: @_status.GlobalQueueDepth / @_status.GlobalQueueCapacity</MudText>
+                    <MudText>Per-websocket queue capacity: @_status.PerSocketQueueCapacity</MudText>
+                    <MudTable Items="_status.Connections" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Display name</MudTh>
+                            <MudTh>Connection</MudTh>
+                            <MudTh>State</MudTh>
+                            <MudTh>Sent</MudTh>
+                            <MudTh>Dropped</MudTh>
+                            <MudTh>Peak pending</MudTh>
+                            <MudTh>Action</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Display name">@context.DisplayName</MudTd>
+                            <MudTd DataLabel="Connection"><MudText Typo="Typo.caption">@context.Id</MudText></MudTd>
+                            <MudTd DataLabel="State">@context.State</MudTd>
+                            <MudTd DataLabel="Sent">@context.SentMessages</MudTd>
+                            <MudTd DataLabel="Dropped">@context.DroppedMessages</MudTd>
+                            <MudTd DataLabel="Peak pending">@context.PeakPendingMessages / @_status.PerSocketQueueCapacity</MudTd>
+                            <MudTd DataLabel="Action">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="@(() => ReconnectAsync(context.Id))" Disabled="_busy">Disconnect and reconnect</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    @if (_status.Connections.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2">No websocket clients are currently connected.</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Spacing="2">
+                    <MudText Typo="Typo.h6">General websocket clients</MudText>
+                    <MudTable Items="_generalConnections" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Display name</MudTh>
+                            <MudTh>Connection</MudTh>
+                            <MudTh>State</MudTh>
+                            <MudTh>Sent</MudTh>
+                            <MudTh>Dropped</MudTh>
+                            <MudTh>Peak pending</MudTh>
+                            <MudTh>Action</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Display name">@context.DisplayName</MudTd>
+                            <MudTd DataLabel="Connection"><MudText Typo="Typo.caption">@context.Id</MudText></MudTd>
+                            <MudTd DataLabel="State">@context.State</MudTd>
+                            <MudTd DataLabel="Sent">@context.SentMessages</MudTd>
+                            <MudTd DataLabel="Dropped">@context.DroppedMessages</MudTd>
+                            <MudTd DataLabel="Peak pending">@context.PeakPendingMessages</MudTd>
+                            <MudTd DataLabel="Action">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.Refresh" OnClick="@(() => ReconnectGeneralAsync(context.Id))" Disabled="_busy">Disconnect and reconnect</MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    @if (_generalConnections.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2">No general websocket clients are currently connected.</MudText>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private WsEventHandlerStatus? _status;
+    private IReadOnlyList<PenguinTwitchBot.Bot.Notifications.WebSocketClientStatus> _generalConnections = [];
+    private int _maxQueueSize = 1000;
+    private int _perSocketQueueCapacity = 100;
+    private bool _busy;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource _refreshCancellation = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        _ = RefreshLoopAsync(_refreshCancellation.Token);
+    }
+
+    private async Task RefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (_refreshTimer is not null && await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(RefreshAsync);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        _status = await WsEventHandler.GetStatusAsync();
+        _generalConnections = await WebSocketMessenger.GetStatusAsync();
+        _maxQueueSize = _status.GlobalQueueCapacity;
+        _perSocketQueueCapacity = _status.PerSocketQueueCapacity;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplySettingsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reconnect websocket clients?",
+            "Changing these capacities will disconnect every websocket client. Clients with automatic reconnect enabled should reconnect, but events during the restart window may be dropped.",
+            yesText: "Apply and reconnect",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        await RunBusyAsync(async () =>
+        {
+            await WsEventHandler.ApplySettingsAsync(_maxQueueSize, _perSocketQueueCapacity);
+            Snackbar.Add("Websocket settings applied and clients were disconnected for reconnect.", Severity.Success);
+            await RefreshAsync();
+        });
+    }
+
+    private async Task ClearGlobalQueueAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Clear global websocket queue?",
+            "Pending events waiting for broadcast will be discarded. Connected clients will not be disconnected.",
+            yesText: "Clear queue",
+            cancelText: "Cancel");
+        if (confirmed == true)
+        {
+            WsEventHandler.ClearGlobalQueue();
+            Snackbar.Add("Global websocket queue cleared.", Severity.Success);
+            await RefreshAsync();
+        }
+    }
+
+    private async Task ReconnectAsync(Guid id)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reconnect websocket client?",
+            "This disconnects the selected client and clears its pending messages. Its automatic reconnect behavior will determine whether it reconnects.",
+            yesText: "Disconnect and reconnect",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        await RunBusyAsync(async () =>
+        {
+            if (await WsEventHandler.ReconnectSocketAsync(id))
+                Snackbar.Add("Websocket client disconnected.", Severity.Success);
+            await RefreshAsync();
+        });
+    }
+
+    private async Task ReconnectGeneralAsync(Guid id)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reconnect websocket client?",
+            "This disconnects the selected client and clears its pending messages. Its automatic reconnect behavior will determine whether it reconnects.",
+            yesText: "Disconnect and reconnect",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
+        await RunBusyAsync(async () =>
+        {
+            if (await WebSocketMessenger.ReconnectSocketAsync(id))
+                Snackbar.Add("Websocket client disconnected.", Severity.Success);
+            await RefreshAsync();
+        });
+    }
+
+    private async Task RunBusyAsync(Func<Task> action)
+    {
+        _busy = true;
+        try { await action(); }
+        catch (Exception ex) { Snackbar.Add($"Websocket operation failed: {ex.Message}", Severity.Error); }
+        finally { _busy = false; }
+    }
+
+    public void Dispose()
+    {
+        _refreshCancellation.Cancel();
+        _refreshTimer?.Dispose();
+        _refreshCancellation.Dispose();
+    }
+}

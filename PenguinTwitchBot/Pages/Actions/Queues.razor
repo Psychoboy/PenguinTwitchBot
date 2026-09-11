@@ -99,6 +99,9 @@
     private HubConnection? _hubConnection;
     private bool _disposed;
     private HashSet<string> _togglingQueues = new();
+    private bool _renderScheduled;
+    private readonly CancellationTokenSource _renderCancellation = new();
+    private static readonly TimeSpan StatsRenderInterval = TimeSpan.FromMilliseconds(100);
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,7 +132,7 @@
                     if (existingStatsIndex >= 0)
                     {
                         _queueStats[existingStatsIndex] = stats;
-                        StateHasChanged();
+                        ScheduleStatsRender();
                     }
                     else
                     {
@@ -153,7 +156,7 @@
                             }
                         }
                         _queueStats.Insert(insertIndex, stats);
-                        StateHasChanged();
+                        ScheduleStatsRender();
                     }
                 });
             });
@@ -181,6 +184,32 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private void ScheduleStatsRender()
+    {
+        if (_disposed || _renderScheduled)
+            return;
+
+        _renderScheduled = true;
+        _ = RenderStatsAfterIntervalAsync(_renderCancellation.Token);
+    }
+
+    private async Task RenderStatsAfterIntervalAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(StatsRenderInterval, cancellationToken);
+            if (!_disposed)
+                await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            _renderScheduled = false;
         }
     }
 
@@ -373,6 +402,8 @@
         if (!_disposed)
         {
             _disposed = true;
+            _renderCancellation.Cancel();
+            _renderCancellation.Dispose();
 
             if (_hubConnection is not null)
             {
