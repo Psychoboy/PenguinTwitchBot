@@ -1,4 +1,5 @@
 using Google.Apis.YouTube.v3;
+using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Helpers;
@@ -10,6 +11,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
         IConfiguration configuration,
         ILogger<SongCooldownService> logger) : ISongCooldownService
     {
+        private const string DefaultCooldownMessage = "Song '{0}' is on cooldown for another {1}.";
         private const string SettingEnabled = "SongCooldown.Enabled";
         private const string SettingMinutes = "SongCooldown.Minutes";
         private const string SettingMessageEnabled = "SongCooldown.MessageEnabled";
@@ -29,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
             if (string.IsNullOrWhiteSpace(msg))
             {
-                msg = "Song '{0}' is on cooldown for another {1}.";
+                msg = DefaultCooldownMessage;
             }
 
             return new SongCooldownSettings
@@ -50,10 +52,38 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await SaveIntSetting(unitOfWork, SettingEnabled, settings.Enabled ? 1 : 0);
             await SaveIntSetting(unitOfWork, SettingMinutes, settings.CooldownMinutes);
             await SaveIntSetting(unitOfWork, SettingMessageEnabled, settings.MessageEnabled ? 1 : 0);
-            await SaveStringSetting(unitOfWork, SettingMessage, settings.Message ?? "");
+            if (!IsValidCooldownMessageTemplate(settings.Message))
+            {
+                settings.Message = DefaultCooldownMessage;
+            }
+            await SaveStringSetting(unitOfWork, SettingMessage, settings.Message);
             await SaveIntSetting(unitOfWork, SettingExemptSkippedVetoed, settings.ExemptSkippedVetoed ? 1 : 0);
 
             await unitOfWork.SaveChangesAsync();
+        }
+
+        private static bool IsValidCooldownMessageTemplate(string? template)
+        {
+            if (string.IsNullOrWhiteSpace(template)) return false;
+
+            try
+            {
+                _ = string.Format(template, "Song title", "5 minutes");
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+
+            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(template, @"(?<!\{)\{(\d+)(?:[^}]*)\}(?!\})"))
+            {
+                if (!int.TryParse(match.Groups[1].Value, out var argumentIndex) || argumentIndex > 1)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static async Task SaveIntSetting(IUnitOfWork unitOfWork, string name, int value)
@@ -120,7 +150,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var songId = YouTubeUrlHelper.ExtractVideoId(songIdOrUrl) ?? songIdOrUrl;
             if (string.IsNullOrWhiteSpace(songId)) return null;
 
-            if (string.IsNullOrWhiteSpace(title) || title.Equals(songId, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(title) || title.Equals(songId, StringComparison.Ordinal))
             {
                 title = await ResolveSongTitleAsync(songId) ?? songId;
             }
@@ -141,7 +171,15 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             };
 
             await unitOfWork.SongCooldowns.AddAsync(cooldown);
-            await unitOfWork.SaveChangesAsync();
+            try
+            {
+                await unitOfWork.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                logger.LogInformation(ex, "Song cooldown admission lost a concurrent race for {SongId}", songId);
+                return null;
+            }
             logger.LogInformation("Added song cooldown for {SongId} ('{Title}') expiring at {ExpiresAt} by {AddedBy}", songId, cooldown.Title, expiresAt, addedBy);
             return cooldown;
         }

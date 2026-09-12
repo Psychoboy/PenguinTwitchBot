@@ -442,7 +442,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
 
             foreach (var playList in playlists)
             {
-                if (playList.Id.HasValue && playList.Songs != null && playList.Songs.Any(s => s.SongId.Equals(songId, StringComparison.OrdinalIgnoreCase)))
+                if (playList.Id.HasValue && playList.Songs != null && playList.Songs.Any(s => s.SongId == songId))
                 {
                     result[playList.Id.Value] = playList.Name;
                 }
@@ -539,7 +539,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             try
             {
                 await _semaphoreSlim.WaitAsync();
-                song = Requests.Where(x => x.SongId.Equals(songId, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+                song = Requests.Where(x => x.SongId == songId).FirstOrDefault();
                 if (song == null) return;
                 Requests.Remove(song);
                 Requests.Insert(0, song);
@@ -654,7 +654,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
            
             if (playList != null && playList.Songs != null)
             {
-                var matchingDbSongs = playList.Songs.Where(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)).ToList();
+                var matchingDbSongs = playList.Songs.Where(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)).ToList();
                 foreach (var song in matchingDbSongs)
                 {
                     playList.Songs.Remove(song);
@@ -663,9 +663,9 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await db.SaveChangesAsync();
             }
 
-            if (BackupPlaylist.Songs.Any(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)))
+            if (BackupPlaylist.Songs.Any(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)))
             {
-                BackupPlaylist.Songs.RemoveAll(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value));
+                BackupPlaylist.Songs.RemoveAll(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value));
                 UpdateUnplayedSongs();
             }
 
@@ -677,7 +677,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await using (var scope = _scopeFactory.CreateAsyncScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var dbSongs = await db.Songs.Find(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)).ToListAsync();
+                var dbSongs = await db.Songs.Find(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)).ToListAsync();
                 if (dbSongs.Count > 0)
                 {
                     db.Songs.RemoveRange(dbSongs);
@@ -685,9 +685,9 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 }
             }
 
-            if (BackupPlaylist.Songs.Any(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)))
+            if (BackupPlaylist.Songs.Any(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value)))
             {
-                BackupPlaylist.Songs.RemoveAll(x => x.SongId.Equals(requestedSong.SongId, StringComparison.OrdinalIgnoreCase) || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value));
+                BackupPlaylist.Songs.RemoveAll(x => x.SongId == requestedSong.SongId || (requestedSong.Id.HasValue && x.Id == requestedSong.Id.Value));
                 UpdateUnplayedSongs();
             }
 
@@ -1178,7 +1178,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                     {
                         var remaining = activeCooldown.CooldownExpiresAt - DateTime.UtcNow;
                         if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
-                        var songTitle = !string.IsNullOrWhiteSpace(activeCooldown.Title) && !activeCooldown.Title.Equals(searchResult, StringComparison.OrdinalIgnoreCase)
+                        var songTitle = !string.IsNullOrWhiteSpace(activeCooldown.Title) && !activeCooldown.Title.Equals(searchResult, StringComparison.Ordinal)
                             ? activeCooldown.Title
                             : (await GetSong(searchResult, e.DisplayName, sendChatResponse: false))?.Title ?? searchResult;
                         var msg = string.Format(cooldownSettings.Message, songTitle, remaining.ToFriendlyString());
@@ -1250,11 +1250,12 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             var cooldownSettings = await _songCooldownService.GetSettingsAsync();
             if (cooldownSettings.Enabled)
             {
-                await _songCooldownService.AddCooldownAsync(
+                var cooldown = await _songCooldownService.AddCooldownAsync(
                     song.SongId,
                     song.Title,
                     TimeSpan.FromMinutes(cooldownSettings.CooldownMinutes),
                     song.RequestedBy);
+                if (cooldown == null) return null;
             }
 
             try

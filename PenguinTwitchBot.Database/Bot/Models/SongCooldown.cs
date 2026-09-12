@@ -1,9 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Database.Bot.Models
 {
+    [Index(nameof(SongId), IsUnique = true)]
     public class SongCooldown
     {
         [Key]

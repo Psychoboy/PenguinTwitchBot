@@ -3,8 +3,10 @@
 @using PenguinTwitchBot.Bot.Commands.Music
 @using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Extensions
+@using PenguinTwitchBot.Helpers
 @inject ISongCooldownService SongCooldownService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Song Cooldowns</PageTitle>
 
@@ -181,9 +183,10 @@
 
     private async Task AddManualCooldown()
     {
-        if (string.IsNullOrWhiteSpace(_newSongInput))
+        var songId = YouTubeUrlHelper.ExtractVideoId(_newSongInput);
+        if (songId == null)
         {
-            Snackbar.Add("Please enter a YouTube URL or Video ID.", Severity.Warning);
+            Snackbar.Add("Please enter a valid YouTube URL or Video ID.", Severity.Warning);
             return;
         }
 
@@ -191,7 +194,7 @@
         try
         {
             var cooldown = await SongCooldownService.AddCooldownAsync(
-                _newSongInput,
+                songId,
                 _newTitle,
                 TimeSpan.FromMinutes(_newDurationMinutes > 0 ? _newDurationMinutes : _settings.CooldownMinutes),
                 "UI");
@@ -229,6 +232,13 @@
 
     private async Task ClearAllCooldowns()
     {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Clear All Song Cooldowns",
+            "Remove every active song cooldown? This cannot be undone.",
+            yesText: "Clear All",
+            cancelText: "Cancel");
+        if (confirmed != true) return;
+
         await SongCooldownService.ClearAllCooldownsAsync();
         Snackbar.Add("Cleared all song cooldowns.", Severity.Success);
         await Load();

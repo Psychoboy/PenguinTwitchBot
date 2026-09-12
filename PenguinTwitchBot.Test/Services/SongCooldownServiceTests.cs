@@ -77,6 +77,24 @@ namespace PenguinTwitchBot.Test.Services
             Assert.True(loaded.ExemptSkippedVetoed);
         }
 
+        [Theory]
+        [InlineData("Song {2} is unavailable")]
+        [InlineData("Song {0 is unavailable")]
+        public async Task SaveSettingsAsync_ReplacesInvalidMessageTemplate(string invalidTemplate)
+        {
+            var service = new SongCooldownService(_scopeFactory, Substitute.For<IConfiguration>(), Substitute.For<ILogger<SongCooldownService>>());
+
+            await service.SaveSettingsAsync(new SongCooldownSettings
+            {
+                Enabled = true,
+                MessageEnabled = true,
+                Message = invalidTemplate
+            });
+
+            var loaded = await service.GetSettingsAsync();
+            Assert.Equal("Song '{0}' is on cooldown for another {1}.", loaded.Message);
+        }
+
         [Fact]
         public async Task IsOnCooldownAsync_ReturnsFalse_WhenDisabled()
         {
@@ -97,6 +115,17 @@ namespace PenguinTwitchBot.Test.Services
 
             var result = await service.IsOnCooldownAsync("dQw4w9WgXcQ");
             Assert.True(result);
+        }
+
+        [Fact]
+        public async Task IsOnCooldownAsync_ReturnsFalseAndExcludesExpiredCooldown()
+        {
+            var service = new SongCooldownService(_scopeFactory, Substitute.For<IConfiguration>(), Substitute.For<ILogger<SongCooldownService>>());
+            await service.SaveSettingsAsync(new SongCooldownSettings { Enabled = true, CooldownMinutes = 60 });
+            await service.AddCooldownAsync("dQw4w9WgXcQ", "Expired Song", TimeSpan.FromMinutes(-1));
+
+            Assert.False(await service.IsOnCooldownAsync("dQw4w9WgXcQ"));
+            Assert.Empty(await service.GetActiveCooldownsAsync());
         }
 
         [Fact]

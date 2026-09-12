@@ -51,11 +51,15 @@
                         </MudStack>
                     </MudStack>
                     <MudDivider />
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="AddCurrentSongToCooldown" StartIcon="@Icons.Material.Filled.Timer">
-                            Add to Cooldown
-                        </MudButton>
-                    </div>
+                    <AuthorizeView Roles="Streamer,Editor">
+                        <Authorized>
+                            <div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="AddCurrentSongToCooldown" StartIcon="@Icons.Material.Filled.Timer">
+                                    Add to Cooldown
+                                </MudButton>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
                 }
                 else
                 {

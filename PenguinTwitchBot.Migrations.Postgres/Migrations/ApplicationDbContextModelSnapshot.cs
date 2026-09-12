@@ -2197,6 +2197,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SongId")
+                        .IsUnique();
+
                     b.ToTable("SongCooldowns");
                 });
 

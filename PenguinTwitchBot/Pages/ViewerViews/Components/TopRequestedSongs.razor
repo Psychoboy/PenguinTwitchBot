@@ -62,10 +62,14 @@
                 <MudTd DataLabel="Duration">@context.Duration</MudTd>
                 <MudTd DataLabel="TimesRequested">@context.RequestedCount</MudTd>
                 <MudTd DataLabel="Actions">
-                    <MudTooltip Text="Add to Cooldown">
-                        <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
-                                       OnClick="() => AddToCooldown(context)" />
-                    </MudTooltip>
+                    <AuthorizeView Roles="Streamer,Editor">
+                        <Authorized Context="authenticationState">
+                            <MudTooltip Text="Add to Cooldown">
+                                <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
+                                               OnClick="() => AddToCooldown(context)" />
+                            </MudTooltip>
+                        </Authorized>
+                    </AuthorizeView>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>

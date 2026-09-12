@@ -27,11 +27,21 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 {
                     table.PrimaryKey("PK_SongCooldowns", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SongCooldowns_SongId",
+                table: "SongCooldowns",
+                column: "SongId",
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropIndex(
+                name: "IX_SongCooldowns_SongId",
+                table: "SongCooldowns");
+
             migrationBuilder.DropTable(
                 name: "SongCooldowns");
         }
