@@ -65,6 +65,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         OverlayTimerStart,
         OverlayTimerStop,
         OverlayTimerAddTime,
-        OverlayTimerRemoveTime
+        OverlayTimerRemoveTime,
+        SelectRandomViewers
     }
 }
