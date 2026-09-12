@@ -40,7 +40,7 @@
             @if (currentPlayList != null)
             {
                 <MudItem xs="12" md="8">
-                    <CurrentPlaylist Playlist="currentPlayList" OnRemoveSongFrom="RemoveSongFromPlaylist" OnGetPlaylistsForSong="GetPlaylistsForSong" />
+                    <CurrentPlaylist Playlist="currentPlayList" OnRemoveSong="RemoveSong" OnRemoveSongFrom="RemoveSongFromPlaylist" OnGetPlaylistsForSong="GetPlaylistsForSong" />
                 </MudItem>
             }
         </MudGrid>
@@ -182,6 +182,11 @@
         await YtPlayer.MoveSongToNext(song.SongId);
     }
 
+    private async Task RemoveSong(Song song)
+    {
+        await YtPlayer.RemoveSong(song);
+    }
+
     private async Task RemoveSongFromPlaylist((Song song, int playlistId) args)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
@@ -196,11 +201,7 @@
 
     private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
     {
-        var allIds = new List<int>();
-        if (defaultPlaylistId.HasValue)
-            allIds.Add(defaultPlaylistId.Value);
-        allIds.AddRange(additionalPlaylistIds);
-        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, allIds);
+        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
         return result;
     }
 

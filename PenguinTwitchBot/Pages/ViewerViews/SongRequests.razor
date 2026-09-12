@@ -1,9 +1,11 @@
 @page "/songrequests"
 @using PenguinTwitchBot.Models
 @using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Bot.Commands.Music
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
-@inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject YtPlayer YtPlayer
+@inject ISongCooldownService SongCooldownService
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
@@ -48,6 +50,16 @@
                             <MudText Typo="Typo.body2">@currentSong.Duration</MudText>
                         </MudStack>
                     </MudStack>
+                    <MudDivider />
+                    <AuthorizeView Roles="Streamer,Editor">
+                        <Authorized>
+                            <div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" OnClick="AddCurrentSongToCooldown" StartIcon="@Icons.Material.Filled.Timer">
+                                    Add to Cooldown
+                                </MudButton>
+                            </div>
+                        </Authorized>
+                    </AuthorizeView>
                 }
                 else
                 {
@@ -85,6 +97,14 @@
     {
         currentSong = YtPlayer.GetCurrentSong();
         currentSongLoaded = currentSong != null;
+    }
+
+    private async Task AddCurrentSongToCooldown()
+    {
+        if (currentSong == null) return;
+        var settings = await SongCooldownService.GetSettingsAsync();
+        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Now Playing UI");
+        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

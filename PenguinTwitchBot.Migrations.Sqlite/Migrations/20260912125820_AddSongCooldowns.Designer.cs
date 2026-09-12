@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 
@@ -10,9 +11,11 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912125820_AddSongCooldowns")]
+    partial class AddSongCooldowns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
@@ -3197,20 +3200,6 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_resetcooldowns", (string)null);
-                });
-
-            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SelectRandomViewersType", b =>
-                {
-                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
-
-                    b.Property<string>("ExcludedViewers")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ViewerCount")
-                        .HasColumnType("INTEGER");
-
-                    b.ToTable("subactions_selectrandomviewers", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SendMessageType", b =>

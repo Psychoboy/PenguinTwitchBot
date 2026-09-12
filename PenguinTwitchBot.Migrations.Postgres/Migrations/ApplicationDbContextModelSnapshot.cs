@@ -2166,6 +2166,43 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("Songs");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongCooldown", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AddedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CooldownExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SongId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SongId")
+                        .IsUnique();
+
+                    b.ToTable("SongCooldowns");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongRequestViewItem", b =>
                 {
                     b.Property<int>("Id")

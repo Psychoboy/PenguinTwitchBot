@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Controllers
                     Guid.NewGuid(),
                     webSocket,
                     HttpContext.Request.Query["clientName"],
-                    HttpContext.Request.Query["topics"].ToArray());
+                    HttpContext.Request.Query["topics"].Where(t => t != null).Select(t => t!).ToArray());
             }
             else
             {

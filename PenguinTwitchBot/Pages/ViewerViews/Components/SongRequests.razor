@@ -1,7 +1,9 @@
 ﻿@using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Bot.Commands.Music
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
-@inject PenguinTwitchBot.Bot.Commands.Music.YtPlayer YtPlayer
+@inject YtPlayer YtPlayer
+@inject ISongCooldownService SongCooldownService
 @inject ISnackbar Snackbar
 @inject ILogger<SongRequests> logger
 @implements IAsyncDisposable
@@ -40,6 +42,7 @@
                     <MudTh>Title</MudTh>
                     <MudTh>Length</MudTh>
                     <MudTh>Requested By</MudTh>
+                    <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Title">
@@ -50,6 +53,12 @@
                     </MudTd>
                     <MudTd DataLabel="Duration">@context.Duration</MudTd>
                     <MudTd DataLabel="Requested By">@context.RequestedBy</MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudTooltip Text="Add to Cooldown">
+                            <MudIconButton Icon="@Icons.Material.Filled.Timer" Color="Color.Warning" Size="Size.Small"
+                                           OnClick="() => AddToCooldown(context)" />
+                        </MudTooltip>
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
         }
@@ -119,6 +128,13 @@
     private string GetYoutubeLink(string songId)
     {
         return $"https://youtu.be/{songId}";
+    }
+
+    private async Task AddToCooldown(Song song)
+    {
+        var settings = await SongCooldownService.GetSettingsAsync();
+        await SongCooldownService.AddCooldownAsync(song.SongId, song.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Song Queue UI");
+        Snackbar.Add($"Added '{song.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
 
     public async ValueTask DisposeAsync()

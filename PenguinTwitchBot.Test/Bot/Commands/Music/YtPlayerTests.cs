@@ -133,7 +133,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             var method = typeof(YtPlayer).GetMethod("UpdateState", 
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -160,7 +161,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             var method = typeof(YtPlayer).GetMethod("GetCurrentSongTimeLeft", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -183,7 +185,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             Assert.NotNull(ytPlayer);
         }
@@ -203,7 +206,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             Assert.NotNull(ytPlayer);
         }
@@ -291,7 +295,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                bannedSongService);
+                bannedSongService,
+                Substitute.For<ISongCooldownService>());
         }
 
         private static List<Song> GetRequests(YtPlayer ytPlayer)
@@ -317,7 +322,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             var song1 = new Song { SongId = "song1", Title = "Song 1", Duration = TimeSpan.FromMinutes(3) };
             var song2 = new Song { SongId = "song2", Title = "Song 2", Duration = TimeSpan.FromMinutes(4) };
@@ -346,7 +352,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Music
                 Substitute.For<IServiceBackbone>(),
                 Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
                 Substitute.For<ICommandHandler>(),
-                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>());
+                Substitute.For<PenguinTwitchBot.Bot.Commands.Music.IBannedSongService>(),
+                Substitute.For<ISongCooldownService>());
 
             var method = typeof(YtPlayer).GetMethod("GetRecentlyPlayedSongs", 
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
