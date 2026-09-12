@@ -15,7 +15,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.ActionType", b =>
                 {
@@ -3162,6 +3162,20 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_resetcooldowns", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SelectRandomViewersType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("ExcludedViewers")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ViewerCount")
+                        .HasColumnType("INTEGER");
+
+                    b.ToTable("subactions_selectrandomviewers", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SendMessageType", b =>
