@@ -52,11 +52,12 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "overlay/editor", "overlay/timer")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.MusicOff" Href="/bannedsongs" Match="NavLinkMatch.Prefix">Banned Songs</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/songcooldowns" Match="NavLinkMatch.Prefix">Song Cooldowns</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
             </MudNavGroup>
@@ -269,6 +270,7 @@
             CreateQuickLink("Music Player", "/musicplayer", Icons.Material.Filled.PlayCircle, "Stream Tools", "music"),
             CreateQuickLink("Playlists", "/playlists", Icons.Material.Filled.QueueMusic, "Stream Tools", "music", "playlist"),
             CreateQuickLink("Banned Songs", "/bannedsongs", Icons.Material.Filled.MusicOff, "Stream Tools", "music", "banned", "song requests"),
+            CreateQuickLink("Song Cooldowns", "/songcooldowns", Icons.Material.Filled.Timer, "Stream Tools", "music", "cooldown", "song requests"),
             CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),
             CreateQuickLink("Stream Timer", "/overlay/timer", Icons.Material.Filled.Timer, "Stream Tools", "overlay", "timer", "countdown"),
             CreateQuickLink("Default Commands", "/commands/default", Icons.Material.Filled.Code, "Commands", "chat commands"),

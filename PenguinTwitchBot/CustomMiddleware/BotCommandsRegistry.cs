@@ -322,6 +322,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             );
             services.AddHostedApiService<Bot.Overlay.IStreamTimerService, Bot.Overlay.StreamTimerService>();
             services.AddSingleton<Bot.Commands.Music.IBannedSongService, Bot.Commands.Music.BannedSongService>();
+            services.AddSingleton<Bot.Commands.Music.ISongCooldownService, Bot.Commands.Music.SongCooldownService>();
             services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
                 FeatureKeys.MusicPlayer,
                 "Music Player",

@@ -35,6 +35,7 @@ namespace PenguinTwitchBot.Database.Repository
         ISubscriptionHistoriesRepository SubscriptionHistories { get; }
         ISongsRepository Songs { get; }
         IBannedSongsRepository BannedSongs { get; }
+        ISongCooldownsRepository SongCooldowns { get; }
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }

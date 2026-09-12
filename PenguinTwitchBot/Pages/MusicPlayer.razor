@@ -10,6 +10,7 @@
 @inject ILogger<MusicPlayer> logger
 @inject IDialogService DialogService
 @inject PenguinTwitchBot.Bot.Commands.Music.IBannedSongService BannedSongService
+@inject PenguinTwitchBot.Bot.Commands.Music.ISongCooldownService SongCooldownService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Player</PageTitle>
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
@@ -55,18 +56,23 @@
                                 </MudStack>
                             </MudStack>
                             <MudDivider />
-                            @if (YtPlayer.SongExistsInBackupList(currentSong))
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Default" Disabled="true" StartIcon="@Icons.Material.Filled.CheckCircle">
-                                    Already in Playlist
+                            <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                                @if (YtPlayer.SongExistsInBackupList(currentSong))
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Default" Disabled="true" StartIcon="@Icons.Material.Filled.CheckCircle">
+                                        Already in Playlist
+                                    </MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StealSong" StartIcon="@Icons.Material.Filled.LibraryAdd">
+                                        Steal Song
+                                    </MudButton>
+                                }
+                                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="AddCurrentSongToCooldown" StartIcon="@Icons.Material.Filled.Timer">
+                                    Add to Cooldown
                                 </MudButton>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="StealSong" StartIcon="@Icons.Material.Filled.LibraryAdd">
-                                    Steal Song
-                                </MudButton>
-                            }
+                            </MudStack>
                         }
                         else
                         {
@@ -362,11 +368,7 @@
 
     private async Task<Dictionary<int, string>> GetPlaylistsForSong(Song song)
     {
-        var allIds = new List<int>();
-        if (defaultPlaylistId.HasValue)
-            allIds.Add(defaultPlaylistId.Value);
-        allIds.AddRange(additionalPlaylistIds);
-        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, allIds);
+        var result = await YtPlayer.GetPlaylistsContainingSong(song.SongId, null);
         return result;
     }
 
@@ -403,6 +405,14 @@
     private async Task StealSong()
     {
         await YtPlayer.StealCurrentSong();
+    }
+
+    private async Task AddCurrentSongToCooldown()
+    {
+        if (currentSong == null) return;
+        var settings = await SongCooldownService.GetSettingsAsync();
+        await SongCooldownService.AddCooldownAsync(currentSong.SongId, currentSong.Title, TimeSpan.FromMinutes(settings.CooldownMinutes), "Music Player UI");
+        Snackbar.Add($"Added '{currentSong.Title}' to song cooldown ({settings.CooldownMinutes} min).", Severity.Success);
     }
     public async ValueTask DisposeAsync()
     {

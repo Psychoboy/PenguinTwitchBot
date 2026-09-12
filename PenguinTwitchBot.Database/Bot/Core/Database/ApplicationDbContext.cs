@@ -88,6 +88,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<OverlayWidget> OverlayWidgets { get; set; } = null!;
 
         public DbSet<BannedSong> BannedSongs { get; set; } = null!;
+        public DbSet<SongCooldown> SongCooldowns { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

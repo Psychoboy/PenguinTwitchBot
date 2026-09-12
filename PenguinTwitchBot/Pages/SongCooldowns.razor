@@ -1,0 +1,251 @@
+@page "/songcooldowns"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Commands.Music
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Extensions
+@inject ISongCooldownService SongCooldownService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Song Cooldowns</PageTitle>
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <MudText Typo="Typo.h4">
+            <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
+            Song Request Cooldowns
+        </MudText>
+
+        <!-- Cooldown Settings Card -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Cooldown Settings</MudText>
+            <MudGrid Spacing="3">
+                <MudItem xs="12" md="6">
+                    <MudStack Spacing="2">
+                        <MudSwitch @bind-Value="_settings.Enabled" Color="Color.Primary" Label="Enable Song Request Cooldowns" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            When enabled, song requests for recently requested songs will be rejected.
+                        </MudText>
+
+                        <MudNumericField @bind-Value="_settings.CooldownMinutes" Label="Cooldown Duration (Minutes)"
+                                         Min="1" Max="10080" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Disabled="!_settings.Enabled" />
+
+                        <MudSwitch @bind-Value="_settings.ExemptSkippedVetoed" Color="Color.Warning" Label="Exempt Skipped / Vetoed Songs from Cooldown" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            When enabled, skipping or vetoing a song will clear its cooldown so it can be requested again.
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudStack Spacing="2">
+                        <MudSwitch @bind-Value="_settings.MessageEnabled" Color="Color.Primary" Label="Send Chat Response Message on Cooldown" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            When enabled, the bot will respond in chat if a song is requested while on cooldown.
+                        </MudText>
+
+                        <MudTextField @bind-Value="_settings.Message" Label="Cooldown Response Message Template"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2"
+                                      Disabled="!_settings.MessageEnabled"
+                                      HelperText="Use {0} for Song Title/ID and {1} for remaining time." />
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                               Disabled="_isSavingSettings" OnClick="SaveSettings">
+                        Save Settings
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Manual Add Cooldown -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Add Manual Song Cooldown</MudText>
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" md="5">
+                    <MudTextField @bind-Value="_newSongInput" Label="YouTube URL or Video ID"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  HelperText="Accepts full YouTube URLs or raw 11-char video ID" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField @bind-Value="_newTitle" Label="Title (optional)"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudNumericField @bind-Value="_newDurationMinutes" Label="Minutes"
+                                     Min="1" Max="10080" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" md="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.AddAlarm"
+                               Disabled="_isAddingCooldown" OnClick="AddManualCooldown" FullWidth="true">
+                        Add Cooldown
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Active Cooldowns Table -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable Items="@_activeCooldowns" Dense="true" Hover="true" Filter="FilterCooldown">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Active Song Cooldowns (@_activeCooldowns.Count)</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="_search" Placeholder="Search" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 mr-4" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.ClearAll" OnClick="ClearAllCooldowns"
+                               Disabled="@(_activeCooldowns.Count == 0)" Class="mr-2">
+                        Clear All Cooldowns
+                    </MudButton>
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Info" Size="Size.Small" OnClick="Load" />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Title</MudTh>
+                    <MudTh>Song ID</MudTh>
+                    <MudTh>Time Remaining</MudTh>
+                    <MudTh>Expires At</MudTh>
+                    <MudTh>Added By</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Title">@(string.IsNullOrWhiteSpace(context.Title) ? context.SongId : context.Title)</MudTd>
+                    <MudTd DataLabel="Song ID">
+                        <MudLink href="@($"https://youtu.be/{context.SongId}")" Target="_blank">@context.SongId</MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Time Remaining">
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">
+                            @GetTimeRemaining(context.CooldownExpiresAt)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Expires At">@context.CooldownExpiresAt.ToLocalTime().ToString("g")</MudTd>
+                    <MudTd DataLabel="Added By">@context.AddedBy</MudTd>
+                    <MudTd DataLabel="Actions">
+                        <MudTooltip Text="Clear cooldown">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="() => ClearCooldown(context)" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.TimerOff">
+                        No active song cooldowns.
+                    </MudAlert>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private SongCooldownSettings _settings = new();
+    private List<SongCooldown> _activeCooldowns = new();
+    private string _search = "";
+    private string _newSongInput = "";
+    private string _newTitle = "";
+    private int _newDurationMinutes = 60;
+    private bool _isSavingSettings;
+    private bool _isAddingCooldown;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _settings = await SongCooldownService.GetSettingsAsync();
+        _activeCooldowns = await SongCooldownService.GetActiveCooldownsAsync();
+        if (_newDurationMinutes <= 0) _newDurationMinutes = _settings.CooldownMinutes;
+    }
+
+    private async Task SaveSettings()
+    {
+        _isSavingSettings = true;
+        try
+        {
+            await SongCooldownService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Song cooldown settings saved.", Severity.Success);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to save settings.", Severity.Error);
+        }
+        finally
+        {
+            _isSavingSettings = false;
+        }
+    }
+
+    private async Task AddManualCooldown()
+    {
+        if (string.IsNullOrWhiteSpace(_newSongInput))
+        {
+            Snackbar.Add("Please enter a YouTube URL or Video ID.", Severity.Warning);
+            return;
+        }
+
+        _isAddingCooldown = true;
+        try
+        {
+            var cooldown = await SongCooldownService.AddCooldownAsync(
+                _newSongInput,
+                _newTitle,
+                TimeSpan.FromMinutes(_newDurationMinutes > 0 ? _newDurationMinutes : _settings.CooldownMinutes),
+                "UI");
+
+            if (cooldown == null)
+            {
+                Snackbar.Add("Could not resolve YouTube video ID.", Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add($"Added cooldown for {cooldown.Title}.", Severity.Success);
+                _newSongInput = "";
+                _newTitle = "";
+                await Load();
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Failed to add cooldown.", Severity.Error);
+        }
+        finally
+        {
+            _isAddingCooldown = false;
+        }
+    }
+
+    private async Task ClearCooldown(SongCooldown cooldown)
+    {
+        if (await SongCooldownService.ClearCooldownAsync(cooldown.SongId))
+        {
+            Snackbar.Add($"Cleared cooldown for {cooldown.SongId}.", Severity.Success);
+            await Load();
+        }
+    }
+
+    private async Task ClearAllCooldowns()
+    {
+        await SongCooldownService.ClearAllCooldownsAsync();
+        Snackbar.Add("Cleared all song cooldowns.", Severity.Success);
+        await Load();
+    }
+
+    private bool FilterCooldown(SongCooldown cooldown)
+    {
+        if (string.IsNullOrWhiteSpace(_search)) return true;
+        return cooldown.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || cooldown.SongId.Contains(_search, StringComparison.OrdinalIgnoreCase)
+            || cooldown.AddedBy.Contains(_search, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetTimeRemaining(DateTime expiresAt)
+    {
+        var remaining = expiresAt - DateTime.UtcNow;
+        if (remaining <= TimeSpan.Zero) return "Expired";
+        return remaining.ToFriendlyString();
+    }
+}

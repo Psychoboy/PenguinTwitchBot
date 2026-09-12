@@ -39,6 +39,7 @@ namespace PenguinTwitchBot.Database.Repository
             SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
             Songs = new SongsRepository(_context);
             BannedSongs = new BannedSongsRepository(_context);
+            SongCooldowns = new SongCooldownsRepository(_context);
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
             ExternalCommands = new ExternalCommandsRepository(_context);
             BannedViewers = new BannedViewersRepository(_context);
@@ -112,6 +113,7 @@ namespace PenguinTwitchBot.Database.Repository
         public ISubscriptionHistoriesRepository SubscriptionHistories { get; private set; }
         public ISongsRepository Songs { get; private set; }
         public IBannedSongsRepository BannedSongs { get; private set; }
+        public ISongCooldownsRepository SongCooldowns { get; private set; }
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
