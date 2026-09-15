@@ -1,0 +1,282 @@
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Helpers
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.ComponentModel.DataAnnotations
+@using PenguinTwitchBot.Database.Bot.Models
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject ILogger<GiveawayEntryPanel> logger
+@inject IConfiguration AppConfiguration
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-4 stat-card" Elevation="2">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Large" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Available @PointTypeName to spend</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Warning">@userTickets</MudText>
+            </MudStack>
+        </MudStack>
+        <MudDivider />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">@PointTypeName already entered in this giveaway</MudText>
+                <MudText Typo="Typo.h3" Color="Color.Success">@userEntries</MudText>
+            </MudStack>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+<MudPaper Class="pa-5" Elevation="3">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Input" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" class="mud-contrast-text">Enter Giveaway</MudText>
+        </MudStack>
+        <MudText Typo="Typo.body2" class="mud-contrast-text">
+            Spend @PointTypeName from your available balance to increase your entries below. More @PointTypeName entered means better odds of winning.
+        </MudText>
+        <MudDivider />
+        @if (isClosed)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Lock">
+                Giveaway is currently closed. Please wait for the next giveaway to open.
+            </MudAlert>
+        }
+        else
+        {
+            <EditForm Model="@model" OnValidSubmit="EnterTickets">
+                <DataAnnotationsValidator />
+                <MudStack Spacing="2">
+                    <MudNumericField @bind-Value="model.EnterAmount"
+                                     For="@(() => model.EnterAmount)"
+                                     Label="@($"Number of {PointTypeName} to Enter")"
+                                     HelperText="@userEntriesText"
+                                     Variant="Variant.Outlined"
+                                     Disabled="@isSubmitting"
+                                     Immediate="true" />
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               FullWidth="true"
+                               Size="Size.Large"
+                               StartIcon="@Icons.Material.Filled.Send"
+                               Disabled="@isSubmitting">
+                        @(isSubmitting ? "Entering..." : "Enter Giveaway")
+                    </MudButton>
+                </MudStack>
+            </EditForm>
+        }
+        @if (!string.IsNullOrWhiteSpace(AlertText))
+        {
+            <MudAlert Severity="@AlertSeverity" Variant="Variant.Filled">@AlertText</MudAlert>
+        }
+        <MudDivider />
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.body2">
+                <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" />
+                <MudLink Href="@($"https://twitch.tv/subs/{BroadcasterName}")" Target="_blank" Color="Color.Primary">
+                    Subscribe today to earn even more @PointTypeName
+                </MudLink>
+            </MudText>
+            <MudText Typo="Typo.body2">
+                <MudIcon Icon="@Icons.Material.Filled.Help" Size="Size.Small" Color="Color.Info" />
+                <MudLink Href="/giveaway#howtoearn" Color="Color.Primary">
+                    How to earn @PointTypeName
+                </MudLink>
+            </MudText>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public string PointTypeName { get; set; } = "Tickets";
+
+    [Parameter, EditorRequired]
+    public string BroadcasterName { get; set; } = "";
+
+    // This panel is isolated from the parent page so unrelated hub pushes (Winners, Prize, entry
+    // counts, etc.) never force a re-render mid-keystroke and clobber the numeric field's value.
+    private string? _lastPointTypeName;
+    private string? _lastBroadcasterName;
+    private bool _suppressNextRender;
+
+    private HubConnection? hubConnection;
+    private CancellationTokenSource? _hubConnectionCts;
+    private System.Threading.Timer? _userTicketsRefreshTimer;
+    private bool _disposed;
+
+    private string Username = "";
+    private long userTickets;
+    private long userEntries;
+    private string userEntriesText = "";
+    private bool isClosed;
+    private bool isSubmitting;
+    private string AlertText = "";
+    private MudBlazor.Severity AlertSeverity = Severity.Info;
+
+    private EnterTicketsForm model = new();
+
+    public class EnterTicketsForm
+    {
+        [Range(1, 1000000)]
+        public int EnterAmount { get; set; } = 1;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_lastPointTypeName == PointTypeName && _lastBroadcasterName == BroadcasterName)
+        {
+            _suppressNextRender = true;
+        }
+        else
+        {
+            _lastPointTypeName = PointTypeName;
+            _lastBroadcasterName = BroadcasterName;
+            _suppressNextRender = false;
+        }
+    }
+
+    protected override bool ShouldRender()
+    {
+        if (_suppressNextRender)
+        {
+            _suppressNextRender = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is not null && user.Identity.IsAuthenticated && user.Identity.Name != null)
+        {
+            Username = user.Identity.Name;
+        }
+
+        isClosed = GiveawayFeature.IsClosed();
+
+        await RefreshUserTicketsAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender == false) return;
+
+        _hubConnectionCts = new CancellationTokenSource();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, Navigation, "/mainhub"), options =>
+            {
+                options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+                                     Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+                options.SkipNegotiation = false;
+            })
+            .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
+            .Build();
+
+        // Per-viewer balance changes only from this user's own actions (handled directly) or passive
+        // earnings (polled below); the global "UpdateTickets" broadcast fires every 5s for all viewers
+        // and isn't needed here.
+        hubConnection.On<bool>("GiveawayIsClosed", (closed) =>
+        {
+            InvokeAsync(() =>
+            {
+                isClosed = closed;
+                StateHasChanged();
+            });
+        });
+
+        await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
+
+        if (!string.IsNullOrEmpty(Username))
+        {
+            // Passive earnings (bits, subs, etc.) don't push updates, so poll the viewer's own balance periodically.
+            _userTicketsRefreshTimer = new System.Threading.Timer(_ => InvokeAsync(RefreshUserTicketsAsync), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+        }
+    }
+
+    private async Task RefreshUserTicketsAsync()
+    {
+        if (_disposed || string.IsNullOrEmpty(Username))
+            return;
+
+        try
+        {
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
+            userEntries = await GiveawayFeature.GetEntriesCount(Username);
+            userEntriesText = $"This adds to your current {userEntries} entered {PointTypeName}.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to refresh giveaway ticket balance for {Username}", Username);
+            AlertText = "Unable to refresh your ticket balance right now. Please try again shortly.";
+            AlertSeverity = Severity.Error;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task EnterTickets()
+    {
+        if (isSubmitting)
+            return;
+
+        if (isClosed)
+            return;
+
+        var validationContext = new ValidationContext(model);
+        if (!Validator.TryValidateObject(model, validationContext, new List<ValidationResult>(), true))
+        {
+            AlertText = $"Please enter a valid number of {PointTypeName} (1-1,000,000).";
+            AlertSeverity = Severity.Error;
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var result = await GiveawayFeature.Enter(Username, model.EnterAmount.ToString(), true);
+            AlertText = result;
+            AlertSeverity = Severity.Success;
+            await RefreshUserTicketsAsync();
+        }
+        catch (SkipCooldownException ex)
+        {
+            AlertText = ex.Message;
+            AlertSeverity = Severity.Error;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error entering giveaway for {Username}", Username);
+            AlertText = "Something went wrong entering the giveaway. Please try again.";
+            AlertSeverity = Severity.Error;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _userTicketsRefreshTimer?.Dispose();
+
+        _hubConnectionCts?.Cancel();
+
+        await hubConnection.DisposeGracefullyAsync(logger);
+
+        _hubConnectionCts?.Dispose();
+    }
+}
