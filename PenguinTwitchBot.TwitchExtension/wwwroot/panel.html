@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Penguin Twitch Bot Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+    <link rel="stylesheet" href="/css/extension.css" />
+</head>
+<body>
+    <div class="panel-container" style="height: 300px;">
+        <div class="tab-bar">
+            <button class="tab active" data-tab="tournaments">Active Tournaments</button>
+            <button class="tab" data-tab="catches">Recent Catches</button>
+        </div>
+        <div id="tournaments-panel" class="tab-panel">
+            <div class="overlay-card">
+                <div class="overlay-header">
+                    <div>
+                        <div class="overlay-title">Fishing Tournaments</div>
+                        <div class="overlay-subtitle">Live standings</div>
+                    </div>
+                </div>
+                <div id="tournament-content" class="content"></div>
+            </div>
+        </div>
+        <div id="catches-panel" class="tab-panel" style="display:none;">
+            <div class="overlay-card">
+                <div class="overlay-header">
+                    <div>
+                        <div class="overlay-title">Recent Catches</div>
+                        <div class="overlay-subtitle">Latest catches</div>
+                    </div>
+                </div>
+                <div id="catch-content" class="content"></div>
+            </div>
+        </div>
+        <div id="error-banner" class="error" style="display:none;"></div>
+    </div>
+    <script src="/js/extension.js"></script>
+    <script src="/js/panel.js"></script>
+</body>
+</html>
