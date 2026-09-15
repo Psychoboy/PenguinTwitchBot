@@ -185,14 +185,16 @@
             .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) })
             .Build();
 
-        hubConnection.On<int, int>("UpdateTickets", (_, _) =>
-        {
-            InvokeAsync(RefreshUserTicketsAsync);
-        });
+        // Per-viewer balance changes only from this user's own actions (handled directly) or passive
+        // earnings (polled below); the global "UpdateTickets" broadcast fires every 5s for all viewers
+        // and isn't needed here.
         hubConnection.On<bool>("GiveawayIsClosed", (closed) =>
         {
-            isClosed = closed;
-            InvokeAsync(StateHasChanged);
+            InvokeAsync(() =>
+            {
+                isClosed = closed;
+                StateHasChanged();
+            });
         });
 
         await hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar, _hubConnectionCts.Token);
@@ -200,7 +202,7 @@
         if (!string.IsNullOrEmpty(Username))
         {
             // Passive earnings (bits, subs, etc.) don't push updates, so poll the viewer's own balance periodically.
-            _userTicketsRefreshTimer = new System.Threading.Timer(async _ => await RefreshUserTicketsAsync(), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+            _userTicketsRefreshTimer = new System.Threading.Timer(_ => InvokeAsync(RefreshUserTicketsAsync), null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
         }
     }
 
@@ -209,9 +211,19 @@
         if (_disposed || string.IsNullOrEmpty(Username))
             return;
 
-        userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
-        userEntries = await GiveawayFeature.GetEntriesCount(Username);
-        userEntriesText = $"This adds to your current {userEntries} entered {PointTypeName}.";
+        try
+        {
+            userTickets = (await PointSystem.GetUserPointsByUsernameAndGame(Username, "GiveawayFeature")).Points;
+            userEntries = await GiveawayFeature.GetEntriesCount(Username);
+            userEntriesText = $"This adds to your current {userEntries} entered {PointTypeName}.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to refresh giveaway ticket balance for {Username}", Username);
+            AlertText = "Unable to refresh your ticket balance right now. Please try again shortly.";
+            AlertSeverity = Severity.Error;
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -242,6 +254,12 @@
         catch (SkipCooldownException ex)
         {
             AlertText = ex.Message;
+            AlertSeverity = Severity.Error;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error entering giveaway for {Username}", Username);
+            AlertText = "Something went wrong entering the giveaway. Please try again.";
             AlertSeverity = Severity.Error;
         }
         finally
