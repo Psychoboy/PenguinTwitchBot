@@ -5,15 +5,90 @@ using PenguinTwitchBot.Extensions;
 
 namespace PenguinTwitchBot.Bot.Commands.TTS
 {
-    public class TTSPlayerService(ILogger<TTSPlayerService> logger, IWebHostEnvironment environment) : ITTSPlayerService
+    public class TTSPlayerService(
+        ILogger<TTSPlayerService> logger,
+        IWebHostEnvironment environment,
+        PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService,
+        IPiperService piperService) : ITTSPlayerService
     {
         private const string DefaultGeminiTtsModel = "gemini-2.5-flash-tts";
 
         // Kokoro voice to use when falling back from a failed Google TTS attempt.
         private const string KokoroFallbackVoiceId = "af_heart";
 
-        // Lazy-loaded Kokoro synthesizer — created on first use, cached for the service lifetime.
-        private KokoroWavSynthesizer? _kokoroSynth;
+        private sealed class KokoroInstance : IDisposable
+        {
+            private readonly object _lock = new();
+            public KokoroWavSynthesizer Synthesizer { get; }
+            private int _activeOperations;
+            private bool _isRetired;
+
+            public KokoroInstance(KokoroWavSynthesizer synthesizer)
+            {
+                Synthesizer = synthesizer;
+            }
+
+            public bool TryEnter()
+            {
+                lock (_lock)
+                {
+                    if (_isRetired) return false;
+                    _activeOperations++;
+                    return true;
+                }
+            }
+
+            public void Exit()
+            {
+                bool shouldDispose = false;
+                lock (_lock)
+                {
+                    _activeOperations--;
+                    if (_isRetired && _activeOperations <= 0)
+                    {
+                        shouldDispose = true;
+                    }
+                }
+                if (shouldDispose)
+                {
+                    DisposeSynthesizer();
+                }
+            }
+
+            public void Retire()
+            {
+                bool shouldDispose = false;
+                lock (_lock)
+                {
+                    _isRetired = true;
+                    if (_activeOperations <= 0)
+                    {
+                        shouldDispose = true;
+                    }
+                }
+                if (shouldDispose)
+                {
+                    DisposeSynthesizer();
+                }
+            }
+
+            private void DisposeSynthesizer()
+            {
+                try
+                {
+                    Synthesizer.Dispose();
+                }
+                catch (Exception)
+                {
+                    // Synthesizer disposal is best-effort upon instance retirement
+                }
+            }
+
+            public void Dispose() => Retire();
+        }
+
+        // Lazy-loaded Kokoro instance — created on first use, tracked for safe lifecycle & reload.
+        private KokoroInstance? _kokoroInstance;
         private readonly SemaphoreSlim _kokoroInitLock = new(1, 1);
 
         public async Task<string> CreateTTSFile(TTSRequest request)
@@ -29,7 +104,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
             switch (request.RegisteredVoice.Type)
             {
-                case RegisteredVoice.VoiceType.Google:
+                case BaseVoice.VoiceType.Google:
                     var googleResult = await PlayGoogle(request);
                     if (!string.IsNullOrEmpty(googleResult)) return googleResult;
 
@@ -40,8 +115,11 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                         request.RegisteredVoice.Name, fallbackVoice);
                     return await PlayKokoro(request.Message, fallbackVoice);
 
-                case RegisteredVoice.VoiceType.Kokoro:
+                case BaseVoice.VoiceType.Kokoro:
                     return await PlayKokoro(request.Message, request.RegisteredVoice.Name);
+
+                case BaseVoice.VoiceType.Piper:
+                    return await PlayPiper(request.Message, request.RegisteredVoice.Name);
 
                 default:
                     logger.LogWarning("Invalid VoiceType: {VoiceType}", request.RegisteredVoice.Type);
@@ -170,31 +248,44 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         {
             try
             {
-                var synth = await GetOrInitKokoroAsync();
-                if (synth is null)
+                var instance = await GetOrInitKokoroInstanceAsync();
+                if (instance is null || !instance.TryEnter())
                 {
-                    logger.LogError("Kokoro synthesizer could not be initialized; skipping TTS.");
-                    return string.Empty;
+                    // Instance may have been retired during a concurrent settings reload.
+                    // Retry once to pick up the fresh replacement.
+                    instance = await GetOrInitKokoroInstanceAsync();
+                    if (instance is null || !instance.TryEnter())
+                    {
+                        logger.LogError("Kokoro synthesizer could not be initialized or acquired; skipping TTS.");
+                        return string.Empty;
+                    }
                 }
 
-                logger.LogInformation("Starting to compile Kokoro voice: {VoiceId}", voiceId);
-
-                var voice = KokoroVoiceManager.GetVoice(voiceId);
-                if (voice is null)
+                try
                 {
-                    logger.LogError("Kokoro voice '{VoiceId}' not found; skipping TTS.", voiceId);
-                    return string.Empty;
+                    logger.LogInformation("Starting to compile Kokoro voice: {VoiceId}", voiceId);
+
+                    var voice = KokoroVoiceManager.GetVoice(voiceId);
+                    if (voice is null)
+                    {
+                        logger.LogError("Kokoro voice '{VoiceId}' not found; skipping TTS.", voiceId);
+                        return string.Empty;
+                    }
+
+                    // Synthesize on a background thread — ONNX inference is CPU-bound.
+                    var audioBytes = await Task.Run(() => instance.Synthesizer.Synthesize(message, voice));
+
+                    var fileName = Guid.NewGuid().ToString();
+                    var filePath = "wwwroot/tts/" + fileName + ".wav";
+                    KokoroWavSynthesizer.SaveAudioToFile(audioBytes, filePath);
+
+                    logger.LogInformation("Saved Kokoro TTS file: {Filename}", fileName);
+                    return fileName;
                 }
-
-                // Synthesize on a background thread — ONNX inference is CPU-bound.
-                var audioBytes = await Task.Run(() => synth.Synthesize(message, voice));
-
-                var fileName = Guid.NewGuid().ToString();
-                var filePath = "wwwroot/tts/" + fileName + ".wav";
-                KokoroWavSynthesizer.SaveAudioToFile(audioBytes, filePath);
-
-                logger.LogInformation("Saved Kokoro TTS file: {Filename}", fileName);
-                return fileName;
+                finally
+                {
+                    instance.Exit();
+                }
             }
             catch (Exception ex)
             {
@@ -203,27 +294,80 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             }
         }
 
+        // ─── Piper TTS ──────────────────────────────────────────────────────────
+
+        private async Task<string> PlayPiper(string message, string modelKey)
+        {
+            try
+            {
+                logger.LogInformation("Starting to compile Piper voice: {ModelKey}", modelKey);
+                var audioBytes = await piperService.SynthesizeAsync(message, modelKey);
+
+                if (audioBytes == null || audioBytes.Length <= 44)
+                {
+                    logger.LogError("Piper synthesis failed: audio data is empty or invalid ({Length} bytes) for voice '{ModelKey}'.", audioBytes?.Length ?? 0, modelKey);
+                    return string.Empty;
+                }
+
+                var fileName = Guid.NewGuid().ToString();
+                var filePath = Path.Combine("wwwroot", "tts", $"{fileName}.wav");
+                await File.WriteAllBytesAsync(filePath, audioBytes);
+
+                logger.LogInformation("Saved Piper TTS file: {Filename}", fileName);
+                return fileName;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create Piper TTS message for voice '{ModelKey}'.", modelKey);
+                return string.Empty;
+            }
+        }
+
+        // ─── Kokoro Lifecycle & Settings ──────────────────────────────────────────
+
         /// <summary>
-        /// Returns the shared <see cref="KokoroWavSynthesizer"/> instance, initializing it lazily on first call.
+        /// Returns the shared <see cref="KokoroInstance"/>, initializing it lazily on first call.
         /// Thread-safe via <see cref="_kokoroInitLock"/>.
         /// </summary>
-        private async Task<KokoroWavSynthesizer?> GetOrInitKokoroAsync()
+        private async Task<KokoroInstance?> GetOrInitKokoroInstanceAsync(bool forceReload = false)
         {
-            if (_kokoroSynth is not null) return _kokoroSynth;
+            if (_kokoroInstance is not null && !forceReload) return _kokoroInstance;
 
             await _kokoroInitLock.WaitAsync();
             try
             {
-                if (_kokoroSynth is not null) return _kokoroSynth;
+                if (_kokoroInstance is not null && !forceReload) return _kokoroInstance;
+
+                return await InitKokoroLockedAsync();
+            }
+            finally
+            {
+                _kokoroInitLock.Release();
+            }
+        }
+
+        private async Task<KokoroInstance?> InitKokoroLockedAsync()
+        {
+            try
+            {
+                var threads = await ttsSettingsService.GetKokoroThreadsAsync(2);
+                var clampedThreads = Math.Clamp(threads, 1, Environment.ProcessorCount);
 
                 logger.LogInformation(
-                    "Initializing Kokoro TTS engine (first use). " +
-                    "If the model has not been downloaded yet this may take a moment.");
+                    "Initializing Kokoro TTS engine (configured threads: {Threads}). " +
+                    "If the model has not been downloaded yet this may take a moment.", clampedThreads);
 
-               _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel());
-                
-                logger.LogInformation("Kokoro TTS engine ready.");
-                return _kokoroSynth;
+                var sessionOptions = new Microsoft.ML.OnnxRuntime.SessionOptions
+                {
+                    IntraOpNumThreads = clampedThreads,
+                    InterOpNumThreads = 1,
+                    ExecutionMode = Microsoft.ML.OnnxRuntime.ExecutionMode.ORT_SEQUENTIAL
+                };
+                var synth = await Task.Run(() => KokoroWavSynthesizer.LoadModel(sessionOptions: sessionOptions));
+                _kokoroInstance = new KokoroInstance(synth);
+
+                logger.LogInformation("Kokoro TTS engine ready with {Threads} threads.", clampedThreads);
+                return _kokoroInstance;
             }
             catch (Exception ex)
             {
@@ -231,6 +375,19 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     "Failed to initialize Kokoro TTS engine. " +
                     "Ensure the model can be downloaded or is already cached.");
                 return null;
+            }
+        }
+
+        public async Task ReloadKokoroSettingsAsync()
+        {
+            await _kokoroInitLock.WaitAsync();
+            try
+            {
+                var oldInstance = _kokoroInstance;
+                _kokoroInstance = null;
+                oldInstance?.Retire();
+
+                await InitKokoroLockedAsync();
             }
             finally
             {

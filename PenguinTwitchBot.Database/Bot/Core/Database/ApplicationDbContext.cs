@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models;
@@ -157,6 +157,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
+
+            // Voices: separate independent tables
+            modelBuilder.Entity<RegisteredVoice>().ToTable("RegisteredVoices");
+            modelBuilder.Entity<UserRegisteredVoice>().ToTable("UserRegisteredVoices");
 
             // TTS registered voice usernames — admin may enter mixed-case but lookup uses Twitch login (lowercase)
             modelBuilder.Entity<UserRegisteredVoice>()

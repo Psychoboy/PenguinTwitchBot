@@ -1,4 +1,4 @@
-﻿global using PenguinTwitchBot.Bot.Core.Database;
+global using PenguinTwitchBot.Bot.Core.Database;
 global using PenguinTwitchBot.Database.Bot.Core.Database;
 global using PenguinTwitchBot.Database.Bot.Models;
 global using PenguinTwitchBot.Bot.Models;
@@ -299,6 +299,8 @@ internal class Program
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
         builder.Services.AddSingleton<IIpLogRetentionSettingsService, IpLogRetentionSettingsService>();
         builder.Services.AddSingleton<IScheduledJobSettingsService, ScheduledJobSettingsService>();
+        builder.Services.AddSingleton<ITTSSettingsService, TTSSettingsService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Commands.TTS.IPiperService, PenguinTwitchBot.Bot.Commands.TTS.PiperService>();
         builder.Services.AddSingleton<ICooldownCleanupService, CooldownCleanupService>();
         builder.Services.AddSingleton<IFileCleanupService, FileCleanupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();

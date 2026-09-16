@@ -2053,11 +2053,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("character varying(21)");
-
                     b.Property<string>("LanguageCode")
                         .HasColumnType("text");
 
@@ -2073,11 +2068,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RegisteredVoices");
-
-                    b.HasDiscriminator<string>("Discriminator").HasValue("RegisteredVoice");
-
-                    b.UseTphMappingStrategy();
+                    b.ToTable("RegisteredVoices", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.ScAiResponseCodes", b =>
@@ -2296,6 +2287,36 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TimerGroups");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("LanguageCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Sex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserRegisteredVoices", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Viewer", b =>
@@ -3438,17 +3459,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_writefile", (string)null);
-                });
-
-            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice", b =>
-                {
-                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Models.RegisteredVoice");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasDiscriminator().HasValue("UserRegisteredVoice");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType", b =>

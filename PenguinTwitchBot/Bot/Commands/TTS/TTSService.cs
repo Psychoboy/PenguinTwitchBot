@@ -19,17 +19,44 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         IServiceScopeFactory scopeFactory,
         Application.Notifications.IPenguinDispatcher dispatcher,
         IWebHostEnvironment environment,
-        ITTSPlayerService ttsPlayerService
+        ITTSPlayerService ttsPlayerService,
+        IPiperService piperService,
+        PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         /// <summary>
-        /// Kokoro voices loaded lazily from the NuGet-bundled voice files on first access.
+        /// Kokoro voices loaded lazily from the NuGet-bundled voice files.
         /// Language code and sex are derived from the standard Kokoro prefix convention.
+        /// If loading returns empty (e.g. before files exist), it will retry on subsequent requests.
         /// </summary>
-        private static readonly Lazy<IReadOnlyList<RegisteredVoice>> _kokoroVoicesLazy =
-            new(BuildKokoroVoices, LazyThreadSafetyMode.ExecutionAndPublication);
+        private static IReadOnlyList<RegisteredVoice>? _kokoroVoices;
+        private static readonly object _kokoroVoicesLock = new();
 
-        private static IReadOnlyList<RegisteredVoice> KokoroVoices => _kokoroVoicesLazy.Value;
+        private static IReadOnlyList<RegisteredVoice> KokoroVoices
+        {
+            get
+            {
+                if (_kokoroVoices != null && _kokoroVoices.Count > 0)
+                {
+                    return _kokoroVoices;
+                }
+
+                lock (_kokoroVoicesLock)
+                {
+                    if (_kokoroVoices != null && _kokoroVoices.Count > 0)
+                    {
+                        return _kokoroVoices;
+                    }
+
+                    var voices = BuildKokoroVoices();
+                    if (voices.Count > 0)
+                    {
+                        _kokoroVoices = voices;
+                    }
+                    return voices;
+                }
+            }
+        }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)
         {
@@ -37,17 +64,18 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("say")) return;
 
-            var voices = (await GetUserRegisteredVoices(e.Name)).Select(x => x as RegisteredVoice).ToList();
-            if (voices.Count == 0)
+            var userVoices = await GetUserRegisteredVoices(e.Name);
+            BaseVoice? voice = userVoices.Cast<BaseVoice>().ToList().RandomElementOrDefault();
+            if (voice == null)
             {
-                voices = await GetRegisteredVoices();
+                var registeredVoices = await GetRegisteredVoices();
+                voice = registeredVoices.Cast<BaseVoice>().ToList().RandomElementOrDefault();
             }
 
-            var voice = voices.RandomElementOrDefault();
             await SayMessage(voice, e.Name + " says " + e.Arg);
         }
 
-        public async Task SayMessage(RegisteredVoice? voice, string message)
+        public async Task SayMessage(BaseVoice? voice, string message)
         {
             if (voice is null)
             {
@@ -81,7 +109,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             await dispatcher.Publish(new TTSCreateNotification(request));
         }
 
-        public async Task<string> PreviewVoice(RegisteredVoice voice)
+        public async Task<string> PreviewVoice(BaseVoice voice)
         {
             var previewText = $"This is a preview of the {voice.Name} voice.";
             var request = new TTSRequest
@@ -111,22 +139,22 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             ttsPlayerService.DeleteTTSFile(fileNameOrRelativeUrl);
         }
 
-        public async Task<RegisteredVoice> GetRandomVoice()
+        public async Task<BaseVoice?> GetRandomVoice()
         {
             var voices = await GetRegisteredVoices();
             return voices.RandomElementOrDefault();
         }
 
-        public async Task<RegisteredVoice> GetRandomVoice(string name)
+        public async Task<BaseVoice?> GetRandomVoice(string name)
         {
-            List<RegisteredVoice> voices;
-            voices = (await GetUserRegisteredVoices(name)).Select(x => x as RegisteredVoice).ToList();
-
-            if (voices.Count == 0)
+            var userVoices = await GetUserRegisteredVoices(name);
+            if (userVoices.Count > 0)
             {
-                voices = await GetRegisteredVoices();
+                return userVoices.RandomElementOrDefault();
             }
-            return voices.RandomElementOrDefault();
+
+            var registeredVoices = await GetRegisteredVoices();
+            return registeredVoices.RandomElementOrDefault();
         }
 
         /// <summary>
@@ -356,5 +384,47 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     _   => RegisteredVoice.SexType.None
                 }
                 : RegisteredVoice.SexType.None;
+
+        // ─── Piper TTS Catalogue & Methods ────────────────────────────────────────
+
+        public async Task<List<RegisteredVoice>> GetPiperVoices()
+        {
+            var pVoices = await piperService.GetVoicesAsync();
+            return pVoices.Select(p => new RegisteredVoice
+            {
+                Type = BaseVoice.VoiceType.Piper,
+                Name = p.Key,
+                LanguageCode = p.LanguageCode,
+                Sex = p.Sex
+            }).ToList();
+        }
+
+        public async Task<bool> DownloadPiperVoice(string modelKey)
+        {
+            return await piperService.DownloadVoiceAsync(modelKey);
+        }
+
+        public bool IsPiperVoiceDownloaded(string modelKey)
+        {
+            return piperService.IsModelDownloaded(modelKey);
+        }
+
+        public bool IsPiperVoiceCompatible(string modelKey)
+        {
+            return piperService.IsModelCompatible(modelKey);
+        }
+
+        // ─── Kokoro Thread Settings ───────────────────────────────────────────────
+
+        public async Task<int> GetKokoroThreads()
+        {
+            return await ttsSettingsService.GetKokoroThreadsAsync(2);
+        }
+
+        public async Task SetKokoroThreads(int threads)
+        {
+            await ttsSettingsService.SetKokoroThreadsAsync(threads);
+            await ttsPlayerService.ReloadKokoroSettingsAsync();
+        }
     }
 }

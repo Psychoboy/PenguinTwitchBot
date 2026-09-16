@@ -54,6 +54,7 @@
     <PackageReference Include="Google.Apis.YouTube.v3" Version="1.76.0.4249" />
     <PackageReference Include="Google.Cloud.TextToSpeech.V1" Version="3.18.0" />
     <PackageReference Include="KokoroSharp.CPU" Version="0.8.4" />
+    <PackageReference Include="PiperSharp" Version="1.0.7" />
     <PackageReference Include="Iso8601DurationHelper" Version="1.1.0" />
     <PackageReference Include="MathParser.org-mXparser" Version="6.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
@@ -115,5 +116,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
+  <Target Name="CopyKokoroVoicesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <KokoroPublishFiles Include="$(TargetDir)voices\**\*" Exclude="$(TargetDir)voices\voices-zh\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(KokoroPublishFiles)" DestinationFiles="@(KokoroPublishFiles->'$(PublishDir)voices\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

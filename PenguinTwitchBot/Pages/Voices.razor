@@ -18,155 +18,179 @@
         </MudAlert>
     }
 
-    <MudGrid>
-        @* ── User-assigned voices ── *@
-        <MudItem xs="8">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">User Voices</MudText>
-                <MudTable Items="@UserRegisteredVoices">
-                    <HeaderContent>
-                        <MudTh>Username</MudTh>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Sex</MudTh>
-                        <MudTh>Type</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Username</MudTd>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.Sex</MudTd>
-                        <MudTd>@context.Type</MudTd>
-                        <MudTd>
-                            <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
-                                <MudTooltip Text="Preview Voice">
-                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                                   Color="Color.Info"
-                                                   Size="Size.Small"
-                                                   Disabled="@(_loadingPreviewVoiceName != null)"
-                                                   OnClick="() => Preview(context)" />
-                                </MudTooltip>
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
-                                           @onclick="() => DeleteUserVoice(context)">
-                                    Delete
-                                </MudButton>
-                            </MudStack>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
 
-        @* ── Assign voice to user ── *@
-        <MudItem xs="4">
-            <MudCard>
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.h6" Class="mb-2">Assign Voice to User</MudText>
-                    <EditForm Model="@customVoice" OnValidSubmit="OnSubmit">
-                        <MudTextField Label="Username" Required="true" @bind-Value="customVoice.Name" Class="mb-3" />
-                        @if(SelectedVoice == null)
-                        {
-                            <MudText Color="Color.Secondary" Class="mb-3">No voice selected</MudText>
-                        } else
-                        {
-                            <MudText Class="mb-3">Selected Voice: <strong>@SelectedVoice.Name</strong> (@SelectedVoice.Type)</MudText>
-                        }
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                   Class="ml-auto" Disabled="@(SelectedVoice == null)">
-                            Submit
-                        </MudButton>
-                    </EditForm>
-                </MudPaper>
-            </MudCard>
-        </MudItem>
+        @* ════════════════════════════════════════════════════════════════════════
+           TAB 1: ACTIVE & USER VOICES
+           ════════════════════════════════════════════════════════════════════════ *@
+        <MudTabPanel Text="Active & User Voices" Icon="@Icons.Material.Filled.People">
+            <MudGrid>
+                @* ── User-assigned voices ── *@
+                <MudItem xs="12" lg="8">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">User Voices</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Specific voices assigned to individual Twitch viewers.
+                        </MudText>
+                        <MudTable Items="@UserRegisteredVoices" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Username</MudTh>
+                                <MudTh>Voice Name</MudTh>
+                                <MudTh>Sex</MudTh>
+                                <MudTh>Engine</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Username</MudTd>
+                                <MudTd>@context.Name</MudTd>
+                                <MudTd>@context.Sex</MudTd>
+                                <MudTd>
+                                    @switch (context.Type)
+                                    {
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Google:
+                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Cloud">Google</MudChip>
+                                            break;
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Kokoro:
+                                            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Filled.Memory">Kokoro</MudChip>
+                                            break;
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Piper:
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Bolt">Piper</MudChip>
+                                            break;
+                                        default:
+                                            <MudChip T="string" Color="Color.Default" Size="Size.Small">@context.Type</MudChip>
+                                            break;
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                        <MudTooltip Text="Preview Voice">
+                                            <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                           Color="Color.Info"
+                                                           Size="Size.Small"
+                                                           Disabled="@(_loadingPreviewVoiceName != null)"
+                                                           OnClick="() => Preview(context)" />
+                                        </MudTooltip>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                                                   @onclick="() => DeleteUserVoice(context)">
+                                            Delete
+                                        </MudButton>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
 
-        @* ── Registered (active) voices ── *@
-        <MudItem xs="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" Class="mb-2">Active Registered Voices</MudText>
-                <MudTable Items="@RegisteredVoices">
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Sex</MudTh>
-                        <MudTh>Type</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.Sex</MudTd>
-                        <MudTd>@context.Type</MudTd>
-                        <MudTd>
-                            <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
-                                <MudTooltip Text="Preview Voice">
-                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                                   Color="Color.Info"
-                                                   Size="Size.Small"
-                                                   Disabled="@(_loadingPreviewVoiceName != null)"
-                                                   OnClick="() => Preview(context)" />
-                                </MudTooltip>
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
-                                           @onclick="() => Delete(context)">
-                                    Delete
-                                </MudButton>
-                            </MudStack>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-
-        @* ── Available voices panel ── *@
-        <MudItem xs="6">
-            <MudPaper Elevation="2" Class="pa-4">
-
-                @* ─ Kokoro voices (always available, no button needed) ─ *@
-                <MudText Typo="Typo.h6" Class="mb-2">
-                    Kokoro Voices
-                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">Offline · No Cost</MudChip>
-                </MudText>
-
-                <MudTextField @bind-Value="KokoroFilter" Label="Filter voices" Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-2" />
-
-                <MudTable Items="@FilteredKokoroVoices" Dense="true">
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Language</MudTh>
-                        <MudTh>Sex</MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.LanguageCode</MudTd>
-                        <MudTd>@context.Sex</MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                       StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                       Disabled="@(_loadingPreviewVoiceName != null)"
-                                       OnClick="() => Preview(context)">
-                                @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
+                @* ── Assign voice to user ── *@
+                <MudItem xs="12" lg="4">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Assign Voice to User</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Select a voice from the library or active pool, then enter a username.
+                        </MudText>
+                        <EditForm Model="@customVoice" OnValidSubmit="OnSubmit">
+                            <MudTextField Label="Username" Required="true" @bind-Value="customVoice.Name" Class="mb-3" />
+                            @if(SelectedVoice == null)
+                            {
+                                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-3">
+                                    No voice selected. Click <strong>Select</strong> on any voice in the Voice Library.
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                                    Selected Voice: <strong>@SelectedVoice.Name</strong> (@SelectedVoice.Type)
+                                </MudAlert>
+                            }
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                       Class="mt-2" Disabled="@(SelectedVoice == null)">
+                                Assign Voice
                             </MudButton>
-                        </MudTd>
-                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
-                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
-                    </RowTemplate>
-                </MudTable>
+                        </EditForm>
+                    </MudPaper>
+                </MudItem>
 
-                <MudDivider Class="my-4" />
+                @* ── Registered (active) voices ── *@
+                <MudItem xs="12">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Active Registered Voices</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Voices active in the general pool for random selection or standard TTS alerts.
+                        </MudText>
+                        <MudTable Items="@RegisteredVoices" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Language</MudTh>
+                                <MudTh>Sex</MudTh>
+                                <MudTh>Engine</MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Name</MudTd>
+                                <MudTd>@context.LanguageCode</MudTd>
+                                <MudTd>@context.Sex</MudTd>
+                                <MudTd>
+                                    @switch (context.Type)
+                                    {
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Google:
+                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Cloud">Google</MudChip>
+                                            break;
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Kokoro:
+                                            <MudChip T="string" Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Filled.Memory">Kokoro</MudChip>
+                                            break;
+                                        case PenguinTwitchBot.Database.Bot.Models.BaseVoice.VoiceType.Piper:
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Bolt">Piper</MudChip>
+                                            break;
+                                        default:
+                                            <MudChip T="string" Color="Color.Default" Size="Size.Small">@context.Type</MudChip>
+                                            break;
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                        <MudTooltip Text="Preview Voice">
+                                            <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                           Color="Color.Info"
+                                                           Size="Size.Small"
+                                                           Disabled="@(_loadingPreviewVoiceName != null)"
+                                                           OnClick="() => Preview(context)" />
+                                        </MudTooltip>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                                                   @onclick="() => Delete(context)">
+                                            Delete
+                                        </MudButton>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
 
-                @* ─ Google voices (requires credentials, explicit load) ─ *@
-                <MudText Typo="Typo.h6" Class="mb-2">Google Voices</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           @onclick="LoadGoogleVoices"
-                           Disabled="@_loadingGoogle"
-                           Class="mb-2">
-                    @(_loadingGoogle ? "Loading…" : "Load Google Voices")
-                </MudButton>
+        @* ════════════════════════════════════════════════════════════════════════
+           TAB 2: VOICE LIBRARY
+           ════════════════════════════════════════════════════════════════════════ *@
+        <MudTabPanel Text="Voice Library" Icon="@Icons.Material.Filled.LibraryMusic">
+            <MudTabs Elevation="0" Rounded="false">
 
-                @if (GoogleVoices.Count > 0)
-                {
-                    <MudTable Items="@GoogleVoices" Dense="true">
+                @* ─ Kokoro Voices (Offline Neural) ─ *@
+                <MudTabPanel Text="Kokoro Voices (Local Neural)" Icon="@Icons.Material.Filled.Memory">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                        <div>
+                            <MudText Typo="Typo.h6">Kokoro Voices</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                High-quality local neural TTS (82M parameters). Capped to configured CPU threads.
+                            </MudText>
+                        </div>
+                        <MudSpacer />
+                        <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Icon="@Icons.Material.Filled.CheckCircle">Offline · Pre-bundled</MudChip>
+                    </MudStack>
+
+                    <MudTextField @bind-Value="KokoroFilter" Label="Filter Kokoro voices" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-3" />
+
+                    <MudTable Items="@FilteredKokoroVoices" Dense="true" Hover="true">
                         <HeaderContent>
                             <MudTh>Name</MudTh>
                             <MudTh>Language</MudTh>
@@ -180,33 +204,264 @@
                             <MudTd>@context.LanguageCode</MudTd>
                             <MudTd>@context.Sex</MudTd>
                             <MudTd>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                           StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                           Disabled="@(_loadingPreviewVoiceName != null)"
-                                           OnClick="() => Preview(context)">
-                                    @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
-                                </MudButton>
+                                <MudTooltip Text="Preview Voice">
+                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   Disabled="@(_loadingPreviewVoiceName != null)"
+                                                   OnClick="() => Preview(context)" />
+                                </MudTooltip>
                             </MudTd>
                             <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
                             <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
                         </RowTemplate>
                     </MudTable>
-                }
+                </MudTabPanel>
 
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+                @* ─ Piper Voices (Fast Lightweight Neural) ─ *@
+                <MudTabPanel Text="Piper Voices (Fast / Low CPU)" Icon="@Icons.Material.Filled.Bolt">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                        <div>
+                            <MudText Typo="Typo.h6">Piper Voices</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Fast, lightweight local neural TTS (VITS architecture). Low CPU footprint (~0.2s - 0.5s synthesis).
+                            </MudText>
+                        </div>
+                        <MudSpacer />
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Bolt">Fast & Low CPU · Auto-Downloads</MudChip>
+                    </MudStack>
+
+                    <MudTextField @bind-Value="PiperFilter" Label="Filter Piper voices" Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-3" />
+
+                    @if (_loadingPiper)
+                    {
+                        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+                    }
+                    else
+                    {
+                        <MudTable Items="@FilteredPiperVoices" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Voice Key</MudTh>
+                                <MudTh>Language</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh></MudTh>
+                                <MudTh></MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Name</MudTd>
+                                <MudTd>@context.LanguageCode</MudTd>
+                                <MudTd>
+                                    @if (!TTSService.IsPiperVoiceCompatible(context.Name))
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">Incompatible Model</MudChip>
+                                    }
+                                    else if (TTSService.IsPiperVoiceDownloaded(context.Name))
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.DownloadDone">Cached Locally</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Icon="@Icons.Material.Filled.CloudDownload">Auto-downloads on use</MudChip>
+                                    }
+                                </MudTd>
+                                <MudTd>
+                                    <MudTooltip Text="@(!TTSService.IsPiperVoiceCompatible(context.Name) ? "Voice model is incompatible with the Piper native engine" : "Preview Voice (Auto-downloads if needed)")">
+                                        <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       Disabled="@(_loadingPreviewVoiceName != null || !TTSService.IsPiperVoiceCompatible(context.Name))"
+                                                       OnClick="() => Preview(context)" />
+                                    </MudTooltip>
+                                </MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(!TTSService.IsPiperVoiceCompatible(context.Name))" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" Disabled="@(!TTSService.IsPiperVoiceCompatible(context.Name))" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudTabPanel>
+
+                @* ─ Google Voices (Cloud API) ─ *@
+                <MudTabPanel Text="Google Voices (Cloud)" Icon="@Icons.Material.Filled.Cloud">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                        <div>
+                            <MudText Typo="Typo.h6">Google Cloud Voices</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Cloud API speech synthesis (~0.5s - 1s). Uses 0% local CPU. Requires Google Cloud credentials.
+                            </MudText>
+                        </div>
+                        <MudSpacer />
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Icon="@Icons.Material.Filled.Cloud">Cloud API · 0% Local CPU</MudChip>
+                    </MudStack>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               @onclick="LoadGoogleVoices"
+                               Disabled="@_loadingGoogle"
+                               Class="mb-3">
+                        @(_loadingGoogle ? "Loading Google Voices…" : "Load Google Voices")
+                    </MudButton>
+
+                    @if (GoogleVoices.Count > 0)
+                    {
+                        <MudTable Items="@GoogleVoices" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Name</MudTh>
+                                <MudTh>Language</MudTh>
+                                <MudTh>Sex</MudTh>
+                                <MudTh></MudTh>
+                                <MudTh></MudTh>
+                                <MudTh></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Name</MudTd>
+                                <MudTd>@context.LanguageCode</MudTd>
+                                <MudTd>@context.Sex</MudTd>
+                                <MudTd>
+                                    <MudTooltip Text="Preview Voice">
+                                        <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                       Color="Color.Info"
+                                                       Size="Size.Small"
+                                                       Disabled="@(_loadingPreviewVoiceName != null)"
+                                                       OnClick="() => Preview(context)" />
+                                    </MudTooltip>
+                                </MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudTabPanel>
+
+            </MudTabs>
+        </MudTabPanel>
+
+        @* ════════════════════════════════════════════════════════════════════════
+           TAB 3: TTS SETTINGS & ENGINES
+           ════════════════════════════════════════════════════════════════════════ *@
+        <MudTabPanel Text="TTS Settings" Icon="@Icons.Material.Filled.Settings">
+            <MudGrid>
+                @* ── Engine comparison cards ── *@
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="2" Class="pa-4 h-100">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Memory" Color="Color.Secondary" />
+                                <MudText Typo="Typo.h6">Kokoro TTS</MudText>
+                            </MudStack>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary">Local Neural (82M params)</MudChip>
+                            <MudText Typo="Typo.body2">
+                                <strong>Speed:</strong> Moderate (~3-6s on CPU)<br />
+                                <strong>CPU Usage:</strong> High (Thread-capped)<br />
+                                <strong>Quality:</strong> Ultra-natural, human tone<br />
+                                <strong>Storage:</strong> Pre-bundled<br />
+                                <strong>Offline:</strong> 100% Offline
+                            </MudText>
+                        </MudStack>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="2" Class="pa-4 h-100">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Bolt" Color="Color.Success" />
+                                <MudText Typo="Typo.h6">Piper TTS</MudText>
+                            </MudStack>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success">Lightweight Local Neural (VITS)</MudChip>
+                            <MudText Typo="Typo.body2">
+                                <strong>Speed:</strong> Fast (~0.2s - 0.5s)<br />
+                                <strong>CPU Usage:</strong> Low (Edge-optimized)<br />
+                                <strong>Quality:</strong> Very Good / Natural<br />
+                                <strong>Storage:</strong> ~20MB per voice model<br />
+                                <strong>Offline:</strong> 100% Offline (Auto-downloads on demand)
+                            </MudText>
+                        </MudStack>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="4">
+                    <MudCard Elevation="2" Class="pa-4 h-100">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Cloud" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Google Cloud TTS</MudText>
+                            </MudStack>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary">Cloud API (TPU-powered)</MudChip>
+                            <MudText Typo="Typo.body2">
+                                <strong>Speed:</strong> Fast (~0.5s - 1s network latency)<br />
+                                <strong>CPU Usage:</strong> 0% Local CPU<br />
+                                <strong>Quality:</strong> Studio / Neural2 / Journey<br />
+                                <strong>Storage:</strong> 0 MB local storage<br />
+                                <strong>Offline:</strong> No (Requires Google credentials)
+                            </MudText>
+                        </MudStack>
+                    </MudCard>
+                </MudItem>
+
+                @* ── Kokoro CPU Thread Cap Settings ── *@
+                <MudItem xs="12" md="6">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Kokoro CPU Thread Cap</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Controls the maximum number of CPU worker threads used during Kokoro synthesis.
+                            Limiting threads prevents Kokoro from pegging 100% of all cores, keeping OBS encoding and games smooth.
+                        </MudText>
+
+                        <MudStack Spacing="3">
+                            <MudNumericField @bind-Value="_kokoroThreads"
+                                             Label="CPU Worker Threads"
+                                             Min="1"
+                                             Max="@Environment.ProcessorCount"
+                                             HelperText="@($"Allowed: 1 to {Environment.ProcessorCount} threads. Recommended: 2-4 threads.")"
+                                             Variant="Variant.Outlined" />
+
+                            <div>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveKokoroThreadsAsync"
+                                           Disabled="_savingThreads">
+                                    @(_savingThreads ? "Saving…" : "Save Thread Cap")
+                                </MudButton>
+                            </div>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+
+                @* ── Piper Information ── *@
+                <MudItem xs="12" md="6">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudText Typo="Typo.h6" Class="mb-2">Piper TTS Storage</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                            Piper stores its executable and downloaded voice models in <code>Data/piper/</code>.
+                            Voices are automatically downloaded on-demand when previewed or spoken, requiring zero manual setup.
+                        </MudText>
+                        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
+                            Self-contained in <code>Data/piper/</code> with on-demand caching.
+                        </MudAlert>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+    </MudTabs>
 </MudContainer>
 
 @code {
     private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> KokoroVoices { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> PiperVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> GoogleVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
     private PenguinTwitchBot.Database.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
     private CustomVoice customVoice { get; set; } = new();
     private string KokoroFilter { get; set; } = string.Empty;
+    private string PiperFilter { get; set; } = string.Empty;
     private bool _loadingGoogle;
+    private bool _loadingPiper;
+    private bool _savingThreads;
+    private int _kokoroThreads = 2;
     private string? _previewAudioUrl;
     private string? _rawPreviewUrl;
     private string? _previewVoiceName;
@@ -219,6 +474,13 @@
                 v.Name.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ||
                 (v.LanguageCode?.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ?? false));
 
+    private IEnumerable<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> FilteredPiperVoices =>
+        string.IsNullOrWhiteSpace(PiperFilter)
+            ? PiperVoices
+            : PiperVoices.Where(v =>
+                v.Name.Contains(PiperFilter, StringComparison.OrdinalIgnoreCase) ||
+                (v.LanguageCode?.Contains(PiperFilter, StringComparison.OrdinalIgnoreCase) ?? false));
+
     public class CustomVoice
     {
         public string Name { get; set; } = "";
@@ -226,16 +488,86 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Kokoro voices are pre-populated; Google voices loaded on demand.
-        KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
-        RegisteredVoices = await TTSService.GetRegisteredVoices();
-        UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        // 1. Always load database voices first so User and Registered voices are never blocked
+        try
+        {
+            RegisteredVoices = await TTSService.GetRegisteredVoices();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading registered voices: {ex.Message}", Severity.Error);
+        }
+
+        try
+        {
+            UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading user voices: {ex.Message}", Severity.Error);
+        }
+
+        // 2. Load available Kokoro voices
+        try
+        {
+            KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading Kokoro voices: {ex.Message}", Severity.Warning);
+        }
+
+        // 3. Load Piper voices
+        _loadingPiper = true;
+        try
+        {
+            PiperVoices = await TTSService.GetPiperVoices();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading Piper voices: {ex.Message}", Severity.Warning);
+        }
+        finally
+        {
+            _loadingPiper = false;
+        }
+
+        // 4. Load Kokoro thread setting
+        try
+        {
+            _kokoroThreads = await TTSService.GetKokoroThreads();
+        }
+        catch
+        {
+            _kokoroThreads = 2;
+        }
+
         await base.OnInitializedAsync();
+    }
+
+    private async Task SaveKokoroThreadsAsync()
+    {
+        _savingThreads = true;
+        StateHasChanged();
+        try
+        {
+            await TTSService.SetKokoroThreads(_kokoroThreads);
+            Snackbar.Add($"Kokoro CPU thread limit updated to {_kokoroThreads} threads.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving Kokoro thread limit: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _savingThreads = false;
+            StateHasChanged();
+        }
     }
 
     private bool _isDisposed;
 
-    private async Task Preview(RegisteredVoice voice)
+    private async Task Preview(PenguinTwitchBot.Database.Bot.Models.BaseVoice voice)
     {
         if (_isDisposed) return;
 
@@ -264,7 +596,7 @@
             }
             else
             {
-                Snackbar.Add($"Failed to generate preview for {voice.Name}.", Severity.Error);
+                Snackbar.Add($"Failed to generate preview for {voice.Name}. Check the logs for details.", Severity.Error);
             }
         }
         catch (Exception ex)
@@ -286,14 +618,12 @@
 
     private void OnPreviewEnded()
     {
-        // When audio finishes playing in browser, schedule deletion after a short grace period
-        // so replay still works if clicked immediately, but file doesn't linger
         var fileToDelete = _rawPreviewUrl;
         if (!string.IsNullOrEmpty(fileToDelete))
         {
             _ = Task.Run(async () =>
             {
-                await Task.Delay(15000); // 15 second grace period
+                await Task.Delay(15000);
                 if (_isDisposed) return;
 
                 if (_rawPreviewUrl == fileToDelete)
