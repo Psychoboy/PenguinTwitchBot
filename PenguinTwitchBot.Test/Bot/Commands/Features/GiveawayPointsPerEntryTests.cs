@@ -192,7 +192,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
                 // max/all resolves to 0 → "not enough" rejection
                 var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                     () => giveawayFeature.Enter(Sender, "max", fromUi: true));
-                Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
                 return;
             }
 
@@ -276,7 +276,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "2", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
             await pointsSystem.DidNotReceive()
                 .RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>());
         }
@@ -308,7 +308,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "3", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -324,7 +324,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "max", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -336,7 +336,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "1", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -348,7 +348,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "max", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -525,7 +525,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "max", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -538,7 +538,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             var ex = await Assert.ThrowsAsync<SkipCooldownException>(
                 () => giveawayFeature.Enter(Sender, "1", fromUi: true));
 
-            Assert.Contains("not enough", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not have enough", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         // ═══════════════════════════════════════════════════════════════════════════

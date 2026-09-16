@@ -13,35 +13,51 @@
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-4 stat-card" Elevation="2">
-    <MudStack Spacing="3">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Large" />
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Available @PointTypeName to spend</MudText>
-                <MudText Typo="Typo.h3" Color="Color.Warning">@userTickets</MudText>
-            </MudStack>
-        </MudStack>
-        @if (pointsPerEntry > 1)
-        {
-            <MudDivider />
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Info" Size="Size.Large" />
-                <MudStack Spacing="0">
-                    <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Max entries you can purchase</MudText>
-                    <MudText Typo="Typo.h3" Color="Color.Info">@maxAffordableEntries</MudText>
-                    <MudText Typo="Typo.caption" class="mud-contrast-text">(@pointsPerEntry @PointTypeName per entry — partial entries not allowed)</MudText>
+    @if (pointsPerEntry > 1)
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="4">
+                <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@userTickets</MudText>
+                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">@PointTypeName Available</MudText>
                 </MudStack>
-            </MudStack>
-        }
-        <MudDivider />
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Large" />
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.subtitle2" class="mud-contrast-text">@PointTypeName already entered in this giveaway</MudText>
-                <MudText Typo="Typo.h3" Color="Color.Success">@userEntries</MudText>
-            </MudStack>
-        </MudStack>
-    </MudStack>
+            </MudItem>
+            <MudItem xs="4">
+                <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Info" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Color="Color.Info">@maxAffordableEntries</MudText>
+                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Max Entries (@pointsPerEntry pts each)</MudText>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="4">
+                <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Color="Color.Success">@userEntries</MudText>
+                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Entries Entered</MudText>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    }
+    else
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="6">
+                <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.LocalActivity" Color="Color.Warning" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Color="Color.Warning">@userTickets</MudText>
+                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">@PointTypeName Available</MudText>
+                </MudStack>
+            </MudItem>
+            <MudItem xs="6">
+                <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Medium" />
+                    <MudText Typo="Typo.h5" Color="Color.Success">@userEntries</MudText>
+                    <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Already Entered</MudText>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    }
 </MudPaper>
 <MudPaper Class="pa-5" Elevation="3">
     <MudStack Spacing="3">
