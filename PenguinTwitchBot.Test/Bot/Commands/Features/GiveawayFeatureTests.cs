@@ -90,6 +90,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "help.enter", Arg.Any<string>()).Returns("To enter tickets, please use !enter AMOUNT/MAX/ALL");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.max", Arg.Any<string>()).Returns("Max entries is (maxallowed), so entering (amount) instead to max you out.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notvalid", Arg.Any<string>()).Returns("please use a number or max/all when entering.");
+
+            // Default pointsPerEntry = 1 (legacy 1:1 behaviour) so existing tests are unaffected
+            gameSettingsService.GetIntSetting(Arg.Any<string>(), "GiveawayPointsPerEntry", Arg.Any<int>()).Returns(1);
         }
 
 

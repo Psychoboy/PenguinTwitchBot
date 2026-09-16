@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 @inject PenguinTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
@@ -36,6 +37,36 @@
         <MudCardActions>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnPrizeSubmit" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">Reset Giveaway</MudButton>
+        </MudCardActions>
+    </MudCard>
+
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Entry Settings</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the point type used for giveaway entries and how many points each entry costs.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudSelect T="PointType" Label="Point Type" Value="SelectedPointType"
+                           ValueChanged="@((PointType pt) => SelectedPointType = pt)"
+                           ToStringFunc="@(pt => pt?.Name ?? "")"
+                           HelperText="Which point currency viewers spend to enter this giveaway."
+                           Variant="Variant.Outlined">
+                    @foreach (var pt in AvailablePointTypes)
+                    {
+                        <MudSelectItem Value="@pt" />
+                    }
+                </MudSelect>
+                <MudNumericField T="int" Label="Points Per Entry" @bind-Value="PointsPerEntry"
+                                 Min="1"
+                                 HelperText="@($"How many points equals 1 entry. E.g. with {PointsPerEntry} point(s) per entry, a viewer with 500 points can enter up to {500 / Math.Max(1, PointsPerEntry)} time(s). Partial entries are not allowed — always rounds down.")"
+                                 Variant="Variant.Outlined" />
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveEntrySettings" StartIcon="@Icons.Material.Filled.Save">Save Entry Settings</MudButton>
         </MudCardActions>
     </MudCard>
 
@@ -203,6 +234,9 @@
     private bool MonteCarloEnabled { get; set; }
     private int MonteCarloIterations { get; set; } = 100000;
     private List<PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport> MonteCarloReports { get; set; } = new();
+    private int PointsPerEntry { get; set; } = 1;
+    private IEnumerable<PointType> AvailablePointTypes { get; set; } = [];
+    private PointType? SelectedPointType { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -216,6 +250,9 @@
         PassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
         MonteCarloEnabled = await GiveawayFeature.GetMonteCarloFairnessEnabled();
         MonteCarloReports = (await GiveawayFeature.GetMonteCarloFairnessReports()).ToList();
+        PointsPerEntry = await GiveawayFeature.GetPointsPerEntry();
+        AvailablePointTypes = await PointSystem.GetPointTypes();
+        SelectedPointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
     }
 
     public async Task OnPrizeSubmit()
@@ -226,6 +263,14 @@
         await GiveawayFeature.SetPrizeTier(PrizeTier);
         await GiveawayFeature.SetPrizeAdditionalDetails(PrizeAdditionalDetails);
         Snackbar.Add("Giveaway saved.", Severity.Success);
+    }
+
+    public async Task SaveEntrySettings()
+    {
+        await GiveawayFeature.SetPointsPerEntry(PointsPerEntry);
+        if (SelectedPointType != null)
+            await PointSystem.SetPointTypeForGame("GiveawayFeature", SelectedPointType.GetId());
+        Snackbar.Add("Entry settings saved.", Severity.Success);
     }
 
     public async Task SaveRules()

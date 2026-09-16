@@ -39,5 +39,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
         Task UpdateWinner(GiveawayWinner winner);
         Task<string> Enter(string sender, string amount, bool fromUi);
         Task<long> GetEntriesCount(string sender);
+        Task<int> GetPointsPerEntry();
+        Task SetPointsPerEntry(int value);
     }
 }
