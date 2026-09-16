@@ -467,18 +467,21 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             throw new FileNotFoundException($"Piper ONNX model file not found at '{onnxPath}'.", onnxPath);
 
         if (File.Exists(configPath) && HasMultiCodepointPhonemes(configPath))
-            throw new InvalidOperationException($"Piper voice model '{modelKey}' is incompatible: it contains multi-codepoint phonemes.");
+            throw new InvalidOperationException($"Piper voice model '{modelKey}' is incompatible with the Piper native engine: it contains multi-codepoint phonemes in phoneme_id_map.");
 
         logger.LogInformation("Inferring Piper speech for voice '{ModelKey}'...", modelKey);
 
-        var startInfo = BuildPiperStartInfo(onnxPath, configPath);
-        var audioBytes = await RunPiperAsync(startInfo, message, modelKey);
+        // Write to a temp file instead of stdout to avoid Windows C-runtime text-mode
+        // translation which corrupts binary WAV data (\n → \r\n in the child process output).
+        var tempWavPath = Path.Combine(Path.GetTempPath(), $"piper_{Guid.NewGuid():N}.wav");
+        var startInfo = BuildPiperStartInfo(onnxPath, configPath, tempWavPath);
+        var audioBytes = await RunPiperAsync(startInfo, message, modelKey, tempWavPath);
 
         logger.LogInformation("Piper successfully synthesized {ByteCount} bytes for voice '{ModelKey}'.", audioBytes.Length, modelKey);
         return audioBytes;
     }
 
-    private ProcessStartInfo BuildPiperStartInfo(string onnxPath, string configPath)
+    private ProcessStartInfo BuildPiperStartInfo(string onnxPath, string configPath, string outputWavPath)
     {
         var workingDir = Path.GetDirectoryName(PiperExecutablePath) ?? PiperDirectory;
 
@@ -487,7 +490,6 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             FileName = PiperExecutablePath,
             WorkingDirectory = workingDir,
             RedirectStandardInput = true,
-            RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -502,7 +504,7 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             startInfo.ArgumentList.Add(configPath);
         }
         startInfo.ArgumentList.Add("-f");
-        startInfo.ArgumentList.Add("-");
+        startInfo.ArgumentList.Add(outputWavPath); // temp file avoids Windows text-mode stdout corruption
         startInfo.ArgumentList.Add("-q");
 
         // Ensure the runtime linker finds sibling native libraries (.so / .dylib)
@@ -522,52 +524,63 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             info.Environment[variable] = string.IsNullOrEmpty(existing) ? value : $"{value}{separator}{existing}";
     }
 
-    private async Task<byte[]> RunPiperAsync(ProcessStartInfo startInfo, string message, string modelKey)
+    private async Task<byte[]> RunPiperAsync(ProcessStartInfo startInfo, string message, string modelKey, string outputWavPath)
     {
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
-
-        using var outputMs = new MemoryStream();
-        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(outputMs);
-        var stderrTask = process.StandardError.ReadToEndAsync();
-
-        // Close stdin after writing so piper knows input is done
-        await process.StandardInput.WriteLineAsync(message);
-        process.StandardInput.Close();
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         try
         {
-            await process.WaitForExitAsync(cts.Token);
-            await Task.WhenAll(stdoutTask, stderrTask);
-        }
-        catch (OperationCanceledException)
-        {
-            try { process.Kill(entireProcessTree: true); } catch (Exception ex)
+            using var process = new Process { StartInfo = startInfo };
+            process.Start();
+
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            // Close stdin after writing so piper knows input is done
+            await process.StandardInput.WriteLineAsync(message);
+            process.StandardInput.Close();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            try
             {
-                logger.LogWarning(ex, "Failed to terminate timed out Piper process for voice '{ModelKey}'.", modelKey);
+                await process.WaitForExitAsync(cts.Token);
+                await stderrTask;
             }
-            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-            logger.LogError("Piper synthesis timed out after 60 seconds for voice '{ModelKey}'.", modelKey);
-            throw new TimeoutException($"Piper synthesis timed out for voice '{modelKey}'.");
-        }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(entireProcessTree: true); } catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to terminate timed out Piper process for voice '{ModelKey}'.", modelKey);
+                }
+                try { await stderrTask; } catch { /* Ignore drain errors on timeout */ }
+                logger.LogError("Piper synthesis timed out after 60 seconds for voice '{ModelKey}'.", modelKey);
+                throw new TimeoutException($"Piper synthesis timed out for voice '{modelKey}'.");
+            }
 
-        var stderr = stderrTask.Result;
-        if (process.ExitCode != 0)
+            var stderr = stderrTask.Result;
+            if (process.ExitCode != 0)
+            {
+                logger.LogError("Piper process exited with code {ExitCode} for voice '{ModelKey}'. Stderr: {Error}",
+                    process.ExitCode, modelKey, stderr.Trim());
+                throw new InvalidOperationException($"Piper process failed (exit {process.ExitCode}): {stderr.Trim()}");
+            }
+
+            if (!File.Exists(outputWavPath))
+            {
+                logger.LogError("Piper produced no output file for voice '{ModelKey}'. Stderr: {Error}", modelKey, stderr.Trim());
+                throw new InvalidOperationException($"Piper produced no output file: {stderr.Trim()}");
+            }
+
+            var audioBytes = await File.ReadAllBytesAsync(outputWavPath);
+            if (audioBytes.Length <= 44)
+            {
+                logger.LogError("Piper produced empty audio ({ByteCount} bytes) for voice '{ModelKey}'. Stderr: {Error}",
+                    audioBytes.Length, modelKey, stderr.Trim());
+                throw new InvalidOperationException($"Piper produced empty audio ({audioBytes.Length} bytes): {stderr.Trim()}");
+            }
+
+            return audioBytes;
+        }
+        finally
         {
-            logger.LogError("Piper process exited with code {ExitCode} for voice '{ModelKey}'. Stderr: {Error}",
-                process.ExitCode, modelKey, stderr.Trim());
-            throw new InvalidOperationException($"Piper process failed (exit {process.ExitCode}): {stderr.Trim()}");
+            try { File.Delete(outputWavPath); } catch { /* best-effort cleanup */ }
         }
-
-        var audioBytes = outputMs.ToArray();
-        if (audioBytes.Length <= 44)
-        {
-            logger.LogError("Piper produced empty audio ({ByteCount} bytes) for voice '{ModelKey}'. Stderr: {Error}",
-                audioBytes.Length, modelKey, stderr.Trim());
-            throw new InvalidOperationException($"Piper produced empty audio ({audioBytes.Length} bytes): {stderr.Trim()}");
-        }
-
-        return audioBytes;
     }
 }
