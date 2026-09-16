@@ -251,8 +251,14 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 var instance = await GetOrInitKokoroInstanceAsync();
                 if (instance is null || !instance.TryEnter())
                 {
-                    logger.LogError("Kokoro synthesizer could not be initialized or acquired; skipping TTS.");
-                    return string.Empty;
+                    // Instance may have been retired during a concurrent settings reload.
+                    // Retry once to pick up the fresh replacement.
+                    instance = await GetOrInitKokoroInstanceAsync();
+                    if (instance is null || !instance.TryEnter())
+                    {
+                        logger.LogError("Kokoro synthesizer could not be initialized or acquired; skipping TTS.");
+                        return string.Empty;
+                    }
                 }
 
                 try
