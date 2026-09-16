@@ -7,7 +7,8 @@ namespace PenguinTwitchBot.Database.Bot.Models
         public enum VoiceType
         {
             Windows,
-            Google
+            Google,
+            Kokoro
         }
 
         public enum SexType

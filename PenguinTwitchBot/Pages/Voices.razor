@@ -6,6 +6,7 @@
 
 <MudContainer MaxWidth="MaxWidth.False">
     <MudGrid>
+        @* ── User-assigned voices ── *@
         <MudItem xs="8">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudTable Items="@UserRegisteredVoices">
@@ -31,6 +32,8 @@
                 </MudTable>
             </MudPaper>
         </MudItem>
+
+        @* ── Assign voice to user ── *@
         <MudItem xs="4">
             <MudCard>
                 <MudPaper Elevation="2" Class="pa-4">
@@ -51,6 +54,8 @@
                 </MudPaper>
             </MudCard>
         </MudItem>
+
+        @* ── Registered (active) voices ── *@
         <MudItem xs="6">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudTable Items="@RegisteredVoices">
@@ -74,36 +79,89 @@
                     </MudTable>
                 </MudPaper>
             </MudItem>
+
+        @* ── Available voices panel ── *@
         <MudItem xs="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => ReloadVoices()">Load Voices</MudButton>
-                <MudTable Items="@AvailableVoices">
+
+                @* ─ Kokoro voices (always available, no button needed) ─ *@
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    Kokoro Voices
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">Offline · No Cost</MudChip>
+                </MudText>
+
+                <MudTextField @bind-Value="KokoroFilter" Label="Filter" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-2" />
+
+                <MudTable Items="@FilteredKokoroVoices" Dense="true">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
+                        <MudTh>Language</MudTh>
                         <MudTh>Sex</MudTh>
-                        <MudTh>Type</MudTh>
                         <MudTh></MudTh>
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.LanguageCode</MudTd>
                         <MudTd>@context.Sex</MudTd>
-                        <MudTh>@context.Type</MudTh>
-                        <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddVoice(context)">Add</MudButton></MudTh>
-                            <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => SelectVoice(context)">Select</MudButton></MudTh>
+                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
+
+                <MudDivider Class="my-4" />
+
+                @* ─ Google voices (requires credentials, explicit load) ─ *@
+                <MudText Typo="Typo.h6" Class="mb-2">Google Voices</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           @onclick="LoadGoogleVoices"
+                           Disabled="@_loadingGoogle"
+                           Class="mb-2">
+                    @(_loadingGoogle ? "Loading…" : "Load Google Voices")
+                </MudButton>
+
+                @if (GoogleVoices.Count > 0)
+                {
+                    <MudTable Items="@GoogleVoices" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Language</MudTh>
+                            <MudTh>Sex</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Name</MudTd>
+                            <MudTd>@context.LanguageCode</MudTd>
+                            <MudTd>@context.Sex</MudTd>
+                            <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                            <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+
             </MudPaper>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
-    @code {
-    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> AvailableVoices { get; set; } = new();
+@code {
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> KokoroVoices { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> GoogleVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
     private PenguinTwitchBot.Database.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
     private CustomVoice customVoice { get; set; } = new();
+    private string KokoroFilter { get; set; } = string.Empty;
+    private bool _loadingGoogle;
+
+    private IEnumerable<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> FilteredKokoroVoices =>
+        string.IsNullOrWhiteSpace(KokoroFilter)
+            ? KokoroVoices
+            : KokoroVoices.Where(v =>
+                v.Name.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ||
+                (v.LanguageCode?.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ?? false));
 
     public class CustomVoice
     {
@@ -112,14 +170,22 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Kokoro voices are pre-populated; Google voices loaded on demand.
+        KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
         RegisteredVoices = await TTSService.GetRegisteredVoices();
         UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
         await base.OnInitializedAsync();
     }
 
-    private async Task ReloadVoices()
+    private async Task LoadGoogleVoices()
     {
-        AvailableVoices = await TTSService.GetAllVoices();
+        _loadingGoogle = true;
+        StateHasChanged();
+        var all = await TTSService.GetAllVoices(includeGoogle: true);
+        GoogleVoices = all
+            .Where(v => v.Type == PenguinTwitchBot.Database.Bot.Models.RegisteredVoice.VoiceType.Google)
+            .ToList();
+        _loadingGoogle = false;
         StateHasChanged();
     }
 

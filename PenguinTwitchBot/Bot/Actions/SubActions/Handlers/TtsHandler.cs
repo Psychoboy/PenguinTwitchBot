@@ -22,15 +22,16 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var message = VariableReplacer.ReplaceVariables(ttsType.Text, variables);
-            RegisteredVoice voice;
-            if (string.IsNullOrEmpty(ttsType.Name))
-            {
-                voice = await ttsService.GetRandomVoice();
-            } else
+
+            // Resolve the user-specific voice if a name was provided; otherwise pass null and let
+            // SayMessage pick a registered voice (or fall back to the system-locale default).
+            RegisteredVoice? voice = null;
+            if (!string.IsNullOrEmpty(ttsType.Name))
             {
                 var name = VariableReplacer.ReplaceVariables(ttsType.Name, variables);
                 voice = await ttsService.GetRandomVoice(name);
             }
+
             await ttsService.SayMessage(voice, message);
         }
     }
