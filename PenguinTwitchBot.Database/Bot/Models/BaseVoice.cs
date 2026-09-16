@@ -10,7 +10,8 @@ namespace PenguinTwitchBot.Database.Bot.Models
         {
             Windows,
             Google,
-            Kokoro
+            Kokoro,
+            Piper
         }
 
         public enum SexType

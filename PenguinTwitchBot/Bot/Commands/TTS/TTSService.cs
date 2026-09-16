@@ -19,7 +19,9 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         IServiceScopeFactory scopeFactory,
         Application.Notifications.IPenguinDispatcher dispatcher,
         IWebHostEnvironment environment,
-        ITTSPlayerService ttsPlayerService
+        ITTSPlayerService ttsPlayerService,
+        IPiperService piperService,
+        PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         /// <summary>
@@ -382,5 +384,42 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     _   => RegisteredVoice.SexType.None
                 }
                 : RegisteredVoice.SexType.None;
+
+        // ─── Piper TTS Catalogue & Methods ────────────────────────────────────────
+
+        public async Task<List<RegisteredVoice>> GetPiperVoices()
+        {
+            var pVoices = await piperService.GetVoicesAsync();
+            return pVoices.Select(p => new RegisteredVoice
+            {
+                Type = BaseVoice.VoiceType.Piper,
+                Name = p.Key,
+                LanguageCode = p.LanguageCode,
+                Sex = p.Sex
+            }).ToList();
+        }
+
+        public async Task<bool> DownloadPiperVoice(string modelKey)
+        {
+            return await piperService.DownloadVoiceAsync(modelKey);
+        }
+
+        public bool IsPiperVoiceDownloaded(string modelKey)
+        {
+            return piperService.IsModelDownloaded(modelKey);
+        }
+
+        // ─── Kokoro Thread Settings ───────────────────────────────────────────────
+
+        public async Task<int> GetKokoroThreads()
+        {
+            return await ttsSettingsService.GetKokoroThreadsAsync(2);
+        }
+
+        public async Task SetKokoroThreads(int threads)
+        {
+            await ttsSettingsService.SetKokoroThreadsAsync(threads);
+            await ttsPlayerService.ReloadKokoroSettingsAsync();
+        }
     }
 }

@@ -532,3 +532,4 @@ PenguinTwitchBot/wwwroot/audio/*
 PenguinTwitchBot/wwwroot/gifs/*
 PenguinTwitchBot/vetoed.txt
 PenguinTwitchBot/kokoro.onnx
+PenguinTwitchBot/Data/piper/*

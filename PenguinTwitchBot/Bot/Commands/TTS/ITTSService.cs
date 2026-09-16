@@ -27,5 +27,10 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         void DeleteTTSFile(string fileNameOrRelativeUrl);
         Task<BaseVoice?> GetRandomVoice();
         Task<BaseVoice?> GetRandomVoice(string name);
+        Task<List<RegisteredVoice>> GetPiperVoices();
+        Task<bool> DownloadPiperVoice(string modelKey);
+        bool IsPiperVoiceDownloaded(string modelKey);
+        Task<int> GetKokoroThreads();
+        Task SetKokoroThreads(int threads);
     }
 }
