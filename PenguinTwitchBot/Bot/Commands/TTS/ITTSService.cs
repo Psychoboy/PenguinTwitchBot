@@ -23,6 +23,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         Task<List<UserRegisteredVoice>> GetUserRegisteredVoices(string username);
         Task<List<UserRegisteredVoice>> GetUserRegisteredVoices();
         Task SayMessage(RegisteredVoice? voice, string message);
+        Task<string> PreviewVoice(RegisteredVoice voice);
+        void DeleteTTSFile(string fileNameOrRelativeUrl);
         Task<RegisteredVoice> GetRandomVoice();
         Task<RegisteredVoice> GetRandomVoice(string name);
     }

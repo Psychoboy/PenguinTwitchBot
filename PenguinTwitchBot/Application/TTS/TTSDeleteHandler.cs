@@ -1,4 +1,4 @@
-﻿
+
 namespace PenguinTwitchBot.Application.TTS
 {
 #pragma warning disable S101 // Types should be named in PascalCase
@@ -11,14 +11,27 @@ namespace PenguinTwitchBot.Application.TTS
             var fileParts = data.Split(":");
             if (fileParts.Length > 1)
             {
-                var fileName = fileParts[1];
-                if (File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
-                {
-                    logger.LogInformation("Deleting TTS File {filename}", fileName);
-                    File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
-                }
+                var fileName = fileParts[1].Trim();
+                DeleteFileIfExists("wwwroot/tts/" + fileName + ".mp3");
+                DeleteFileIfExists("wwwroot/tts/" + fileName + ".wav");
             }
             return Task.CompletedTask;
+        }
+
+        private void DeleteFileIfExists(string path)
+        {
+            if (File.Exists(path))
+            {
+                logger.LogInformation("Deleting TTS File {Path}", path);
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete TTS file {Path}", path);
+                }
+            }
         }
     }
 }

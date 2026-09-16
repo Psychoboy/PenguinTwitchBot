@@ -23,6 +23,10 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             {
                 Directory.CreateDirectory("wwwroot/tts/");
             }
+
+            // Clean up any old orphaned TTS files older than 15 minutes
+            CleanupOldTTSFiles(TimeSpan.FromMinutes(15));
+
             switch (request.RegisteredVoice.Type)
             {
                 case RegisteredVoice.VoiceType.Google:
@@ -41,6 +45,65 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 default:
                     logger.LogWarning("Invalid VoiceType: {VoiceType}", request.RegisteredVoice.Type);
                     return string.Empty;
+            }
+        }
+
+        public void DeleteTTSFile(string fileNameOrRelativeUrl)
+        {
+            if (string.IsNullOrWhiteSpace(fileNameOrRelativeUrl)) return;
+            try
+            {
+                var cleanName = Path.GetFileName(fileNameOrRelativeUrl.Split('?')[0]);
+                var baseName = Path.GetFileNameWithoutExtension(cleanName);
+                var wavPath = Path.Combine("wwwroot", "tts", baseName + ".wav");
+                var mp3Path = Path.Combine("wwwroot", "tts", baseName + ".mp3");
+
+                if (File.Exists(wavPath))
+                {
+                    logger.LogInformation("Deleting TTS file: {Path}", wavPath);
+                    File.Delete(wavPath);
+                }
+                if (File.Exists(mp3Path))
+                {
+                    logger.LogInformation("Deleting TTS file: {Path}", mp3Path);
+                    File.Delete(mp3Path);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to delete TTS file {FileName}", fileNameOrRelativeUrl);
+            }
+        }
+
+        public void CleanupOldTTSFiles(TimeSpan maxAge)
+        {
+            try
+            {
+                const string dir = "wwwroot/tts/";
+                if (!Directory.Exists(dir)) return;
+
+                var cutoff = DateTime.UtcNow - maxAge;
+                var files = Directory.GetFiles(dir);
+                foreach (var file in files)
+                {
+                    var fi = new FileInfo(file);
+                    if (fi.CreationTimeUtc < cutoff && fi.LastWriteTimeUtc < cutoff)
+                    {
+                        try
+                        {
+                            logger.LogInformation("Cleaning up expired TTS file: {FileName}", fi.Name);
+                            fi.Delete();
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogDebug(ex, "Could not delete expired TTS file {FileName}", fi.Name);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error during TTS cleanup");
             }
         }
 

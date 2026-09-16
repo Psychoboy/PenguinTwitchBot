@@ -18,7 +18,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         ILogger<TTSService> logger,
         IServiceScopeFactory scopeFactory,
         Application.Notifications.IPenguinDispatcher dispatcher,
-        IWebHostEnvironment environment
+        IWebHostEnvironment environment,
+        ITTSPlayerService ttsPlayerService
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         /// <summary>
@@ -72,6 +73,36 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 RegisteredVoice = voice
             };
             await dispatcher.Publish(new TTSCreateNotification(request));
+        }
+
+        public async Task<string> PreviewVoice(RegisteredVoice voice)
+        {
+            var previewText = $"This is a preview of the {voice.Name} voice.";
+            var request = new TTSRequest
+            {
+                Message = previewText,
+                RegisteredVoice = voice
+            };
+
+            var fileName = await ttsPlayerService.CreateTTSFile(request);
+            if (string.IsNullOrEmpty(fileName)) return string.Empty;
+
+            if (File.Exists(Path.Combine("wwwroot", "tts", $"{fileName}.wav")))
+            {
+                return $"/tts/{fileName}.wav";
+            }
+
+            if (File.Exists(Path.Combine("wwwroot", "tts", $"{fileName}.mp3")))
+            {
+                return $"/tts/{fileName}.mp3";
+            }
+
+            return $"/tts/{fileName}";
+        }
+
+        public void DeleteTTSFile(string fileNameOrRelativeUrl)
+        {
+            ttsPlayerService.DeleteTTSFile(fileNameOrRelativeUrl);
         }
 
         public async Task<RegisteredVoice> GetRandomVoice()
