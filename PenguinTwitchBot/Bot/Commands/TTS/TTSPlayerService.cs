@@ -220,24 +220,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     "Initializing Kokoro TTS engine (first use). " +
                     "If the model has not been downloaded yet this may take a moment.");
 
-                var localModelCandidates = new[]
-                {
-                    Path.Combine(AppContext.BaseDirectory, "models", "kokoro.onnx"),
-                    Path.Combine(AppContext.BaseDirectory, "kokoro.onnx"),
-                    "models/kokoro.onnx",
-                    "kokoro.onnx"
-                };
-
-                var localModel = localModelCandidates.FirstOrDefault(File.Exists);
-                if (localModel != null)
-                {
-                    logger.LogInformation("Loading provisioned local Kokoro model from '{ModelPath}'.", localModel);
-                    _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel(localModel));
-                }
-                else
-                {
-                    _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel());
-                }
+               _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel());
+                
                 logger.LogInformation("Kokoro TTS engine ready.");
                 return _kokoroSynth;
             }
