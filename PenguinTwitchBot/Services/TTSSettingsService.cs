@@ -15,14 +15,6 @@ public class TTSSettingsService(IServiceScopeFactory scopeFactory) : ITTSSetting
         var setting = (await db.Settings.GetAsync(x => x.Name == KokoroThreadsSettingName)).FirstOrDefault();
         if (setting == null)
         {
-            var newSetting = new Setting
-            {
-                Name = KokoroThreadsSettingName,
-                DataType = Setting.DataTypeEnum.Int,
-                IntSetting = defaultValue
-            };
-            await db.Settings.AddAsync(newSetting);
-            await db.SaveChangesAsync();
             return defaultValue;
         }
 

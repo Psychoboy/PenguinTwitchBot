@@ -34,8 +34,8 @@ namespace PenguinTwitchBot.Test.Services
 
             // Assert
             Assert.Equal(4, result);
-            await settingsRepo.Received(1).AddAsync(Arg.Is<Setting>(s => s.Name == "KokoroThreads" && s.IntSetting == 4));
-            await unitOfWork.Received(1).SaveChangesAsync();
+            await settingsRepo.DidNotReceiveWithAnyArgs().AddAsync(default!);
+            await unitOfWork.DidNotReceiveWithAnyArgs().SaveChangesAsync();
         }
 
         [Fact]
