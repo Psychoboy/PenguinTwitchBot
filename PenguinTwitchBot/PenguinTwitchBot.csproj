@@ -116,4 +116,15 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="voices\voices-zh\**" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+    <None Update="voices\voices-zh\**" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+  <Target Name="ExcludeKokoroZhVoices" BeforeTargets="GenerateSingleFileBundle;ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Replace('\', '/').StartsWith('voices/voices-zh/'))" />
+    </ItemGroup>
+  </Target>
+
 </Project>
