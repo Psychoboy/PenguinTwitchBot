@@ -23,7 +23,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var message = VariableReplacer.ReplaceVariables(ttsType.Text, variables);
 
-            RegisteredVoice? voice;
+            BaseVoice? voice;
             if (string.IsNullOrEmpty(ttsType.Name))
             {
                 voice = await ttsService.GetRandomVoice();

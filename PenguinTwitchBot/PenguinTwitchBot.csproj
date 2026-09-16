@@ -116,4 +116,11 @@
     </Content>
   </ItemGroup>
 
+  <Target Name="CopyKokoroVoicesToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <KokoroPublishFiles Include="$(TargetDir)voices\**\*" Exclude="$(TargetDir)voices\voices-zh\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(KokoroPublishFiles)" DestinationFiles="@(KokoroPublishFiles->'$(PublishDir)voices\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

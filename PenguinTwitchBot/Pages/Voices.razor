@@ -141,12 +141,13 @@
                         <MudTd>@context.LanguageCode</MudTd>
                         <MudTd>@context.Sex</MudTd>
                         <MudTd>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                       StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                       Disabled="@(_loadingPreviewVoiceName != null)"
-                                       OnClick="() => Preview(context)">
-                                @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
-                            </MudButton>
+                            <MudTooltip Text="Preview Voice">
+                                <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                               Color="Color.Info"
+                                               Size="Size.Small"
+                                               Disabled="@(_loadingPreviewVoiceName != null)"
+                                               OnClick="() => Preview(context)" />
+                            </MudTooltip>
                         </MudTd>
                         <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
                         <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
@@ -180,12 +181,13 @@
                             <MudTd>@context.LanguageCode</MudTd>
                             <MudTd>@context.Sex</MudTd>
                             <MudTd>
-                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
-                                           StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
-                                           Disabled="@(_loadingPreviewVoiceName != null)"
-                                           OnClick="() => Preview(context)">
-                                    @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
-                                </MudButton>
+                                <MudTooltip Text="Preview Voice">
+                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   Disabled="@(_loadingPreviewVoiceName != null)"
+                                                   OnClick="() => Preview(context)" />
+                                </MudTooltip>
                             </MudTd>
                             <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
                             <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
@@ -226,16 +228,41 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Kokoro voices are pre-populated; Google voices loaded on demand.
-        KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
-        RegisteredVoices = await TTSService.GetRegisteredVoices();
-        UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        // 1. Always load database voices first so User and Registered voices are never blocked
+        try
+        {
+            RegisteredVoices = await TTSService.GetRegisteredVoices();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading registered voices: {ex.Message}", Severity.Error);
+        }
+
+        try
+        {
+            UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading user voices: {ex.Message}", Severity.Error);
+        }
+
+        // 2. Load available Kokoro voices
+        try
+        {
+            KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading Kokoro voices: {ex.Message}", Severity.Warning);
+        }
+
         await base.OnInitializedAsync();
     }
 
     private bool _isDisposed;
 
-    private async Task Preview(RegisteredVoice voice)
+    private async Task Preview(PenguinTwitchBot.Database.Bot.Models.BaseVoice voice)
     {
         if (_isDisposed) return;
 
