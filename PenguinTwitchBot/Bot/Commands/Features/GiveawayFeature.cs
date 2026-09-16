@@ -350,7 +350,8 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
         public async Task<int> GetPointsPerEntry()
         {
-            return await gameSettingsService.GetIntSetting(ModuleName, GiveawayPointsPerEntrySettingName, 1);
+            var value = await gameSettingsService.GetIntSetting(ModuleName, GiveawayPointsPerEntrySettingName, 1);
+            return Math.Max(1, value);
         }
 
         public async Task SetPointsPerEntry(int value)
@@ -839,7 +840,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             var displayName = await viewerFeature.GetDisplayNameByUsername(sender);
             if (!Int32.TryParse(amount, out var entries))
             {
-                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering."); //language.Get("giveawayfeature.enter.notvalid");
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notvalid", "please use a number or max/all when entering.");
                 if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                 throw new SkipCooldownException(message);
@@ -847,7 +848,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             if (entries < 0)
             {
-                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb."); //language.Get("giveawayfeature.enter.minus");
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.minus", "don't be dumb.");
                 await ServiceBackbone.SendChatMessage(displayName, message);
                 throw new SkipCooldownException(message);
             }
@@ -857,7 +858,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             if (entries == 0 || pointCost > viewerPoints)
             {
-                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter."); //language.Get("giveawayfeature.enter.notenough");
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.notenough", "you do not have enough or that many tickets to enter.");
                 if (!fromUi) await ServiceBackbone.SendChatMessage(displayName, message);
 
                 throw new SkipCooldownException(message);
@@ -865,7 +866,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
 
             if (!(await pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, ModuleName, pointCost)))
             {
-                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again."); //language.Get("giveawayfeature.enter.failure");
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.failure", "failed to enter giveaway. Please try again.");
                 if (!fromUi)
                 {
                     await ServiceBackbone.SendChatMessage(displayName, message);
@@ -888,7 +889,7 @@ namespace PenguinTwitchBot.Bot.Commands.Features
             }
             NumberOfTicketsEntered.WithLabels(sender).Inc(entries);
             {
-                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries."); //language.Get("giveawayfeature.enter.success");
+                var message = await gameSettingsService.GetStringSetting(ModuleName, "enter.success", "you have bought (amount) entries.");
                 message = message.Replace("(amount)", entries.ToString("N0"), StringComparison.OrdinalIgnoreCase);
                 if (!fromUi) await ServiceBackbone.SendChatMessage(sender, message);
                 return message;
