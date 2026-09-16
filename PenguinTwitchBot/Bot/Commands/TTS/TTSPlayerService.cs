@@ -18,6 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
         private sealed class KokoroInstance : IDisposable
         {
+            private readonly object _lock = new();
             public KokoroWavSynthesizer Synthesizer { get; }
             private int _activeOperations;
             private bool _isRetired;
@@ -29,7 +30,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
             public bool TryEnter()
             {
-                lock (this)
+                lock (_lock)
                 {
                     if (_isRetired) return false;
                     _activeOperations++;
@@ -40,7 +41,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             public void Exit()
             {
                 bool shouldDispose = false;
-                lock (this)
+                lock (_lock)
                 {
                     _activeOperations--;
                     if (_isRetired && _activeOperations <= 0)
@@ -50,14 +51,14 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 }
                 if (shouldDispose)
                 {
-                    try { Synthesizer.Dispose(); } catch { }
+                    DisposeSynthesizer();
                 }
             }
 
             public void Retire()
             {
                 bool shouldDispose = false;
-                lock (this)
+                lock (_lock)
                 {
                     _isRetired = true;
                     if (_activeOperations <= 0)
@@ -67,7 +68,19 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 }
                 if (shouldDispose)
                 {
-                    try { Synthesizer.Dispose(); } catch { }
+                    DisposeSynthesizer();
+                }
+            }
+
+            private void DisposeSynthesizer()
+            {
+                try
+                {
+                    Synthesizer.Dispose();
+                }
+                catch (Exception)
+                {
+                    // Synthesizer disposal is best-effort upon instance retirement
                 }
             }
 
@@ -283,6 +296,12 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             {
                 logger.LogInformation("Starting to compile Piper voice: {ModelKey}", modelKey);
                 var audioBytes = await piperService.SynthesizeAsync(message, modelKey);
+
+                if (audioBytes == null || audioBytes.Length <= 44)
+                {
+                    logger.LogError("Piper synthesis failed: audio data is empty or invalid ({Length} bytes) for voice '{ModelKey}'.", audioBytes?.Length ?? 0, modelKey);
+                    return string.Empty;
+                }
 
                 var fileName = Guid.NewGuid().ToString();
                 var filePath = Path.Combine("wwwroot", "tts", $"{fileName}.wav");

@@ -30,6 +30,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         Task<List<RegisteredVoice>> GetPiperVoices();
         Task<bool> DownloadPiperVoice(string modelKey);
         bool IsPiperVoiceDownloaded(string modelKey);
+        bool IsPiperVoiceCompatible(string modelKey);
         Task<int> GetKokoroThreads();
         Task SetKokoroThreads(int threads);
     }

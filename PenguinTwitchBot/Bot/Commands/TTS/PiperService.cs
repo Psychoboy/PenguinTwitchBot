@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using PenguinTwitchBot.Database.Bot.Models;
 using PiperSharp;
@@ -118,7 +120,15 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             var subDir = Path.Combine(PiperDirectory, "piper");
             if (Directory.Exists(subDir))
             {
-                try { Directory.Delete(subDir, recursive: true); } catch { }
+                try
+                {
+                    Directory.Delete(subDir, recursive: true);
+                }
+                catch (Exception ex)
+                {
+                    // Best-effort cleanup of incomplete extraction directory
+                    logger.LogWarning(ex, "Failed to clean up temporary directory '{Directory}' before extraction.", subDir);
+                }
             }
 
             logger.LogInformation("Downloading Piper executable (version {Version}) to {Directory}...", PinnedPiperReleaseVersion, PiperDirectory);
@@ -200,6 +210,13 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
     private static string GetModelDirectory(string modelKey)
     {
         var nestedDir = Path.Combine(PiperModelsDirectory, modelKey);
+        if (Directory.Exists(nestedDir) &&
+            (File.Exists(Path.Combine(nestedDir, $"{modelKey}.onnx")) ||
+             File.Exists(Path.Combine(nestedDir, $"{modelKey}.onnx.json"))))
+        {
+            return nestedDir;
+        }
+
         if (IsValidModelBundle(nestedDir, modelKey))
         {
             return nestedDir;
@@ -213,6 +230,45 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
         if (IsValidModelBundle(nestedDir, modelKey)) return true;
 
         if (IsValidModelBundle(PiperModelsDirectory, modelKey)) return true;
+
+        return false;
+    }
+
+    public bool IsModelCompatible(string modelKey)
+    {
+        var modelDir = GetModelDirectory(modelKey);
+        var configPath = Path.Combine(modelDir, $"{modelKey}.onnx.json");
+        if (File.Exists(configPath) && HasMultiCodepointPhonemes(configPath))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    internal static bool HasMultiCodepointPhonemes(string onnxJsonPath)
+    {
+        if (!File.Exists(onnxJsonPath)) return false;
+
+        try
+        {
+            using var stream = File.OpenRead(onnxJsonPath);
+            using var doc = JsonDocument.Parse(stream);
+            if (doc.RootElement.TryGetProperty("phoneme_id_map", out var map) &&
+                map.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in map.EnumerateObject())
+                {
+                    if (prop.Name.EnumerateRunes().Count() > 1)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parse errors here so caller can handle missing or invalid files
+        }
 
         return false;
     }
@@ -303,9 +359,9 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
             if (hfModels != null && hfModels.Count > 0)
             {
                 var voices = new List<PiperVoiceInfo>();
-                foreach (var (key, model) in hfModels)
+                foreach (var (key, _) in hfModels)
                 {
-                    voices.Add(ParseModelKey(key, model));
+                    voices.Add(ParseModelKey(key));
                 }
 
                 // Save to cache
@@ -345,13 +401,13 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
 
         foreach (var key in fallbackKeys)
         {
-            fallbackVoices.Add(ParseModelKey(key, null));
+            fallbackVoices.Add(ParseModelKey(key));
         }
 
         return fallbackVoices;
     }
 
-    private PiperVoiceInfo ParseModelKey(string key, VoiceModel? model)
+    private PiperVoiceInfo ParseModelKey(string key)
     {
         // Key format: {language}_{region}-{name}-{quality}
         // e.g. en_US-lessac-medium
@@ -376,34 +432,159 @@ public class PiperService(ILogger<PiperService> logger) : IPiperService
 
     public async Task<byte[]> SynthesizeAsync(string message, string modelKey)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+
         var execReady = await EnsurePiperExecutableAsync();
         if (!execReady)
         {
+            logger.LogError("Piper synthesis failed: Piper executable could not be initialized.");
             throw new InvalidOperationException("Piper executable could not be initialized.");
         }
 
         var downloaded = await DownloadVoiceAsync(modelKey);
         if (!downloaded)
         {
+            logger.LogError("Piper synthesis failed: voice model '{ModelKey}' is not available.", modelKey);
             throw new InvalidOperationException($"Piper voice model '{modelKey}' is not available.");
         }
 
-        if (!_loadedModels.TryGetValue(modelKey, out var model))
+        var modelDir = GetModelDirectory(modelKey);
+        var onnxPath = Path.Combine(modelDir, $"{modelKey}.onnx");
+        var configPath = Path.Combine(modelDir, $"{modelKey}.onnx.json");
+
+        if (!File.Exists(onnxPath))
         {
-            var modelDir = GetModelDirectory(modelKey);
-            model = await VoiceModel.LoadModel(modelDir);
-            _loadedModels[modelKey] = model;
+            logger.LogError("Piper ONNX model file not found at '{Path}' for voice '{ModelKey}'.", onnxPath, modelKey);
+            throw new FileNotFoundException($"Piper ONNX model file not found at '{onnxPath}'.", onnxPath);
+        }
+
+        if (File.Exists(configPath) && HasMultiCodepointPhonemes(configPath))
+        {
+            logger.LogError("Piper voice model '{ModelKey}' contains multi-codepoint phonemes in phoneme_id_map and is incompatible with the Piper native engine.", modelKey);
+            throw new InvalidOperationException($"Piper voice model '{modelKey}' is incompatible with the Piper native engine: it contains multi-codepoint phonemes in phoneme_id_map.");
         }
 
         var workingDir = Path.GetDirectoryName(PiperExecutablePath) ?? PiperDirectory;
-        var provider = new PiperProvider(new PiperConfiguration
+
+        var startInfo = new ProcessStartInfo
         {
-            ExecutableLocation = PiperExecutablePath,
+            FileName = PiperExecutablePath,
             WorkingDirectory = workingDir,
-            Model = model
-        });
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardInputEncoding = new UTF8Encoding(false)
+        };
+
+        startInfo.ArgumentList.Add("-m");
+        startInfo.ArgumentList.Add(onnxPath);
+        if (File.Exists(configPath))
+        {
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add(configPath);
+        }
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("-");
+        startInfo.ArgumentList.Add("-q");
+
+        // Ensure runtime loader can find sibling native libraries (libpiper_phonemize, libespeak-ng, libonnxruntime)
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        if (!pathEnv.Contains(workingDir))
+        {
+            startInfo.Environment["PATH"] = string.IsNullOrEmpty(pathEnv) ? workingDir : $"{workingDir}{Path.PathSeparator}{pathEnv}";
+        }
+        if (OperatingSystem.IsLinux())
+        {
+            var ldLibPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
+            if (!ldLibPath.Contains(workingDir))
+            {
+                startInfo.Environment["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldLibPath) ? workingDir : $"{workingDir}:{ldLibPath}";
+            }
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var dyldLibPath = Environment.GetEnvironmentVariable("DYLD_LIBRARY_PATH") ?? string.Empty;
+            if (!dyldLibPath.Contains(workingDir))
+            {
+                startInfo.Environment["DYLD_LIBRARY_PATH"] = string.IsNullOrEmpty(dyldLibPath) ? workingDir : $"{workingDir}:{dyldLibPath}";
+            }
+        }
 
         logger.LogInformation("Inferring Piper speech for voice '{ModelKey}'...", modelKey);
-        return await provider.InferAsync(message, AudioOutputType.Wav);
+
+        using var process = new Process { StartInfo = startInfo };
+        try
+        {
+            if (!process.Start())
+            {
+                logger.LogError("Failed to start Piper process for voice '{ModelKey}'.", modelKey);
+                throw new InvalidOperationException($"Failed to start Piper process for voice '{modelKey}'.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to launch Piper executable at '{Path}' for voice '{ModelKey}'.", PiperExecutablePath, modelKey);
+            throw;
+        }
+
+        using var outputMs = new MemoryStream();
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(outputMs);
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        try
+        {
+            await using (var stdin = new StreamWriter(process.StandardInput.BaseStream, new UTF8Encoding(false), leaveOpen: false))
+            {
+                await stdin.WriteLineAsync(message);
+                await stdin.FlushAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to write input message to Piper stdin for voice '{ModelKey}'.", modelKey);
+        }
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        try
+        {
+            await Task.WhenAll(stdoutTask, stderrTask);
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (Exception ex)
+            {
+                // Best-effort termination of timed out process
+                logger.LogWarning(ex, "Failed to terminate timed out Piper process for voice '{ModelKey}'.", modelKey);
+            }
+            logger.LogError("Piper synthesis timed out after 60 seconds for voice '{ModelKey}'.", modelKey);
+            throw new TimeoutException($"Piper synthesis timed out for voice '{modelKey}'.");
+        }
+
+        var stderr = await stderrTask;
+        if (process.ExitCode != 0)
+        {
+            logger.LogError("Piper process exited with code {ExitCode} for voice '{ModelKey}'. Stderr: {Error}",
+                process.ExitCode, modelKey, stderr.Trim());
+            throw new InvalidOperationException($"Piper process failed with exit code {process.ExitCode}: {stderr.Trim()}");
+        }
+
+        var audioBytes = outputMs.ToArray();
+        // A standard WAV header is 44 bytes; less than or equal to 44 bytes means 0 audio data frames
+        if (audioBytes.Length <= 44)
+        {
+            logger.LogError("Piper produced empty audio output ({ByteCount} bytes) for voice '{ModelKey}'. Stderr: {Error}",
+                audioBytes.Length, modelKey, stderr.Trim());
+            throw new InvalidOperationException($"Piper produced empty audio output ({audioBytes.Length} bytes): {stderr.Trim()}");
+        }
+
+        logger.LogInformation("Piper successfully synthesized {ByteCount} bytes for voice '{ModelKey}'.", audioBytes.Length, modelKey);
+        return audioBytes;
     }
 }

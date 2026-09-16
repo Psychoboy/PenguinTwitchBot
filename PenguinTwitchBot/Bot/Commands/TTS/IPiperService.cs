@@ -17,6 +17,7 @@ public interface IPiperService
     Task<bool> EnsurePiperExecutableAsync();
     Task<IReadOnlyList<PiperVoiceInfo>> GetVoicesAsync();
     bool IsModelDownloaded(string modelKey);
+    bool IsModelCompatible(string modelKey);
     Task<bool> DownloadVoiceAsync(string modelKey);
     Task<byte[]> SynthesizeAsync(string message, string modelKey);
 }

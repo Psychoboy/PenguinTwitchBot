@@ -409,6 +409,11 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             return piperService.IsModelDownloaded(modelKey);
         }
 
+        public bool IsPiperVoiceCompatible(string modelKey)
+        {
+            return piperService.IsModelCompatible(modelKey);
+        }
+
         // ─── Kokoro Thread Settings ───────────────────────────────────────────────
 
         public async Task<int> GetKokoroThreads()

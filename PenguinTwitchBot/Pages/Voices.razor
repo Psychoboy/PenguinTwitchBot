@@ -253,7 +253,11 @@
                                 <MudTd>@context.Name</MudTd>
                                 <MudTd>@context.LanguageCode</MudTd>
                                 <MudTd>
-                                    @if (TTSService.IsPiperVoiceDownloaded(context.Name))
+                                    @if (!TTSService.IsPiperVoiceCompatible(context.Name))
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">Incompatible Model</MudChip>
+                                    }
+                                    else if (TTSService.IsPiperVoiceDownloaded(context.Name))
                                     {
                                         <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.DownloadDone">Cached Locally</MudChip>
                                     }
@@ -263,16 +267,16 @@
                                     }
                                 </MudTd>
                                 <MudTd>
-                                    <MudTooltip Text="Preview Voice (Auto-downloads if needed)">
+                                    <MudTooltip Text="@(!TTSService.IsPiperVoiceCompatible(context.Name) ? "Voice model is incompatible with the Piper native engine" : "Preview Voice (Auto-downloads if needed)")">
                                         <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
                                                        Color="Color.Info"
                                                        Size="Size.Small"
-                                                       Disabled="@(_loadingPreviewVoiceName != null)"
+                                                       Disabled="@(_loadingPreviewVoiceName != null || !TTSService.IsPiperVoiceCompatible(context.Name))"
                                                        OnClick="() => Preview(context)" />
                                     </MudTooltip>
                                 </MudTd>
-                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
-                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Disabled="@(!TTSService.IsPiperVoiceCompatible(context.Name))" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                                <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" Disabled="@(!TTSService.IsPiperVoiceCompatible(context.Name))" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
                             </RowTemplate>
                         </MudTable>
                     }
@@ -592,7 +596,7 @@
             }
             else
             {
-                Snackbar.Add($"Failed to generate preview for {voice.Name}.", Severity.Error);
+                Snackbar.Add($"Failed to generate preview for {voice.Name}. Check the logs for details.", Severity.Error);
             }
         }
         catch (Exception ex)
