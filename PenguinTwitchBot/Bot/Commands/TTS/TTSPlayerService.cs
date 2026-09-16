@@ -259,7 +259,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             if (string.IsNullOrWhiteSpace(languageCode)) return KokoroFallbackVoiceId;
 
             var lang = languageCode.Trim().ToLowerInvariant();
-            var prefix = lang.Split('-', '_')[0];
+            var separatorIdx = lang.IndexOfAny(['-', '_']);
+            var prefix = separatorIdx >= 0 ? lang[..separatorIdx] : lang;
 
             return prefix switch
             {
