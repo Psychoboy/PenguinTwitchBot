@@ -39,25 +39,26 @@
         <MudItem xs="12" sm="6">
             <MudStack Spacing="3">
                 <BonusTickets/>
-                <MudPaper Class="pa-4 stat-card" Elevation="2">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Large" />
-                        <MudStack Spacing="0">
-                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total Entrants</MudText>
-                            <MudText Typo="Typo.h3" Color="Color.Info">@entrants</MudText>
-                        </MudStack>
-                    </MudStack>
-                </MudPaper>
-
-                <MudPaper Class="pa-4 stat-card" Elevation="2">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Success" Size="Size.Large" />
-                        <MudStack Spacing="0">
-                            <MudText Typo="Typo.subtitle2" class="mud-contrast-text">Total @pointTypeName Entered</MudText>
-                            <MudText Typo="Typo.h3" Color="Color.Success">@entries</MudText>
-                        </MudStack>
-                    </MudStack>
-                </MudPaper>
+                <MudGrid Spacing="2">
+                    <MudItem xs="6">
+                        <MudPaper Class="pa-3 stat-card" Elevation="2" Style="height:100%">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Info" Size="Size.Medium" />
+                                <MudText Typo="Typo.h4" Color="Color.Info">@entrants</MudText>
+                                <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Participants</MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudPaper Class="pa-3 stat-card" Elevation="2" Style="height:100%">
+                            <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Filled.ConfirmationNumber" Color="Color.Success" Size="Size.Medium" />
+                                <MudText Typo="Typo.h4" Color="Color.Success">@entries</MudText>
+                                <MudText Typo="Typo.caption" class="mud-contrast-text" Align="Align.Center">Total @pointTypeName Entered</MudText>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
             <AuthorizeView>
                 <Authorized Context="Auth">
                     <GiveawayEntryPanel PointTypeName="@pointTypeName" BroadcasterName="@ServiceBackbone.BroadcasterName" />
