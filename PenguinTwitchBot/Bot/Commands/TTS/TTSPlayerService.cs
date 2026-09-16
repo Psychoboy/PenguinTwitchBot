@@ -12,9 +12,9 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         // Kokoro voice to use when falling back from a failed Google TTS attempt.
         private const string KokoroFallbackVoiceId = "af_heart";
 
-        // Lazy-loaded Kokoro synthesizer — created on first use, cached for the process lifetime.
-        private static KokoroWavSynthesizer? _kokoroSynth;
-        private static readonly SemaphoreSlim _kokoroInitLock = new(1, 1);
+        // Lazy-loaded Kokoro synthesizer — created on first use, cached for the service lifetime.
+        private KokoroWavSynthesizer? _kokoroSynth;
+        private readonly SemaphoreSlim _kokoroInitLock = new(1, 1);
 
         public async Task<string> CreateTTSFile(TTSRequest request)
         {

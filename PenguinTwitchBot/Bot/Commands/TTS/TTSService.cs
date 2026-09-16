@@ -287,6 +287,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             }
 
             return KokoroVoiceManager.Voices
+                .Where(kv => IsStandardVoiceName(kv.Name))
                 .Select(kv => new RegisteredVoice
                 {
                     Type = RegisteredVoice.VoiceType.Kokoro,
@@ -298,6 +299,20 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                 .ThenBy(v => v.Sex)
                 .ThenBy(v => v.Name)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Validates that the voice name adheres to the standard named Kokoro format (e.g. <c>af_heart</c>)
+        /// and excludes raw numbered speaker IDs from experimental datasets (e.g. <c>zm_009</c>, <c>zf_001</c>).
+        /// </summary>
+        private static bool IsStandardVoiceName(string voiceName)
+        {
+            if (string.IsNullOrWhiteSpace(voiceName)) return false;
+            var parts = voiceName.Split('_', 2);
+            if (parts.Length != 2 || parts[0].Length != 2 || parts[1].Length == 0) return false;
+
+            // Standard voices use named identifiers (letters only); numbered voices are experimental raw speaker IDs
+            return !parts[1].Any(char.IsDigit);
         }
 
         /// <summary>
