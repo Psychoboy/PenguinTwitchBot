@@ -1,13 +1,28 @@
 @page "/voices"
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@implements IDisposable
 @inject PenguinTwitchBot.Bot.Commands.TTS.ITTSService TTSService
+@inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Voices</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False">
+    @if (!string.IsNullOrEmpty(_previewAudioUrl))
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4" ShowCloseIcon="true" CloseIconClicked="ClosePreview">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Color="Color.Info" />
+                <MudText Typo="Typo.subtitle2">Playing preview for <strong>@_previewVoiceName</strong>:</MudText>
+            </MudStack>
+            <audio @key="_previewAudioUrl" controls autoplay src="@_previewAudioUrl" @onended="OnPreviewEnded" style="width: 100%; height: 36px;"></audio>
+        </MudAlert>
+    }
+
     <MudGrid>
+        @* ── User-assigned voices ── *@
         <MudItem xs="8">
             <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">User Voices</MudText>
                 <MudTable Items="@UserRegisteredVoices">
                     <HeaderContent>
                         <MudTh>Username</MudTh>
@@ -21,38 +36,53 @@
                         <MudTd>@context.Name</MudTd>
                         <MudTd>@context.Sex</MudTd>
                         <MudTd>@context.Type</MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                <MudTooltip Text="Preview Voice">
+                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   Disabled="@(_loadingPreviewVoiceName != null)"
+                                                   OnClick="() => Preview(context)" />
+                                </MudTooltip>
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
                                            @onclick="() => DeleteUserVoice(context)">
                                     Delete
                                 </MudButton>
-                            </MudTd>
+                            </MudStack>
+                        </MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
         </MudItem>
+
+        @* ── Assign voice to user ── *@
         <MudItem xs="4">
             <MudCard>
                 <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.h6" Class="mb-2">Assign Voice to User</MudText>
                     <EditForm Model="@customVoice" OnValidSubmit="OnSubmit">
-                        <MudTextField Label="Name" Required="true" @bind-Value="customVoice.Name" />
+                        <MudTextField Label="Username" Required="true" @bind-Value="customVoice.Name" Class="mb-3" />
                         @if(SelectedVoice == null)
                         {
-                            <MudText>No voice selected</MudText>
+                            <MudText Color="Color.Secondary" Class="mb-3">No voice selected</MudText>
                         } else
                         {
-                            <MudText>@SelectedVoice.Name</MudText>
+                            <MudText Class="mb-3">Selected Voice: <strong>@SelectedVoice.Name</strong> (@SelectedVoice.Type)</MudText>
                         }
                         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                   Class="ml-auto">
+                                   Class="ml-auto" Disabled="@(SelectedVoice == null)">
                             Submit
                         </MudButton>
                     </EditForm>
                 </MudPaper>
             </MudCard>
         </MudItem>
+
+        @* ── Registered (active) voices ── *@
         <MudItem xs="6">
             <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" Class="mb-2">Active Registered Voices</MudText>
                 <MudTable Items="@RegisteredVoices">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
@@ -62,48 +92,132 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
-                            <MudTd>@context.Sex</MudTd>
-                            <MudTd>@context.Type</MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                        <MudTd>@context.Sex</MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                <MudTooltip Text="Preview Voice">
+                                    <MudIconButton Icon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                                   Color="Color.Info"
+                                                   Size="Size.Small"
+                                                   Disabled="@(_loadingPreviewVoiceName != null)"
+                                                   OnClick="() => Preview(context)" />
+                                </MudTooltip>
+                                <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
                                            @onclick="() => Delete(context)">
                                     Delete
                                 </MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudItem>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+
+        @* ── Available voices panel ── *@
         <MudItem xs="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => ReloadVoices()">Load Voices</MudButton>
-                <MudTable Items="@AvailableVoices">
+
+                @* ─ Kokoro voices (always available, no button needed) ─ *@
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    Kokoro Voices
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Class="ml-2">Offline · No Cost</MudChip>
+                </MudText>
+
+                <MudTextField @bind-Value="KokoroFilter" Label="Filter voices" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" Class="mb-2" />
+
+                <MudTable Items="@FilteredKokoroVoices" Dense="true">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
+                        <MudTh>Language</MudTh>
                         <MudTh>Sex</MudTh>
-                        <MudTh>Type</MudTh>
+                        <MudTh></MudTh>
                         <MudTh></MudTh>
                         <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.LanguageCode</MudTd>
                         <MudTd>@context.Sex</MudTd>
-                        <MudTh>@context.Type</MudTh>
-                        <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddVoice(context)">Add</MudButton></MudTh>
-                            <MudTh><MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => SelectVoice(context)">Select</MudButton></MudTh>
+                        <MudTd>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                       StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                       Disabled="@(_loadingPreviewVoiceName != null)"
+                                       OnClick="() => Preview(context)">
+                                @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
+                            </MudButton>
+                        </MudTd>
+                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                        <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
+
+                <MudDivider Class="my-4" />
+
+                @* ─ Google voices (requires credentials, explicit load) ─ *@
+                <MudText Typo="Typo.h6" Class="mb-2">Google Voices</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           @onclick="LoadGoogleVoices"
+                           Disabled="@_loadingGoogle"
+                           Class="mb-2">
+                    @(_loadingGoogle ? "Loading…" : "Load Google Voices")
+                </MudButton>
+
+                @if (GoogleVoices.Count > 0)
+                {
+                    <MudTable Items="@GoogleVoices" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Language</MudTh>
+                            <MudTh>Sex</MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                            <MudTh></MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Name</MudTd>
+                            <MudTd>@context.LanguageCode</MudTd>
+                            <MudTd>@context.Sex</MudTd>
+                            <MudTd>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small"
+                                           StartIcon="@(_loadingPreviewVoiceName == context.Name ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.VolumeUp)"
+                                           Disabled="@(_loadingPreviewVoiceName != null)"
+                                           OnClick="() => Preview(context)">
+                                    @(_loadingPreviewVoiceName == context.Name ? "Loading..." : "Preview")
+                                </MudButton>
+                            </MudTd>
+                            <MudTd><MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" @onclick="() => AddVoice(context)">Add</MudButton></MudTd>
+                            <MudTd><MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" @onclick="() => SelectVoice(context)">Select</MudButton></MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+
             </MudPaper>
         </MudItem>
     </MudGrid>
 </MudContainer>
 
-    @code {
-    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> AvailableVoices { get; set; } = new();
+@code {
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> KokoroVoices { get; set; } = new();
+    private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> GoogleVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> RegisteredVoices { get; set; } = new();
     private List<PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice> UserRegisteredVoices { get; set; } = new();
     private PenguinTwitchBot.Database.Bot.Models.RegisteredVoice? SelectedVoice { get; set; }
     private CustomVoice customVoice { get; set; } = new();
+    private string KokoroFilter { get; set; } = string.Empty;
+    private bool _loadingGoogle;
+    private string? _previewAudioUrl;
+    private string? _rawPreviewUrl;
+    private string? _previewVoiceName;
+    private string? _loadingPreviewVoiceName;
+
+    private IEnumerable<PenguinTwitchBot.Database.Bot.Models.RegisteredVoice> FilteredKokoroVoices =>
+        string.IsNullOrWhiteSpace(KokoroFilter)
+            ? KokoroVoices
+            : KokoroVoices.Where(v =>
+                v.Name.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ||
+                (v.LanguageCode?.Contains(KokoroFilter, StringComparison.OrdinalIgnoreCase) ?? false));
 
     public class CustomVoice
     {
@@ -112,14 +226,120 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Kokoro voices are pre-populated; Google voices loaded on demand.
+        KokoroVoices = await TTSService.GetAllVoices(includeGoogle: false);
         RegisteredVoices = await TTSService.GetRegisteredVoices();
         UserRegisteredVoices = await TTSService.GetUserRegisteredVoices();
         await base.OnInitializedAsync();
     }
 
-    private async Task ReloadVoices()
+    private bool _isDisposed;
+
+    private async Task Preview(RegisteredVoice voice)
     {
-        AvailableVoices = await TTSService.GetAllVoices();
+        if (_isDisposed) return;
+
+        // Delete previous preview file before generating a new one
+        CleanupCurrentPreview();
+
+        _loadingPreviewVoiceName = voice.Name;
+        StateHasChanged();
+        try
+        {
+            var url = await TTSService.PreviewVoice(voice);
+            if (_isDisposed)
+            {
+                if (!string.IsNullOrEmpty(url))
+                {
+                    TTSService.DeleteTTSFile(url);
+                }
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(url))
+            {
+                _rawPreviewUrl = url;
+                _previewAudioUrl = $"{url}?t={DateTime.UtcNow.Ticks}";
+                _previewVoiceName = voice.Name;
+            }
+            else
+            {
+                Snackbar.Add($"Failed to generate preview for {voice.Name}.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!_isDisposed)
+            {
+                Snackbar.Add($"Error generating preview: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            if (!_isDisposed)
+            {
+                _loadingPreviewVoiceName = null;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void OnPreviewEnded()
+    {
+        // When audio finishes playing in browser, schedule deletion after a short grace period
+        // so replay still works if clicked immediately, but file doesn't linger
+        var fileToDelete = _rawPreviewUrl;
+        if (!string.IsNullOrEmpty(fileToDelete))
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(15000); // 15 second grace period
+                if (_isDisposed) return;
+
+                if (_rawPreviewUrl == fileToDelete)
+                {
+                    TTSService.DeleteTTSFile(fileToDelete);
+                    _rawPreviewUrl = null;
+                    _previewAudioUrl = null;
+                    _previewVoiceName = null;
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+        }
+    }
+
+    private void ClosePreview()
+    {
+        CleanupCurrentPreview();
+        _previewAudioUrl = null;
+        _previewVoiceName = null;
+        _rawPreviewUrl = null;
+    }
+
+    private void CleanupCurrentPreview()
+    {
+        if (!string.IsNullOrEmpty(_rawPreviewUrl))
+        {
+            TTSService.DeleteTTSFile(_rawPreviewUrl);
+            _rawPreviewUrl = null;
+        }
+    }
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+        CleanupCurrentPreview();
+    }
+
+    private async Task LoadGoogleVoices()
+    {
+        _loadingGoogle = true;
+        StateHasChanged();
+        var all = await TTSService.GetAllVoices(includeGoogle: true);
+        GoogleVoices = all
+            .Where(v => v.Type == PenguinTwitchBot.Database.Bot.Models.RegisteredVoice.VoiceType.Google)
+            .ToList();
+        _loadingGoogle = false;
         StateHasChanged();
     }
 
