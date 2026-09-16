@@ -11,25 +11,36 @@ namespace PenguinTwitchBot.Application.TTS
             var fileParts = data.Split(":");
             if (fileParts.Length > 1)
             {
-                var fileName = fileParts[1].Trim();
-                DeleteFileIfExists("wwwroot/tts/" + fileName + ".mp3");
-                DeleteFileIfExists("wwwroot/tts/" + fileName + ".wav");
+                var rawFileName = fileParts[1].Trim();
+                var safeBaseName = Path.GetFileNameWithoutExtension(rawFileName);
+                if (string.IsNullOrWhiteSpace(safeBaseName)) return Task.CompletedTask;
+
+                var baseDirectory = Path.GetFullPath("wwwroot/tts");
+                DeleteFileIfExists(Path.Combine(baseDirectory, safeBaseName + ".mp3"), baseDirectory);
+                DeleteFileIfExists(Path.Combine(baseDirectory, safeBaseName + ".wav"), baseDirectory);
             }
             return Task.CompletedTask;
         }
 
-        private void DeleteFileIfExists(string path)
+        private void DeleteFileIfExists(string path, string allowedDirectory)
         {
-            if (File.Exists(path))
+            var fullPath = Path.GetFullPath(path);
+            if (!fullPath.StartsWith(allowedDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogInformation("Deleting TTS File {Path}", path);
+                logger.LogWarning("Rejected out-of-directory TTS deletion attempt: {Path}", path);
+                return;
+            }
+
+            if (File.Exists(fullPath))
+            {
+                logger.LogInformation("Deleting TTS File {Path}", fullPath);
                 try
                 {
-                    File.Delete(path);
+                    File.Delete(fullPath);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Failed to delete TTS file {Path}", path);
+                    logger.LogWarning(ex, "Failed to delete TTS file {Path}", fullPath);
                 }
             }
         }

@@ -33,11 +33,12 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     var googleResult = await PlayGoogle(request);
                     if (!string.IsNullOrEmpty(googleResult)) return googleResult;
 
-                    // Google failed — fall back to Kokoro
+                    // Google failed — fall back to Kokoro matching the requested language
+                    var fallbackVoice = ResolveKokoroFallbackVoice(request.RegisteredVoice.LanguageCode);
                     logger.LogWarning(
                         "Google TTS failed for voice {Voice}; falling back to Kokoro voice '{FallbackVoice}'.",
-                        request.RegisteredVoice.Name, KokoroFallbackVoiceId);
-                    return await PlayKokoro(request.Message, KokoroFallbackVoiceId);
+                        request.RegisteredVoice.Name, fallbackVoice);
+                    return await PlayKokoro(request.Message, fallbackVoice);
 
                 case RegisteredVoice.VoiceType.Kokoro:
                     return await PlayKokoro(request.Message, request.RegisteredVoice.Name);
@@ -219,7 +220,24 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
                     "Initializing Kokoro TTS engine (first use). " +
                     "If the model has not been downloaded yet this may take a moment.");
 
-                _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel());
+                var localModelCandidates = new[]
+                {
+                    Path.Combine(AppContext.BaseDirectory, "models", "kokoro.onnx"),
+                    Path.Combine(AppContext.BaseDirectory, "kokoro.onnx"),
+                    "models/kokoro.onnx",
+                    "kokoro.onnx"
+                };
+
+                var localModel = localModelCandidates.FirstOrDefault(File.Exists);
+                if (localModel != null)
+                {
+                    logger.LogInformation("Loading provisioned local Kokoro model from '{ModelPath}'.", localModel);
+                    _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel(localModel));
+                }
+                else
+                {
+                    _kokoroSynth = await Task.Run(() => KokoroWavSynthesizer.LoadModel());
+                }
                 logger.LogInformation("Kokoro TTS engine ready.");
                 return _kokoroSynth;
             }
@@ -234,6 +252,28 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             {
                 _kokoroInitLock.Release();
             }
+        }
+
+        private static string ResolveKokoroFallbackVoice(string? languageCode)
+        {
+            if (string.IsNullOrWhiteSpace(languageCode)) return KokoroFallbackVoiceId;
+
+            var lang = languageCode.Trim().ToLowerInvariant();
+            var prefix = lang.Split('-', '_')[0];
+
+            return prefix switch
+            {
+                "en" when lang.StartsWith("en-gb", StringComparison.OrdinalIgnoreCase) => "bf_emma",
+                "en" => "af_heart",
+                "es" => "ef_dora",
+                "fr" => "ff_siwis",
+                "hi" => "hf_alpha",
+                "it" => "if_sara",
+                "pt" => "pf_dora",
+                "ja" => "jf_alpha",
+                "zh" => "zf_xiaobei",
+                _ => KokoroFallbackVoiceId
+            };
         }
     }
 }

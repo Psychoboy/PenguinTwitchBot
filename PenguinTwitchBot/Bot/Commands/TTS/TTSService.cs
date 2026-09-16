@@ -59,6 +59,12 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             {
                 // No voices configured at all — attempt a smart locale-based default.
                 voice = GetSystemFallbackVoice();
+                if (voice is null)
+                {
+                    logger.LogError("No TTS voices configured and no Kokoro fallback voice is available; skipping TTS.");
+                    return;
+                }
+
                 logger.LogWarning(
                     "No voices configured for TTS. " +
                     "Falling back to Kokoro voice '{VoiceId}' derived from system locale '{Locale}'. " +
@@ -246,7 +252,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         /// Picks the best fallback Kokoro voice based on the system locale.
         /// Falls back to <c>af_heart</c> if nothing matches.
         /// </summary>
-        private RegisteredVoice GetSystemFallbackVoice()
+        private RegisteredVoice? GetSystemFallbackVoice()
         {
             var culture = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
             var region = CultureInfo.CurrentCulture.Name;
@@ -267,7 +273,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
             return KokoroVoices.FirstOrDefault(v => v.Name == voiceId)
                    ?? KokoroVoices.FirstOrDefault(v => v.Name == "af_heart")
-                   ?? KokoroVoices.First();
+                   ?? KokoroVoices.FirstOrDefault();
         }
 
         /// <summary>

@@ -233,8 +233,12 @@
         await base.OnInitializedAsync();
     }
 
+    private bool _isDisposed;
+
     private async Task Preview(RegisteredVoice voice)
     {
+        if (_isDisposed) return;
+
         // Delete previous preview file before generating a new one
         CleanupCurrentPreview();
 
@@ -243,6 +247,15 @@
         try
         {
             var url = await TTSService.PreviewVoice(voice);
+            if (_isDisposed)
+            {
+                if (!string.IsNullOrEmpty(url))
+                {
+                    TTSService.DeleteTTSFile(url);
+                }
+                return;
+            }
+
             if (!string.IsNullOrEmpty(url))
             {
                 _rawPreviewUrl = url;
@@ -256,12 +269,18 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Error generating preview: {ex.Message}", Severity.Error);
+            if (!_isDisposed)
+            {
+                Snackbar.Add($"Error generating preview: {ex.Message}", Severity.Error);
+            }
         }
         finally
         {
-            _loadingPreviewVoiceName = null;
-            StateHasChanged();
+            if (!_isDisposed)
+            {
+                _loadingPreviewVoiceName = null;
+                StateHasChanged();
+            }
         }
     }
 
@@ -275,9 +294,15 @@
             _ = Task.Run(async () =>
             {
                 await Task.Delay(15000); // 15 second grace period
+                if (_isDisposed) return;
+
                 if (_rawPreviewUrl == fileToDelete)
                 {
                     TTSService.DeleteTTSFile(fileToDelete);
+                    _rawPreviewUrl = null;
+                    _previewAudioUrl = null;
+                    _previewVoiceName = null;
+                    await InvokeAsync(StateHasChanged);
                 }
             });
         }
@@ -302,6 +327,7 @@
 
     public void Dispose()
     {
+        _isDisposed = true;
         CleanupCurrentPreview();
     }
 
