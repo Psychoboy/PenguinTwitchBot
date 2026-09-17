@@ -57,7 +57,7 @@ public class StreamerAuthAlertTests
     }
 
     [Fact]
-    public async Task WhenStreamerLoggedIn_AndTwitchServiceDown_AlertIsDisplayed()
+    public async Task WhenStreamerLoggedIn_AndTwitchServiceAuthenticationDisconnected_AlertIsDisplayed()
     {
         var (ctx, auth) = SetupServices();
         auth.SetAuthorized("StreamerUser");
@@ -65,7 +65,7 @@ public class StreamerAuthAlertTests
 
         await using (ctx)
         {
-            _twitchService.IsServiceUp().Returns(false);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.AuthenticationDisconnected);
 
             var cut = ctx.Render<MainLayout>();
 
@@ -78,7 +78,7 @@ public class StreamerAuthAlertTests
     }
 
     [Fact]
-    public async Task WhenStreamerLoggedIn_AndTwitchServiceUp_AlertIsNotDisplayed()
+    public async Task WhenStreamerLoggedIn_AndTwitchServiceUnavailable_AlertIsDisplayedWithoutConnectButton()
     {
         var (ctx, auth) = SetupServices();
         auth.SetAuthorized("StreamerUser");
@@ -86,18 +86,62 @@ public class StreamerAuthAlertTests
 
         await using (ctx)
         {
-            _twitchService.IsServiceUp().Returns(true);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.Unavailable);
+
+            var cut = ctx.Render<MainLayout>();
+
+            var alertElements = cut.FindAll(".streamer-unavailable-alert");
+            Assert.NotEmpty(alertElements);
+            Assert.Contains("TWITCH SERVICE UNAVAILABLE", cut.Markup);
+            Assert.DoesNotContain("Connect Now", cut.Markup);
+            Assert.Empty(cut.FindAll(".streamer-auth-alert"));
+        }
+    }
+
+    [Fact]
+    public async Task WhenStreamerLoggedIn_AndTwitchServiceConnected_AlertIsNotDisplayed()
+    {
+        var (ctx, auth) = SetupServices();
+        auth.SetAuthorized("StreamerUser");
+        auth.SetRoles("Streamer");
+
+        await using (ctx)
+        {
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.Connected);
 
             var cut = ctx.Render<MainLayout>();
 
             Assert.Empty(cut.FindAll(".streamer-auth-alert"));
+            Assert.Empty(cut.FindAll(".streamer-unavailable-alert"));
             Assert.DoesNotContain("STREAMER ACCOUNT NOT CONNECTED", cut.Markup);
+            Assert.DoesNotContain("TWITCH SERVICE UNAVAILABLE", cut.Markup);
             Assert.DoesNotContain("Connect Now", cut.Markup);
         }
     }
 
     [Fact]
-    public async Task WhenViewerLoggedIn_AndTwitchServiceDown_AlertIsNotDisplayed()
+    public async Task WhenStreamerLoggedIn_AndTwitchServiceUnknown_AlertIsNotDisplayed()
+    {
+        var (ctx, auth) = SetupServices();
+        auth.SetAuthorized("StreamerUser");
+        auth.SetRoles("Streamer");
+
+        await using (ctx)
+        {
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.Unknown);
+
+            var cut = ctx.Render<MainLayout>();
+
+            Assert.Empty(cut.FindAll(".streamer-auth-alert"));
+            Assert.Empty(cut.FindAll(".streamer-unavailable-alert"));
+            Assert.DoesNotContain("STREAMER ACCOUNT NOT CONNECTED", cut.Markup);
+            Assert.DoesNotContain("TWITCH SERVICE UNAVAILABLE", cut.Markup);
+            Assert.DoesNotContain("Connect Now", cut.Markup);
+        }
+    }
+
+    [Fact]
+    public async Task WhenViewerLoggedIn_AndTwitchServiceAuthenticationDisconnected_AlertIsNotDisplayed()
     {
         var (ctx, auth) = SetupServices();
         auth.SetAuthorized("ViewerUser");
@@ -105,29 +149,31 @@ public class StreamerAuthAlertTests
 
         await using (ctx)
         {
-            _twitchService.IsServiceUp().Returns(false);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.AuthenticationDisconnected);
 
             var cut = ctx.Render<MainLayout>();
 
             Assert.Empty(cut.FindAll(".streamer-auth-alert"));
+            Assert.Empty(cut.FindAll(".streamer-unavailable-alert"));
             Assert.DoesNotContain("STREAMER ACCOUNT NOT CONNECTED", cut.Markup);
             Assert.DoesNotContain("Connect Now", cut.Markup);
         }
     }
 
     [Fact]
-    public async Task WhenAnonymous_AndTwitchServiceDown_AlertIsNotDisplayed()
+    public async Task WhenAnonymous_AndTwitchServiceAuthenticationDisconnected_AlertIsNotDisplayed()
     {
         var (ctx, auth) = SetupServices();
         auth.SetNotAuthorized();
 
         await using (ctx)
         {
-            _twitchService.IsServiceUp().Returns(false);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.AuthenticationDisconnected);
 
             var cut = ctx.Render<MainLayout>();
 
             Assert.Empty(cut.FindAll(".streamer-auth-alert"));
+            Assert.Empty(cut.FindAll(".streamer-unavailable-alert"));
             Assert.DoesNotContain("STREAMER ACCOUNT NOT CONNECTED", cut.Markup);
             Assert.DoesNotContain("Connect Now", cut.Markup);
         }
@@ -142,7 +188,7 @@ public class StreamerAuthAlertTests
 
         await using (ctx)
         {
-            _twitchService.IsServiceUp().Returns(false);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.AuthenticationDisconnected);
 
             var cut = ctx.Render<MainLayout>();
 
@@ -150,10 +196,10 @@ public class StreamerAuthAlertTests
             Assert.Contains("STREAMER ACCOUNT NOT CONNECTED", cut.Markup);
 
             // Now simulate service resolving
-            _twitchService.IsServiceUp().Returns(true);
+            _twitchService.GetStatus().Returns(TwitchServiceStatus.Connected);
             await cut.InvokeAsync(() =>
             {
-                _twitchService.ServiceStatusChanged += Raise.Event<EventHandler<bool>>(_twitchService, true);
+                _twitchService.ServiceStatusChanged += Raise.Event<EventHandler<TwitchServiceStatus>>(_twitchService, TwitchServiceStatus.Connected);
             });
 
             Assert.Empty(cut.FindAll(".streamer-auth-alert"));

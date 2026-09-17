@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Helpers;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
 @using Microsoft.AspNetCore.SignalR.Client;
+@using PenguinTwitchBot.Bot.TwitchServices;
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -45,7 +46,7 @@
         <MudSpacer />
         <AuthorizeView Roles="Streamer">
             <Authorized>
-                @if (!twitchService.IsServiceUp())
+                @if (twitchService.GetStatus() == TwitchServiceStatus.AuthenticationDisconnected)
                 {
                     <MudAlert Severity="Severity.Error" 
                               Variant="Variant.Filled" 
@@ -65,6 +66,18 @@
                                 Connect Now
                             </MudButton>
                         </MudStack>
+                    </MudAlert>
+                }
+                else if (twitchService.GetStatus() == TwitchServiceStatus.Unavailable)
+                {
+                    <MudAlert Severity="Severity.Warning" 
+                              Variant="Variant.Filled" 
+                              Dense="true" 
+                              Icon="@Icons.Material.Filled.CloudOff" 
+                              Class="mx-2 mud-elevation-6 streamer-unavailable-alert">
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; letter-spacing: 0.5px;">
+                            TWITCH SERVICE UNAVAILABLE
+                        </MudText>
                     </MudAlert>
                 }
             </Authorized>
@@ -195,7 +208,7 @@
         StateHasChanged();
     }
 
-    private void HandleServiceStatusChanged(object? sender, bool isUp)
+    private void HandleServiceStatusChanged(object? sender, TwitchServiceStatus status)
     {
         RefreshStateSafe();
     }

@@ -43,6 +43,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         private readonly IChatMessageIdTracker _messageIdTracker;
         private readonly Application.Notifications.IPenguinDispatcher _dispatcher;
         private bool serviceUp = false;
+        private TwitchServiceStatus _status = TwitchServiceStatus.Unknown;
         private string? broadcasterId = string.Empty;
         private string? botId = string.Empty;
         private bool lastRefreshFailed = false;
@@ -103,7 +104,12 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return serviceUp;
         }
 
-        public event EventHandler<bool>? ServiceStatusChanged;
+        public TwitchServiceStatus GetStatus()
+        {
+            return _status;
+        }
+
+        public event EventHandler<TwitchServiceStatus>? ServiceStatusChanged;
 
         public async Task SendMesssageAsStreamer(string message)
         {
@@ -1374,76 +1380,107 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<bool> ValidateAndRefreshToken()
         {
-            var previousServiceUp = serviceUp;
             await semaphoreSlim.WaitAsync();
+            var previousServiceUp = serviceUp;
+            var previousStatus = _status;
+            TwitchServiceStatus capturedStatus;
+            bool capturedServiceUp;
+            bool shouldPublishRestored = false;
+
             try
             {
-                var validToken = await _authClient.ValidateAccessTokenAsync(_accessToken);
-                if (validToken != null && validToken.ExpiresIn > 1200)
+                if (string.IsNullOrWhiteSpace(_accessToken))
                 {
-                    serviceUp = true;
-                }
-                else
-                {
-                    try
-                    {
-                        serviceUp = await RefreshToken();
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError("Error refreshing token: {error}", e.Message);
-                        serviceUp = false;
-                    }
-                }
-            }
-            catch(HttpRequestException ex)
-            {
-                if(ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    _logger.LogWarning("Unauthorized when validating token, attempting refresh");
-                    try
-                    {
-                        serviceUp = await RefreshToken();
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogError("Error refreshing token: {error}", e.Message);
-                        serviceUp = false;
-                    }
-                }
-                else
-                {
-                    _logger.LogError(ex, "HTTP error when validating/refreshing token");
                     serviceUp = false;
+                    _status = TwitchServiceStatus.AuthenticationDisconnected;
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error when validing/refreshing token");
-                serviceUp = false;
+                else
+                {
+                    try
+                    {
+                        var validToken = await _authClient.ValidateAccessTokenAsync(_accessToken);
+                        if (validToken != null && validToken.ExpiresIn > 1200)
+                        {
+                            serviceUp = true;
+                            _status = TwitchServiceStatus.Connected;
+                        }
+                        else
+                        {
+                            try
+                            {
+                                serviceUp = await RefreshToken();
+                                _status = serviceUp ? TwitchServiceStatus.Connected : TwitchServiceStatus.AuthenticationDisconnected;
+                            }
+                            catch (Exception e)
+                            {
+                                _logger.LogError("Error refreshing token: {error}", e.Message);
+                                serviceUp = false;
+                                _status = TwitchServiceStatus.AuthenticationDisconnected;
+                            }
+                        }
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        {
+                            _logger.LogWarning("Unauthorized when validating token, attempting refresh");
+                            try
+                            {
+                                serviceUp = await RefreshToken();
+                                _status = serviceUp ? TwitchServiceStatus.Connected : TwitchServiceStatus.AuthenticationDisconnected;
+                            }
+                            catch (Exception e)
+                            {
+                                _logger.LogError("Error refreshing token: {error}", e.Message);
+                                serviceUp = false;
+                                _status = TwitchServiceStatus.AuthenticationDisconnected;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogError(ex, "HTTP error when validating/refreshing token");
+                            serviceUp = false;
+                            _status = TwitchServiceStatus.Unavailable;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error when validing/refreshing token");
+                        serviceUp = false;
+                        _status = TwitchServiceStatus.Unavailable;
+                    }
+                }
+
+                if (serviceUp && lastRefreshFailed)
+                {
+                    _logger.LogInformation("Twitch service is up");
+                    lastRefreshFailed = false;
+                    shouldPublishRestored = true;
+                }
+                else if (!serviceUp && !lastRefreshFailed)
+                {
+                    lastRefreshFailed = true;
+                }
+
+                capturedStatus = _status;
+                capturedServiceUp = serviceUp;
             }
             finally
             {
                 semaphoreSlim.Release();
             }
 
-            if (serviceUp && lastRefreshFailed)
+            if (shouldPublishRestored)
             {
-                _logger.LogInformation("Twitch service is up");
-                lastRefreshFailed = false;
                 await _dispatcher.Publish(new ServiceRestored());
             }
-            else if (!serviceUp && !lastRefreshFailed)
+
+            if (capturedStatus != previousStatus)
             {
-                lastRefreshFailed = true;
+                ServiceStatusChanged?.Invoke(this, capturedStatus);
             }
 
-            if (serviceUp != previousServiceUp)
-            {
-                ServiceStatusChanged?.Invoke(this, serviceUp);
-            }
-
-            return serviceUp;
+            return capturedServiceUp;
         }
 
         public async Task<bool> RefreshToken()
