@@ -4,6 +4,7 @@
 @using PenguinTwitchBot.Helpers;
 @using Microsoft.AspNetCore.Components.Server.Circuits;
 @using Microsoft.AspNetCore.SignalR.Client;
+@using PenguinTwitchBot.Bot.TwitchServices;
 @inherits LayoutComponentBase
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
@@ -13,6 +14,7 @@
 @implements IAsyncDisposable
 @inject ISnackbar Snackbar
 @inject ILogger<MainLayout> logger
+@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchService twitchService
 
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")</PageTitle>
@@ -20,12 +22,66 @@
 <MudPopoverProvider/>
 <MudDialogProvider />
 <MudSnackbarProvider />
+<style>
+    .streamer-auth-alert {
+        border: 2px solid #ff1744 !important;
+        box-shadow: 0 0 12px rgba(255, 23, 68, 0.8) !important;
+        animation: streamerAuthPulse 2s ease-in-out infinite;
+    }
+    @@keyframes streamerAuthPulse {
+        0%, 100% {
+            box-shadow: 0 0 8px rgba(255, 23, 68, 0.6);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(255, 23, 68, 1);
+            transform: scale(1.02);
+        }
+    }
+</style>
 <MudLayout>
     <MudAppBar>
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
         OnClick="@((e) => DrawerToggle())" />
         @(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")
         <MudSpacer />
+        <AuthorizeView Roles="Streamer">
+            <Authorized>
+                @if (twitchService.GetStatus() == TwitchServiceStatus.AuthenticationDisconnected)
+                {
+                    <MudAlert Severity="Severity.Error" 
+                              Variant="Variant.Filled" 
+                              Dense="true" 
+                              Icon="@Icons.Material.Filled.WarningAmber" 
+                              Class="mx-2 mud-elevation-6 streamer-auth-alert">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudText Typo="Typo.body2" Style="font-weight: 700; letter-spacing: 0.5px;">
+                                STREAMER ACCOUNT NOT CONNECTED
+                            </MudText>
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Warning" 
+                                       Size="Size.Small" 
+                                       Href="/settings/bot-auth"
+                                       StartIcon="@Icons.Material.Filled.Key"
+                                       Style="font-weight: 700;">
+                                Connect Now
+                            </MudButton>
+                        </MudStack>
+                    </MudAlert>
+                }
+                else if (twitchService.GetStatus() == TwitchServiceStatus.Unavailable)
+                {
+                    <MudAlert Severity="Severity.Warning" 
+                              Variant="Variant.Filled" 
+                              Dense="true" 
+                              Icon="@Icons.Material.Filled.CloudOff" 
+                              Class="mx-2 mud-elevation-6 streamer-unavailable-alert">
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; letter-spacing: 0.5px;">
+                            TWITCH SERVICE UNAVAILABLE
+                        </MudText>
+                    </MudAlert>
+                }
+            </Authorized>
+        </AuthorizeView>
         @if(StreamOnline)
         {
             <MudAlert Severity="Severity.Success" NoIcon="true">Stream is Online</MudAlert>
@@ -75,6 +131,7 @@
     private bool StreamOnline = false;
     private HubConnection? hubConnection;
     private CancellationTokenSource? _hubConnectionCts;
+    private System.Timers.Timer? _statusCheckTimer;
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
 
@@ -105,6 +162,11 @@
         await UserService.Connect(handler.CircuitId, Username, UserId, BlazorAppContext?.CurrentUserIP);
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
         Navigation.LocationChanged += HandleLocationChanged;
+        twitchService.ServiceStatusChanged += HandleServiceStatusChanged;
+        _statusCheckTimer = new System.Timers.Timer(10000);
+        _statusCheckTimer.Elapsed += (s, e) => RefreshStateSafe();
+        _statusCheckTimer.AutoReset = true;
+        _statusCheckTimer.Start();
         StreamOnline = serviceBackbone.IsOnline;
     }
 
@@ -146,10 +208,25 @@
         StateHasChanged();
     }
 
+    private void HandleServiceStatusChanged(object? sender, TwitchServiceStatus status)
+    {
+        RefreshStateSafe();
+    }
+
+    private void RefreshStateSafe()
+    {
+        try
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         var handler = (CircuitHandlerService)BlazorCircuitHandler;
         UserService.UpdateUserLastSeen(handler.CircuitId, Navigation.Uri);
+        RefreshStateSafe();
     }
 
     private void Signin()
@@ -170,6 +247,13 @@
     public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= HandleLocationChanged;
+        twitchService.ServiceStatusChanged -= HandleServiceStatusChanged;
+
+        if (_statusCheckTimer is not null)
+        {
+            _statusCheckTimer.Stop();
+            _statusCheckTimer.Dispose();
+        }
 
         // Cancel any pending reconnection attempts
         _hubConnectionCts?.Cancel();
