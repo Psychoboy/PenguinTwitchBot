@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using System.Reflection;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
@@ -40,6 +40,12 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     continue;
                 }
 
+                var category = attribute.Category;
+                if (string.IsNullOrEmpty(category) || category == SubActionCategories.General)
+                {
+                    category = InferCategory(attribute.DisplayName, enumValue);
+                }
+
                 metadata[enumValue] = new SubActionMetadata
                 {
                     EnumValue = enumValue,
@@ -48,7 +54,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     Description = attribute.Description,
                     Icon = attribute.Icon,
                     Color = attribute.Color,
-                    TableName = attribute.TableName
+                    TableName = attribute.TableName,
+                    Category = category
                 };
             }
 
@@ -98,6 +105,47 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         {
             return Types.TryGetValue(type, out var subActionType) ? subActionType : null;
         }
+
+        private static string InferCategory(string displayName, SubActionTypes type)
+        {
+            if (displayName.StartsWith("OBS -", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("Obs"))
+                return SubActionCategories.Obs;
+            if (displayName.StartsWith("Fishing", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("Fishing"))
+                return SubActionCategories.Fishing;
+            if (displayName.StartsWith("Raffle", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("Raffle"))
+                return SubActionCategories.Raffles;
+            if (displayName.StartsWith("Overlay Timer", StringComparison.OrdinalIgnoreCase) || type.ToString().StartsWith("OverlayTimer"))
+                return SubActionCategories.OverlayTimer;
+
+            return type switch
+            {
+                SubActionTypes.CheckPoints or SubActionTypes.GiftPoints or SubActionTypes.ExecutePointCommand
+                    or SubActionTypes.ChannelPointSetEnabledState or SubActionTypes.ChannelPointSetPausedState
+                    => SubActionCategories.PointsAndRewards,
+
+                SubActionTypes.SendMessage or SubActionTypes.ReplyToMessage or SubActionTypes.Tts
+                    or SubActionTypes.Alert or SubActionTypes.PlaySound
+                    => SubActionCategories.ChatAndMedia,
+
+                SubActionTypes.LogicIfElse or SubActionTypes.Break or SubActionTypes.Delay
+                    or SubActionTypes.ExecuteAction or SubActionTypes.ExecuteDefaultCommand
+                    or SubActionTypes.ToggleCommandDisabledState or SubActionTypes.TimerGroupSetEnabledState
+                    or SubActionTypes.ResetCooldowns
+                    => SubActionCategories.LogicAndFlow,
+
+                SubActionTypes.Followage or SubActionTypes.Uptime or SubActionTypes.WatchTime
+                    or SubActionTypes.ForEachViewer or SubActionTypes.SelectRandomViewers
+                    or SubActionTypes.GiveawayPrize
+                    => SubActionCategories.TwitchAndViewers,
+
+                SubActionTypes.SetVariable or SubActionTypes.SetGlobalVariable or SubActionTypes.GetGlobalVariable
+                    or SubActionTypes.MultiCounter or SubActionTypes.RandomInt or SubActionTypes.CurrentTime
+                    or SubActionTypes.ExternalApi or SubActionTypes.WriteFile
+                    => SubActionCategories.VariablesAndUtilities,
+
+                _ => SubActionCategories.General
+            };
+        }
     }
 
     public class SubActionMetadata
@@ -109,5 +157,6 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public string Icon { get; init; } = string.Empty;
         public string Color { get; init; } = string.Empty;
         public string TableName { get; init; } = string.Empty;
+        public string Category { get; init; } = string.Empty;
     }
 }

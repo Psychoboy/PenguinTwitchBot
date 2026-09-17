@@ -52,6 +52,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
             await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
 
+            var categoryItem = dialogProvider.Find(".subaction-logic-flow-category");
+            categoryItem.Click();
+
             var delayItem = dialogProvider.Find(".subaction-delay");
             delayItem.Click();
 
@@ -68,6 +71,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var dialogProvider = _ctx!.Render<MudDialogProvider>();
             var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
             await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            var categoryItem = dialogProvider.Find(".subaction-chat-media-category");
+            categoryItem.Click();
 
             var sendMessageItem = dialogProvider.Find(".subaction-sendmessage");
             sendMessageItem.Click();
@@ -148,12 +154,15 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
         [Fact]
-        public async Task BackButton_FromConfigure_ReturnsToTypeSelection()
+        public async Task BackButton_FromConfigure_ReturnsToCategorySubActionList()
         {
             SetupContext();
             var dialogProvider = _ctx!.Render<MudDialogProvider>();
             var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
             await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            var categoryItem = dialogProvider.Find(".subaction-logic-flow-category");
+            categoryItem.Click();
 
             var delayItem = dialogProvider.Find(".subaction-delay");
             delayItem.Click();
@@ -168,7 +177,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             dialogProvider.WaitForAssertion(() =>
             {
-                Assert.Contains("Select SubAction Type", dialogProvider.Markup);
+                Assert.Contains("Logic &amp; Flow Actions", dialogProvider.Markup);
                 Assert.DoesNotContain("Configure Delay", dialogProvider.Markup);
             });
         }
@@ -299,7 +308,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         }
 
         [Fact]
-        public async Task MainList_ContainsExpectedNonObsTypes()
+        public async Task MainList_ContainsExpectedCategories()
         {
             SetupContext();
             var dialogProvider = _ctx!.Render<MudDialogProvider>();
@@ -309,9 +318,58 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             dialogProvider.WaitForAssertion(() =>
             {
                 var markup = dialogProvider.Markup;
+                Assert.Contains("OBS", markup);
+                Assert.Contains("Chat &amp; Media", markup);
+                Assert.Contains("Logic &amp; Flow", markup);
+                Assert.Contains("Overlay Timer", markup);
+                Assert.Contains("Raffles", markup);
+                Assert.DoesNotContain("Configure Delay", markup);
+            });
+        }
+
+        [Fact]
+        public async Task Search_ShowsMatchingSubActionsDirectly()
+        {
+            SetupContext();
+            var dialogProvider = _ctx!.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            var searchInput = dialogProvider.Find("input");
+            searchInput.Input("Delay");
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
                 Assert.Contains("Delay", markup);
-                Assert.Contains("Send Message", markup);
-                Assert.Contains("Alert", markup);
+                Assert.DoesNotContain("Logic & Flow Actions", markup);
+            });
+
+            var delayItem = dialogProvider.Find(".subaction-delay");
+            delayItem.Click();
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                Assert.Contains("Configure Delay", dialogProvider.Markup);
+            });
+        }
+
+        [Fact]
+        public async Task Search_OBS_ShowsAllObsSubActions()
+        {
+            SetupContext();
+            var dialogProvider = _ctx!.Render<MudDialogProvider>();
+            var dialogService = _ctx.Services.GetRequiredService<IDialogService>();
+            await _ctx.Renderer.Dispatcher.InvokeAsync(() => dialogService.ShowAsync<AddSubActionDialog>("Test Title"));
+
+            var searchInput = dialogProvider.Find("input");
+            searchInput.Input("OBS");
+
+            dialogProvider.WaitForAssertion(() =>
+            {
+                var markup = dialogProvider.Markup;
+                Assert.Contains("OBS - Set Scene", markup);
+                Assert.Contains("OBS - Set Source Visibility", markup);
             });
         }
 

@@ -9,66 +9,77 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
-            @if (_currentStep == WizardStep.SelectType)
+            @if (_currentStep == WizardStep.SelectCategory)
             {
                 <MudText Typo="Typo.h6">Select SubAction Type</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose the type of action you want to add</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose a category or search for an action</MudText>
                 
                 <MudTextField @bind-Value="_searchText" Placeholder="Search subactions..." 
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
-                              Immediate="true" Margin="Margin.Dense" Class="subaction-search" />
+                              Clearable="true" Immediate="true" Margin="Margin.Dense" Class="subaction-search" />
 
                 <div style="max-height: 400px; overflow-y: auto;">
                     <MudList T="string">
-                        @foreach (var item in GetMainListItems())
+                        @if (string.IsNullOrWhiteSpace(_searchText))
                         {
-                            @if (item.IsObsCategory)
+                            @foreach (var cat in GetAvailableCategories())
                             {
-                                 <MudListItem T="string" class="subaction-item subaction-obs-category" OnClick="SelectObsCategory">
+                                <MudListItem T="string" class="@($"subaction-item subaction-category subaction-category-{cat.Id} subaction-{cat.Id}-category")" OnClick="@(() => SelectCategory(cat))">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                        <MudIcon Icon="@Icons.Material.Filled.Videocam" Color="Color.Warning" />
+                                        <MudIcon Icon="@cat.Icon" Color="@cat.Color" />
                                         <MudStack Spacing="0">
-                                            <MudText Typo="Typo.body1"><b>OBS</b></MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">Configure OBS scenes, sources, audio, and more</MudText>
+                                            <MudText Typo="Typo.body1"><b>@cat.Name</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@cat.Description</MudText>
                                         </MudStack>
                                         <MudSpacer />
                                         <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
                                     </MudStack>
                                 </MudListItem>
+                                <MudDivider />
                             }
-                            else
+                        }
+                        else
+                        {
+                            @foreach (var type in GetSearchResults())
                             {
-                                 <MudListItem T="string" class="@($"subaction-item subaction-{item.Type.ToString().ToLower()}")" OnClick="@(() => SelectType(item.Type))">
+                                var cat = GetCategoryForType(type);
+                                <MudListItem T="string" class="@($"subaction-item {(cat?.Id == "obs" ? "subaction-obs-type " : "")}subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
                                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                        <MudIcon Icon="@GetIconForType(item.Type)" Color="@GetColorForType(item.Type)" />
+                                        <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
                                         <MudStack Spacing="0">
-                                            <MudText Typo="Typo.body1"><b>@GetDisplayName(item.Type)</b></MudText>
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(item.Type)</MudText>
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudText Typo="Typo.body1"><b>@GetDisplayName(type)</b></MudText>
+                                                @if (cat != null)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Color="@cat.Color" Variant="Variant.Outlined" Class="ml-1 px-1 py-0" Style="font-size: 0.7rem; height: 18px;">@cat.Name</MudChip>
+                                                }
+                                            </MudStack>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
                                         </MudStack>
                                     </MudStack>
                                 </MudListItem>
+                                <MudDivider />
                             }
-                            <MudDivider />
                         }
                     </MudList>
                 </div>
             }
-            else if (_currentStep == WizardStep.SelectObsType)
+            else if (_currentStep == WizardStep.SelectSubAction && _selectedCategory != null)
             {
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
-                    <MudIcon Icon="@Icons.Material.Filled.Videocam" Color="Color.Warning" />
-                    <MudText Typo="Typo.h6">OBS Actions</MudText>
+                    <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
+                    <MudText Typo="Typo.h6">@_selectedCategory.Name Actions</MudText>
                 </MudStack>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select an OBS action type</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select @(StartsWithVowelSound(_selectedCategory.Name) ? "an" : "a") @_selectedCategory.Name action type</MudText>
                 <div style="max-height: 400px; overflow-y: auto;">
                     <MudList T="string">
-                        @foreach (var type in GetObsSubActionTypes())
+                        @foreach (var type in GetCategorySubActionTypes(_selectedCategory))
                         {
-                             <MudListItem T="string" class="@($"subaction-item subaction-obs-type subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
+                            <MudListItem T="string" class="@($"subaction-item {(_selectedCategory.Id == "obs" ? "subaction-obs-type " : "")}subaction-{type.ToString().ToLower()}")" OnClick="@(() => SelectType(type))">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                     <MudIcon Icon="@GetIconForType(type)" Color="@GetColorForType(type)" />
                                     <MudStack Spacing="0">
-                                        <MudText Typo="Typo.body1"><b>@GetObsDisplayName(type)</b></MudText>
+                                        <MudText Typo="Typo.body1"><b>@GetCategoryDisplayName(type, _selectedCategory)</b></MudText>
                                         <MudText Typo="Typo.body2" Color="Color.Secondary">@GetDescription(type)</MudText>
                                     </MudStack>
                                 </MudStack>
@@ -95,7 +106,7 @@
         </MudStack>
     </DialogContent>
     <DialogActions>
-        @if (_currentStep != WizardStep.SelectType)
+        @if (_currentStep != WizardStep.SelectCategory)
         {
             <MudButton OnClick="GoBack" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
         }
@@ -123,15 +134,101 @@
     [Parameter] 
     public SubActionType? ExistingSubAction { get; set; }
 
+    public record SubActionCategoryInfo(
+        string Id,
+        string Name,
+        string Description,
+        string Icon,
+        Color Color,
+        int Order
+    );
+
+    private static readonly List<SubActionCategoryInfo> Categories = new()
+    {
+        new(
+            Id: "chat-media",
+            Name: SubActionCategories.ChatAndMedia,
+            Description: "Send chat messages, play sounds, alerts, and TTS",
+            Icon: Icons.Material.Filled.Chat,
+            Color: Color.Primary,
+            Order: 1
+        ),
+        new(
+            Id: "fishing",
+            Name: SubActionCategories.Fishing,
+            Description: "Fishing minigame, tournaments, and item management",
+            Icon: Icons.Material.Filled.Phishing,
+            Color: Color.Info,
+            Order: 2
+        ),
+        new(
+            Id: "logic-flow",
+            Name: SubActionCategories.LogicAndFlow,
+            Description: "Conditionals, delays, execution flow, and command toggles",
+            Icon: Icons.Material.Filled.AltRoute,
+            Color: Color.Secondary,
+            Order: 3
+        ),
+        new(
+            Id: "obs",
+            Name: SubActionCategories.Obs,
+            Description: "Configure OBS scenes, sources, audio, and more",
+            Icon: Icons.Material.Filled.Videocam,
+            Color: Color.Warning,
+            Order: 4
+        ),
+        new(
+            Id: "overlay-timer",
+            Name: SubActionCategories.OverlayTimer,
+            Description: "Control and adjust on-screen overlay timers",
+            Icon: Icons.Material.Filled.Timer,
+            Color: Color.Success,
+            Order: 5
+        ),
+        new(
+            Id: "points-rewards",
+            Name: SubActionCategories.PointsAndRewards,
+            Description: "Points balance, gifts, and Twitch channel point rewards",
+            Icon: Icons.Material.Filled.Stars,
+            Color: Color.Warning,
+            Order: 6
+        ),
+        new(
+            Id: "raffles",
+            Name: SubActionCategories.Raffles,
+            Description: "Start, enter, manage, and conclude chat raffles",
+            Icon: Icons.Material.Filled.ConfirmationNumber,
+            Color: Color.Primary,
+            Order: 7
+        ),
+        new(
+            Id: "twitch-viewers",
+            Name: SubActionCategories.TwitchAndViewers,
+            Description: "Stream uptime, follow age, viewer actions, and giveaways",
+            Icon: Icons.Material.Filled.People,
+            Color: Color.Info,
+            Order: 8
+        ),
+        new(
+            Id: "variables-utilities",
+            Name: SubActionCategories.VariablesAndUtilities,
+            Description: "Variables, counters, random numbers, APIs, and file output",
+            Icon: Icons.Material.Filled.Code,
+            Color: Color.Default,
+            Order: 9
+        )
+    };
+
     private enum WizardStep
     {
-        SelectType,
-        SelectObsType,
+        SelectCategory,
+        SelectSubAction,
         Configure
     }
 
-    private WizardStep _currentStep = WizardStep.SelectType;
-    private WizardStep _previousStep = WizardStep.SelectType;
+    private WizardStep _currentStep = WizardStep.SelectCategory;
+    private WizardStep _previousStep = WizardStep.SelectCategory;
+    private SubActionCategoryInfo? _selectedCategory;
     private SubActionTypes _selectedType = SubActionTypes.None;
     private string _searchText = "";
     private string? _validationError;
@@ -154,66 +251,60 @@
         }
     }
 
-    private static bool IsObsType(SubActionTypes type)
+    private List<SubActionCategoryInfo> GetAvailableCategories()
     {
-        var metadata = SubActionRegistry.GetMetadata(type);
-        return metadata?.DisplayName.StartsWith("OBS -", StringComparison.OrdinalIgnoreCase) ?? false;
-    }
-
-    private List<(SubActionTypes Type, bool IsObsCategory)> GetMainListItems()
-    {
-        if (!string.IsNullOrWhiteSpace(_searchText))
-        {
-            // When searching, show all matching types flat (including OBS), sorted alphabetically
-            return SubActionRegistry.Metadata.Keys
-                .Where(t => t != SubActionTypes.None)
-                .Where(IsTypeAvailable)
-                .Where(t =>
-                {
-                    var metadata = SubActionRegistry.GetMetadata(t);
-                    if (metadata == null) return false;
-                    return metadata.DisplayName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-                           metadata.Description.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
-                })
-                .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
-                .Select(t => (t, false))
-                .ToList();
-        }
-
-        // When not searching: non-OBS types + OBS category entry, sorted alphabetically
-        var nonObsTypes = SubActionRegistry.Metadata.Keys
-            .Where(t => t != SubActionTypes.None && !IsObsType(t))
-            .Where(IsTypeAvailable)
-            .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
+        return Categories
+            .Where(cat => SubActionRegistry.Metadata.Values.Any(m => 
+                m.EnumValue != SubActionTypes.None && 
+                m.Category == cat.Name && 
+                IsTypeAvailable(m.EnumValue)))
+            .OrderBy(cat => cat.Name)
             .ToList();
-
-        var result = new List<(SubActionTypes Type, bool IsObsCategory)>();
-        bool obsAdded = false;
-
-        foreach (var type in nonObsTypes)
-        {
-            var displayName = SubActionRegistry.GetMetadata(type)?.DisplayName ?? "";
-            if (!obsAdded && string.Compare("OBS", displayName, StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                result.Add((SubActionTypes.None, true));
-                obsAdded = true;
-            }
-            result.Add((type, false));
-        }
-
-        if (!obsAdded)
-            result.Add((SubActionTypes.None, true));
-
-        return result;
     }
 
-    private List<SubActionTypes> GetObsSubActionTypes()
+    private List<SubActionTypes> GetCategorySubActionTypes(SubActionCategoryInfo category)
     {
         return SubActionRegistry.Metadata.Keys
-            .Where(t => t != SubActionTypes.None && IsObsType(t))
+            .Where(t => t != SubActionTypes.None)
+            .Where(t =>
+            {
+                var metadata = SubActionRegistry.GetMetadata(t);
+                return metadata != null && metadata.Category == category.Name;
+            })
             .Where(IsTypeAvailable)
+            .OrderBy(t => GetCategoryDisplayName(t, category))
+            .ToList();
+    }
+
+    private List<SubActionTypes> GetSearchResults()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return new List<SubActionTypes>();
+
+        var query = _searchText.Trim();
+
+        return SubActionRegistry.Metadata.Keys
+            .Where(t => t != SubActionTypes.None)
+            .Where(IsTypeAvailable)
+            .Where(t =>
+            {
+                var metadata = SubActionRegistry.GetMetadata(t);
+                if (metadata == null) return false;
+
+                return metadata.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                       metadata.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                       metadata.Category.Contains(query, StringComparison.OrdinalIgnoreCase);
+            })
             .OrderBy(t => SubActionRegistry.GetMetadata(t)?.DisplayName)
             .ToList();
+    }
+
+    private SubActionCategoryInfo? GetCategoryForType(SubActionTypes type)
+    {
+        var meta = SubActionRegistry.GetMetadata(type);
+        if (meta == null) return null;
+        return Categories.FirstOrDefault(c => c.Name == meta.Category)
+            ?? new SubActionCategoryInfo(meta.Category.ToLowerInvariant(), meta.Category, "", Icons.Material.Filled.Extension, Color.Default, 100);
     }
 
     private bool IsTypeAvailable(SubActionTypes type)
@@ -221,18 +312,33 @@
         return SubActionFeatureGate.IsAvailable(type, FeatureRuntimeCoordinator);
     }
 
-    private string GetObsDisplayName(SubActionTypes type)
+    private string GetCategoryDisplayName(SubActionTypes type, SubActionCategoryInfo category)
     {
         var name = GetDisplayName(type);
-        const string prefix = "OBS - ";
-        return name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            ? name[prefix.Length..]
-            : name;
+        var prefixWithDash = $"{category.Name} - ";
+        if (name.StartsWith(prefixWithDash, StringComparison.OrdinalIgnoreCase))
+        {
+            return name[prefixWithDash.Length..];
+        }
+        if (category.Id == "obs" && name.StartsWith("OBS - ", StringComparison.OrdinalIgnoreCase))
+        {
+            return name["OBS - ".Length..];
+        }
+        return name;
     }
 
-    private void SelectObsCategory()
+    private static bool StartsWithVowelSound(string text)
     {
-        _currentStep = WizardStep.SelectObsType;
+        if (string.IsNullOrEmpty(text)) return false;
+        var first = char.ToUpperInvariant(text[0]);
+        return first is 'A' or 'E' or 'I' or 'O' or 'U';
+    }
+
+    private void SelectCategory(SubActionCategoryInfo category)
+    {
+        _selectedCategory = category;
+        _previousStep = _currentStep;
+        _currentStep = WizardStep.SelectSubAction;
     }
 
     private void SelectType(SubActionTypes type)
@@ -259,9 +365,9 @@
             _currentStep = _previousStep;
             _validationError = null;
         }
-        else if (_currentStep == WizardStep.SelectObsType)
+        else if (_currentStep == WizardStep.SelectSubAction)
         {
-            _currentStep = WizardStep.SelectType;
+            _currentStep = WizardStep.SelectCategory;
         }
     }
 
