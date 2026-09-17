@@ -51,6 +51,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         // Shop Item Modifiers
         public FishingBoostType? NewBoostType { get; set; }
         public string NewBoostAmount { get; set; } = string.Empty;
+        public string NewBoostType2 { get; set; } = string.Empty;
+        public string NewBoostAmount2 { get; set; } = string.Empty;
+        public string NewBoostType3 { get; set; } = string.Empty;
+        public string NewBoostAmount3 { get; set; } = string.Empty;
         public string NewTargetFish { get; set; } = string.Empty;
         public string NewTargetCategory { get; set; } = string.Empty;
         public string NewEquipmentSlot { get; set; } = string.Empty;
@@ -212,7 +216,63 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     HelperText = "Optional. Enter decimal (e.g. 0.05 for +5%, -0.1 for -10%). Variables supported."
                 });
 
-                if (NewBoostType == FishingBoostType.SpecificFishBoost)
+                fields.Add(new()
+                {
+                    PropertyName = nameof(NewBoostType2),
+                    Label = "New Secondary Boost Type",
+                    FieldType = UIFieldType.Select,
+                    SelectOptions =
+                    [
+                        new() { Name = "Keep Current (No change)", Value = "" },
+                        new() { Name = "None (Remove Secondary Boost)", Value = "None" },
+                        new() { Name = "Rarity Boost", Value = nameof(FishingBoostType.GeneralRarityBoost) },
+                        new() { Name = "Specific Fish Boost", Value = nameof(FishingBoostType.SpecificFishBoost) },
+                        new() { Name = "Specific Category Boost", Value = nameof(FishingBoostType.SpecificCategoryBoost) },
+                        new() { Name = "Weight Boost", Value = nameof(FishingBoostType.WeightBoost) },
+                        new() { Name = "Star Boost", Value = nameof(FishingBoostType.StarBoost) }
+                    ],
+                    HelperText = "Optional. Set secondary boost or select None to remove."
+                });
+
+                fields.Add(new()
+                {
+                    PropertyName = nameof(NewBoostAmount2),
+                    Label = "New Secondary Boost Amount",
+                    FieldType = UIFieldType.Text,
+                    HelperText = "Optional. Enter decimal (e.g. 0.05 for +5%, -0.1 for -10%). Variables supported."
+                });
+
+                fields.Add(new()
+                {
+                    PropertyName = nameof(NewBoostType3),
+                    Label = "New Tertiary Boost Type",
+                    FieldType = UIFieldType.Select,
+                    SelectOptions =
+                    [
+                        new() { Name = "Keep Current (No change)", Value = "" },
+                        new() { Name = "None (Remove Tertiary Boost)", Value = "None" },
+                        new() { Name = "Rarity Boost", Value = nameof(FishingBoostType.GeneralRarityBoost) },
+                        new() { Name = "Specific Fish Boost", Value = nameof(FishingBoostType.SpecificFishBoost) },
+                        new() { Name = "Specific Category Boost", Value = nameof(FishingBoostType.SpecificCategoryBoost) },
+                        new() { Name = "Weight Boost", Value = nameof(FishingBoostType.WeightBoost) },
+                        new() { Name = "Star Boost", Value = nameof(FishingBoostType.StarBoost) }
+                    ],
+                    HelperText = "Optional. Set tertiary boost or select None to remove."
+                });
+
+                fields.Add(new()
+                {
+                    PropertyName = nameof(NewBoostAmount3),
+                    Label = "New Tertiary Boost Amount",
+                    FieldType = UIFieldType.Text,
+                    HelperText = "Optional. Enter decimal (e.g. 0.05 for +5%, -0.1 for -10%). Variables supported."
+                });
+
+                var hasFishBoost = NewBoostType == FishingBoostType.SpecificFishBoost ||
+                    string.Equals(NewBoostType2, nameof(FishingBoostType.SpecificFishBoost), StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(NewBoostType3, nameof(FishingBoostType.SpecificFishBoost), StringComparison.OrdinalIgnoreCase);
+
+                if (hasFishBoost)
                 {
                     fields.Add(new()
                     {
@@ -225,7 +285,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     });
                 }
 
-                if (NewBoostType == FishingBoostType.SpecificCategoryBoost)
+                var hasCategoryBoost = NewBoostType == FishingBoostType.SpecificCategoryBoost ||
+                    string.Equals(NewBoostType2, nameof(FishingBoostType.SpecificCategoryBoost), StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(NewBoostType3, nameof(FishingBoostType.SpecificCategoryBoost), StringComparison.OrdinalIgnoreCase);
+
+                if (hasCategoryBoost)
                 {
                     fields.Add(new()
                     {
@@ -328,6 +392,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 { nameof(EnabledState), EnabledState.ToString() },
                 { nameof(NewBoostType), NewBoostType?.ToString() ?? string.Empty },
                 { nameof(NewBoostAmount), NewBoostAmount },
+                { nameof(NewBoostType2), NewBoostType2 },
+                { nameof(NewBoostAmount2), NewBoostAmount2 },
+                { nameof(NewBoostType3), NewBoostType3 },
+                { nameof(NewBoostAmount3), NewBoostAmount3 },
                 { nameof(NewTargetFish), NewTargetFish },
                 { nameof(NewTargetCategory), NewTargetCategory },
                 { nameof(NewEquipmentSlot), NewEquipmentSlot },
@@ -419,6 +487,26 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 NewBoostAmount = newBoostAmount?.ToString() ?? string.Empty;
             }
 
+            if (values.TryGetValue(nameof(NewBoostType2), out var newBoostType2))
+            {
+                NewBoostType2 = newBoostType2?.ToString() ?? string.Empty;
+            }
+
+            if (values.TryGetValue(nameof(NewBoostAmount2), out var newBoostAmount2))
+            {
+                NewBoostAmount2 = newBoostAmount2?.ToString() ?? string.Empty;
+            }
+
+            if (values.TryGetValue(nameof(NewBoostType3), out var newBoostType3))
+            {
+                NewBoostType3 = newBoostType3?.ToString() ?? string.Empty;
+            }
+
+            if (values.TryGetValue(nameof(NewBoostAmount3), out var newBoostAmount3))
+            {
+                NewBoostAmount3 = newBoostAmount3?.ToString() ?? string.Empty;
+            }
+
             if (values.TryGetValue(nameof(NewTargetFish), out var newTargetFish))
             {
                 NewTargetFish = newTargetFish?.ToString() ?? string.Empty;
@@ -504,6 +592,26 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     if (!boostStr.Contains('%') && !double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _) && !double.TryParse(boostStr, out _))
                     {
                         return "New Boost Amount must be a valid number or variable";
+                    }
+                }
+
+                if (values.TryGetValue(nameof(NewBoostAmount2), out var boostAmount2Value) &&
+                    !string.IsNullOrWhiteSpace(boostAmount2Value?.ToString()))
+                {
+                    var boostStr = boostAmount2Value.ToString()!.Trim();
+                    if (!boostStr.Contains('%') && !double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _) && !double.TryParse(boostStr, out _))
+                    {
+                        return "New Secondary Boost Amount must be a valid number or variable";
+                    }
+                }
+
+                if (values.TryGetValue(nameof(NewBoostAmount3), out var boostAmount3Value) &&
+                    !string.IsNullOrWhiteSpace(boostAmount3Value?.ToString()))
+                {
+                    var boostStr = boostAmount3Value.ToString()!.Trim();
+                    if (!boostStr.Contains('%') && !double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _) && !double.TryParse(boostStr, out _))
+                    {
+                        return "New Tertiary Boost Amount must be a valid number or variable";
                     }
                 }
             }

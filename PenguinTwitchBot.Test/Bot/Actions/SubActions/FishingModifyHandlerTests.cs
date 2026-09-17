@@ -479,5 +479,83 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal("Unlimited", variables["modified_shop_item_max_uses"]);
             Assert.Equal("false", variables["modified_shop_item_admin_only"]);
         }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_UpdatesSecondaryAndTertiaryBoosts()
+        {
+            var item = new FishingShopItem
+            {
+                Id = 32,
+                Name = "Tackle Box",
+                BoostType = FishingBoostType.GeneralRarityBoost,
+                BoostAmount = 0.05,
+                BoostType2 = null,
+                BoostAmount2 = null,
+                BoostType3 = null,
+                BoostAmount3 = null
+            };
+            _fishingShopService.GetShopItemById(32).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "32",
+                NewBoostType2 = nameof(FishingBoostType.WeightBoost),
+                NewBoostAmount2 = "0.15",
+                NewBoostType3 = nameof(FishingBoostType.StarBoost),
+                NewBoostAmount3 = "0.08"
+            };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await _handler.ExecuteAsync(subAction, variables);
+
+            Assert.Equal(FishingBoostType.WeightBoost, item.BoostType2);
+            Assert.Equal(0.15, item.BoostAmount2);
+            Assert.Equal(FishingBoostType.StarBoost, item.BoostType3);
+            Assert.Equal(0.08, item.BoostAmount3);
+            await _fishingShopService.Received(1).UpdateShopItem(item);
+            Assert.Equal("WeightBoost", variables["modified_shop_item_boost_type2"]);
+            Assert.Equal("0.15", variables["modified_shop_item_boost_amount2"]);
+            Assert.Equal("StarBoost", variables["modified_shop_item_boost_type3"]);
+            Assert.Equal("0.08", variables["modified_shop_item_boost_amount3"]);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_RemovesSecondaryAndTertiaryBoosts()
+        {
+            var item = new FishingShopItem
+            {
+                Id = 33,
+                Name = "Grand Tackle Box",
+                BoostType = FishingBoostType.GeneralRarityBoost,
+                BoostAmount = 0.10,
+                BoostType2 = FishingBoostType.WeightBoost,
+                BoostAmount2 = 0.15,
+                BoostType3 = FishingBoostType.StarBoost,
+                BoostAmount3 = 0.05
+            };
+            _fishingShopService.GetShopItemById(33).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "33",
+                NewBoostType2 = "None",
+                NewBoostType3 = "None"
+            };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await _handler.ExecuteAsync(subAction, variables);
+
+            Assert.Null(item.BoostType2);
+            Assert.Null(item.BoostAmount2);
+            Assert.Null(item.BoostType3);
+            Assert.Null(item.BoostAmount3);
+            await _fishingShopService.Received(1).UpdateShopItem(item);
+            Assert.Equal("None", variables["modified_shop_item_boost_type2"]);
+            Assert.Equal("0", variables["modified_shop_item_boost_amount2"]);
+            Assert.Equal("None", variables["modified_shop_item_boost_type3"]);
+            Assert.Equal("0", variables["modified_shop_item_boost_amount3"]);
+        }
     }
 }

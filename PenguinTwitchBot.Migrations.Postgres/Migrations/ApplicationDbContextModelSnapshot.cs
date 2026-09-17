@@ -2747,8 +2747,24 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("NewBoostAmount2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostAmount3")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int?>("NewBoostType")
                         .HasColumnType("integer");
+
+                    b.Property<string>("NewBoostType2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostType3")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("NewCost")
                         .IsRequired()

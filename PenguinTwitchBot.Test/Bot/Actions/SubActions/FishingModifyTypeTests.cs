@@ -60,6 +60,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewDescription));
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostType));
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostAmount));
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostType2));
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostAmount2));
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostType3));
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewBoostAmount3));
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewEquipmentSlot));
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewMaxUses));
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.AdminOnlyState));
@@ -85,6 +89,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
+        public void GetUIFields_ShopItemMode_SecondarySpecificFishBoost_IncludesNewTargetFish()
+        {
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                NewBoostType2 = nameof(FishingBoostType.SpecificFishBoost)
+            };
+
+            var fields = subAction.GetUIFields();
+
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewTargetFish));
+        }
+
+        [Fact]
         public void GetUIFields_ShopItemMode_SpecificCategoryBoost_IncludesNewTargetCategory()
         {
             var subAction = new FishingModifyType
@@ -97,6 +115,20 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewTargetCategory));
             Assert.DoesNotContain(fields, f => f.PropertyName == nameof(FishingModifyType.NewTargetFish));
+        }
+
+        [Fact]
+        public void GetUIFields_ShopItemMode_TertiarySpecificCategoryBoost_IncludesNewTargetCategory()
+        {
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                NewBoostType3 = nameof(FishingBoostType.SpecificCategoryBoost)
+            };
+
+            var fields = subAction.GetUIFields();
+
+            Assert.Contains(fields, f => f.PropertyName == nameof(FishingModifyType.NewTargetCategory));
         }
 
         [Fact]
@@ -116,6 +148,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 EnabledState = ItemEnabledStateAction.Disable,
                 NewBoostType = FishingBoostType.SpecificFishBoost,
                 NewBoostAmount = "0.25",
+                NewBoostType2 = nameof(FishingBoostType.WeightBoost),
+                NewBoostAmount2 = "0.10",
+                NewBoostType3 = nameof(FishingBoostType.StarBoost),
+                NewBoostAmount3 = "0.05",
                 NewTargetFish = "Salmon",
                 NewTargetCategory = "River",
                 NewEquipmentSlot = nameof(EquipmentSlot.Rod),
@@ -141,6 +177,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal(original.EnabledState, restored.EnabledState);
             Assert.Equal(original.NewBoostType, restored.NewBoostType);
             Assert.Equal(original.NewBoostAmount, restored.NewBoostAmount);
+            Assert.Equal(original.NewBoostType2, restored.NewBoostType2);
+            Assert.Equal(original.NewBoostAmount2, restored.NewBoostAmount2);
+            Assert.Equal(original.NewBoostType3, restored.NewBoostType3);
+            Assert.Equal(original.NewBoostAmount3, restored.NewBoostAmount3);
             Assert.Equal(original.NewTargetFish, restored.NewTargetFish);
             Assert.Equal(original.NewTargetCategory, restored.NewTargetCategory);
             Assert.Equal(original.NewEquipmentSlot, restored.NewEquipmentSlot);
@@ -235,6 +275,36 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             });
 
             Assert.Equal("New Boost Amount must be a valid number or variable", error);
+        }
+
+        [Fact]
+        public void Validate_ShopItem_RejectsInvalidBoostAmount2()
+        {
+            var subAction = new FishingModifyType { TargetType = FishingModifyTargetType.ShopItem };
+
+            var error = subAction.Validate(new Dictionary<string, object?>
+            {
+                [nameof(FishingModifyType.TargetType)] = nameof(FishingModifyTargetType.ShopItem),
+                [nameof(FishingModifyType.TargetShopItem)] = "1",
+                [nameof(FishingModifyType.NewBoostAmount2)] = "invalid_number"
+            });
+
+            Assert.Equal("New Secondary Boost Amount must be a valid number or variable", error);
+        }
+
+        [Fact]
+        public void Validate_ShopItem_RejectsInvalidBoostAmount3()
+        {
+            var subAction = new FishingModifyType { TargetType = FishingModifyTargetType.ShopItem };
+
+            var error = subAction.Validate(new Dictionary<string, object?>
+            {
+                [nameof(FishingModifyType.TargetType)] = nameof(FishingModifyTargetType.ShopItem),
+                [nameof(FishingModifyType.TargetShopItem)] = "1",
+                [nameof(FishingModifyType.NewBoostAmount3)] = "invalid_number"
+            });
+
+            Assert.Equal("New Tertiary Boost Amount must be a valid number or variable", error);
         }
     }
 }

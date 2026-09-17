@@ -171,9 +171,31 @@
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Boost Type">
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                                @if (context.BoostType2.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType2.Value)</MudChip>
+                                }
+                                @if (context.BoostType3.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType3.Value)</MudChip>
+                                }
+                            </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="Boost Amount">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)</MudTd>
+                        <MudTd DataLabel="Boost Amount">
+                            <MudStack Spacing="0">
+                                <MudText>@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)</MudText>
+                                @if (context.BoostType2.HasValue && context.BoostAmount2.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount2.Value)</MudText>
+                                }
+                                @if (context.BoostType3.HasValue && context.BoostAmount3.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount3.Value)</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
                         <MudTd DataLabel="Equipment Slot">
                             @if (context.EquipmentSlot.HasValue)
                             {
@@ -1083,7 +1105,63 @@
                                  Adornment="Adornment.End"
                                  AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
 
-                @if (editingShopItem.BoostType == FishingBoostType.SpecificFishBoost)
+                <MudSelect @bind-Value="editingShopItem.BoostType2" 
+                           Label="Secondary Boost Type (Optional)" 
+                           Clearable="true"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((FishingBoostType?)null)">None</MudSelectItem>
+                    @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
+                    {
+                        <MudSelectItem Value="@((FishingBoostType?)type)">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (editingShopItem.BoostType2.HasValue)
+                {
+                    <MudNumericField @bind-Value="editingShopItem.BoostAmount2" 
+                                     Label="Secondary Boost Amount" 
+                                     HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                     Min="-0.8" 
+                                     Max="5.0" 
+                                     Step="0.01"
+                                     Format="F2"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
+                }
+
+                <MudSelect @bind-Value="editingShopItem.BoostType3" 
+                           Label="Tertiary Boost Type (Optional)" 
+                           Clearable="true"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((FishingBoostType?)null)">None</MudSelectItem>
+                    @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
+                    {
+                        <MudSelectItem Value="@((FishingBoostType?)type)">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (editingShopItem.BoostType3.HasValue)
+                {
+                    <MudNumericField @bind-Value="editingShopItem.BoostAmount3" 
+                                     Label="Tertiary Boost Amount" 
+                                     HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                     Min="-0.8" 
+                                     Max="5.0" 
+                                     Step="0.01"
+                                     Format="F2"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
+                }
+
+                @if (editingShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
+                     editingShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                     editingShopItem.BoostType3 == FishingBoostType.SpecificFishBoost)
                 {
                     <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
                                Label="Target Fish"
@@ -1101,7 +1179,9 @@
                     </MudSelect>
                 }
 
-                @if (editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost)
+                @if (editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
+                     editingShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+                     editingShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost)
                 {
                     <MudAutocomplete T="string"
                                      Value="@editingShopItem.TargetCategory"
@@ -1641,6 +1721,10 @@
                 Cost = item.Cost,
                 BoostType = item.BoostType,
                 BoostAmount = item.BoostAmount,
+                BoostType2 = item.BoostType2,
+                BoostAmount2 = item.BoostAmount2,
+                BoostType3 = item.BoostType3,
+                BoostAmount3 = item.BoostAmount3,
                 TargetFishTypeId = item.TargetFishTypeId,
                 TargetCategory = item.TargetCategory,
                 Enabled = item.Enabled,
@@ -1658,6 +1742,14 @@
     {
         if (editingShopItem == null) return;
 
+        var usesFishBoost = editingShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
+                            editingShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                            editingShopItem.BoostType3 == FishingBoostType.SpecificFishBoost;
+        if (!usesFishBoost)
+        {
+            editingShopItem.TargetFishTypeId = null;
+        }
+
         var usesCategoryBoost = editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
                                  editingShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
                                  editingShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost;
@@ -1665,6 +1757,28 @@
         {
             Snackbar.Add("Target Category is required when using a Specific Category Boost", Severity.Error);
             return;
+        }
+        if (!usesCategoryBoost)
+        {
+            editingShopItem.TargetCategory = null;
+        }
+
+        if (!editingShopItem.BoostType2.HasValue)
+        {
+            editingShopItem.BoostAmount2 = null;
+        }
+        else
+        {
+            editingShopItem.BoostAmount2 ??= 0;
+        }
+
+        if (!editingShopItem.BoostType3.HasValue)
+        {
+            editingShopItem.BoostAmount3 = null;
+        }
+        else
+        {
+            editingShopItem.BoostAmount3 ??= 0;
         }
 
         try

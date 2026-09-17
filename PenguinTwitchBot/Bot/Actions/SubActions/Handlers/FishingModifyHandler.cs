@@ -193,6 +193,66 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(modify.NewBoostType2) &&
+                !modify.NewBoostType2.Equals("KeepCurrent", StringComparison.OrdinalIgnoreCase))
+            {
+                if (modify.NewBoostType2.Equals("None", StringComparison.OrdinalIgnoreCase))
+                {
+                    item.BoostType2 = null;
+                    item.BoostAmount2 = null;
+                }
+                else if (Enum.TryParse<FishingBoostType>(modify.NewBoostType2, true, out var parsedBoostType2))
+                {
+                    item.BoostType2 = parsedBoostType2;
+                    item.BoostAmount2 ??= 0;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(modify.NewBoostAmount2))
+            {
+                var boostStr = VariableReplacer.ReplaceVariables(modify.NewBoostAmount2, variables).Trim();
+                if (double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost2) ||
+                    double.TryParse(boostStr, out boost2))
+                {
+                    item.BoostAmount2 = Math.Round(Math.Clamp(boost2, -0.8, 5.0), 2, MidpointRounding.AwayFromZero);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(modify.NewBoostType3) &&
+                !modify.NewBoostType3.Equals("KeepCurrent", StringComparison.OrdinalIgnoreCase))
+            {
+                if (modify.NewBoostType3.Equals("None", StringComparison.OrdinalIgnoreCase))
+                {
+                    item.BoostType3 = null;
+                    item.BoostAmount3 = null;
+                }
+                else if (Enum.TryParse<FishingBoostType>(modify.NewBoostType3, true, out var parsedBoostType3))
+                {
+                    item.BoostType3 = parsedBoostType3;
+                    item.BoostAmount3 ??= 0;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(modify.NewBoostAmount3))
+            {
+                var boostStr = VariableReplacer.ReplaceVariables(modify.NewBoostAmount3, variables).Trim();
+                if (double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost3) ||
+                    double.TryParse(boostStr, out boost3))
+                {
+                    item.BoostAmount3 = Math.Round(Math.Clamp(boost3, -0.8, 5.0), 2, MidpointRounding.AwayFromZero);
+                }
+            }
+
+            if (!item.BoostType2.HasValue)
+            {
+                item.BoostAmount2 = null;
+            }
+
+            if (!item.BoostType3.HasValue)
+            {
+                item.BoostAmount3 = null;
+            }
+
             if (!string.IsNullOrWhiteSpace(modify.NewTargetFish))
             {
                 var targetFish = VariableReplacer.ReplaceVariables(modify.NewTargetFish, variables).Trim();
@@ -285,6 +345,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             variables["modified_shop_item_cost"] = item.Cost.ToString();
             variables["modified_shop_item_boost_type"] = item.BoostType.ToString();
             variables["modified_shop_item_boost_amount"] = item.BoostAmount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            variables["modified_shop_item_boost_type2"] = item.BoostType2?.ToString() ?? "None";
+            variables["modified_shop_item_boost_amount2"] = item.BoostAmount2?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "0";
+            variables["modified_shop_item_boost_type3"] = item.BoostType3?.ToString() ?? "None";
+            variables["modified_shop_item_boost_amount3"] = item.BoostAmount3?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "0";
             variables["modified_shop_item_equipment_slot"] = item.EquipmentSlot?.ToString() ?? "None";
             variables["modified_shop_item_max_uses"] = item.MaxUses?.ToString() ?? "Unlimited";
             variables["modified_shop_item_admin_only"] = item.IsAdminOnly.ToString().ToLowerInvariant();
