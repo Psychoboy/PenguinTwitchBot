@@ -1159,9 +1159,7 @@
                                      AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
                 }
 
-                @if (editingShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
-                     editingShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
-                     editingShopItem.BoostType3 == FishingBoostType.SpecificFishBoost)
+                @if (FishingValueRules.UsesSpecificFishBoost(editingShopItem))
                 {
                     <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
                                Label="Target Fish"
@@ -1179,9 +1177,7 @@
                     </MudSelect>
                 }
 
-                @if (editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
-                     editingShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
-                     editingShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost)
+                @if (FishingValueRules.UsesSpecificCategoryBoost(editingShopItem))
                 {
                     <MudAutocomplete T="string"
                                      Value="@editingShopItem.TargetCategory"
@@ -1742,44 +1738,15 @@
     {
         if (editingShopItem == null) return;
 
-        var usesFishBoost = editingShopItem.BoostType == FishingBoostType.SpecificFishBoost ||
-                            editingShopItem.BoostType2 == FishingBoostType.SpecificFishBoost ||
-                            editingShopItem.BoostType3 == FishingBoostType.SpecificFishBoost;
-        if (!usesFishBoost)
-        {
-            editingShopItem.TargetFishTypeId = null;
-        }
+        FishingValueRules.ClearUnusedShopItemTargets(editingShopItem);
 
-        var usesCategoryBoost = editingShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
-                                 editingShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
-                                 editingShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost;
-        if (usesCategoryBoost && string.IsNullOrWhiteSpace(editingShopItem.TargetCategory))
+        if (!FishingValueRules.ValidateShopItemTargets(editingShopItem, out var targetError))
         {
-            Snackbar.Add("Target Category is required when using a Specific Category Boost", Severity.Error);
+            Snackbar.Add(targetError, Severity.Error);
             return;
         }
-        if (!usesCategoryBoost)
-        {
-            editingShopItem.TargetCategory = null;
-        }
 
-        if (!editingShopItem.BoostType2.HasValue)
-        {
-            editingShopItem.BoostAmount2 = null;
-        }
-        else
-        {
-            editingShopItem.BoostAmount2 ??= 0;
-        }
-
-        if (!editingShopItem.BoostType3.HasValue)
-        {
-            editingShopItem.BoostAmount3 = null;
-        }
-        else
-        {
-            editingShopItem.BoostAmount3 ??= 0;
-        }
+        FishingValueRules.NormalizeShopItem(editingShopItem);
 
         try
         {

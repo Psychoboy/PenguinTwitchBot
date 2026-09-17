@@ -77,10 +77,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (!string.IsNullOrWhiteSpace(modify.NewGold))
             {
-                var newGoldStr = VariableReplacer.ReplaceVariables(modify.NewGold, variables).Trim();
-                if (int.TryParse(newGoldStr, out var newGold))
+                var replaced = VariableReplacer.ReplaceVariables(modify.NewGold, variables).Trim();
+                if (!string.IsNullOrWhiteSpace(replaced))
                 {
-                    fish.BaseGold = Math.Max(0, newGold);
+                    fish.BaseGold = ParseNonNegativeInt(modify.NewGold, variables, modify, "gold");
                 }
             }
 
@@ -166,10 +166,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (!string.IsNullOrWhiteSpace(modify.NewCost))
             {
-                var newCostStr = VariableReplacer.ReplaceVariables(modify.NewCost, variables).Trim();
-                if (int.TryParse(newCostStr, out var newCost))
+                var replaced = VariableReplacer.ReplaceVariables(modify.NewCost, variables).Trim();
+                if (!string.IsNullOrWhiteSpace(replaced))
                 {
-                    item.Cost = Math.Max(0, newCost);
+                    item.Cost = ParseNonNegativeInt(modify.NewCost, variables, modify, "cost");
                 }
             }
 
@@ -185,73 +185,30 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (!string.IsNullOrWhiteSpace(modify.NewBoostAmount))
             {
-                var boostStr = VariableReplacer.ReplaceVariables(modify.NewBoostAmount, variables).Trim();
-                if (double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost) ||
-                    double.TryParse(boostStr, out boost))
+                var replaced = VariableReplacer.ReplaceVariables(modify.NewBoostAmount, variables).Trim();
+                if (!string.IsNullOrWhiteSpace(replaced))
                 {
-                    item.BoostAmount = Math.Round(Math.Clamp(boost, -0.8, 5.0), 2, MidpointRounding.AwayFromZero);
+                    item.BoostAmount = ParseBoostAmount(modify.NewBoostAmount, variables, modify, "");
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(modify.NewBoostType2) &&
-                !modify.NewBoostType2.Equals("KeepCurrent", StringComparison.OrdinalIgnoreCase))
-            {
-                if (modify.NewBoostType2.Equals("None", StringComparison.OrdinalIgnoreCase))
-                {
-                    item.BoostType2 = null;
-                    item.BoostAmount2 = null;
-                }
-                else if (Enum.TryParse<FishingBoostType>(modify.NewBoostType2, true, out var parsedBoostType2))
-                {
-                    item.BoostType2 = parsedBoostType2;
-                    item.BoostAmount2 ??= 0;
-                }
-            }
+            (item.BoostType2, item.BoostAmount2) = ApplyOptionalBoost(
+                modify.NewBoostType2,
+                modify.NewBoostAmount2,
+                item.BoostType2,
+                item.BoostAmount2,
+                variables,
+                modify,
+                "secondary ");
 
-            if (!string.IsNullOrWhiteSpace(modify.NewBoostAmount2))
-            {
-                var boostStr = VariableReplacer.ReplaceVariables(modify.NewBoostAmount2, variables).Trim();
-                if (double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost2) ||
-                    double.TryParse(boostStr, out boost2))
-                {
-                    item.BoostAmount2 = Math.Round(Math.Clamp(boost2, -0.8, 5.0), 2, MidpointRounding.AwayFromZero);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(modify.NewBoostType3) &&
-                !modify.NewBoostType3.Equals("KeepCurrent", StringComparison.OrdinalIgnoreCase))
-            {
-                if (modify.NewBoostType3.Equals("None", StringComparison.OrdinalIgnoreCase))
-                {
-                    item.BoostType3 = null;
-                    item.BoostAmount3 = null;
-                }
-                else if (Enum.TryParse<FishingBoostType>(modify.NewBoostType3, true, out var parsedBoostType3))
-                {
-                    item.BoostType3 = parsedBoostType3;
-                    item.BoostAmount3 ??= 0;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(modify.NewBoostAmount3))
-            {
-                var boostStr = VariableReplacer.ReplaceVariables(modify.NewBoostAmount3, variables).Trim();
-                if (double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost3) ||
-                    double.TryParse(boostStr, out boost3))
-                {
-                    item.BoostAmount3 = Math.Round(Math.Clamp(boost3, -0.8, 5.0), 2, MidpointRounding.AwayFromZero);
-                }
-            }
-
-            if (!item.BoostType2.HasValue)
-            {
-                item.BoostAmount2 = null;
-            }
-
-            if (!item.BoostType3.HasValue)
-            {
-                item.BoostAmount3 = null;
-            }
+            (item.BoostType3, item.BoostAmount3) = ApplyOptionalBoost(
+                modify.NewBoostType3,
+                modify.NewBoostAmount3,
+                item.BoostType3,
+                item.BoostAmount3,
+                variables,
+                modify,
+                "tertiary ");
 
             if (!string.IsNullOrWhiteSpace(modify.NewTargetFish))
             {
@@ -260,19 +217,20 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     item.TargetFishTypeId = null;
                 }
-                else if (int.TryParse(targetFish, out var targetFishId) && targetFishId > 0)
-                {
-                    item.TargetFishTypeId = targetFishId;
-                }
                 else
                 {
                     var allFish = await fishingService.GetAllFishTypes();
-                    var matchedFish = allFish.FirstOrDefault(f => string.Equals(f.Name, targetFish, StringComparison.OrdinalIgnoreCase))
-                        ?? allFish.FirstOrDefault(f => f.Id.ToString() == targetFish);
-                    if (matchedFish != null)
+                    var matchedFish = (int.TryParse(targetFish, out var targetFishId) && targetFishId > 0)
+                        ? allFish.FirstOrDefault(f => f.Id == targetFishId)
+                        : (allFish.FirstOrDefault(f => string.Equals(f.Name, targetFish, StringComparison.OrdinalIgnoreCase))
+                           ?? allFish.FirstOrDefault(f => f.Id.ToString() == targetFish));
+
+                    if (matchedFish == null)
                     {
-                        item.TargetFishTypeId = matchedFish.Id;
+                        throw new SubActionUserFacingException(modify, "Target fish not found: {0}", targetFish);
                     }
+
+                    item.TargetFishTypeId = matchedFish.Id;
                 }
             }
 
@@ -337,6 +295,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     break;
             }
 
+            if (!FishingValueRules.ValidateShopItemTargets(item, out var targetError))
+            {
+                throw new SubActionUserFacingException(modify, targetError);
+            }
+
+            FishingValueRules.NormalizeShopItem(item);
+
             await fishingShopService.UpdateShopItem(item);
 
             variables["modified_target_type"] = "ShopItem";
@@ -361,6 +326,61 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             context?.LogMessage(
                 subActionIndex,
                 $"Modified fishing shop item '{item.Name}' (ID: {item.Id}): Cost={item.Cost}, Enabled={item.Enabled}.");
+        }
+
+        private static int ParseNonNegativeInt(
+            string rawValue,
+            ConcurrentDictionary<string, string> variables,
+            FishingModifyType modify,
+            string fieldName)
+        {
+            var valueStr = VariableReplacer.ReplaceVariables(rawValue, variables).Trim();
+            if (!int.TryParse(valueStr, out var parsed) || parsed < 0)
+            {
+                throw new SubActionUserFacingException(modify, $"Invalid {fieldName} value: {{0}}", valueStr);
+            }
+            return parsed;
+        }
+
+        private static double ParseBoostAmount(
+            string rawAmount,
+            ConcurrentDictionary<string, string> variables,
+            FishingModifyType modify,
+            string label)
+        {
+            var boostStr = VariableReplacer.ReplaceVariables(rawAmount, variables).Trim();
+            if (!double.TryParse(boostStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var boost) &&
+                !double.TryParse(boostStr, out boost))
+            {
+                throw new SubActionUserFacingException(modify, $"Invalid {label}boost amount: {{0}}", boostStr);
+            }
+            return FishingValueRules.ClampBoostAmount(boost);
+        }
+
+        private static (FishingBoostType? Type, double? Amount) ApplyOptionalBoost(
+            string rawType,
+            string rawAmount,
+            FishingBoostType? currentType,
+            double? currentAmount,
+            ConcurrentDictionary<string, string> variables,
+            FishingModifyType modify,
+            string label)
+        {
+            double? parsedAmount = null;
+            if (!string.IsNullOrWhiteSpace(rawAmount))
+            {
+                var replaced = VariableReplacer.ReplaceVariables(rawAmount, variables).Trim();
+                if (!string.IsNullOrWhiteSpace(replaced))
+                {
+                    parsedAmount = ParseBoostAmount(rawAmount, variables, modify, label);
+                }
+            }
+
+            return FishingValueRules.ResolveOptionalBoost(
+                rawType,
+                parsedAmount,
+                currentType,
+                currentAmount);
         }
     }
 }

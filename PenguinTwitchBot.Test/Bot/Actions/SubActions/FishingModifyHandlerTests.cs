@@ -557,5 +557,174 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Equal("None", variables["modified_shop_item_boost_type3"]);
             Assert.Equal("0", variables["modified_shop_item_boost_amount3"]);
         }
+
+        [Fact]
+        public async Task ExecuteAsync_Fish_Throws_WhenGoldInvalidNumeric()
+        {
+            var fish = new FishType { Id = 1, Name = "Bass", BaseGold = 10 };
+            _fishingService.GetFishTypeById(1).Returns(fish);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.Fish,
+                TargetFish = "1",
+                NewGold = "invalid_number"
+            };
+
+            await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenCostInvalidNumeric()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Hook", Cost = 50 };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewCost = "abc"
+            };
+
+            await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmountInvalidNumeric()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewBoostAmount = "invalid_boost"
+            };
+
+            await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmount2InvalidNumeric()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewBoostAmount2 = "not_valid"
+            };
+
+            await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenBoostAmount3InvalidNumeric()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Hook", BoostAmount = 0.05 };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewBoostAmount3 = "not_valid"
+            };
+
+            await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenTargetFishNotFound_NumericId()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Special Lure" };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = 10, Name = "Trout" } });
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewTargetFish = "999"
+            };
+
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+            Assert.Contains("Target fish not found", ex.Message);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenTargetFishNotFound_Name()
+        {
+            var item = new FishingShopItem { Id = 1, Name = "Special Lure" };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+            _fishingService.GetAllFishTypes().Returns(new List<FishType> { new() { Id = 10, Name = "Trout" } });
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1",
+                NewTargetFish = "NonExistentFish"
+            };
+
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+            Assert.Contains("Target fish not found", ex.Message);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenSpecificFishBoostMissingTargetFish()
+        {
+            var item = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Special Lure",
+                BoostType = FishingBoostType.SpecificFishBoost,
+                TargetFishTypeId = null
+            };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1"
+            };
+
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+            Assert.Contains("Target fish is required", ex.Message);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ShopItem_Throws_WhenSpecificCategoryBoostMissingTargetCategory()
+        {
+            var item = new FishingShopItem
+            {
+                Id = 1,
+                Name = "Ocean Lure",
+                BoostType = FishingBoostType.SpecificCategoryBoost,
+                TargetCategory = null
+            };
+            _fishingShopService.GetShopItemById(1).Returns(item);
+
+            var subAction = new FishingModifyType
+            {
+                TargetType = FishingModifyTargetType.ShopItem,
+                TargetShopItem = "1"
+            };
+
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() =>
+                _handler.ExecuteAsync(subAction, new ConcurrentDictionary<string, string>()));
+            Assert.Contains("Target category is required", ex.Message);
+        }
     }
 }
