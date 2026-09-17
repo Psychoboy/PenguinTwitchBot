@@ -142,6 +142,8 @@ namespace PenguinTwitchBot.Controllers
             await settingsFileManager.AddOrUpdateAppSetting("twitchAccessToken", resp.AccessToken);
             await settingsFileManager.AddOrUpdateAppSetting("twitchRefreshToken", resp.RefreshToken);
 
+            await twitchService.ValidateAndRefreshToken();
+
             return Redirect("/settings/bot-auth");
         }
 

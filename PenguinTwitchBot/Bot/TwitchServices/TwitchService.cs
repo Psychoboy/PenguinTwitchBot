@@ -103,6 +103,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return serviceUp;
         }
 
+        public event EventHandler<bool>? ServiceStatusChanged;
+
         public async Task SendMesssageAsStreamer(string message)
         {
             try
@@ -1372,6 +1374,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         public async Task<bool> ValidateAndRefreshToken()
         {
+            var previousServiceUp = serviceUp;
             await semaphoreSlim.WaitAsync();
             try
             {
@@ -1433,6 +1436,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             else if (!serviceUp && !lastRefreshFailed)
             {
                 lastRefreshFailed = true;
+            }
+
+            if (serviceUp != previousServiceUp)
+            {
+                ServiceStatusChanged?.Invoke(this, serviceUp);
             }
 
             return serviceUp;

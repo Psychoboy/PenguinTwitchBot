@@ -38,6 +38,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> ValidateAndRefreshToken();
         Task<List<BannedUser>> GetAllBannedViewers();
         bool IsServiceUp();
+        event EventHandler<bool>? ServiceStatusChanged;
         Task<IEnumerable<Chatter>> GetCurrentChatters();
         Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards();
         Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
