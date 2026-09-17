@@ -112,4 +112,78 @@ public class SubActionUIFieldEnhancerTests
 
         Assert.NotEmpty(result);
     }
+
+    [Fact]
+    public void GetEnhancedFields_FishingModify_FishMode_EnhancesWithFishTypesAndSettings()
+    {
+        var services = new ServiceCollection();
+        var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
+        var shopService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingShopService>();
+
+        fishingService.GetAllFishTypes().Returns(new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
+        {
+            new() { Id = 1, Name = "Salmon", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Common, BaseGold = 10, Enabled = true },
+            new() { Id = 2, Name = "Tuna", Rarity = PenguinTwitchBot.Database.Bot.Models.Fishing.FishRarity.Rare, BaseGold = 75, Enabled = true }
+        });
+        fishingService.GetSettings().Returns(new PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSettings
+        {
+            RarityUncommonThreshold = 35,
+            RarityRareThreshold = 60,
+            RarityEpicThreshold = 110,
+            RarityLegendaryThreshold = 201,
+            RarityMythicalThreshold = 300
+        });
+
+        services.AddSingleton(fishingService);
+        services.AddSingleton(shopService);
+        var provider = services.BuildServiceProvider();
+
+        var subAction = new FishingModifyType
+        {
+            TargetType = FishingModifyTargetType.Fish,
+            TargetFish = "1"
+        };
+
+        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var targetFishField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetFish));
+        Assert.NotNull(targetFishField.SelectOptions);
+        Assert.Equal(2, targetFishField.SelectOptions.Count);
+        Assert.Contains(targetFishField.SelectOptions, o => o.Id == 1 && o.Name.Contains("Salmon"));
+
+        var rarityField = result.First(f => f.PropertyName == nameof(FishingModifyType.RarityMode));
+        Assert.NotNull(rarityField.HelperText);
+        Assert.Contains("201g", rarityField.HelperText);
+    }
+
+    [Fact]
+    public void GetEnhancedFields_FishingModify_ShopItemMode_EnhancesWithShopItems()
+    {
+        var services = new ServiceCollection();
+        var fishingService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingService>();
+        var shopService = Substitute.For<PenguinTwitchBot.Bot.Commands.Fishing.IFishingShopService>();
+
+        shopService.GetAllShopItems().Returns(new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishingShopItem>
+        {
+            new() { Id = 10, Name = "Basic Rod", Cost = 100, Enabled = true },
+            new() { Id = 20, Name = "Golden Reel", Cost = 500, Enabled = false }
+        });
+
+        services.AddSingleton(fishingService);
+        services.AddSingleton(shopService);
+        var provider = services.BuildServiceProvider();
+
+        var subAction = new FishingModifyType
+        {
+            TargetType = FishingModifyTargetType.ShopItem,
+            TargetShopItem = "10"
+        };
+
+        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var targetShopField = result.First(f => f.PropertyName == nameof(FishingModifyType.TargetShopItem));
+        Assert.NotNull(targetShopField.SelectOptions);
+        Assert.Equal(2, targetShopField.SelectOptions.Count);
+        Assert.Contains(targetShopField.SelectOptions, o => o.Id == 10 && o.Name.Contains("Basic Rod"));
+    }
 }

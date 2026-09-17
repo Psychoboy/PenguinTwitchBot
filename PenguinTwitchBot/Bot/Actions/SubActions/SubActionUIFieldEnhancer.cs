@@ -44,6 +44,7 @@ public static class SubActionUIFieldEnhancer
             ObsSetTextType text => EnhanceObsTextSource(fields, text, scope.ServiceProvider),
             ExecuteActionType execute => EnhanceExecuteAction(fields, execute, scope.ServiceProvider),
             FishingGiveItemToPlayerType fishingGiveItem => EnhanceFishingGiveItemToPlayer(fields, fishingGiveItem, scope.ServiceProvider),
+            FishingModifyType fishingModify => EnhanceFishingModify(fields, fishingModify, scope.ServiceProvider),
             FishingTournamentStartType fishStart => EnhanceFishingTournamentStart(fields, scope.ServiceProvider),
             FishingTournamentEndType fishEnd => EnhanceFishingTournamentEnd(fields, scope.ServiceProvider),
             TimerGroupSetEnabledStateType timer => EnhanceTimerGroupSetEnabledState(fields, timer, scope.ServiceProvider),
@@ -819,6 +820,112 @@ public static class SubActionUIFieldEnhancer
                 ? "Type or select a name. New names will be created automatically when the subaction saves."
                 : "Type or select the global variable name directly, without % signs."
         });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceFishingModify(List<SubActionUIField> fields, FishingModifyType modify, IServiceProvider serviceProvider)
+    {
+        var fishingService = serviceProvider.GetService<IFishingService>();
+        var shopService = serviceProvider.GetService<IFishingShopService>();
+
+        if (modify.TargetType == FishingModifyTargetType.Fish)
+        {
+            if (fishingService != null)
+            {
+                var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+                var fishOptions = fishTypes
+                    .Select(f => new SelectOption
+                    {
+                        Id = f.Id,
+                        Name = $"{f.Name} (ID: {f.Id} | {f.Rarity} | {f.BaseGold}g{(f.Enabled ? "" : " - disabled")})",
+                        Value = f.Id.ToString()
+                    })
+                    .OrderBy(o => o.Name)
+                    .ToList();
+
+                if (!string.IsNullOrWhiteSpace(modify.TargetFish)
+                    && !fishOptions.Any(o => o.Value == modify.TargetFish || o.Name == modify.TargetFish))
+                {
+                    fishOptions.Insert(0, new SelectOption { Name = modify.TargetFish, Value = modify.TargetFish });
+                }
+
+                var targetFishField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.TargetFish));
+                if (targetFishField != null)
+                {
+                    targetFishField.SelectOptions = fishOptions;
+                }
+
+                var settings = Task.Run(async () => await fishingService.GetSettings()).GetAwaiter().GetResult();
+                if (settings != null)
+                {
+                    var rarityField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.RarityMode));
+                    if (rarityField != null)
+                    {
+                        rarityField.HelperText = $"Auto threshold rules: Uncommon \u2265 {settings.RarityUncommonThreshold}g, Rare \u2265 {settings.RarityRareThreshold}g, Epic \u2265 {settings.RarityEpicThreshold}g, Legendary \u2265 {settings.RarityLegendaryThreshold}g, Mythical \u2265 {settings.RarityMythicalThreshold}g.";
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (shopService != null)
+            {
+                var shopItems = Task.Run(async () => await shopService.GetAllShopItems()).GetAwaiter().GetResult();
+                var shopItemOptions = shopItems
+                    .Select(item => new SelectOption
+                    {
+                        Id = item.Id,
+                        Name = $"{item.Name} (ID: {item.Id} | {item.Cost}g{(item.Enabled ? "" : " - disabled")})",
+                        Value = item.Id.ToString()
+                    })
+                    .OrderBy(o => o.Name)
+                    .ToList();
+
+                if (!string.IsNullOrWhiteSpace(modify.TargetShopItem)
+                    && !shopItemOptions.Any(o => o.Value == modify.TargetShopItem || o.Name == modify.TargetShopItem))
+                {
+                    shopItemOptions.Insert(0, new SelectOption { Name = modify.TargetShopItem, Value = modify.TargetShopItem });
+                }
+
+                var targetShopField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.TargetShopItem));
+                if (targetShopField != null)
+                {
+                    targetShopField.SelectOptions = shopItemOptions;
+                }
+
+                if (fishingService != null)
+                {
+                    var targetFishField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.NewTargetFish));
+                    if (targetFishField != null)
+                    {
+                        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+                        targetFishField.SelectOptions = fishTypes
+                            .Select(f => new SelectOption
+                            {
+                                Id = f.Id,
+                                Name = $"{f.Name} (ID: {f.Id} | {f.Rarity})",
+                                Value = f.Id.ToString()
+                            })
+                            .OrderBy(o => o.Name)
+                            .ToList();
+                    }
+
+                    var targetCatField = fields.FirstOrDefault(f => f.PropertyName == nameof(FishingModifyType.NewTargetCategory));
+                    if (targetCatField != null)
+                    {
+                        var fishTypes = Task.Run(async () => await fishingService.GetAllFishTypes()).GetAwaiter().GetResult();
+                        targetCatField.SelectOptions = fishTypes
+                            .SelectMany(f => f.Categories.Select(c => c.Category))
+                            .Where(c => !string.IsNullOrWhiteSpace(c))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(c => c)
+                            .Select(c => new SelectOption { Name = c, Value = c })
+                            .ToList();
+                    }
+                }
+            }
+        }
 
         return fields;
     }
