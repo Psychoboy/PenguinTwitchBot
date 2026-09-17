@@ -13,6 +13,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.FishingTournamentStart] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentEligibleCatch] = FeatureKeys.Fishing,
+                [SubActionTypes.FishingModify] = FeatureKeys.Fishing,
                 [SubActionTypes.Tts] = FeatureKeys.TTS
             };
 

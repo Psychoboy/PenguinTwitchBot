@@ -2730,6 +2730,91 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_fishinggiveitemtoplayer", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingModifyType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("AdminOnlyState")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EnabledState")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ManualRarity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NewBoostAmount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostAmount2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostAmount3")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("NewBoostType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NewBoostType2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostType3")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewCost")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewEquipmentSlot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewGold")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewMaxUses")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewTargetCategory")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewTargetFish")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RarityMode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetFish")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetShopItem")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer");
+
+                    b.ToTable("subactions_fishingmodify", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEligibleCatchType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");

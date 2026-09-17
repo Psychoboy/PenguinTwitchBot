@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Pages.Components
 {
@@ -35,6 +35,9 @@ namespace PenguinTwitchBot.Pages.Components
                 FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: #{tournamentStart.TournamentId}",
                 FishingTournamentEndType tournamentEnd => $"Fishing Tournament End: #{tournamentEnd.TournamentId}",
                 FishingTournamentEligibleCatchType tournamentEligibleCatch => $"Fishing Tournament Eligible Catch {(tournamentEligibleCatch.Enabled ? "Enabled" : "Disabled")}",
+                FishingModifyType modify => modify.TargetType == FishingModifyTargetType.Fish
+                    ? $"Modify Fish: {(string.IsNullOrWhiteSpace(modify.TargetFish) ? "None" : modify.TargetFish)}"
+                    : $"Modify Shop Item: {(string.IsNullOrWhiteSpace(modify.TargetShopItem) ? "None" : modify.TargetShopItem)}",
                 ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
                 ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
                 ObsSetSourceVisibilityType obsVis => $"OBS Visibility: {obsVis.SceneName}/{obsVis.SourceName} {(obsVis.Visible ? "Visible" : "Hidden")}",
