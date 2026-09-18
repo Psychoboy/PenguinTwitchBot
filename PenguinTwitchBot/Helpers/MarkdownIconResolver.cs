@@ -407,7 +407,7 @@ public static class MarkdownIconResolver
         var list = new List<MarkdownIconModel>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        void AddIcon(string name, string displayName, string category, bool isMaterial = false)
+        void AddIcon(string name, string displayName, string category, bool isMaterial)
         {
             if (seen.Add(name))
             {

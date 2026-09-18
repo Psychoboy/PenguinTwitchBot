@@ -33,19 +33,20 @@ window.panScrollElementById = function (elementId, deltaX, deltaY) {
     });
 };
 
-window._markdownEditors = window._markdownEditors || {};
+window._markdownEditors = (window._markdownEditors instanceof Map) ? window._markdownEditors : new Map();
 
 function getMarkdownEditorState(elementId) {
-    if (!window._markdownEditors[elementId]) {
-        window._markdownEditors[elementId] = {
+    if (!elementId || typeof elementId !== 'string') return null;
+    if (!window._markdownEditors.has(elementId)) {
+        window._markdownEditors.set(elementId, {
             selectionStart: null,
             selectionEnd: null,
             scrollTop: 0,
             scrollLeft: 0,
             height: null
-        };
+        });
     }
-    return window._markdownEditors[elementId];
+    return window._markdownEditors.get(elementId);
 }
 
 window.saveMarkdownSelection = function (elementId) {
@@ -55,6 +56,7 @@ window.saveMarkdownSelection = function (elementId) {
     if (!textarea) return;
 
     const state = getMarkdownEditorState(elementId);
+    if (!state) return;
     if (document.activeElement === textarea || state.selectionStart === null) {
         state.selectionStart = textarea.selectionStart;
         state.selectionEnd = textarea.selectionEnd;
@@ -73,6 +75,7 @@ window.setupMarkdownTextarea = function (elementId) {
     if (!textarea) return;
 
     const state = getMarkdownEditorState(elementId);
+    if (!state) return;
 
     if (state.height && textarea.style.height !== state.height) {
         textarea.style.height = state.height;
@@ -137,6 +140,7 @@ window.insertMarkdownText = function (elementId, prefix, suffix, defaultText) {
     if (!textarea) return null;
 
     const state = getMarkdownEditorState(elementId);
+    if (!state) return null;
     const text = textarea.value || '';
 
     let start = textarea.selectionStart;
@@ -205,6 +209,7 @@ window.restoreMarkdownCursorAndScroll = function (elementId) {
     if (!textarea) return;
 
     const state = getMarkdownEditorState(elementId);
+    if (!state) return;
     const text = textarea.value || '';
 
     let start = typeof state.selectionStart === 'number' ? state.selectionStart : text.length;
