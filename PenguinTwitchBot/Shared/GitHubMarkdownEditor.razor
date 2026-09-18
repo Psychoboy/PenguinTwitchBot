@@ -1,0 +1,407 @@
+@using PenguinTwitchBot.Helpers
+@inject IJSRuntime JSRuntime
+
+<div class="github-markdown-editor @(Resizable ? "editor-resizable" : "") @Class" style="@Style">
+    @if (!string.IsNullOrWhiteSpace(Label))
+    {
+        <MudText Typo="Typo.subtitle2" Class="mb-1">@Label</MudText>
+    }
+
+    <MudPaper Outlined="true" Class="editor-container">
+        <!-- Top Tab Bar (GitHub Style: Write | Preview) -->
+        <div class="editor-header d-flex justify-space-between align-center px-2 py-1">
+            <div class="d-flex align-center gap-1">
+                <MudButton Variant="@(_activeTab == EditorTab.Write ? Variant.Filled : Variant.Text)"
+                           Color="@(_activeTab == EditorTab.Write ? Color.Primary : Color.Default)"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="@(() => SetTab(EditorTab.Write))">
+                    Write
+                </MudButton>
+                <MudButton Variant="@(_activeTab == EditorTab.Preview ? Variant.Filled : Variant.Text)"
+                           Color="@(_activeTab == EditorTab.Preview ? Color.Primary : Color.Default)"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Visibility"
+                           OnClick="@(() => SetTab(EditorTab.Preview))">
+                    Preview
+                </MudButton>
+            </div>
+
+            <div class="d-flex align-center gap-2">
+                <MarkdownHelpLink />
+            </div>
+        </div>
+
+        <!-- Write Mode -->
+        <div class="editor-write-panel @(_activeTab == EditorTab.Write ? "" : "d-none")">
+            <!-- Toolbar -->
+            <div class="editor-toolbar d-flex flex-wrap align-center px-2 py-1 gap-1">
+                <!-- Text Styles -->
+                <MudTooltip Text="Bold (**text**)">
+                    <MudIconButton Icon="@Icons.Material.Filled.FormatBold" Size="Size.Small" OnClick="@(() => InsertAsync("**", "**", "bold text"))" />
+                </MudTooltip>
+                <MudTooltip Text="Italic (*text*)">
+                    <MudIconButton Icon="@Icons.Material.Filled.FormatItalic" Size="Size.Small" OnClick="@(() => InsertAsync("*", "*", "italic text"))" />
+                </MudTooltip>
+                <MudTooltip Text="Strikethrough (~~text~~)">
+                    <MudIconButton Icon="@Icons.Material.Filled.FormatStrikethrough" Size="Size.Small" OnClick="@(() => InsertAsync("~~", "~~", "strikethrough text"))" />
+                </MudTooltip>
+
+                <!-- Headings Menu -->
+                <MudTooltip Text="Headings">
+                    <MudMenu Icon="@Icons.Material.Filled.Title" Size="Size.Small">
+                        <MudMenuItem OnClick="@(() => InsertAsync("# ", "", "Heading 1"))">Heading 1 (#)</MudMenuItem>
+                        <MudMenuItem OnClick="@(() => InsertAsync("## ", "", "Heading 2"))">Heading 2 (##)</MudMenuItem>
+                        <MudMenuItem OnClick="@(() => InsertAsync("### ", "", "Heading 3"))">Heading 3 (###)</MudMenuItem>
+                    </MudMenu>
+                </MudTooltip>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="my-1 mx-1" />
+
+                <!-- Lists & Structure -->
+                <MudTooltip Text="Bullet List">
+                    <MudIconButton Icon="@Icons.Material.Filled.FormatListBulleted" Size="Size.Small" OnClick="@(() => InsertAsync("- ", "", "List item"))" />
+                </MudTooltip>
+                <MudTooltip Text="Numbered List">
+                    <MudIconButton Icon="@Icons.Material.Filled.FormatListNumbered" Size="Size.Small" OnClick="@(() => InsertAsync("1. ", "", "List item"))" />
+                </MudTooltip>
+                <MudTooltip Text="Task Checklist">
+                    <MudIconButton Icon="@Icons.Material.Filled.Checklist" Size="Size.Small" OnClick="@(() => InsertAsync("- [ ] ", "", "Task item"))" />
+                </MudTooltip>
+                <MudTooltip Text="Table Template">
+                    <MudIconButton Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" OnClick="@(() => InsertAsync("| Header 1 | Header 2 |\n| --- | --- |\n| Item 1 | Item 2 |\n"))" />
+                </MudTooltip>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="my-1 mx-1" />
+
+                <!-- Links & Code -->
+                <MudTooltip Text="Link">
+                    <MudIconButton Icon="@Icons.Material.Filled.InsertLink" Size="Size.Small" OnClick="@(() => InsertAsync("[", "](https://example.com)", "link title"))" />
+                </MudTooltip>
+                <MudTooltip Text="Inline Code">
+                    <MudIconButton Icon="@Icons.Material.Filled.Code" Size="Size.Small" OnClick="@(() => InsertAsync("`", "`", "code"))" />
+                </MudTooltip>
+                <MudTooltip Text="Code Block">
+                    <MudIconButton Icon="@Icons.Material.Filled.Terminal" Size="Size.Small" OnClick="@(() => InsertAsync("```text\n", "\n```\n", "code block"))" />
+                </MudTooltip>
+
+                <MudDivider Vertical="true" FlexItem="true" Class="my-1 mx-1" />
+
+                <!-- Alert Banners Menu -->
+                <MudTooltip Text="Callout Alerts / Banners">
+                    <MudMenu Icon="@Icons.Material.Filled.Lightbulb" Size="Size.Small">
+                        <MudMenuItem Icon="@Icons.Material.Filled.CheckCircle" IconColor="Color.Success" OnClick="@(() => InsertAsync("> [!TIP]\n> ", "\n", "**Tip:** Your highlight message here"))">
+                            [!TIP] Green Success Banner
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Info" IconColor="Color.Info" OnClick="@(() => InsertAsync("> [!NOTE]\n> ", "\n", "**Note:** Your informational note here"))">
+                            [!NOTE] Blue Info Banner
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Announcement" IconColor="Color.Secondary" OnClick="@(() => InsertAsync("> [!IMPORTANT]\n> ", "\n", "**Important:** Your notice here"))">
+                            [!IMPORTANT] Purple Notice Banner
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Warning" IconColor="Color.Warning" OnClick="@(() => InsertAsync("> [!WARNING]\n> ", "\n", "**Warning:** Your warning here"))">
+                            [!WARNING] Amber Warning Banner
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Error" IconColor="Color.Error" OnClick="@(() => InsertAsync("> [!CAUTION]\n> ", "\n", "**Caution:** Your alert here"))">
+                            [!CAUTION] Red Caution Banner
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.FormatQuote" OnClick="@(() => InsertAsync("> ", "", "Quote text"))">
+                            Standard Quote (>)
+                        </MudMenuItem>
+                    </MudMenu>
+                </MudTooltip>
+
+                <!-- SVG Icons & Emojis Menu -->
+                <MudTooltip Text="Stream Icons & Emojis">
+                    <MudMenu Icon="@Icons.Material.Filled.Stars" Size="Size.Small">
+                    <div class="pa-2" style="max-width: 350px; max-height: 400px; overflow-y: auto;">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Search"
+                                   Class="mb-2"
+                                   OnClick="OpenIconPickerAsync">
+                            Browse All 2,000+ Icons...
+                        </MudButton>
+
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">STREAM SVG ICONS</MudText>
+                        <div class="d-flex flex-wrap gap-1 my-1">
+                            @foreach (var sample in SampleStreamIcons)
+                            {
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Variant="Variant.Outlined"
+                                         Style="@($"border-color: {sample.HexColor}66;")"
+                                         OnClick="@(() => InsertAsync($"[icon:{sample.Name} {sample.HexColor} 1.5em] "))">
+                                    <span class="d-inline-flex align-center gap-1">
+                                        @((MarkupString)MarkdownIconResolver.RenderSvg(sample.Name, sample.HexColor, "1.2em"))
+                                        <span>@sample.Label (@sample.ColorName)</span>
+                                    </span>
+                                </MudChip>
+                            }
+                        </div>
+
+                        <MudDivider Class="my-2" />
+
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">QUICK EMOJIS</MudText>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            @foreach (var emoji in QuickEmojis)
+                            {
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Class="pa-1" Style="min-width: 32px;" OnClick="@(() => InsertAsync(emoji + " "))">
+                                    @emoji
+                                </MudButton>
+                            }
+                        </div>
+                    </div>
+                </MudMenu>
+                </MudTooltip>
+            </div>
+
+            <MudDivider />
+
+            <!-- Write Text Area -->
+            <div id="@_elementId" class="pa-2">
+                <MudTextField T="string"
+                              Value="@Value"
+                              ValueChanged="OnValueChanged"
+                              Lines="@Lines"
+                              Variant="Variant.Text"
+                              Underline="false"
+                              Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Type markdown here..." : Placeholder)"
+                              Style="width: 100%; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px;" />
+            </div>
+        </div>
+
+        <!-- Preview Mode -->
+        <div class="editor-preview pa-4 @(_activeTab == EditorTab.Preview ? "" : "d-none")" style="@GetPreviewStyle()">
+            @if (_activeTab == EditorTab.Preview)
+            {
+                @if (string.IsNullOrWhiteSpace(Value))
+                {
+                    <div class="d-flex justify-center align-center py-6">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            <i>Nothing to preview. Switch to the Write tab to enter content.</i>
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    <GitHubMarkdownViewer Value="@Value" />
+                }
+            }
+        </div>
+    </MudPaper>
+
+    @if (!string.IsNullOrWhiteSpace(HelperText))
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 ml-1">@HelperText</MudText>
+    }
+</div>
+
+<style>
+    .github-markdown-editor .editor-container {
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .github-markdown-editor .editor-header {
+        background-color: var(--mud-palette-background-grey);
+        border-bottom: 1px solid var(--mud-palette-lines-default);
+    }
+
+    .github-markdown-editor .editor-toolbar {
+        background-color: var(--mud-palette-surface);
+    }
+
+    .github-markdown-editor .editor-preview {
+        background-color: var(--mud-palette-surface);
+    }
+
+    .github-markdown-editor .mud-input {
+        width: 100%;
+        align-items: stretch !important;
+    }
+
+    .github-markdown-editor.editor-resizable textarea,
+    .github-markdown-editor.editor-resizable .mud-input > textarea.mud-input-root,
+    .github-markdown-editor.editor-resizable textarea.mud-input-root-multiline {
+        resize: vertical !important;
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+        min-height: 80px;
+    }
+
+    #@_elementId textarea,
+    #@_elementId .mud-input > textarea.mud-input-root {
+        @(Resizable ? "resize: vertical !important;" : "resize: none !important;")
+        overflow-y: auto !important;
+        box-sizing: border-box !important;
+        min-height: @(MinHeight ?? Math.Max(80, Lines * 20))px;
+        @(MaxHeight.HasValue ? $"max-height: {MaxHeight.Value}px;" : "")
+    }
+</style>
+
+@code {
+    private enum EditorTab { Write, Preview }
+
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public int Lines { get; set; } = 6;
+    [Parameter] public bool Resizable { get; set; } = true;
+    [Parameter] public int? MinHeight { get; set; }
+    [Parameter] public int? MaxHeight { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    private EditorTab _activeTab = EditorTab.Write;
+    private readonly string _elementId = $"md-editor-{Guid.NewGuid():N}";
+
+    private sealed record QuickSampleIcon(string Name, string Label, string HexColor, string ColorName);
+
+    private static readonly QuickSampleIcon[] SampleStreamIcons =
+    [
+        new("person", "Person", "#3299ff", "Blue"),
+        new("chat", "Chat", "#0bba83", "Green"),
+        new("star", "Star", "#ffa800", "Gold"),
+        new("ticket", "Ticket", "#3299ff", "Blue"),
+        new("gift", "Gift", "#e91e63", "Pink"),
+        new("trophy", "Trophy", "#ffd700", "Gold"),
+        new("diamond", "Diamond", "#00bcd4", "Cyan"),
+        new("fire", "Fire", "#ff5722", "Orange"),
+        new("crown", "Crown", "#ffc107", "Yellow"),
+        new("medal", "Medal", "#ffd700", "Gold"),
+        new("twitch", "Twitch", "#9146ff", "Purple"),
+        new("discord", "Discord", "#5865f2", "Blurple"),
+    ];
+
+    private static readonly string[] QuickEmojis =
+    [
+        "👤", "💬", "⭐", "🎟️", "🎁", "💎", "👑", "🔥", "🎮", "🔔", "🏆", "🕒", "⚠️", "✅", "🐧"
+    ];
+
+    private string GetPreviewStyle()
+    {
+        var minH = MinHeight ?? Math.Max(140, Lines * 20);
+        return $"min-height: {minH}px; overflow-y: auto;";
+    }
+
+    private async Task SetTab(EditorTab tab)
+    {
+        if (tab == _activeTab) return;
+
+        if (_activeTab == EditorTab.Write)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.saveMarkdownSelection", _elementId);
+            }
+            catch
+            {
+                // Ignore during prerendering or disconnection
+            }
+        }
+
+        _activeTab = tab;
+
+        if (tab == EditorTab.Write)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.restoreMarkdownCursorAndScroll", _elementId);
+            }
+            catch
+            {
+                // Ignore during prerendering or disconnection
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_activeTab == EditorTab.Write)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("window.setupMarkdownTextarea", _elementId);
+            }
+            catch
+            {
+                // Ignore during prerendering or disconnection
+            }
+        }
+    }
+
+    private async Task OnValueChanged(string? val)
+    {
+        Value = val;
+        await ValueChanged.InvokeAsync(val);
+    }
+
+    private async Task InsertAsync(string prefix, string suffix = "", string defaultText = "")
+    {
+        try
+        {
+            var updated = await JSRuntime.InvokeAsync<string?>("window.insertMarkdownText", _elementId, prefix, suffix, defaultText);
+            if (updated is not null)
+            {
+                Value = updated;
+                await ValueChanged.InvokeAsync(Value);
+                return;
+            }
+        }
+        catch
+        {
+            // Fallback in case JS is not available
+        }
+
+        // C# fallback: append to existing value
+        var current = Value ?? string.Empty;
+        var insertion = prefix + defaultText + suffix;
+
+        if (!string.IsNullOrEmpty(current) && !current.EndsWith('\n') &&
+            (prefix.StartsWith('#') || prefix.StartsWith('>') || prefix.StartsWith('-') || prefix.StartsWith('|') || prefix.StartsWith("1.")))
+        {
+            current += "\n" + insertion;
+        }
+        else
+        {
+            current += insertion;
+        }
+
+        Value = current;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    [Inject] private IDialogService DialogService { get; set; } = null!;
+
+    private async Task OpenIconPickerAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.saveMarkdownSelection", _elementId);
+        }
+        catch
+        {
+            // Ignore during prerendering or disconnection
+        }
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        var dialog = await DialogService.ShowAsync<MarkdownIconPickerDialog>("Browse & Search SVG Icons", options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled && result.Data is string iconMarkdown)
+        {
+            await InsertAsync(iconMarkdown + " ");
+        }
+    }
+}

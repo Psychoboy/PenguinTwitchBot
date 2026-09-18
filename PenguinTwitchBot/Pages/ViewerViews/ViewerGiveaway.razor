@@ -125,7 +125,7 @@
                     @if(!string.IsNullOrEmpty(prizeAdditionalDetails))
                     {
                         <MudPaper Class="pa-3" Elevation="0" Style="background-color: rgba(255,255,255,0.05);">
-                            <MudMarkdown Value="@prizeAdditionalDetails" />
+                            <GitHubMarkdownViewer Value="@prizeAdditionalDetails" />
                         </MudPaper>
                     }
                 </MudStack>
@@ -162,7 +162,7 @@
                         @if (!string.IsNullOrWhiteSpace(passiveEarnings))
                         {
                             <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Passive Earnings</MudText>
-                            <MudMarkdown Value="@passiveEarnings" />
+                            <GitHubMarkdownViewer Value="@passiveEarnings" />
                         }
                     </MudStack>
                 </MudPaper>
@@ -178,12 +178,12 @@
                     <MudDivider />
                     @if (!string.IsNullOrWhiteSpace(rules))
                     {
-                        <MudMarkdown Value="@rules" />
+                        <GitHubMarkdownViewer Value="@rules" />
                     }
                     @if (!string.IsNullOrWhiteSpace(cooldowns))
                     {
                         <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Prize Tiers &amp; Cooldowns</MudText>
-                        <MudMarkdown Value="@cooldowns" />
+                        <GitHubMarkdownViewer Value="@cooldowns" />
                     }
                 </MudStack>
             </MudPaper>
@@ -197,7 +197,7 @@
                         <MudText Typo="Typo.h5" class="mud-contrast-text">Terms &amp; Conditions</MudText>
                     </MudStack>
                     <MudDivider />
-                    <MudMarkdown Value="@terms" />
+                    <GitHubMarkdownViewer Value="@terms" />
                 </MudStack>
             </MudPaper>
             }

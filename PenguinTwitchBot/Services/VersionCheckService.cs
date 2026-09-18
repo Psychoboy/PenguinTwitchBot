@@ -6,6 +6,19 @@ using PenguinTwitchBot.Database.Bot.DatabaseTools;
 
 namespace PenguinTwitchBot.Services;
 
+public sealed class ReleaseInfo
+{
+    public string TagName { get; init; } = string.Empty;
+    public string Version { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
+    public string? Body { get; init; }
+    public DateTimeOffset? PublishedAt { get; init; }
+    public string? HtmlUrl { get; init; }
+    public bool IsPreRelease { get; init; }
+    public bool IsDraft { get; init; }
+    public bool HasCompatibleAsset { get; init; }
+}
+
 public interface IVersionCheckService
 {
     string CurrentVersion { get; }
@@ -19,6 +32,7 @@ public interface IVersionCheckService
     bool CanUserInitiateUpdate { get; }
     string? UpdateBlockedReason { get; }
     bool IsUpToDate { get; }
+    IReadOnlyList<ReleaseInfo> AvailableReleases { get; }
     Task<bool> RefreshNowAsync(CancellationToken cancellationToken = default);
     Task SetIncludePreviewReleasesAsync(bool value, CancellationToken cancellationToken = default);
     Task<UpdateStartResult> StartManualUpdateAsync(CancellationToken cancellationToken = default, IProgress<UpdateProgressState>? progress = null);
@@ -65,6 +79,7 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
     public string? LatestRecoveryBundleName => _latestRecoveryBundle?.Name;
     public bool HasRecoveryBundle => _latestRecoveryBundle is not null;
     public bool IncludePreviewReleases { get; private set; }
+    public IReadOnlyList<ReleaseInfo> AvailableReleases { get; private set; } = Array.Empty<ReleaseInfo>();
 
     public bool CanUserInitiateUpdate =>
         !IsUpToDate &&
@@ -150,27 +165,67 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
 
             var client = _httpClientFactory.CreateClient("GitHubRelease");
             var response = await client.GetAsync(
-                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases?per_page=10",
+                "https://api.github.com/repos/Psychoboy/PenguinTwitchBot/releases?per_page=30",
                 cancellationToken);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 // No releases published yet — not an error
+                AvailableReleases = Array.Empty<ReleaseInfo>();
+                ClearLatestRelease();
+                VersionStatusChanged?.Invoke();
                 return true;
             }
 
             response.EnsureSuccessStatusCode();
 
-            var releases = await response.Content.ReadFromJsonAsync<GitHubRelease[]>();
-            var release = releases?.FirstOrDefault(r => !r.Draft && (IncludePreviewReleases || !r.PreRelease));
+            var releases = await response.Content.ReadFromJsonAsync<GitHubRelease[]>(cancellationToken: cancellationToken);
+            if (releases is null)
+            {
+                AvailableReleases = Array.Empty<ReleaseInfo>();
+                ClearLatestRelease();
+                VersionStatusChanged?.Invoke();
+                return true;
+            }
+
+            var releaseList = new List<ReleaseInfo>();
+            foreach (var r in releases)
+            {
+                if (r.Draft || string.IsNullOrWhiteSpace(r.TagName)) continue;
+
+                var hasAsset = CheckHasCompatibleAsset(r);
+                var ver = r.TagName.TrimStart('v');
+                var title = !string.IsNullOrWhiteSpace(r.Name) ? r.Name : r.TagName;
+
+                releaseList.Add(new ReleaseInfo
+                {
+                    TagName = r.TagName,
+                    Version = ver,
+                    Title = title,
+                    Body = r.Body,
+                    PublishedAt = r.PublishedAt,
+                    HtmlUrl = r.HtmlUrl,
+                    IsPreRelease = r.PreRelease,
+                    IsDraft = r.Draft,
+                    HasCompatibleAsset = hasAsset
+                });
+            }
+            AvailableReleases = releaseList;
+
+            var release = releases.FirstOrDefault(r => !r.Draft && (IncludePreviewReleases || !r.PreRelease));
             if (release?.TagName is not null)
             {
                 LatestVersion = release.TagName.TrimStart('v');
                 LatestReleaseNotes = release.Body;
                 ResolveUpdateAsset(release);
                 UpdateRecoveryCache();
-                _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}",
-                    CurrentVersion, LatestVersion, IsUpToDate);
+                _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}, includePreviews={IncludePreviews}",
+                    CurrentVersion, LatestVersion, IsUpToDate, IncludePreviewReleases);
+                VersionStatusChanged?.Invoke();
+            }
+            else
+            {
+                ClearLatestRelease();
                 VersionStatusChanged?.Invoke();
             }
 
@@ -423,6 +478,15 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         }
     }
 
+    private void ClearLatestRelease()
+    {
+        LatestVersion = null;
+        LatestReleaseNotes = null;
+        LatestUpdateAssetName = null;
+        _latestUpdateAssetUrl = null;
+        _latestUpdateChecksumUrl = null;
+    }
+
     private void ResolveUpdateAsset(GitHubRelease release)
     {
         LatestUpdateAssetName = null;
@@ -598,10 +662,30 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
         return $"\"{value.Replace("\"", "\\\"")}\"";
     }
 
+    private bool CheckHasCompatibleAsset(GitHubRelease release)
+    {
+        if (string.IsNullOrWhiteSpace(CurrentRid) || string.IsNullOrWhiteSpace(release.TagName))
+        {
+            return false;
+        }
+
+        var expectedPrefix = $"PenguinTwitchBot-{release.TagName}-";
+        var expectedSuffix = $"-{CurrentRid}-update.zip";
+
+        return release.Assets.Any(a =>
+            !string.IsNullOrWhiteSpace(a.Name) &&
+            !string.IsNullOrWhiteSpace(a.BrowserDownloadUrl) &&
+            a.Name.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase) &&
+            a.Name.EndsWith(expectedSuffix, StringComparison.OrdinalIgnoreCase));
+    }
+
     private sealed class GitHubRelease
     {
         [JsonPropertyName("tag_name")]
         public string? TagName { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
 
         [JsonPropertyName("draft")]
         public bool Draft { get; set; }
@@ -611,6 +695,12 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
 
         [JsonPropertyName("body")]
         public string? Body { get; set; }
+
+        [JsonPropertyName("html_url")]
+        public string? HtmlUrl { get; set; }
+
+        [JsonPropertyName("published_at")]
+        public DateTimeOffset? PublishedAt { get; set; }
 
         [JsonPropertyName("assets")]
         public List<GitHubReleaseAsset> Assets { get; set; } = [];
