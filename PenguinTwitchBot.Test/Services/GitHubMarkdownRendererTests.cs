@@ -221,4 +221,122 @@ var issue = ""#999"";
         // 5. Check differs from CheckCircle
         Assert.NotEqual(MudBlazor.Icons.Material.Filled.CheckCircle, checkSvg);
     }
+
+    [Fact]
+    public void RenderToHtml_IconsInsideCodeAndPre_Skipped()
+    {
+        var md = @"Here is inline code: `[icon:star #ffa800 1.5em]` and `:icon:chat:#0bba83:1.5em:`.
+And a fenced code block:
+```markdown
+[icon:ticket #3299ff]
+:icon:bell:#ff5722:
+```
+Normal icon outside: [icon:heart #f85149]";
+
+        var html = GitHubMarkdownRenderer.RenderToHtml(md);
+
+        // Inside code and pre, raw text is preserved
+        Assert.Contains("<code>[icon:star #ffa800 1.5em]</code>", html);
+        Assert.Contains("<code>:icon:chat:#0bba83:1.5em:</code>", html);
+        Assert.Contains("[icon:ticket #3299ff]", html);
+        Assert.Contains(":icon:bell:#ff5722:", html);
+
+        // Outside code, normal icon is rendered to SVG
+        Assert.Contains("fill: #f85149", html);
+    }
+
+    [Fact]
+    public void MarkdownIconResolver_CrownAndMedal_ResolveCorrectSvgs()
+    {
+        // "crown" should resolve to the 5-pointed jewel crown (ChessQueen), not MilitaryTech
+        Assert.True(MarkdownIconResolver.TryResolveIcon("crown", out var crownSvg));
+        Assert.Equal(MudBlazor.Icons.Custom.Uncategorized.ChessQueen, crownSvg);
+        Assert.NotEqual(MudBlazor.Icons.Material.Filled.MilitaryTech, crownSvg);
+
+        // "queen" should also resolve to ChessQueen
+        Assert.True(MarkdownIconResolver.TryResolveIcon("queen", out var queenSvg));
+        Assert.Equal(MudBlazor.Icons.Custom.Uncategorized.ChessQueen, queenSvg);
+
+        // "medal" / "ribbon" should resolve to MilitaryTech
+        Assert.True(MarkdownIconResolver.TryResolveIcon("medal", out var medalSvg));
+        Assert.Equal(MudBlazor.Icons.Material.Filled.MilitaryTech, medalSvg);
+
+        Assert.True(MarkdownIconResolver.TryResolveIcon("ribbon", out var ribbonSvg));
+        Assert.Equal(MudBlazor.Icons.Material.Filled.MilitaryTech, ribbonSvg);
+
+        // Render HTML checks
+        var crownHtml = GitHubMarkdownRenderer.RenderToHtml("[icon:crown #ffc107 1.5em]");
+        Assert.Contains(crownSvg, crownHtml);
+        Assert.DoesNotContain(MudBlazor.Icons.Material.Filled.MilitaryTech, crownHtml);
+
+        var medalHtml = GitHubMarkdownRenderer.RenderToHtml("[icon:medal #ffd700 1.5em]");
+        Assert.Contains(medalSvg, medalHtml);
+    }
+
+    [Theory]
+    [InlineData("[icon:person #3299ff 1.5em]", "#3299ff")]
+    [InlineData("[icon:chat #0bba83 1.5em]", "#0bba83")]
+    [InlineData("[icon:star #ffa800 1.5em]", "#ffa800")]
+    [InlineData("[icon:ticket #3299ff 1.5em]", "#3299ff")]
+    [InlineData("[icon:gift #e91e63 1.5em]", "#e91e63")]
+    [InlineData("[icon:trophy #ffd700 1.5em]", "#ffd700")]
+    [InlineData("[icon:diamond #00bcd4 1.5em]", "#00bcd4")]
+    [InlineData("[icon:fire #ff5722 1.5em]", "#ff5722")]
+    [InlineData("[icon:crown #ffc107 1.5em]", "#ffc107")]
+    [InlineData("[icon:medal #ffd700 1.5em]", "#ffd700")]
+    [InlineData("[icon:twitch #9146ff 1.5em]", "#9146ff")]
+    [InlineData("[icon:discord #5865f2 1.5em]", "#5865f2")]
+    public void RenderToHtml_AllEditorSampleChips_RenderMatchingValidSvg(string markdown, string expectedColor)
+    {
+        var html = GitHubMarkdownRenderer.RenderToHtml(markdown);
+
+        Assert.Contains("<svg", html);
+        Assert.True(html.Contains("<path") || html.Contains("<polygon") || html.Contains("<rect") || html.Contains("<circle"), $"HTML does not contain SVG elements: {html}");
+        Assert.Contains($"fill: {expectedColor}", html);
+        Assert.DoesNotContain("[icon:", html);
+    }
+
+    [Fact]
+    public void MarkdownIconResolver_AllCuratedCatalogIcons_ResolveNonEmptySvg()
+    {
+        var catalog = MarkdownIconResolver.GetAllIcons();
+        Assert.NotEmpty(catalog);
+
+        foreach (var icon in catalog)
+        {
+            var svg = icon.GetSvgPath();
+            Assert.False(string.IsNullOrWhiteSpace(svg), $"Icon '{icon.Name}' in category '{icon.Category}' failed to resolve an SVG path.");
+        }
+    }
+
+    [Fact]
+    public void MarkdownIconResolver_AllSampleChipsAndAliases_ResolveValidSvg()
+    {
+        // Test all 12 sample chips from GitHubMarkdownEditor toolbar
+        var sampleChips = new[]
+        {
+            "person", "chat", "star", "ticket", "gift", "trophy",
+            "diamond", "fire", "crown", "medal", "twitch", "discord"
+        };
+
+        foreach (var chip in sampleChips)
+        {
+            Assert.True(MarkdownIconResolver.TryResolveIcon(chip, out var svg), $"Sample chip '{chip}' failed to resolve.");
+            Assert.False(string.IsNullOrWhiteSpace(svg), $"Sample chip '{chip}' resolved to empty SVG.");
+        }
+
+        // Test common aliases
+        var aliases = new[]
+        {
+            "user", "users", "people", "message", "forum", "comment", "sub",
+            "gem", "flame", "queen", "king", "coin", "game", "bell", "heart",
+            "clock", "check", "warning", "bolt", "shield", "lock", "volume", "music"
+        };
+
+        foreach (var alias in aliases)
+        {
+            Assert.True(MarkdownIconResolver.TryResolveIcon(alias, out var svg), $"Alias '{alias}' failed to resolve.");
+            Assert.False(string.IsNullOrWhiteSpace(svg), $"Alias '{alias}' resolved to empty SVG.");
+        }
+    }
 }

@@ -126,10 +126,15 @@
                         @foreach (var icon in FilteredIcons)
                         {
                             var isSelected = _selectedIcon?.Name == icon.Name;
-                            <div class="icon-item pa-2 text-center d-flex flex-column align-center justify-center cursor-pointer"
+                            <div role="button"
+                                 tabindex="0"
+                                 aria-pressed="@(isSelected ? "true" : "false")"
+                                 aria-label="@icon.DisplayName"
+                                 class="icon-item pa-2 text-center d-flex flex-column align-center justify-center cursor-pointer"
                                  style="@(isSelected ? "border: 2px solid var(--mud-palette-primary); background: var(--mud-palette-action-default-hover); border-radius: 6px;" : "border: 1px solid var(--mud-palette-lines-default); border-radius: 6px; background: var(--mud-palette-surface);")"
                                  @onclick="@(() => _selectedIcon = icon)"
-                                 @ondblclick="InsertSelected">
+                                 @ondblclick="InsertSelected"
+                                 @onkeydown="@(e => HandleIconKeyDown(e, icon))">
                                 <div style="display: flex; align-items: center; justify-content: center; height: 36px;">
                                     @((MarkupString)MarkdownIconResolver.RenderSvg(icon.Name, _selectedColor, "1.5em", _selectedStyle))
                                 </div>
@@ -167,9 +172,10 @@
     .icon-item {
         transition: transform 0.1s ease, border-color 0.1s ease;
     }
-    .icon-item:hover {
+    .icon-item:hover, .icon-item:focus-visible {
         border-color: var(--mud-palette-primary) !important;
         transform: translateY(-2px);
+        outline: none;
     }
 </style>
 
@@ -238,7 +244,7 @@
 
     protected override void OnInitialized()
     {
-        _selectedIcon = MarkdownIconResolver.GetAllIcons().FirstOrDefault(i => i.Name == "star")
+        _selectedIcon = MarkdownIconResolver.GetAllIcons().FirstOrDefault(i => i.Name.Equals("star", StringComparison.OrdinalIgnoreCase))
             ?? MarkdownIconResolver.GetAllIcons().FirstOrDefault();
     }
 
@@ -257,5 +263,13 @@
     {
         if (_selectedIcon is null) return;
         MudDialog.Close(DialogResult.Ok(GeneratedMarkdown));
+    }
+
+    private void HandleIconKeyDown(KeyboardEventArgs e, MarkdownIconResolver.MarkdownIconModel icon)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            _selectedIcon = icon;
+        }
     }
 }

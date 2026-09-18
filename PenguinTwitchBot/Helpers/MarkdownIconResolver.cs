@@ -82,6 +82,17 @@ public static class MarkdownIconResolver
             }
         }
 
+        // Direct aliases for crowns and royalty
+        if (dict.TryGetValue("chessqueen", out var queenSvg))
+        {
+            dict["crown"] = queenSvg;
+            dict["queen"] = queenSvg;
+        }
+        if (dict.TryGetValue("chessking", out var kingSvg))
+        {
+            dict["king"] = kingSvg;
+        }
+
         return dict;
     });
 
@@ -117,7 +128,13 @@ public static class MarkdownIconResolver
         ["gem"] = "Diamond",
         ["fire"] = "Whatshot",
         ["flame"] = "Whatshot",
-        ["crown"] = "MilitaryTech",
+        ["crown"] = "ChessQueen",
+        ["queen"] = "ChessQueen",
+        ["king"] = "ChessKing",
+        ["medal"] = "MilitaryTech",
+        ["ribbon"] = "MilitaryTech",
+        ["military_tech"] = "MilitaryTech",
+        ["militarytech"] = "MilitaryTech",
         ["coin"] = "MonetizationOn",
         ["money"] = "MonetizationOn",
         ["game"] = "SportsEsports",
@@ -275,6 +292,13 @@ public static class MarkdownIconResolver
         // 2. Resolve canonical name through MaterialAliases or direct name
         var lookupName = MaterialAliases.TryGetValue(name, out var alias) ? alias : name;
 
+        // Check if canonical alias points to a custom icon (e.g. ChessQueen, ChessKing)
+        if (AllCustomIcons.Value.TryGetValue(lookupName, out var lookupCustomSvg))
+        {
+            svgPath = lookupCustomSvg;
+            return true;
+        }
+
         // 3. Look in requested Material style
         if (IconsByStyle.TryGetValue(style, out var lazyDict) && lazyDict.Value.TryGetValue(lookupName, out var styledSvg))
         {
@@ -398,7 +422,8 @@ public static class MarkdownIconResolver
         AddIcon("EmojiEvents", "Trophy", "Stream & Rewards", isMaterial: true);
         AddIcon("Diamond", "Diamond", "Stream & Rewards", isMaterial: true);
         AddIcon("Whatshot", "Fire", "Stream & Rewards", isMaterial: true);
-        AddIcon("MilitaryTech", "Crown", "Stream & Rewards", isMaterial: true);
+        AddIcon("ChessQueen", "Crown", "Stream & Rewards", isMaterial: false);
+        AddIcon("MilitaryTech", "Medal / Ribbon", "Stream & Rewards", isMaterial: true);
         AddIcon("MonetizationOn", "Coin / Money", "Stream & Rewards", isMaterial: true);
         AddIcon("SportsEsports", "Game / Controller", "Stream & Rewards", isMaterial: true);
 

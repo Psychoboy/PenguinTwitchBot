@@ -33,33 +33,100 @@ window.panScrollElementById = function (elementId, deltaX, deltaY) {
     });
 };
 
+window._markdownEditors = window._markdownEditors || {};
+
+function getMarkdownEditorState(elementId) {
+    if (!window._markdownEditors[elementId]) {
+        window._markdownEditors[elementId] = {
+            selectionStart: null,
+            selectionEnd: null,
+            scrollTop: 0,
+            scrollLeft: 0,
+            height: null
+        };
+    }
+    return window._markdownEditors[elementId];
+}
+
+window.saveMarkdownSelection = function (elementId) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
+    if (!textarea) return;
+
+    const state = getMarkdownEditorState(elementId);
+    if (document.activeElement === textarea || state.selectionStart === null) {
+        state.selectionStart = textarea.selectionStart;
+        state.selectionEnd = textarea.selectionEnd;
+    }
+    state.scrollTop = textarea.scrollTop;
+    state.scrollLeft = textarea.scrollLeft;
+    if (textarea.style.height) {
+        state.height = textarea.style.height;
+    }
+};
+
 window.setupMarkdownTextarea = function (elementId) {
     const container = document.getElementById(elementId);
     if (!container) return;
     const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
-    if (!textarea || textarea._initializedMarkdown) return;
+    if (!textarea) return;
 
-    textarea._initializedMarkdown = true;
-    const saveSelection = () => {
-        textarea._lastSelectionStart = textarea.selectionStart;
-        textarea._lastSelectionEnd = textarea.selectionEnd;
-    };
+    const state = getMarkdownEditorState(elementId);
 
-    textarea.addEventListener('keyup', saveSelection);
-    textarea.addEventListener('mouseup', saveSelection);
-    textarea.addEventListener('select', saveSelection);
-    textarea.addEventListener('input', saveSelection);
-    textarea.addEventListener('blur', saveSelection);
+    if (state.height && textarea.style.height !== state.height) {
+        textarea.style.height = state.height;
+    }
 
-    const editor = container.closest('.github-markdown-editor');
-    const toolbar = editor ? editor.querySelector('.editor-toolbar') : null;
-    if (toolbar && !toolbar._prevented) {
-        toolbar._prevented = true;
-        toolbar.addEventListener('mousedown', function (e) {
-            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-                e.preventDefault();
+    if (!textarea._initializedMarkdown) {
+        textarea._initializedMarkdown = true;
+
+        const updateSelection = () => {
+            if (document.activeElement === textarea) {
+                state.selectionStart = textarea.selectionStart;
+                state.selectionEnd = textarea.selectionEnd;
             }
+            state.scrollTop = textarea.scrollTop;
+            state.scrollLeft = textarea.scrollLeft;
+        };
+
+        textarea.addEventListener('keyup', updateSelection);
+        textarea.addEventListener('mouseup', updateSelection);
+        textarea.addEventListener('select', updateSelection);
+        textarea.addEventListener('input', updateSelection);
+        textarea.addEventListener('scroll', () => {
+            state.scrollTop = textarea.scrollTop;
+            state.scrollLeft = textarea.scrollLeft;
         });
+
+        if (window.ResizeObserver) {
+            const resizeObserver = new ResizeObserver(() => {
+                if (textarea.style.height && textarea.offsetHeight > 0) {
+                    state.height = textarea.style.height;
+                }
+            });
+            resizeObserver.observe(textarea);
+        }
+
+        const editor = container.closest('.github-markdown-editor');
+        const toolbar = editor ? editor.querySelector('.editor-toolbar') : null;
+        if (toolbar && !toolbar._prevented) {
+            toolbar._prevented = true;
+            toolbar.addEventListener('mousedown', function (e) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    if (document.activeElement === textarea) {
+                        state.selectionStart = textarea.selectionStart;
+                        state.selectionEnd = textarea.selectionEnd;
+                        state.scrollTop = textarea.scrollTop;
+                        state.scrollLeft = textarea.scrollLeft;
+                    }
+                    if (textarea.style.height) {
+                        state.height = textarea.style.height;
+                    }
+                    e.preventDefault();
+                }
+            });
+        }
     }
 };
 
@@ -69,17 +136,27 @@ window.insertMarkdownText = function (elementId, prefix, suffix, defaultText) {
     const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
     if (!textarea) return null;
 
+    const state = getMarkdownEditorState(elementId);
+    const text = textarea.value || '';
+
     let start = textarea.selectionStart;
     let end = textarea.selectionEnd;
 
-    if (typeof textarea._lastSelectionStart === 'number' && (start === textarea.value.length || start === 0)) {
-        start = textarea._lastSelectionStart;
-        end = typeof textarea._lastSelectionEnd === 'number' ? textarea._lastSelectionEnd : start;
+    if (typeof state.selectionStart === 'number' && (document.activeElement !== textarea || start === text.length || start === 0)) {
+        start = state.selectionStart;
+        end = typeof state.selectionEnd === 'number' ? state.selectionEnd : start;
     }
 
-    const text = textarea.value || '';
     if (typeof start !== 'number' || isNaN(start) || start < 0) start = text.length;
     if (typeof end !== 'number' || isNaN(end) || end < start) end = start;
+    if (start > text.length) start = text.length;
+    if (end > text.length) end = text.length;
+
+    // Preserve scroll positions
+    const savedScrollTop = typeof state.scrollTop === 'number' ? state.scrollTop : textarea.scrollTop;
+    const savedScrollLeft = typeof state.scrollLeft === 'number' ? state.scrollLeft : textarea.scrollLeft;
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
 
     const selected = text.substring(start, end);
     const inner = selected.length > 0 ? selected : (defaultText || '');
@@ -89,12 +166,71 @@ window.insertMarkdownText = function (elementId, prefix, suffix, defaultText) {
     textarea.value = newText;
 
     const newCursor = start + (prefix || '').length + inner.length;
-    textarea.focus();
-    textarea.setSelectionRange(newCursor, newCursor);
-    textarea._lastSelectionStart = newCursor;
-    textarea._lastSelectionEnd = newCursor;
+    state.selectionStart = newCursor;
+    state.selectionEnd = newCursor;
+    state.scrollTop = savedScrollTop;
+    state.scrollLeft = savedScrollLeft;
+
+    const applyCursorAndScroll = () => {
+        try {
+            textarea.focus({ preventScroll: true });
+        } catch (e) {
+            textarea.focus();
+        }
+        textarea.setSelectionRange(newCursor, newCursor);
+        textarea.scrollTop = savedScrollTop;
+        textarea.scrollLeft = savedScrollLeft;
+        if (state.height && textarea.style.height !== state.height) {
+            textarea.style.height = state.height;
+        }
+        window.scrollTo(scrollX, scrollY);
+    };
+
+    applyCursorAndScroll();
 
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     textarea.dispatchEvent(new Event('change', { bubbles: true }));
+
+    requestAnimationFrame(applyCursorAndScroll);
+    setTimeout(applyCursorAndScroll, 0);
+    setTimeout(applyCursorAndScroll, 50);
+
     return newText;
+};
+
+window.restoreMarkdownCursorAndScroll = function (elementId) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
+    if (!textarea) return;
+
+    const state = getMarkdownEditorState(elementId);
+    const text = textarea.value || '';
+
+    let start = typeof state.selectionStart === 'number' ? state.selectionStart : text.length;
+    let end = typeof state.selectionEnd === 'number' ? state.selectionEnd : start;
+    if (start > text.length) start = text.length;
+    if (end > text.length) end = text.length;
+
+    const scrollTop = typeof state.scrollTop === 'number' ? state.scrollTop : 0;
+    const scrollLeft = typeof state.scrollLeft === 'number' ? state.scrollLeft : 0;
+
+    const restore = () => {
+        try {
+            textarea.focus({ preventScroll: true });
+        } catch (e) {
+            textarea.focus();
+        }
+        textarea.setSelectionRange(start, end);
+        textarea.scrollTop = scrollTop;
+        textarea.scrollLeft = scrollLeft;
+        if (state.height && textarea.style.height !== state.height) {
+            textarea.style.height = state.height;
+        }
+    };
+
+    restore();
+    requestAnimationFrame(restore);
+    setTimeout(restore, 0);
+    setTimeout(restore, 50);
 };
