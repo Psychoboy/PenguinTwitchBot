@@ -172,49 +172,61 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
             {
                 // No releases published yet — not an error
                 AvailableReleases = Array.Empty<ReleaseInfo>();
+                ClearLatestRelease();
+                VersionStatusChanged?.Invoke();
                 return true;
             }
 
             response.EnsureSuccessStatusCode();
 
             var releases = await response.Content.ReadFromJsonAsync<GitHubRelease[]>(cancellationToken: cancellationToken);
-            if (releases is not null)
+            if (releases is null)
             {
-                var releaseList = new List<ReleaseInfo>();
-                foreach (var r in releases)
+                AvailableReleases = Array.Empty<ReleaseInfo>();
+                ClearLatestRelease();
+                VersionStatusChanged?.Invoke();
+                return true;
+            }
+
+            var releaseList = new List<ReleaseInfo>();
+            foreach (var r in releases)
+            {
+                if (r.Draft || string.IsNullOrWhiteSpace(r.TagName)) continue;
+
+                var hasAsset = CheckHasCompatibleAsset(r);
+                var ver = r.TagName.TrimStart('v');
+                var title = !string.IsNullOrWhiteSpace(r.Name) ? r.Name : r.TagName;
+
+                releaseList.Add(new ReleaseInfo
                 {
-                    if (r.Draft || string.IsNullOrWhiteSpace(r.TagName)) continue;
+                    TagName = r.TagName,
+                    Version = ver,
+                    Title = title,
+                    Body = r.Body,
+                    PublishedAt = r.PublishedAt,
+                    HtmlUrl = r.HtmlUrl,
+                    IsPreRelease = r.PreRelease,
+                    IsDraft = r.Draft,
+                    HasCompatibleAsset = hasAsset
+                });
+            }
+            AvailableReleases = releaseList;
 
-                    var hasAsset = CheckHasCompatibleAsset(r);
-                    var ver = r.TagName.TrimStart('v');
-                    var title = !string.IsNullOrWhiteSpace(r.Name) ? r.Name : r.TagName;
-
-                    releaseList.Add(new ReleaseInfo
-                    {
-                        TagName = r.TagName,
-                        Version = ver,
-                        Title = title,
-                        Body = r.Body,
-                        PublishedAt = r.PublishedAt,
-                        HtmlUrl = r.HtmlUrl,
-                        IsPreRelease = r.PreRelease,
-                        IsDraft = r.Draft,
-                        HasCompatibleAsset = hasAsset
-                    });
-                }
-                AvailableReleases = releaseList;
-
-                var release = releases.FirstOrDefault(r => !r.Draft && (IncludePreviewReleases || !r.PreRelease));
-                if (release?.TagName is not null)
-                {
-                    LatestVersion = release.TagName.TrimStart('v');
-                    LatestReleaseNotes = release.Body;
-                    ResolveUpdateAsset(release);
-                    UpdateRecoveryCache();
-                    _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}, includePreviews={IncludePreviews}",
-                        CurrentVersion, LatestVersion, IsUpToDate, IncludePreviewReleases);
-                    VersionStatusChanged?.Invoke();
-                }
+            var release = releases.FirstOrDefault(r => !r.Draft && (IncludePreviewReleases || !r.PreRelease));
+            if (release?.TagName is not null)
+            {
+                LatestVersion = release.TagName.TrimStart('v');
+                LatestReleaseNotes = release.Body;
+                ResolveUpdateAsset(release);
+                UpdateRecoveryCache();
+                _logger.LogInformation("Version check: current={Current}, latest={Latest}, upToDate={UpToDate}, includePreviews={IncludePreviews}",
+                    CurrentVersion, LatestVersion, IsUpToDate, IncludePreviewReleases);
+                VersionStatusChanged?.Invoke();
+            }
+            else
+            {
+                ClearLatestRelease();
+                VersionStatusChanged?.Invoke();
             }
 
             return true;
@@ -464,6 +476,15 @@ public class VersionCheckService : BackgroundService, IVersionCheckService
                 Message = $"Failed to start recovery restore: {ex.Message}"
             });
         }
+    }
+
+    private void ClearLatestRelease()
+    {
+        LatestVersion = null;
+        LatestReleaseNotes = null;
+        LatestUpdateAssetName = null;
+        _latestUpdateAssetUrl = null;
+        _latestUpdateChecksumUrl = null;
     }
 
     private void ResolveUpdateAsset(GitHubRelease release)

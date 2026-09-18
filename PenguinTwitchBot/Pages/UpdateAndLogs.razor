@@ -98,6 +98,7 @@
                 <MudItem xs="12" md="4" lg="3">
                     <MudStack Spacing="2">
                         <MudTextField @bind-Value="_releaseSearchText"
+                                      @bind-Value:after="UpdateSelectedRelease"
                                       Placeholder="Filter releases..."
                                       Variant="Variant.Outlined"
                                       Margin="Margin.Dense"
@@ -327,11 +328,13 @@
     private void UpdateSelectedRelease()
     {
         var currentFiltered = FilteredReleases.ToList();
-        if (_selectedRelease is null || !currentFiltered.Any(r => r.TagName == _selectedRelease.TagName))
-        {
-            _selectedRelease = currentFiltered.FirstOrDefault(r => r.Version == VersionCheckService.LatestVersion)
-                ?? currentFiltered.FirstOrDefault();
-        }
+        var matching = _selectedRelease is null
+            ? null
+            : currentFiltered.FirstOrDefault(r => r.TagName == _selectedRelease.TagName);
+
+        _selectedRelease = matching
+            ?? currentFiltered.FirstOrDefault(r => r.Version == VersionCheckService.LatestVersion)
+            ?? currentFiltered.FirstOrDefault();
     }
 
     private async Task CheckForUpdatesAsync()

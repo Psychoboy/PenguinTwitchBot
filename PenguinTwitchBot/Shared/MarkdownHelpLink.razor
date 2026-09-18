@@ -1,14 +1,16 @@
 @inject IDialogService DialogService
 
-<MudLink OnClick="OpenHelpAsync"
-         Typo="@Typo"
-         Class="@($"d-inline-flex align-center cursor-pointer {Class}")"
-         Style="@Style"
-         Color="@Color"
-         Underline="Underline.Hover">
+<MudButton OnClick="OpenHelpAsync"
+           Variant="Variant.Text"
+           Color="@Color"
+           Size="Size.Small"
+           Class="@($"pa-0 text-transform-none {Class}")"
+           Style="@($"min-width: 0; text-transform: none; {Style}")">
     <MudIcon Icon="@Icons.Material.Filled.HelpOutline" Size="@IconSize" Class="mr-1" />
-    @(string.IsNullOrWhiteSpace(Text) ? "Markdown formatting guide" : Text)
-</MudLink>
+    <MudText Typo="@Typo" Color="@Color" Style="text-decoration: underline; text-underline-offset: 2px;">
+        @(string.IsNullOrWhiteSpace(Text) ? "Markdown formatting guide" : Text)
+    </MudText>
+</MudButton>
 
 @code {
     [Parameter] public string Text { get; set; } = "Markdown formatting guide";

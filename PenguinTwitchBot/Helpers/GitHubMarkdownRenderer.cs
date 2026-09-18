@@ -23,6 +23,14 @@ public static class GitHubMarkdownRenderer
         @"<blockquote>\s*<p>\s*\[!(?<type>NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*</p>\s*(?<content>.*?)(?=</blockquote>)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
+    private static readonly Regex BracketIconRegex = new(
+        @"\[icon:(?<name>[a-zA-Z0-9_.:/-]+)(?<args>[^\]]*)\]",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex ColonIconRegex = new(
+        @":icon:(?<name>[a-zA-Z0-9_.:/-]+)(?::(?<color>[^:\s]+))?(?::(?<size>[^:\s]+))?(?::(?<style>[^:\s]+))?:",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public static string RenderToHtml(string? markdown)
     {
         if (string.IsNullOrWhiteSpace(markdown))
@@ -35,10 +43,80 @@ public static class GitHubMarkdownRenderer
         // Transform GitHub Alerts: > [!NOTE], > [!TIP], > [!IMPORTANT], > [!WARNING], > [!CAUTION]
         html = TransformAlerts(html);
 
+        // Transform Custom Icons: [icon:person #3299ff 1.5em] or :icon:person:#3299ff:1.5em:
+        html = TransformIcons(html);
+
         // Ensure all external anchor tags have target="_blank" and rel="noopener noreferrer"
         html = EnsureExternalLinks(html);
 
         return html;
+    }
+
+    private static string TransformIcons(string html)
+    {
+        html = BracketIconRegex.Replace(html, match =>
+        {
+            var name = match.Groups["name"].Value;
+            var args = match.Groups["args"].Value.Trim();
+            string? color = null;
+            string? size = null;
+            string? style = null;
+
+            if (!string.IsNullOrWhiteSpace(args))
+            {
+                var colorMatch = Regex.Match(args, @"(?:color\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
+                var sizeMatch = Regex.Match(args, @"(?:size\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
+                var styleMatch = Regex.Match(args, @"(?:style\s*=\s*[""']?([^""'\s]+)[""']?)", RegexOptions.IgnoreCase);
+
+                if (colorMatch.Success) color = colorMatch.Groups[1].Value;
+                if (sizeMatch.Success) size = sizeMatch.Groups[1].Value;
+                if (styleMatch.Success) style = styleMatch.Groups[1].Value;
+
+                var tokens = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var token in tokens)
+                {
+                    if (token.Contains('=')) continue;
+
+                    if (MarkdownIconResolver.IsStyleName(token, out _))
+                    {
+                        style ??= token;
+                    }
+                    else if (token.StartsWith('#') || IsColorToken(token))
+                    {
+                        color ??= token;
+                    }
+                    else if (char.IsDigit(token[0]) || token.EndsWith("em", StringComparison.OrdinalIgnoreCase) || token.EndsWith("px", StringComparison.OrdinalIgnoreCase) || token.EndsWith("rem", StringComparison.OrdinalIgnoreCase))
+                    {
+                        size ??= token;
+                    }
+                }
+            }
+
+            var svg = MarkdownIconResolver.RenderSvg(name, color, size, style);
+            return !string.IsNullOrEmpty(svg) ? svg : match.Value;
+        });
+
+        html = ColonIconRegex.Replace(html, match =>
+        {
+            var name = match.Groups["name"].Value;
+            var color = match.Groups["color"].Success ? match.Groups["color"].Value : null;
+            var size = match.Groups["size"].Success ? match.Groups["size"].Value : null;
+            var style = match.Groups["style"].Success ? match.Groups["style"].Value : null;
+
+            var svg = MarkdownIconResolver.RenderSvg(name, color, size, style);
+            return !string.IsNullOrEmpty(svg) ? svg : match.Value;
+        });
+
+        return html;
+    }
+
+    private static bool IsColorToken(string token)
+    {
+        return !char.IsDigit(token[0]) &&
+               !token.EndsWith("em", StringComparison.OrdinalIgnoreCase) &&
+               !token.EndsWith("px", StringComparison.OrdinalIgnoreCase) &&
+               !token.EndsWith("rem", StringComparison.OrdinalIgnoreCase) &&
+               !token.EndsWith("%", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string TransformAlerts(string html)

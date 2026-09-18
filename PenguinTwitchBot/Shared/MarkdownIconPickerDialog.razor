@@ -1,0 +1,261 @@
+@using PenguinTwitchBot.Helpers
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <!-- Search & Category Filters -->
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="7">
+                    <MudTextField @bind-Value="_searchQuery"
+                                  Placeholder="Search icons (e.g. star, trophy, game, shield)..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Immediate="true"
+                                  Clearable="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" sm="5">
+                    <MudSelect T="string"
+                               Value="_selectedCategory"
+                               ValueChanged="OnCategoryChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@("All")">All Categories</MudSelectItem>
+                        <MudSelectItem Value="@("Stream & Rewards")">Stream & Rewards</MudSelectItem>
+                        <MudSelectItem Value="@("Brands")">Brands (Custom.Brands)</MudSelectItem>
+                        <MudSelectItem Value="@("File Formats")">File Formats (Custom.FileFormats)</MudSelectItem>
+                        <MudSelectItem Value="@("Custom & Fun")">Custom & Fun (Custom.Uncategorized)</MudSelectItem>
+                        <MudSelectItem Value="@("Users & Profiles")">Users & Profiles</MudSelectItem>
+                        <MudSelectItem Value="@("Communication")">Communication</MudSelectItem>
+                        <MudSelectItem Value="@("Status & Alerts")">Status & Alerts</MudSelectItem>
+                        <MudSelectItem Value="@("All Material Icons")">All Material Icons</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Customizer (Style, Color & Size) -->
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudGrid Spacing="2" Class="align-center">
+                    <!-- Style selector -->
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 600;">STYLE</MudText>
+                        <div class="d-flex flex-wrap gap-1 align-center mt-1">
+                            @foreach (var styleName in MarkdownIconResolver.AvailableStyleNames)
+                            {
+                                var isSelected = _selectedStyle == styleName;
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                                         Color="@(isSelected ? Color.Primary : Color.Default)"
+                                         OnClick="@(() => _selectedStyle = styleName)">
+                                    @styleName
+                                </MudChip>
+                            }
+                        </div>
+                    </MudItem>
+
+                    <!-- Color presets -->
+                    <MudItem xs="12" md="7">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 600;">COLOR</MudText>
+                        <div class="d-flex flex-wrap gap-1 align-center mt-1">
+                            @foreach (var (label, colorValue) in ColorPresets)
+                            {
+                                var isSelected = _selectedColor == colorValue;
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                                         Style="@($"color: {(colorValue == "currentColor" ? "inherit" : colorValue)}; border-color: {(colorValue == "currentColor" ? "inherit" : colorValue)}; font-weight: {(isSelected ? "700" : "normal")};")"
+                                         OnClick="@(() => _selectedColor = colorValue)">
+                                    @label
+                                </MudChip>
+                            }
+                        </div>
+                    </MudItem>
+
+                    <!-- Size presets -->
+                    <MudItem xs="12" md="5">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 600;">SIZE</MudText>
+                        <div class="d-flex flex-wrap gap-1 align-center mt-1">
+                            @foreach (var sizeOption in SizePresets)
+                            {
+                                var isSelected = _selectedSize == sizeOption;
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                                         Color="@(isSelected ? Color.Primary : Color.Default)"
+                                         OnClick="@(() => _selectedSize = sizeOption)">
+                                    @sizeOption
+                                </MudChip>
+                            }
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <!-- Selected Icon Preview Bar -->
+            @if (_selectedIcon is not null)
+            {
+                <MudPaper Class="pa-3 d-flex justify-space-between align-center" Style="background-color: var(--mud-palette-background-grey); border-radius: 6px;">
+                    <div class="d-flex align-center gap-3">
+                        <div class="d-flex align-center justify-center" style="width: 44px; height: 44px; background: var(--mud-palette-surface); border-radius: 6px;">
+                            @((MarkupString)MarkdownIconResolver.RenderSvg(_selectedIcon.Name, _selectedColor, _selectedSize, _selectedStyle))
+                        </div>
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 700;">@_selectedIcon.DisplayName (@_selectedStyle)</MudText>
+                            <MudText Typo="Typo.caption" Style="font-family: monospace;">@GeneratedMarkdown</MudText>
+                        </div>
+                    </div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="InsertSelected">
+                        Insert Icon
+                    </MudButton>
+                </MudPaper>
+            }
+
+            <!-- Icon Grid -->
+            <div style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
+                @if (!FilteredIcons.Any())
+                {
+                    <div class="text-center pa-6">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">No icons match "@_searchQuery".</MudText>
+                    </div>
+                }
+                else
+                {
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px;">
+                        @foreach (var icon in FilteredIcons)
+                        {
+                            var isSelected = _selectedIcon?.Name == icon.Name;
+                            <div class="icon-item pa-2 text-center d-flex flex-column align-center justify-center cursor-pointer"
+                                 style="@(isSelected ? "border: 2px solid var(--mud-palette-primary); background: var(--mud-palette-action-default-hover); border-radius: 6px;" : "border: 1px solid var(--mud-palette-lines-default); border-radius: 6px; background: var(--mud-palette-surface);")"
+                                 @onclick="@(() => _selectedIcon = icon)"
+                                 @ondblclick="InsertSelected">
+                                <div style="display: flex; align-items: center; justify-content: center; height: 36px;">
+                                    @((MarkupString)MarkdownIconResolver.RenderSvg(icon.Name, _selectedColor, "1.5em", _selectedStyle))
+                                </div>
+                                <MudText Typo="Typo.caption"
+                                         Class="mt-1"
+                                         Style="max-width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px;">
+                                    @icon.Name
+                                </MudText>
+                            </div>
+                        }
+                    </div>
+
+                    @if (_maxDisplayCount < MatchingCount)
+                    {
+                        <div class="text-center mt-3">
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="LoadMore">
+                                Load More (@FilteredIcons.Count() of @MatchingCount icons)
+                            </MudButton>
+                        </div>
+                    }
+                }
+            </div>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        @if (_selectedIcon is not null)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="InsertSelected">Insert Icon</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .icon-item {
+        transition: transform 0.1s ease, border-color 0.1s ease;
+    }
+    .icon-item:hover {
+        border-color: var(--mud-palette-primary) !important;
+        transform: translateY(-2px);
+    }
+</style>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string _searchQuery = "";
+    private string _selectedCategory = "All";
+    private string _selectedStyle = "Filled";
+    private string _selectedColor = "#3299ff";
+    private string _selectedSize = "1.5em";
+    private MarkdownIconResolver.MarkdownIconModel? _selectedIcon;
+    private int _maxDisplayCount = 120;
+
+    private static readonly (string Label, string ColorValue)[] ColorPresets =
+    [
+        ("Default", "currentColor"),
+        ("Blue", "#3299ff"),
+        ("Green", "#0bba83"),
+        ("Gold", "#ffa800"),
+        ("Red", "#f85149"),
+        ("Purple", "#9146ff"),
+        ("Pink", "#e91e63"),
+        ("Cyan", "#00bcd4")
+    ];
+
+    private static readonly string[] SizePresets = ["1em", "1.25em", "1.5em", "2em"];
+
+    private string GeneratedMarkdown
+    {
+        get
+        {
+            if (_selectedIcon is null) return "";
+            var styleParam = _selectedStyle != "Filled" ? $" style={_selectedStyle.ToLowerInvariant()}" : "";
+            var colorParam = _selectedColor != "currentColor" ? $" {_selectedColor}" : "";
+            var sizeParam = _selectedSize != "1.25em" ? $" {_selectedSize}" : "";
+            return $"[icon:{_selectedIcon.Name}{styleParam}{colorParam}{sizeParam}]";
+        }
+    }
+
+    private IEnumerable<MarkdownIconResolver.MarkdownIconModel> FilteredIcons
+    {
+        get
+        {
+            var results = MarkdownIconResolver.SearchIcons(_searchQuery, _selectedCategory, _maxDisplayCount);
+            if (!results.Any() && !string.IsNullOrWhiteSpace(_searchQuery) && _selectedCategory != "All")
+            {
+                return MarkdownIconResolver.SearchIcons(_searchQuery, "All", _maxDisplayCount);
+            }
+            return results;
+        }
+    }
+
+    private int MatchingCount
+    {
+        get
+        {
+            var count = MarkdownIconResolver.SearchIcons(_searchQuery, _selectedCategory, int.MaxValue).Count();
+            if (count == 0 && !string.IsNullOrWhiteSpace(_searchQuery) && _selectedCategory != "All")
+            {
+                return MarkdownIconResolver.SearchIcons(_searchQuery, "All", int.MaxValue).Count();
+            }
+            return count;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _selectedIcon = MarkdownIconResolver.GetAllIcons().FirstOrDefault(i => i.Name == "star")
+            ?? MarkdownIconResolver.GetAllIcons().FirstOrDefault();
+    }
+
+    private void OnCategoryChanged(string category)
+    {
+        _selectedCategory = category;
+        _maxDisplayCount = 120;
+    }
+
+    private void LoadMore()
+    {
+        _maxDisplayCount += 120;
+    }
+
+    private void InsertSelected()
+    {
+        if (_selectedIcon is null) return;
+        MudDialog.Close(DialogResult.Ok(GeneratedMarkdown));
+    }
+}

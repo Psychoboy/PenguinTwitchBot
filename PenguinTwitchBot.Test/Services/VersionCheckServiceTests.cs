@@ -22,14 +22,11 @@ public class VersionCheckServiceTests
     }
 
     private static VersionCheckService CreateService(
-        string releasesJson,
+        HttpResponseMessage response,
         bool includePreviewReleases = false,
         IUpdateChannelSettingsService? updateChannelSettings = null)
     {
-        var httpClient = new HttpClient(new MockHttpMessageHandler(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(releasesJson, Encoding.UTF8, "application/json")
-        }));
+        var httpClient = new HttpClient(new MockHttpMessageHandler(response));
 
         var factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient("GitHubRelease").Returns(httpClient);
@@ -46,6 +43,17 @@ public class VersionCheckServiceTests
         }
 
         return new VersionCheckService(factory, logger, dbTools, backupTools, updateChannelSettings, host);
+    }
+
+    private static VersionCheckService CreateService(
+        string releasesJson,
+        bool includePreviewReleases = false,
+        IUpdateChannelSettingsService? updateChannelSettings = null)
+    {
+        return CreateService(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(releasesJson, Encoding.UTF8, "application/json")
+        }, includePreviewReleases, updateChannelSettings);
     }
 
     [Fact]
@@ -158,6 +166,68 @@ public class VersionCheckServiceTests
 
         await settings.Received(1).SetIncludePreviewReleasesAsync(true);
         Assert.True(service.IncludePreviewReleases);
+        Assert.True(eventFired);
+    }
+
+    [Fact]
+    public async Task RefreshNowAsync_WhenNotFound_ClearsLatestVersionAndFiresEvent()
+    {
+        var service = CreateService(new HttpResponseMessage(HttpStatusCode.NotFound));
+        var eventFired = false;
+        service.VersionStatusChanged += () => eventFired = true;
+
+        var refreshed = await service.RefreshNowAsync();
+
+        Assert.True(refreshed);
+        Assert.Empty(service.AvailableReleases);
+        Assert.Null(service.LatestVersion);
+        Assert.Null(service.LatestReleaseNotes);
+        Assert.Null(service.LatestUpdateAssetName);
+        Assert.True(eventFired);
+    }
+
+    [Fact]
+    public async Task RefreshNowAsync_WhenEmptyReleasesPayload_ClearsLatestVersionAndFiresEvent()
+    {
+        var service = CreateService("[]");
+        var eventFired = false;
+        service.VersionStatusChanged += () => eventFired = true;
+
+        var refreshed = await service.RefreshNowAsync();
+
+        Assert.True(refreshed);
+        Assert.Empty(service.AvailableReleases);
+        Assert.Null(service.LatestVersion);
+        Assert.Null(service.LatestReleaseNotes);
+        Assert.Null(service.LatestUpdateAssetName);
+        Assert.True(eventFired);
+    }
+
+    [Fact]
+    public async Task RefreshNowAsync_WhenNoReleasesPermitted_ClearsLatestVersionAndFiresEvent()
+    {
+        var json = @"[
+            {
+                ""tag_name"": ""v0.3.0-beta.1"",
+                ""name"": ""v0.3.0 Beta 1"",
+                ""draft"": false,
+                ""prerelease"": true,
+                ""body"": ""Beta notes"",
+                ""assets"": []
+            }
+        ]";
+
+        var service = CreateService(json, includePreviewReleases: false);
+        var eventFired = false;
+        service.VersionStatusChanged += () => eventFired = true;
+
+        var refreshed = await service.RefreshNowAsync();
+
+        Assert.True(refreshed);
+        Assert.Single(service.AvailableReleases);
+        Assert.Null(service.LatestVersion);
+        Assert.Null(service.LatestReleaseNotes);
+        Assert.Null(service.LatestUpdateAssetName);
         Assert.True(eventFired);
     }
 }

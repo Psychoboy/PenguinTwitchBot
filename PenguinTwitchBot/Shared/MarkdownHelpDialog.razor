@@ -78,6 +78,20 @@
                     }
                 </MudStack>
             </MudTabPanel>
+
+            <!-- Icons & Emojis -->
+            <MudTabPanel Text="Icons & Emojis" Icon="@Icons.Material.Filled.Stars">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Insert styled SVG vector icons and emojis using clean markdown tags.
+                    </MudText>
+
+                    @foreach (var example in IconExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
         </MudTabs>
     </DialogContent>
     <DialogActions>
@@ -123,6 +137,14 @@
         new("Note Callout", "> [!NOTE]\n> Keep in mind that points are non-refundable once entered."),
         new("Tip Callout", "> [!TIP]\n> Subscribe or cheer bits for bonus tickets!"),
         new("Warning Callout", "> [!WARNING]\n> Inactive viewers will be skipped during redraws.")
+    ];
+
+    private static readonly List<MarkdownExample> IconExamples =
+    [
+        new("SVG Icons with Custom Colors", "[icon:person #3299ff 1.5em] **+1 Tickets** - Everyone watching\n[icon:chat #0bba83 1.5em] **+5 Tickets** - Active viewers\n[icon:star #ffa800 1.5em] **+10 Tickets** - Subscribers", "Syntax: `[icon:name #color size]`. Supports any Material Icon name and hex colors or theme names (`primary`, `warning`, etc.)."),
+        new("Material Icon Styles", "[icon:star style=filled #ffa800 1.5em] Filled Star\n[icon:star style=outlined #ffa800 1.5em] Outlined Star\n[icon:star style=rounded #ffa800 1.5em] Rounded Star\n[icon:star style=sharp #ffa800 1.5em] Sharp Star\n[icon:star style=twotone #ffa800 1.5em] TwoTone Star", "Choose from Filled, Outlined, Rounded, Sharp, or TwoTone using `style=outlined` or `[icon:outlined:star]`."),
+        new("Brand Icons", "[icon:twitch #9146ff 1.5em] Watch live on Twitch!\n[icon:discord #5865f2 1.5em] Join our Discord community", "Brand vector icons are available for Twitch, Discord, YouTube, and GitHub."),
+        new("Quick Emojis", "👤 **Active** 💬 **Chatting** ⭐ **VIP** 🎟️ **Tickets** 🎁 **Prizes**", "Type emojis directly or use standard shortcodes like `:star:`, `:speech_balloon:`, `:ticket:`.")
     ];
 
     private RenderFragment RenderExampleCard(MarkdownExample example) => __builder =>
