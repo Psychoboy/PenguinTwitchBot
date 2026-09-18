@@ -25,12 +25,16 @@
                 <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" Variant="Variant.Outlined" />
                 <MudTextField Label="Image Url" @bind-Value="@Image" Variant="Variant.Outlined" />
                 <MudTextField Label="Prize Tier" @bind-Value="@PrizeTier" Variant="Variant.Outlined" />
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Supports GitHub Markdown</MudText>
+                    <MarkdownHelpLink />
+                </div>
                 <MudTextField Label="Additional Details (Markdown)" @bind-Value="@PrizeAdditionalDetails" Lines="4" Variant="Variant.Outlined" />
                 @if (!string.IsNullOrEmpty(PrizeAdditionalDetails))
                 {
                     <MudDivider />
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@PrizeAdditionalDetails" />
+                    <GitHubMarkdownViewer Value="@PrizeAdditionalDetails" />
                 }
             </MudStack>
         </MudCardContent>
@@ -79,12 +83,16 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Supports GitHub Markdown</MudText>
+                    <MarkdownHelpLink />
+                </div>
                 <MudTextField Label="Rules (Markdown)" @bind-Value="@Rules" Lines="6" Variant="Variant.Outlined" />
                 @if (!string.IsNullOrEmpty(Rules))
                 {
                     <MudDivider />
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Rules" />
+                    <GitHubMarkdownViewer Value="@Rules" />
                 }
             </MudStack>
         </MudCardContent>
@@ -102,12 +110,16 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Supports GitHub Markdown (including tables)</MudText>
+                    <MarkdownHelpLink />
+                </div>
                 <MudTextField Label="Cooldowns (Markdown)" @bind-Value="@Cooldowns" Lines="8" Variant="Variant.Outlined" />
                 @if (!string.IsNullOrEmpty(Cooldowns))
                 {
                     <MudDivider />
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Cooldowns" />
+                    <GitHubMarkdownViewer Value="@Cooldowns" />
                 }
             </MudStack>
         </MudCardContent>
@@ -125,12 +137,16 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Supports GitHub Markdown</MudText>
+                    <MarkdownHelpLink />
+                </div>
                 <MudTextField Label="Terms (Markdown)" @bind-Value="@Terms" Lines="8" Variant="Variant.Outlined" />
                 @if (!string.IsNullOrEmpty(Terms))
                 {
                     <MudDivider />
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Terms" />
+                    <GitHubMarkdownViewer Value="@Terms" />
                 }
             </MudStack>
         </MudCardContent>
@@ -148,12 +164,16 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
+                <div class="d-flex justify-space-between align-center">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Supports GitHub Markdown</MudText>
+                    <MarkdownHelpLink />
+                </div>
                 <MudTextField Label="Passive Earnings (Markdown)" @bind-Value="@PassiveEarnings" Lines="6" Variant="Variant.Outlined" />
                 @if (!string.IsNullOrEmpty(PassiveEarnings))
                 {
                     <MudDivider />
                     <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@PassiveEarnings" />
+                    <GitHubMarkdownViewer Value="@PassiveEarnings" />
                 }
             </MudStack>
         </MudCardContent>

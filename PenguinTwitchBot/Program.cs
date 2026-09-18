@@ -209,7 +209,7 @@ internal class Program
             config.SnackbarConfiguration.ShowTransitionDuration = 500;
             config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
         });
-        builder.Services.AddMudMarkdownServices();
+
 
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddSingleton<IFileSystem>(sp => new System.IO.Abstractions.FileSystem());

@@ -1,0 +1,33 @@
+@inject IDialogService DialogService
+
+<MudLink OnClick="OpenHelpAsync"
+         Typo="@Typo"
+         Class="@($"d-inline-flex align-center cursor-pointer {Class}")"
+         Style="@Style"
+         Color="@Color"
+         Underline="Underline.Hover">
+    <MudIcon Icon="@Icons.Material.Filled.HelpOutline" Size="@IconSize" Class="mr-1" />
+    @(string.IsNullOrWhiteSpace(Text) ? "Markdown formatting guide" : Text)
+</MudLink>
+
+@code {
+    [Parameter] public string Text { get; set; } = "Markdown formatting guide";
+    [Parameter] public Typo Typo { get; set; } = Typo.caption;
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public Size IconSize { get; set; } = Size.Small;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    private async Task OpenHelpAsync()
+    {
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<MarkdownHelpDialog>("Markdown Guide", options);
+    }
+}
+

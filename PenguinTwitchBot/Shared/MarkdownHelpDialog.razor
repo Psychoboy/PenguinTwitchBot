@@ -1,0 +1,151 @@
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.MenuBook" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Markdown Guide &amp; Examples</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
+            <!-- Text & Headings -->
+            <MudTabPanel Text="Text & Headings" Icon="@Icons.Material.Filled.FormatBold">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Format headings, emphasize text with bold or italics, and add divider lines.
+                    </MudText>
+
+                    @foreach (var example in TextExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- Lists & Tasks -->
+            <MudTabPanel Text="Lists & Tasks" Icon="@Icons.Material.Filled.Checklist">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Create bulleted lists, numbered lists, and interactive task checkboxes.
+                    </MudText>
+
+                    @foreach (var example in ListExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- Links & Media -->
+            <MudTabPanel Text="Links & Media" Icon="@Icons.Material.Filled.Link">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Add hyperlinks, embed images, and auto-link web URLs.
+                    </MudText>
+
+                    @foreach (var example in LinkExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- Code & Tables -->
+            <MudTabPanel Text="Code & Tables" Icon="@Icons.Material.Filled.TableChart">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Format inline code snippets, multi-line code blocks, and structured data tables.
+                    </MudText>
+
+                    @foreach (var example in CodeExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- Callouts & Alerts -->
+            <MudTabPanel Text="Alerts & Callouts" Icon="@Icons.Material.Filled.NotificationImportant">
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Highlight essential information using GitHub-style alert callout boxes.
+                    </MudText>
+
+                    @foreach (var example in AlertExamples)
+                    {
+                        @RenderExampleCard(example)
+                    }
+                </MudStack>
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => MudDialog.Close()">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private sealed record MarkdownExample(string Title, string Markdown, string? Description = null);
+
+    private static readonly List<MarkdownExample> TextExamples =
+    [
+        new("Headings", "### Subsection Title\n#### Smaller Heading\nUse 1 to 6 `#` symbols for heading levels.", "Organize your text into readable sections."),
+        new("Bold, Italic & Strikethrough", "**Bold text** for emphasis\n*Italic text* for accents\n~~Strikethrough~~ for deleted points\n***Bold and italic combined***", "Basic font styles."),
+        new("Blockquotes", "> This is a quote.\n> Great for quotes or rules."),
+        new("Horizontal Rule", "Section above\n\n---\n\nSection below", "Adds a divider line between sections.")
+    ];
+
+    private static readonly List<MarkdownExample> ListExamples =
+    [
+        new("Bulleted List", "* First item\n* Second item\n  * Nested sub-item\n* Third item"),
+        new("Numbered List", "1. Step one\n2. Step two\n3. Step three"),
+        new("Task Checklist", "- [x] Giveaway prize configured\n- [x] Streamer signed in\n- [ ] Winners drawn", "Checkboxes render cleanly.")
+    ];
+
+    private static readonly List<MarkdownExample> LinkExamples =
+    [
+        new("Hyperlinks", "[Penguin Twitch Bot on GitHub](https://github.com/Psychoboy/PenguinTwitchBot)", "Links open in a new tab securely."),
+        new("Automatic URLs", "https://twitch.tv", "Standard web addresses are automatically converted to clickable links.")
+    ];
+
+    private static readonly List<MarkdownExample> CodeExamples =
+    [
+        new("Inline Code", "Use `!points` in chat to check your balance.", "Surround words with single backticks."),
+        new("Code Block", "```\n!enter 5\n!gamble 100\n```", "Surround blocks of commands with triple backticks."),
+        new("Table", "| Rank | Prize | Points |\n| :--- | :--- | :---: |\n| 1st | Grand Prize | 500 |\n| 2nd | Runner Up | 250 |\n| 3rd | Consolation | 100 |", "Use pipes `|` and dashes `-` for rows and columns. Use colons `:` for alignment.")
+    ];
+
+    private static readonly List<MarkdownExample> AlertExamples =
+    [
+        new("Note Callout", "> [!NOTE]\n> Keep in mind that points are non-refundable once entered."),
+        new("Tip Callout", "> [!TIP]\n> Subscribe or cheer bits for bonus tickets!"),
+        new("Warning Callout", "> [!WARNING]\n> Inactive viewers will be skipped during redraws.")
+    ];
+
+    private RenderFragment RenderExampleCard(MarkdownExample example) => __builder =>
+    {
+        <MudPaper Outlined="true" Class="pa-3">
+            <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">@example.Title</MudText>
+            @if (!string.IsNullOrWhiteSpace(example.Description))
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">@example.Description</MudText>
+            }
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.overline" Color="Color.Secondary">Markdown Syntax</MudText>
+                    <MudPaper Class="pa-2" Style="background-color: var(--mud-palette-background-grey); font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; border-radius: 4px;">@example.Markdown</MudPaper>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudText Typo="Typo.overline" Color="Color.Secondary">Rendered Preview</MudText>
+                    <MudPaper Class="pa-2" Outlined="true" Style="border-radius: 4px; min-height: 48px;">
+                        <GitHubMarkdownViewer Value="@example.Markdown" />
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    };
+}
+

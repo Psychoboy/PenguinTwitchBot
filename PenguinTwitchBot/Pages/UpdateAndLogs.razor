@@ -1,31 +1,47 @@
-﻿@page "/settings/updates"
+@page "/settings/updates"
 @using PenguinTwitchBot.Bot.ServiceTools
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IVersionCheckService VersionCheckService
+@inject IUpdateChannelSettingsService UpdateChannelSettingsService
 @inject IJSRuntime JS
 @inject IDialogService DialogService
+@implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Updates & Logs</PageTitle>
 
 <h3>Tools</h3>
 
 <MudPaper Elevation="1" Class="pa-4 mb-4">
-    <MudStack Spacing="2">
-        <MudText Typo="Typo.h6">Application Updates</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            Updates are manual and update-package only. Current version: @VersionCheckService.CurrentVersion.
-        </MudText>
-        <MudStack Row="true" Spacing="2">
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="CheckForUpdatesAsync" Disabled="_checkingUpdates">
-                Check For Updates
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h6">Application Updates</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Current version: <strong>v@VersionCheckService.CurrentVersion</strong> (@(VersionCheckService.CurrentRid ?? "unknown platform")).
+                </MudText>
+            </div>
+            @if (VersionCheckService.IsUpToDate)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Medium" Icon="@Icons.Material.Filled.CheckCircle">Up to Date</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Medium" Icon="@Icons.Material.Filled.Upgrade">Update Available</MudChip>
+            }
+        </MudStack>
+
+        <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="CheckForUpdatesAsync" Disabled="_checkingUpdates" StartIcon="@Icons.Material.Filled.Refresh">
+                @(_checkingUpdates ? "Checking..." : "Check For Updates")
             </MudButton>
-            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="StartUpdateAsync" Disabled="_startingUpdate || !VersionCheckService.CanUserInitiateUpdate">
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="StartUpdateAsync" Disabled="_startingUpdate || !VersionCheckService.CanUserInitiateUpdate" StartIcon="@Icons.Material.Filled.SystemUpdate">
                 Update Now
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="RestoreLatestRecoveryAsync" Disabled="_restoringRecovery || !VersionCheckService.HasRecoveryBundle">
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="RestoreLatestRecoveryAsync" Disabled="_restoringRecovery || !VersionCheckService.HasRecoveryBundle" StartIcon="@Icons.Material.Filled.Restore">
                 Restore Last Recovery
             </MudButton>
         </MudStack>
+
         @if (_startingUpdate)
         {
             <MudStack Spacing="1">
@@ -35,23 +51,197 @@
                 </MudText>
             </MudStack>
         }
+
+        <MudDivider />
+
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.subtitle2">Release Channel Settings</MudText>
+            <MudSwitch T="bool" Label="Include pre-releases (Beta / Preview builds)" Value="_includePreviewReleases" ValueChanged="OnIncludePreviewReleasesChanged" Disabled="_savingPreviewSetting" Color="Color.Primary" />
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                When disabled (default), only official released versions are checked and installed. When enabled, pre-releases are also checked.
+            </MudText>
+        </MudStack>
+
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Latest: @(_latestLabel)
+            Target Release: @(_latestLabel) | Recovery bundle: @(VersionCheckService.LatestRecoveryBundleName ?? "None")
         </MudText>
-        <MudSwitch T="bool" Label="Include preview releases" Value="_includePreviewReleases" ValueChanged="OnIncludePreviewReleasesChanged" Disabled="_savingPreviewSetting" Color="Color.Primary" />
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Recovery bundle: @(VersionCheckService.LatestRecoveryBundleName ?? "None")
-        </MudText>
+
         @if (!string.IsNullOrWhiteSpace(VersionCheckService.UpdateBlockedReason))
         {
             <MudAlert Severity="Severity.Info" Dense="true">@VersionCheckService.UpdateBlockedReason</MudAlert>
         }
-        @if (!string.IsNullOrWhiteSpace(VersionCheckService.LatestReleaseNotes))
+    </MudStack>
+</MudPaper>
+
+<!-- Release Notes & Previous Releases Browser -->
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h6">Release Notes & History</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Browse release notes and changelogs for the latest and previous bot versions.
+                </MudText>
+            </div>
+            @if (VersionCheckService.AvailableReleases.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Showing @(FilteredReleases.Count()) of @VersionCheckService.AvailableReleases.Count releases
+                </MudText>
+            }
+        </MudStack>
+
+        @if (VersionCheckService.AvailableReleases.Count > 0)
         {
-            <MudPaper Class="pa-3" Outlined="true">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Latest Release Notes</MudText>
-                <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@VersionCheckService.LatestReleaseNotes</MudText>
+            <MudGrid Spacing="3">
+                <!-- Left panel: List of releases -->
+                <MudItem xs="12" md="4" lg="3">
+                    <MudStack Spacing="2">
+                        <MudTextField @bind-Value="_releaseSearchText"
+                                      Placeholder="Filter releases..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Clearable="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" />
+
+                        <MudPaper Outlined="true" Class="pa-1" Style="max-height: 520px; overflow-y: auto;">
+                            @if (FilteredReleases.Any())
+                            {
+                                <MudList T="ReleaseInfo" SelectedValue="_selectedRelease" SelectedValueChanged="OnSelectedReleaseChanged" Dense="true">
+                                    @foreach (var rel in FilteredReleases)
+                                    {
+                                        var isSelected = _selectedRelease?.TagName == rel.TagName;
+                                        var isCurrent = string.Equals(rel.Version, VersionCheckService.CurrentVersion, StringComparison.OrdinalIgnoreCase);
+                                        var isLatest = string.Equals(rel.Version, VersionCheckService.LatestVersion, StringComparison.OrdinalIgnoreCase);
+
+                                        <MudListItem T="ReleaseInfo" Value="@rel" Class="@(isSelected ? "mud-theme-primary-hover" : "")" Style="@(isSelected ? "background-color: var(--mud-palette-action-default-hover); border-radius: 4px;" : "")">
+                                            <div style="width: 100%;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <MudText Typo="Typo.subtitle2" Style="@(isSelected ? "font-weight: 700;" : "")">@rel.TagName</MudText>
+                                                    @if (rel.PublishedAt.HasValue)
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@rel.PublishedAt.Value.ToString("MMM d, yyyy")</MudText>
+                                                    }
+                                                </div>
+                                                <div style="display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap;">
+                                                    @if (isCurrent)
+                                                    {
+                                                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">Current</MudChip>
+                                                    }
+                                                    @if (isLatest)
+                                                    {
+                                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Latest</MudChip>
+                                                    }
+                                                    @if (rel.IsPreRelease)
+                                                    {
+                                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">Pre-release</MudChip>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                </MudList>
+                            }
+                            else
+                            {
+                                <div class="pa-4 text-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">No releases match your filter.</MudText>
+                                </div>
+                            }
+                        </MudPaper>
+                    </MudStack>
+                </MudItem>
+
+                <!-- Right panel: Selected release details -->
+                <MudItem xs="12" md="8" lg="9">
+                    @if (_selectedRelease is not null)
+                    {
+                        var isCurrent = string.Equals(_selectedRelease.Version, VersionCheckService.CurrentVersion, StringComparison.OrdinalIgnoreCase);
+                        var isLatest = string.Equals(_selectedRelease.Version, VersionCheckService.LatestVersion, StringComparison.OrdinalIgnoreCase);
+
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudStack Spacing="2">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+                                    <div>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudText Typo="Typo.h6">@_selectedRelease.Title</MudText>
+                                            @if (isCurrent)
+                                            {
+                                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">Installed Version</MudChip>
+                                            }
+                                            @if (isLatest)
+                                            {
+                                                <MudChip T="string" Color="Color.Success" Size="Size.Small">Target Latest</MudChip>
+                                            }
+                                            @if (_selectedRelease.IsPreRelease)
+                                            {
+                                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Outlined">Pre-release</MudChip>
+                                            }
+                                        </MudStack>
+                                        @if (_selectedRelease.PublishedAt.HasValue)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Published on @_selectedRelease.PublishedAt.Value.ToString("MMMM d, yyyy h:mm tt UTC")
+                                            </MudText>
+                                        }
+                                    </div>
+                                    <MudStack Row="true" Spacing="2">
+                                        @if (!string.IsNullOrWhiteSpace(_selectedRelease.HtmlUrl))
+                                        {
+                                            <MudButton Href="@_selectedRelease.HtmlUrl" Target="_blank" Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Custom.Brands.GitHub" Size="Size.Small">
+                                                View on GitHub
+                                            </MudButton>
+                                        }
+                                        @if (isLatest && VersionCheckService.CanUserInitiateUpdate)
+                                        {
+                                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" OnClick="StartUpdateAsync" StartIcon="@Icons.Material.Filled.SystemUpdate">
+                                                Update to this version
+                                            </MudButton>
+                                        }
+                                    </MudStack>
+                                </MudStack>
+
+                                <MudDivider Class="my-2" />
+
+                                @if (!string.IsNullOrWhiteSpace(_selectedRelease.Body))
+                                {
+                                    <div class="pa-2" style="max-height: 520px; overflow-y: auto;">
+                                        <GitHubMarkdownViewer Value="@_selectedRelease.Body" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="py-6 text-center">
+                                        No release notes were provided for this release.
+                                    </MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    else
+                    {
+                        <MudPaper Class="pa-6 text-center" Outlined="true">
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Select a release from the list to view its notes.</MudText>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        }
+        else if (!string.IsNullOrWhiteSpace(VersionCheckService.LatestReleaseNotes))
+        {
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Latest Release Notes (v@VersionCheckService.LatestVersion)</MudText>
+                <GitHubMarkdownViewer Value="@VersionCheckService.LatestReleaseNotes" />
             </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Normal" Dense="true">
+                No release information has been downloaded yet. Click <strong>Check For Updates</strong> above to fetch the latest release notes.
+            </MudAlert>
         }
     </MudStack>
 </MudPaper>
@@ -62,7 +252,7 @@
         <MudText Typo="Typo.body2" Color="Color.Secondary">
             Download the newest all_*.log file to share for support.
         </MudText>
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="DownloadLatestAllLogAsync">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="DownloadLatestAllLogAsync" StartIcon="@Icons.Material.Filled.Download">
             Download Latest all Log
         </MudButton>
     </MudStack>
@@ -81,9 +271,68 @@
     private bool _savingPreviewSetting;
     private string _updateProgressMessage = string.Empty;
     private int _updateProgressPercent;
+    private string _releaseSearchText = string.Empty;
+    private ReleaseInfo? _selectedRelease;
+
     private string _latestLabel => string.IsNullOrWhiteSpace(VersionCheckService.LatestVersion)
         ? "Unknown"
         : $"v{VersionCheckService.LatestVersion} ({VersionCheckService.CurrentRid ?? "unsupported"})";
+
+    private IEnumerable<ReleaseInfo> FilteredReleases
+    {
+        get
+        {
+            var releases = VersionCheckService.AvailableReleases.AsEnumerable();
+            if (!_includePreviewReleases)
+            {
+                releases = releases.Where(r => !r.IsPreRelease);
+            }
+            if (!string.IsNullOrWhiteSpace(_releaseSearchText))
+            {
+                var search = _releaseSearchText.Trim();
+                releases = releases.Where(r =>
+                    r.TagName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    r.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (r.Body?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            return releases;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        VersionCheckService.VersionStatusChanged += HandleVersionStatusChanged;
+        try
+        {
+            _includePreviewReleases = await UpdateChannelSettingsService.GetIncludePreviewReleasesAsync(defaultValue: false);
+        }
+        catch
+        {
+            _includePreviewReleases = VersionCheckService.IncludePreviewReleases;
+        }
+        UpdateSelectedRelease();
+    }
+
+    private void HandleVersionStatusChanged()
+    {
+        UpdateSelectedRelease();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSelectedReleaseChanged(ReleaseInfo? release)
+    {
+        _selectedRelease = release;
+    }
+
+    private void UpdateSelectedRelease()
+    {
+        var currentFiltered = FilteredReleases.ToList();
+        if (_selectedRelease is null || !currentFiltered.Any(r => r.TagName == _selectedRelease.TagName))
+        {
+            _selectedRelease = currentFiltered.FirstOrDefault(r => r.Version == VersionCheckService.LatestVersion)
+                ?? currentFiltered.FirstOrDefault();
+        }
+    }
 
     private async Task CheckForUpdatesAsync()
     {
@@ -95,14 +344,10 @@
         }
         else
         {
+            UpdateSelectedRelease();
             Snackbar.Add("Update status refreshed.", Severity.Success);
         }
         _checkingUpdates = false;
-    }
-
-    protected override void OnInitialized()
-    {
-        _includePreviewReleases = VersionCheckService.IncludePreviewReleases;
     }
 
     private async Task OnIncludePreviewReleasesChanged(bool value)
@@ -112,6 +357,7 @@
         {
             await VersionCheckService.SetIncludePreviewReleasesAsync(value);
             _includePreviewReleases = VersionCheckService.IncludePreviewReleases;
+            UpdateSelectedRelease();
             Snackbar.Add("Update channel preference saved.", Severity.Success);
         }
         catch (Exception ex)
@@ -227,7 +473,6 @@
                 source.Seek(source.Length - MaxLogDownloadBytes, SeekOrigin.Begin);
             }
 
-            // Buffer in memory so the browser gets a complete payload even if the log keeps growing.
             var buffer = new MemoryStream(capacity: (int)Math.Min(source.Length, MaxLogDownloadBytes) + 1024);
             await using (buffer.ConfigureAwait(false))
             {
@@ -259,7 +504,6 @@
         }
     }
 
-    // Tail reads start mid-line; advance past it so the file opens cleanly.
     private static void SkipPartialFirstLine(MemoryStream buffer)
     {
         var data = buffer.GetBuffer();
@@ -272,5 +516,10 @@
                 return;
             }
         }
+    }
+
+    public void Dispose()
+    {
+        VersionCheckService.VersionStatusChanged -= HandleVersionStatusChanged;
     }
 }
