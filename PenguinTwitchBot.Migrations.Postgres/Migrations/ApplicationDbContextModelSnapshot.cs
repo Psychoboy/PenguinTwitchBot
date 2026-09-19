@@ -3429,6 +3429,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<bool>("ActiveOnly")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("ExcludedViewers")
                         .IsRequired()
                         .HasColumnType("text");

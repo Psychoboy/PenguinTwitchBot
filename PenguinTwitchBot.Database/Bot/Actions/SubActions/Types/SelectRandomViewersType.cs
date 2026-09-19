@@ -11,6 +11,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
     public class SelectRandomViewersType : SubActionType, ISubActionUIProvider
     {
         public int ViewerCount { get; set; } = 1;
+        public bool ActiveOnly { get; set; } = false;
         public string ExcludedViewers { get; set; } = string.Empty;
 
         public SelectRandomViewersType()
@@ -31,6 +32,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Min = 1,
                     Max = 100,
                     HelperText = "If fewer eligible viewers are available, all available viewers are selected."
+                },
+                new()
+                {
+                    PropertyName = nameof(ActiveOnly),
+                    Label = "Active Viewers Only",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Primary",
+                    HelperText = "When enabled, only viewers who have interacted recently will be selected."
                 },
                 new()
                 {
@@ -61,6 +70,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public Dictionary<string, object?> GetValues() => new()
         {
             { nameof(ViewerCount), ViewerCount },
+            { nameof(ActiveOnly), ActiveOnly },
             { nameof(ExcludedViewers), ExcludedViewers },
             { nameof(Enabled), Enabled }
         };
@@ -71,6 +81,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 int.TryParse(viewerCount?.ToString(), out var parsedViewerCount))
             {
                 ViewerCount = parsedViewerCount;
+            }
+
+            if (values.TryGetValue(nameof(ActiveOnly), out var activeOnly))
+            {
+                if (activeOnly is bool b)
+                    ActiveOnly = b;
+                else if (bool.TryParse(activeOnly?.ToString(), out var parsedActive))
+                    ActiveOnly = parsedActive;
             }
 
             if (values.TryGetValue(nameof(ExcludedViewers), out var excludedViewers))

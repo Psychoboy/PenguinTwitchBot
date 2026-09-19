@@ -25,7 +25,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 .Split([',', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var eligibleViewers = viewerFeature.GetCurrentViewers()
+            var sourceViewers = selectRandomViewers.ActiveOnly
+                ? viewerFeature.GetActiveViewers()
+                : viewerFeature.GetCurrentViewers();
+
+            var eligibleViewers = sourceViewers
                 .Where(viewer => !string.IsNullOrWhiteSpace(viewer) &&
                                  !excludedViewers.Contains(viewer) &&
                                  !serviceBackbone.IsKnownBot(viewer))
@@ -52,7 +56,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             variables["selected_viewer_count"] = selectedViewers.Count.ToString();
-            context?.LogMessage(subActionIndex, $"Selected {selectedViewers.Count} of {eligibleViewers.Count} eligible viewers");
+            context?.LogMessage(subActionIndex, $"Selected {selectedViewers.Count} of {eligibleViewers.Count} eligible{(selectRandomViewers.ActiveOnly ? " active" : "")} viewers");
 
             return Task.CompletedTask;
         }

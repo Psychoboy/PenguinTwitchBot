@@ -39,6 +39,37 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Contains(variables["selected_viewer_2"], new[] { "Alice", "alice", "Carol" });
             Assert.False(string.Equals(variables["selected_viewer_1"], variables["selected_viewer_2"], StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain("selected_viewer_3", variables.Keys);
+            viewerFeature.Received(1).GetCurrentViewers();
+            viewerFeature.DidNotReceive().GetActiveViewers();
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithActiveOnly_SelectsFromActiveViewers()
+        {
+            var viewerFeature = Substitute.For<IViewerFeature>();
+            var serviceBackbone = Substitute.For<IServiceBackbone>();
+            viewerFeature.GetActiveViewers().Returns(["Dave", "dave", "Eve", "Bot", "Frank"]);
+            viewerFeature.GetCurrentViewers().Returns(["Alice", "Bob", "Carol"]);
+            serviceBackbone.IsKnownBot("Bot").Returns(true);
+            var handler = new SelectRandomViewersHandler(viewerFeature, serviceBackbone);
+            var variables = new ConcurrentDictionary<string, string>
+            {
+                ["user"] = "Frank"
+            };
+
+            await handler.ExecuteAsync(new SelectRandomViewersType
+            {
+                ViewerCount = 2,
+                ActiveOnly = true,
+                ExcludedViewers = "%user%"
+            }, variables);
+
+            Assert.Equal("2", variables["selected_viewer_count"]);
+            Assert.Contains(variables["selected_viewer_1"], new[] { "Dave", "dave", "Eve" });
+            Assert.Contains(variables["selected_viewer_2"], new[] { "Dave", "dave", "Eve" });
+            Assert.False(string.Equals(variables["selected_viewer_1"], variables["selected_viewer_2"], StringComparison.OrdinalIgnoreCase));
+            viewerFeature.Received(1).GetActiveViewers();
+            viewerFeature.DidNotReceive().GetCurrentViewers();
         }
 
         [Fact]
@@ -56,16 +87,21 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         public void Configuration_RoundTripsAndIsDiscovered()
         {
             var type = new SelectRandomViewersType();
+            Assert.False(type.ActiveOnly);
+
             var values = type.GetValues();
             values[nameof(SelectRandomViewersType.ViewerCount)] = 4;
+            values[nameof(SelectRandomViewersType.ActiveOnly)] = true;
             values[nameof(SelectRandomViewersType.ExcludedViewers)] = "alice, bob";
 
             type.SetValues(values);
 
             Assert.Equal(4, type.ViewerCount);
+            Assert.True(type.ActiveOnly);
             Assert.Equal("alice, bob", type.ExcludedViewers);
             Assert.Null(type.Validate(values));
             Assert.Contains(type.GetUIFields(), field => field.PropertyName == nameof(SelectRandomViewersType.ViewerCount) && field.FieldType == UIFieldType.Number);
+            Assert.Contains(type.GetUIFields(), field => field.PropertyName == nameof(SelectRandomViewersType.ActiveOnly) && field.FieldType == UIFieldType.Switch);
             Assert.Contains(type.GetUIFields(), field => field.PropertyName == nameof(SelectRandomViewersType.ExcludedViewers) && field.FieldType == UIFieldType.TextArea);
             Assert.Equal(typeof(SelectRandomViewersType), SubActionRegistry.GetSubActionType(SubActionTypes.SelectRandomViewers));
 
