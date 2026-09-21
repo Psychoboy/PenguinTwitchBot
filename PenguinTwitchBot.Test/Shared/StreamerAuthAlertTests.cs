@@ -50,6 +50,11 @@ public class StreamerAuthAlertTests
         ctx.Services.AddSingleton(_logger);
         ctx.Services.AddScoped<BlazorAppContext>();
 
+        var userThemeService = Substitute.For<IUserThemeService>();
+        userThemeService.CurrentTheme.Returns(new MudBlazor.MudTheme());
+        userThemeService.AvailableThemes.Returns(new List<PenguinTwitchBot.Models.Themes.CustomThemeModel>());
+        ctx.Services.AddSingleton(userThemeService);
+
         var circuitHandler = new CircuitHandlerService(_circuitUserService, _circuitLogger);
         ctx.Services.AddSingleton<CircuitHandler>(circuitHandler);
 

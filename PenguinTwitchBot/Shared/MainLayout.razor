@@ -15,10 +15,12 @@
 @inject ISnackbar Snackbar
 @inject ILogger<MainLayout> logger
 @inject PenguinTwitchBot.Bot.TwitchServices.ITwitchService twitchService
+@inject PenguinTwitchBot.Services.IUserThemeService UserThemeService
+@inject IJSRuntime JSRuntime
 
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")</PageTitle>
-<MudThemeProvider IsDarkMode=true />
+<MudThemeProvider Theme="@UserThemeService.CurrentTheme" IsDarkMode="@UserThemeService.IsDarkMode" />
 <MudPopoverProvider/>
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -104,15 +106,36 @@
             </div>
         </div>
         <MudSpacer />
+        @if (UserThemeService.AvailableThemes.Count > 1)
+        {
+            <MudMenu Icon="@Icons.Material.Filled.Palette" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+                <MudMenuItem Disabled="true">
+                    <MudText Typo="Typo.subtitle2">Themes</MudText>
+                </MudMenuItem>
+                @foreach (var theme in UserThemeService.AvailableThemes)
+                {
+                    var isSelected = string.Equals(theme.Id, UserThemeService.CurrentThemeId, StringComparison.OrdinalIgnoreCase);
+                    <MudMenuItem OnClick="@(() => SelectTheme(theme.Id))"
+                                 Icon="@(isSelected ? Icons.Material.Filled.Check : null)">
+                        @theme.Name @(theme.IsDefault ? "(Default)" : "")
+                    </MudMenuItem>
+                }
+            </MudMenu>
+        }
+        <MudTooltip Text="@(UserThemeService.IsDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
+            <MudIconButton Icon="@(UserThemeService.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Inherit"
+                           OnClick="@ToggleDarkMode" />
+        </MudTooltip>
         <AuthorizeView>
             <Authorized Context="Auth">
-                <MudImage Width="48" Src="@ProfileImage" />
-                <MudMenu Label="@Username" AnchorOrigin="Origin.CenterCenter" TransformOrigin="Origin.TopCenter">
+                <MudImage Width="48" Src="@ProfileImage" Class="rounded-circle mr-2" />
+                <MudMenu Label="@Username" Color="Color.Inherit" Style="color: var(--mud-palette-appbar-text);" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
                     <MudMenuItem OnClick="Signout">Sign out</MudMenuItem>
                 </MudMenu>
             </Authorized>
             <NotAuthorized>
-                <MudLink OnClick="Signin">Sign In</MudLink>
+                <MudLink OnClick="Signin" Color="Color.Inherit" Style="color: var(--mud-palette-appbar-text); cursor: pointer; text-decoration: none;" Class="ml-2 font-weight-bold">Sign In</MudLink>
             </NotAuthorized>
         </AuthorizeView>
     </MudAppBar>
@@ -168,11 +191,14 @@
         _statusCheckTimer.AutoReset = true;
         _statusCheckTimer.Start();
         StreamOnline = serviceBackbone.IsOnline;
+        UserThemeService.OnThemeChanged += HandleThemeChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender == false) return;
+
+        await UserThemeService.InitializeAsync(JSRuntime);
 
         _hubConnectionCts = new CancellationTokenSource();
 
@@ -244,8 +270,24 @@
         _drawerOpen = !_drawerOpen;
     }
 
+    private void HandleThemeChanged()
+    {
+        RefreshStateSafe();
+    }
+
+    private async Task ToggleDarkMode()
+    {
+        await UserThemeService.ToggleDarkModeAsync(JSRuntime);
+    }
+
+    private async Task SelectTheme(string themeId)
+    {
+        await UserThemeService.SelectThemeAsync(themeId, JSRuntime);
+    }
+
     public async ValueTask DisposeAsync()
     {
+        UserThemeService.OnThemeChanged -= HandleThemeChanged;
         Navigation.LocationChanged -= HandleLocationChanged;
         twitchService.ServiceStatusChanged -= HandleServiceStatusChanged;
 

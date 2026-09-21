@@ -239,3 +239,21 @@ window.restoreMarkdownCursorAndScroll = function (elementId) {
     setTimeout(restore, 0);
     setTimeout(restore, 50);
 };
+
+window.penguinTheme = {
+    getPreference: function () {
+        try {
+            var raw = localStorage.getItem('penguin_theme_pref');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    },
+    setPreference: function (isDarkMode, themeId) {
+        try {
+            localStorage.setItem('penguin_theme_pref', JSON.stringify({ isDarkMode: isDarkMode, themeId: themeId }));
+        } catch (e) {
+            // Ignore localStorage quota or private browsing errors
+        }
+    }
+};

@@ -1,4 +1,4 @@
-﻿@inject NavigationManager Navigation
+@inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
@@ -104,10 +104,11 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
                 }
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates")">
-                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app", "settings/websockets")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates", "settings/themes")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app", "settings/websockets", "settings/themes")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/settings/bot-auth" Match="NavLinkMatch.Prefix">Bot Authentication</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SettingsSuggest" Href="/settings/app" Match="NavLinkMatch.Prefix">Bot Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/settings/themes" Match="NavLinkMatch.Prefix">Themes</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Cable" Href="/settings/websockets" Match="NavLinkMatch.Prefix">Websocket Queues</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/settings/integrations" Match="NavLinkMatch.Prefix">Integrations</MudNavLink>
                     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TTS))
@@ -290,6 +291,7 @@
             CreateQuickLink("Known Bots", "/community/known-bots", Icons.Material.Filled.FmdBad, "Community"),
             CreateQuickLink("Bot Authentication", "/settings/bot-auth", Icons.Material.Filled.Security, "Configuration", "auth signin"),
             CreateQuickLink("Bot Settings", "/settings/app", Icons.Material.Filled.SettingsSuggest, "Configuration", "app settings"),
+            CreateQuickLink("Themes", "/settings/themes", Icons.Material.Filled.Palette, "Configuration", "theme custom color dark light mode"),
             CreateQuickLink("Integrations", "/settings/integrations", Icons.Material.Filled.Extension, "Configuration"),
             CreateQuickLink("Updates & Logs", "/settings/updates", Icons.Material.Filled.Update, "Configuration", "updates logs"),
             CreateQuickLink("Backups", "/backups", Icons.Material.Filled.Backup, "Configuration"),
