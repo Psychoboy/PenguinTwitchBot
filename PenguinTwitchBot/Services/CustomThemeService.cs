@@ -6,9 +6,12 @@ using PenguinTwitchBot.Models.Themes;
 
 namespace PenguinTwitchBot.Services;
 
-public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICustomThemeService
+public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICustomThemeService, IDisposable
 {
     private const string SettingName = "CustomThemes";
+    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly object _cacheLock = new();
+    private List<CustomThemeModel>? _cachedThemes;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -16,6 +19,66 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
     };
 
     public event EventHandler? ThemesChanged;
+
+    public IReadOnlyList<CustomThemeModel> GetCachedThemes()
+    {
+        lock (_cacheLock)
+        {
+            if (_cachedThemes != null)
+            {
+                return _cachedThemes;
+            }
+
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var setting = unitOfWork.Settings.Get(x => x.Name == SettingName).FirstOrDefault();
+
+                if (setting == null || string.IsNullOrWhiteSpace(setting.StringSetting))
+                {
+                    _cachedThemes = PresetThemes.GetPresets();
+                    return _cachedThemes;
+                }
+
+                var list = JsonSerializer.Deserialize<List<CustomThemeModel>>(setting.StringSetting, JsonOptions);
+                if (list == null || list.Count == 0)
+                {
+                    _cachedThemes = PresetThemes.GetPresets();
+                    return _cachedThemes;
+                }
+
+                if (!list.Any(x => x.IsDefault))
+                {
+                    var defaultPreset = list.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId) ?? list.First();
+                    defaultPreset.IsDefault = true;
+                    defaultPreset.IsEnabled = true;
+                }
+
+                foreach (var t in list)
+                {
+                    t.LightPalette.NormalizeColors();
+                    t.DarkPalette.NormalizeColors();
+                }
+
+                _cachedThemes = list;
+                return _cachedThemes;
+            }
+            catch
+            {
+                _cachedThemes = PresetThemes.GetPresets();
+                return _cachedThemes;
+            }
+        }
+    }
+
+    public CustomThemeModel GetDefaultTheme()
+    {
+        var themes = GetCachedThemes();
+        return themes.FirstOrDefault(x => x.IsDefault)
+            ?? themes.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId)
+            ?? themes.First();
+    }
 
     public async Task<List<CustomThemeModel>> GetThemesAsync()
     {
@@ -27,6 +90,7 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
         {
             var presets = PresetThemes.GetPresets();
             await SaveThemesInternalAsync(unitOfWork, presets);
+            lock (_cacheLock) { _cachedThemes = presets; }
             return presets;
         }
 
@@ -37,34 +101,32 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
             {
                 var presets = PresetThemes.GetPresets();
                 await SaveThemesInternalAsync(unitOfWork, presets);
+                lock (_cacheLock) { _cachedThemes = presets; }
                 return presets;
             }
 
-            // Ensure there is at least one default
+            // Ensure at least one theme is marked default
             if (!list.Any(x => x.IsDefault))
             {
-                var first = list.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId) ?? list.First();
-                first.IsDefault = true;
+                var defaultPreset = list.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId) ?? list.First();
+                defaultPreset.IsDefault = true;
+                defaultPreset.IsEnabled = true;
             }
 
-            // Ensure all default themes are enabled
-            foreach (var t in list.Where(x => x.IsDefault))
-            {
-                t.IsEnabled = true;
-            }
-
-            // Normalize colors so any unrounded rgba values from previous saves are clean hex
+            // Normalize colors for every loaded theme
             foreach (var t in list)
             {
                 t.LightPalette.NormalizeColors();
                 t.DarkPalette.NormalizeColors();
             }
 
+            lock (_cacheLock) { _cachedThemes = list; }
             return list;
         }
         catch
         {
             var presets = PresetThemes.GetPresets();
+            lock (_cacheLock) { _cachedThemes = presets; }
             return presets;
         }
     }
@@ -77,38 +139,51 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
 
     public async Task SaveThemeAsync(CustomThemeModel theme)
     {
-        using var scope = scopeFactory.CreateScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var themes = await GetThemesAsync();
-
-        var existingIndex = themes.FindIndex(x => string.Equals(x.Id, theme.Id, StringComparison.OrdinalIgnoreCase));
-
-        if (theme.IsDefault)
+        await _lock.WaitAsync();
+        try
         {
-            theme.IsEnabled = true;
-            foreach (var t in themes)
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var themes = await GetThemesAsync();
+
+            theme.LightPalette.NormalizeColors();
+            theme.DarkPalette.NormalizeColors();
+
+            var existingIndex = themes.FindIndex(x => string.Equals(x.Id, theme.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (theme.IsDefault)
             {
-                t.IsDefault = false;
+                theme.IsEnabled = true;
+                foreach (var t in themes)
+                {
+                    t.IsDefault = false;
+                }
             }
+
+            if (existingIndex >= 0)
+            {
+                themes[existingIndex] = theme;
+            }
+            else
+            {
+                themes.Add(theme);
+            }
+
+            // If no default exists, set this one or first
+            if (!themes.Any(x => x.IsDefault))
+            {
+                themes.First().IsDefault = true;
+                themes.First().IsEnabled = true;
+            }
+
+            await SaveThemesInternalAsync(unitOfWork, themes);
+            lock (_cacheLock) { _cachedThemes = themes; }
+        }
+        finally
+        {
+            _lock.Release();
         }
 
-        if (existingIndex >= 0)
-        {
-            themes[existingIndex] = theme;
-        }
-        else
-        {
-            themes.Add(theme);
-        }
-
-        // If no default exists, set this one or first
-        if (!themes.Any(x => x.IsDefault))
-        {
-            themes.First().IsDefault = true;
-            themes.First().IsEnabled = true;
-        }
-
-        await SaveThemesInternalAsync(unitOfWork, themes);
         ThemesChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -116,81 +191,126 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
     {
         if (string.Equals(id, PresetThemes.DefaultThemeId, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Cannot delete the default MudBlazor theme.");
+            throw new InvalidOperationException("Cannot delete the default theme.");
         }
 
-        using var scope = scopeFactory.CreateScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var themes = await GetThemesAsync();
-
-        var existing = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-        if (existing == null) return;
-
-        bool wasDefault = existing.IsDefault;
-        themes.Remove(existing);
-
-        if (wasDefault && themes.Count > 0)
+        await _lock.WaitAsync();
+        try
         {
-            var newDefault = themes.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId) ?? themes.First();
-            newDefault.IsDefault = true;
-            newDefault.IsEnabled = true;
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var themes = await GetThemesAsync();
+
+            var existing = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (existing == null) return;
+
+            bool wasDefault = existing.IsDefault;
+            themes.Remove(existing);
+
+            if (wasDefault && themes.Count > 0)
+            {
+                var newDefault = themes.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId) ?? themes.First();
+                newDefault.IsDefault = true;
+                newDefault.IsEnabled = true;
+            }
+
+            await SaveThemesInternalAsync(unitOfWork, themes);
+            lock (_cacheLock) { _cachedThemes = themes; }
+        }
+        finally
+        {
+            _lock.Release();
         }
 
-        await SaveThemesInternalAsync(unitOfWork, themes);
         ThemesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task SetDefaultThemeAsync(string id)
     {
-        using var scope = scopeFactory.CreateScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var themes = await GetThemesAsync();
-
-        var target = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-        if (target == null) return;
-
-        foreach (var t in themes)
+        await _lock.WaitAsync();
+        try
         {
-            var isTarget = string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase);
-            t.IsDefault = isTarget;
-            if (isTarget)
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var themes = await GetThemesAsync();
+
+            var target = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (target == null) return;
+
+            foreach (var t in themes)
             {
-                t.IsEnabled = true;
+                var isTarget = string.Equals(t.Id, id, StringComparison.OrdinalIgnoreCase);
+                t.IsDefault = isTarget;
+                if (isTarget)
+                {
+                    t.IsEnabled = true;
+                }
             }
+
+            await SaveThemesInternalAsync(unitOfWork, themes);
+            lock (_cacheLock) { _cachedThemes = themes; }
+        }
+        finally
+        {
+            _lock.Release();
         }
 
-        await SaveThemesInternalAsync(unitOfWork, themes);
         ThemesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task SetThemeEnabledAsync(string id, bool isEnabled)
     {
-        using var scope = scopeFactory.CreateScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var themes = await GetThemesAsync();
-
-        var target = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-        if (target == null) return;
-
-        if (target.IsDefault && !isEnabled)
+        await _lock.WaitAsync();
+        try
         {
-            throw new InvalidOperationException("Cannot disable the active default theme.");
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var themes = await GetThemesAsync();
+
+            var target = themes.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (target == null) return;
+
+            if (target.IsDefault && !isEnabled)
+            {
+                throw new InvalidOperationException("Cannot disable the active default theme.");
+            }
+
+            target.IsEnabled = isEnabled;
+
+            await SaveThemesInternalAsync(unitOfWork, themes);
+            lock (_cacheLock) { _cachedThemes = themes; }
+        }
+        finally
+        {
+            _lock.Release();
         }
 
-        target.IsEnabled = isEnabled;
-
-        await SaveThemesInternalAsync(unitOfWork, themes);
         ThemesChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task ResetToDefaultsAsync()
     {
-        using var scope = scopeFactory.CreateScope();
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var presets = PresetThemes.GetPresets();
+        await _lock.WaitAsync();
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var presets = PresetThemes.GetPresets();
 
-        await SaveThemesInternalAsync(unitOfWork, presets);
+            await SaveThemesInternalAsync(unitOfWork, presets);
+            lock (_cacheLock) { _cachedThemes = presets; }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
         ThemesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Dispose()
+    {
+        _lock.Dispose();
     }
 
     private static async Task SaveThemesInternalAsync(IUnitOfWork unitOfWork, List<CustomThemeModel> themes)

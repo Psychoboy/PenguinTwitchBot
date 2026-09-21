@@ -76,7 +76,7 @@ public class CustomThemeServiceTests : IDisposable
         var retrieved = await service.GetThemeByIdAsync("streamer-custom-1");
         Assert.NotNull(retrieved);
         Assert.Equal("Streamer Special", retrieved.Name);
-        Assert.Equal("#FF0000", retrieved.LightPalette.Primary);
+        Assert.Equal("#ff0000", retrieved.LightPalette.Primary);
     }
 
     [Fact]
@@ -230,5 +230,31 @@ public class CustomThemeServiceTests : IDisposable
         var themes = await service.GetThemesAsync();
         Assert.DoesNotContain(themes, t => t.Id == "temp-theme");
         Assert.Contains(themes, t => t.Id == PresetThemes.DefaultThemeId);
+    }
+
+    [Fact]
+    public async Task SaveThemeAsync_ConcurrentSaves_DoNotCorruptOrThrow()
+    {
+        var service = new CustomThemeService(_scopeFactory);
+
+        var tasks = Enumerable.Range(1, 5).Select(i =>
+        {
+            var theme = new CustomThemeModel
+            {
+                Id = $"concurrent-theme-{i}",
+                Name = $"Theme {i}",
+                LightPalette = new ThemePaletteModel { Primary = $"#00000{i}" },
+                DarkPalette = new ThemePaletteModel { Primary = $"#00000{i}" }
+            };
+            return Task.Run(() => service.SaveThemeAsync(theme));
+        });
+
+        await Task.WhenAll(tasks);
+
+        var themes = await service.GetThemesAsync();
+        for (int i = 1; i <= 5; i++)
+        {
+            Assert.Contains(themes, t => t.Id == $"concurrent-theme-{i}");
+        }
     }
 }

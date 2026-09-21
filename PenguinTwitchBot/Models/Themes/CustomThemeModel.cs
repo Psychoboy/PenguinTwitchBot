@@ -83,41 +83,54 @@ public class ThemePaletteModel
 
     public void ApplyTo(Palette palette)
     {
-        if (!string.IsNullOrWhiteSpace(Primary)) palette.Primary = new MudColor(Primary);
-        if (!string.IsNullOrWhiteSpace(Secondary)) palette.Secondary = new MudColor(Secondary);
-        if (!string.IsNullOrWhiteSpace(Tertiary)) palette.Tertiary = new MudColor(Tertiary);
-        if (!string.IsNullOrWhiteSpace(Info)) palette.Info = new MudColor(Info);
-        if (!string.IsNullOrWhiteSpace(Success)) palette.Success = new MudColor(Success);
-        if (!string.IsNullOrWhiteSpace(Warning)) palette.Warning = new MudColor(Warning);
-        if (!string.IsNullOrWhiteSpace(Error)) palette.Error = new MudColor(Error);
-        if (!string.IsNullOrWhiteSpace(Dark)) palette.Dark = new MudColor(Dark);
+        ApplyColor(Primary, c => palette.Primary = c);
+        ApplyColor(Secondary, c => palette.Secondary = c);
+        ApplyColor(Tertiary, c => palette.Tertiary = c);
+        ApplyColor(Info, c => palette.Info = c);
+        ApplyColor(Success, c => palette.Success = c);
+        ApplyColor(Warning, c => palette.Warning = c);
+        ApplyColor(Error, c => palette.Error = c);
+        ApplyColor(Dark, c => palette.Dark = c);
 
-        if (!string.IsNullOrWhiteSpace(Background)) palette.Background = new MudColor(Background);
-        if (!string.IsNullOrWhiteSpace(BackgroundGray)) palette.BackgroundGray = new MudColor(BackgroundGray);
-        if (!string.IsNullOrWhiteSpace(Surface)) palette.Surface = new MudColor(Surface);
+        ApplyColor(Background, c => palette.Background = c);
+        ApplyColor(BackgroundGray, c => palette.BackgroundGray = c);
+        ApplyColor(Surface, c => palette.Surface = c);
 
-        if (!string.IsNullOrWhiteSpace(AppbarBackground)) palette.AppbarBackground = new MudColor(AppbarBackground);
-        if (!string.IsNullOrWhiteSpace(AppbarText)) palette.AppbarText = new MudColor(AppbarText);
+        ApplyColor(AppbarBackground, c => palette.AppbarBackground = c);
+        ApplyColor(AppbarText, c => palette.AppbarText = c);
 
-        if (!string.IsNullOrWhiteSpace(DrawerBackground)) palette.DrawerBackground = new MudColor(DrawerBackground);
-        if (!string.IsNullOrWhiteSpace(DrawerText)) palette.DrawerText = new MudColor(DrawerText);
-        if (!string.IsNullOrWhiteSpace(DrawerIcon)) palette.DrawerIcon = new MudColor(DrawerIcon);
+        ApplyColor(DrawerBackground, c => palette.DrawerBackground = c);
+        ApplyColor(DrawerText, c => palette.DrawerText = c);
+        ApplyColor(DrawerIcon, c => palette.DrawerIcon = c);
 
-        if (!string.IsNullOrWhiteSpace(TextPrimary)) palette.TextPrimary = new MudColor(TextPrimary);
-        if (!string.IsNullOrWhiteSpace(TextSecondary)) palette.TextSecondary = new MudColor(TextSecondary);
-        if (!string.IsNullOrWhiteSpace(TextDisabled)) palette.TextDisabled = new MudColor(TextDisabled);
+        ApplyColor(TextPrimary, c => palette.TextPrimary = c);
+        ApplyColor(TextSecondary, c => palette.TextSecondary = c);
+        ApplyColor(TextDisabled, c => palette.TextDisabled = c);
 
-        if (!string.IsNullOrWhiteSpace(ActionDefault)) palette.ActionDefault = new MudColor(ActionDefault);
-        if (!string.IsNullOrWhiteSpace(ActionDisabled)) palette.ActionDisabled = new MudColor(ActionDisabled);
-        if (!string.IsNullOrWhiteSpace(ActionDisabledBackground)) palette.ActionDisabledBackground = new MudColor(ActionDisabledBackground);
+        ApplyColor(ActionDefault, c => palette.ActionDefault = c);
+        ApplyColor(ActionDisabled, c => palette.ActionDisabled = c);
+        ApplyColor(ActionDisabledBackground, c => palette.ActionDisabledBackground = c);
 
-        if (!string.IsNullOrWhiteSpace(LinesDefault)) palette.LinesDefault = new MudColor(LinesDefault);
-        if (!string.IsNullOrWhiteSpace(LinesInputs)) palette.LinesInputs = new MudColor(LinesInputs);
-        if (!string.IsNullOrWhiteSpace(TableLines)) palette.TableLines = new MudColor(TableLines);
-        if (!string.IsNullOrWhiteSpace(TableStriped)) palette.TableStriped = new MudColor(TableStriped);
-        if (!string.IsNullOrWhiteSpace(TableHover)) palette.TableHover = new MudColor(TableHover);
-        if (!string.IsNullOrWhiteSpace(Divider)) palette.Divider = new MudColor(Divider);
-        if (!string.IsNullOrWhiteSpace(DividerLight)) palette.DividerLight = new MudColor(DividerLight);
+        ApplyColor(LinesDefault, c => palette.LinesDefault = c);
+        ApplyColor(LinesInputs, c => palette.LinesInputs = c);
+        ApplyColor(TableLines, c => palette.TableLines = c);
+        ApplyColor(TableStriped, c => palette.TableStriped = c);
+        ApplyColor(TableHover, c => palette.TableHover = c);
+        ApplyColor(Divider, c => palette.Divider = c);
+        ApplyColor(DividerLight, c => palette.DividerLight = c);
+    }
+
+    private static void ApplyColor(string? colorStr, Action<MudColor> setter)
+    {
+        if (string.IsNullOrWhiteSpace(colorStr)) return;
+        try
+        {
+            setter(new MudColor(colorStr));
+        }
+        catch
+        {
+            // Retain default palette color on malformed value
+        }
     }
 
     public static string ColorToString(MudColor color)
@@ -143,10 +156,6 @@ public class ThemePaletteModel
     {
         if (string.IsNullOrWhiteSpace(colorStr)) return string.Empty;
         var trimmed = colorStr.Trim();
-        if (trimmed.StartsWith("#"))
-        {
-            return trimmed;
-        }
 
         try
         {
@@ -155,7 +164,7 @@ public class ThemePaletteModel
         }
         catch
         {
-            return trimmed;
+            return string.Empty;
         }
     }
 

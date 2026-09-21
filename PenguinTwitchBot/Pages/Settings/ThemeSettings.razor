@@ -443,15 +443,36 @@
         if (_editingTheme == null) return;
         // Temporarily register or apply to UserThemeService
         await CustomThemeService.SaveThemeAsync(_editingTheme);
-        await UserThemeService.SelectThemeAsync(_editingTheme.Id, JSRuntime);
-        Snackbar.Add($"Applied '{_editingTheme.Name}' to your session for testing.", Severity.Info);
+        await UserThemeService.RefreshThemesAsync();
+        var applied = await UserThemeService.SelectThemeAsync(_editingTheme.Id, JSRuntime);
+        if (applied)
+        {
+            Snackbar.Add($"Applied '{_editingTheme.Name}' to your session for testing.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Theme '{_editingTheme.Name}' could not be applied.", Severity.Warning);
+        }
         await LoadThemesAsync();
     }
 
     private async Task ApplyThemeToSelf(CustomThemeModel theme)
     {
-        await UserThemeService.SelectThemeAsync(theme.Id, JSRuntime);
-        Snackbar.Add($"Switched to '{theme.Name}'.", Severity.Success);
+        if (!theme.IsEnabled)
+        {
+            Snackbar.Add($"Cannot apply '{theme.Name}' because it is disabled.", Severity.Warning);
+            return;
+        }
+
+        var applied = await UserThemeService.SelectThemeAsync(theme.Id, JSRuntime);
+        if (applied)
+        {
+            Snackbar.Add($"Switched to '{theme.Name}'.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Theme '{theme.Name}' could not be applied.", Severity.Warning);
+        }
     }
 
     private async Task ToggleEnabledAsync(CustomThemeModel theme, bool isEnabled)

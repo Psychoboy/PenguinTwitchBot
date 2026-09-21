@@ -15,10 +15,11 @@ public interface IUserThemeService : IDisposable
 
     event Action? OnThemeChanged;
 
+    void ApplyInitialPreference(string? rawPreferenceOrCookie);
     Task InitializeAsync(IJSRuntime jsRuntime);
     Task ToggleDarkModeAsync(IJSRuntime jsRuntime);
     Task SetDarkModeAsync(bool isDark, IJSRuntime jsRuntime);
-    Task SelectThemeAsync(string themeId, IJSRuntime jsRuntime);
+    Task<bool> SelectThemeAsync(string themeId, IJSRuntime jsRuntime);
     Task RefreshThemesAsync();
 }
 

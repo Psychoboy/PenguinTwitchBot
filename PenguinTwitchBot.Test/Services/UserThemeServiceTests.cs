@@ -19,6 +19,8 @@ public class UserThemeServiceTests
 
         _themes = PresetThemes.GetPresets();
         _customThemeService.GetThemesAsync().Returns(Task.FromResult(_themes));
+        _customThemeService.GetCachedThemes().Returns(_themes);
+        _customThemeService.GetDefaultTheme().Returns(_themes.First(x => x.IsDefault));
     }
 
     [Fact]
@@ -139,5 +141,45 @@ public class UserThemeServiceTests
 
         Assert.Equal(PresetThemes.DefaultThemeId, service.CurrentThemeId);
         Assert.DoesNotContain(service.AvailableThemes, t => t.Id == PresetThemes.CyberpunkThemeId);
+    }
+
+    [Fact]
+    public async Task SelectThemeAsync_ReturnsTrueWhenFound_AndFalseWhenFallbackToDefault()
+    {
+        var service = new UserThemeService(_customThemeService);
+        await service.InitializeAsync(_jsRuntime);
+
+        var success = await service.SelectThemeAsync(PresetThemes.MidnightPurpleThemeId, _jsRuntime);
+        Assert.True(success);
+        Assert.Equal(PresetThemes.MidnightPurpleThemeId, service.CurrentThemeId);
+
+        var failed = await service.SelectThemeAsync("non-existent-theme-id", _jsRuntime);
+        Assert.False(failed);
+        Assert.Equal(PresetThemes.DefaultThemeId, service.CurrentThemeId);
+    }
+
+    [Fact]
+    public void Constructor_ImmediatelyInitializesWithDefaultTheme_BeforeAsyncOrJsRuns()
+    {
+        var arcticTheme = _themes.First(x => x.Id == PresetThemes.ArcticThemeId);
+        _customThemeService.GetDefaultTheme().Returns(arcticTheme);
+
+        var service = new UserThemeService(_customThemeService);
+
+        Assert.Equal(PresetThemes.ArcticThemeId, service.CurrentThemeId);
+        Assert.NotNull(arcticTheme.DarkPalette.Primary);
+        Assert.Equal(arcticTheme.DarkPalette.Primary.ToLowerInvariant(), ThemePaletteModel.ColorToString(service.CurrentTheme.PaletteDark.Primary).ToLowerInvariant());
+    }
+
+    [Fact]
+    public void ApplyInitialPreference_UpdatesThemeAndDarkMode()
+    {
+        var service = new UserThemeService(_customThemeService);
+        var prefJson = "{\"isDarkMode\":false,\"themeId\":\"" + PresetThemes.CyberpunkThemeId + "\"}";
+
+        service.ApplyInitialPreference(prefJson);
+
+        Assert.False(service.IsDarkMode);
+        Assert.Equal(PresetThemes.CyberpunkThemeId, service.CurrentThemeId);
     }
 }

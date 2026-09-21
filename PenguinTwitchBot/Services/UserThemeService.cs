@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.JSInterop;
 using MudBlazor;
 using PenguinTwitchBot.Models.Themes;
@@ -19,10 +21,72 @@ public sealed class UserThemeService : IUserThemeService
 
     public event Action? OnThemeChanged;
 
-    public UserThemeService(ICustomThemeService customThemeService)
+    public UserThemeService(ICustomThemeService customThemeService, IHttpContextAccessor? httpContextAccessor = null)
     {
         _customThemeService = customThemeService;
         _customThemeService.ThemesChanged += HandleThemesChanged;
+
+        InitializeFromCache();
+
+        if (httpContextAccessor?.HttpContext?.Request?.Cookies != null &&
+            httpContextAccessor.HttpContext.Request.Cookies.TryGetValue("penguin_theme_pref", out var cookieVal) &&
+            !string.IsNullOrWhiteSpace(cookieVal))
+        {
+            ApplyInitialPreference(cookieVal);
+        }
+    }
+
+    private void InitializeFromCache()
+    {
+        try
+        {
+            var cached = _customThemeService.GetCachedThemes();
+            if (cached != null && cached.Count > 0)
+            {
+                _availableThemes = cached.Where(x => x.IsEnabled).ToList();
+                if (_availableThemes.Count == 0)
+                {
+                    _availableThemes = cached.ToList();
+                }
+
+                var defaultTheme = _customThemeService.GetDefaultTheme();
+                CurrentThemeId = defaultTheme.Id;
+                CurrentTheme = defaultTheme.ToMudTheme();
+            }
+        }
+        catch
+        {
+            // If cache/db access fails, fallback to MudTheme
+        }
+    }
+
+    public void ApplyInitialPreference(string? rawPreferenceOrCookie)
+    {
+        if (string.IsNullOrWhiteSpace(rawPreferenceOrCookie)) return;
+
+        try
+        {
+            var decoded = rawPreferenceOrCookie.Contains('%') ? Uri.UnescapeDataString(rawPreferenceOrCookie) : rawPreferenceOrCookie;
+            var pref = JsonSerializer.Deserialize<UserThemePreference>(decoded, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (pref != null)
+            {
+                IsDarkMode = pref.IsDarkMode;
+
+                if (!string.IsNullOrWhiteSpace(pref.ThemeId))
+                {
+                    var matched = _availableThemes.FirstOrDefault(x => string.Equals(x.Id, pref.ThemeId, StringComparison.OrdinalIgnoreCase));
+                    if (matched != null)
+                    {
+                        CurrentThemeId = matched.Id;
+                        CurrentTheme = matched.ToMudTheme();
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore malformed cookie/preference
+        }
     }
 
     public async Task InitializeAsync(IJSRuntime jsRuntime)
@@ -38,28 +102,32 @@ public sealed class UserThemeService : IUserThemeService
                 _availableThemes = allThemes;
             }
 
-            var defaultTheme = _availableThemes.FirstOrDefault(x => x.IsDefault)
-                ?? _availableThemes.FirstOrDefault(x => x.Id == PresetThemes.DefaultThemeId)
-                ?? _availableThemes.FirstOrDefault();
-
-            if (defaultTheme != null)
-            {
-                CurrentThemeId = defaultTheme.Id;
-                CurrentTheme = defaultTheme.ToMudTheme();
-            }
-
             try
             {
                 var pref = await jsRuntime.InvokeAsync<UserThemePreference?>("penguinTheme.getPreference");
                 if (pref != null)
                 {
-                    IsDarkMode = pref.IsDarkMode;
+                    bool changed = false;
+                    if (IsDarkMode != pref.IsDarkMode)
+                    {
+                        IsDarkMode = pref.IsDarkMode;
+                        changed = true;
+                    }
 
                     if (!string.IsNullOrWhiteSpace(pref.ThemeId) && _availableThemes.Any(x => string.Equals(x.Id, pref.ThemeId, StringComparison.OrdinalIgnoreCase)))
                     {
-                        CurrentThemeId = pref.ThemeId;
-                        var matched = _availableThemes.First(x => string.Equals(x.Id, pref.ThemeId, StringComparison.OrdinalIgnoreCase));
-                        CurrentTheme = matched.ToMudTheme();
+                        if (!string.Equals(CurrentThemeId, pref.ThemeId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            CurrentThemeId = pref.ThemeId;
+                            var matched = _availableThemes.First(x => string.Equals(x.Id, pref.ThemeId, StringComparison.OrdinalIgnoreCase));
+                            CurrentTheme = matched.ToMudTheme();
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        OnThemeChanged?.Invoke();
                     }
                 }
             }
@@ -69,14 +137,10 @@ public sealed class UserThemeService : IUserThemeService
             }
 
             IsInitialized = true;
-            OnThemeChanged?.Invoke();
         }
         catch (Exception)
         {
-            // Fallback to default
-            CurrentTheme = new MudTheme();
             IsInitialized = true;
-            OnThemeChanged?.Invoke();
         }
     }
 
@@ -100,18 +164,21 @@ public sealed class UserThemeService : IUserThemeService
         }
     }
 
-    public async Task SelectThemeAsync(string themeId, IJSRuntime jsRuntime)
+    public async Task<bool> SelectThemeAsync(string themeId, IJSRuntime jsRuntime)
     {
         var matched = _availableThemes.FirstOrDefault(x => string.Equals(x.Id, themeId, StringComparison.OrdinalIgnoreCase));
+        bool applied;
         if (matched != null)
         {
             CurrentThemeId = matched.Id;
             CurrentTheme = matched.ToMudTheme();
+            applied = true;
         }
         else
         {
             CurrentThemeId = PresetThemes.DefaultThemeId;
             CurrentTheme = new MudTheme();
+            applied = false;
         }
 
         OnThemeChanged?.Invoke();
@@ -124,6 +191,8 @@ public sealed class UserThemeService : IUserThemeService
         {
             // JS exception ignored
         }
+
+        return applied;
     }
 
     public async Task RefreshThemesAsync()

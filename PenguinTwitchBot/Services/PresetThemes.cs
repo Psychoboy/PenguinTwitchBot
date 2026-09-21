@@ -20,8 +20,8 @@ public static class PresetThemes
             new CustomThemeModel
             {
                 Id = DefaultThemeId,
-                Name = "Default MudBlazor",
-                Description = "The standard default MudBlazor theme.",
+                Name = "Default",
+                Description = "The standard default theme.",
                 IsDefault = true,
                 IsBuiltIn = true,
                 LightPalette = ThemePaletteModel.FromPalette(defaultTheme.PaletteLight),

@@ -163,16 +163,51 @@ public class CustomThemeModelTests
         string currentHex = "#38BDF8";
         var mudColor = new MudColor(currentHex);
 
+#pragma warning disable CS8619
         var comp = ctx.Render<MudColorPicker>(builder => builder
             .Add(p => p.Value, mudColor)
-            .Add(p => p.ValueChanged, EventCallback.Factory.Create<MudColor>(this, (MudColor c) => currentHex = ThemePaletteModel.ColorToString(c)))
+            .Add(p => p.ValueChanged, (Action<MudColor>)(c => currentHex = ThemePaletteModel.ColorToString(c)))
             .Add(p => p.Text, currentHex)
-            .Add(p => p.TextChanged, EventCallback.Factory.Create<string>(this, (string s) => currentHex = s)));
+            .Add(p => p.TextChanged, (Action<string>)(s => currentHex = s)));
+#pragma warning restore CS8619
 
 #pragma warning disable MUD0012
         var val = comp.Instance.Value;
 #pragma warning restore MUD0012
         Assert.NotNull(val);
         Assert.Equal("#38bdf8", val.ToString(MudColorOutputFormats.Hex).ToLowerInvariant());
+    }
+
+    [Theory]
+    [InlineData("#38bdf8", "#38bdf8")]
+    [InlineData("#38BDF8", "#38bdf8")]
+    [InlineData("#38bdf8b3", "#38bdf8b3")]
+    [InlineData("#xyz", "")]
+    [InlineData("not-a-color", "")]
+    [InlineData("", "")]
+    [InlineData(null, "")]
+    [InlineData("   ", "")]
+    public void NormalizeColor_ValidatesValuesAndReturnsEmptyOnFailure(string? input, string expected)
+    {
+        var result = ThemePaletteModel.NormalizeColor(input);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ApplyTo_RetainsPaletteDefaults_WhenModelContainsMalformedColors()
+    {
+        var palette = new PaletteDark();
+        var defaultPrimary = palette.Primary;
+
+        var model = new ThemePaletteModel
+        {
+            Primary = "#invalid_color_value",
+            Secondary = "completely_broken"
+        };
+
+        // Should not throw exception and should retain default palette colors
+        model.ApplyTo(palette);
+
+        Assert.Equal(defaultPrimary, palette.Primary);
     }
 }
