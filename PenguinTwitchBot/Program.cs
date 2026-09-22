@@ -292,6 +292,8 @@ internal class Program
                 .ForwardToPrometheus();
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<ICustomThemeService, CustomThemeService>();
+        builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();

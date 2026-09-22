@@ -1,4 +1,4 @@
-﻿@using PenguinTwitchBot.Shared
+@using PenguinTwitchBot.Shared
 @using PenguinTwitchBot.CustomMiddleware
 @using PenguinTwitchBot.Helpers
 @using Microsoft.AspNetCore.Authorization
@@ -68,8 +68,14 @@
     [Parameter]
     public string? RemoteIpAddress { get; set; }
 
+    [Parameter]
+    public string? InitialThemePref { get; set; }
+
     [Inject]
     BlazorAppContext? BlazorAppContext { get; set; }
+
+    [Inject]
+    PenguinTwitchBot.Services.IUserThemeService UserThemeService { get; set; } = null!;
 
     [Inject]
     NavigationManager Navigation { get; set; } = null!;
@@ -79,6 +85,10 @@
         if (this.BlazorAppContext != null)
         {
             this.BlazorAppContext.CurrentUserIP = this.RemoteIpAddress;
+        }
+        if (!string.IsNullOrWhiteSpace(this.InitialThemePref))
+        {
+            this.UserThemeService.ApplyInitialPreference(this.InitialThemePref);
         }
         return Task.CompletedTask;
     }

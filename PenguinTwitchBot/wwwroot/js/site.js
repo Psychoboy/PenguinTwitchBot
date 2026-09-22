@@ -239,3 +239,23 @@ window.restoreMarkdownCursorAndScroll = function (elementId) {
     setTimeout(restore, 0);
     setTimeout(restore, 50);
 };
+
+window.penguinTheme = {
+    getPreference: function () {
+        try {
+            var raw = localStorage.getItem('penguin_theme_pref');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    },
+    setPreference: function (isDarkMode, themeId) {
+        try {
+            var json = JSON.stringify({ isDarkMode: isDarkMode, themeId: themeId });
+            localStorage.setItem('penguin_theme_pref', json);
+            document.cookie = 'penguin_theme_pref=' + encodeURIComponent(json) + '; path=/; max-age=31536000; SameSite=Lax';
+        } catch (e) {
+            // Ignore localStorage quota or private browsing errors
+        }
+    }
+};

@@ -1,0 +1,643 @@
+@page "/settings/themes"
+@attribute [Authorize(Roles = "Streamer")]
+@using PenguinTwitchBot.Models.Themes
+@using PenguinTwitchBot.Services
+@using MudBlazor.Utilities
+@inject ICustomThemeService CustomThemeService
+@inject IUserThemeService UserThemeService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Themes</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4">
+    <MudStack Spacing="2" Class="mb-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">Theme Management</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                    Create, customize, and manage custom MudBlazor themes. Streamers can configure light and dark palettes, set the default theme, and preview changes live.
+                </MudText>
+            </div>
+            @if (_editingTheme == null)
+            {
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Restore"
+                               OnClick="ResetToDefaultsAsync">
+                        Reset to Presets
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="CreateNewTheme">
+                        Create New Theme
+                    </MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    }
+    else if (_editingTheme != null)
+    {
+        @* THEME EDITOR *@
+        <MudCard Elevation="3" Class="pa-4 mb-6">
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudIcon Icon="@Icons.Material.Filled.Palette" Color="Color.Primary" Size="Size.Large" />
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">@(_isNewTheme ? "Create New Theme" : $"Edit Theme: {_editingTheme.Name}")</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Configure colors for both Dark and Light palettes.</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">Cancel</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveThemeAsync" Class="ml-2">Save Theme</MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_editingTheme.Name"
+                                      Label="Theme Name"
+                                      Placeholder="e.g. My Stream Theme"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_editingTheme.Description"
+                                      Label="Description"
+                                      Placeholder="Short description of this theme"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudCheckBox @bind-Value="_editingTheme.IsDefault"
+                                     Label="Set as default theme for new visitors"
+                                     Color="Color.Primary"
+                                     Dense="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudSwitch @bind-Value="_editingTheme.IsEnabled"
+                                   Label="Enable theme for users"
+                                   Color="Color.Success"
+                                   Disabled="@_editingTheme.IsDefault" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudTabs Elevation="1" Rounded="true" ApplyEffectsToContainer="true" Class="mt-4" Color="Color.Primary">
+                    <MudTabPanel Text="Dark Palette" Icon="@Icons.Material.Filled.DarkMode" Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="12" lg="7">
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Brand & Status Colors</MudText>
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Primary", _editingTheme.DarkPalette.Primary, c => _editingTheme.DarkPalette.Primary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Secondary", _editingTheme.DarkPalette.Secondary, c => _editingTheme.DarkPalette.Secondary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Tertiary", _editingTheme.DarkPalette.Tertiary, c => _editingTheme.DarkPalette.Tertiary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Info", _editingTheme.DarkPalette.Info, c => _editingTheme.DarkPalette.Info = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Success", _editingTheme.DarkPalette.Success, c => _editingTheme.DarkPalette.Success = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Warning", _editingTheme.DarkPalette.Warning, c => _editingTheme.DarkPalette.Warning = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Error", _editingTheme.DarkPalette.Error, c => _editingTheme.DarkPalette.Error = c)
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudDivider Class="my-4" />
+
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Surface & Layout Colors</MudText>
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Background", _editingTheme.DarkPalette.Background, c => _editingTheme.DarkPalette.Background = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Surface", _editingTheme.DarkPalette.Surface, c => _editingTheme.DarkPalette.Surface = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Appbar Background", _editingTheme.DarkPalette.AppbarBackground, c => _editingTheme.DarkPalette.AppbarBackground = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Appbar Text", _editingTheme.DarkPalette.AppbarText, c => _editingTheme.DarkPalette.AppbarText = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Drawer Background", _editingTheme.DarkPalette.DrawerBackground, c => _editingTheme.DarkPalette.DrawerBackground = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Drawer Text", _editingTheme.DarkPalette.DrawerText, c => _editingTheme.DarkPalette.DrawerText = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="6">
+                                        @RenderColorPicker("Text Primary", _editingTheme.DarkPalette.TextPrimary, c => _editingTheme.DarkPalette.TextPrimary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="6">
+                                        @RenderColorPicker("Text Secondary", _editingTheme.DarkPalette.TextSecondary, c => _editingTheme.DarkPalette.TextSecondary = c)
+                                    </MudItem>
+                                </MudGrid>
+                            </MudItem>
+                            <MudItem xs="12" lg="5">
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Live Preview (Dark)</MudText>
+                                @RenderPalettePreview(_editingTheme.DarkPalette)
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+
+                    <MudTabPanel Text="Light Palette" Icon="@Icons.Material.Filled.LightMode" Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="12" lg="7">
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Brand & Status Colors</MudText>
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Primary", _editingTheme.LightPalette.Primary, c => _editingTheme.LightPalette.Primary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Secondary", _editingTheme.LightPalette.Secondary, c => _editingTheme.LightPalette.Secondary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Tertiary", _editingTheme.LightPalette.Tertiary, c => _editingTheme.LightPalette.Tertiary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Info", _editingTheme.LightPalette.Info, c => _editingTheme.LightPalette.Info = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Success", _editingTheme.LightPalette.Success, c => _editingTheme.LightPalette.Success = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Warning", _editingTheme.LightPalette.Warning, c => _editingTheme.LightPalette.Warning = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="3">
+                                        @RenderColorPicker("Error", _editingTheme.LightPalette.Error, c => _editingTheme.LightPalette.Error = c)
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudDivider Class="my-4" />
+
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Surface & Layout Colors</MudText>
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Background", _editingTheme.LightPalette.Background, c => _editingTheme.LightPalette.Background = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Surface", _editingTheme.LightPalette.Surface, c => _editingTheme.LightPalette.Surface = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Appbar Background", _editingTheme.LightPalette.AppbarBackground, c => _editingTheme.LightPalette.AppbarBackground = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Appbar Text", _editingTheme.LightPalette.AppbarText, c => _editingTheme.LightPalette.AppbarText = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Drawer Background", _editingTheme.LightPalette.DrawerBackground, c => _editingTheme.LightPalette.DrawerBackground = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="4">
+                                        @RenderColorPicker("Drawer Text", _editingTheme.LightPalette.DrawerText, c => _editingTheme.LightPalette.DrawerText = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="6">
+                                        @RenderColorPicker("Text Primary", _editingTheme.LightPalette.TextPrimary, c => _editingTheme.LightPalette.TextPrimary = c)
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6" md="6">
+                                        @RenderColorPicker("Text Secondary", _editingTheme.LightPalette.TextSecondary, c => _editingTheme.LightPalette.TextSecondary = c)
+                                    </MudItem>
+                                </MudGrid>
+                            </MudItem>
+                            <MudItem xs="12" lg="5">
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Live Preview (Light)</MudText>
+                                @RenderPalettePreview(_editingTheme.LightPalette)
+                            </MudItem>
+                        </MudGrid>
+                    </MudTabPanel>
+                </MudTabs>
+            </MudCardContent>
+            <MudCardActions Class="pa-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">Cancel</MudButton>
+                <MudSpacer />
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Visibility" OnClick="ApplyPreviewToScreen" Class="mr-2">Test on My Screen</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveThemeAsync">Save Theme</MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+
+    @* THEMES TABLE / LIST *@
+    <MudTable Items="@_themes" Hover="true" Elevation="2" Striped="true" Loading="@_loading">
+        <HeaderContent>
+            <MudTh>Theme Name</MudTh>
+            <MudTh>Colors (Primary / Secondary)</MudTh>
+            <MudTh>Dark Background</MudTh>
+            <MudTh>Light Background</MudTh>
+            <MudTh>Enabled</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh Style="text-align: right;">Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Theme Name">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.Name</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Description</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Colors">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: @(context.DarkPalette.Primary ?? "#594AE2"); border: 1px solid #666;" title="Dark Primary"></div>
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: @(context.DarkPalette.Secondary ?? "#00C853"); border: 1px solid #666;" title="Dark Secondary"></div>
+                    <span class="mx-1">/</span>
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: @(context.LightPalette.Primary ?? "#594AE2"); border: 1px solid #ccc;" title="Light Primary"></div>
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background-color: @(context.LightPalette.Secondary ?? "#00C853"); border: 1px solid #ccc;" title="Light Secondary"></div>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Dark Background">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    <div style="width: 20px; height: 20px; border-radius: 4px; background-color: @(context.DarkPalette.Background ?? "#1a1a27"); border: 1px solid #555;"></div>
+                    <MudText Typo="Typo.caption">@(context.DarkPalette.Background ?? "Default")</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Light Background">
+                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                    <div style="width: 20px; height: 20px; border-radius: 4px; background-color: @(context.LightPalette.Background ?? "#ffffff"); border: 1px solid #ccc;"></div>
+                    <MudText Typo="Typo.caption">@(context.LightPalette.Background ?? "Default")</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Enabled">
+                <MudTooltip Text="@(context.IsDefault ? "Default theme cannot be disabled" : (context.IsEnabled ? "Theme is enabled for users (click to disable)" : "Theme is disabled for users (click to enable)"))">
+                    <MudSwitch T="bool"
+                               Value="@context.IsEnabled"
+                               ValueChanged="@((bool val) => ToggleEnabledAsync(context, val))"
+                               Color="Color.Success"
+                               Disabled="@context.IsDefault" />
+                </MudTooltip>
+            </MudTd>
+            <MudTd DataLabel="Status">
+                <MudStack Row="true" Spacing="1">
+                    @if (context.IsDefault)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Default</MudChip>
+                    }
+                    @if (context.IsBuiltIn)
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">Preset</MudChip>
+                    }
+                    @if (!context.IsEnabled)
+                    {
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">Disabled</MudChip>
+                    }
+                    @if (string.Equals(context.Id, UserThemeService.CurrentThemeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">Active</MudChip>
+                    }
+                </MudStack>
+            </MudTd>
+            <MudTd DataLabel="Actions" Style="text-align: right;">
+                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                    <MudTooltip Text="Try theme on your session">
+                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ApplyThemeToSelf(context))" />
+                    </MudTooltip>
+                    @if (!context.IsDefault)
+                    {
+                        <MudTooltip Text="Set as Default for all users">
+                            <MudIconButton Icon="@Icons.Material.Filled.StarOutline"
+                                           Color="Color.Warning"
+                                           Size="Size.Small"
+                                           OnClick="@(() => SetDefaultAsync(context))" />
+                        </MudTooltip>
+                    }
+                    <MudTooltip Text="Duplicate theme">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Color="Color.Default"
+                                       Size="Size.Small"
+                                       OnClick="@(() => DuplicateTheme(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Edit theme">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="@(() => EditTheme(context))" />
+                    </MudTooltip>
+                    @if (context.Id != PresetThemes.DefaultThemeId)
+                    {
+                        <MudTooltip Text="@(context.IsDefault ? "Cannot delete the active default theme. Set another theme as default first." : "Delete theme")">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           Disabled="@context.IsDefault"
+                                           OnClick="@(() => DeleteThemeAsync(context))" />
+                        </MudTooltip>
+                    }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private List<CustomThemeModel> _themes = [];
+    private CustomThemeModel? _editingTheme;
+    private bool _isNewTheme;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadThemesAsync();
+    }
+
+    private async Task LoadThemesAsync()
+    {
+        _loading = true;
+        try
+        {
+            _themes = await CustomThemeService.GetThemesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading themes: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNewTheme()
+    {
+        var defaultTheme = new MudTheme();
+        _editingTheme = new CustomThemeModel
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "New Custom Theme",
+            Description = "Custom theme created by streamer",
+            IsDefault = false,
+            IsBuiltIn = false,
+            LightPalette = ThemePaletteModel.FromPalette(defaultTheme.PaletteLight),
+            DarkPalette = ThemePaletteModel.FromPalette(defaultTheme.PaletteDark)
+        };
+        _isNewTheme = true;
+    }
+
+    private void EditTheme(CustomThemeModel theme)
+    {
+        _editingTheme = theme.Clone(theme.Name);
+        _editingTheme.Id = theme.Id;
+        _editingTheme.IsDefault = theme.IsDefault;
+        _editingTheme.IsBuiltIn = theme.IsBuiltIn;
+        _editingTheme.IsEnabled = theme.IsEnabled;
+        _editingTheme.LightPalette.NormalizeColors();
+        _editingTheme.DarkPalette.NormalizeColors();
+        _isNewTheme = false;
+    }
+
+    private async Task DuplicateTheme(CustomThemeModel theme)
+    {
+        var copy = theme.Clone($"{theme.Name} (Copy)");
+        await CustomThemeService.SaveThemeAsync(copy);
+        Snackbar.Add($"Created duplicate theme: {copy.Name}", Severity.Success);
+        await LoadThemesAsync();
+    }
+
+    private async Task SaveThemeAsync()
+    {
+        if (_editingTheme == null) return;
+
+        if (string.IsNullOrWhiteSpace(_editingTheme.Name))
+        {
+            Snackbar.Add("Theme name is required.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            await CustomThemeService.SaveThemeAsync(_editingTheme);
+            Snackbar.Add($"Theme '{_editingTheme.Name}' saved successfully.", Severity.Success);
+            _editingTheme = null;
+            await LoadThemesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving theme: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _editingTheme = null;
+    }
+
+    private async Task ApplyPreviewToScreen()
+    {
+        if (_editingTheme == null) return;
+        // Temporarily register or apply to UserThemeService
+        await CustomThemeService.SaveThemeAsync(_editingTheme);
+        await UserThemeService.RefreshThemesAsync();
+        var applied = await UserThemeService.SelectThemeAsync(_editingTheme.Id, JSRuntime);
+        if (applied)
+        {
+            Snackbar.Add($"Applied '{_editingTheme.Name}' to your session for testing.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Theme '{_editingTheme.Name}' could not be applied.", Severity.Warning);
+        }
+        await LoadThemesAsync();
+    }
+
+    private async Task ApplyThemeToSelf(CustomThemeModel theme)
+    {
+        if (!theme.IsEnabled)
+        {
+            Snackbar.Add($"Cannot apply '{theme.Name}' because it is disabled.", Severity.Warning);
+            return;
+        }
+
+        var applied = await UserThemeService.SelectThemeAsync(theme.Id, JSRuntime);
+        if (applied)
+        {
+            Snackbar.Add($"Switched to '{theme.Name}'.", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add($"Theme '{theme.Name}' could not be applied.", Severity.Warning);
+        }
+    }
+
+    private async Task ToggleEnabledAsync(CustomThemeModel theme, bool isEnabled)
+    {
+        try
+        {
+            await CustomThemeService.SetThemeEnabledAsync(theme.Id, isEnabled);
+            Snackbar.Add($"Theme '{theme.Name}' {(isEnabled ? "enabled" : "disabled")}.", Severity.Info);
+            await LoadThemesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating theme: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SetDefaultAsync(CustomThemeModel theme)
+    {
+        try
+        {
+            await CustomThemeService.SetDefaultThemeAsync(theme.Id);
+            Snackbar.Add($"'{theme.Name}' is now the default theme for all visitors.", Severity.Success);
+            await LoadThemesAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error setting default theme: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteThemeAsync(CustomThemeModel theme)
+    {
+        if (theme.IsDefault)
+        {
+            Snackbar.Add("Cannot delete the active default theme. Please set another theme as default first.", Severity.Warning);
+            return;
+        }
+
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Theme",
+            $"Are you sure you want to delete the theme '{theme.Name}'? This action cannot be undone.",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await CustomThemeService.DeleteThemeAsync(theme.Id);
+                Snackbar.Add($"Theme '{theme.Name}' deleted.", Severity.Success);
+                await LoadThemesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting theme: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ResetToDefaultsAsync()
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Themes",
+            "This will restore the built-in preset themes. Are you sure?",
+            yesText: "Reset",
+            cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            try
+            {
+                await CustomThemeService.ResetToDefaultsAsync();
+                Snackbar.Add("Themes reset to default presets.", Severity.Success);
+                await LoadThemesAsync();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error resetting themes: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private RenderFragment RenderPalettePreview(ThemePaletteModel p) => __builder =>
+    {
+        var bg = p.Background ?? "#1a1a27";
+        var surface = p.Surface ?? "#252538";
+        var appbarBg = p.AppbarBackground ?? "#212130";
+        var appbarText = p.AppbarText ?? "#ffffff";
+        var drawerBg = p.DrawerBackground ?? "#1e1e2d";
+        var drawerText = p.DrawerText ?? "#ffffff";
+        var primary = p.Primary ?? "#594AE2";
+        var secondary = p.Secondary ?? "#00C853";
+        var info = p.Info ?? "#2196F3";
+        var success = p.Success ?? "#4CAF50";
+        var warning = p.Warning ?? "#FF9800";
+        var error = p.Error ?? "#F44336";
+        var textPrimary = p.TextPrimary ?? "#ffffff";
+        var textSecondary = p.TextSecondary ?? "#aaaaaa";
+
+        <div style="border-radius: 8px; overflow: hidden; border: 1px solid #444; box-shadow: 0 4px 12px rgba(0,0,0,0.25); background-color: @bg; color: @textPrimary; font-family: Roboto, sans-serif;">
+            @* Mock Appbar *@
+            <div style="background-color: @appbarBg; color: @appbarText; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 16px; font-weight: 700;">Penguin Bot</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: @primary;"></span>
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: @secondary;"></span>
+                </div>
+            </div>
+
+            <div style="display: flex; min-height: 220px;">
+                @* Mock Drawer *@
+                <div style="width: 100px; background-color: @drawerBg; color: @drawerText; padding: 12px 8px; font-size: 11px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid rgba(128,128,128,0.2);">
+                    <div style="padding: 4px 6px; border-radius: 4px; background-color: rgba(255,255,255,0.08); font-weight: 600;">Home</div>
+                    <div style="padding: 4px 6px; border-radius: 4px;">Commands</div>
+                    <div style="padding: 4px 6px; border-radius: 4px;">Settings</div>
+                </div>
+
+                @* Mock Body Content *@
+                <div style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="background-color: @surface; border-radius: 6px; padding: 12px; border: 1px solid rgba(128,128,128,0.15);">
+                        <div style="font-weight: 600; font-size: 13px; color: @textPrimary;">Card Surface Preview</div>
+                        <div style="font-size: 11px; color: @textSecondary; margin-top: 4px;">Secondary text on card surface</div>
+                        <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
+                            <span style="background-color: @primary; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Primary</span>
+                            <span style="background-color: @secondary; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">Secondary</span>
+                            <span style="background-color: @success; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Success</span>
+                            <span style="background-color: @warning; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Warning</span>
+                            <span style="background-color: @error; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px;">Error</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    };
+
+    private RenderFragment RenderColorPicker(string label, string? colorString, Action<string> onColorChanged) => __builder =>
+    {
+        var mudColor = GetMudColor(colorString);
+        <MudColorPicker Label="@label"
+                        Value="@mudColor"
+                        ValueChanged="@((MudColor c) => onColorChanged(ThemePaletteModel.ColorToString(c)))"
+                        Text="@colorString"
+                        TextChanged="@((string s) => onColorChanged(s))"
+                        ShowAlpha="true"
+                        ShowModeSwitch="true"
+                        ColorPickerMode="ColorPickerMode.HEX"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense" />
+    };
+
+    private static MudColor GetMudColor(string? colorStr)
+    {
+        if (string.IsNullOrWhiteSpace(colorStr))
+        {
+            return new MudColor("#000000");
+        }
+        try
+        {
+            return new MudColor(colorStr);
+        }
+        catch
+        {
+            return new MudColor("#000000");
+        }
+    }
+}

@@ -8,6 +8,8 @@
 @{
     var remoteIpAddress =
            httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
+    var initialThemePref =
+           httpContextAccessor.HttpContext?.Request?.Cookies["penguin_theme_pref"];
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -24,6 +26,16 @@
     <meta name="application-title" content="@(Configuration["ApplicationTitle"] ?? "Penguin Twitch Bot")" />
     <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <script>
+        (function () {
+            try {
+                var p = localStorage.getItem('penguin_theme_pref');
+                if (p && document.cookie.indexOf('penguin_theme_pref=') === -1) {
+                    document.cookie = 'penguin_theme_pref=' + encodeURIComponent(p) + '; path=/; max-age=31536000; SameSite=Lax';
+                }
+            } catch (e) {}
+        })();
+    </script>
     <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
 </head>
 
@@ -155,7 +167,7 @@
         }
 
     </script>
-    <component type="typeof(App)" param-RemoteIpAddress=remoteIpAddress render-mode="ServerPrerendered" />
+    <component type="typeof(App)" param-RemoteIpAddress="remoteIpAddress" param-InitialThemePref="initialThemePref" render-mode="ServerPrerendered" />
     <script src="_framework/blazor.server.js"></script>
     <script src="~/js/blazor-reconnect.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
