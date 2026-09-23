@@ -139,16 +139,16 @@
                                 </div>
                             </MudStack>
 
-                            @if (_isBotConnected)
+                            @if (_isBotTokenValid)
                             {
                                 <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
-                                    Chat Connected
+                                    Token Active
                                 </MudChip>
                             }
                             else
                             {
                                 <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">
-                                    Disconnected
+                                    Token Disconnected
                                 </MudChip>
                             }
                         </MudStack>
@@ -167,19 +167,19 @@
                             </MudStack>
 
                             <MudStack Row="true" Justify="Justify.SpaceBetween">
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Chat Client Connection:</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Bot Token Status:</MudText>
                                 <MudText Typo="Typo.body2">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(_isBotConnected ? Color.Success : Color.Error)">
-                                        @(_isBotConnected ? "Online / Ready" : "Offline")
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(_isBotTokenValid ? Color.Success : Color.Error)">
+                                        @(_isBotTokenValid ? "Valid / Active" : "Invalid / Expired")
                                     </MudChip>
                                 </MudText>
                             </MudStack>
                         </MudStack>
 
-                        @if (!_isBotConnected)
+                        @if (!_isBotTokenValid)
                         {
                             <MudAlert Severity="Severity.Warning" Dense="true">
-                                Bot chat token is disconnected. Sign in below with your bot account or refresh the existing token.
+                                Bot token is invalid or expired. Sign in below with your bot account or refresh the existing token.
                             </MudAlert>
                         }
                     </MudStack>
@@ -210,7 +210,7 @@
                                    Color="Color.Default"
                                    StartIcon="@Icons.Material.Filled.Chat"
                                    OnClick="SendTestPingAsync"
-                                   Disabled="@(!_isBotConnected || _isSendingPing)">
+                                   Disabled="@(!_isBotTokenValid || _isSendingPing)">
                             @if (_isSendingPing)
                             {
                                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
@@ -292,7 +292,7 @@
     private string? _broadcasterUserId;
     private string? _botUsername;
     private string? _clientId;
-    private bool _isBotConnected;
+    private bool _isBotTokenValid;
 
     protected override async Task OnInitializedAsync()
     {
@@ -319,11 +319,11 @@
 
         try
         {
-            _isBotConnected = await twitchChatBot.IsConnected();
+            _isBotTokenValid = await twitchChatBot.IsConnected();
         }
         catch
         {
-            _isBotConnected = false;
+            _isBotTokenValid = false;
         }
     }
 
@@ -393,8 +393,16 @@
         try
         {
             var pingMessage = $"[Bot Test] Penguin Twitch Bot is connected and active! Timestamp: {DateTime.UtcNow:HH:mm:ss} UTC";
-            await twitchChatBot.SendMessage(pingMessage);
-            Snackbar.Add("Test message sent to Twitch chat.", Severity.Success);
+            var result = await twitchChatBot.SendMessage(pingMessage);
+            if (result?.IsSent == true)
+            {
+                Snackbar.Add("Test message sent to Twitch chat.", Severity.Success);
+            }
+            else
+            {
+                var reason = result?.DropReason?.Message ?? "Test message was dropped or delivery was not confirmed by Twitch.";
+                Snackbar.Add($"Test message was not sent: {reason}", Severity.Warning);
+            }
         }
         catch (Exception ex)
         {
