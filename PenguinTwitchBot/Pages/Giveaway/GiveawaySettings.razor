@@ -13,6 +13,19 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Settings</PageTitle>
 
 <MudStack Spacing="4" Class="pa-4">
+    <!-- Header -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+        <MudStack Spacing="1">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4">Giveaway Settings</MudText>
+            </MudStack>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Configure current prize details, entry ticket costs, point currency, and viewer claim requirements.
+            </MudText>
+        </MudStack>
+        <HelpButton Topic="giveaway-settings" />
+    </MudStack>
 
     <MudCard Elevation="2">
         <MudCardHeader>
