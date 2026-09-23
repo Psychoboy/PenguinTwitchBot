@@ -5,14 +5,17 @@
 @using Microsoft.AspNetCore.Components.Forms
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>Fishing Game</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Fish & Shop</PageTitle>
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Large" Class="mr-2" />
-            Fishing Game Manager
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h3" Align="Align.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Large" Class="mr-2" />
+                Manage Fish & Shop
+            </MudText>
+            <HelpButton Topic="fishing-admin" />
+        </MudStack>
 
         <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
             <MudTabPanel Text="Fish Types" Icon="@Icons.Material.Filled.Phishing">

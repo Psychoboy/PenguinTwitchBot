@@ -1,103 +1,213 @@
 @page "/commands/default/{id:int}"
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Models.Commands
-@attribute [Authorize(Roles = "Streamer, Editor")]
 @using System.ComponentModel.DataAnnotations
 @using PenguinTwitchBot.Database.Bot.Models.Points
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
+
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Default Command</PageTitle>
-<style type="text/css">
-    .white-text {
-        color: white;
 
-    }
-</style>
-
-@if (defaultCommand == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <MudCard>
-        <EditForm Model="defaultCommand" OnSubmit="OnSubmit">
-            <DataAnnotationsValidator />
-            <MudCardContent>
-                <MudText Typo="Typo.subtitle1">
-                    Module: @defaultCommand.ModuleName
-                </MudText>
-                <MudText Typo="Typo.subtitle1">
-                    Default Command: @defaultCommand.CommandName
-                </MudText>
-                <MudText Typo="Typo.caption">Default command is system default command. If custom command is defined
-                    differently, it will use that instead.</MudText>
-                <MudTextField Label="Custom Command Name" Required="true" RequiredError="Custom Command Name is required"
-                @bind-Value="defaultCommand.CustomCommandName" />
-                <MudTextField Label="Category"
-                @bind-Value="defaultCommand.Category" />
-
-                <MudTextField Label="Description"
-                @bind-Value="defaultCommand.Description" />
-                <MudStack Row="true" Spacing="2">
-                    <MudNumericField @bind-Value="@defaultCommand.UserCooldown" Label="User Min (sec)" Variant="Variant.Text" Style="max-width: 150px;">
-                    </MudNumericField>
-                    <MudNumericField @bind-Value="@defaultCommand.UserCooldownMax" Label="User Max (sec)" Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
-                    </MudNumericField>
-                    <MudNumericField @bind-Value="@defaultCommand.GlobalCooldown" Label="Global Min (sec)"
-                        Variant="Variant.Text" Style="max-width: 150px;">
-                    </MudNumericField>
-                    <MudNumericField @bind-Value="@defaultCommand.GlobalCooldownMax" Label="Global Max (sec)"
-                        Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
-                    </MudNumericField>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Large">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default"
+                                   OnClick="@(() => navigationManager.NavigateTo("/commands/default"))" />
+                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">
+                        @(defaultCommand == null ? "Edit Command" : $"Edit: !{defaultCommand.CustomCommandName}")
+                    </MudText>
                 </MudStack>
-                <MudNumericField @bind-Value="@defaultCommand.Cost" Label="Cost" Variant="Variant.Text"></MudNumericField>
-                <MudSelect Required="@(defaultCommand.Cost != 0)" RequiredError="Point type is required if a cost is set" Label="Point Type" @bind-Value="defaultCommand.PointType" ToStringFunc="@ConvertFunction">
-                    @foreach (var pointType in PointTypes)
-                    {
-                        <MudSelectItem Value="@pointType" />
-                    }
-                </MudSelect>
-                <MudCheckBox @bind-Value="@defaultCommand.SayCooldown" Label="Say Cooldown?"></MudCheckBox>
-                <MudCheckBox @bind-Value="@defaultCommand.SayRankRequirement" Label="Say Rank Requirement?"></MudCheckBox>
-                <MudCheckBox @bind-Value="@defaultCommand.Disabled" Label="Disabled?"></MudCheckBox>
-                <MudCheckBox @bind-Value="@defaultCommand.ExcludeFromUi" Label="Exclude from web interface?" />
-                <MudCheckBox @bind-Value="@defaultCommand.SourceOnly" Label="Reply to Source Only (for Stream Together)" />
-                <MudSelect @bind-Value="@defaultCommand.MinimumRank" Label="Minimum Rank">
-                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
-                    {
-                        <MudSelectItem Value="@item">@item</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudTextField Label="Specific User Only" @bind-Value="defaultCommand.SpecificUserOnly" />
-                <MudTextField Label="Specific Users Only" @bind-Value="SpecificUsersOnly" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add" OnAdornmentClick="AddSpecificUser" />
-                <MudTable Items="@defaultCommand.SpecificUsersOnly" Context="specificUsersContext">
-                    <HeaderContent>
-                        <MudTh>Specific Users</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@specificUsersContext</MudTd>
-                        <MudTd>
-                            <MudFab Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => RemoveUser(specificUsersContext)" />
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-                <MudSelect Label="Specific Ranks" MultiSelection="true" @bind-SelectedValues="ranks">
-                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
-                    {
-                        <MudSelectItem Value="@item">@item</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudDivider />
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                    Submit
-                </MudButton>
-            </MudCardContent>
-        </EditForm>
-    </MudCard>
-}
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-12">
+                    Override triggers, customize cooldowns, assign point costs, and set access permissions.
+                </MudText>
+            </MudStack>
+            <HelpButton Topic="default-commands" />
+        </MudStack>
+
+        @if (defaultCommand == null)
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudCard Elevation="2" Class="pa-4">
+                <EditForm Model="defaultCommand" OnSubmit="OnSubmit">
+                    <DataAnnotationsValidator />
+                    <MudCardContent>
+                        <MudGrid Spacing="3">
+                            <!-- Section: Command Identity -->
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.h6" Color="Color.Primary">Command Identity</MudText>
+                                <MudDivider Class="my-2" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Custom Command Trigger" Required="true" RequiredError="Custom trigger name is required"
+                                              @bind-Value="defaultCommand.CustomCommandName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              HelperText="The chat trigger viewers type (without prefix !)" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Original System Command" Value="@defaultCommand.CommandName" ReadOnly="true"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              HelperText="@($"Provided by module: {defaultCommand.ModuleName}")" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Category" @bind-Value="defaultCommand.Category"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Description" @bind-Value="defaultCommand.Description"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Section: Cooldowns -->
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Cooldowns</MudText>
+                                <MudDivider Class="my-2" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="3">
+                                <MudNumericField @bind-Value="@defaultCommand.UserCooldown" Label="User Min (sec)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                            </MudItem>
+                            <MudItem xs="12" sm="3">
+                                <MudNumericField @bind-Value="@defaultCommand.UserCooldownMax" Label="User Max (sec)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" HelperText="0 = use min only" />
+                            </MudItem>
+                            <MudItem xs="12" sm="3">
+                                <MudNumericField @bind-Value="@defaultCommand.GlobalCooldown" Label="Global Min (sec)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                            </MudItem>
+                            <MudItem xs="12" sm="3">
+                                <MudNumericField @bind-Value="@defaultCommand.GlobalCooldownMax" Label="Global Max (sec)"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" HelperText="0 = use min only" />
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudCheckBox @bind-Value="@defaultCommand.SayCooldown" Label="Announce cooldown duration in chat when on cooldown"
+                                             Color="Color.Primary" />
+                            </MudItem>
+
+                            <!-- Section: Economy & Cost -->
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Economy & Cost</MudText>
+                                <MudDivider Class="my-2" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudNumericField @bind-Value="@defaultCommand.Cost" Label="Point Cost" Min="0"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect Required="@(defaultCommand.Cost != 0)" RequiredError="Point type is required if a cost is set"
+                                           Label="Point Type" @bind-Value="defaultCommand.PointType" ToStringFunc="@ConvertFunction"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                                    @foreach (var pointType in PointTypes)
+                                    {
+                                        <MudSelectItem Value="@pointType" />
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <!-- Section: Permissions -->
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Permissions & Restrictions</MudText>
+                                <MudDivider Class="my-2" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudSelect @bind-Value="@defaultCommand.MinimumRank" Label="Minimum Rank"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                                    {
+                                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudSelect Label="Specific Ranks Allowed" MultiSelection="true" @bind-SelectedValues="ranks"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                                    @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                                    {
+                                        <MudSelectItem Value="@item">@item</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudCheckBox @bind-Value="@defaultCommand.SayRankRequirement" Label="Announce rank requirement in chat if unauthorized"
+                                             Color="Color.Primary" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Specific Single User (Optional)" @bind-Value="defaultCommand.SpecificUserOnly"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField Label="Add Allowed User" @bind-Value="SpecificUsersOnly"
+                                              Variant="Variant.Outlined" Margin="Margin.Dense"
+                                              Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Add"
+                                              OnAdornmentClick="AddSpecificUser" />
+                            </MudItem>
+
+                            @if (defaultCommand.SpecificUsersOnly.Count > 0)
+                            {
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Authorized Users:</MudText>
+                                    <MudStack Row="true" Spacing="1" Class="flex-wrap mt-1">
+                                        @foreach (var user in defaultCommand.SpecificUsersOnly)
+                                        {
+                                            var u = user;
+                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" OnClose="() => RemoveUser(u)">
+                                                @u
+                                            </MudChip>
+                                        }
+                                    </MudStack>
+                                </MudItem>
+                            }
+
+                            <!-- Section: General Options -->
+                            <MudItem xs="12">
+                                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-2">Behavior & Visibility</MudText>
+                                <MudDivider Class="my-2" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="4">
+                                <MudSwitch T="bool" @bind-Value="@defaultCommand.Disabled" Label="Command Disabled" Color="Color.Error" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudSwitch T="bool" @bind-Value="@defaultCommand.ExcludeFromUi" Label="Hide from Public View" Color="Color.Primary" />
+                            </MudItem>
+                            <MudItem xs="12" sm="4">
+                                <MudSwitch T="bool" @bind-Value="@defaultCommand.SourceOnly" Label="Reply to Source Only (Stream Together)" Color="Color.Primary" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                    <MudCardActions Class="pa-4">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                   OnClick="@(() => navigationManager.NavigateTo("/commands/default"))">
+                            Cancel
+                        </MudButton>
+                        <MudSpacer />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save">
+                            Save Changes
+                        </MudButton>
+                    </MudCardActions>
+                </EditForm>
+            </MudCard>
+        }
+    </MudStack>
+</MudContainer>
 
 @code
 {
@@ -109,6 +219,7 @@ else
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     private IEnumerable<PointType> PointTypes { get; set; } = [];
     private string SpecificUsersOnly { get; set; } = "";
+
     protected override async void OnParametersSet()
     {
         defaultCommand = await CommandHandler.GetDefaultCommandById(id);

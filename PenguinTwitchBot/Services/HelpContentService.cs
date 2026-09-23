@@ -254,6 +254,156 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Interactive Tester", Icons.Material.Filled.Science, "blacklist/filter-tester.md")
             ]
         ),
+        ["wheelspin"] = (
+            "Wheel Spin Guide",
+            Icons.Material.Filled.PieChart,
+            [
+                ("Prize Wheels", Icons.Material.Filled.Casino, "wheelspin/management.md"),
+                ("Viewer Name Wheel", Icons.Material.Filled.PeopleAlt, "wheelspin/viewer-wheel.md"),
+                ("Commands & Triggers", Icons.Material.Filled.Bolt, "wheelspin/commands-triggers.md")
+            ]
+        ),
+        ["giveaway-settings"] = (
+            "Giveaway Settings Guide",
+            Icons.Material.Filled.CardGiftcard,
+            [
+                ("Prize & Promotion", Icons.Material.Filled.Celebration, "giveaway-settings/prize-details.md"),
+                ("Entry Rules & Points", Icons.Material.Filled.ConfirmationNumber, "giveaway-settings/entry-rules.md")
+            ]
+        ),
+        ["giveaway-draw"] = (
+            "Draw Giveaway Guide",
+            Icons.Material.Filled.Casino,
+            [
+                ("Drawing Lifecycle", Icons.Material.Filled.PlayArrow, "giveaway-draw/draw-process.md"),
+                ("Winner Display & Redraws", Icons.Material.Filled.EmojiEvents, "giveaway-draw/winner-verification.md")
+            ]
+        ),
+        ["giveaway-history"] = (
+            "Giveaway History Guide",
+            Icons.Material.Filled.History,
+            [
+                ("Past Winners Log", Icons.Material.Filled.ListAlt, "giveaway-history/winners-log.md"),
+                ("Privacy & Contact Info", Icons.Material.Filled.Lock, "giveaway-history/privacy-contact.md")
+            ]
+        ),
+        ["giveaway-exclusions"] = (
+            "Giveaway Exclusions Guide",
+            Icons.Material.Filled.PersonOff,
+            [
+                ("Disqualifications & Cooldowns", Icons.Material.Filled.Block, "giveaway-exclusions/disqualifications.md")
+            ]
+        ),
+        ["default-commands"] = (
+            "Default Commands Guide",
+            Icons.Material.Filled.Terminal,
+            [
+                ("Commands Overview", Icons.Material.Filled.ListAlt, "default-commands/overview.md"),
+                ("Permissions & Cooldowns", Icons.Material.Filled.Security, "default-commands/permissions-cooldowns.md")
+            ]
+        ),
+        ["external-commands"] = (
+            "External Commands Guide",
+            Icons.Material.Filled.Language,
+            [
+                ("Overview", Icons.Material.Filled.Info, "external-commands/overview.md"),
+                ("Configuration & Options", Icons.Material.Filled.Tune, "external-commands/configuration.md")
+            ]
+        ),
+        ["aliases"] = (
+            "Aliases Guide",
+            Icons.Material.Filled.AltRoute,
+            [
+                ("Aliases & Shortcuts", Icons.Material.Filled.Shortcut, "aliases/command-aliases.md")
+            ]
+        ),
+        ["action-commands"] = (
+            "Action Commands Guide",
+            Icons.Material.Filled.Bolt,
+            [
+                ("Triggering Actions", Icons.Material.Filled.PlayArrow, "action-commands/triggering-actions.md")
+            ]
+        ),
+        ["action-keywords"] = (
+            "Keywords Guide",
+            Icons.Material.Filled.Key,
+            [
+                ("Chat Keywords", Icons.Material.Filled.ChatBubble, "action-keywords/chat-keywords.md")
+            ]
+        ),
+        ["audio-commands"] = (
+            "Audio Commands Guide",
+            Icons.Material.Filled.VolumeUp,
+            [
+                ("Sound Effects", Icons.Material.Filled.GraphicEq, "audio-commands/sound-effects.md")
+            ]
+        ),
+        ["command-cooldowns"] = (
+            "Command Cooldowns Guide",
+            Icons.Material.Filled.Timer,
+            [
+                ("Cooldown Tracking", Icons.Material.Filled.HourglassEmpty, "command-cooldowns/cooldown-tracking.md")
+            ]
+        ),
+        ["manage-actions"] = (
+            "Manage Actions Guide",
+            Icons.Material.Filled.Bolt,
+            [
+                ("Overview", Icons.Material.Filled.Info, "actions/manage-actions.md"),
+                ("Triggers & Sub-Actions", Icons.Material.Filled.AccountTree, "actions/triggers-subactions.md")
+            ]
+        ),
+        ["manage-timers"] = (
+            "Timers Guide",
+            Icons.Material.Filled.Timer,
+            [
+                ("Timers", Icons.Material.Filled.Schedule, "actions/timers.md")
+            ]
+        ),
+        ["global-variables"] = (
+            "Global Variables Guide",
+            Icons.Material.Filled.Storage,
+            [
+                ("Variables Reference", Icons.Material.Filled.Code, "actions/global-variables.md")
+            ]
+        ),
+        ["action-queues"] = (
+            "Queues Guide",
+            Icons.Material.Filled.Queue,
+            [
+                ("Queue Management", Icons.Material.Filled.FormatListNumbered, "actions/queues.md")
+            ]
+        ),
+        ["action-history"] = (
+            "Action History Guide",
+            Icons.Material.Filled.History,
+            [
+                ("Execution Diagnostics", Icons.Material.Filled.Troubleshoot, "actions/history.md")
+            ]
+        ),
+        ["fishing-admin"] = (
+            "Manage Fish & Shop Guide",
+            Icons.Material.Filled.Phishing,
+            [
+                ("Fish & Shop Management", Icons.Material.Filled.Store, "fishing/management.md"),
+                ("Sub-Actions & Setup", Icons.Material.Filled.AccountTree, "fishing/subactions-setup.md"),
+                ("Tournaments & Simulator", Icons.Material.Filled.EmojiEvents, "fishing/tournaments-simulator.md")
+            ]
+        ),
+        ["image-processing"] = (
+            "Manage Images Guide",
+            Icons.Material.Filled.Image,
+            [
+                ("Image Processing", Icons.Material.Filled.Collections, "fishing/image-processing.md")
+            ]
+        ),
+        ["fishing-balance"] = (
+            "Balance Analysis Guide",
+            Icons.Material.Filled.Analytics,
+            [
+                ("Balance & Economy", Icons.Material.Filled.QueryStats, "fishing/balance-analysis.md")
+            ]
+        )
     };
 
     public async Task<HelpTopic?> GetTopicAsync(string topicId)
@@ -299,3 +449,4 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
         return $"*Documentation file `{cleanPath}` is being prepared.*";
     }
 }
+

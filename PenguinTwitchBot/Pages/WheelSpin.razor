@@ -9,101 +9,248 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Wheel Spins</PageTitle>
 
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    @if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
-    {
-        <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true" Class="mb-4">
-            Wheel Spin is currently disabled. The current wheel version stays available, but controls are inactive until the feature is enabled.
-        </MudAlert>
-    }
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => OpenViewerWheel()">Open Viewer Wheel</MudButton>
-    <MudButton Variant="Variant.Filled" Color="Color.Success" @onclick="() => ShowViewerWheel()">Show Viewer Wheel</MudButton>
-    <MudButton Variant="Variant.Filled" Color="Color.Warning" @onclick="() => CloseViewersWheel()">Close Viewer Wheel</MudButton>
-    <MudButton Variant="Variant.Filled" Color="Color.Tertiary" @onclick="() => SpinViewersWheel()">Spin Viewer Wheel</MudButton>
-    <MudButton Variant="Variant.Filled" Color="Color.Error" @onclick="() => HideWheel()">Hide Wheel</MudButton>
-    <MudGrid>
-        <MudItem xs="9">
-            <MudPaper>
-                <MudTable Items="@Wheels">
-                    <HeaderContent>
-                        <MudTh>Id</MudTh>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Number of Items</MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Id</MudTd>
-                        <MudTd>@context.Name</MudTd>
-                        <MudTd>@context.Properties.Count</MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                        @onclick="() => ShowWheel(context)">Show</MudButton></MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Success"
-                                       @onclick="() => SpinWheel(context)">Spin</MudButton>
-                        </MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                       @onclick="() => HideWheel()">Hide</MudButton>
-                        </MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                       @onclick="() => EditWheel(context)">Edit</MudButton>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.PieChart" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Wheel Spins</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Manage interactive prize wheels and live viewer name wheels displayed on your stream overlay.
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (Wheels != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.Casino">
+                        @Wheels.Count Configured @(Wheels.Count == 1 ? "Wheel" : "Wheels")
+                    </MudChip>
+                }
+                <HelpButton Topic="wheelspin" />
+            </MudStack>
+        </MudStack>
 
-                        </MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                       @onclick="() => DeleteWheel(context)">Delete</MudButton>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="3">
-            <MudPaper>
-                <EditForm Model="@newWheel" OnValidSubmit="SaveWheel">
-                    <DataAnnotationsValidator />
-                    <MudTextField Label="Name" Required="true" RequiredError="Name is required" @bind-Value="newWheel.Name" />
-                    <MudTextField Label="Winning Message" Required="true" RequiredError="Message Required" @bind-Value="newWheel.WinningMessage" />
-                    <MudTextField Label="Add Property" @bind-Value="propertyName" />
-                    <MudTextField Label="Weight" @bind-Value="weight" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddProperty()">Add Property</MudButton>
-                    <MudTextField Label="Bulk Add Properties" Lines="8" @bind-Value="bulkPropertyNames" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => AddProperties()">Add Properties</MudButton>
-                    <MudDivider class="mb-2" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Save Wheel</MudButton>
-                    <MudDivider class="mb-2" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               @onclick="() => ShowWheel(newWheel)">Show</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Success"
-                               @onclick="() => SpinWheel(newWheel)">Spin</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                               @onclick="() => HideWheel()">Hide</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                               @onclick="() => ShuffleWheel()">Shuffle</MudButton>
-                </EditForm>
-                <MudTable Items="@newWheel.Properties">
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Weight</MudTh>
-                        <MudTh></MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.Label</MudTd>
-                        <MudTd>@context.Weight</MudTd>
-                        <MudTd>
-                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                       @onclick="() => RemoveProperty(context)">Delete</MudButton>
-                        </MudTd>
-                    </RowTemplate>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+        @if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Dense="true">
+                Wheel Spin is currently disabled. The current wheel version stays available, but controls are inactive until the feature is enabled.
+            </MudAlert>
+        }
+
+        <!-- Viewer Wheel Live Controls Card -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Viewer Name Wheel Controls</MudText>
+                </MudStack>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Allows viewers to enter using <code>!join</code> in chat while open, then displays and spins the viewer roster live on stream.
+                </MudText>
+                <MudStack Row="true" Spacing="2" Class="flex-wrap pt-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.OpenInNew"
+                               OnClick="() => OpenViewerWheel()" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                        Open Viewer Wheel
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Visibility"
+                               OnClick="() => ShowViewerWheel()" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                        Show Viewer Wheel
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Autorenew"
+                               OnClick="() => SpinViewersWheel()" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                        Spin Viewer Wheel
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Lock"
+                               OnClick="() => CloseViewersWheel()" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                        Close Viewer Wheel
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.VisibilityOff"
+                               OnClick="() => HideWheel()" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                        Hide Overlay Wheel
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <MudGrid Spacing="4">
+            <!-- Left: Wheels Table -->
+            <MudItem xs="12" lg="7">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudTable Items="@Wheels" Dense="true" Hover="true" Elevation="0">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="w-100">
+                                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Saved Wheels</MudText>
+                            </MudStack>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Id</MudTh>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Slices</MudTh>
+                            <MudTh Style="text-align: right;">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Id">@context.Id</MudTd>
+                            <MudTd DataLabel="Name">
+                                <MudText Typo="Typo.body2"><b>@context.Name</b></MudText>
+                                @if (!string.IsNullOrWhiteSpace(context.WinningMessage))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.WinningMessage</MudText>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Slices">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default">
+                                    @context.Properties.Count @(context.Properties.Count == 1 ? "slice" : "slices")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd Style="text-align: right;">
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudTooltip Text="Show on Overlay">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="() => ShowWheel(context)" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Spin on Overlay">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small"
+                                                       OnClick="() => SpinWheel(context)" Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Edit Wheel">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Default" Size="Size.Small"
+                                                       OnClick="() => EditWheel(context)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete Wheel">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="() => DeleteWheel(context)" />
+                                    </MudTooltip>
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No custom wheels found.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Right: Wheel Editor -->
+            <MudItem xs="12" lg="5">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <EditForm Model="@newWheel" OnValidSubmit="SaveWheel">
+                        <DataAnnotationsValidator />
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">
+                                        @(newWheel.Id == null || newWheel.Id == 0 ? "Create Wheel" : $"Editing: {newWheel.Name}")
+                                    </MudText>
+                                </MudStack>
+                                @if (newWheel.Id != null && newWheel.Id != 0)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
+                                               OnClick="() => { newWheel = new Wheel(); propertiesToDelete = new(); }">
+                                        New Wheel
+                                    </MudButton>
+                                }
+                            </MudStack>
+
+                            <MudTextField Label="Wheel Name" Required="true" RequiredError="Name is required"
+                                          @bind-Value="newWheel.Name" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                            <MudTextField Label="Winning Message" Required="true" RequiredError="Message is required"
+                                          @bind-Value="newWheel.WinningMessage" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="Supports {WheelSpinResult} placeholder." />
+
+                            <!-- Overlay Testing Controls -->
+                            <MudPaper Outlined="true" Class="pa-2">
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap">
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Visibility" OnClick="() => ShowWheel(newWheel)"
+                                               Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                                        Show
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="() => SpinWheel(newWheel)"
+                                               Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                                        Spin
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Shuffle" OnClick="() => ShuffleWheel()">
+                                        Shuffle
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.VisibilityOff" OnClick="() => HideWheel()"
+                                               Disabled="@(!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))">
+                                        Hide
+                                    </MudButton>
+                                </MudStack>
+                            </MudPaper>
+
+                            <!-- Add Slices -->
+                            <MudDivider />
+                            <MudText Typo="Typo.subtitle2">Wheel Slices (@newWheel.Properties.Count)</MudText>
+
+                            <MudGrid Spacing="2" Class="align-center">
+                                <MudItem xs="7">
+                                    <MudTextField Label="Slice Label" @bind-Value="propertyName"
+                                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="3">
+                                    <MudNumericField Label="Weight" @bind-Value="weight" Min="1"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                </MudItem>
+                                <MudItem xs="2">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
+                                                   Variant="Variant.Filled" Size="Size.Medium" OnClick="() => AddProperty()" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudExpansionPanels Elevation="0" Outlined="true">
+                                <MudExpansionPanel Text="Bulk Add Slices">
+                                    <MudStack Spacing="2">
+                                        <MudTextField Label="Bulk Slice Labels (one per line)" Lines="4"
+                                                      @bind-Value="bulkPropertyNames" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                                   OnClick="() => AddProperties()">
+                                            Add Slices
+                                        </MudButton>
+                                    </MudStack>
+                                </MudExpansionPanel>
+                            </MudExpansionPanels>
+
+                            <!-- Slices Table -->
+                            @if (newWheel.Properties.Count > 0)
+                            {
+                                <MudPaper Outlined="true" Style="max-height: 250px; overflow-y: auto;">
+                                    <MudTable Items="@newWheel.Properties" Dense="true" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh>Label</MudTh>
+                                            <MudTh>Weight</MudTh>
+                                            <MudTh Style="width: 40px;"></MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate Context="prop">
+                                            <MudTd>@prop.Label</MudTd>
+                                            <MudTd>@prop.Weight</MudTd>
+                                            <MudTd>
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                               Size="Size.Small" OnClick="() => RemoveProperty(prop)" />
+                                            </MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </MudPaper>
+                            }
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit"
+                                       StartIcon="@Icons.Material.Filled.Save" FullWidth="true" Class="mt-2">
+                                Save Wheel
+                            </MudButton>
+                        </MudStack>
+                    </EditForm>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 @code {
     private List<Wheel>? Wheels { get; set; } = new();
@@ -273,11 +420,6 @@
 
     private async Task DeleteWheel(Wheel wheel)
     {
-        if (!FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.WheeledGame))
-        {
-            return;
-        }
-
         bool? result = await DialogService.ShowMessageBoxAsync(
         "Warning",
         "Deleting can not be undone!",

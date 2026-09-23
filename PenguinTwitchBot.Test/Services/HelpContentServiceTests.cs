@@ -123,6 +123,26 @@ public class HelpContentServiceTests
     [InlineData("auto-shoutouts", "Auto Shoutouts Guide", 3)]
     [InlineData("known-bots", "Known Bots Guide", 2)]
     [InlineData("blacklist", "Blacklist Guide", 3)]
+    [InlineData("wheelspin", "Wheel Spin Guide", 3)]
+    [InlineData("giveaway-settings", "Giveaway Settings Guide", 2)]
+    [InlineData("giveaway-draw", "Draw Giveaway Guide", 2)]
+    [InlineData("giveaway-history", "Giveaway History Guide", 2)]
+    [InlineData("giveaway-exclusions", "Giveaway Exclusions Guide", 1)]
+    [InlineData("default-commands", "Default Commands Guide", 2)]
+    [InlineData("external-commands", "External Commands Guide", 2)]
+    [InlineData("aliases", "Aliases Guide", 1)]
+    [InlineData("action-commands", "Action Commands Guide", 1)]
+    [InlineData("action-keywords", "Keywords Guide", 1)]
+    [InlineData("audio-commands", "Audio Commands Guide", 1)]
+    [InlineData("command-cooldowns", "Command Cooldowns Guide", 1)]
+    [InlineData("manage-actions", "Manage Actions Guide", 2)]
+    [InlineData("manage-timers", "Timers Guide", 1)]
+    [InlineData("global-variables", "Global Variables Guide", 1)]
+    [InlineData("action-queues", "Queues Guide", 1)]
+    [InlineData("action-history", "Action History Guide", 1)]
+    [InlineData("fishing-admin", "Manage Fish & Shop Guide", 3)]
+    [InlineData("image-processing", "Manage Images Guide", 1)]
+    [InlineData("fishing-balance", "Balance Analysis Guide", 1)]
     public async Task GetTopicAsync_StreamToolsTopics_ReturnValidTopicsAndContent(string topicId, string expectedTitle, int expectedTabCount)
     {
         var service = new HelpContentService(_env);
@@ -142,3 +162,4 @@ public class HelpContentServiceTests
         }
     }
 }
+

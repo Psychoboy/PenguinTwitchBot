@@ -11,10 +11,13 @@
 @inject ILogger<Queues> logger
 @implements IAsyncDisposable
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queue Management</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queues</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Queue Management</MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.h4" GutterBottom="false">Queues</MudText>
+        <HelpButton Topic="action-queues" />
+    </MudStack>
     <MudText Typo="Typo.body2" Class="mb-4">Manage action execution queues.</MudText>
 
     <MudPaper Class="pa-4">

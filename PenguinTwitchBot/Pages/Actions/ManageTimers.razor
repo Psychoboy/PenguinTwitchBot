@@ -13,24 +13,27 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Timer Groups</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Timers</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Timer Groups</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">Manage timer groups and their associated actions.</MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.h4" GutterBottom="false">Timers</MudText>
+        <HelpButton Topic="manage-timers" />
+    </MudStack>
+    <MudText Typo="Typo.body2" Class="mb-4">Manage automated timers and their associated actions.</MudText>
 
     <MudGrid>
-        <!-- Left Panel - Timer Groups List -->
+        <!-- Left Panel - Timers List -->
         <MudItem xs="12" md="4">
             <MudPaper Class="pa-4" Style="height: 80vh; overflow-y: auto;">
                 <MudStack Spacing="2">
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.h6">Timer Groups (@_timerGroups.Count)</MudText>
+                        <MudText Typo="Typo.h6">Timers (@_timerGroups.Count)</MudText>
                         <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
                                        OnClick="CreateNewTimerGroup" />
                     </MudStack>
 
-                    <MudTextField @bind-Value="_searchString" Placeholder="Search timer groups" 
+                    <MudTextField @bind-Value="_searchString" Placeholder="Search timers" 
                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" 
                                   IconSize="Size.Medium" Immediate="true" DebounceInterval="300" 
                                   OnDebounceIntervalElapsed="@((_) => FilterTimerGroups())" />

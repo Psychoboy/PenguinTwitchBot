@@ -8,14 +8,17 @@
 @inject IJSRuntime JSRuntime
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>Fishing Balance Analysis</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Balance Analysis</PageTitle>
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Class="mr-2" />
-            Fishing Game Balance Analysis
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h3" Align="Align.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" Class="mr-2" />
+                Balance Analysis
+            </MudText>
+            <HelpButton Topic="fishing-balance" />
+        </MudStack>
 
         <MudPaper Elevation="3" Class="pa-4">
             <MudStack Spacing="3">

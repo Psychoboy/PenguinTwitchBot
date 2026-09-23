@@ -275,7 +275,7 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
                     break;
                 case "join":
                     {
-                        if (nameWheelActive && nameEntries.Contains(e.Name) == false)
+                        if (nameWheelActive && !ServiceBackbone.IsKnownBot(e.Name) && nameEntries.Contains(e.Name) == false)
                         {
                             nameEntries.Add(e.Name);
                             if (nameWheel != null && nameWheelShown)
@@ -336,6 +336,7 @@ namespace PenguinTwitchBot.Bot.Commands.WheelSpin
         public Task StopAsync(CancellationToken cancellationToken)
         {
             logger.LogInformation("Stopping {module}", ModuleName);
+            HideWheel();
             return Task.CompletedTask;
         }
     }
