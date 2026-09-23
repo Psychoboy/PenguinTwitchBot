@@ -31,6 +31,7 @@ else
     [Parameter] public string Text { get; set; } = "Help";
     [Parameter] public string? Tooltip { get; set; }
     [Parameter] public string? Topic { get; set; }
+    [Parameter] public string? TopicId { get => Topic; set => Topic = value; }
     [Parameter] public string? DialogTitle { get; set; }
     [Parameter] public string? Icon { get; set; }
     [Parameter] public Color Color { get; set; } = Color.Default;

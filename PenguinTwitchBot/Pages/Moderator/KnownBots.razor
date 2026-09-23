@@ -21,12 +21,15 @@
                     Manage known Twitch bots. Registered bots are excluded from viewer activity statistics, giveaways, and chat rewards.
                 </MudText>
             </MudStack>
-            @if (knownBots != null)
-            {
-                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.SmartToy">
-                    @knownBots.Count Known @(knownBots.Count == 1 ? "Bot" : "Bots")
-                </MudChip>
-            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (knownBots != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.SmartToy">
+                        @knownBots.Count Known @(knownBots.Count == 1 ? "Bot" : "Bots")
+                    </MudChip>
+                }
+                <HelpButton Topic="known-bots" />
+            </MudStack>
         </MudStack>
 
         <MudGrid Spacing="4">

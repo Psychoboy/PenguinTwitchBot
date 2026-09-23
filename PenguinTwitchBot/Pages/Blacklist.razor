@@ -16,18 +16,21 @@
             <MudStack Spacing="1">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Large" Color="Color.Error" />
-                    <MudText Typo="Typo.h4">Blacklist & Word Filters</MudText>
+                    <MudText Typo="Typo.h4">Blacklist</MudText>
                 </MudStack>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Filter banned words and phrases from Twitch chat, automatically applying timeouts or bans.
                 </MudText>
             </MudStack>
-            @if (wordFilters != null)
-            {
-                <MudChip T="string" Color="Color.Error" Size="Size.Medium" Icon="@Icons.Material.Filled.FilterAlt">
-                    @wordFilters.Count Configured @(wordFilters.Count == 1 ? "Filter" : "Filters")
-                </MudChip>
-            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (wordFilters != null)
+                {
+                    <MudChip T="string" Color="Color.Error" Size="Size.Medium" Icon="@Icons.Material.Filled.FilterAlt">
+                        @wordFilters.Count Configured @(wordFilters.Count == 1 ? "Filter" : "Filters")
+                    </MudChip>
+                }
+                <HelpButton Topic="blacklist" />
+            </MudStack>
         </MudStack>
 
         <!-- Interactive Filter Tester Card -->
