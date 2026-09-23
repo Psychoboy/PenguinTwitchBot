@@ -1,5 +1,6 @@
 @page "/settings/updates"
 @using PenguinTwitchBot.Bot.ServiceTools
+@using PenguinTwitchBot.Shared.Help
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IVersionCheckService VersionCheckService
 @inject IUpdateChannelSettingsService UpdateChannelSettingsService
@@ -9,7 +10,14 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Updates & Logs</PageTitle>
 
-<h3>Tools</h3>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4">Updates &amp; Logs</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Check for application releases, manage release channels, and monitor real-time system logs.</MudText>
+        </div>
+        <HelpButton Topic="updates-logs" />
+    </MudStack>
 
 <MudPaper Elevation="1" Class="pa-4 mb-4">
     <MudStack Spacing="3">
@@ -258,6 +266,7 @@
         </MudButton>
     </MudStack>
 </MudPaper>
+</MudContainer>
 
 @code {
     [Inject] private ISnackbar Snackbar { get; set; } = null!;

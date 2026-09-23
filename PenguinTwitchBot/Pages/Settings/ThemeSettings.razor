@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @using PenguinTwitchBot.Models.Themes
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared.Help
 @using MudBlazor.Utilities
 @inject ICustomThemeService CustomThemeService
 @inject IUserThemeService UserThemeService
@@ -20,9 +21,9 @@
                     Create, customize, and manage custom MudBlazor themes. Streamers can configure light and dark palettes, set the default theme, and preview changes live.
                 </MudText>
             </div>
-            @if (_editingTheme == null)
-            {
-                <MudStack Row="true" Spacing="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (_editingTheme == null)
+                {
                     <MudButton Variant="Variant.Outlined"
                                Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Restore"
@@ -35,8 +36,9 @@
                                OnClick="CreateNewTheme">
                         Create New Theme
                     </MudButton>
-                </MudStack>
-            }
+                }
+                <HelpButton Topic="themes" />
+            </MudStack>
         </MudStack>
     </MudStack>
 

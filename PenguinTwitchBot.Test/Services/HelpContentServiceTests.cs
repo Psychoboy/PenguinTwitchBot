@@ -36,7 +36,7 @@ public class HelpContentServiceTests
 
         Assert.NotNull(topic);
         Assert.Equal("bot-auth", topic.Id);
-        Assert.Equal("Twitch Authentication Guide", topic.Title);
+        Assert.Equal("Bot Authentication Guide", topic.Title);
         Assert.Equal(3, topic.Tabs.Count);
         Assert.Contains(topic.Tabs, t => t.Title == "Account Roles");
         Assert.Contains(topic.Tabs, t => t.Title == "Tokens & Refresh");
@@ -52,7 +52,7 @@ public class HelpContentServiceTests
 
         Assert.NotNull(topic);
         Assert.Equal("integrations", topic.Id);
-        Assert.Equal("Integrations Setup Guide", topic.Title);
+        Assert.Equal("Integrations Guide", topic.Title);
         Assert.Equal(4, topic.Tabs.Count);
         Assert.Contains(topic.Tabs, t => t.Title == "YouTube");
         Assert.Contains(topic.Tabs, t => t.Title == "Discord");
@@ -106,6 +106,23 @@ public class HelpContentServiceTests
     [InlineData("song-cooldowns", "Song Cooldowns Guide", 2)]
     [InlineData("overlay-editor", "Overlay Editor Guide", 3)]
     [InlineData("stream-timer", "Stream Timer Guide", 2)]
+    [InlineData("themes", "Themes Guide", 2)]
+    [InlineData("websocket-settings", "Websocket Queues Guide", 3)]
+    [InlineData("backups", "Backups Guide", 2)]
+    [InlineData("updates-logs", "Updates & Logs Guide", 3)]
+    [InlineData("validation-status", "Validation Status Guide", 3)]
+    [InlineData("voices", "Voices Guide", 3)]
+    [InlineData("obs-connections", "OBS Connections Guide", 3)]
+    [InlineData("channel-points", "Channel Points Guide", 2)]
+    [InlineData("point-settings", "Point Settings Guide", 3)]
+    [InlineData("loyalty-bonuses", "Loyalty Bonuses Guide", 2)]
+    [InlineData("game-settings", "Game Settings Guide", 3)]
+    [InlineData("raid-rewards", "Raid Rewards Guide", 2)]
+    [InlineData("viewers", "Viewers Guide", 3)]
+    [InlineData("connected-viewers", "Connected Viewers Guide", 2)]
+    [InlineData("auto-shoutouts", "Auto Shoutouts Guide", 3)]
+    [InlineData("known-bots", "Known Bots Guide", 2)]
+    [InlineData("blacklist", "Blacklist Guide", 3)]
     public async Task GetTopicAsync_StreamToolsTopics_ReturnValidTopicsAndContent(string topicId, string expectedTitle, int expectedTabCount)
     {
         var service = new HelpContentService(_env);
@@ -125,4 +142,3 @@ public class HelpContentServiceTests
         }
     }
 }
-

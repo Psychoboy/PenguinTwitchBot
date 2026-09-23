@@ -20,7 +20,7 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
     private readonly Dictionary<string, (string Title, string Icon, (string TabTitle, string TabIcon, string File)[] Tabs)> _topicDefinitions = new(StringComparer.OrdinalIgnoreCase)
     {
         ["bot-auth"] = (
-            "Twitch Authentication Guide",
+            "Bot Authentication Guide",
             Icons.Material.Filled.Security,
             [
                 ("Account Roles", Icons.Material.Filled.People, "bot-auth/roles.md"),
@@ -29,7 +29,7 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             ]
         ),
         ["integrations"] = (
-            "Integrations Setup Guide",
+            "Integrations Guide",
             Icons.Material.Filled.Extension,
             [
                 ("YouTube", Icons.Material.Filled.OndemandVideo, "integrations/youtube.md"),
@@ -107,7 +107,153 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Timer Controls", Icons.Material.Filled.Timer, "stream-timer/overview.md"),
                 ("Sub-Actions & Automation", Icons.Material.Filled.Bolt, "stream-timer/subactions.md")
             ]
-        )
+        ),
+        ["themes"] = (
+            "Themes Guide",
+            Icons.Material.Filled.Palette,
+            [
+                ("Palettes & Modes", Icons.Material.Filled.ColorLens, "themes/palettes.md"),
+                ("Defaults & Presets", Icons.Material.Filled.DashboardCustomize, "themes/presets.md")
+            ]
+        ),
+        ["websocket-settings"] = (
+            "Websocket Queues Guide",
+            Icons.Material.Filled.Cable,
+            [
+                ("Queue Capacities", Icons.Material.Filled.Layers, "websockets/queues.md"),
+                ("Connections & Topics", Icons.Material.Filled.Sensors, "websockets/connections.md"),
+                ("Troubleshooting", Icons.Material.Filled.Build, "websockets/troubleshooting.md")
+            ]
+        ),
+        ["backups"] = (
+            "Backups Guide",
+            Icons.Material.Filled.Backup,
+            [
+                ("Backup & Restore", Icons.Material.Filled.Restore, "backups/overview.md"),
+                ("Retention Policies", Icons.Material.Filled.Schedule, "backups/retention.md")
+            ]
+        ),
+        ["updates-logs"] = (
+            "Updates & Logs Guide",
+            Icons.Material.Filled.Update,
+            [
+                ("Application Updates", Icons.Material.Filled.SystemUpdate, "updates/updates.md"),
+                ("Release Channels", Icons.Material.Filled.AltRoute, "updates/channels.md"),
+                ("Live Logs & Debugging", Icons.Material.Filled.Terminal, "updates/logs.md")
+            ]
+        ),
+        ["validation-status"] = (
+            "Validation Status Guide",
+            Icons.Material.Filled.BugReport,
+            [
+                ("Health Checks", Icons.Material.Filled.FactCheck, "validation/overview.md"),
+                ("Action Integrity Rules", Icons.Material.Filled.Rule, "validation/rules.md"),
+                ("Diagnostics & Repair", Icons.Material.Filled.BuildCircle, "validation/repair.md")
+            ]
+        ),
+        ["voices"] = (
+            "Voices Guide",
+            Icons.Material.Filled.RecordVoiceOver,
+            [
+                ("TTS Engines", Icons.Material.Filled.SettingsVoice, "voices/engines.md"),
+                ("User Assigned Voices", Icons.Material.Filled.Person, "voices/user-voices.md"),
+                ("Commands & Sub-Actions", Icons.Material.Filled.Bolt, "voices/commands.md")
+            ]
+        ),
+        ["obs-connections"] = (
+            "OBS Connections Guide",
+            Icons.Material.Filled.Videocam,
+            [
+                ("WebSocket Setup", Icons.Material.Filled.Cable, "obs/connections.md"),
+                ("OBS Sub-Actions", Icons.Material.Filled.Bolt, "obs/subactions.md"),
+                ("Troubleshooting", Icons.Material.Filled.Build, "obs/troubleshooting.md")
+            ]
+        ),
+        ["channel-points"] = (
+            "Channel Points Guide",
+            Icons.Material.Filled.Stars,
+            [
+                ("Custom Rewards", Icons.Material.Filled.CardGiftcard, "channel-points/rewards.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "channel-points/triggers-subactions.md")
+            ]
+        ),
+        ["point-settings"] = (
+            "Point Settings Guide",
+            Icons.Material.Filled.MonetizationOn,
+            [
+                ("Point Currencies", Icons.Material.Filled.AccountBalanceWallet, "point-settings/currencies.md"),
+                ("Chat Commands", Icons.Material.Filled.Chat, "point-settings/commands.md"),
+                ("Game Assignment & Sub-Actions", Icons.Material.Filled.SportsEsports, "point-settings/game-assignment.md")
+            ]
+        ),
+        ["loyalty-bonuses"] = (
+            "Loyalty Bonuses Guide",
+            Icons.Material.Filled.MilitaryTech,
+            [
+                ("Twitch Event Bonuses", Icons.Material.Filled.Celebration, "loyalty-bonuses/events.md"),
+                ("Bonus Claim (!claim)", Icons.Material.Filled.ConfirmationNumber, "loyalty-bonuses/bonus-claim.md")
+            ]
+        ),
+        ["game-settings"] = (
+            "Game Settings Guide",
+            Icons.Material.Filled.SportsEsports,
+            [
+                ("Games Overview", Icons.Material.Filled.Gamepad, "game-settings/games-overview.md"),
+                ("Costs & Odds", Icons.Material.Filled.Tune, "game-settings/costs-rates.md"),
+                ("Chat Templates", Icons.Material.Filled.Message, "game-settings/chat-templates.md")
+            ]
+        ),
+        ["raid-rewards"] = (
+            "Raid Rewards Guide",
+            Icons.Material.Filled.PeopleAlt,
+            [
+                ("Outgoing Raid Campaigns", Icons.Material.Filled.Campaign, "raid-rewards/campaigns.md"),
+                ("Verification & Rules", Icons.Material.Filled.Verified, "raid-rewards/verification.md")
+            ]
+        ),
+        ["viewers"] = (
+            "Viewers Guide",
+            Icons.Material.Filled.People,
+            [
+                ("Viewer Profiles", Icons.Material.Filled.Badge, "viewers/search-profiles.md"),
+                ("IP Logs & Multi-Accounts", Icons.Material.Filled.Fingerprint, "viewers/ip-tracking.md"),
+                ("Moderation Actions", Icons.Material.Filled.Gavel, "viewers/moderation-actions.md")
+            ]
+        ),
+        ["connected-viewers"] = (
+            "Connected Viewers Guide",
+            Icons.Material.Filled.ConnectWithoutContact,
+            [
+                ("Active Sessions", Icons.Material.Filled.Wifi, "connected-viewers/sessions.md"),
+                ("Session Management", Icons.Material.Filled.SettingsEthernet, "connected-viewers/management.md")
+            ]
+        ),
+        ["auto-shoutouts"] = (
+            "Auto Shoutouts Guide",
+            Icons.Material.Filled.Campaign,
+            [
+                ("Overview & Cooldowns", Icons.Material.Filled.RecordVoiceOver, "auto-shoutouts/overview.md"),
+                ("Clips & AI Shoutouts", Icons.Material.Filled.SmartToy, "auto-shoutouts/clips-ai.md"),
+                ("Commands & Triggers", Icons.Material.Filled.Bolt, "auto-shoutouts/commands-triggers.md")
+            ]
+        ),
+        ["known-bots"] = (
+            "Known Bots Guide",
+            Icons.Material.Filled.SmartToy,
+            [
+                ("Overview", Icons.Material.Filled.ListAlt, "known-bots/overview.md"),
+                ("Bot Exclusions", Icons.Material.Filled.RemoveCircleOutline, "known-bots/exclusions.md")
+            ]
+        ),
+        ["blacklist"] = (
+            "Blacklist Guide",
+            Icons.Material.Filled.Block,
+            [
+                ("Word Filters & Regex", Icons.Material.Filled.Rule, "blacklist/filters.md"),
+                ("Penalties & Timeouts", Icons.Material.Filled.Timer, "blacklist/actions-timeouts.md"),
+                ("Interactive Tester", Icons.Material.Filled.Science, "blacklist/filter-tester.md")
+            ]
+        ),
     };
 
     public async Task<HelpTopic?> GetTopicAsync(string topicId)
@@ -153,4 +299,3 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
         return $"*Documentation file `{cleanPath}` is being prepared.*";
     }
 }
-
