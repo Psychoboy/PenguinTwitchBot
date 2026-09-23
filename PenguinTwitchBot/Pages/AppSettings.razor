@@ -3,6 +3,7 @@
 @using PenguinTwitchBot.Bot.TwitchServices
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared.Help
 @using Quartz
 @inject IConfiguration Configuration
 @inject SettingsFileManager SettingsFileManager
@@ -11,411 +12,476 @@
 @inject IScheduledJobSettingsService ScheduledJobSettings
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Settings</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
-    <MudText Typo="Typo.h5" Class="mb-2">Bot Settings</MudText>
-    <MudText Class="mb-4">
-        Configure bot-wide settings for behavior, branding, and defaults.
-    </MudText>
-
-    <MudGrid>
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Application Branding</MudText>
-                    <MudText>
-                        This title is used as the app name in browser page titles.
-                    </MudText>
-                    <MudTextField @bind-Value="_applicationTitle"
-                                  Label="Application Title"
-                                  HelperText="Default: Penguin Twitch Bot"
-                                  Immediate="true"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Title"
-                                  Variant="Variant.Outlined" />
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveApplicationTitleAsync"
-                                   Disabled="_saving">
-                            Save Application Title
-                        </MudButton>
-                    </div>
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4 pa-md-6">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+            <MudStack Spacing="0">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5"><b>Bot Settings</b></MudText>
                 </MudStack>
-            </MudPaper>
-        </MudItem>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Configure bot-wide settings for behavior, branding, data retention policies, feature services, and scheduled tasks.
+                </MudText>
+            </MudStack>
 
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Data Retention</MudText>
-                    <MudText>
-                        Configure retention for chat logs and cleanup-related data.
-                    </MudText>
+            <HelpButton Topic="app-settings" Text="Settings Guide" />
+        </MudStack>
 
-                    <MudGrid>
+        <!-- Tabbed Settings Content -->
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Surface">
+
+            <!-- ── Tab 1: General & Branding ──────────────────────────────────────── -->
+            <MudTabPanel Text="General &amp; Branding" Icon="@Icons.Material.Filled.Palette">
+                <MudStack Spacing="4" Class="pa-4">
+                    <MudGrid Spacing="4">
+                        <!-- Application Branding -->
                         <MudItem xs="12" md="6">
-                            <MudNumericField @bind-Value="_chatHistoryMonthsToKeepInDb"
-                                             Label="Chat History Months To Keep"
-                                             Min="0"
-                                             Max="120"
-                                             Immediate="true"
-                                             Variant="Variant.Outlined" />
+                            <MudPaper Elevation="1" Class="pa-4 h-100 d-flex flex-column justify-space-between">
+                                <MudStack Spacing="3">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1"><b>Application Branding</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            This title is displayed as the application name in browser window titles.
+                                        </MudText>
+                                    </div>
+                                    <MudTextField @bind-Value="_applicationTitle"
+                                                  Label="Application Title"
+                                                  HelperText="Default: Penguin Twitch Bot"
+                                                  Immediate="true"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Title"
+                                                  Variant="Variant.Outlined" />
+                                </MudStack>
+                                <div class="mt-4">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveApplicationTitleAsync"
+                                               Disabled="_saving">
+                                        Save Application Title
+                                    </MudButton>
+                                </div>
+                            </MudPaper>
                         </MudItem>
+
+                        <!-- Weather Defaults -->
                         <MudItem xs="12" md="6">
-                            <MudNumericField @bind-Value="_ipLogMonthsToKeep"
-                                             Label="IP Log Cleanup Months To Keep"
-                                             Min="0"
-                                             Max="120"
-                                             Immediate="true"
-                                             Variant="Variant.Outlined" />
+                            <MudPaper Elevation="1" Class="pa-4 h-100 d-flex flex-column justify-space-between">
+                                <MudStack Spacing="3">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1"><b>Weather Defaults</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            Fallback location used when viewers run <code>!weather</code> without arguments.
+                                        </MudText>
+                                    </div>
+                                    <MudTextField @bind-Value="_weatherDefaultLocation"
+                                                  Label="Default Location"
+                                                  HelperText="Postal code or city name (e.g. 85234, London, Seattle)"
+                                                  Immediate="true"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                                                  Variant="Variant.Outlined" />
+                                </MudStack>
+                                <div class="mt-4">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveWeatherDefaultLocationAsync"
+                                               Disabled="_saving">
+                                        Save Weather Location
+                                    </MudButton>
+                                </div>
+                            </MudPaper>
                         </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudNumericField @bind-Value="_ttsCleanupMaxAgeHours"
-                                             Label="TTS Max Age Hours"
-                                             Min="0"
-                                             Max="720"
-                                             Immediate="true"
-                                             Variant="Variant.Outlined" />
-                        </MudItem>
-                        <MudItem xs="12" md="6">
-                            <MudNumericField @bind-Value="_clipsCleanupMaxAgeDays"
-                                             Label="Clips Max Age Days"
-                                             Min="0"
-                                             Max="3650"
-                                             Immediate="true"
-                                             Variant="Variant.Outlined" />
+
+                        <!-- Support Links -->
+                        <MudItem xs="12">
+                            <MudPaper Elevation="1" Class="pa-4">
+                                <MudStack Spacing="3">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1"><b>Support Links</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                            Configure the Star Citizen referral URL shown in the navigation Support section. Leave default to support the developer, or customize with your own code.
+                                        </MudText>
+                                    </div>
+                                    <MudTextField @bind-Value="_starCitizenReferralUrl"
+                                                  Label="Star Citizen Referral URL"
+                                                  HelperText="Full URL used by the Support link in navigation"
+                                                  Immediate="true"
+                                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.RocketLaunch"
+                                                  Variant="Variant.Outlined" />
+                                    <div>
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Save"
+                                                   OnClick="SaveSupportLinksAsync"
+                                                   Disabled="_saving">
+                                            Save Support Links
+                                        </MudButton>
+                                    </div>
+                                </MudStack>
+                            </MudPaper>
                         </MudItem>
                     </MudGrid>
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveChatHistoryRetentionAsync"
-                                   Disabled="_saving">
-                            Save Retention Settings
-                        </MudButton>
-                    </div>
                 </MudStack>
-            </MudPaper>
-        </MudItem>
+            </MudTabPanel>
 
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4 mt-4 mt-md-0">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Weather Defaults</MudText>
-                    <MudText>
-                        Configure the default weather location used by weather commands.
-                    </MudText>
-                    <MudTextField @bind-Value="_weatherDefaultLocation"
-                                  Label="Default Location"
-                                  HelperText="ZIP code or city name (e.g. 85234)"
-                                  Immediate="true"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
-                                  Variant="Variant.Outlined" />
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveWeatherDefaultLocationAsync"
-                                   Disabled="_saving">
-                            Save Weather Location
-                        </MudButton>
-                    </div>
-                </MudStack>
-            </MudPaper>
-        </MudItem>
+            <!-- ── Tab 2: Data Retention ─────────────────────────────────────────── -->
+            <MudTabPanel Text="Data Retention" Icon="@Icons.Material.Filled.Storage">
+                <MudStack Spacing="4" Class="pa-4">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <div>
+                                <MudText Typo="Typo.subtitle1"><b>Data Retention &amp; Disk Pruning Policies</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Control database growth and prevent disk exhaustion. Background jobs automatically clean records older than these limits.
+                                </MudText>
+                            </div>
 
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4 mt-4 mt-md-0">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Support Links</MudText>
-                    <MudText>
-                        Configure the Star Citizen referral URL shown in the navigation Support section. Leave default to support the Developer, or change to your own referral link if you like.
-                    </MudText>
-                    <MudTextField @bind-Value="_starCitizenReferralUrl"
-                                  Label="Star Citizen Referral URL"
-                                  HelperText="Full URL used by the Support link in navigation"
-                                  Immediate="true"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.RocketLaunch"
-                                  Variant="Variant.Outlined" />
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveSupportLinksAsync"
-                                   Disabled="_saving">
-                            Save Support Links
-                        </MudButton>
-                    </div>
-                </MudStack>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudPaper Elevation="2" Class="pa-4 mt-4">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Feature Services</MudText>
-                    <MudText>
-                        Enable or disable eligible runtime services. Core services are always on. Optional services run startup work when enabled and cleanup work when disabled.
-                    </MudText>
-
-                    <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
-                        <thead>
-                            <tr>
-                                <th>Feature</th>
-                                <th>Description</th>
-                                <th>Type</th>
-                                <th>Enabled</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var feature in _featureStates)
-                            {
-                                <tr>
-                                    <td>@feature.DisplayName</td>
-                                    <td>@(string.IsNullOrWhiteSpace(feature.Description) ? "-" : feature.Description)</td>
-                                    <td>@(feature.IsCore ? "Core" : "Optional")</td>
-                                    <td>
-                                        @if (feature.IsCore)
-                                        {
-                                            <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">Always On</MudChip>
-                                        }
-                                        else
-                                        {
-                                            <MudSwitch T="bool"
-                                                       Value="@feature.IsEnabled"
-                                                       ValueChanged="@(value => ToggleFeatureAsync(feature, value))"
-                                                       Disabled="_saving"
-                                                       Color="Color.Primary" />
-                                        }
-                                    </td>
-                                    <td>
-                                        <MudChip T="string"
-                                                 Color="@(feature.IsRunning ? Color.Success : Color.Warning)"
-                                                 Variant="Variant.Outlined"
-                                                 Size="Size.Small">
-                                            @(feature.IsRunning ? "Running" : "Stopped")
-                                        </MudChip>
-                                    </td>
-                                    <td>
-                                        <MudButton Variant="Variant.Outlined"
-                                                   Color="Color.Primary"
-                                                   Size="Size.Small"
-                                                   StartIcon="@Icons.Material.Filled.RestartAlt"
-                                                   OnClick="@(() => RestartFeatureAsync(feature))"
-                                                   Disabled="@(!feature.IsEnabled || _saving)">
-                                            Restart
-                                        </MudButton>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </MudSimpleTable>
-                </MudStack>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudPaper Elevation="2" Class="pa-4 mt-4">
-                <MudStack Spacing="2">
-                    <MudText Typo="Typo.h6">Scheduled Jobs</MudText>
-                    <MudText>
-                        Configure cron schedules, enable or disable jobs, and control startup cleanup behavior.
-                    </MudText>
-
-                    <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
-                        <thead>
-                            <tr>
-                                <th>Job</th>
-                                <th>Enabled</th>
-                                <th>Cron</th>
-                                <th>Run On Startup</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Trigger Backup</td>
-                                <td><MudSwitch @bind-Value="_backupEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_backupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudText>-</MudText></td>
-                            </tr>
-                            <tr>
-                                <td>Cleanup Clips</td>
-                                <td><MudSwitch @bind-Value="_cleanupClipsEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_cleanupClipsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudSwitch @bind-Value="_cleanupClipsRunOnStartup" Color="Color.Primary" /></td>
-                            </tr>
-                            <tr>
-                                <td>Cleanup Chat Logs</td>
-                                <td><MudSwitch @bind-Value="_cleanupChatLogsEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_cleanupChatLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudSwitch @bind-Value="_cleanupChatLogsRunOnStartup" Color="Color.Primary" /></td>
-                            </tr>
-                            <tr>
-                                <td>Cleanup IP Logs</td>
-                                <td><MudSwitch @bind-Value="_cleanupIpLogsEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_cleanupIpLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudSwitch @bind-Value="_cleanupIpLogsRunOnStartup" Color="Color.Primary" /></td>
-                            </tr>
-                            <tr>
-                                <td>Cleanup Expired Cooldowns</td>
-                                <td><MudSwitch @bind-Value="_cleanupCooldownsEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_cleanupCooldownsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudSwitch @bind-Value="_cleanupCooldownsRunOnStartup" Color="Color.Primary" /></td>
-                            </tr>
-                            <tr>
-                                <td>TTS Cleanup</td>
-                                <td><MudSwitch @bind-Value="_ttsCleanupEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_ttsCleanupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudSwitch @bind-Value="_ttsCleanupRunOnStartup" Color="Color.Primary" /></td>
-                            </tr>
-                            <tr>
-                                <td>Update Discord Events</td>
-                                <td><MudSwitch @bind-Value="_updateDiscordEventsEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_updateDiscordEventsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudText>-</MudText></td>
-                            </tr>
-                            <tr>
-                                <td>Post Schedule</td>
-                                <td><MudSwitch @bind-Value="_postScheduleEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_postScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudText>-</MudText></td>
-                            </tr>
-                            <tr>
-                                <td>Update Posted Schedule</td>
-                                <td><MudSwitch @bind-Value="_updatePostedScheduleEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_updatePostedScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudText>-</MudText></td>
-                            </tr>
-                            <tr>
-                                <td>Validation Sanity Check</td>
-                                <td><MudSwitch @bind-Value="_validationSanityCheckEnabled" Color="Color.Primary" /></td>
-                                <td><MudTextField @bind-Value="_validationSanityCheckCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
-                                <td><MudText>-</MudText></td>
-                            </tr>
-                        </tbody>
-                    </MudSimpleTable>
-
-                    <MudDivider Class="my-2" />
-
-                    <MudPaper Outlined="true" Class="pa-3">
-                        <MudStack Spacing="2">
-                            <MudText Typo="Typo.subtitle1">Cron Helper</MudText>
-                            <MudText>
-                                Generate a Quartz cron expression and apply it to a selected job.
-                            </MudText>
-
-                            <MudGrid>
-                                <MudItem xs="12" md="4">
-                                    <MudSelect T="string" Label="Target Job" Value="@_cronBuilderTargetJob" ValueChanged="OnCronBuilderTargetJobChanged" Variant="Variant.Outlined">
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.TriggerBackupJobName">Trigger Backup</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupClipsJobName">Cleanup Clips</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupChatLogsJobName">Cleanup Chat Logs</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupIpLogsJobName">Cleanup IP Logs</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.CleanupCooldownsJobName">Cleanup Expired Cooldowns</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.TtsCleanupJobName">TTS Cleanup</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.UpdateDiscordEventsJobName">Update Discord Events</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.PostScheduleJobName">Post Schedule</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.UpdatePostedScheduleJobName">Update Posted Schedule</MudSelectItem>
-                                        <MudSelectItem Value="@IScheduledJobSettingsService.ValidationSanityCheckJobName">Validation Sanity Check</MudSelectItem>
-                                    </MudSelect>
+                            <MudGrid Spacing="3">
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_chatHistoryMonthsToKeepInDb"
+                                                     Label="Chat History Months To Keep"
+                                                     HelperText="Months to keep chat messages in database (0 = forever)"
+                                                     Min="0"
+                                                     Max="120"
+                                                     Immediate="true"
+                                                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Chat"
+                                                     Variant="Variant.Outlined" />
                                 </MudItem>
-                                <MudItem xs="12" md="4">
-                                    <MudSelect T="string" Label="Pattern" @bind-Value="_cronBuilderPattern" Variant="Variant.Outlined">
-                                        <MudSelectItem Value="@CronBuilderPatternEveryNMinutes">Every N Minutes</MudSelectItem>
-                                        <MudSelectItem Value="@CronBuilderPatternHourly">Hourly (at minute)</MudSelectItem>
-                                        <MudSelectItem Value="@CronBuilderPatternDaily">Daily</MudSelectItem>
-                                        <MudSelectItem Value="@CronBuilderPatternWeekly">Weekly</MudSelectItem>
-                                        <MudSelectItem Value="@CronBuilderPatternMonthly">Monthly</MudSelectItem>
-                                    </MudSelect>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_ipLogMonthsToKeep"
+                                                     Label="IP Log Cleanup Months To Keep"
+                                                     HelperText="Months to retain viewer IP connection records"
+                                                     Min="0"
+                                                     Max="120"
+                                                     Immediate="true"
+                                                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NetworkCheck"
+                                                     Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_ttsCleanupMaxAgeHours"
+                                                     Label="TTS Audio Max Age (Hours)"
+                                                     HelperText="Hours before cached TTS audio files are deleted"
+                                                     Min="0"
+                                                     Max="720"
+                                                     Immediate="true"
+                                                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Audiotrack"
+                                                     Variant="Variant.Outlined" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudNumericField @bind-Value="_clipsCleanupMaxAgeDays"
+                                                     Label="Clips Cache Max Age (Days)"
+                                                     HelperText="Days before cached clip video files are removed"
+                                                     Min="0"
+                                                     Max="3650"
+                                                     Immediate="true"
+                                                     Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Movie"
+                                                     Variant="Variant.Outlined" />
                                 </MudItem>
                             </MudGrid>
 
-                            @if (_cronBuilderPattern == CronBuilderPatternEveryNMinutes)
-                            {
-                                <MudNumericField @bind-Value="_cronBuilderIntervalMinutes" Label="Every (minutes)" Min="1" Max="59" Variant="Variant.Outlined" />
-                            }
-                            else if (_cronBuilderPattern == CronBuilderPatternHourly)
-                            {
-                                <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
-                            }
-                            else if (_cronBuilderPattern == CronBuilderPatternDaily)
-                            {
-                                <MudGrid>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                </MudGrid>
-                            }
-                            else if (_cronBuilderPattern == CronBuilderPatternWeekly)
-                            {
-                                <MudGrid>
-                                    <MudItem xs="12" md="3">
-                                        <MudSelect T="string" Label="Day" @bind-Value="_cronBuilderDayOfWeek" Variant="Variant.Outlined">
-                                            <MudSelectItem T="string" Value='@("MON")'>Monday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("TUE")'>Tuesday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("WED")'>Wednesday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("THU")'>Thursday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("FRI")'>Friday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("SAT")'>Saturday</MudSelectItem>
-                                            <MudSelectItem T="string" Value='@("SUN")'>Sunday</MudSelectItem>
-                                        </MudSelect>
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                </MudGrid>
-                            }
-                            else if (_cronBuilderPattern == CronBuilderPatternMonthly)
-                            {
-                                <MudGrid>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderDayOfMonth" Label="Day of Month" Min="1" Max="31" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour" Min="0" Max="23" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                    <MudItem xs="12" md="3">
-                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                </MudGrid>
-                            }
-
-                            <MudGrid>
-                                <MudItem xs="12" md="8">
-                                    <MudTextField Value="@_cronBuilderOutput" ReadOnly="true" Label="Generated Quartz Cron" Variant="Variant.Outlined" />
-                                </MudItem>
-                                <MudItem xs="12" md="4" Class="d-flex align-center gap-2">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GenerateCronFromHelper">
-                                        Generate
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ApplyGeneratedCronToTarget">
-                                        Apply to Job
-                                    </MudButton>
-                                </MudItem>
-                            </MudGrid>
+                            <div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveChatHistoryRetentionAsync"
+                                           Disabled="_saving">
+                                    Save Retention Settings
+                                </MudButton>
+                            </div>
                         </MudStack>
                     </MudPaper>
-
-                    <div>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Save"
-                                   OnClick="SaveScheduledJobsAsync"
-                                   Disabled="_saving">
-                            Save Scheduled Job Settings
-                        </MudButton>
-                    </div>
                 </MudStack>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+            </MudTabPanel>
+
+            <!-- ── Tab 3: Feature Services ───────────────────────────────────────── -->
+            <MudTabPanel Text="Feature Services" Icon="@Icons.Material.Filled.MiscellaneousServices">
+                <MudStack Spacing="4" Class="pa-4">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <div>
+                                <MudText Typo="Typo.subtitle1"><b>Runtime Feature Services</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Enable or disable optional background services without taking down the bot. Core services are always active.
+                                </MudText>
+                            </div>
+
+                            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
+                                <thead>
+                                    <tr>
+                                        <th>Feature</th>
+                                        <th>Description</th>
+                                        <th>Type</th>
+                                        <th>Enabled</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var feature in _featureStates)
+                                    {
+                                        <tr>
+                                            <td><b>@feature.DisplayName</b></td>
+                                            <td>@(string.IsNullOrWhiteSpace(feature.Description) ? "-" : feature.Description)</td>
+                                            <td>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(feature.IsCore ? Color.Secondary : Color.Default)">
+                                                    @(feature.IsCore ? "Core" : "Optional")
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                @if (feature.IsCore)
+                                                {
+                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small">Always On</MudChip>
+                                                }
+                                                else
+                                                {
+                                                    <MudSwitch T="bool"
+                                                               Value="@feature.IsEnabled"
+                                                               ValueChanged="@(value => ToggleFeatureAsync(feature, value))"
+                                                               Disabled="_saving"
+                                                               Color="Color.Primary" />
+                                                }
+                                            </td>
+                                            <td>
+                                                <MudChip T="string"
+                                                         Color="@(feature.IsRunning ? Color.Success : Color.Warning)"
+                                                         Variant="Variant.Filled"
+                                                         Size="Size.Small"
+                                                         Icon="@(feature.IsRunning ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.PauseCircle)">
+                                                    @(feature.IsRunning ? "Running" : "Stopped")
+                                                </MudChip>
+                                            </td>
+                                            <td>
+                                                <MudButton Variant="Variant.Outlined"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           StartIcon="@Icons.Material.Filled.RestartAlt"
+                                                           OnClick="@(() => RestartFeatureAsync(feature))"
+                                                           Disabled="@(!feature.IsEnabled || _saving)">
+                                                    Restart
+                                                </MudButton>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- ── Tab 4: Scheduled Jobs & Cron ──────────────────────────────────── -->
+            <MudTabPanel Text="Scheduled Jobs &amp; Cron" Icon="@Icons.Material.Filled.Schedule">
+                <MudStack Spacing="4" Class="pa-4">
+                    <MudPaper Elevation="1" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <div>
+                                <MudText Typo="Typo.subtitle1"><b>Quartz Scheduled Tasks</b></MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Configure cron schedules, toggle jobs, and specify whether cleanups should immediately execute when the bot starts up.
+                                </MudText>
+                            </div>
+
+                            <MudSimpleTable Dense="true" Hover="true" Bordered="true" Striped="true">
+                                <thead>
+                                    <tr>
+                                        <th>Job</th>
+                                        <th>Enabled</th>
+                                        <th>Cron Schedule</th>
+                                        <th>Run On Startup</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><b>Trigger Backup</b></td>
+                                        <td><MudSwitch @bind-Value="_backupEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_backupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Cleanup Clips</b></td>
+                                        <td><MudSwitch @bind-Value="_cleanupClipsEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_cleanupClipsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudSwitch @bind-Value="_cleanupClipsRunOnStartup" Color="Color.Primary" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Cleanup Chat Logs</b></td>
+                                        <td><MudSwitch @bind-Value="_cleanupChatLogsEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_cleanupChatLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudSwitch @bind-Value="_cleanupChatLogsRunOnStartup" Color="Color.Primary" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Cleanup IP Logs</b></td>
+                                        <td><MudSwitch @bind-Value="_cleanupIpLogsEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_cleanupIpLogsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudSwitch @bind-Value="_cleanupIpLogsRunOnStartup" Color="Color.Primary" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Cleanup Expired Cooldowns</b></td>
+                                        <td><MudSwitch @bind-Value="_cleanupCooldownsEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_cleanupCooldownsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudSwitch @bind-Value="_cleanupCooldownsRunOnStartup" Color="Color.Primary" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>TTS Audio Cleanup</b></td>
+                                        <td><MudSwitch @bind-Value="_ttsCleanupEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_ttsCleanupCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudSwitch @bind-Value="_ttsCleanupRunOnStartup" Color="Color.Primary" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Update Discord Events</b></td>
+                                        <td><MudSwitch @bind-Value="_updateDiscordEventsEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_updateDiscordEventsCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Post Schedule</b></td>
+                                        <td><MudSwitch @bind-Value="_postScheduleEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_postScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Update Posted Schedule</b></td>
+                                        <td><MudSwitch @bind-Value="_updatePostedScheduleEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_updatePostedScheduleCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
+                                    <tr>
+                                        <td><b>Validation Sanity Check</b></td>
+                                        <td><MudSwitch @bind-Value="_validationSanityCheckEnabled" Color="Color.Primary" /></td>
+                                        <td><MudTextField @bind-Value="_validationSanityCheckCron" Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></td>
+                                        <td><MudText Color="Color.Secondary">-</MudText></td>
+                                    </tr>
+                                </tbody>
+                            </MudSimpleTable>
+
+                            <MudDivider Class="my-2" />
+
+                            <!-- Interactive Cron Builder Helper Card -->
+                            <MudPaper Outlined="true" Class="pa-4">
+                                <MudStack Spacing="3">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@Icons.Material.Filled.AutoFixHigh" Color="Color.Primary" />
+                                        <MudText Typo="Typo.subtitle1"><b>Interactive Cron Builder</b></MudText>
+                                    </MudStack>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                        Easily construct a valid Quartz cron expression and apply it directly to a job above.
+                                    </MudText>
+
+                                    <MudGrid Spacing="3">
+                                        <MudItem xs="12" md="6">
+                                            <MudSelect T="string" Label="Target Job" Value="@_cronBuilderTargetJob" ValueChanged="OnCronBuilderTargetJobChanged" Variant="Variant.Outlined">
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.TriggerBackupJobName">Trigger Backup</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.CleanupClipsJobName">Cleanup Clips</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.CleanupChatLogsJobName">Cleanup Chat Logs</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.CleanupIpLogsJobName">Cleanup IP Logs</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.CleanupCooldownsJobName">Cleanup Expired Cooldowns</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.TtsCleanupJobName">TTS Audio Cleanup</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.UpdateDiscordEventsJobName">Update Discord Events</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.PostScheduleJobName">Post Schedule</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.UpdatePostedScheduleJobName">Update Posted Schedule</MudSelectItem>
+                                                <MudSelectItem Value="@IScheduledJobSettingsService.ValidationSanityCheckJobName">Validation Sanity Check</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" md="6">
+                                            <MudSelect T="string" Label="Pattern" @bind-Value="_cronBuilderPattern" Variant="Variant.Outlined">
+                                                <MudSelectItem Value="@CronBuilderPatternEveryNMinutes">Every N Minutes</MudSelectItem>
+                                                <MudSelectItem Value="@CronBuilderPatternHourly">Hourly (at minute)</MudSelectItem>
+                                                <MudSelectItem Value="@CronBuilderPatternDaily">Daily</MudSelectItem>
+                                                <MudSelectItem Value="@CronBuilderPatternWeekly">Weekly</MudSelectItem>
+                                                <MudSelectItem Value="@CronBuilderPatternMonthly">Monthly</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    @if (_cronBuilderPattern == CronBuilderPatternEveryNMinutes)
+                                    {
+                                        <MudNumericField @bind-Value="_cronBuilderIntervalMinutes" Label="Every (minutes)" Min="1" Max="59" Variant="Variant.Outlined" />
+                                    }
+                                    else if (_cronBuilderPattern == CronBuilderPatternHourly)
+                                    {
+                                        <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute" Min="0" Max="59" Variant="Variant.Outlined" />
+                                    }
+                                    else if (_cronBuilderPattern == CronBuilderPatternDaily)
+                                    {
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour (0-23)" Min="0" Max="23" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute (0-59)" Min="0" Max="59" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                    else if (_cronBuilderPattern == CronBuilderPatternWeekly)
+                                    {
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="4">
+                                                <MudSelect T="string" Label="Day of Week" @bind-Value="_cronBuilderDayOfWeek" Variant="Variant.Outlined">
+                                                    <MudSelectItem T="string" Value='@("MON")'>Monday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("TUE")'>Tuesday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("WED")'>Wednesday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("THU")'>Thursday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("FRI")'>Friday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("SAT")'>Saturday</MudSelectItem>
+                                                    <MudSelectItem T="string" Value='@("SUN")'>Sunday</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour (0-23)" Min="0" Max="23" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute (0-59)" Min="0" Max="59" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                    else if (_cronBuilderPattern == CronBuilderPatternMonthly)
+                                    {
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="4">
+                                                <MudNumericField @bind-Value="_cronBuilderDayOfMonth" Label="Day of Month (1-31)" Min="1" Max="31" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudNumericField @bind-Value="_cronBuilderHour" Label="Hour (0-23)" Min="0" Max="23" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudNumericField @bind-Value="_cronBuilderMinute" Label="Minute (0-59)" Min="0" Max="59" Variant="Variant.Outlined" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" md="8">
+                                            <MudTextField Value="@_cronBuilderOutput" ReadOnly="true" Label="Generated Quartz Cron" Variant="Variant.Outlined" Style="font-family: monospace;" />
+                                        </MudItem>
+                                        <MudItem xs="12" md="4" Class="d-flex align-center gap-2">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="GenerateCronFromHelper" Class="flex-grow-1">
+                                                Generate
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ApplyGeneratedCronToTarget" Class="flex-grow-1">
+                                                Apply to Job
+                                            </MudButton>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+
+                            <div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveScheduledJobsAsync"
+                                           Disabled="_saving">
+                                    Save Scheduled Job Settings
+                                </MudButton>
+                            </div>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
+
+        </MudTabs>
+    </MudStack>
 </MudContainer>
 
 @code {

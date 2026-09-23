@@ -3,274 +3,544 @@
 @using PenguinTwitchBot.Bot.Core
 @using PenguinTwitchBot.Bot.TwitchServices
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared.Help
 @inject IConfiguration Configuration
 @inject SettingsFileManager SettingsFileManager
 @inject ISnackbar Snackbar
 @inject IDiscordService DiscordService
 @inject DiscordLookupService DiscordLookupSvc
+@inject IIntegrationTestService IntegrationTester
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Integration Settings</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
-    <MudText Typo="Typo.h5" Class="mb-2">Integration Settings</MudText>
-    <MudAlert Severity="Severity.Info" Class="mb-4">
-        After any changes, restart the bot for them to take effect.
-    </MudAlert>
-
-    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
-
-        <!-- ── YouTube ──────────────────────────────────────────────────── -->
-        <MudTabPanel Text="YouTube" Icon="@Icons.Material.Filled.OndemandVideo">
-            <MudStack Spacing="3">
-                <MudText Typo="Typo.h6">YouTube API</MudText>
-                <MudText>
-                    Required for the song-request feature to search and queue YouTube videos.
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4 pa-md-6">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+            <MudStack Spacing="0">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Extension" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5"><b>Integration Settings</b></MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Configure external APIs, third-party services, and run live diagnostic test probes.
                 </MudText>
-                <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                    <strong>How to get a YouTube Data API v3 key:</strong>
-                    <ol style="margin: 8px 0 0 16px; padding: 0;">
-                        <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console &ndash; YouTube Data API v3</MudLink></li>
-                        <li>Enable the API for your project</li>
-                        <li>Go to Credentials &rarr; Create Credentials &rarr; API Key</li>
-                    </ol>
-                </MudAlert>
-                <MudTextField @bind-Value="_youtubeApiKey"
-                              Label="YouTube API Key"
-                              InputType="InputType.Password"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.OndemandVideo"
-                              Variant="Variant.Outlined" />
-                <div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               OnClick="SaveYoutubeAsync"
-                               Disabled="_saving">
-                        Save YouTube Settings
-                    </MudButton>
-                </div>
             </MudStack>
-        </MudTabPanel>
 
-        <!-- ── Discord ──────────────────────────────────────────────────── -->
-        <MudTabPanel Text="Discord" Icon="@Icons.Material.Filled.Forum">
-            <MudStack Spacing="3">
-                <MudText Typo="Typo.h6">Discord Integration</MudText>
-                <MudSwitch @bind-Value="_discordEnabled" Color="Color.Primary" Label="Enable Discord integration" />
+            <HelpButton Topic="integrations" Text="Integrations Guide" />
+        </MudStack>
 
-                @if (_discordEnabled)
-                {
-                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                        <strong>How to create a Discord bot:</strong>
-                        <ol style="margin: 8px 0 0 16px; padding: 0;">
-                            <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
-                            <li>Click "New Application", give it a name</li>
-                            <li>Go to the "Bot" tab &rarr; copy the token below</li>
-                            <li>Enable "Server Members Intent", "Message Content Intent", and "Presence Intent"</li>
-                            <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scope: bot)</li>
-                        </ol>
-                    </MudAlert>
-                    <MudTextField @bind-Value="_discordToken"
-                                  Label="Bot Token"
-                                  InputType="InputType.Password"
-                                  Immediate="true"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
-                                  Variant="Variant.Outlined" />
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-1">
+            After updating configuration values, restart the bot (or the relevant service) for changes to take full effect.
+        </MudAlert>
 
-                    <MudSwitch @bind-Value="_restartDiscordAfterSave"
-                               Color="Color.Primary"
-                               Label="Restart Discord service after saving" />
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Surface">
 
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
-                        @if (_discordConnected)
-                        {
-                            <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">Bot Connected</MudChip>
-                        }
-                        else
-                        {
-                            <MudChip T="string" Color="Color.Default" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">Bot Not Connected</MudChip>
-                        }
-                        <MudButton Variant="Variant.Outlined" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Refresh"
-                                   Disabled="@(_discordLookupLoading || string.IsNullOrWhiteSpace(_discordToken))"
-                                   OnClick="RefreshDiscordDataAsync">
-                            Refresh from Token
-                        </MudButton>
-                        @if (_discordLookupLoading)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                        }
-                    </MudStack>
+            <!-- ── YouTube ──────────────────────────────────────────────────── -->
+            <MudTabPanel Text="YouTube" Icon="@Icons.Material.Filled.OndemandVideo">
+                <MudStack Spacing="4" Class="pa-4">
+                    <div>
+                        <MudText Typo="Typo.h6"><b>YouTube Data API v3</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Required for song-request commands to search YouTube, retrieve video metadata, and queue tracks.
+                        </MudText>
+                    </div>
 
-                    @if (_discordLookupError != null)
-                    {
-                        <MudAlert Severity="Severity.Error">@_discordLookupError</MudAlert>
-                    }
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <MudTextField @bind-Value="_youtubeApiKey"
+                                          Label="YouTube API Key"
+                                          InputType="@(_showYoutubeKey ? InputType.Text : InputType.Password)"
+                                          Adornment="Adornment.End"
+                                          AdornmentIcon="@(_showYoutubeKey ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                          OnAdornmentClick="() => _showYoutubeKey = !_showYoutubeKey"
+                                          HelperText="Obtain a key from the Google Cloud Console with YouTube Data API v3 enabled"
+                                          Variant="Variant.Outlined" />
 
-                    @if (_discordGuilds.Count > 0)
-                    {
-                        <MudSelect T="string" @bind-Value="_discordServerId"
-                                   Label="Server"
-                                   Variant="Variant.Outlined"
-                                   @bind-Value:after="OnDiscordServerChangedAsync"
-                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
-                            @foreach (var g in _discordGuilds)
+                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveYoutubeAsync"
+                                           Disabled="_saving">
+                                    Save YouTube Settings
+                                </MudButton>
+
+                                <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                                           OnClick="TestYoutubeConnectionAsync"
+                                           Disabled="@(_isTestingYoutube || string.IsNullOrWhiteSpace(_youtubeApiKey))">
+                                    @if (_isTestingYoutube)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                        <span>Testing...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Test Connection</span>
+                                    }
+                                </MudButton>
+                            </MudStack>
+
+                            <!-- Live Test Result Output -->
+                            @if (_youtubeTestResult != null)
                             {
-                                <MudSelectItem Value="g.Id">@g.Name</MudSelectItem>
+                                <MudAlert Severity="@(_youtubeTestResult.Success ? Severity.Success : Severity.Error)"
+                                          Variant="Variant.Outlined"
+                                          Dense="true">
+                                    <MudStack Spacing="1">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudText Typo="Typo.subtitle2"><b>@_youtubeTestResult.Summary</b></MudText>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(_youtubeTestResult.Success ? Color.Success : Color.Error)">
+                                                HTTP @_youtubeTestResult.StatusCode
+                                            </MudChip>
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">
+                                                @_youtubeTestResult.LatencyMs ms
+                                            </MudChip>
+                                        </MudStack>
+                                        @if (!string.IsNullOrEmpty(_youtubeTestResult.Details))
+                                        {
+                                            <MudText Typo="Typo.body2">@_youtubeTestResult.Details</MudText>
+                                        }
+                                        @if (!string.IsNullOrEmpty(_youtubeTestResult.ErrorMessage))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Error"><b>Error:</b> @_youtubeTestResult.ErrorMessage</MudText>
+                                        }
+                                    </MudStack>
+                                </MudAlert>
                             }
-                        </MudSelect>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
 
-                        @if (_discordChannels.Count > 0)
-                        {
-                            <MudSelect T="string" @bind-Value="_discordBroadcastChannel"
-                                       Label="Broadcast Channel"
-                                       HelperText="Channel where the bot posts go-live announcements"
-                                       Variant="Variant.Outlined"
-                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tag">
-                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
-                                @foreach (var c in _discordChannels)
+            <!-- ── Discord ──────────────────────────────────────────────────── -->
+            <MudTabPanel Text="Discord" Icon="@Icons.Material.Filled.Forum">
+                <MudStack Spacing="4" Class="pa-4">
+                    <div>
+                        <MudText Typo="Typo.h6"><b>Discord Integration</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Connect your Discord bot to post stream announcements, assign live viewer roles, and sync events.
+                        </MudText>
+                    </div>
+
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <MudSwitch @bind-Value="_discordEnabled" Color="Color.Primary" Label="Enable Discord integration" />
+
+                            @if (_discordEnabled)
+                            {
+                                <MudTextField @bind-Value="_discordToken"
+                                              Label="Bot Token"
+                                              InputType="@(_showDiscordToken ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(_showDiscordToken ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                              OnAdornmentClick="() => _showDiscordToken = !_showDiscordToken"
+                                              Immediate="true"
+                                              HelperText="Bot token from the Discord Developer Portal (under Bot tab)"
+                                              Variant="Variant.Outlined" />
+
+                                <MudSwitch @bind-Value="_restartDiscordAfterSave"
+                                           Color="Color.Primary"
+                                           Label="Restart Discord service after saving" />
+
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                                    @if (_discordConnected)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
+                                            Bot Connected
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">
+                                            Bot Not Connected
+                                        </MudChip>
+                                    }
+
+                                    <MudButton Variant="Variant.Outlined" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Refresh"
+                                               Disabled="@(_discordLookupLoading || string.IsNullOrWhiteSpace(_discordToken))"
+                                               OnClick="RefreshDiscordDataAsync">
+                                        Refresh from Token
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                                               Disabled="@(_isTestingDiscord || string.IsNullOrWhiteSpace(_discordToken))"
+                                               OnClick="TestDiscordConnectionAsync">
+                                        @if (_isTestingDiscord)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                            <span>Testing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Test Connection</span>
+                                        }
+                                    </MudButton>
+
+                                    @if (_discordLookupLoading)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                    }
+                                </MudStack>
+
+                                <!-- Discord Test Result -->
+                                @if (_discordTestResult != null)
                                 {
-                                    <MudSelectItem Value="c.Id">#@c.Name</MudSelectItem>
+                                    <MudAlert Severity="@(_discordTestResult.Success ? Severity.Success : Severity.Error)"
+                                              Variant="Variant.Outlined"
+                                              Dense="true">
+                                        <MudStack Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudText Typo="Typo.subtitle2"><b>@_discordTestResult.Summary</b></MudText>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(_discordTestResult.Success ? Color.Success : Color.Error)">
+                                                    HTTP @_discordTestResult.StatusCode
+                                                </MudChip>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">
+                                                    @_discordTestResult.LatencyMs ms
+                                                </MudChip>
+                                            </MudStack>
+                                            @if (!string.IsNullOrEmpty(_discordTestResult.Details))
+                                            {
+                                                <MudText Typo="Typo.body2">@_discordTestResult.Details</MudText>
+                                            }
+                                            @if (!string.IsNullOrEmpty(_discordTestResult.ErrorMessage))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Error"><b>Error:</b> @_discordTestResult.ErrorMessage</MudText>
+                                            }
+                                        </MudStack>
+                                    </MudAlert>
                                 }
-                            </MudSelect>
 
-                            <MudSelect T="string" @bind-Value="_discordPingRoleId"
-                                       Label="Live Ping Role"
-                                       HelperText="Role pinged when you go live (select 'None' to disable)"
-                                       Variant="Variant.Outlined"
-                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NotificationsActive">
-                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
-                                @foreach (var r in _discordRoles)
+                                @if (_discordLookupError != null)
                                 {
-                                    <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                    <MudAlert Severity="Severity.Error">@_discordLookupError</MudAlert>
                                 }
-                            </MudSelect>
 
-                            <MudSelect T="string" @bind-Value="_discordMemberRoleId"
-                                       Label="Live Member Role"
-                                       HelperText="Role assigned to members while you are live (select 'None' to disable)"
-                                       Variant="Variant.Outlined"
-                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Group">
-                                <MudSelectItem Value="@("0")">(none)</MudSelectItem>
-                                @foreach (var r in _discordRoles)
+                                @if (_discordGuilds.Count > 0)
                                 {
-                                    <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                    <MudSelect T="string" @bind-Value="_discordServerId"
+                                               Label="Server"
+                                               Variant="Variant.Outlined"
+                                               @bind-Value:after="OnDiscordServerChangedAsync"
+                                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Storage">
+                                        @foreach (var g in _discordGuilds)
+                                        {
+                                            <MudSelectItem Value="g.Id">@g.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    @if (_discordChannels.Count > 0)
+                                    {
+                                        <MudSelect T="string" @bind-Value="_discordBroadcastChannel"
+                                                   Label="Broadcast Channel"
+                                                   HelperText="Channel where the bot posts go-live announcements"
+                                                   Variant="Variant.Outlined"
+                                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Tag">
+                                            <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                            @foreach (var c in _discordChannels)
+                                            {
+                                                <MudSelectItem Value="c.Id">#@c.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+
+                                        <MudSelect T="string" @bind-Value="_discordPingRoleId"
+                                                   Label="Live Ping Role"
+                                                   HelperText="Role pinged when you go live (select 'None' to disable)"
+                                                   Variant="Variant.Outlined"
+                                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.NotificationsActive">
+                                            <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                            @foreach (var r in _discordRoles)
+                                            {
+                                                <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+
+                                        <MudSelect T="string" @bind-Value="_discordMemberRoleId"
+                                                   Label="Live Member Role"
+                                                   HelperText="Role assigned to members while you are live (select 'None' to disable)"
+                                                   Variant="Variant.Outlined"
+                                                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Group">
+                                            <MudSelectItem Value="@("0")">(none)</MudSelectItem>
+                                            @foreach (var r in _discordRoles)
+                                            {
+                                                <MudSelectItem Value="r.Id">@r.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    }
+                                    else if (!_discordLookupLoading)
+                                    {
+                                        <MudAlert Severity="Severity.Info">Select a server above to load its channels and roles.</MudAlert>
+                                    }
                                 }
-                            </MudSelect>
-                        }
-                        else if (!_discordLookupLoading)
-                        {
-                            <MudAlert Severity="Severity.Info">Select a server above to load its channels and roles.</MudAlert>
-                        }
-                    }
-                    else if (!_discordLookupLoading)
-                    {
-                        <MudAlert Severity="Severity.Info">
-                            Click <strong>Refresh from Token</strong> to load servers, channels, and roles from Discord.
-                            Or enter IDs manually below.
-                        </MudAlert>
-                        <MudTextField @bind-Value="_discordServerId"
-                                      Label="Server ID"
-                                      HelperText="Right-click your server &rarr; Copy Server ID"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_discordBroadcastChannel"
-                                      Label="Broadcast Channel ID"
-                                      HelperText="Channel where the bot posts go-live announcements"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_discordPingRoleId"
-                                      Label="Live Ping Role ID"
-                                      HelperText="Role that gets pinged when you go live (leave 0 to disable)"
-                                      Variant="Variant.Outlined" />
-                        <MudTextField @bind-Value="_discordMemberRoleId"
-                                      Label="Live Member Role ID"
-                                      HelperText="Role assigned to members while you are live (leave 0 to disable)"
-                                      Variant="Variant.Outlined" />
-                    }
-                }
-                <div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               OnClick="SaveDiscordAsync"
-                               Disabled="_saving">
-                        Save Discord Settings
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Secondary"
-                               StartIcon="@Icons.Material.Filled.RestartAlt"
-                               OnClick="RestartDiscordServiceAsync"
-                               Disabled="_saving"
-                               Class="ml-2">
-                        Restart Discord Service
-                    </MudButton>
-                </div>
-            </MudStack>
-        </MudTabPanel>
+                                else if (!_discordLookupLoading)
+                                {
+                                    <MudAlert Severity="Severity.Info">
+                                        Click <strong>Refresh from Token</strong> to load servers, channels, and roles from Discord, or enter IDs manually below.
+                                    </MudAlert>
+                                    <MudTextField @bind-Value="_discordServerId"
+                                                  Label="Server ID"
+                                                  HelperText="Right-click your server &rarr; Copy Server ID"
+                                                  Variant="Variant.Outlined" />
+                                    <MudTextField @bind-Value="_discordBroadcastChannel"
+                                                  Label="Broadcast Channel ID"
+                                                  HelperText="Channel where the bot posts go-live announcements"
+                                                  Variant="Variant.Outlined" />
+                                    <MudTextField @bind-Value="_discordPingRoleId"
+                                                  Label="Live Ping Role ID"
+                                                  HelperText="Role that gets pinged when you go live (leave 0 to disable)"
+                                                  Variant="Variant.Outlined" />
+                                    <MudTextField @bind-Value="_discordMemberRoleId"
+                                                  Label="Live Member Role ID"
+                                                  HelperText="Role assigned to members while you are live (leave 0 to disable)"
+                                                  Variant="Variant.Outlined" />
+                                }
+                            }
 
-        <!-- ── Weather ──────────────────────────────────────────────────── -->
-        <MudTabPanel Text="Weather" Icon="@Icons.Material.Filled.Cloud">
-            <MudStack Spacing="3">
-                <MudText Typo="Typo.h6">Weather Integration</MudText>
-                <MudSwitch @bind-Value="_weatherEnabled" Color="Color.Primary" Label="Enable weather commands" />
+                            <div>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveDiscordAsync"
+                                           Disabled="_saving">
+                                    Save Discord Settings
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Secondary"
+                                           StartIcon="@Icons.Material.Filled.RestartAlt"
+                                           OnClick="RestartDiscordServiceAsync"
+                                           Disabled="_saving"
+                                           Class="ml-2">
+                                    Restart Discord Service
+                                </MudButton>
+                            </div>
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
 
-                @if (_weatherEnabled)
-                {
-                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                        Get a free API key at <MudLink Href="https://openweathermap.org/api" Target="_blank">openweathermap.org/api</MudLink>
-                        (the free "Current Weather Data" plan is sufficient).
-                    </MudAlert>
-                    <MudAlert Severity="Severity.Info">
-                        Default location is configured in <MudLink Href="settings/app">Bot Settings</MudLink>.
-                    </MudAlert>
-                    <MudTextField @bind-Value="_weatherApiKey"
-                                  Label="OpenWeatherMap API Key"
-                                  InputType="InputType.Password"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Cloud"
-                                  Variant="Variant.Outlined" />
-                }
-                <div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               OnClick="SaveWeatherAsync"
-                               Disabled="_saving">
-                        Save Weather Settings
-                    </MudButton>
-                </div>
-            </MudStack>
-        </MudTabPanel>
+            <!-- ── Weather ──────────────────────────────────────────────────── -->
+            <MudTabPanel Text="Weather" Icon="@Icons.Material.Filled.Cloud">
+                <MudStack Spacing="4" Class="pa-4">
+                    <div>
+                        <MudText Typo="Typo.h6"><b>WeatherAPI Integration</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Enables the <code>!weather</code> chat command to query current conditions and forecasts.
+                        </MudText>
+                    </div>
 
-        <!-- ── OpenAI ───────────────────────────────────────────────────── -->
-        <MudTabPanel Text="OpenAI" Icon="@Icons.Material.Filled.Psychology">
-            <MudStack Spacing="3">
-                <MudText Typo="Typo.h6">OpenAI Integration</MudText>
-                <MudSwitch @bind-Value="_openAiEnabled" Color="Color.Primary" Label="Enable AI-powered features" />
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <MudSwitch @bind-Value="_weatherEnabled" Color="Color.Primary" Label="Enable weather commands" />
 
-                @if (_openAiEnabled)
-                {
-                    <MudText>Used for AI chat responses and automated shoutouts in chat.</MudText>
-                    <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                        Get an API key at <MudLink Href="https://platform.openai.com/api-keys" Target="_blank">platform.openai.com/api-keys</MudLink>.
-                        Usage is billed by token &mdash; set spend limits in your OpenAI account.
-                    </MudAlert>
-                    <MudTextField @bind-Value="_openAiApiKey"
-                                  Label="OpenAI API Key"
-                                  InputType="InputType.Password"
-                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Psychology"
-                                  Variant="Variant.Outlined" />
-                }
-                <div>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               OnClick="SaveOpenAiAsync"
-                               Disabled="_saving">
-                        Save OpenAI Settings
-                    </MudButton>
-                </div>
-            </MudStack>
-        </MudTabPanel>
+                            @if (_weatherEnabled)
+                            {
+                                <MudTextField @bind-Value="_weatherApiKey"
+                                              Label="WeatherAPI Key"
+                                              InputType="@(_showWeatherKey ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(_showWeatherKey ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                              OnAdornmentClick="() => _showWeatherKey = !_showWeatherKey"
+                                              HelperText="API key from weatherapi.com (free plan provides up to 1,000,000 requests/month)"
+                                              Variant="Variant.Outlined" />
 
-    </MudTabs>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudTextField @bind-Value="_testWeatherLocation"
+                                                  Label="Test Location"
+                                                  HelperText="Location used for test probe (e.g. London, Seattle, 85234)"
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Style="max-width: 300px;" />
+                                </MudStack>
+
+                                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveWeatherAsync"
+                                               Disabled="_saving">
+                                        Save Weather Settings
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                                               OnClick="TestWeatherConnectionAsync"
+                                               Disabled="@(_isTestingWeather || string.IsNullOrWhiteSpace(_weatherApiKey))">
+                                        @if (_isTestingWeather)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                            <span>Testing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Test Connection</span>
+                                        }
+                                    </MudButton>
+                                </MudStack>
+
+                                <!-- Live Weather Test Result Output -->
+                                @if (_weatherTestResult != null)
+                                {
+                                    <MudAlert Severity="@(_weatherTestResult.Success ? Severity.Success : Severity.Error)"
+                                              Variant="Variant.Outlined"
+                                              Dense="true">
+                                        <MudStack Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudText Typo="Typo.subtitle2"><b>@_weatherTestResult.Summary</b></MudText>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(_weatherTestResult.Success ? Color.Success : Color.Error)">
+                                                    HTTP @_weatherTestResult.StatusCode
+                                                </MudChip>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">
+                                                    @_weatherTestResult.LatencyMs ms
+                                                </MudChip>
+                                            </MudStack>
+                                            @if (!string.IsNullOrEmpty(_weatherTestResult.Details))
+                                            {
+                                                <MudText Typo="Typo.body2">@_weatherTestResult.Details</MudText>
+                                            }
+                                            @if (!string.IsNullOrEmpty(_weatherTestResult.ErrorMessage))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Error"><b>Error:</b> @_weatherTestResult.ErrorMessage</MudText>
+                                            }
+                                        </MudStack>
+                                    </MudAlert>
+                                }
+                            }
+                            else
+                            {
+                                <div>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveWeatherAsync"
+                                               Disabled="_saving">
+                                        Save Weather Settings
+                                    </MudButton>
+                                </div>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
+
+            <!-- ── OpenAI ───────────────────────────────────────────────────── -->
+            <MudTabPanel Text="OpenAI" Icon="@Icons.Material.Filled.Psychology">
+                <MudStack Spacing="4" Class="pa-4">
+                    <div>
+                        <MudText Typo="Typo.h6"><b>OpenAI Integration</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Used for AI-powered chat responses and automated intelligent streamer shoutouts.
+                        </MudText>
+                    </div>
+
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Spacing="3">
+                            <MudSwitch @bind-Value="_openAiEnabled" Color="Color.Primary" Label="Enable AI-powered features" />
+
+                            @if (_openAiEnabled)
+                            {
+                                <MudTextField @bind-Value="_openAiApiKey"
+                                              Label="OpenAI API Key"
+                                              InputType="@(_showOpenAiKey ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(_showOpenAiKey ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                              OnAdornmentClick="() => _showOpenAiKey = !_showOpenAiKey"
+                                              HelperText="API secret key from platform.openai.com/api-keys"
+                                              Variant="Variant.Outlined" />
+
+                                <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveOpenAiAsync"
+                                               Disabled="_saving">
+                                        Save OpenAI Settings
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                                               OnClick="TestOpenAiConnectionAsync"
+                                               Disabled="@(_isTestingOpenAi || string.IsNullOrWhiteSpace(_openAiApiKey))">
+                                        @if (_isTestingOpenAi)
+                                        {
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                            <span>Testing...</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Test Connection</span>
+                                        }
+                                    </MudButton>
+                                </MudStack>
+
+                                <!-- Live OpenAI Test Result Output -->
+                                @if (_openAiTestResult != null)
+                                {
+                                    <MudAlert Severity="@(_openAiTestResult.Success ? Severity.Success : Severity.Error)"
+                                              Variant="Variant.Outlined"
+                                              Dense="true">
+                                        <MudStack Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudText Typo="Typo.subtitle2"><b>@_openAiTestResult.Summary</b></MudText>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(_openAiTestResult.Success ? Color.Success : Color.Error)">
+                                                    HTTP @_openAiTestResult.StatusCode
+                                                </MudChip>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">
+                                                    @_openAiTestResult.LatencyMs ms
+                                                </MudChip>
+                                            </MudStack>
+                                            @if (!string.IsNullOrEmpty(_openAiTestResult.Details))
+                                            {
+                                                <MudText Typo="Typo.body2">@_openAiTestResult.Details</MudText>
+                                            }
+                                            @if (!string.IsNullOrEmpty(_openAiTestResult.ErrorMessage))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Error"><b>Error:</b> @_openAiTestResult.ErrorMessage</MudText>
+                                            }
+                                        </MudStack>
+                                    </MudAlert>
+                                }
+                            }
+                            else
+                            {
+                                <div>
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               OnClick="SaveOpenAiAsync"
+                                               Disabled="_saving">
+                                        Save OpenAI Settings
+                                    </MudButton>
+                                </div>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                </MudStack>
+            </MudTabPanel>
+
+        </MudTabs>
+    </MudStack>
 </MudContainer>
 
 @code {
     private bool _saving = false;
+
+    // Password visibility toggles
+    private bool _showYoutubeKey;
+    private bool _showDiscordToken;
+    private bool _showWeatherKey;
+    private bool _showOpenAiKey;
+
+    // Test states
+    private bool _isTestingYoutube;
+    private IntegrationTestResult? _youtubeTestResult;
+
+    private bool _isTestingDiscord;
+    private IntegrationTestResult? _discordTestResult;
+
+    private bool _isTestingWeather;
+    private string _testWeatherLocation = "";
+    private IntegrationTestResult? _weatherTestResult;
+
+    private bool _isTestingOpenAi;
+    private IntegrationTestResult? _openAiTestResult;
 
     // YouTube
     private string _youtubeApiKey = "";
@@ -313,6 +583,7 @@
 
         _weatherApiKey = Configuration["Weather:ApiKey"] ?? "";
         _weatherEnabled = !string.IsNullOrWhiteSpace(_weatherApiKey);
+        _testWeatherLocation = Configuration["Weather:DefaultLocation"] ?? "London";
 
         _openAiApiKey = Configuration["OpenAI:ApiKey"] ?? "";
         _openAiEnabled = !string.IsNullOrWhiteSpace(_openAiApiKey);
@@ -335,6 +606,62 @@
                     .Select(r => (r.Id.ToString(), r.Name))
                     .ToList();
             }
+        }
+    }
+
+    private async Task TestYoutubeConnectionAsync()
+    {
+        _isTestingYoutube = true;
+        _youtubeTestResult = null;
+        try
+        {
+            _youtubeTestResult = await IntegrationTester.TestYoutubeAsync(_youtubeApiKey);
+        }
+        finally
+        {
+            _isTestingYoutube = false;
+        }
+    }
+
+    private async Task TestDiscordConnectionAsync()
+    {
+        _isTestingDiscord = true;
+        _discordTestResult = null;
+        try
+        {
+            _discordTestResult = await IntegrationTester.TestDiscordAsync(_discordToken);
+        }
+        finally
+        {
+            _isTestingDiscord = false;
+        }
+    }
+
+    private async Task TestWeatherConnectionAsync()
+    {
+        _isTestingWeather = true;
+        _weatherTestResult = null;
+        try
+        {
+            _weatherTestResult = await IntegrationTester.TestWeatherAsync(_weatherApiKey, _testWeatherLocation);
+        }
+        finally
+        {
+            _isTestingWeather = false;
+        }
+    }
+
+    private async Task TestOpenAiConnectionAsync()
+    {
+        _isTestingOpenAi = true;
+        _openAiTestResult = null;
+        try
+        {
+            _openAiTestResult = await IntegrationTester.TestOpenAiAsync(_openAiApiKey);
+        }
+        finally
+        {
+            _isTestingOpenAi = false;
         }
     }
 

@@ -1,38 +1,422 @@
 @page "/settings/bot-auth"
 @attribute [Authorize(Roles = "Streamer")]
-@using System.ComponentModel.DataAnnotations
-@inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
-@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchService twitchService;
-@inject PenguinTwitchBot.Bot.TwitchServices.ITwitchChatBot twitchChatBot;
+@using PenguinTwitchBot.Bot.TwitchServices
+@using PenguinTwitchBot.Shared.Help
+@inject IConfiguration Configuration
+@inject ITwitchService twitchService
+@inject ITwitchChatBot twitchChatBot
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Bot Authentication</PageTitle>
-<MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    <MudPaper>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/streamersignin">Auth Streamer</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => RefreshBotAuth()">Bot Auth</MudButton>
-        @if(twitchService.IsServiceUp())
-        {
-            <MudAlert Severity="Severity.Success">Streamer Account is Connected</MudAlert>
-        } 
-        else
-        {
-            <MudAlert Severity="Severity.Error">Streamer Account is NOT Connected</MudAlert>
-        }
-    </MudPaper>
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Large">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+            <MudStack Spacing="0">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5"><b>Bot &amp; Streamer Authentication</b></MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Manage Twitch OAuth connections, view active status, and refresh access tokens for both Streamer and Bot accounts.
+                </MudText>
+            </MudStack>
+
+            <MudStack Row="true" Spacing="2">
+                <HelpButton Topic="bot-auth" Text="Auth Guide" />
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="RefreshStatusesAsync"
+                           Disabled="_isRefreshing">
+                    Refresh Status
+                </MudButton>
+            </MudStack>
+        </MudStack>
+
+        <!-- Account Cards Grid -->
+        <MudGrid Spacing="4">
+            <!-- Streamer / Broadcaster Account Card -->
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4 pa-md-5 h-100 d-flex flex-column justify-space-between">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Color="Color.Primary" Variant="Variant.Filled">
+                                    <MudIcon Icon="@Icons.Material.Filled.LiveTv" />
+                                </MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.h6"><b>Streamer Account</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Broadcaster &amp; Channel Manager</MudText>
+                                </div>
+                            </MudStack>
+
+                            @if (_isStreamerUp)
+                            {
+                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
+                                    Connected
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Cancel" Size="Size.Small">
+                                    Disconnected
+                                </MudChip>
+                            }
+                        </MudStack>
+
+                        <MudDivider />
+
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Channel Name:</MudText>
+                                <MudText Typo="Typo.body2"><b>@(_broadcasterName ?? "Unknown")</b></MudText>
+                            </MudStack>
+
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Broadcaster User ID:</MudText>
+                                <MudText Typo="Typo.body2" Style="font-family: monospace;">@(_broadcasterUserId ?? "Not Loaded")</MudText>
+                            </MudStack>
+
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Helix Service Status:</MudText>
+                                <MudText Typo="Typo.body2">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@GetStatusColor(_streamerStatus)">
+                                        @_streamerStatus
+                                    </MudChip>
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+
+                        @if (!_isStreamerUp)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true">
+                                Streamer account token is missing or expired. Sign in below to grant permissions for channel rewards, raids, and EventSub.
+                            </MudAlert>
+                        }
+                    </MudStack>
+
+                    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   Href="/streamersignin">
+                            Sign In as Streamer
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Autorenew"
+                                   OnClick="ValidateStreamerTokenAsync"
+                                   Disabled="_isValidatingStreamer">
+                            @if (_isValidatingStreamer)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                <span>Validating...</span>
+                            }
+                            else
+                            {
+                                <span>Validate &amp; Refresh</span>
+                            }
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Bot Account Card -->
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4 pa-md-5 h-100 d-flex flex-column justify-space-between">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Color="Color.Secondary" Variant="Variant.Filled">
+                                    <MudIcon Icon="@Icons.Material.Filled.SmartToy" />
+                                </MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.h6"><b>Bot Account</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chatbot &amp; Announcement Actor</MudText>
+                                </div>
+                            </MudStack>
+
+                            @if (_isBotConnected)
+                            {
+                                <MudChip T="string" Color="Color.Success" Variant="Variant.Filled" Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small">
+                                    Chat Connected
+                                </MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Icon="@Icons.Material.Filled.Warning" Size="Size.Small">
+                                    Disconnected
+                                </MudChip>
+                            }
+                        </MudStack>
+
+                        <MudDivider />
+
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Bot Username:</MudText>
+                                <MudText Typo="Typo.body2"><b>@(_botUsername ?? "Not Configured")</b></MudText>
+                            </MudStack>
+
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Chat Channel:</MudText>
+                                <MudText Typo="Typo.body2"><b>#@(_broadcasterName ?? "Unknown")</b></MudText>
+                            </MudStack>
+
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Chat Client Connection:</MudText>
+                                <MudText Typo="Typo.body2">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(_isBotConnected ? Color.Success : Color.Error)">
+                                        @(_isBotConnected ? "Online / Ready" : "Offline")
+                                    </MudChip>
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+
+                        @if (!_isBotConnected)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true">
+                                Bot chat token is disconnected. Sign in below with your bot account or refresh the existing token.
+                            </MudAlert>
+                        }
+                    </MudStack>
+
+                    <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.SmartToy"
+                                   Href="/botsignin">
+                            Sign In as Bot
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="RefreshBotAuthAsync"
+                                   Disabled="_isRefreshingBot">
+                            @if (_isRefreshingBot)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                <span>Refreshing...</span>
+                            }
+                            else
+                            {
+                                <span>Refresh Token</span>
+                            }
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Chat"
+                                   OnClick="SendTestPingAsync"
+                                   Disabled="@(!_isBotConnected || _isSendingPing)">
+                            @if (_isSendingPing)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                <span>Sending...</span>
+                            }
+                            else
+                            {
+                                <span>Test Ping</span>
+                            }
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Twitch Application Diagnostic Info Card -->
+            <MudItem xs="12">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle1"><b>Twitch Developer Application Configuration</b></MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Configuration values loaded from your local bot settings and environment:
+                        </MudText>
+
+                        <MudGrid Spacing="2" Class="mt-1">
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Outlined="true" Class="pa-3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Twitch Client ID</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        @if (!string.IsNullOrWhiteSpace(_clientId))
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                            <MudText Typo="Typo.body2" Style="font-family: monospace;">@MaskString(_clientId)</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                            <MudText Typo="Typo.body2" Color="Color.Error">Missing in configuration</MudText>
+                                        }
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Outlined="true" Class="pa-3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configured Broadcaster</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" Size="Size.Small" />
+                                        <MudText Typo="Typo.body2">@(_broadcasterName ?? "None configured")</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="4">
+                                <MudPaper Outlined="true" Class="pa-3">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configured Bot Name</MudText>
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.SmartToy" Color="Color.Secondary" Size="Size.Small" />
+                                        <MudText Typo="Typo.body2">@(_botUsername ?? "None configured")</MudText>
+                                    </MudStack>
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {
-    private async Task RefreshBotAuth()
+    private bool _isRefreshing;
+    private bool _isValidatingStreamer;
+    private bool _isRefreshingBot;
+    private bool _isSendingPing;
+
+    private bool _isStreamerUp;
+    private TwitchServiceStatus _streamerStatus = TwitchServiceStatus.Unknown;
+    private string? _broadcasterName;
+    private string? _broadcasterUserId;
+    private string? _botUsername;
+    private string? _clientId;
+    private bool _isBotConnected;
+
+    protected override async Task OnInitializedAsync()
     {
-        var result = await twitchChatBot.RefreshAccessToken();
-        if (result)
+        await LoadStateAsync();
+    }
+
+    private async Task LoadStateAsync()
+    {
+        _broadcasterName = Configuration["broadcaster"];
+        _botUsername = Configuration["botName"];
+        _clientId = Configuration["twitchClientId"];
+
+        try
         {
-            Snackbar.Add("Bot access token refreshed successfully.", Severity.Success);
+            _isStreamerUp = twitchService.IsServiceUp();
+            _streamerStatus = twitchService.GetStatus();
+            _broadcasterUserId = await twitchService.GetBroadcasterUserId();
         }
-        else
+        catch
         {
-            Snackbar.Add("Failed to refresh bot access token. Please try again.", Severity.Error);
+            _isStreamerUp = false;
+            _streamerStatus = TwitchServiceStatus.Unavailable;
         }
+
+        try
+        {
+            _isBotConnected = await twitchChatBot.IsConnected();
+        }
+        catch
+        {
+            _isBotConnected = false;
+        }
+    }
+
+    private async Task RefreshStatusesAsync()
+    {
+        _isRefreshing = true;
+        await LoadStateAsync();
+        _isRefreshing = false;
+        Snackbar.Add("Authentication status updated.", Severity.Info);
+    }
+
+    private async Task ValidateStreamerTokenAsync()
+    {
+        _isValidatingStreamer = true;
+        try
+        {
+            var valid = await twitchService.ValidateAndRefreshToken();
+            await LoadStateAsync();
+            if (valid)
+            {
+                Snackbar.Add("Streamer token validated and active.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Streamer token validation failed. Please sign in again.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Validation error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isValidatingStreamer = false;
+        }
+    }
+
+    private async Task RefreshBotAuthAsync()
+    {
+        _isRefreshingBot = true;
+        try
+        {
+            var result = await twitchChatBot.RefreshAccessToken();
+            await LoadStateAsync();
+            if (result)
+            {
+                Snackbar.Add("Bot access token refreshed successfully.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Failed to refresh bot access token. Please sign in with your bot account.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Refresh error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isRefreshingBot = false;
+        }
+    }
+
+    private async Task SendTestPingAsync()
+    {
+        _isSendingPing = true;
+        try
+        {
+            var pingMessage = $"[Bot Test] Penguin Twitch Bot is connected and active! Timestamp: {DateTime.UtcNow:HH:mm:ss} UTC";
+            await twitchChatBot.SendMessage(pingMessage);
+            Snackbar.Add("Test message sent to Twitch chat.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending test message: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSendingPing = false;
+        }
+    }
+
+    private static Color GetStatusColor(TwitchServiceStatus status) => status switch
+    {
+        TwitchServiceStatus.Connected => Color.Success,
+        TwitchServiceStatus.AuthenticationDisconnected => Color.Warning,
+        TwitchServiceStatus.Unavailable => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string MaskString(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= 8) return "••••••••";
+        return $"{value[..4]}••••••••{value[^4..]}";
     }
 }
