@@ -1,46 +1,154 @@
 @page "/community/auto-shoutouts/{id:int}"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-
 @using System.ComponentModel.DataAnnotations
+@using PenguinTwitchBot.Database.Bot.Models
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem shoutOutSystem
+@inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Shoutout</PageTitle>
-@if (autoShoutout == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <MudCard>
-        <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
-            <MudCardContent>
-                <MudTextField Label="Name" Required="true" RequiredError="Name is required"
-                @bind-Value="autoShoutout.Name" />
-                <MudTextField Label="Message" Required="false" @bind-Value="autoShoutout.CustomMessage" />
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                    Submit
-                </MudButton>
-            </MudCardContent>
-        </EditForm>
-    </MudCard>
-}
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Medium">
+    <MudStack Spacing="4">
+        <!-- Back Navigation -->
+        <MudButton StartIcon="@Icons.Material.Filled.ArrowBack"
+                   Variant="Variant.Text"
+                   Color="Color.Default"
+                   Href="/community/auto-shoutouts">
+            Back to Auto Shoutouts
+        </MudButton>
+
+        @if (_isLoading)
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="180px" Class="rounded" />
+                </MudStack>
+            </MudPaper>
+        }
+        else if (autoShoutout == null)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                Auto shoutout not found. Please return to the <MudLink Href="/community/auto-shoutouts">Auto Shoutouts list</MudLink>.
+            </MudAlert>
+        }
+        else
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.Campaign" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5">Edit Shoutout: @autoShoutout.Name</MudText>
+                </MudStack>
+
+                <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+                    <DataAnnotationsValidator />
+                    <MudStack Spacing="3">
+                        <MudTextField Label="Streamer Username"
+                                      Required="true"
+                                      RequiredError="Username is required"
+                                      @bind-Value="autoShoutout.Name"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Person" />
+
+                        <MudTextField Label="Custom Message (Optional)"
+                                      Lines="3"
+                                      @bind-Value="autoShoutout.CustomMessage"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      HelperText="Custom chat response. Leave empty to use default bot shoutout." />
+
+                        <MudDivider Class="my-2" />
+
+                        <MudSwitch @bind-Value="autoShoutout.AutoPlayClip"
+                                   Color="Color.Primary"
+                                   Label="Auto Play Clip" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2">
+                            When enabled, the bot automatically fetches and plays the streamer's top clip on the stream overlay.
+                        </MudText>
+
+                        <MudSwitch @bind-Value="autoShoutout.UseAi"
+                                   Color="Color.Secondary"
+                                   Label="Use AI Generated Shoutout" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2">
+                            When enabled, an AI generates a customized shoutout response.
+                        </MudText>
+
+                        <MudTextField Label="Additional AI Prompt (Optional)"
+                                      Lines="2"
+                                      @bind-Value="autoShoutout.AdditionalPrompt"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Disabled="!autoShoutout.UseAi"
+                                      HelperText="Extra instructions for AI generation (e.g. tone, lore, or inside jokes)." />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4" Justify="Justify.FlexEnd">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Default"
+                                       Href="/community/auto-shoutouts">
+                                Cancel
+                            </MudButton>
+                            <MudButton ButtonType="ButtonType.Submit"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       Disabled="_isSaving">
+                                @(_isSaving ? "Saving..." : "Save Changes")
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </EditForm>
+            </MudPaper>
+        }
+    </MudStack>
+</MudContainer>
+
 @code {
     [Parameter]
     public int id { get; set; }
 
     private PenguinTwitchBot.Database.Bot.Models.AutoShoutout? autoShoutout { get; set; }
+    private bool _isLoading = true;
+    private bool _isSaving = false;
 
-    protected override async void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
-        StateHasChanged();
+        _isLoading = true;
+        try
+        {
+            autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading shoutout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
-        if (autoShoutout == null) return;
-        await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
-        navigationManager.NavigateTo($"/community/auto-shoutouts");
+        if (autoShoutout == null || string.IsNullOrWhiteSpace(autoShoutout.Name)) return;
+
+        _isSaving = true;
+        try
+        {
+            autoShoutout.Name = autoShoutout.Name.Trim();
+            await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+            Snackbar.Add($"Shoutout for '{autoShoutout.Name}' updated successfully.", Severity.Success);
+            navigationManager.NavigateTo("/community/auto-shoutouts");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving shoutout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
     }
 }

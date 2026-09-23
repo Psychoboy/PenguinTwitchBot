@@ -1,83 +1,232 @@
 @page "/community/auto-shoutouts"
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Database.Bot.Models
 @inject PenguinTwitchBot.Bot.Commands.Misc.ShoutoutSystem ShoutoutSystem
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Auto Shoutouts</PageTitle>
-<MudContainer MaxWidth="MaxWidth.False">
-    @if (autoShoutouts == null)
-    {
-        <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-    }
-    else
-    {
-        <MudGrid>
-            <MudItem xs="8">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudTable Items="@autoShoutouts">
-                        <HeaderContent>
-                            <MudTh>Name</MudTh>
-                            <MudTh>Response</MudTh>
-                            <MudTh>Last Shoutout</MudTh>
-                            <MudTh>Auto Clip</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Name</MudTd>
-                            <MudTd DataLabel="Response">@context.CustomMessage</MudTd>
-                            <MudTd DataLabel="Last Shoutout">@context.LastShoutout</MudTd>
-                            <MudTd DataLabel="Auto Clip">@context.AutoPlayClip</MudTd>
-                            <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
-                                    Edit
-                                </MudButton>
-                            </MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => Delete(context)">
-                                    Delete
-                                </MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudPaper>
-            </MudItem>
-            @if (autoShoutout != null)
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Auto Shoutouts</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Automatically recognize and shout out fellow streamers when they chat, with optional clip playback and AI-generated messages.
+                </MudText>
+            </MudStack>
+            @if (autoShoutouts != null)
             {
-                <MudItem xs="4">
-                    <MudCard>
-                        <MudPaper Elevation="2" Class="pa-4">
-                            <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
-                                <MudCardContent>
-                                    <MudTextField Label="Name" Required="true" RequiredError="Name is required"
-                                    @bind-Value="autoShoutout.Name" />
-                                    <MudTextField Label="Message" Lines="3" Required="false" @bind-Value="autoShoutout.CustomMessage" />
-                                    <MudSwitch Label="Auto Play Clip" @bind-Value="autoShoutout.AutoPlayClip" />
-                                    <MudSwitch Label="User Ai?" @bind-Value="autoShoutout.UseAi" />
-                                    <MudTextField Label="Additional Prompt" Lines="3" Required="false" @bind-Value="autoShoutout.AdditionalPrompt" />
-                                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                        Class="ml-auto">
-                                        Submit
-                                    </MudButton>
-                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="() => autoShoutout = new()">
-                                        Reset</MudButton>
-                                </MudCardContent>
-                            </EditForm>
-                        </MudPaper>
-                    </MudCard>
-                </MudItem>
+                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.RecordVoiceOver">
+                    @autoShoutouts.Count Configured @(autoShoutouts.Count == 1 ? "Shoutout" : "Shoutouts")
+                </MudChip>
             }
-        </MudGrid>
-    }
+        </MudStack>
+
+        @if (autoShoutouts == null)
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="240px" Class="rounded" />
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+                <!-- Left: Shoutouts List -->
+                <MudItem xs="12" lg="7" xl="8">
+                    <MudPaper Elevation="2" Class="pa-3 pa-md-4">
+                        <MudTable Items="@FilteredShoutouts" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="10">
+                            <ToolBarContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                                    <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Configured Streamers</MudText>
+                                    <MudSpacer />
+                                    <MudTextField @bind-Value="_searchString"
+                                                  Placeholder="Search shoutouts..."
+                                                  Variant="Variant.Outlined"
+                                                  Margin="Margin.Dense"
+                                                  Adornment="Adornment.Start"
+                                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                                  IconSize="Size.Medium"
+                                                  Clearable="true"
+                                                  Immediate="true"
+                                                  Style="max-width: 200px;" />
+                                </MudStack>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>Streamer</MudTh>
+                                <MudTh>Response</MudTh>
+                                <MudTh Style="white-space: nowrap;">Last Shoutout</MudTh>
+                                <MudTh Style="width: 72px; text-align: right;"></MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Streamer" Style="white-space: nowrap;">
+                                    <MudText Typo="Typo.subtitle2">@context.Name</MudText>
+                                </MudTd>
+                                <MudTd DataLabel="Response">
+                                    @if (!string.IsNullOrWhiteSpace(context.CustomMessage))
+                                    {
+                                        <MudTooltip Text="@context.CustomMessage">
+                                            <MudText Typo="Typo.body2" Style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                @context.CustomMessage
+                                            </MudText>
+                                        </MudTooltip>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">(Default)</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Last Shoutout" Style="white-space: nowrap;">
+                                    @if (context.LastShoutout != default)
+                                    {
+                                        <ToLocal DateTime="@context.LastShoutout" />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Never</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Actions" Style="text-align: right; white-space: nowrap;">
+                                    <MudStack Row="true" Spacing="0" Justify="Justify.FlexEnd">
+                                        <MudTooltip Text="Edit shoutout">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                           Size="Size.Small"
+                                                           Color="Color.Primary"
+                                                           OnClick="() => Edit(context)" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Delete shoutout">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="() => Delete(context)" />
+                                        </MudTooltip>
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                                    @(string.IsNullOrWhiteSpace(_searchString) ? "No auto-shoutouts configured yet. Add one using the form!" : "No shoutouts match your search.")
+                                </MudText>
+                            </NoRecordsContent>
+                            <PagerContent>
+                                <MudTablePager />
+                            </PagerContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+
+                <!-- Right: Create / Edit Form -->
+                <MudItem xs="12" lg="5" xl="4">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                            <MudIcon Icon="@(autoShoutout.Id == 0 ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">@(autoShoutout.Id == 0 ? "Add Auto Shoutout" : $"Edit Shoutout: {autoShoutout.Name}")</MudText>
+                        </MudStack>
+
+                        <EditForm Model="@autoShoutout" OnValidSubmit="OnSubmit">
+                            <DataAnnotationsValidator />
+                            <MudStack Spacing="3">
+                                <MudTextField Label="Streamer Username"
+                                              Required="true"
+                                              RequiredError="Username is required"
+                                              @bind-Value="autoShoutout.Name"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Person"
+                                              HelperText="Twitch username of the streamer to automatically shout out." />
+
+                                <MudTextField Label="Custom Message (Optional)"
+                                              Lines="3"
+                                              @bind-Value="autoShoutout.CustomMessage"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              HelperText="Custom chat response. Leave empty to use default bot shoutout." />
+
+                                <MudDivider Class="my-1" />
+
+                                <MudSwitch @bind-Value="autoShoutout.AutoPlayClip"
+                                           Color="Color.Primary"
+                                           Label="Auto Play Clip" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2">
+                                    When enabled, the bot plays the streamer's top clip on the overlay.
+                                </MudText>
+
+                                <MudSwitch @bind-Value="autoShoutout.UseAi"
+                                           Color="Color.Secondary"
+                                           Label="Use AI Generated Shoutout" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2">
+                                    When enabled, an AI generates a personalized shoutout message.
+                                </MudText>
+
+                                <MudTextField Label="Additional AI Prompt (Optional)"
+                                              Lines="2"
+                                              @bind-Value="autoShoutout.AdditionalPrompt"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Disabled="!autoShoutout.UseAi"
+                                              HelperText="Extra instructions for AI generation (e.g. tone, lore, or inside jokes)." />
+
+                                <MudStack Row="true" Spacing="2" Class="mt-2" Justify="Justify.FlexEnd">
+                                    @if (autoShoutout.Id != 0)
+                                    {
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Default"
+                                                   StartIcon="@Icons.Material.Filled.Clear"
+                                                   OnClick="ResetForm">
+                                            Cancel
+                                        </MudButton>
+                                    }
+                                    <MudButton ButtonType="ButtonType.Submit"
+                                               Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Save"
+                                               Disabled="_isSaving">
+                                        @(_isSaving ? "Saving..." : (autoShoutout.Id == 0 ? "Add Shoutout" : "Save Changes"))
+                                    </MudButton>
+                                </MudStack>
+                            </MudStack>
+                        </EditForm>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudStack>
 </MudContainer>
+
 @code {
     private List<PenguinTwitchBot.Database.Bot.Models.AutoShoutout>? autoShoutouts;
-    private PenguinTwitchBot.Database.Bot.Models.AutoShoutout? autoShoutout { get; set; } = new();
-    [Inject] private IDialogService DialogService { get; set; } = default!;
+    private PenguinTwitchBot.Database.Bot.Models.AutoShoutout autoShoutout { get; set; } = new();
+    private string _searchString = "";
+    private bool _isSaving;
+
+    private IEnumerable<AutoShoutout> FilteredShoutouts
+    {
+        get
+        {
+            if (autoShoutouts == null) return Enumerable.Empty<AutoShoutout>();
+            if (string.IsNullOrWhiteSpace(_searchString)) return autoShoutouts;
+
+            var search = _searchString.Trim();
+            return autoShoutouts.Where(s =>
+                (!string.IsNullOrEmpty(s.Name) && s.Name.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.CustomMessage) && s.CustomMessage.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        autoShoutouts = await ShoutoutSystem.GetAutoShoutoutsAsync();
+        await ReloadShoutouts();
     }
 
     private async Task ReloadShoutouts()
@@ -86,39 +235,82 @@
         StateHasChanged();
     }
 
-    public async void OnSubmit()
+    private void ResetForm()
     {
-        if (autoShoutout == null) return;
-        if(autoShoutouts == null)
+        autoShoutout = new();
+    }
+
+    public async Task OnSubmit()
+    {
+        if (autoShoutout == null || string.IsNullOrWhiteSpace(autoShoutout.Name)) return;
+
+        autoShoutout.Name = autoShoutout.Name.Trim();
+
+        if (autoShoutouts != null && autoShoutout.Id == 0 &&
+            autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)))
         {
-            autoShoutouts = new List<PenguinTwitchBot.Database.Bot.Models.AutoShoutout>();
-        }
-        if(autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)) && autoShoutout.Id == 0)
-        {
-            await DialogService.ShowMessageBoxAsync("Error", "A shoutout with that name already exists!");
+            Snackbar.Add($"A shoutout for '{autoShoutout.Name}' already exists!", Severity.Warning);
             return;
         }
-        
-        await ShoutoutSystem.UpdateAutoShoutoutAsync(autoShoutout);
-        autoShoutout = new();
-        await ReloadShoutouts();
+
+        _isSaving = true;
+        try
+        {
+            await ShoutoutSystem.UpdateAutoShoutoutAsync(autoShoutout);
+            Snackbar.Add($"Shoutout for '{autoShoutout.Name}' saved successfully.", Severity.Success);
+            ResetForm();
+            await ReloadShoutouts();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving shoutout: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
     }
-    private async Task Delete(AutoShoutout autoShoutout)
+
+    private async Task Delete(AutoShoutout shoutout)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
-        if (result != null)
+            "Delete Shoutout",
+            $"Are you sure you want to delete the auto shoutout for '{shoutout.Name}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
         {
-            await ShoutoutSystem.DeleteAutoShoutout(autoShoutout);
-            await ReloadShoutouts();
+            try
+            {
+                await ShoutoutSystem.DeleteAutoShoutout(shoutout);
+                Snackbar.Add($"Shoutout for '{shoutout.Name}' deleted.", Severity.Success);
+                if (autoShoutout.Id == shoutout.Id)
+                {
+                    ResetForm();
+                }
+                await ReloadShoutouts();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting shoutout: {ex.Message}", Severity.Error);
+            }
         }
     }
 
     private void Edit(PenguinTwitchBot.Database.Bot.Models.AutoShoutout shoutout)
     {
-        // navigationManager.NavigateTo($"/autoshoutouts/{id}");
-        autoShoutout = shoutout;
+        // Clone so form edits don't mutate list until submitted
+        autoShoutout = new AutoShoutout
+        {
+            Id = shoutout.Id,
+            Name = shoutout.Name,
+            CustomMessage = shoutout.CustomMessage,
+            AutoPlayClip = shoutout.AutoPlayClip,
+            UseAi = shoutout.UseAi,
+            AdditionalPrompt = shoutout.AdditionalPrompt,
+            LastShoutout = shoutout.LastShoutout
+        };
     }
 }

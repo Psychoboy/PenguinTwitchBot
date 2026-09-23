@@ -1,7 +1,6 @@
 @page "/community/viewers/edit"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
-@using PenguinTwitchBot.Bot;
-
+@using PenguinTwitchBot.Bot
 @using System.ComponentModel.DataAnnotations
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.Features.IViewerFeature viewerFeature
@@ -11,136 +10,378 @@
 @inject PenguinTwitchBot.Bot.Core.ISubscriptionTracker subTracker
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Core.IChatHistory chatHistory
+@inject ISnackbar Snackbar
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Viewer</PageTitle>
-@if (viewer.Viewer == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <MudContainer MaxWidth="MaxWidth.False">
-        <MudGrid>
-            <MudItem xs="12">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
-                        <DataAnnotationsValidator />
-                        <MudCardContent>
-                            <MudTextField @bind-Value="viewer.Viewer.Username" Label="Username" ReadOnly="true" Variant="Variant.Text" />
-                            <MudTextField @bind-Value="viewer.Viewer.DisplayName" Label="Display Name" ReadOnly="true"
-                            Variant="Variant.Text" />
-                            <MudTextField Label="Title" Required="false" @bind-Value="viewer.Viewer.Title" />
-                            <MudTextField @bind-Value="viewer.Viewer.LastSeen" Label="Last Seen" ReadOnly="true" Variant="Variant.Text" />
-                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isSub" Label="Subscriber?" />
-                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isVip" Label="VIP?" />
-                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isMod" Label="Moderator?" />
-                            <MudCheckBox ReadOnly="true" @bind-Value="viewer.Viewer.isBroadcaster" Label="Broadcaster?" />
-                            <MudTextField @bind-Value="viewer.FollowDated" Label="Follow Date" ReadOnly="true" Variant="Variant.Text" />
-                            <MudTextField @bind-Value="viewer.DateCreated" Label="Account Created" ReadOnly="true" Variant="Variant.Text" />
-                            <MudTextField @bind-Value="viewer.LastSub" Label="Last Sub" ReadOnly="true" Variant="Variant.Text" />
-                            <MudText>Messages Rank: #@viewer.Messages?.Ranking Total: @viewer.Messages?.MessageCount</MudText>
-                            @foreach (var pr in viewer.PointRankings)
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - @(viewer.Viewer?.DisplayName ?? "Viewer Profile")</PageTitle>
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Back Navigation & Actions -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudButton StartIcon="@Icons.Material.Filled.ArrowBack"
+                       Variant="Variant.Text"
+                       Color="Color.Default"
+                       Href="/community/viewers">
+                Back to Viewers
+            </MudButton>
+        </MudStack>
+
+        @if (_isLoading)
+        {
+            <!-- Skeleton Loading State -->
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="64px" Height="64px" />
+                    <MudStack Spacing="1" Style="flex: 1;">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="36px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" Height="20px" />
+                    </MudStack>
+                </MudStack>
+                <MudGrid Class="mt-4" Spacing="3">
+                    <MudItem xs="12" sm="6" md="3"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="rounded" /></MudItem>
+                    <MudItem xs="12" sm="6" md="3"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="rounded" /></MudItem>
+                    <MudItem xs="12" sm="6" md="3"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="rounded" /></MudItem>
+                    <MudItem xs="12" sm="6" md="3"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="rounded" /></MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+        else if (viewer.Viewer == null)
+        {
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                Viewer not found. Please return to the <MudLink Href="/community/viewers">Viewers list</MudLink> and search again.
+            </MudAlert>
+        }
+        else
+        {
+            <!-- Profile Banner -->
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
+                    <MudAvatar Color="Color.Primary" Style="width: 72px; height: 72px; font-size: 2rem;">
+                        @(string.IsNullOrWhiteSpace(viewer.Viewer.DisplayName) ? "U" : viewer.Viewer.DisplayName.Substring(0, 1).ToUpperInvariant())
+                    </MudAvatar>
+                    <MudStack Spacing="1" Style="flex: 1;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                            <MudText Typo="Typo.h4">@viewer.Viewer.DisplayName</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Secondary">@@@viewer.Viewer.Username</MudText>
+                            @if (!string.IsNullOrWhiteSpace(viewer.Viewer.Title))
                             {
-                                <MudText>@pr.PointTypeName Rank: #@pr.Ranking?.Ranking Total: @pr.Ranking?.Points</MudText>
+                                <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">
+                                    @viewer.Viewer.Title
+                                </MudChip>
                             }
-                            <MudText>Watch Time Rank: #@viewer.Time?.Ranking Total: @viewer.WatchedTime</MudText>
+                        </MudStack>
+                        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                            @if (viewer.Viewer.isBroadcaster)
+                            {
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@Icons.Material.Filled.LiveTv">Broadcaster</MudChip>
+                            }
+                            @if (viewer.Viewer.isMod)
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Shield">Moderator</MudChip>
+                            }
+                            @if (viewer.Viewer.isVip)
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Diamond">VIP</MudChip>
+                            }
+                            @if (viewer.Viewer.isSub)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Star">Subscriber</MudChip>
+                            }
+                        </MudStack>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
 
-                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                                Submit
-                            </MudButton>
-                        </MudCardContent>
-                    </EditForm>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12">
-                <MudTable ServerData="MessagesReload" 
-                Dense="true" Hover="true" @ref="messagesTable">
-                    <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Chat History</MudText>
-                        <MudCheckBox Label="Include Commands?" Value="includeCommands" @onclick="CommandsViewChange" />
-                    </ToolBarContent>
-                    <HeaderContent>
-                        <MudTh>Date</MudTh>
-                        <MudTh>Message</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Rank">@context.CreatedAt</MudTd>
-                        <MudTd DataLabel="Name">@context.Message</MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText>No matching records found</MudText>
-                    </NoRecordsContent>
-                    <LoadingContent>
-                        <MudText>Loading...</MudText>
-                    </LoadingContent>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-                </MudTable>
-            </MudItem>
-            <MudItem xs="6">
-                <MudTable Items="@IpLogs"
-                Dense="true" Hover="true">
-                    <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Ip History</MudText>
-                    </ToolBarContent>
-                    <HeaderContent>
-                        <MudTh>Ip</MudTh>
-                        <MudTh>Count</MudTh>
-                        <MudTh>Last Used</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Ip">@context.Ip</MudTd>
-                        <MudTd DataLabel="Count">@context.Count</MudTd>
-                        <MudTd DataLabel="Last Used"><ToLocal DateTime="@context.ConnectedDate" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText>No matching records found</MudText>
-                    </NoRecordsContent>
-                    <LoadingContent>
-                        <MudText>Loading...</MudText>
-                    </LoadingContent>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-                </MudTable>
-            </MudItem>
-            <MudItem xs="6">
-                <MudTable Items="@OtherIpLogs"
-                Dense="true" Hover="true">
-                    <ToolBarContent>
-                        <MudText Class="pa-4" Typo="Typo.h6">Ip Match History</MudText>
-                    </ToolBarContent>
-                    <HeaderContent>
-                        <MudTh>Name</MudTh>
-                        <MudTh>Ip</MudTh>
-                        <MudTh>Count</MudTh>
-                        <MudTh>Last Used</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Name">
-                            <MudLink Href=@LinkBuilder(context.Username)>
-                                @context.Username
-                            </MudLink>
-                        </MudTd>
-                        <MudTd DataLabel="Ip">@context.Ip</MudTd>
-                        <MudTd DataLabel="Count">@context.Count</MudTd>
-                        <MudTd DataLabel="Last Used"><ToLocal DateTime="context.ConnectedDate" Format="dddd, mmmm d h:MM:ss TT"></ToLocal></MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText>No matching records found</MudText>
-                    </NoRecordsContent>
-                    <LoadingContent>
-                        <MudText>Loading...</MudText>
-                    </LoadingContent>
-                    <PagerContent>
-                        <MudTablePager />
-                    </PagerContent>
-                </MudTable>
-            </MudItem>
-        </MudGrid>
-    </MudContainer>
-}
+            <!-- Activity Stat Cards -->
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="1" Class="pa-4 h-100">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Chat" Color="Color.Primary" Size="Size.Medium" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Chat Messages</MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.h5" Class="mt-2">
+                            @(viewer.Messages?.MessageCount.ToString("N0") ?? "0")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Rank: #@(viewer.Messages != null ? viewer.Messages.Ranking.ToString() : "-")
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="1" Class="pa-4 h-100">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Info" Size="Size.Medium" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Watch Time</MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.h5" Class="mt-2">
+                            @(string.IsNullOrWhiteSpace(viewer.WatchedTime) ? "0s" : viewer.WatchedTime)
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Rank: #@(viewer.Time != null ? viewer.Time.Ranking.ToString() : "-")
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="1" Class="pa-4 h-100">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Stars" Color="Color.Warning" Size="Size.Medium" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Points & Loyalty</MudText>
+                        </MudStack>
+                        @if (viewer.PointRankings.Count > 0)
+                        {
+                            @foreach (var pr in viewer.PointRankings.Take(2))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-1">
+                                    <strong>@pr.PointTypeName:</strong> @(pr.Ranking?.Points.ToString("N0") ?? "0") <span class="mud-text-secondary">(#@(pr.Ranking != null ? pr.Ranking.Ranking.ToString() : "-"))</span>
+                                </MudText>
+                            }
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">No points records</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="1" Class="pa-4 h-100">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Success" Size="Size.Medium" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Last Seen</MudText>
+                        </MudStack>
+                        <MudText Typo="Typo.body1" Class="mt-2">
+                            <ToLocal DateTime="@viewer.Viewer.LastSeen" />
+                        </MudText>
+                        @if (viewer.FollowDated != default)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Followed: <ToLocal DateTime="@viewer.FollowDated" />
+                            </MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Detailed Tabs -->
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+                <!-- Tab 1: Profile Details & Edit -->
+                <MudTabPanel Text="Profile Details" Icon="@Icons.Material.Filled.Badge">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <EditForm Model="@viewer" OnValidSubmit="OnSubmit">
+                            <DataAnnotationsValidator />
+                            <MudGrid Spacing="3">
+                                <MudItem xs="12" md="6">
+                                    <MudStack Spacing="3">
+                                        <MudText Typo="Typo.subtitle1"><b>Custom Information</b></MudText>
+                                        <MudTextField Label="Custom Title"
+                                                      @bind-Value="viewer.Viewer.Title"
+                                                      Variant="Variant.Outlined"
+                                                      Margin="Margin.Dense"
+                                                      HelperText="Display title or nickname for this viewer in bot interactions." />
+
+                                        <MudStack Row="true" Spacing="2">
+                                            <MudButton ButtonType="ButtonType.Submit"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Save"
+                                                       Disabled="_isSaving">
+                                                @(_isSaving ? "Saving..." : "Save Changes")
+                                            </MudButton>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudItem>
+
+                                <MudItem xs="12" md="6">
+                                    <MudStack Spacing="2">
+                                        <MudText Typo="Typo.subtitle1"><b>Account Timeline</b></MudText>
+                                        <MudSimpleTable Dense="true" Hover="false" Outlined="true">
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Twitch ID</strong></td>
+                                                    <td>@viewer.Viewer.UserId</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Account Created</strong></td>
+                                                    <td>
+                                                        @if (viewer.DateCreated.HasValue)
+                                                        {
+                                                            <ToLocal DateTime="@viewer.DateCreated.Value" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>-</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Follow Date</strong></td>
+                                                    <td>
+                                                        @if (viewer.FollowDated != default)
+                                                        {
+                                                            <ToLocal DateTime="@viewer.FollowDated" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>-</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Last Subscribed</strong></td>
+                                                    <td>
+                                                        @if (viewer.LastSub.HasValue)
+                                                        {
+                                                            <ToLocal DateTime="@viewer.LastSub.Value" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>-</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Last Seen</strong></td>
+                                                    <td><ToLocal DateTime="@viewer.Viewer.LastSeen" /></td>
+                                                </tr>
+                                            </tbody>
+                                        </MudSimpleTable>
+                                    </MudStack>
+                                </MudItem>
+                            </MudGrid>
+                        </EditForm>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <!-- Tab 2: Chat History -->
+                <MudTabPanel Text="Chat History" Icon="@Icons.Material.Filled.Chat">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudTable ServerData="MessagesReload" Dense="true" Hover="true" FixedHeader="true" @ref="messagesTable">
+                            <ToolBarContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1">
+                                    <MudText Typo="Typo.h6">Messages</MudText>
+                                    <MudSpacer />
+                                    <MudSwitch T="bool"
+                                               Value="includeCommands"
+                                               ValueChanged="CommandsViewChange"
+                                               Color="Color.Primary"
+                                               Label="Include Bot Commands" />
+                                </MudStack>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh Style="width: 200px;">Date & Time</MudTh>
+                                <MudTh>Message</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="Date">
+                                    @if (context.CreatedAt.HasValue)
+                                    {
+                                        <ToLocal DateTime="@context.CreatedAt.Value" />
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">-</MudText>
+                                    }
+                                </MudTd>
+                                <MudTd DataLabel="Message">@context.Message</MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                                    No chat messages recorded for this user.
+                                </MudText>
+                            </NoRecordsContent>
+                            <LoadingContent>
+                                <MudStack AlignItems="AlignItems.Center" Class="pa-4">
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Color="Color.Primary" />
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Loading chat history...</MudText>
+                                </MudStack>
+                            </LoadingContent>
+                            <PagerContent>
+                                <MudTablePager />
+                            </PagerContent>
+                        </MudTable>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <!-- Tab 3: IP & Security -->
+                <MudTabPanel Text="IP & Security" Icon="@Icons.Material.Filled.Security">
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudGrid Spacing="3">
+                            <MudItem xs="12" md="6">
+                                <MudTable Items="@IpLogs" Dense="true" Hover="true" FixedHeader="true">
+                                    <ToolBarContent>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Lan" Color="Color.Primary" />
+                                            <MudText Typo="Typo.subtitle1"><b>IP Connection History</b></MudText>
+                                        </MudStack>
+                                    </ToolBarContent>
+                                    <HeaderContent>
+                                        <MudTh>IP Address</MudTh>
+                                        <MudTh>Times Seen</MudTh>
+                                        <MudTh>Last Used</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="IP"><code>@context.Ip</code></MudTd>
+                                        <MudTd DataLabel="Count"><MudChip T="string" Size="Size.Small">@context.Count</MudChip></MudTd>
+                                        <MudTd DataLabel="Last Used">
+                                            <ToLocal DateTime="@context.ConnectedDate" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">No IP logs recorded.</MudText>
+                                    </NoRecordsContent>
+                                    <PagerContent>
+                                        <MudTablePager />
+                                    </PagerContent>
+                                </MudTable>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTable Items="@OtherIpLogs" Dense="true" Hover="true" FixedHeader="true">
+                                    <ToolBarContent>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.GroupWork" Color="Color.Warning" />
+                                            <MudText Typo="Typo.subtitle1"><b>Accounts Sharing Same IP</b></MudText>
+                                        </MudStack>
+                                    </ToolBarContent>
+                                    <HeaderContent>
+                                        <MudTh>Other Account</MudTh>
+                                        <MudTh>IP Address</MudTh>
+                                        <MudTh>Count</MudTh>
+                                        <MudTh>Last Used</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Other Account">
+                                            <MudLink Href="@LinkBuilder(context.Username)" Typo="Typo.subtitle2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                                @context.Username
+                                            </MudLink>
+                                        </MudTd>
+                                        <MudTd DataLabel="IP"><code>@context.Ip</code></MudTd>
+                                        <MudTd DataLabel="Count">@context.Count</MudTd>
+                                        <MudTd DataLabel="Last Used">
+                                            <ToLocal DateTime="@context.ConnectedDate" />
+                                        </MudTd>
+                                    </RowTemplate>
+                                    <NoRecordsContent>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                                            No other accounts share IP addresses with this user.
+                                        </MudText>
+                                    </NoRecordsContent>
+                                    <PagerContent>
+                                        <MudTablePager />
+                                    </PagerContent>
+                                </MudTable>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudStack>
+</MudContainer>
 
 @code {
     [Parameter]
@@ -152,12 +393,13 @@ else
     public string? ViewerName { get; set; }
 
     private MudTable<ViewerChatHistory>? messagesTable;
-
     private List<Database.Bot.Models.IpLogs.IpLogEntry> IpLogs = new();
     private List<Database.Bot.Models.IpLogs.IpLogEntry> OtherIpLogs = new();
     private ViewViewer viewer { get; set; } = new();
     private string username { get; set; } = "";
     private bool includeCommands { get; set; } = false;
+    private bool _isLoading = true;
+    private bool _isSaving = false;
 
     public class ViewerPointRanking
     {
@@ -165,7 +407,6 @@ else
         public UserPointsWithRank? Ranking { get; set; }
     }
 
-    private EventCallback<bool> CommandsViewChanged { get; set; }
     public class ViewViewer
     {
         public PenguinTwitchBot.Database.Bot.Models.Viewer? Viewer { get; set; }
@@ -176,51 +417,62 @@ else
         public List<ViewerPointRanking> PointRankings { get; set; } = [];
         public ViewerTimeWithRank? Time { get; set; }
         public string WatchedTime { get; set; } = "";
-
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        _isLoading = true;
         viewer.Viewer = null;
         username = "";
         IpLogs = [];
         OtherIpLogs = [];
 
-        if (ViewerId.HasValue)
+        try
         {
-            viewer.Viewer = await viewerFeature.GetViewerById(ViewerId.Value);
-        }
-        else if (!string.IsNullOrWhiteSpace(ViewerName))
-        {
-            var normalizedName = Database.Bot.Core.UsernameNormalizer.Normalize(ViewerName);
-            viewer.Viewer = await viewerFeature.GetViewerByUserName(normalizedName);
-        }
+            if (ViewerId.HasValue)
+            {
+                viewer.Viewer = await viewerFeature.GetViewerById(ViewerId.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(ViewerName))
+            {
+                var normalizedName = Database.Bot.Core.UsernameNormalizer.Normalize(ViewerName);
+                viewer.Viewer = await viewerFeature.GetViewerByUserName(normalizedName);
+            }
 
-        if (viewer.Viewer != null)
+            if (viewer.Viewer != null)
+            {
+                username = viewer.Viewer.Username;
+                var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
+                if (follower != null)
+                {
+                    viewer.FollowDated = follower.FollowDate;
+                }
+                var allPointTypes = await pointSystem.GetPointTypes();
+                viewer.PointRankings = [];
+                foreach (var pt in allPointTypes)
+                {
+                    var rank = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, pt.Id.GetValueOrDefault());
+                    viewer.PointRankings.Add(new ViewerPointRanking { PointTypeName = pt.Name, Ranking = rank });
+                }
+                viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
+                viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
+                viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
+                if (viewer.Time != null)
+                {
+                    viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);
+                }
+                viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
+                IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
+                OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
+            }
+        }
+        catch (Exception ex)
         {
-            username = viewer.Viewer.Username;
-            var follower = await viewerFeature.GetFollowerAsync(viewer.Viewer.Username);
-            if(follower != null)
-            {
-                viewer.FollowDated = follower.FollowDate;
-            }
-            var allPointTypes = await pointSystem.GetPointTypes();
-            viewer.PointRankings = [];
-            foreach (var pt in allPointTypes)
-            {
-                var rank = await pointSystem.GetPointsWithRankByUserId(viewer.Viewer.UserId, pt.Id.GetValueOrDefault());
-                viewer.PointRankings.Add(new ViewerPointRanking { PointTypeName = pt.Name, Ranking = rank });
-            }
-            viewer.Messages = await loyaltyFeature.GetUserMessagesAndRank(viewer.Viewer.Username);
-            viewer.Time = await loyaltyFeature.GetUserTimeAndRank(viewer.Viewer.Username);
-            viewer.DateCreated = await viewerFeature.GetUserCreatedAsync(viewer.Viewer.Username);
-            if(viewer.Time != null)
-            {
-                viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);
-            }
-            viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
-            IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
-            OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
+            Snackbar.Add($"Error loading viewer: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
         }
 
         if (messagesTable != null)
@@ -229,22 +481,33 @@ else
         }
     }
 
-
-    private async Task CommandsViewChange()
+    private async Task CommandsViewChange(bool val)
     {
-        includeCommands = !includeCommands;
+        includeCommands = val;
         if (messagesTable != null)
         {
             await messagesTable.ReloadServerData();
         }
-        StateHasChanged();
     }
 
-    public async void OnSubmit()
+    public async Task OnSubmit()
     {
         if (viewer.Viewer == null) return;
-        await viewerFeature.SaveViewer(viewer.Viewer);
-        navigationManager.NavigateTo($"/community/viewers");
+        _isSaving = true;
+        try
+        {
+            await viewerFeature.SaveViewer(viewer.Viewer);
+            Snackbar.Add("Viewer profile updated successfully.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving viewer: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+            StateHasChanged();
+        }
     }
 
     private async Task<TableData<ViewerChatHistory>> MessagesReload(TableState state, CancellationToken _)
@@ -257,8 +520,8 @@ else
         return new TableData<ViewerChatHistory>() { TotalItems = response.TotalItems, Items = response.Data };
     }
 
-    private string LinkBuilder(string _parameter)
+    private string LinkBuilder(string parameter)
     {
-        return $"/community/viewers/edit?name={Uri.EscapeDataString(_parameter)}";
+        return $"/community/viewers/edit?name={Uri.EscapeDataString(parameter)}";
     }
 }

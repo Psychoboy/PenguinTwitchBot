@@ -1,118 +1,594 @@
 @page "/blacklist"
 @attribute [Authorize(Roles = "Streamer, Editor")]
-@using PenguinTwitchBot.Database.Bot.Models;
+@using System.Text.RegularExpressions
+@using PenguinTwitchBot.Database.Bot.Models
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Blacklist BlacklistApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Blacklist</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
-        @if (wordFilters != null)
-        {
-            <MudItem xs="9">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Block" Size="Size.Large" Color="Color.Error" />
+                    <MudText Typo="Typo.h4">Blacklist & Word Filters</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Filter banned words and phrases from Twitch chat, automatically applying timeouts or bans.
+                </MudText>
+            </MudStack>
+            @if (wordFilters != null)
+            {
+                <MudChip T="string" Color="Color.Error" Size="Size.Medium" Icon="@Icons.Material.Filled.FilterAlt">
+                    @wordFilters.Count Configured @(wordFilters.Count == 1 ? "Filter" : "Filters")
+                </MudChip>
+            }
+        </MudStack>
+
+        <!-- Interactive Filter Tester Card -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Science" Color="Color.Primary" />
+                    <MudText Typo="Typo.h6">Filter Tester</MudText>
+                    <MudSpacer />
+                    <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                        <MudButton Color="@(_testerMode == TesterMode.AgainstCurrent ? Color.Primary : Color.Default)"
+                                   OnClick="() => SetTesterMode(TesterMode.AgainstCurrent)">
+                            Test Editor Filter
+                        </MudButton>
+                        <MudButton Color="@(_testerMode == TesterMode.AgainstAll ? Color.Primary : Color.Default)"
+                                   OnClick="() => SetTesterMode(TesterMode.AgainstAll)">
+                            Test All Blacklist Rules
+                        </MudButton>
+                    </MudButtonGroup>
+                </MudStack>
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @(_testerMode == TesterMode.AgainstCurrent
+                        ? $"Testing against current filter: \"{(string.IsNullOrWhiteSpace(wordFilter.Phrase) ? "(empty phrase)" : wordFilter.Phrase)}\" ({(wordFilter.IsRegex ? "Regular Expression" : "Case-Insensitive Contains")})"
+                        : "Testing against all active blacklist rules currently saved.")
+                </MudText>
+
+                <MudGrid Spacing="2" Class="align-center">
+                    <MudItem xs="12" md="8">
+                        <MudTextField @bind-Value="_testInputString"
+                                      Label="Sample Chat Message"
+                                      Placeholder="Type a test chat message here to see if it gets caught..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      DebounceInterval="150"
+                                      OnDebounceIntervalElapsed="RunFilterTest"
+                                      Clearable="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.PlayArrow"
+                                   OnClick="RunFilterTest"
+                                   FullWidth="true">
+                            Test Message
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+
+                <!-- Test Results Banner -->
+                @if (!string.IsNullOrWhiteSpace(_testInputString))
+                {
+                    @if (!string.IsNullOrEmpty(_testRegexError))
+                    {
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mt-2">
+                            <strong>Regex Error:</strong> @_testRegexError
+                        </MudAlert>
+                    }
+                    else if (_testMatchResults.Count > 0)
+                    {
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mt-2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.Warning" />
+                                <MudText Typo="Typo.subtitle2">
+                                    <strong>MATCH DETECTED!</strong> This message would trigger <strong>@_testMatchResults.Count</strong> filter(s):
+                                </MudText>
+                            </MudStack>
+                            <MudStack Spacing="1" Class="mt-2 pl-4">
+                                @foreach (var match in _testMatchResults)
+                                {
+                                    <div>
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Dark" Class="mr-2">
+                                            @(match.IsRegex ? "Regex" : "Contains"): <code>@match.Phrase</code>
+                                        </MudChip>
+                                        <MudChip T="string" Size="Size.Small" Color="@(match.PermaBan ? Color.Error : Color.Warning)">
+                                            @(match.PermaBan ? "Perma-Ban" : $"{match.TimeOutLength}s Timeout")
+                                        </MudChip>
+                                        @if (match.IsSilent)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Default">Silent</MudChip>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(match.Message))
+                                        {
+                                            <span style="font-size: 0.85rem;">Bot response: <em>"@match.Message"</em></span>
+                                        }
+                                    </div>
+                                }
+                            </MudStack>
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Dense="true" Class="mt-2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                                <MudText Typo="Typo.subtitle2">
+                                    <strong>SAFE:</strong> No matching blacklist filters triggered for this message.
+                                </MudText>
+                            </MudStack>
+                        </MudAlert>
+                    }
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudGrid Spacing="4">
+            <!-- Left: Word Filters Table -->
+            <MudItem xs="12" lg="7">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudTable Items="@wordFilters">
+                    <MudTable Items="@FilteredFilters" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="10">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Active Filters</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchString"
+                                              Placeholder="Search filters..."
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              IconSize="Size.Medium"
+                                              Clearable="true"
+                                              Immediate="true"
+                                              Style="max-width: 240px;" />
+                            </MudStack>
+                        </ToolBarContent>
                         <HeaderContent>
-                            <MudTh>Phrase</MudTh>
-                            <MudTh>Message</MudTh>
-                            <MudTh>Timeout Length</MudTh>
-                            <MudTh>Is Regex</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
+                            <MudTh>Pattern / Phrase</MudTh>
+                            <MudTh>Penalty</MudTh>
+                            <MudTh>Exemptions</MudTh>
+                            <MudTh Style="text-align: right;">Actions</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Phrase">@context.Phrase</MudTd>
-                            <MudTd DataLabel="Message">@context.Message</MudTd>
-                            <MudTd DataLabel="Timeout Length">@(context.PermaBan ? "Perma Banned" : context.TimeOutLength)</MudTd>
-                            <MudTd DataLabel="Is Regex">@context.IsRegex</MudTd>
-                            <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
-                                    Edit</MudButton>
+                            <MudTd DataLabel="Pattern">
+                                <MudStack Spacing="0">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <code>@context.Phrase</code>
+                                        @if (context.IsRegex)
+                                        {
+                                            <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">Regex</MudChip>
+                                        }
+                                    </MudStack>
+                                    @if (!context.IsSilent && !string.IsNullOrWhiteSpace(context.Message))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            Reply: @context.Message
+                                        </MudText>
+                                    }
+                                </MudStack>
                             </MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => Delete(context)">Delete
-                                </MudButton>
+                            <MudTd DataLabel="Penalty">
+                                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                    @if (context.PermaBan)
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small">Perma-Ban</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small">@(context.TimeOutLength)s Timeout</MudChip>
+                                    }
+                                    @if (context.IsSilent)
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small">Silent</MudChip>
+                                    }
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Exemptions">
+                                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                    @if (context.ExcludeRegulars)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">Regulars</MudChip>
+                                    }
+                                    @if (context.ExcludeSubscribers)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">Subs</MudChip>
+                                    }
+                                    @if (context.ExcludeVips)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">VIPs</MudChip>
+                                    }
+                                    @if (!context.ExcludeRegulars && !context.ExcludeSubscribers && !context.ExcludeVips)
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">None</MudText>
+                                    }
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Actions" Style="text-align: right;">
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudTooltip Text="Load into tester">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Science"
+                                                       Size="Size.Small"
+                                                       Color="Color.Info"
+                                                       OnClick="() => LoadIntoTester(context)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Edit filter">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                       Size="Size.Small"
+                                                       Color="Color.Primary"
+                                                       OnClick="() => Edit(context)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete filter">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Size="Size.Small"
+                                                       Color="Color.Error"
+                                                       OnClick="() => Delete(context)" />
+                                    </MudTooltip>
+                                </MudStack>
                             </MudTd>
                         </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                                @(string.IsNullOrWhiteSpace(_searchString) ? "No word filters defined yet." : "No filters match your search.")
+                            </MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
                     </MudTable>
                 </MudPaper>
             </MudItem>
-        }
-        @if (wordFilter != null)
-        {
-            <MudItem xs="3">
+
+            <!-- Right: Add / Edit Form -->
+            <MudItem xs="12" lg="5">
                 <MudPaper Elevation="2" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
+                        <MudIcon Icon="@(wordFilter.Id == 0 ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">@(wordFilter.Id == 0 ? "Add Word Filter" : $"Edit Filter #{wordFilter.Id}")</MudText>
+                    </MudStack>
+
                     <EditForm Model="@wordFilter" OnValidSubmit="OnSubmit">
                         <DataAnnotationsValidator />
-                        <MudCardContent>
-                            <MudTextField Label="Phrase" Required="true" RequiredError="Phrase is required"
-                            @bind-Value="wordFilter.Phrase" />
-                            <MudCheckBox @bind-Value="@wordFilter.IsRegex" Label="Is Regex?"></MudCheckBox>
-                            <MudTextField Label="Message" Required="true" RequiredError="Message is required"
-                            @bind-Value="wordFilter.Message" />
-                            <MudTextField Label="Ban Reason" Required="true" RequiredError="Ban Reason is required"
-                            @bind-Value="wordFilter.BanReason" />
-                            <MudNumericField @bind-Value="@wordFilter.TimeOutLength" Label="Timeout Length"
-                                Variant="Variant.Text">
-                            </MudNumericField>
-                            <MudCheckBox @bind-Value="@wordFilter.PermaBan" Label="Perma Ban?"></MudCheckBox>
-                            <MudCheckBox @bind-Value="@wordFilter.IsSilent" Label="Is Silent?"></MudCheckBox>
-                            <MudCheckBox @bind-Value="@wordFilter.ExcludeRegulars" Label="Exclude Regulars?">
-                            </MudCheckBox>
-                            <MudCheckBox @bind-Value="@wordFilter.ExcludeSubscribers" Label="Exclude Subscribers?">
-                            </MudCheckBox>
-                            <MudCheckBox @bind-Value="@wordFilter.ExcludeVips" Label="Exclude Vips?"></MudCheckBox>
+                        <MudStack Spacing="3">
+                            <!-- Filter Rule -->
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary"><b>1. Match Pattern</b></MudText>
+                            <MudTextField Label="Phrase / Pattern"
+                                          Required="true"
+                                          RequiredError="Phrase is required"
+                                          @bind-Value="wordFilter.Phrase"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          HelperText="Word, sentence, or regex pattern to trigger on." />
 
-                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                Class="ml-auto">
-                                Submit
-                            </MudButton>
-                        </MudCardContent>
+                            <MudSwitch @bind-Value="wordFilter.IsRegex"
+                                       Color="Color.Info"
+                                       Label="Use Regular Expression (Regex)" />
+
+                            <!-- Penalty Settings -->
+                            <MudDivider Class="my-1" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary"><b>2. Penalty & Action</b></MudText>
+
+                            <MudSwitch @bind-Value="wordFilter.PermaBan"
+                                       Color="Color.Error"
+                                       Label="Permanent Ban" />
+
+                            <MudNumericField @bind-Value="wordFilter.TimeOutLength"
+                                             Label="Timeout Length (Seconds)"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="1"
+                                             Max="1209600"
+                                             Disabled="wordFilter.PermaBan"
+                                             HelperText="Duration to timeout the chatter (defaults to bot default if empty)." />
+
+                            <MudTextField Label="Ban / Timeout Reason"
+                                          Required="true"
+                                          RequiredError="Ban reason is required"
+                                          @bind-Value="wordFilter.BanReason"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          HelperText="Reason sent to Twitch moderation logs." />
+
+                            <!-- Chat Notification -->
+                            <MudDivider Class="my-1" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary"><b>3. Chat Notification</b></MudText>
+
+                            <MudSwitch @bind-Value="wordFilter.IsSilent"
+                                       Color="Color.Default"
+                                       Label="Silent (No bot message in chat)" />
+
+                            <MudTextField Label="Chat Response Message"
+                                          Required="!wordFilter.IsSilent"
+                                          Disabled="wordFilter.IsSilent"
+                                          @bind-Value="wordFilter.Message"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          HelperText="Message announced in chat when filter triggers." />
+
+                            <!-- Role Exemptions -->
+                            <MudDivider Class="my-1" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary"><b>4. Role Exemptions</b></MudText>
+
+                            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                                <MudCheckBox @bind-Value="wordFilter.ExcludeRegulars" Label="Regulars" Dense="true" Color="Color.Primary" />
+                                <MudCheckBox @bind-Value="wordFilter.ExcludeSubscribers" Label="Subscribers" Dense="true" Color="Color.Success" />
+                                <MudCheckBox @bind-Value="wordFilter.ExcludeVips" Label="VIPs" Dense="true" Color="Color.Warning" />
+                            </MudStack>
+
+                            <MudStack Row="true" Spacing="2" Class="mt-3" Justify="Justify.FlexEnd">
+                                @if (wordFilter.Id != 0)
+                                {
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Default"
+                                               StartIcon="@Icons.Material.Filled.Clear"
+                                               OnClick="ResetForm">
+                                        Cancel
+                                    </MudButton>
+                                }
+                                <MudButton ButtonType="ButtonType.Submit"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           Disabled="_isSaving">
+                                    @(_isSaving ? "Saving..." : (wordFilter.Id == 0 ? "Add Filter" : "Save Changes"))
+                                </MudButton>
+                            </MudStack>
+                        </MudStack>
                     </EditForm>
                 </MudPaper>
             </MudItem>
-        }
-    </MudGrid>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {
-    private List<WordFilter>? wordFilters;
-    private WordFilter? wordFilter { get; set; } = new();
-    [Inject] private IDialogService DialogService { get; set; } = default!;
-
-    protected override Task OnInitializedAsync()
+    private enum TesterMode
     {
-        wordFilters = BlacklistApi.GetBlackList();
-        return Task.CompletedTask;
+        AgainstCurrent,
+        AgainstAll
     }
 
-    private async Task Delete(WordFilter wordFilter)
+    private List<WordFilter>? wordFilters;
+    private WordFilter wordFilter { get; set; } = new();
+    private string _searchString = "";
+    private bool _isSaving;
+
+    // Tester state
+    private TesterMode _testerMode = TesterMode.AgainstCurrent;
+    private string _testInputString = "";
+    private string _testRegexError = "";
+    private List<WordFilter> _testMatchResults = new();
+
+    private IEnumerable<WordFilter> FilteredFilters
     {
-        bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
-        if (result != null)
+        get
         {
-            await BlacklistApi.DeleteBlacklist(wordFilter);
-            wordFilters = BlacklistApi.GetBlackList();
+            if (wordFilters == null) return Enumerable.Empty<WordFilter>();
+            if (string.IsNullOrWhiteSpace(_searchString)) return wordFilters;
+
+            var search = _searchString.Trim();
+            return wordFilters.Where(f =>
+                (!string.IsNullOrEmpty(f.Phrase) && f.Phrase.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(f.Message) && f.Message.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(f.BanReason) && f.BanReason.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBlacklist();
+    }
+
+    private async Task LoadBlacklist()
+    {
+        wordFilters = BlacklistApi.GetBlackList();
+        await Task.CompletedTask;
+    }
+
+    private void SetTesterMode(TesterMode mode)
+    {
+        _testerMode = mode;
+        RunFilterTest();
+    }
+
+    private void LoadIntoTester(WordFilter filter)
+    {
+        Edit(filter);
+        _testerMode = TesterMode.AgainstCurrent;
+        Snackbar.Add($"Loaded filter '{filter.Phrase}' into editor and tester.", Severity.Info);
+        RunFilterTest();
+    }
+
+    private void RunFilterTest()
+    {
+        _testRegexError = "";
+        _testMatchResults.Clear();
+
+        if (string.IsNullOrWhiteSpace(_testInputString))
+        {
+            return;
+        }
+
+        var testText = _testInputString;
+
+        if (_testerMode == TesterMode.AgainstCurrent)
+        {
+            if (string.IsNullOrWhiteSpace(wordFilter.Phrase))
+            {
+                return;
+            }
+
+            try
+            {
+                bool isMatch = false;
+                if (wordFilter.IsRegex)
+                {
+                    var regex = new Regex(wordFilter.Phrase, RegexOptions.IgnoreCase);
+                    isMatch = regex.IsMatch(testText);
+                }
+                else
+                {
+                    isMatch = testText.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (isMatch)
+                {
+                    _testMatchResults.Add(wordFilter);
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                _testRegexError = ex.Message;
+            }
+        }
+        else
+        {
+            // Test against all loaded blacklist filters
+            if (wordFilters == null) return;
+
+            foreach (var filter in wordFilters)
+            {
+                try
+                {
+                    bool isMatch = false;
+                    if (filter.IsRegex)
+                    {
+                        var regex = new Regex(filter.Phrase, RegexOptions.IgnoreCase);
+                        isMatch = regex.IsMatch(testText);
+                    }
+                    else
+                    {
+                        isMatch = testText.Contains(filter.Phrase, StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    if (isMatch)
+                    {
+                        _testMatchResults.Add(filter);
+                    }
+                }
+                catch (ArgumentException ex)
+                {
+                    _testRegexError = $"Error in rule '{filter.Phrase}': {ex.Message}";
+                }
+            }
+        }
+    }
+
+    private void ResetForm()
+    {
+        wordFilter = new();
+        RunFilterTest();
+    }
+
+    public async Task OnSubmit()
+    {
+        if (wordFilter == null || string.IsNullOrWhiteSpace(wordFilter.Phrase)) return;
+
+        wordFilter.Phrase = wordFilter.Phrase.Trim();
+
+        // Validate regex pattern if regex is enabled
+        if (wordFilter.IsRegex)
+        {
+            try
+            {
+                _ = new Regex(wordFilter.Phrase);
+            }
+            catch (ArgumentException ex)
+            {
+                Snackbar.Add($"Invalid regular expression: {ex.Message}", Severity.Error);
+                return;
+            }
+        }
+
+        if (wordFilter.IsSilent)
+        {
+            wordFilter.Message = wordFilter.Message ?? string.Empty;
+        }
+
+        _isSaving = true;
+        try
+        {
+            if (wordFilter.Id == 0)
+            {
+                await BlacklistApi.AddBlacklist(wordFilter);
+                Snackbar.Add($"Added filter '{wordFilter.Phrase}' to blacklist.", Severity.Success);
+            }
+            else
+            {
+                await BlacklistApi.UpdateBlacklist(wordFilter);
+                Snackbar.Add($"Updated filter '{wordFilter.Phrase}'.", Severity.Success);
+            }
+
+            ResetForm();
+            await LoadBlacklist();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving filter: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
             StateHasChanged();
         }
     }
 
-    public void Edit(WordFilter item)
+    private async Task Delete(WordFilter filter)
     {
-        navigationManager.NavigateTo($"/blacklist/{item.Id}");
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Delete Filter",
+            $"Are you sure you want to delete the filter '{filter.Phrase}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            try
+            {
+                await BlacklistApi.DeleteBlacklist(filter);
+                Snackbar.Add($"Deleted filter '{filter.Phrase}'.", Severity.Success);
+                if (wordFilter.Id == filter.Id)
+                {
+                    ResetForm();
+                }
+                await LoadBlacklist();
+                RunFilterTest();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error deleting filter: {ex.Message}", Severity.Error);
+            }
+        }
     }
 
-    public async void OnSubmit()
+    private void Edit(WordFilter item)
     {
-        if (wordFilter == null) return;
-        await BlacklistApi.UpdateBlacklist(wordFilter);
-        wordFilters = BlacklistApi.GetBlackList();
-        wordFilter = new();
-        StateHasChanged();
+        wordFilter = new WordFilter
+        {
+            Id = item.Id,
+            Phrase = item.Phrase,
+            Message = item.Message,
+            BanReason = item.BanReason,
+            TimeOutLength = item.TimeOutLength,
+            PermaBan = item.PermaBan,
+            IsRegex = item.IsRegex,
+            IsSilent = item.IsSilent,
+            ExcludeRegulars = item.ExcludeRegulars,
+            ExcludeSubscribers = item.ExcludeSubscribers,
+            ExcludeVips = item.ExcludeVips
+        };
+        RunFilterTest();
     }
 }
