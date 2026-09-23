@@ -179,11 +179,18 @@
 
         if (confirmed != true) return;
 
-        var cutoff = DateTime.UtcNow.AddDays(-olderThanDays);
-        var removed = await RaidTracker.PruneRaidHistory(cutoff);
-        raidHistory = await RaidTracker.GetHistory();
-        Snackbar.Add($"Cleaned up {removed} creator(s) with no raid activity in the last {olderThanDays} days.", Severity.Info);
-        StateHasChanged();
+        try
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-olderThanDays);
+            var removed = await RaidTracker.PruneRaidHistory(cutoff);
+            raidHistory = await RaidTracker.GetHistory();
+            Snackbar.Add($"Cleaned up {removed} creator(s) with no raid activity in the last {olderThanDays} days.", Severity.Info);
+            StateHasChanged();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Failed to clean up raid history.", Severity.Error);
+        }
     }
 
 private async Task Raid(RaidHistoryEntry item)

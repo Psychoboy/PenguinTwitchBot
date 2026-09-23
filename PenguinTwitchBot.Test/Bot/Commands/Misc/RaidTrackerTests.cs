@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MockQueryable.NSubstitute;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using NSubstitute.ReturnsExtensions;
 using PenguinTwitchBot.TwitchApi.Models.Users;
 
@@ -290,15 +291,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
             var oldDate = DateTime.UtcNow.AddDays(-100);
-            var oldEntries = new List<RaidHistoryEntry>
+            var recentDate = DateTime.UtcNow.AddDays(-5);
+            var allEntries = new List<RaidHistoryEntry>
             {
                 new RaidHistoryEntry { Name = "OldStreamer1", LastIncomingRaid = oldDate, LastOutgoingRaid = DateTime.MinValue },
-                new RaidHistoryEntry { Name = "OldStreamer2", LastIncomingRaid = oldDate, LastOutgoingRaid = oldDate }
+                new RaidHistoryEntry { Name = "OldStreamer2", LastIncomingRaid = oldDate, LastOutgoingRaid = oldDate },
+                new RaidHistoryEntry { Name = "RecentIncoming", LastIncomingRaid = recentDate, LastOutgoingRaid = oldDate },
+                new RaidHistoryEntry { Name = "RecentOutgoing", LastIncomingRaid = oldDate, LastOutgoingRaid = recentDate },
+                new RaidHistoryEntry { Name = "RecentBoth", LastIncomingRaid = recentDate, LastOutgoingRaid = recentDate }
             };
 
-            var queryable = oldEntries.BuildMockDbSet().AsQueryable();
             dbContext.RaidHistory.Find(Arg.Any<System.Linq.Expressions.Expression<Func<RaidHistoryEntry, bool>>>())
-                .Returns(queryable);
+                .Returns(callInfo =>
+                {
+                    var predicate = callInfo.Arg<System.Linq.Expressions.Expression<Func<RaidHistoryEntry, bool>>>();
+                    var filtered = allEntries.AsQueryable().Where(predicate).ToList();
+                    return filtered.BuildMockDbSet().AsQueryable();
+                });
 
             var raidTracker = new RaidTracker(
                 Substitute.For<ILogger<RaidTracker>>(),
@@ -313,10 +322,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             var cutoff = DateTime.UtcNow.AddDays(-30);
             var result = await raidTracker.PruneRaidHistory(cutoff);
 
-            // Assert
+            // Assert: only the 2 creators whose latest interaction is older than cutoff are deleted
             Assert.Equal(2, result);
-            dbContext.RaidHistory.Received(1).RemoveRange(Arg.Is<IEnumerable<RaidHistoryEntry>>(x => x.Count() == 2));
-            await dbContext.Received(1).SaveChangesAsync();
         }
 
         [Fact]
@@ -332,10 +339,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
             scope.ServiceProvider.Returns(serviceProvider);
             serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
 
-            var emptyList = new List<RaidHistoryEntry>();
-            var queryable = emptyList.BuildMockDbSet().AsQueryable();
+            var recentDate = DateTime.UtcNow.AddDays(-5);
+            var recentEntries = new List<RaidHistoryEntry>
+            {
+                new RaidHistoryEntry { Name = "RecentStreamer1", LastIncomingRaid = recentDate, LastOutgoingRaid = recentDate }
+            };
+
             dbContext.RaidHistory.Find(Arg.Any<System.Linq.Expressions.Expression<Func<RaidHistoryEntry, bool>>>())
-                .Returns(queryable);
+                .Returns(callInfo =>
+                {
+                    var predicate = callInfo.Arg<System.Linq.Expressions.Expression<Func<RaidHistoryEntry, bool>>>();
+                    var filtered = recentEntries.AsQueryable().Where(predicate).ToList();
+                    return filtered.BuildMockDbSet().AsQueryable();
+                });
 
             var raidTracker = new RaidTracker(
                 Substitute.For<ILogger<RaidTracker>>(),
@@ -352,7 +368,35 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Misc
 
             // Assert
             Assert.Equal(0, result);
-            dbContext.RaidHistory.DidNotReceive().RemoveRange(Arg.Any<IEnumerable<RaidHistoryEntry>>());
+        }
+
+        [Fact]
+        public async Task PruneRaidHistory_WhenDatabaseThrows_LogsAndRethrows()
+        {
+            // Arrange
+            var scopeFactory = Substitute.For<IServiceScopeFactory>();
+            var dbContext = Substitute.For<IUnitOfWork>();
+            var serviceProvider = Substitute.For<IServiceProvider>();
+            var scope = Substitute.For<IServiceScope>();
+
+            scopeFactory.CreateScope().Returns(scope);
+            scope.ServiceProvider.Returns(serviceProvider);
+            serviceProvider.GetService(typeof(IUnitOfWork)).Returns(dbContext);
+
+            dbContext.RaidHistory.Find(Arg.Any<System.Linq.Expressions.Expression<Func<RaidHistoryEntry, bool>>>())
+                .Throws(new InvalidOperationException("Database connection failed"));
+
+            var raidTracker = new RaidTracker(
+                Substitute.For<ILogger<RaidTracker>>(),
+                scopeFactory,
+                Substitute.For<ITwitchService>(),
+                Substitute.For<IServiceBackbone>(),
+                Substitute.For<PenguinTwitchBot.Application.Notifications.IPenguinDispatcher>(),
+                Substitute.For<ICommandHandler>(),
+                Substitute.For<PenguinTwitchBot.Services.IRaidRewardService>());
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(() => raidTracker.PruneRaidHistory(DateTime.UtcNow.AddDays(-30)));
         }
     }
 }

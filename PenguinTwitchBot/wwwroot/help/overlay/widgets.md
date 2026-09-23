@@ -35,7 +35,7 @@ A high-performance particle canvas simulation that launches realistic celebrator
   - **Sample Actions Available**: Pre-built sample actions for fireworks (including bursts for 5, 10, 25, 50, 100, and Epic fireworks, tier-based sub celebrations, and `!fireworks` triggers) are provided in `Data/SampleActions/ActionGroup_Fireworks.json` and can be imported via the [Action Manager](/actions/manage).
   - **Ambient Auto-Launch**: Can also be set to `AutoLaunch = true` in widget settings to continuously launch ambient background fireworks during celebrations.
 - **Customizable Settings**:
-  - **Shell Type**: Choose burst designs like `Peony`, `Willow`, `Chrysanthemum`, `Ring`, `Horsetail`, `Crossette`, or `Random`.
+  - **Shell Type**: Choose burst designs including `Crackle`, `Crossette`, `Crysanthemum`, `Falling Leaves`, `Floral`, `Ghost`, `Horse Tail`, `Palm`, `Ring`, `Strobe`, `Willow`, or `Random`.
   - **Explosion Size & Scale**: Adjust particle count and spread diameter.
   - **Long Exposure**: Toggles light trail persistence for luminous firework effects.
   - **Quality Modes**: `auto`, `high`, or `force low-end` for optimized GPU/CPU performance inside OBS browser sources.

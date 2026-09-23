@@ -8,7 +8,7 @@ The **Overlay Editor** provides a visual drag-and-drop canvas for designing rich
 
 - **Layout Management**:
   - Create multiple layouts for different stream scenes (e.g. *Just Chatting*, *Gameplay*, *BRB Screen*, *Tournament*).
-  - Mark one layout as **Default**; default layouts load automatically when opening browser sources without specifying an ID parameter.
+  - Mark one layout as **Default**; default layouts load automatically when opening `/overlay.html` without specifying a `layout` URL parameter, while adding `?layout=<name>` selects a specific layout.
   - Duplicate, rename, or delete existing layouts from the left-hand panel.
 - **Canvas Navigation**:
   - **Zoom**: Zoom in, zoom out, or reset zoom to 100% using the toolbar controls.

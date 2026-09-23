@@ -24,7 +24,6 @@ Over time, your raid database may accumulate creators who no longer stream or ch
      - Inactive > **30 days**
      - Inactive > **90 days**
      - Inactive > **180 days**
-     - Inactive > **90 days**
      - Inactive > **1 year**
    - **Date Basis**: Pruning evaluates the **latest interaction date** (the most recent timestamp between *Last Incoming Raid* and *Last Outgoing Raid*). A creator is only removed if their most recent raid interaction on either side is older than the chosen cutoff. If a creator raided you 60 days ago but you raided them 10 days ago, they will **not** be pruned under a 30-day cutoff.
 

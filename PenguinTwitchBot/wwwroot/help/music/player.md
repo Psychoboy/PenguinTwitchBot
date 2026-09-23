@@ -19,13 +19,15 @@ The music system balances viewer song requests with background music playback:
 
 ### Now Playing & Controls
 
-- **Current Track**: Displays video title, duration, requester, and play count.
-- **Playback Controls**:
-  - **Skip / Next**: Stops the current song and advances to the next request or pool track.
-  - **Steal Song**: If a viewer requested song is playing, clicking **Steal** automatically saves the track into your **Default Playlist** so it enters your permanent background rotation.
-  - **Ban Track**: Instantly bans the playing song from future requests.
-  - **Add Cooldown**: Places the playing track on a temporary request cooldown.
-- **Embedded Player**: Uses the YouTube IFrame API and can be embedded in your browser or OBS browser source.
+- **Current Track**: Displays the video title, requester, and duration.
+- **Now Playing Actions**:
+  - **Steal Song**: If a viewer-requested song is currently playing, clicking **Steal Song** saves the track into your **Default Playlist** for permanent background rotation (shows **Already in Playlist** if already present).
+  - **Add to Cooldown**: Places the currently playing song on a temporary request cooldown.
+- **Skipping & Moderation**:
+  - **Skipping**: To skip the playing track, use the chat commands `!veto` (immediate skip for Moderators/Streamer) or `!skip` (viewer vote-skip), or advance playback directly in the embedded YouTube player.
+  - **Request Queue Moderation**: From the **Song Requests** queue table, click **Move to Next** (priority), **Ban Song** (bans the queued track from future requests), or **Remove** (deletes the request from queue).
+  - **Banning Current Song**: To ban the currently playing track from future requests, add it via the [Banned Songs](/streamtools/bannedsongs) page.
+- **Embedded Player**: Uses the YouTube IFrame API to play audio and video directly in your browser.
 
 ---
 
