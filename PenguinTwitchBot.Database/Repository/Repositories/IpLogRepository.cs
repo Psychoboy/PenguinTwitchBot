@@ -9,13 +9,30 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
 {
     public class IpLogRepository(ApplicationDbContext context) : GenericRepository<IpLogEntry>(context), IIpLogRepository
     {
-        public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, int? limit = null, int? offset = null)
+        public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, string? userId = null, int? limit = null, int? offset = null)
         {
-            var baseQuery = _context.IpLogEntrys
-                .Where(x => x.Username.Equals(username)).Select(y => y.Ip).Distinct();
+            var baseQuery = _context.IpLogEntrys.AsQueryable();
+            if (!string.IsNullOrEmpty(userId))
+            {
+                baseQuery = baseQuery.Where(x => x.UserId == userId);
+            }
+            else
+            {
+                baseQuery = baseQuery.Where(x => x.Username.Equals(username));
+            }
+            var userIps = baseQuery.Select(y => y.Ip).Distinct();
 
             var query = _context.IpLogEntrys
-                .Where(x => baseQuery.Contains(x.Ip) && x.Username.Equals(username) == false);
+                .Where(x => userIps.Contains(x.Ip));
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                query = query.Where(x => x.UserId != userId);
+            }
+            else
+            {
+                query = query.Where(x => x.Username.Equals(username) == false);
+            }
 
             if (offset != null)
             {
@@ -28,40 +45,60 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             }
 
             return await query.ToListAsync();
-
         }
 
         public async Task<List<IpLogUsersWithSameIp>> GetAllUsersWithDuplicateIps()
         {
-            // Fetch distinct (Ip, Username) pairs — much smaller than the full table.
-            // Avoids an O(N²) self-join by doing pair generation in memory.
+            // Fetch records with Ip, UserId, Username, and ConnectedDate.
             var ipUserPairs = await _context.IpLogEntrys
-                .Select(x => new { x.Ip, x.Username })
-                .Distinct()
+                .Where(x => !string.IsNullOrEmpty(x.UserId))
+                .Select(x => new { x.Ip, x.UserId, x.Username, x.ConnectedDate })
                 .ToListAsync();
 
             return ipUserPairs
                 .GroupBy(x => x.Ip)
-                .Where(g => g.Count() > 1)
-                .SelectMany(g =>
+                .Select(g =>
                 {
-                    var users = g.Select(x => x.Username).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                    // Group by UserId so the same user (even if recorded under older usernames) is a single distinct user.
+                    // Pick the most recent username for display.
+                    var distinctUsers = g
+                        .GroupBy(u => u.UserId)
+                        .Select(ug => ug.OrderByDescending(u => u.ConnectedDate).First())
+                        .OrderBy(u => u.Username, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
                     var pairs = new List<IpLogUsersWithSameIp>();
-                    for (var i = 0; i < users.Count; i++)
-                        for (var j = i + 1; j < users.Count; j++)
-                            pairs.Add(new IpLogUsersWithSameIp { User1 = users[i], User2 = users[j] });
+                    for (var i = 0; i < distinctUsers.Count; i++)
+                    {
+                        for (var j = i + 1; j < distinctUsers.Count; j++)
+                        {
+                            pairs.Add(new IpLogUsersWithSameIp
+                            {
+                                User1 = distinctUsers[i].Username,
+                                User2 = distinctUsers[j].Username
+                            });
+                        }
+                    }
                     return pairs;
                 })
+                .SelectMany(pairs => pairs)
                 .DistinctBy(x => (x.User1.ToLowerInvariant(), x.User2.ToLowerInvariant()))
                 .OrderBy(x => x.User1, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.User2, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
-        public async Task<List<IpLogEntry>> GetKnownIpsForUser(string username, int? limit = null, int? offset = null)
+        public async Task<List<IpLogEntry>> GetKnownIpsForUser(string username, string? userId = null, int? limit = null, int? offset = null)
         {
-            var query = _context.IpLogEntrys
-                .Where(x => x.Username == username);
+            var query = _context.IpLogEntrys.AsQueryable();
+            if (!string.IsNullOrEmpty(userId))
+            {
+                query = query.Where(x => x.UserId == userId);
+            }
+            else
+            {
+                query = query.Where(x => x.Username == username);
+            }
 
             if (offset != null)
             {

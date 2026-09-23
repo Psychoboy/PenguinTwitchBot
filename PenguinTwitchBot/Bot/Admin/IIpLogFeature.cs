@@ -5,8 +5,8 @@ namespace PenguinTwitchBot.Bot.Admin
 {
     public interface IIpLogFeature
     {
-        Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username);
-        Task<List<IpLogEntry>> GetIpLogsForUser(string username);
+        Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, string? userId = null);
+        Task<List<IpLogEntry>> GetIpLogsForUser(string username, string? userId = null);
         Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps();
     }
 }
