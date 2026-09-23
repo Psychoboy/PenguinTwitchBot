@@ -242,12 +242,13 @@
 
     public async Task OnSubmit()
     {
+        if (_isSaving) return;
         if (autoShoutout == null || string.IsNullOrWhiteSpace(autoShoutout.Name)) return;
 
-        autoShoutout.Name = autoShoutout.Name.Trim();
+        autoShoutout.Name = PenguinTwitchBot.Database.Bot.Core.UsernameNormalizer.Normalize(autoShoutout.Name.Trim());
 
-        if (autoShoutouts != null && autoShoutout.Id == 0 &&
-            autoShoutouts.Any(x => x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)))
+        if (autoShoutouts != null &&
+            autoShoutouts.Any(x => x.Id != autoShoutout.Id && x.Name.Equals(autoShoutout.Name, StringComparison.OrdinalIgnoreCase)))
         {
             Snackbar.Add($"A shoutout for '{autoShoutout.Name}' already exists!", Severity.Warning);
             return;

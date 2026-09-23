@@ -192,10 +192,12 @@
     private string _testInput = "";
     private string _testError = "";
     private bool _isMatched = false;
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
 
     protected override async Task OnParametersSetAsync()
     {
         _isLoading = true;
+        wordFilter = null;
         try
         {
             if (id == 0)
@@ -231,13 +233,17 @@
         {
             if (wordFilter.IsRegex)
             {
-                var regex = new Regex(wordFilter.Phrase, RegexOptions.IgnoreCase);
+                var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
                 _isMatched = regex.IsMatch(_testInput);
             }
             else
             {
                 _isMatched = _testInput.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase);
             }
+        }
+        catch (RegexMatchTimeoutException ex)
+        {
+            _testError = $"Evaluation timed out: {ex.Message}";
         }
         catch (ArgumentException ex)
         {
@@ -247,6 +253,7 @@
 
     public async Task OnSubmit()
     {
+        if (_isSaving) return;
         if (wordFilter == null || string.IsNullOrWhiteSpace(wordFilter.Phrase)) return;
 
         wordFilter.Phrase = wordFilter.Phrase.Trim();
@@ -255,7 +262,7 @@
         {
             try
             {
-                _ = new Regex(wordFilter.Phrase);
+                _ = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
             }
             catch (ArgumentException ex)
             {
@@ -266,7 +273,7 @@
 
         if (wordFilter.IsSilent)
         {
-            wordFilter.Message = wordFilter.Message ?? string.Empty;
+            wordFilter.Message = string.Empty;
         }
 
         _isSaving = true;

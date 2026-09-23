@@ -110,6 +110,7 @@
                                     <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                                    Size="Size.Small"
                                                    Color="Color.Error"
+                                                   Disabled="@_deletingBots.Contains(context.Username)"
                                                    OnClick="() => Delete(context)" />
                                 </MudTooltip>
                             </MudTd>
@@ -134,6 +135,7 @@
     private KnownBot knownBot { get; set; } = new();
     private string _searchString = "";
     private bool _isSaving;
+    private readonly HashSet<string> _deletingBots = new(StringComparer.OrdinalIgnoreCase);
 
     private IEnumerable<KnownBot> FilteredBots
     {
@@ -161,6 +163,7 @@
 
     public async Task OnSubmit()
     {
+        if (_isSaving) return;
         if (knownBot == null || string.IsNullOrWhiteSpace(knownBot.Username)) return;
 
         knownBot.Username = knownBot.Username.Trim();
@@ -192,6 +195,8 @@
 
     public async Task Delete(KnownBot item)
     {
+        if (_deletingBots.Contains(item.Username)) return;
+
         bool? result = await DialogService.ShowMessageBoxAsync(
             "Remove Bot",
             $"Remove '{item.Username}' from known bots? The bot will no longer be excluded from viewer activity.",
@@ -200,16 +205,22 @@
 
         if (result == true)
         {
+            _deletingBots.Add(item.Username);
+            StateHasChanged();
             try
             {
                 await KnownBotsApi.RemoveKnownBot(item);
                 Snackbar.Add($"Removed '{item.Username}' from known bots.", Severity.Success);
                 LoadBots();
-                StateHasChanged();
             }
             catch (Exception ex)
             {
                 Snackbar.Add($"Error removing known bot: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                _deletingBots.Remove(item.Username);
+                StateHasChanged();
             }
         }
     }

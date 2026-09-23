@@ -116,6 +116,7 @@
     protected override async Task OnParametersSetAsync()
     {
         _isLoading = true;
+        autoShoutout = null;
         try
         {
             autoShoutout = await shoutOutSystem.GetAutoShoutoutAsync(id);
@@ -132,12 +133,13 @@
 
     public async Task OnSubmit()
     {
+        if (_isSaving) return;
         if (autoShoutout == null || string.IsNullOrWhiteSpace(autoShoutout.Name)) return;
 
         _isSaving = true;
         try
         {
-            autoShoutout.Name = autoShoutout.Name.Trim();
+            autoShoutout.Name = PenguinTwitchBot.Database.Bot.Core.UsernameNormalizer.Normalize(autoShoutout.Name.Trim());
             await shoutOutSystem.UpdateAutoShoutoutAsync(autoShoutout);
             Snackbar.Add($"Shoutout for '{autoShoutout.Name}' updated successfully.", Severity.Success);
             navigationManager.NavigateTo("/community/auto-shoutouts");

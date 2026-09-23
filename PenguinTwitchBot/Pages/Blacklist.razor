@@ -411,6 +411,33 @@
         RunFilterTest();
     }
 
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
+
+    private static bool EvaluateFilterMatch(WordFilter filter, string testText, out string? errorMessage)
+    {
+        errorMessage = null;
+        if (filter.IsRegex)
+        {
+            try
+            {
+                var regex = new Regex(filter.Phrase, RegexOptions.None, RegexTimeout);
+                return regex.IsMatch(testText);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                errorMessage = $"Evaluation timed out for regex '{filter.Phrase}'.";
+                return false;
+            }
+            catch (ArgumentException ex)
+            {
+                errorMessage = ex.Message;
+                return false;
+            }
+        }
+
+        return testText.Contains(filter.Phrase, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void RunFilterTest()
     {
         _testRegexError = "";
@@ -430,27 +457,13 @@
                 return;
             }
 
-            try
+            if (EvaluateFilterMatch(wordFilter, testText, out var error))
             {
-                bool isMatch = false;
-                if (wordFilter.IsRegex)
-                {
-                    var regex = new Regex(wordFilter.Phrase, RegexOptions.IgnoreCase);
-                    isMatch = regex.IsMatch(testText);
-                }
-                else
-                {
-                    isMatch = testText.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase);
-                }
-
-                if (isMatch)
-                {
-                    _testMatchResults.Add(wordFilter);
-                }
+                _testMatchResults.Add(wordFilter);
             }
-            catch (ArgumentException ex)
+            else if (!string.IsNullOrEmpty(error))
             {
-                _testRegexError = ex.Message;
+                _testRegexError = error;
             }
         }
         else
@@ -460,27 +473,13 @@
 
             foreach (var filter in wordFilters)
             {
-                try
+                if (EvaluateFilterMatch(filter, testText, out var error))
                 {
-                    bool isMatch = false;
-                    if (filter.IsRegex)
-                    {
-                        var regex = new Regex(filter.Phrase, RegexOptions.IgnoreCase);
-                        isMatch = regex.IsMatch(testText);
-                    }
-                    else
-                    {
-                        isMatch = testText.Contains(filter.Phrase, StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    if (isMatch)
-                    {
-                        _testMatchResults.Add(filter);
-                    }
+                    _testMatchResults.Add(filter);
                 }
-                catch (ArgumentException ex)
+                else if (!string.IsNullOrEmpty(error) && string.IsNullOrEmpty(_testRegexError))
                 {
-                    _testRegexError = $"Error in rule '{filter.Phrase}': {ex.Message}";
+                    _testRegexError = error;
                 }
             }
         }
@@ -494,6 +493,7 @@
 
     public async Task OnSubmit()
     {
+        if (_isSaving) return;
         if (wordFilter == null || string.IsNullOrWhiteSpace(wordFilter.Phrase)) return;
 
         wordFilter.Phrase = wordFilter.Phrase.Trim();
@@ -503,7 +503,7 @@
         {
             try
             {
-                _ = new Regex(wordFilter.Phrase);
+                _ = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
             }
             catch (ArgumentException ex)
             {
@@ -514,7 +514,7 @@
 
         if (wordFilter.IsSilent)
         {
-            wordFilter.Message = wordFilter.Message ?? string.Empty;
+            wordFilter.Message = string.Empty;
         }
 
         _isSaving = true;
