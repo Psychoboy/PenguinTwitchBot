@@ -1,6 +1,6 @@
 # Command Cooldowns
 
-The **Command Cooldowns** dashboard (`/commands/cooldowns`) provides real-time visibility into all active command cooldowns across your channel.
+The [Command Cooldowns](/commands/cooldowns) dashboard provides real-time visibility into all active command cooldowns across your channel.
 
 ---
 

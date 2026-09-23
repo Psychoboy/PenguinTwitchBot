@@ -1,12 +1,12 @@
 # Action Commands
 
-The **Action Commands** manager (`/actions/commands`) links custom chat commands directly to PenguinTwitchBot's Actions automation pipeline.
+The [Action Commands](/actions/commands) manager links custom chat commands directly to PenguinTwitchBot's Actions automation pipeline.
 
 ## Linking Commands to Actions
 
 When viewers type an action command in chat:
 - The bot evaluates permissions, cooldowns, and point costs.
-- If permitted, it invokes the target Action defined in **Action Manager**.
+- If permitted, it invokes the target Action defined in [Manage Actions](/actions/manage).
 - All configured sub-actions (playing audio, triggering overlay animations, firing OBS hotkeys, sending webhooks, awarding points) execute sequentially.
 
 ## Runtime Variables from Commands

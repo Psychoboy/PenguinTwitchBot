@@ -1,6 +1,6 @@
 # Blacklist & Word Filters
 
-The **Blacklist & Word Filters** manager (`/blacklist`) provides automated chat moderation to catch and penalize banned phrases, hate speech, scams, and prohibited links.
+The [Blacklist](/blacklist) manager provides automated chat moderation to catch and penalize banned phrases, hate speech, scams, and prohibited links.
 
 ## Filter Matching Modes
 

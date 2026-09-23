@@ -1,6 +1,6 @@
 # Drawing Giveaway Winners
 
-The **Draw Giveaway** view (`/giveaway/draw`) is the live control center during broadcast giveaways.
+The [Draw Giveaway](/giveaway/draw) view is the live control center during broadcast giveaways.
 
 ## Lifecycle Controls
 

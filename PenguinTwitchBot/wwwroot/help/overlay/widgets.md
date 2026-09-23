@@ -32,7 +32,7 @@ A high-performance particle canvas simulation that launches realistic celebrator
 
 - **How It Is Triggered**:
   - **Triggered Only via Sub-Actions**: Fireworks are triggered *exclusively* via sub-actions (specifically an `ExecuteAction` sub-action targeting a Fireworks action). When executed through the Action Queue, the bot broadcasts a WebSocket event (`data.name == "Fireworks"`) on the `events` topic, launching the burst animation.
-  - **Sample Actions Available**: Pre-built sample actions for fireworks (including bursts for 5, 10, 25, 50, 100, and Epic fireworks, tier-based sub celebrations, and `!fireworks` triggers) are provided in `Data/SampleActions/ActionGroup_Fireworks.json` and can be imported via the [Action Manager](/actions/manage).
+  - **Sample Actions Available**: Pre-built sample actions for fireworks (including bursts for 5, 10, 25, 50, 100, and Epic fireworks, tier-based sub celebrations, and `!fireworks` triggers) are provided in `Data/SampleActions/ActionGroup_Fireworks.json` and can be imported via [Manage Actions](/actions/manage).
   - **Ambient Auto-Launch**: Can also be set to `AutoLaunch = true` in widget settings to continuously launch ambient background fireworks during celebrations.
 - **Customizable Settings**:
   - **Shell Type**: Choose burst designs including `Crackle`, `Crossette`, `Crysanthemum`, `Falling Leaves`, `Floral`, `Ghost`, `Horse Tail`, `Palm`, `Ring`, `Strobe`, `Willow`, or `Random`.
@@ -62,7 +62,7 @@ Provides real-time visual feedback for the chat-based fishing mini-game.
 
 - **How It Is Triggered**:
   - **Triggered Only via Sub-Actions**: The fishing overlay widget is triggered *exclusively* by executing the **Fishing** sub-action (`SubActionTypes.Fishing`). When an action containing this sub-action runs, it calculates the catch, rolls rarity, awards XP, and broadcasts the event over the `fishing` WebSocket topic.
-  - **Sample Actions Available**: Complete sample actions for fishing (including casting mechanics, chat responses for catches and accidents, and point/gold payouts) are provided in `Data/SampleActions/ActionGroup_Fishing.json` and can be imported via the [Action Manager](/actions/manage).
+  - **Sample Actions Available**: Complete sample actions for fishing (including casting mechanics, chat responses for catches and accidents, and point/gold payouts) are provided in `Data/SampleActions/ActionGroup_Fishing.json` and can be imported via [Manage Actions](/actions/manage).
 - **Features**:
   - Subscribes to the `fishing` WebSocket topic.
   - Displays the catching viewer's avatar and username.
@@ -129,7 +129,7 @@ A customizable stream chat overlay that renders Twitch chat on your broadcast.
 A synchronized countdown or countup timer widget.
 
 - **How It Is Triggered**:
-  - Controlled from the **Stream Timer** dashboard (`/overlay/timer`) or via timer sub-actions:
+  - Controlled from the [Stream Timer](/overlay/timer) dashboard or via timer sub-actions:
     - `OverlayTimerStart`
     - `OverlayTimerStop`
     - `OverlayTimerAddTime`

@@ -1,6 +1,6 @@
 # Raid History Overview
 
-The **Raid History** dashboard tracks and analyzes raid interactions with other Twitch streamers, helping you foster relationships and reciprocate support within the streaming community.
+The [Raid History](/raidhistory) dashboard tracks and analyzes raid interactions with other Twitch streamers, helping you foster relationships and reciprocate support within the streaming community.
 
 ---
 
@@ -9,7 +9,7 @@ The **Raid History** dashboard tracks and analyzes raid interactions with other 
 - **Incoming Raids**: Records whenever a fellow creator raids your channel, including the viewer count, time, and game they were broadcasting.
 - **Outgoing Raids**: Tracks channels you have raided, including viewer counts and timestamps.
 - **Creator Online Status**: Periodically queries the Twitch API to indicate whether creators who raided you (or whom you raided) are currently streaming live.
-- **Game History**: Displays the most recent category or game played by the creator.
+- **Game / Category**: Displays the game the creator is **currently playing** if they are live, or the game they last raided with (or were last streaming) if offline.
 - **Average Viewer Count**: Automatically computes average incoming and outgoing viewers per creator.
 
 ---

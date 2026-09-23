@@ -6,7 +6,7 @@ Personalize your stream by giving viewers, subscribers, and VIPs their own disti
 
 ### Assigning a Voice to a Viewer
 
-1. Open **Voices** (`/voices`).
+1. Open [Voices](/voices).
 2. Under the **Active & User Voices** tab, view existing viewer mappings.
 3. In the right-hand panel:
    - Enter the Twitch **Username**.

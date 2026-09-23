@@ -1,6 +1,6 @@
 # Giveaway Prize Configuration
 
-In **Giveaway Settings** (`/giveaway/settings`), streamers configure the current giveaway prize, promotional media, and terms shown to viewers.
+In [Giveaway Settings](/giveaway/settings), streamers configure the current giveaway prize, promotional media, and terms shown to viewers.
 
 ## Current Giveaway Details
 

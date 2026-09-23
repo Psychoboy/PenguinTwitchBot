@@ -13,5 +13,5 @@ The Viewer Wheel allows streamers to draw random active viewers directly on stre
 ## De-duplication & Bot Safety
 
 - Each viewer can only enter once per open session.
-- Registered known bots (`/community/known-bots`) are automatically blocked from entering viewer wheels.
+- Registered [Known Bots](/community/known-bots) are automatically blocked from entering viewer wheels.
 

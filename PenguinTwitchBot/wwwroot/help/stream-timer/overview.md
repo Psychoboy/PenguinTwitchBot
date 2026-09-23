@@ -17,5 +17,5 @@ The **Stream Timer** allows you to manage countdowns, countup timers, subathons,
   - **Stop**: Pauses the running timer immediately.
   - **Reset to zero**: Clears the timer to `00:00:00`.
 - **Overlay Widget Integration**:
-  - Ensure you have added the **Timer** widget to your active overlay layout in the **Overlay Editor** (`/overlay/editor`) so viewers can see it on stream.
+  - Ensure you have added the **Timer** widget to your active overlay layout in the [Overlay Editor](/overlay/editor) so viewers can see it on stream.
 

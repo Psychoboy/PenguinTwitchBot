@@ -13,7 +13,7 @@ When you initiate an outgoing raid from your channel:
 
 ## Configuration Options
 
-In **Raid Rewards** (`/settings/raidrewards`):
+In [Raid Rewards](/settings/raidrewards):
 - **Enable Raid Rewards**: Toggle the feature active or inactive.
 - **Point Type**: Select which currency is awarded to successful raiders.
 - **Points to Award**: Amount of points granted per participant.

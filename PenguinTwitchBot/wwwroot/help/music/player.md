@@ -26,7 +26,7 @@ The music system balances viewer song requests with background music playback:
 - **Skipping & Moderation**:
   - **Skipping**: To skip the playing track, use the chat commands `!veto` (immediate skip for Moderators/Streamer) or `!skip` (viewer vote-skip), or advance playback directly in the embedded YouTube player.
   - **Request Queue Moderation**: From the **Song Requests** queue table, click **Move to Next** (priority), **Ban Song** (bans the queued track from future requests), or **Remove** (deletes the request from queue).
-  - **Banning Current Song**: To ban the currently playing track from future requests, add it via the [Banned Songs](/streamtools/bannedsongs) page.
+  - **Banning Current Song**: To ban the currently playing track from future requests, add it via the [Banned Songs](/bannedsongs) page.
 - **Embedded Player**: Uses the YouTube IFrame API to play audio and video directly in your browser.
 
 ---

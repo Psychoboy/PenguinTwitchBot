@@ -14,7 +14,7 @@ In Penguin Twitch Bot, fishing is powered entirely through the **Actions & Sub-A
 ## Sample Actions Library
 
 To get started quickly without manually assembling complex action pipelines:
-1. Open the [Action Management](/actions/manage) page.
+1. Open the [Manage Actions](/actions/manage) page.
 2. Click **Library** (or **Import**) in the top toolbar.
 3. Select and import the prebuilt **Fishing Sample Actions**.
 4. The bot will automatically create ready-to-use actions for `!fish`, inventory checks, and tournament controls, bound to your preferred triggers.

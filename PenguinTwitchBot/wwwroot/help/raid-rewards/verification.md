@@ -16,7 +16,7 @@ To maintain fairness and prevent abuse, PenguinTwitchBot enforces strict eligibi
 
 ## Sub-Actions & Triggers
 
-- **Raid History Integration**: Outgoing raids and participant statistics are tracked and can be reviewed in **Raid History** (`/streamtools/raid-history`).
+- **Raid History Integration**: Outgoing raids and participant statistics are tracked and can be reviewed in [Raid History](/raidhistory).
 - **Actions & Sub-Actions**:
   - The `GiftPoints` sub-action can be used in custom automated actions triggered by outgoing or incoming raids.
   - Twitch event triggers (`TwitchEvent`) can listen to raid events to launch hype overlays, play sound effects, or trigger fireworks.

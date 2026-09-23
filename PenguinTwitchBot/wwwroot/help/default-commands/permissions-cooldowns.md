@@ -4,7 +4,7 @@ Every command in PenguinTwitchBot can be customized with strict cooldown interva
 
 ## Cooldown Controls
 
-In the Command Edit view (`/commands/default/{id}`):
+In the [Default Commands](/commands/default) edit view:
 - **User Cooldown (Min / Max)**: Enforces a delay in seconds before the same chatter can run the command again. If Max is configured greater than Min, the bot randomizes the cooldown duration between the two values.
 - **Global Cooldown (Min / Max)**: Enforces a channel-wide delay before any chatter can trigger the command again.
 - **Announce Cooldown**: When checked, typing the command while on cooldown triggers a chat response notifying the user how many seconds remain.

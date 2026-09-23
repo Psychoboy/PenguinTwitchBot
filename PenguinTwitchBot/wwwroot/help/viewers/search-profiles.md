@@ -1,6 +1,6 @@
 # Community Viewers & Profiles
 
-The **Community Viewers** view (`/community/viewers`) provides moderators and streamers with quick access to viewer records, engagement history, and profile diagnostics.
+The [Viewers](/community/viewers) view provides moderators and streamers with quick access to viewer records, engagement history, and profile diagnostics.
 
 ## Finding Viewers
 
