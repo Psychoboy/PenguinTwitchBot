@@ -97,5 +97,32 @@ public class HelpContentServiceTests
         Assert.NotNull(content);
         Assert.Contains("being prepared", content, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData("raid-history", "Raid History Guide", 3)]
+    [InlineData("music-player", "Music Player Guide", 3)]
+    [InlineData("playlists", "Playlists Guide", 3)]
+    [InlineData("banned-songs", "Banned Songs Guide", 2)]
+    [InlineData("song-cooldowns", "Song Cooldowns Guide", 2)]
+    [InlineData("overlay-editor", "Overlay Editor Guide", 3)]
+    [InlineData("stream-timer", "Stream Timer Guide", 2)]
+    public async Task GetTopicAsync_StreamToolsTopics_ReturnValidTopicsAndContent(string topicId, string expectedTitle, int expectedTabCount)
+    {
+        var service = new HelpContentService(_env);
+
+        var topic = await service.GetTopicAsync(topicId);
+
+        Assert.NotNull(topic);
+        Assert.Equal(topicId, topic.Id);
+        Assert.Equal(expectedTitle, topic.Title);
+        Assert.Equal(expectedTabCount, topic.Tabs.Count);
+
+        foreach (var tab in topic.Tabs)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(tab.Title));
+            Assert.False(string.IsNullOrWhiteSpace(tab.Markdown));
+            Assert.DoesNotContain("is being prepared", tab.Markdown);
+        }
+    }
 }
 

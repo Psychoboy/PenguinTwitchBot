@@ -71,7 +71,7 @@
         _markdown = Markdown;
         _tabs = Tabs;
 
-        if (!string.IsNullOrWhiteSpace(TopicId))
+        if ((_tabs == null || _tabs.Count == 0) && string.IsNullOrEmpty(_markdown) && !string.IsNullOrWhiteSpace(TopicId))
         {
             _isLoading = true;
             try

@@ -1,25 +1,43 @@
 @using PenguinTwitchBot.Services
 @inject IDialogService DialogService
+@inject IHelpContentService HelpContentService
 
-<MudButton Variant="@Variant"
-           Color="@Color"
-           Size="@Size"
-           StartIcon="@(ShowIcon ? (Icon ?? Icons.Material.Filled.HelpOutline) : null)"
-           OnClick="OpenHelpAsync"
-           Class="@Class"
-           Style="@Style">
-    @Text
-</MudButton>
+@if (AsButton)
+{
+    <MudButton Variant="@Variant"
+               Color="@Color"
+               Size="@Size"
+               StartIcon="@(ShowIcon ? (Icon ?? Icons.Material.Filled.HelpOutline) : null)"
+               OnClick="OpenHelpAsync"
+               Class="@Class"
+               Style="@Style">
+        @Text
+    </MudButton>
+}
+else
+{
+    <MudTooltip Text="@(Tooltip ?? Text ?? "Help")">
+        <MudIconButton Icon="@(Icon ?? Icons.Material.Filled.HelpOutline)"
+                       Color="@Color"
+                       Size="@Size"
+                       OnClick="OpenHelpAsync"
+                       Class="@Class"
+                       Style="@Style"
+                       aria-label="@(Tooltip ?? Text ?? "Help")" />
+    </MudTooltip>
+}
 
 @code {
     [Parameter] public string Text { get; set; } = "Help";
+    [Parameter] public string? Tooltip { get; set; }
     [Parameter] public string? Topic { get; set; }
     [Parameter] public string? DialogTitle { get; set; }
     [Parameter] public string? Icon { get; set; }
-    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public Color Color { get; set; } = Color.Default;
     [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
     [Parameter] public Size Size { get; set; } = Size.Medium;
     [Parameter] public bool ShowIcon { get; set; } = true;
+    [Parameter] public bool AsButton { get; set; } = false;
     [Parameter] public string? Markdown { get; set; }
     [Parameter] public List<HelpTabItem>? Tabs { get; set; }
     [Parameter] public string? Class { get; set; }
@@ -27,14 +45,20 @@
 
     private async Task OpenHelpAsync()
     {
+        HelpTopic? topic = null;
+        if (!string.IsNullOrWhiteSpace(Topic))
+        {
+            topic = await HelpContentService.GetTopicAsync(Topic);
+        }
+
         var parameters = new DialogParameters<HelpDialog>
         {
             { x => x.TopicId, Topic },
-            { x => x.Title, DialogTitle },
-            { x => x.Icon, Icon },
+            { x => x.Title, DialogTitle ?? topic?.Title },
+            { x => x.Icon, Icon ?? topic?.Icon },
             { x => x.IconColor, Color },
-            { x => x.Markdown, Markdown },
-            { x => x.Tabs, Tabs }
+            { x => x.Markdown, Markdown ?? topic?.Markdown },
+            { x => x.Tabs, Tabs ?? topic?.Tabs }
         };
 
         var options = new DialogOptions
@@ -45,7 +69,7 @@
             CloseOnEscapeKey = true
         };
 
-        var title = DialogTitle ?? Text;
+        var title = DialogTitle ?? topic?.Title ?? Text;
         await DialogService.ShowAsync<HelpDialog>(title, parameters, options);
     }
 }

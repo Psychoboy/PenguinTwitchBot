@@ -15,10 +15,13 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Music Player</PageTitle>
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h4" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.MusicNote" Class="mr-2" />
-            Music Player
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Class="mr-2" />
+                Music Player
+            </MudText>
+            <HelpButton Topic="music-player" />
+        </MudStack>
 
         <MudGrid Spacing="3">
             <MudItem xs="12" md="4">

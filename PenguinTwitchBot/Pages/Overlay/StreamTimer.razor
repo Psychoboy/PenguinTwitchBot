@@ -9,10 +9,13 @@
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.Medium">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h4">
-            <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
-            Stream Timer
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
+                Stream Timer
+            </MudText>
+            <HelpButton Topic="stream-timer" />
+        </MudStack>
 
         <MudAlert Severity="Severity.Info" Dense="true">
             Controls the Timer overlay widget. Add a <b>Timer</b> widget to a layout in the Overlay Editor to show it on stream.
