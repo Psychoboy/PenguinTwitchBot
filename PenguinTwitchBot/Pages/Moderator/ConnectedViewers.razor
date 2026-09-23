@@ -1,48 +1,124 @@
-﻿@page "/community/connected-viewers"
-@using PenguinTwitchBot.Circuit;
-@using PenguinTwitchBot.Models;
-@using Microsoft.AspNetCore.Components.Server.Circuits;
-@using System.Collections.Concurrent;
+@page "/community/connected-viewers"
+@using PenguinTwitchBot.Circuit
+@using PenguinTwitchBot.Models
+@using Microsoft.AspNetCore.Components.Server.Circuits
+@using System.Collections.Concurrent
 @implements IDisposable
 @attribute [Authorize(Roles = "Streamer, Moderator")]
 @inject ICircuitUserService UserService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Connected Viewers</PageTitle>
 
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.ConnectWithoutContact" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Connected Viewers</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    View active web browser circuits and live navigation sessions in real-time.
+                </MudText>
+            </MudStack>
+            <MudChip T="string" Color="Color.Success" Size="Size.Medium" Icon="@Icons.Material.Filled.Wifi">
+                @circuits.Count Active @(circuits.Count == 1 ? "Session" : "Sessions")
+            </MudChip>
+        </MudStack>
 
- @* <h1>@MyUserId</h1> *@
-
-@* <div>@MyCircuitMessage</div>
-<div>There are @UserService.Circuits.Count Users Connected</div>
-<div>@UserRemovedMessage</div> *@
-
- <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-     <MudPaper>
-        <MudTable Items="@circuits">
-             <ToolBarContent>
-                 <MudText Typo="Typo.h6">Connected Users</MudText>
-             </ToolBarContent>
-             <HeaderContent>
-                 <MudTh>Username</MudTh>
-                 <MudTh>Current Page</MudTh>
-                <MudTh>Last Seen</MudTh>
-                <MudTh>Ip Address</MudTh>
-             </HeaderContent>
-             <RowTemplate>
-                 <MudTd DataLabel="Id">@context.Value.UserName</MudTd>
-                 <MudTd DataLabel="LastPage">@context.Value.LastPage</MudTd>
-                <MudTd DataLabel="LastPage">@context.Value.LastSeen</MudTd>
-                    <MudTd DataLabel="IpAddress">@context.Value.UserIp</MudTd>
-             </RowTemplate>
-             <PagerContent>
-                 <MudTablePager />
-             </PagerContent>
-         </MudTable>
-     </MudPaper>
- </MudContainer>
+        <!-- Connected Users Table -->
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable Items="@FilteredCircuits" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="10">
+                <ToolBarContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">Active Sessions</MudText>
+                        <MudSpacer />
+                        <MudTextField @bind-Value="_searchString"
+                                      Placeholder="Filter by username, page, or IP..."
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      IconSize="Size.Medium"
+                                      Clearable="true"
+                                      Immediate="true"
+                                      Style="max-width: 320px;" />
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>User</MudTh>
+                    <MudTh>Current / Last Page</MudTh>
+                    <MudTh>Last Active</MudTh>
+                    <MudTh>IP Address</MudTh>
+                    <MudTh Style="text-align: right;">Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="User">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                @(string.IsNullOrWhiteSpace(context.Value.UserName) ? "?" : context.Value.UserName.Substring(0, 1).ToUpperInvariant())
+                            </MudAvatar>
+                            <MudLink Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Value.UserName)}")" Typo="Typo.subtitle2">
+                                @context.Value.UserName
+                            </MudLink>
+                        </MudStack>
+                    </MudTd>
+                    <MudTd DataLabel="Current Page">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" Icon="@Icons.Material.Filled.Web">
+                            @(string.IsNullOrWhiteSpace(context.Value.LastPage) ? "/" : context.Value.LastPage)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Last Active">
+                        <ToLocal DateTime="@context.Value.LastSeen" />
+                    </MudTd>
+                    <MudTd DataLabel="IP Address">
+                        <code>@context.Value.UserIp</code>
+                    </MudTd>
+                    <MudTd DataLabel="Action" Style="text-align: right;">
+                        <MudTooltip Text="View profile">
+                            <MudIconButton Icon="@Icons.Material.Filled.AccountCircle"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Value.UserName)}")" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                        @(string.IsNullOrWhiteSpace(_searchString) ? "No active user sessions currently connected." : "No active sessions match the filter.")
+                    </MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
 
 @code {
-    ConcurrentDictionary<string, CircuitUser> circuits = new();
+    private ConcurrentDictionary<string, CircuitUser> circuits = new();
+    private string _searchString = "";
+
+    private IEnumerable<KeyValuePair<string, CircuitUser>> FilteredCircuits
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_searchString))
+            {
+                return circuits;
+            }
+
+            var search = _searchString.Trim();
+            return circuits.Where(c =>
+                (!string.IsNullOrEmpty(c.Value.UserName) && c.Value.UserName.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(c.Value.LastPage) && c.Value.LastPage.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(c.Value.UserIp) && c.Value.UserIp.Contains(search, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
     protected override void OnInitialized()
     {
         UserService.CircuitsChanged += UserService_CircuitsChanged;
@@ -52,13 +128,13 @@
 
     private void UserService_UserRemoved(object sender, UserRemovedEventArgs e)
     {
-        InvokeAsync(() => StateHasChanged());
+        InvokeAsync(StateHasChanged);
     }
 
     private void UserService_CircuitsChanged(object? sender, EventArgs e)
     {
         circuits = UserService.Circuits;
-        InvokeAsync(() => StateHasChanged());
+        InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()

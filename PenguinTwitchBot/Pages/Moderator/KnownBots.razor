@@ -1,91 +1,227 @@
 @page "/community/known-bots"
 @attribute [Authorize(Roles = "Streamer, Moderator")]
-@using PenguinTwitchBot.Database.Bot.Models;
+@using PenguinTwitchBot.Database.Bot.Models
 @inject PenguinTwitchBot.Bot.Commands.Moderation.IKnownBots KnownBotsApi
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Known Bots</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
-        @if (knownBots != null)
-        {
-            <MudItem xs="6">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Known Bots</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Manage known Twitch bots. Registered bots are excluded from viewer activity statistics, giveaways, and chat rewards.
+                </MudText>
+            </MudStack>
+            @if (knownBots != null)
+            {
+                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.SmartToy">
+                    @knownBots.Count Known @(knownBots.Count == 1 ? "Bot" : "Bots")
+                </MudChip>
+            }
+        </MudStack>
+
+        <MudGrid Spacing="4">
+            <!-- Add Bot Card -->
+            <MudItem xs="12" md="4">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudTable Items="@knownBots">
-                        <HeaderContent>
-                            <MudTh>Name</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd DataLabel="Name">@context.Username</MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => Delete(context)">Delete
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">Add Known Bot</MudText>
+                        </MudStack>
+
+                        <EditForm Model="@knownBot" OnValidSubmit="OnSubmit">
+                            <DataAnnotationsValidator />
+                            <MudStack Spacing="3">
+                                <MudTextField Label="Bot Username"
+                                              Required="true"
+                                              RequiredError="Username is required"
+                                              @bind-Value="knownBot.Username"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.SmartToy"
+                                              HelperText="Enter the Twitch username of the bot to exclude." />
+
+                                <MudButton ButtonType="ButtonType.Submit"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Add"
+                                           Disabled="_isSaving">
+                                    @(_isSaving ? "Adding..." : "Add Bot")
                                 </MudButton>
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
+                            </MudStack>
+                        </EditForm>
+                    </MudStack>
                 </MudPaper>
             </MudItem>
 
-        }
-        @if (knownBot != null)
-        {
-            <MudItem xs="6">
+            <!-- Known Bots Table -->
+            <MudItem xs="12" md="8">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <EditForm Model="@knownBot" OnValidSubmit="OnSubmit">
-                        <MudCardContent>
-                            <MudTextField Label="Username" Required="true" RequiredError="Username is required"
-                            @bind-Value="knownBot.Username" />
-                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                Class="ml-auto">
-                                Submit
-                            </MudButton>
-                        </MudCardContent>
-                    </EditForm>
+                    <MudTable Items="@FilteredBots" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="10">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-1" Style="width: 100%;">
+                                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Registered Bots</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchString"
+                                              Placeholder="Search bots..."
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              IconSize="Size.Medium"
+                                              Clearable="true"
+                                              Immediate="true"
+                                              Style="max-width: 240px;" />
+                            </MudStack>
+                        </ToolBarContent>
+                        <HeaderContent>
+                            <MudTh>Bot Username</MudTh>
+                            <MudTh>Viewer Profile</MudTh>
+                            <MudTh Style="text-align: right;">Action</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Bot Username">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudAvatar Color="Color.Default" Size="Size.Small">
+                                        <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+                                    </MudAvatar>
+                                    <MudText Typo="Typo.subtitle2">@context.Username</MudText>
+                                </MudStack>
+                            </MudTd>
+                            <MudTd DataLabel="Viewer Profile">
+                                <MudLink Href="@($"/community/viewers/edit?name={Uri.EscapeDataString(context.Username)}")" Typo="Typo.body2">
+                                    View Activity
+                                </MudLink>
+                            </MudTd>
+                            <MudTd DataLabel="Action" Style="text-align: right;">
+                                <MudTooltip Text="Remove bot">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   Disabled="@_deletingBots.Contains(context.Username)"
+                                                   OnClick="() => Delete(context)" />
+                                </MudTooltip>
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4 text-center">
+                                @(string.IsNullOrWhiteSpace(_searchString) ? "No known bots added yet." : "No bots match your search.")
+                            </MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager />
+                        </PagerContent>
+                    </MudTable>
                 </MudPaper>
             </MudItem>
-        }
-    </MudGrid>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {
     private List<KnownBot>? knownBots;
-    private KnownBot? knownBot { get; set; } = new();
-    [Inject] private IDialogService DialogService { get; set; } = default!;
+    private KnownBot knownBot { get; set; } = new();
+    private string _searchString = "";
+    private bool _isSaving;
+    private readonly HashSet<string> _deletingBots = new(StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<KnownBot> FilteredBots
+    {
+        get
+        {
+            if (knownBots == null) return Enumerable.Empty<KnownBot>();
+            if (string.IsNullOrWhiteSpace(_searchString)) return knownBots;
+
+            return knownBots.Where(b =>
+                !string.IsNullOrEmpty(b.Username) &&
+                b.Username.Contains(_searchString.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+    }
 
     protected override Task OnInitializedAsync()
     {
-        knownBots = KnownBotsApi.GetKnownBots();
+        LoadBots();
         return Task.CompletedTask;
     }
 
-    public async void OnSubmit()
+    private void LoadBots()
     {
-        if (knownBot == null) return;
-        await KnownBotsApi.AddKnownBot(knownBot);
-        knownBots = KnownBotsApi.GetKnownBots();
-        knownBot = new();
-        StateHasChanged();
+        knownBots = KnownBotsApi.GetKnownBots().OrderBy(b => b.Username).ToList();
     }
-    public async Task Delete(KnownBot item)
+
+    public async Task OnSubmit()
     {
-        bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
-        if (result != null)
+        if (_isSaving) return;
+        if (knownBot == null || string.IsNullOrWhiteSpace(knownBot.Username)) return;
+
+        knownBot.Username = knownBot.Username.Trim();
+
+        if (knownBots != null && knownBots.Any(x => x.Username.Equals(knownBot.Username, StringComparison.OrdinalIgnoreCase)))
         {
-            await KnownBotsApi.RemoveKnownBot(item);
-            knownBots = KnownBotsApi.GetKnownBots();
+            Snackbar.Add($"'{knownBot.Username}' is already registered as a known bot.", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await KnownBotsApi.AddKnownBot(knownBot);
+            Snackbar.Add($"Added '{knownBot.Username}' to known bots.", Severity.Success);
+            knownBot = new();
+            LoadBots();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error adding known bot: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
             StateHasChanged();
         }
     }
 
-    public void CreateFilter()
+    public async Task Delete(KnownBot item)
     {
-        navigationManager.NavigateTo($"/createknownbot");
+        if (_deletingBots.Contains(item.Username)) return;
+
+        bool? result = await DialogService.ShowMessageBoxAsync(
+            "Remove Bot",
+            $"Remove '{item.Username}' from known bots? The bot will no longer be excluded from viewer activity.",
+            yesText: "Remove",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            _deletingBots.Add(item.Username);
+            StateHasChanged();
+            try
+            {
+                await KnownBotsApi.RemoveKnownBot(item);
+                Snackbar.Add($"Removed '{item.Username}' from known bots.", Severity.Success);
+                LoadBots();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error removing known bot: {ex.Message}", Severity.Error);
+            }
+            finally
+            {
+                _deletingBots.Remove(item.Username);
+                StateHasChanged();
+            }
+        }
     }
 }
