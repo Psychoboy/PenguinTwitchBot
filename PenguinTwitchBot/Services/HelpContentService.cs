@@ -47,6 +47,66 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Feature Services", Icons.Material.Filled.MiscellaneousServices, "app-settings/features.md"),
                 ("Scheduled Jobs & Cron", Icons.Material.Filled.Schedule, "app-settings/cron.md")
             ]
+        ),
+        ["raid-history"] = (
+            "Raid History Guide",
+            Icons.Material.Filled.History,
+            [
+                ("Overview", Icons.Material.Filled.History, "raid-history/overview.md"),
+                ("Filters & Cleanup", Icons.Material.Filled.FilterAlt, "raid-history/filters-cleanup.md"),
+                ("Triggers & Rewards", Icons.Material.Filled.Bolt, "raid-history/triggers-rewards.md")
+            ]
+        ),
+        ["music-player"] = (
+            "Music Player Guide",
+            Icons.Material.Filled.MusicNote,
+            [
+                ("Playback & Queue", Icons.Material.Filled.PlayCircle, "music/player.md"),
+                ("Playlists & Pooling", Icons.Material.Filled.QueueMusic, "music/multi-playlist.md"),
+                ("Sub-Actions & Controls", Icons.Material.Filled.Bolt, "music/subactions.md")
+            ]
+        ),
+        ["playlists"] = (
+            "Playlists Guide",
+            Icons.Material.Filled.LibraryMusic,
+            [
+                ("Playlist Management", Icons.Material.Filled.LibraryMusic, "music/playlists.md"),
+                ("YouTube Import", Icons.Custom.Brands.YouTube, "music/import.md"),
+                ("Multi-Playlist Selection", Icons.Material.Filled.Checklist, "music/multi-playlist.md")
+            ]
+        ),
+        ["banned-songs"] = (
+            "Banned Songs Guide",
+            Icons.Material.Filled.Block,
+            [
+                ("Banned Songs", Icons.Material.Filled.Block, "music/banned-songs.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "music/banned-triggers.md")
+            ]
+        ),
+        ["song-cooldowns"] = (
+            "Song Cooldowns Guide",
+            Icons.Material.Filled.Timer,
+            [
+                ("Cooldown Rules", Icons.Material.Filled.Timer, "music/cooldowns.md"),
+                ("Responses & Automation", Icons.Material.Filled.Chat, "music/cooldown-responses.md")
+            ]
+        ),
+        ["overlay-editor"] = (
+            "Overlay Editor Guide",
+            Icons.Material.Filled.Dashboard,
+            [
+                ("Canvas & Layouts", Icons.Material.Filled.Dashboard, "overlay/editor.md"),
+                ("Widget Catalog", Icons.Material.Filled.Widgets, "overlay/widgets.md"),
+                ("OBS & Sub-Actions", Icons.Material.Filled.SettingsInputComponent, "overlay/obs-integration.md")
+            ]
+        ),
+        ["stream-timer"] = (
+            "Stream Timer Guide",
+            Icons.Material.Filled.Timer,
+            [
+                ("Timer Controls", Icons.Material.Filled.Timer, "stream-timer/overview.md"),
+                ("Sub-Actions & Automation", Icons.Material.Filled.Bolt, "stream-timer/subactions.md")
+            ]
         )
     };
 

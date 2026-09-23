@@ -1,6 +1,8 @@
 @page "/raidhistory"
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.Misc.RaidTracker RaidTracker
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid History</PageTitle>
 
@@ -8,18 +10,30 @@
 {
 <MudContainer Class="pa-2 pa-md-3" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="2">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <MudText Typo="Typo.h5">Raid History</MudText>
+            <HelpButton Topic="raid-history" />
             <MudSpacer />
             <MudText Typo="Typo.body2" Color="Color.Secondary">@GetFilteredContent()?.Count creator(s)</MudText>
         </MudStack>
         <MudPaper Elevation="1">
             <MudTable Items="@(GetFilteredContent())" Dense="true" Hover="true" SortLabel="Name" FixedHeader="true">
                 <ToolBarContent>
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="pa-2" Style="width:100%">
                         <MudText Typo="Typo.subtitle1">Raid Statistics</MudText>
                         <MudSpacer />
+                        <MudTextField @bind-Value="_search" Placeholder="Search creator or game" Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Clearable="true"
+                                      Style="max-width: 250px;" />
                         <MudCheckBox @bind-Value="OnlineOnly" Label="Online only" Color="Color.Primary" Dense="true" />
+                        <MudMenu Label="Clean Up" StartIcon="@Icons.Material.Filled.CleaningServices"
+                                 Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Dense="true">
+                            <MudMenuItem OnClick="() => PruneHistory(30)">Inactive > 30 days</MudMenuItem>
+                            <MudMenuItem OnClick="() => PruneHistory(90)">Inactive > 90 days</MudMenuItem>
+                            <MudMenuItem OnClick="() => PruneHistory(180)">Inactive > 180 days</MudMenuItem>
+                            <MudMenuItem OnClick="() => PruneHistory(365)">Inactive > 1 year</MudMenuItem>
+                        </MudMenu>
                     </MudStack>
                 </ToolBarContent>
                 <HeaderContent>
@@ -128,6 +142,7 @@
 @code {
     private List<RaidHistoryEntry>? raidHistory;
     private bool OnlineOnly { get; set; } = true;
+    private string _search = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -136,11 +151,39 @@
 
     private List<RaidHistoryEntry>? GetFilteredContent()
     {
-        if(OnlineOnly)
+        var items = raidHistory?.AsEnumerable();
+        if (items == null) return null;
+
+        if (OnlineOnly)
         {
-            return raidHistory?.Where(x => x.IsOnline).ToList();
+            items = items.Where(x => x.IsOnline);
         }
-        return raidHistory;
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            items = items.Where(x =>
+                (x.DisplayName != null && x.DisplayName.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Name != null && x.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)) ||
+                (x.LastGame != null && x.LastGame.Contains(_search, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return items.ToList();
+    }
+
+    private async Task PruneHistory(int olderThanDays)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Clean Up Raid History",
+            $"This will remove creators whose latest raid activity (the most recent incoming or outgoing raid) occurred more than {olderThanDays} days ago.\n\nAre you sure you want to proceed?",
+            yesText: "Clean Up", cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        var cutoff = DateTime.UtcNow.AddDays(-olderThanDays);
+        var removed = await RaidTracker.PruneRaidHistory(cutoff);
+        raidHistory = await RaidTracker.GetHistory();
+        Snackbar.Add($"Cleaned up {removed} creator(s) with no raid activity in the last {olderThanDays} days.", Severity.Info);
+        StateHasChanged();
     }
 
 private async Task Raid(RaidHistoryEntry item)

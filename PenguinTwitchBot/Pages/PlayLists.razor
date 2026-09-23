@@ -12,29 +12,35 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Playlists</PageTitle>
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h4" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Class="mr-2" />
-            Playlist Management
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Class="mr-2" />
+                Playlist Management
+            </MudText>
+            <HelpButton Topic="playlists" />
+        </MudStack>
 
         <MudGrid Spacing="3">
             @if (musicPlaylists != null)
             {
                 <MudItem xs="12" md="4">
-                    <AvailablePlaylists Playlists="musicPlaylists" DefaultPlaylistId="defaultPlaylistId" AdditionalPlaylistIds="additionalPlaylistIds"
-                                       OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnView="ViewList" OnDelete="DeletePlaylist" OnRefresh="RefreshUnplayedSongs">
-                        <ToolBarContent>
-                            <MudSpacer />
-                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                                       StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" Class="mr-2">
-                                Import from YouTube
-                            </MudButton>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Add" OnClick="CreateBlankPlaylist">
-                                New Playlist
-                            </MudButton>
-                        </ToolBarContent>
-                    </AvailablePlaylists>
+                    <MudStack Spacing="2">
+                        <MudPaper Elevation="2" Class="pa-2">
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                           StartIcon="@Icons.Custom.Brands.YouTube" OnClick="ImportFromYouTube" FullWidth="true">
+                                    Import YouTube
+                                </MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Add" OnClick="CreateBlankPlaylist" FullWidth="true">
+                                    New Playlist
+                                </MudButton>
+                            </MudStack>
+                        </MudPaper>
+
+                        <AvailablePlaylists Playlists="musicPlaylists" DefaultPlaylistId="defaultPlaylistId" AdditionalPlaylistIds="additionalPlaylistIds"
+                                            OnSetDefault="SetDefaultPlaylist" OnToggleAdditional="ToggleAdditionalPlaylist" OnView="ViewList" OnDelete="DeletePlaylist" OnRefresh="RefreshUnplayedSongs" />
+                    </MudStack>
                 </MudItem>
             }
             @if (currentPlayList != null)

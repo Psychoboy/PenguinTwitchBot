@@ -20,7 +20,10 @@
     <!-- ===================== LEFT: Layout list ===================== -->
     <div class="layouts-panel">
         <div class="panel-header">
-            <MudText Typo="Typo.subtitle1"><b>Layouts</b></MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudText Typo="Typo.subtitle1"><b>Layouts</b></MudText>
+                <HelpButton Topic="overlay-editor" />
+            </MudStack>
             <MudTooltip Text="New layout">
                 <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
                                Size="Size.Small" OnClick="ShowNewLayoutDialog" />
@@ -149,6 +152,9 @@
                                    OnClick="PanRight"
                                    Class="ml-1" />
                 </MudTooltip>
+
+                <MudDivider Vertical="true" Class="mx-2" />
+                <HelpButton Topic="overlay-editor" />
             }
             else
             {

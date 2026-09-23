@@ -12,10 +12,13 @@
 
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="4">
-        <MudText Typo="Typo.h4">
-            <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
-            Song Request Cooldowns
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.Timer" Class="mr-2" />
+                Song Request Cooldowns
+            </MudText>
+            <HelpButton Topic="song-cooldowns" />
+        </MudStack>
 
         <!-- Cooldown Settings Card -->
         <MudPaper Elevation="2" Class="pa-4">
@@ -65,7 +68,7 @@
         <!-- Manual Add Cooldown -->
         <MudPaper Elevation="2" Class="pa-4">
             <MudText Typo="Typo.h6" Class="mb-3">Add Manual Song Cooldown</MudText>
-            <MudGrid Spacing="2" Class="align-center">
+            <MudGrid Spacing="2">
                 <MudItem xs="12" md="5">
                     <MudTextField @bind-Value="_newSongInput" Label="YouTube URL or Video ID"
                                   Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -79,10 +82,11 @@
                     <MudNumericField @bind-Value="_newDurationMinutes" Label="Minutes"
                                      Min="1" Max="10080" Variant="Variant.Outlined" Margin="Margin.Dense" />
                 </MudItem>
-                <MudItem xs="12" md="2">
+                <MudItem xs="12" md="2" Class="d-flex align-start">
                     <MudButton Variant="Variant.Filled" Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.AddAlarm"
-                               Disabled="_isAddingCooldown" OnClick="AddManualCooldown" FullWidth="true">
+                               Disabled="_isAddingCooldown" OnClick="AddManualCooldown"
+                               Style="height: 40px;" FullWidth="true">
                         Add Cooldown
                     </MudButton>
                 </MudItem>

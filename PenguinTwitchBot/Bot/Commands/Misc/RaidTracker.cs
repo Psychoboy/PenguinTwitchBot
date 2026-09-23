@@ -104,6 +104,32 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             await db.SaveChangesAsync();
         }
 
+        public async Task<int> PruneRaidHistory(DateTime olderThanUtc)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                // A creator is pruned only if their most recent raid interaction (the latest of incoming or outgoing) is older than olderThanUtc
+                var entries = await db.RaidHistory.Find(x =>
+                    (x.LastIncomingRaid == DateTime.MinValue || x.LastIncomingRaid < olderThanUtc) &&
+                    (x.LastOutgoingRaid == DateTime.MinValue || x.LastOutgoingRaid < olderThanUtc)
+                ).ToListAsync();
+
+                if (entries.Count > 0)
+                {
+                    db.RaidHistory.RemoveRange(entries);
+                    await db.SaveChangesAsync();
+                }
+                return entries.Count;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error Pruning Raid History");
+                return 0;
+            }
+        }
+
         private async Task OnIncomingRaid(object? sender, RaidEventArgs e)
         {
             await OnIncomingRaid(e);
