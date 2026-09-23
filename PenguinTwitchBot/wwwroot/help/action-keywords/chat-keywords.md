@@ -1,6 +1,6 @@
 # Action Keywords
 
-The **Action Keywords** manager (`/actions/keywords`) allows streamers to execute automated actions whenever specific words, phrases, or emotes appear in general chat messages, without requiring a leading exclamation mark (`!`).
+The [Keywords](/actions/keywords) manager allows streamers to execute automated actions whenever specific words, phrases, or emotes appear in general chat messages, without requiring a leading exclamation mark (`!`).
 
 ## How Keywords Differ from Commands
 

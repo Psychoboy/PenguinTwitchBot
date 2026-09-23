@@ -1,6 +1,6 @@
 # Audio Commands & Sound Effects
 
-The **Audio Commands** dashboard (`/audiocommands`) allows viewers and streamers to trigger audio clips and sound effects on stream via chat commands.
+The [Audio Commands](/actions/audiocommands) dashboard allows viewers and streamers to trigger audio clips and sound effects on stream via chat commands.
 
 ## Configuring Audio Commands
 

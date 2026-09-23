@@ -51,12 +51,12 @@
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids)">
                             Incoming
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids > 0 ? x.TotalIncomingRaidViewers / x.TotalIncomingRaids : 0)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalIncomingRaids > 0 ? x.TotalIncomingRaidViewers / x.TotalIncomingRaids : 0)">
                             Avg In.
                         </MudTableSortLabel>
                     </MudTh>
@@ -66,17 +66,17 @@
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids)">
                             Outgoing
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids > 0 ? x.TotalOutGoingRaidViewers / x.TotalOutgoingRaids : 0)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.TotalOutgoingRaids > 0 ? x.TotalOutGoingRaidViewers / x.TotalOutgoingRaids : 0)">
                             Avg Out.
                         </MudTableSortLabel>
                     </MudTh>
                     <MudTh>
-                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastOutgoingRaid)" InitialDirection="SortDirection.Descending">
+                        <MudTableSortLabel SortBy="new Func<RaidHistoryEntry, object>(x => x.LastOutgoingRaid)">
                             Last Out.
                         </MudTableSortLabel>
                     </MudTh>

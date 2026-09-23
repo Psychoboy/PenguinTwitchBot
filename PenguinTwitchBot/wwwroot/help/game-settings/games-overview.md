@@ -19,5 +19,5 @@ PenguinTwitchBot includes a suite of interactive chat minigames that engage view
 
 ## Accessing Game Settings
 
-Navigate to **Game Settings** (`/settings/games`). Click on any game card to open its full configuration panel where you can tailor odds, multipliers, costs, cooldowns, and response messaging.
+Navigate to [Game Settings](/settings/games). Click on any game card to open its full configuration panel where you can tailor odds, multipliers, costs, cooldowns, and response messaging.
 

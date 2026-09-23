@@ -17,7 +17,7 @@ PenguinTwitchBot includes built-in commands powering Twitch moderation, loyalty 
 ## Overriding Command Triggers
 
 Every default command can be renamed without altering its internal logic:
-- Click the **Edit** icon on any command row in **Default Commands** (`/commands/default`).
+- Click the **Edit** icon on any command row in [Default Commands](/commands/default).
 - Change the **Custom Command Trigger** field to whatever command name you prefer (e.g. changing `points` to `coins` or `ffa` to `arena`).
 - Viewers will immediately use the new trigger word in Twitch chat!
 

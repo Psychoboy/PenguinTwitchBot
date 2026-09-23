@@ -1,6 +1,6 @@
 # Prize Wheel Management
 
-The **Wheel Spins** dashboard (`/wheelspin`) allows streamers and editors to build customized multi-slice wheels for channel giveaways, punishments, challenge runs, and sub goals.
+The [Wheel Spin](/wheelspin) dashboard allows streamers and editors to build customized multi-slice wheels for channel giveaways, punishments, challenge runs, and sub goals.
 
 ## Creating & Editing Wheels
 

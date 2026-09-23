@@ -1,6 +1,6 @@
 # Known Bots Overview
 
-The **Known Bots** manager (`/community/known-bots`) allows streamers and moderators to register known bot accounts that frequent Twitch channels (e.g. `Nightbot`, `StreamElements`, `Moobot`, `Lurxx`, `SoundAlerts`, `CommanderRoot`).
+The [Known Bots](/community/known-bots) manager allows streamers and moderators to register known bot accounts that frequent Twitch channels (e.g. `Nightbot`, `StreamElements`, `Moobot`, `Lurxx`, `SoundAlerts`, `CommanderRoot`).
 
 ## Managing Known Bots
 

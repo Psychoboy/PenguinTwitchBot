@@ -1,6 +1,6 @@
 # Giveaway Winners History
 
-The **Giveaway History** view (`/giveaway/history`) logs all historical giveaway winners across your broadcasts.
+The [Giveaway History](/giveaway/history) view logs all historical giveaway winners across your broadcasts.
 
 ## Historical Records
 

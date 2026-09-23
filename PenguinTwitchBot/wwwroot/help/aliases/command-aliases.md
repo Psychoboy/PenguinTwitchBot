@@ -1,6 +1,6 @@
 # Command Aliases
 
-The **Command Aliases** manager (`/commands/aliases`) allows streamers to create shorthand synonyms or convenient nicknames that redirect to any existing command in the bot.
+The [Aliases](/commands/aliases) manager allows streamers to create shorthand synonyms or convenient nicknames that redirect to any existing command in the bot.
 
 ## Why Use Aliases?
 

@@ -29,5 +29,5 @@ When configuring event reward messages, the following dynamic placeholders are e
 
 ## Enabling or Disabling Event Bonuses
 
-Event bonus handling is managed via the **Loyalty Bonuses** dashboard (`/settings/loyalty-bonuses`). If disabled in feature flags or coordinators, the provider card will be hidden until enabled in bot feature settings.
+Event bonus handling is managed via the [Loyalty Bonuses](/settings/loyalty-bonuses) dashboard. If disabled in feature flags or coordinators, the provider card will be hidden until enabled in bot feature settings.
 
