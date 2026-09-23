@@ -219,8 +219,8 @@ else
                 viewer.WatchedTime = StaticTools.ConvertToCompoundDuration((long)viewer.Time.Time);
             }
             viewer.LastSub = await subTracker.LastSub(viewer.Viewer.Username);
-            IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username);
-            OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username);
+            IpLogs = await ipLogFeature.GetIpLogsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
+            OtherIpLogs = await ipLogFeature.GetDuplicateIpsForUser(viewer.Viewer.Username, viewer.Viewer.UserId);
         }
 
         if (messagesTable != null)

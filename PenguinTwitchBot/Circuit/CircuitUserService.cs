@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace PenguinTwitchBot.Circuit
@@ -37,7 +37,14 @@ namespace PenguinTwitchBot.Circuit
                 };
                 Circuits[CircuitId] = circuitUser;
             }
-            await ipLog.AddLogEntry(UserName, userId, userIp);
+            try
+            {
+                await ipLog.AddLogEntry(UserName, userId, userIp);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error logging IP for {UserName} ({UserId})", UserName, userId);
+            }
             logger.LogInformation("{userId} connected to web interface. Ip: {ip}", UserName, userIp);
             OnCircuitsChanged();
         }
