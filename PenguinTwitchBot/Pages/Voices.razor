@@ -1,12 +1,22 @@
 @page "/voices"
 @attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Shared.Help
 @implements IDisposable
 @inject PenguinTwitchBot.Bot.Commands.TTS.ITTSService TTSService
 @inject ISnackbar Snackbar
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Voices</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.RecordVoiceOver" Class="mr-2" />Text-to-Speech (TTS) Voices
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Manage Kokoro, Piper, and Google TTS voices, assign distinct voices to Twitch viewers, and preview audio.</MudText>
+        </div>
+        <HelpButton Topic="voices" />
+    </MudStack>
     @if (!string.IsNullOrEmpty(_previewAudioUrl))
     {
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4" ShowCloseIcon="true" CloseIconClicked="ClosePreview">

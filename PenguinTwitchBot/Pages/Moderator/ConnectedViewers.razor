@@ -22,9 +22,12 @@
                     View active web browser circuits and live navigation sessions in real-time.
                 </MudText>
             </MudStack>
-            <MudChip T="string" Color="Color.Success" Size="Size.Medium" Icon="@Icons.Material.Filled.Wifi">
-                @circuits.Count Active @(circuits.Count == 1 ? "Session" : "Sessions")
-            </MudChip>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudChip T="string" Color="Color.Success" Size="Size.Medium" Icon="@Icons.Material.Filled.Wifi">
+                    @circuits.Count Active @(circuits.Count == 1 ? "Session" : "Sessions")
+                </MudChip>
+                <HelpButton Topic="connected-viewers" />
+            </MudStack>
         </MudStack>
 
         <!-- Connected Users Table -->

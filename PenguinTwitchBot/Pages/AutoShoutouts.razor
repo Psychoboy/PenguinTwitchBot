@@ -21,12 +21,15 @@
                     Automatically recognize and shout out fellow streamers when they chat, with optional clip playback and AI-generated messages.
                 </MudText>
             </MudStack>
-            @if (autoShoutouts != null)
-            {
-                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.RecordVoiceOver">
-                    @autoShoutouts.Count Configured @(autoShoutouts.Count == 1 ? "Shoutout" : "Shoutouts")
-                </MudChip>
-            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (autoShoutouts != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.RecordVoiceOver">
+                        @autoShoutouts.Count Configured @(autoShoutouts.Count == 1 ? "Shoutout" : "Shoutouts")
+                    </MudChip>
+                }
+                <HelpButton Topic="auto-shoutouts" />
+            </MudStack>
         </MudStack>
 
         @if (autoShoutouts == null)

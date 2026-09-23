@@ -13,10 +13,13 @@
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Class="mr-2" />
-            Draw Giveaway
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4">Draw Giveaway</MudText>
+            </MudStack>
+            <HelpButton Topic="giveaway-draw" />
+        </MudStack>
 
         <MudPaper Elevation="3" Class="pa-4">
             <MudStack Row="true" Spacing="2" Justify="Justify.Center" Class="flex-wrap">

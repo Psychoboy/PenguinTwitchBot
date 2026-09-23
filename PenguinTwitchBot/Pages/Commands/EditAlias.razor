@@ -4,27 +4,70 @@
 @inject PenguinTwitchBot.Bot.Commands.Alias.IAlias AliasCommand
 @inject Microsoft.AspNetCore.Components.NavigationManager navigationManager
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
+
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Edit Alias</PageTitle>
-@if (theAlias == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <MudCard>
-        <EditForm Model="@theAlias" OnValidSubmit="OnSubmit">
-            <MudCardContent>
-                <MudTextField Label="Alias" Required="true" RequiredError="Alias is required"
-                @bind-Value="theAlias.AliasName" />
-                <MudTextField Label="Command" Required="true" RequiredError="Command is required"
-                @bind-Value="theAlias.CommandName" />
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">
-                    Submit
-                </MudButton>
-            </MudCardContent>
-        </EditForm>
-    </MudCard>
-}
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Small">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default"
+                                   OnClick="@(() => navigationManager.NavigateTo("/commands/aliases"))" />
+                    <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">
+                        @(theAlias == null ? "Edit Alias" : $"Edit: !{theAlias.AliasName}")
+                    </MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-12">
+                    Modify alias trigger phrase or mapped target command.
+                </MudText>
+            </MudStack>
+            <HelpButton Topic="aliases" />
+        </MudStack>
+
+        @if (theAlias == null)
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="180px" Class="rounded" />
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudCard Elevation="2" Class="pa-4">
+                <EditForm Model="@theAlias" OnValidSubmit="OnSubmit">
+                    <DataAnnotationsValidator />
+                    <MudCardContent>
+                        <MudStack Spacing="3">
+                            <MudTextField Label="Alias Trigger" Required="true" RequiredError="Alias name is required"
+                                          @bind-Value="theAlias.AliasName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="New shorthand command viewers type (e.g. p)" />
+
+                            <MudTextField Label="Target Command" Required="true" RequiredError="Target command is required"
+                                          @bind-Value="theAlias.CommandName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="Existing command to invoke (e.g. points)" />
+                        </MudStack>
+                    </MudCardContent>
+                    <MudCardActions Class="pa-4">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                   OnClick="@(() => navigationManager.NavigateTo("/commands/aliases"))">
+                            Cancel
+                        </MudButton>
+                        <MudSpacer />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save">
+                            Save Alias
+                        </MudButton>
+                    </MudCardActions>
+                </EditForm>
+            </MudCard>
+        }
+    </MudStack>
+</MudContainer>
 
 @code {
     [Parameter]
@@ -50,9 +93,9 @@ else
                 if (await CommandHelper.CommandExists(theAlias.AliasName))
                 {
                     bool? result = await DialogService.ShowMessageBoxAsync(
-                       "Warning",
-                       "This command already exists, continue?",
-                       yesText: "Yes!", cancelText: "Cancel");
+                        "Warning",
+                        "This command already exists, continue?",
+                        yesText: "Yes!", cancelText: "Cancel");
                     if (result == null)
                     {
                         return;

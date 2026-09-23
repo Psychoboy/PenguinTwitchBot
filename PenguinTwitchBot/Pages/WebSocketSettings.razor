@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer")]
 @implements IDisposable
 @using PenguinTwitchBot.Bot.Notifications
+@using PenguinTwitchBot.Shared.Help
 @inject IWebSocketMessenger WebSocketMessenger
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
@@ -10,8 +11,13 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h5">Websocket Queue Management</MudText>
-        <MudText>Monitor connected overlays and control the event queues used by websocket clients.</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h5">Websocket Queue Management</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Monitor connected overlays and control the event queues used by websocket clients.</MudText>
+            </div>
+            <HelpButton Topic="websocket-settings" />
+        </MudStack>
 
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
             Changing queue capacities disconnects all websocket clients. Clients with automatic reconnect enabled should reconnect automatically, but events during the restart window may be dropped.

@@ -10,12 +10,17 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid Rewards</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
-    <MudText Typo="Typo.h5" Class="mb-2">Raid Rewards</MudText>
-    <MudText Class="mb-4">
-        When you raid out to another channel, viewers who were in your chat before the raid can
-        post the configured message in the raided channel's chat within the time window to earn points.
-        Points are awarded once per raid. Subscribers may use the optional subscriber message instead.
-    </MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h5">Raid Rewards</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                When you raid out to another channel, viewers who were in your chat before the raid can
+                post the configured message in the raided channel's chat within the time window to earn points.
+                Points are awarded once per raid. Subscribers may use the optional subscriber message instead.
+            </MudText>
+        </MudStack>
+        <HelpButton Topic="raid-rewards" />
+    </MudStack>
 
     @if (_config == null)
     {

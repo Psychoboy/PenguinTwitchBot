@@ -13,14 +13,17 @@
 <MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
     <MudStack Spacing="4">
         <!-- Header -->
-        <MudStack Spacing="1">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" />
-                <MudText Typo="Typo.h4">Community Viewers</MudText>
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Viewers</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Look up viewer profiles, activity stats, chat history, and monitor shared IP accounts.
+                </MudText>
             </MudStack>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Look up viewer profiles, activity stats, chat history, and monitor shared IP accounts.
-            </MudText>
+            <HelpButton Topic="viewers" />
         </MudStack>
 
         <!-- Viewer Search Card -->

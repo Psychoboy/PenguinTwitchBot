@@ -1,4 +1,4 @@
-﻿@page "/commands/default"
+@page "/commands/default"
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject PenguinTwitchBot.Bot.Commands.ICommandHandler CommandHandler
@@ -6,41 +6,140 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Default Commands</PageTitle>
 
-@if (defaultCommands == null)
-{
-    <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-}
-else
-{
-    <MudTable Items="@defaultCommands">
-        <HeaderContent>
-            <MudTh>Configured Name</MudTh>
-            <MudTh>Default Name</MudTh>
-            <MudTh>Module</MudTh>
-            <MudTh>Rank</MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Configured Name">!@context.CustomCommandName</MudTd>
-            <MudTd DataLabel="Default Name">!@context.CommandName</MudTd>
-            <MudTd DataLabel="Module Name">@context.ModuleName</MudTd>
-            <MudTd DataLabel="Minimum Rank">@context.MinimumRank</MudTd>
-            <MudTd DataLabel="Edit">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">Edit</MudButton>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.ExtraLarge">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Terminal" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Default Commands</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Configure built-in bot commands, override trigger names, and manage permissions and cooldowns.
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (defaultCommands != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.List">
+                        @defaultCommands.Count Total @(defaultCommands.Count == 1 ? "Command" : "Commands")
+                    </MudChip>
+                }
+                <HelpButton Topic="default-commands" />
+            </MudStack>
+        </MudStack>
+
+        @if (defaultCommands == null)
+        {
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Height="32px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="300px" Class="rounded" />
+                </MudStack>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@FilteredCommands" Dense="true" Hover="true" FixedHeader="true" RowsPerPage="15">
+                    <ToolBarContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="w-100 pa-1">
+                            <MudIcon Icon="@Icons.Material.Filled.SettingsSuggest" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">System Commands</MudText>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_searchString"
+                                          Placeholder="Filter commands..."
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          IconSize="Size.Medium"
+                                          Clearable="true"
+                                          Immediate="true"
+                                          Style="max-width: 280px;" />
+                        </MudStack>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Configured Trigger</MudTh>
+                        <MudTh>Default Command</MudTh>
+                        <MudTh>Module</MudTh>
+                        <MudTh>Minimum Rank</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh Style="text-align: right;">Action</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Configured Trigger">
+                            <MudText Typo="Typo.body2"><b>!@context.CustomCommandName</b></MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Default Command">
+                            <code>!@context.CommandName</code>
+                        </MudTd>
+                        <MudTd DataLabel="Module">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.ModuleName</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Minimum Rank">
+                            <MudChip T="string" Size="Size.Small" Color="@GetRankColor(context.MinimumRank)">
+                                @context.MinimumRank
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Status">
+                            @if (context.Disabled)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Error">Disabled</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Success">Active</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd Style="text-align: right;">
+                            <MudTooltip Text="Edit Command Settings">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                               OnClick="() => Edit(context)" />
+                            </MudTooltip>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No matching commands found.</MudText>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        }
+    </MudStack>
+</MudContainer>
 
 @code {
     private List<DefaultCommand>? defaultCommands;
+    private string _searchString = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         defaultCommands = (await CommandHandler.GetDefaultCommandsFromDb()).OrderBy(x => x.CustomCommandName).ToList();
     }
 
+    private IEnumerable<DefaultCommand> FilteredCommands =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? defaultCommands ?? []
+            : (defaultCommands ?? []).Where(c =>
+                c.CustomCommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                c.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                c.ModuleName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                (c.Category?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+
     private void Edit(DefaultCommand item)
     {
         navigationManager.NavigateTo($"/commands/default/{item.Id}");
     }
+
+    private static Color GetRankColor(Rank rank) => rank switch
+    {
+        Rank.Streamer => Color.Primary,
+        Rank.Moderator => Color.Error,
+        Rank.Vip => Color.Warning,
+        _ => Color.Default
+    };
 }
