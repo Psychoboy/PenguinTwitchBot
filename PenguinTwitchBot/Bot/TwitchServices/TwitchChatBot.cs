@@ -44,17 +44,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             await ValidateAndRefreshToken();
         }
 
-        public async Task SendMessage(string message, bool sourceOnly = true)
+        public async Task<SendChatMessageResult?> SendMessage(string message, bool sourceOnly = true)
         {
             if (message.Length == 0)
             {
                 logger.LogWarning("Message is empty, not sending");
-                return;
+                return null;
             }
             
             try
             {
                 var chunks = message.SplitInParts(450);
+                SendChatMessageResult? lastResult = null;
                 foreach (var chunk in chunks)
                 {
                     var broadcasterId = await twitchService.GetBroadcasterUserId() ?? throw new InvalidOperationException("Broadcaster ID is unavailable.");
@@ -76,24 +77,27 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     if (first == null)
                     {
                         logger.LogWarning("Message failed to send: no response payload");
-                        return;
+                        return null;
                     }
 
                     messageIdTracker.AddMessageId(first.MessageId);
                     if (first.IsSent == false)
                     {
                         logger.LogWarning("Message failed to send: {reason}", first.DropReason?.Message);
-                        return;
+                        return first;
                     }
                     else
                     {
                         logger.LogInformation("BOTCHATMSG: {message}", chunk.Replace(Environment.NewLine, ""));
                     }
+                    lastResult = first;
                 }
+                return lastResult;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to send message. {message}", message);
+                return null;
             }
         }
 
@@ -214,8 +218,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     configuration["twitchBotAccessToken"] = tokenResponse.AccessToken;
                     _accessToken = tokenResponse.AccessToken;
                     await settingsFileManager.AddOrUpdateAppSetting("twitchBotAccessToken", tokenResponse.AccessToken);
+                    return true;
                 }
-                return true;
+                logger.LogError("Failed to request bot access token: HTTP {StatusCode}", response.StatusCode);
+                return false;
             }
             catch (Exception ex)
             {

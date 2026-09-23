@@ -1,4 +1,4 @@
-﻿[![.NET Linux](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml)
+[![.NET Linux](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet.yml)
 [![.NET Windows](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet-win.yml/badge.svg)](https://github.com/Psychoboy/PenguinTwitchBot/actions/workflows/dotnet-win.yml)
 [![CodeFactor](https://www.codefactor.io/repository/github/psychoboy/penguintwitchbot/badge)](https://www.codefactor.io/repository/github/psychoboy/penguintwitchbot)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3e4574fdb5b9423fb850c40b5d4a14aa)](https://app.codacy.com/gh/Psychoboy/PenguinTwitchBot/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
@@ -66,7 +66,7 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 - **Text-to-Speech (TTS)** - Read chat messages or channel point redemptions aloud
 - **OBS Integration** - Connect to OBS for scene control and alerts
 - **Discord Integration** *(optional)* - Go-live announcements, live member role assignment, and chat bridge
-- **Weather Commands** *(optional)* - `!weather` command powered by OpenWeatherMap
+- **Weather Commands** *(optional)* - `!weather` command powered by WeatherAPI.com
 - **AI Chat Responses** *(optional)* - OpenAI-powered chat responses and automated shoutouts
 - **Channel Point Redeems** - Handle Twitch channel point redemptions with custom actions
 - **Clip Tracking** - Automatically downloads and plays back Twitch clips using `yt-dlp` (bundled)
@@ -106,7 +106,7 @@ The wizard covers the following steps:
 | 6 | **Database** - choose SQLite or PostgreSQL (see [Database Support](#database-support)) |
 | 7 | **YouTube API** *(optional)* - enables the song request feature |
 | 8 | **Discord Integration** *(optional)* - bot token, server ID, and channel IDs |
-| 9 | **Weather** *(optional)* - OpenWeatherMap API key and default location |
+| 9 | **Weather** *(optional)* - WeatherAPI key and default location |
 | 10 | **OpenAI** *(optional)* - API key for AI-powered chat features |
 | 11 | **Review & Save** - review all settings (secrets masked) and write `appsettings.secrets.json` |
 
@@ -116,7 +116,7 @@ When the wizard finishes, it saves your configuration to `appsettings.secrets.js
 
 The bot account requires a **user access token** with the `user:write:chat` and `user:bot` scopes — a plain app token is not sufficient.
 
-Step 6 provides two options:
+Step 5 provides two options:
 
 - **Open Auth Page in Browser** — opens the Twitch authorization page directly. Twitch will show a sign-in prompt (forced by `force_verify=true`) so you can switch accounts if needed.
 - **Copy Auth URL** — generates the authorization URL and displays it in a text field so you can copy and paste it into a different browser or incognito window where your bot account is already signed in.
@@ -170,7 +170,7 @@ The bot starts a web server. Open your browser to `http://localhost:5000` (or th
 
 On first launch, the database will be automatically created and migrated. The bot will then connect to Twitch and begin operating.
 
-> **Tip:** If you skipped the bot account authorization in the setup wizard, navigate to `/botsignin` in the dashboard to authorize your bot account after the bot starts.
+> **Tip:** If you skipped the bot account authorization in the setup wizard, navigate to `/settings/bot-auth` (or `/botsignin`) in the dashboard to review connection status and authorize your accounts.
 
 > **HTTPS note:** If you enable the `Https` endpoint for direct-IP access, the bot will generate a self-signed certificate automatically if you do not supply one. That avoids the startup failure, but browsers may still warn about certificate trust when you open the bot by IP address.
 
@@ -238,7 +238,7 @@ Requires a **Discord bot token** from [discord.com/developers](https://discord.c
 - Role pinging on stream start
 
 ### Weather
-Requires a free **OpenWeatherMap API key** from [openweathermap.org/api](https://openweathermap.org/api). Enables the `!weather` command in chat.
+Requires a free **WeatherAPI key** from [weatherapi.com](https://www.weatherapi.com/signup.aspx). Enables the `!weather` command in chat.
 
 ### OpenAI
 Requires an **OpenAI API key** from [platform.openai.com](https://platform.openai.com/api-keys). Enables AI-powered chat responses and automated shoutouts. Usage is billed by token - set spend limits in your OpenAI account dashboard.

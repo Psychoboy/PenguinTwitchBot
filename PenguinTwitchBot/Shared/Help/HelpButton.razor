@@ -1,0 +1,52 @@
+@using PenguinTwitchBot.Services
+@inject IDialogService DialogService
+
+<MudButton Variant="@Variant"
+           Color="@Color"
+           Size="@Size"
+           StartIcon="@(ShowIcon ? (Icon ?? Icons.Material.Filled.HelpOutline) : null)"
+           OnClick="OpenHelpAsync"
+           Class="@Class"
+           Style="@Style">
+    @Text
+</MudButton>
+
+@code {
+    [Parameter] public string Text { get; set; } = "Help";
+    [Parameter] public string? Topic { get; set; }
+    [Parameter] public string? DialogTitle { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public Variant Variant { get; set; } = Variant.Outlined;
+    [Parameter] public Size Size { get; set; } = Size.Medium;
+    [Parameter] public bool ShowIcon { get; set; } = true;
+    [Parameter] public string? Markdown { get; set; }
+    [Parameter] public List<HelpTabItem>? Tabs { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    private async Task OpenHelpAsync()
+    {
+        var parameters = new DialogParameters<HelpDialog>
+        {
+            { x => x.TopicId, Topic },
+            { x => x.Title, DialogTitle },
+            { x => x.Icon, Icon },
+            { x => x.IconColor, Color },
+            { x => x.Markdown, Markdown },
+            { x => x.Tabs, Tabs }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var title = DialogTitle ?? Text;
+        await DialogService.ShowAsync<HelpDialog>(title, parameters, options);
+    }
+}
+

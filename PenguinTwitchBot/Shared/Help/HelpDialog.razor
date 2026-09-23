@@ -1,0 +1,95 @@
+@using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared
+@inject IHelpContentService HelpContentService
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@_icon" Color="@IconColor" />
+            <MudText Typo="Typo.h6"><b>@_title</b></MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <MudStack Spacing="2" Class="pa-4">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="28px" />
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100%" Height="220px" Class="rounded" />
+            </MudStack>
+        }
+        else if (_tabs != null && _tabs.Count > 0)
+        {
+            <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Color="Color.Surface">
+                @foreach (var tab in _tabs)
+                {
+                    <MudTabPanel Text="@tab.Title" Icon="@tab.Icon">
+                        <div class="pa-3">
+                            <GitHubMarkdownViewer Value="@tab.Markdown" />
+                        </div>
+                    </MudTabPanel>
+                }
+            </MudTabs>
+        }
+        else if (!string.IsNullOrEmpty(_markdown))
+        {
+            <div class="pa-3">
+                <GitHubMarkdownViewer Value="@_markdown" />
+            </div>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="ma-4">
+                No documentation available for this topic.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => MudDialog.Close()">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public string? TopicId { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public Color IconColor { get; set; } = Color.Primary;
+    [Parameter] public string? Markdown { get; set; }
+    [Parameter] public List<HelpTabItem>? Tabs { get; set; }
+
+    private bool _isLoading;
+    private string _title = "Help Guide";
+    private string _icon = Icons.Material.Filled.HelpOutline;
+    private string? _markdown;
+    private List<HelpTabItem>? _tabs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _title = Title ?? _title;
+        _icon = Icon ?? _icon;
+        _markdown = Markdown;
+        _tabs = Tabs;
+
+        if (!string.IsNullOrWhiteSpace(TopicId))
+        {
+            _isLoading = true;
+            try
+            {
+                var topic = await HelpContentService.GetTopicAsync(TopicId);
+                if (topic != null)
+                {
+                    _title = Title ?? topic.Title;
+                    _icon = Icon ?? topic.Icon;
+                    _tabs = topic.Tabs;
+                    _markdown = topic.Markdown;
+                }
+            }
+            finally
+            {
+                _isLoading = false;
+            }
+        }
+    }
+}
+
