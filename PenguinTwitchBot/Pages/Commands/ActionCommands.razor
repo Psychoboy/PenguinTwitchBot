@@ -17,8 +17,13 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action Commands</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Action Commands</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">Manage action commands for the bot.</MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Action Commands</MudText>
+            <MudText Typo="Typo.body2">Manage action commands for the bot.</MudText>
+        </MudStack>
+        <HelpButton Topic="action-commands" />
+    </MudStack>
 
     <MudGrid>
         <!-- Left Panel - Commands List -->
