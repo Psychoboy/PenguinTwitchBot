@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -9,7 +11,14 @@ namespace PenguinTwitchBot.Services;
 public sealed class UserThemeService : IUserThemeService
 {
     private readonly ICustomThemeService _customThemeService;
+    private readonly IUserThemePreferenceService? _preferenceService;
+    private readonly IThemeMetricsService? _metricsService;
+    private readonly AuthenticationStateProvider? _authStateProvider;
+    private readonly string _sessionId = Guid.NewGuid().ToString();
     private List<CustomThemeModel> _availableThemes = [];
+    private string? _authenticatedUserId;
+    private readonly object _saveLock = new();
+    private Task _lastSaveTask = Task.CompletedTask;
     private bool _disposed;
 
     public bool IsDarkMode { get; private set; } = true;
@@ -21,10 +30,23 @@ public sealed class UserThemeService : IUserThemeService
 
     public event Action? OnThemeChanged;
 
-    public UserThemeService(ICustomThemeService customThemeService, IHttpContextAccessor? httpContextAccessor = null)
+    public UserThemeService(
+        ICustomThemeService customThemeService,
+        IHttpContextAccessor? httpContextAccessor = null,
+        IUserThemePreferenceService? preferenceService = null,
+        IThemeMetricsService? metricsService = null,
+        AuthenticationStateProvider? authStateProvider = null)
     {
         _customThemeService = customThemeService;
+        _preferenceService = preferenceService;
+        _metricsService = metricsService;
+        _authStateProvider = authStateProvider;
+
         _customThemeService.ThemesChanged += HandleThemesChanged;
+        if (_authStateProvider != null)
+        {
+            _authStateProvider.AuthenticationStateChanged += HandleAuthenticationStateChanged;
+        }
 
         InitializeFromCache();
 
@@ -34,6 +56,8 @@ public sealed class UserThemeService : IUserThemeService
         {
             ApplyInitialPreference(cookieVal);
         }
+
+        _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
     }
 
     private void InitializeFromCache()
@@ -102,6 +126,7 @@ public sealed class UserThemeService : IUserThemeService
                 _availableThemes = allThemes;
             }
 
+            // 1. Local-first: load preference from JS / localStorage
             try
             {
                 var pref = await jsRuntime.InvokeAsync<UserThemePreference?>("penguinTheme.getPreference");
@@ -136,6 +161,66 @@ public sealed class UserThemeService : IUserThemeService
                 // Prerender or JS not ready, ignore
             }
 
+            // 2. Post-Auth Reconciliation with Database
+            if (_authStateProvider != null && _preferenceService != null)
+            {
+                try
+                {
+                    var authState = await _authStateProvider.GetAuthenticationStateAsync();
+                    var user = authState.User;
+                    if (user.Identity?.IsAuthenticated == true)
+                    {
+                        var userId = user.FindFirst("UserId")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        if (!string.IsNullOrWhiteSpace(userId))
+                        {
+                            _authenticatedUserId = userId;
+                            var dbPref = await _preferenceService.GetPreferenceAsync(userId);
+                            if (dbPref == null)
+                            {
+                                // No DB preference yet: save current local preference to DB
+                                await _preferenceService.SavePreferenceAsync(userId, CurrentThemeId, IsDarkMode);
+                            }
+                            else
+                            {
+                                // DB preference exists: if different from current, update local to match DB
+                                bool changed = false;
+                                if (IsDarkMode != dbPref.IsDarkMode)
+                                {
+                                    IsDarkMode = dbPref.IsDarkMode;
+                                    changed = true;
+                                }
+
+                                if (!string.IsNullOrWhiteSpace(dbPref.ThemeId) && !string.Equals(CurrentThemeId, dbPref.ThemeId, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var matched = _availableThemes.FirstOrDefault(x => string.Equals(x.Id, dbPref.ThemeId, StringComparison.OrdinalIgnoreCase));
+                                    if (matched != null)
+                                    {
+                                        CurrentThemeId = matched.Id;
+                                        CurrentTheme = matched.ToMudTheme();
+                                        changed = true;
+                                    }
+                                }
+
+                                if (changed)
+                                {
+                                    OnThemeChanged?.Invoke();
+                                    try
+                                    {
+                                        await jsRuntime.InvokeVoidAsync("penguinTheme.setPreference", IsDarkMode, CurrentThemeId);
+                                    }
+                                    catch (Exception) { }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Auth state or DB check error ignored
+                }
+            }
+
+            _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
             IsInitialized = true;
         }
         catch (Exception)
@@ -154,6 +239,8 @@ public sealed class UserThemeService : IUserThemeService
         IsDarkMode = isDark;
         OnThemeChanged?.Invoke();
 
+        var saveTask = EnqueuePreferenceSave();
+
         try
         {
             await jsRuntime.InvokeVoidAsync("penguinTheme.setPreference", IsDarkMode, CurrentThemeId);
@@ -162,6 +249,10 @@ public sealed class UserThemeService : IUserThemeService
         {
             // JS exception ignored (e.g. disconnected circuit)
         }
+
+        await saveTask;
+
+        _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
     }
 
     public async Task<bool> SelectThemeAsync(string themeId, IJSRuntime jsRuntime)
@@ -183,6 +274,8 @@ public sealed class UserThemeService : IUserThemeService
 
         OnThemeChanged?.Invoke();
 
+        var saveTask = EnqueuePreferenceSave();
+
         try
         {
             await jsRuntime.InvokeVoidAsync("penguinTheme.setPreference", IsDarkMode, CurrentThemeId);
@@ -192,7 +285,54 @@ public sealed class UserThemeService : IUserThemeService
             // JS exception ignored
         }
 
+        await saveTask;
+
+        _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
         return applied;
+    }
+
+    private Task EnqueuePreferenceSave()
+    {
+        if (string.IsNullOrWhiteSpace(_authenticatedUserId) || _preferenceService == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var snapshotUserId = _authenticatedUserId;
+        var snapshotThemeId = CurrentThemeId;
+        var snapshotIsDarkMode = IsDarkMode;
+
+        lock (_saveLock)
+        {
+            var previousTask = _lastSaveTask;
+            var currentTask = ProcessSaveAsync(previousTask, snapshotUserId, snapshotThemeId, snapshotIsDarkMode);
+            _lastSaveTask = currentTask;
+            return currentTask;
+        }
+    }
+
+    private async Task ProcessSaveAsync(Task previousTask, string userId, string themeId, bool isDarkMode)
+    {
+        try
+        {
+            await previousTask;
+        }
+        catch (Exception)
+        {
+            // Ensure previous failures do not block subsequent queued saves
+        }
+
+        if (_preferenceService != null)
+        {
+            try
+            {
+                await _preferenceService.SavePreferenceAsync(userId, themeId, isDarkMode);
+            }
+            catch (Exception)
+            {
+                // Ignored
+            }
+        }
     }
 
     public async Task RefreshThemesAsync()
@@ -221,6 +361,7 @@ public sealed class UserThemeService : IUserThemeService
             }
         }
         OnThemeChanged?.Invoke();
+        _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
     }
 
     private async void HandleThemesChanged(object? sender, EventArgs e)
@@ -235,11 +376,71 @@ public sealed class UserThemeService : IUserThemeService
         }
     }
 
+    private async void HandleAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            var authState = await task;
+            var user = authState.User;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var userId = user.FindFirst("UserId")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrWhiteSpace(userId))
+                {
+                    _authenticatedUserId = userId;
+                    if (_preferenceService != null)
+                    {
+                        var dbPref = await _preferenceService.GetPreferenceAsync(userId);
+                        if (dbPref == null)
+                        {
+                            await _preferenceService.SavePreferenceAsync(userId, CurrentThemeId, IsDarkMode);
+                        }
+                        else
+                        {
+                            bool changed = false;
+                            if (IsDarkMode != dbPref.IsDarkMode)
+                            {
+                                IsDarkMode = dbPref.IsDarkMode;
+                                changed = true;
+                            }
+                            if (!string.IsNullOrWhiteSpace(dbPref.ThemeId) && !string.Equals(CurrentThemeId, dbPref.ThemeId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var matched = _availableThemes.FirstOrDefault(x => string.Equals(x.Id, dbPref.ThemeId, StringComparison.OrdinalIgnoreCase));
+                                if (matched != null)
+                                {
+                                    CurrentThemeId = matched.Id;
+                                    CurrentTheme = matched.ToMudTheme();
+                                    changed = true;
+                                }
+                            }
+                            if (changed)
+                            {
+                                OnThemeChanged?.Invoke();
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                _authenticatedUserId = null;
+            }
+        }
+        catch
+        {
+            // Ignore background auth change errors
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _customThemeService.ThemesChanged -= HandleThemesChanged;
+        if (_authStateProvider != null)
+        {
+            _authStateProvider.AuthenticationStateChanged -= HandleAuthenticationStateChanged;
+        }
+        _metricsService?.UntrackActiveSession(_sessionId);
     }
 }
-

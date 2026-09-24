@@ -2143,6 +2143,36 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("SubscriptionHistories");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Themes.UserThemePreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDarkMode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ThemeId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserThemePreferences");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Timers.TimerGroup", b =>
                 {
                     b.Property<int>("Id")

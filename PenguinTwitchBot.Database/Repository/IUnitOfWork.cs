@@ -81,5 +81,6 @@ namespace PenguinTwitchBot.Database.Repository
         IOverlayWidgetRepository OverlayWidgets { get; }
 
         IOBSConnectionsRepository OBSConnections { get; }
+        IUserThemePreferencesRepository UserThemePreferences { get; }
     }
 }
