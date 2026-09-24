@@ -13,7 +13,6 @@
                              ValueChanged="OnSelectedValueChanged"
                              SearchFunc="@SearchAudioFiles"
                              Label="@Label"
-                             HelperText="@HelperText"
                              Required="@Required"
                              Variant="Variant.Outlined"
                              Margin="Margin.Dense"
@@ -34,7 +33,8 @@
                            Variant="Variant.Filled"
                            Size="Size.Medium"
                            OnClick="TogglePreview"
-                           Disabled="@(string.IsNullOrWhiteSpace(SelectedFile) || _isUploading)" />
+                           Disabled="@(string.IsNullOrWhiteSpace(SelectedFile) || _isUploading)"
+                           Style="height: 40px; width: 40px;" />
         </MudTooltip>
 
         <!-- Upload Button -->
@@ -62,8 +62,16 @@
                     }
                 </MudButton>
             </CustomContent>
+            <SelectedTemplate Context="_"></SelectedTemplate>
         </MudFileUpload>
     </MudStack>
+
+    @if (!string.IsNullOrEmpty(HelperText))
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+            @HelperText
+        </MudText>
+    }
 
     @if (!string.IsNullOrEmpty(_audioPreviewUrl))
     {

@@ -30,7 +30,6 @@
                                  ValueChanged="OnMediaFileSelected"
                                  SearchFunc="@SearchMediaFiles"
                                  Label="Image / Video File"
-                                 HelperText="Path to media file in wwwroot/gifs/ (e.g. drinks.gif, ad-shots.webm)"
                                  Variant="Variant.Outlined"
                                  Margin="Margin.Dense"
                                  Clearable="true"
@@ -68,8 +67,13 @@
                         }
                     </MudButton>
                 </CustomContent>
+                <SelectedTemplate Context="_"></SelectedTemplate>
             </MudFileUpload>
         </MudStack>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+            Path to media file in wwwroot/gifs/ (e.g. drinks.gif, ad-shots.webm)
+        </MudText>
     </MudStack>
 
     <!-- Companion Sound (Optional, tied to selected Image/Video) -->
@@ -126,6 +130,7 @@
                                 }
                             </MudButton>
                         </CustomContent>
+                        <SelectedTemplate Context="_"></SelectedTemplate>
                     </MudFileUpload>
                 </MudStack>
             </MudStack>
