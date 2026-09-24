@@ -13,33 +13,50 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Themes</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-4">
-    <MudStack Spacing="2" Class="mb-4">
-        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-            <div>
-                <MudText Typo="Typo.h5">Theme Management</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                    Create, customize, and manage custom MudBlazor themes. Streamers can configure light and dark palettes, set the default theme, and preview changes live.
-                </MudText>
-            </div>
+    <MudStack Spacing="1" Class="mb-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap" Spacing="2">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                @if (_editingTheme == null)
-                {
+                <MudText Typo="Typo.h5">Theme Management</MudText>
+                <HelpButton Topic="themes" />
+            </MudStack>
+            @if (_editingTheme == null)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.FileUpload"
+                               OnClick="OpenImportDialogAsync"
+                               Style="white-space: nowrap;">
+                        Import
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.FileDownload"
+                               OnClick="ExportAllThemesAsync"
+                               Disabled="@(_themes.Count == 0)"
+                               Style="white-space: nowrap;">
+                        Export All
+                    </MudButton>
                     <MudButton Variant="Variant.Outlined"
                                Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Restore"
-                               OnClick="ResetToDefaultsAsync">
-                        Reset to Presets
+                               OnClick="ResetToDefaultsAsync"
+                               Style="white-space: nowrap;">
+                        Reset Presets
                     </MudButton>
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"
-                               OnClick="CreateNewTheme">
-                        Create New Theme
+                               OnClick="CreateNewTheme"
+                               Style="white-space: nowrap;">
+                        Create Theme
                     </MudButton>
-                }
-                <HelpButton Topic="themes" />
-            </MudStack>
+                </MudStack>
+            }
         </MudStack>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            Create, customize, and manage custom MudBlazor themes. Streamers can configure light and dark palettes, set the default theme, and preview changes live.
+        </MudText>
     </MudStack>
 
     @if (_loading)
@@ -229,6 +246,7 @@
             <MudCardActions Class="pa-4">
                 <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelEdit">Cancel</MudButton>
                 <MudSpacer />
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportCurrentEditingThemeAsync" Class="mr-2">Export Theme</MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Visibility" OnClick="ApplyPreviewToScreen" Class="mr-2">Test on My Screen</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" OnClick="SaveThemeAsync">Save Theme</MudButton>
             </MudCardActions>
@@ -325,6 +343,12 @@
                                        Color="Color.Default"
                                        Size="Size.Small"
                                        OnClick="@(() => DuplicateTheme(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Export theme to JSON">
+                        <MudIconButton Icon="@Icons.Material.Filled.FileDownload"
+                                       Color="Color.Default"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ExportThemeAsync(context))" />
                     </MudTooltip>
                     <MudTooltip Text="Edit theme">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
@@ -641,5 +665,60 @@
         {
             return new MudColor("#000000");
         }
+    }
+
+    private async Task OpenImportDialogAsync()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<ImportThemeDialog>("Import Theme", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadThemesAsync();
+        }
+    }
+
+    private async Task ExportThemeAsync(CustomThemeModel theme)
+    {
+        try
+        {
+            var json = CustomThemeService.ExportThemeToJson(theme);
+            var safeName = SanitizeFileName(theme.Name);
+            var fileName = $"Theme_{safeName}_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+            Snackbar.Add($"Exported theme '{theme.Name}'.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting theme: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportCurrentEditingThemeAsync()
+    {
+        if (_editingTheme == null) return;
+        await ExportThemeAsync(_editingTheme);
+    }
+
+    private async Task ExportAllThemesAsync()
+    {
+        try
+        {
+            var json = CustomThemeService.ExportThemesToJson(_themes);
+            var fileName = $"Themes_Backup_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, json);
+            Snackbar.Add($"Exported {_themes.Count} theme(s).", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting themes: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "custom_theme";
+        var safe = string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '_')).Trim('_');
+        return string.IsNullOrWhiteSpace(safe) ? "custom_theme" : safe;
     }
 }

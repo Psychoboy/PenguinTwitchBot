@@ -308,6 +308,156 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
         ThemesChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public string ExportThemeToJson(CustomThemeModel theme)
+    {
+        return JsonSerializer.Serialize(theme, JsonOptions);
+    }
+
+    public string ExportThemesToJson(IEnumerable<CustomThemeModel> themes)
+    {
+        var package = new ThemeExportPackage
+        {
+            Version = 1,
+            ExportedAt = DateTime.UtcNow,
+            Themes = themes.ToList()
+        };
+        return JsonSerializer.Serialize(package, JsonOptions);
+    }
+
+    public List<CustomThemeModel> ParseThemesFromJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            throw new ArgumentException("Theme JSON cannot be empty.", nameof(json));
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        List<CustomThemeModel> result = [];
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            var list = JsonSerializer.Deserialize<List<CustomThemeModel>>(json, JsonOptions);
+            if (list != null)
+            {
+                result.AddRange(list);
+            }
+        }
+        else if (root.ValueKind == JsonValueKind.Object)
+        {
+            if (root.TryGetProperty("themes", out var themesProp) && themesProp.ValueKind == JsonValueKind.Array)
+            {
+                var package = JsonSerializer.Deserialize<ThemeExportPackage>(json, JsonOptions);
+                if (package?.Themes != null)
+                {
+                    result.AddRange(package.Themes);
+                }
+            }
+            else
+            {
+                // Verify the object contains theme properties and is not empty or arbitrary JSON
+                var hasThemeProperty = root.EnumerateObject().Any(prop =>
+                    prop.NameEquals("name") ||
+                    prop.NameEquals("Name") ||
+                    prop.NameEquals("lightPalette") ||
+                    prop.NameEquals("LightPalette") ||
+                    prop.NameEquals("darkPalette") ||
+                    prop.NameEquals("DarkPalette") ||
+                    prop.NameEquals("description") ||
+                    prop.NameEquals("Description"));
+
+                if (!hasThemeProperty)
+                {
+                    throw new JsonException("JSON object does not contain theme definition properties.");
+                }
+
+                var single = JsonSerializer.Deserialize<CustomThemeModel>(json, JsonOptions);
+                if (single != null)
+                {
+                    result.Add(single);
+                }
+            }
+        }
+        else
+        {
+            throw new JsonException("Invalid theme JSON structure. Expected an object or array.");
+        }
+
+        if (result.Count == 0)
+        {
+            throw new JsonException("No valid themes found in the provided JSON.");
+        }
+
+        foreach (var theme in result)
+        {
+            theme.LightPalette ??= new ThemePaletteModel();
+            theme.DarkPalette ??= new ThemePaletteModel();
+
+            theme.LightPalette.NormalizeColors();
+            theme.DarkPalette.NormalizeColors();
+
+            if (string.IsNullOrWhiteSpace(theme.Name))
+            {
+                theme.Name = "Imported Theme";
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<List<CustomThemeModel>> ImportThemesFromJsonAsync(string json, bool assignNewIds = true)
+    {
+        var parsedThemes = ParseThemesFromJson(json);
+
+        await _lock.WaitAsync();
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var existingThemes = await GetThemesAsync();
+
+            var presetIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                PresetThemes.DefaultThemeId,
+                PresetThemes.ArcticThemeId,
+                PresetThemes.MidnightPurpleThemeId,
+                PresetThemes.CyberpunkThemeId,
+                PresetThemes.ForestEmeraldThemeId
+            };
+
+            foreach (var imported in parsedThemes)
+            {
+                imported.IsBuiltIn = false;
+                imported.IsDefault = false;
+
+                if (assignNewIds || string.IsNullOrWhiteSpace(imported.Id) || presetIds.Contains(imported.Id))
+                {
+                    imported.Id = Guid.NewGuid().ToString();
+                }
+
+                var existingIdx = existingThemes.FindIndex(x => string.Equals(x.Id, imported.Id, StringComparison.OrdinalIgnoreCase));
+                if (existingIdx >= 0)
+                {
+                    existingThemes[existingIdx] = imported;
+                }
+                else
+                {
+                    existingThemes.Add(imported);
+                }
+            }
+
+            await SaveThemesInternalAsync(unitOfWork, existingThemes);
+            lock (_cacheLock) { _cachedThemes = existingThemes; }
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        ThemesChanged?.Invoke(this, EventArgs.Empty);
+        return parsedThemes;
+    }
+
     public void Dispose()
     {
         _lock.Dispose();
