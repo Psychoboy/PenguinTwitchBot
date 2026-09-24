@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
     [DisallowConcurrentExecution]
     public class TriggerBackupJob(IDatabaseTools databaseTools, ILogger<TriggerBackupJob> logger) : IJob
     {
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             logger.LogInformation("Scheduled backup job started.");
             await databaseTools.Backup();

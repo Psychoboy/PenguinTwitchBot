@@ -245,7 +245,7 @@ internal class Program
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
         });
-        builder.Services.AddQuartzServer(
+        builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
         );
 
@@ -800,8 +800,9 @@ try
         {
             var enabled = await settings.GetJobEnabledAsync(kvp.Key, true);
             var configuredCron = await settings.GetJobCronAsync(kvp.Key, kvp.Value);
-            var cronToUse = CronExpression.IsValidExpression(configuredCron) ? configuredCron : kvp.Value;
-            if (!CronExpression.IsValidExpression(configuredCron))
+            var isValidCron = CronExpression.TryParse(configuredCron, out _);
+            var cronToUse = isValidCron ? configuredCron : kvp.Value;
+            if (!isValidCron)
             {
                 scopedLogger.LogWarning("Invalid cron '{Cron}' for job {JobName}. Falling back to default '{DefaultCron}'.", configuredCron, kvp.Key, kvp.Value);
                 await settings.SetJobCronAsync(kvp.Key, kvp.Value);
@@ -909,7 +910,7 @@ try
 
         if (!string.IsNullOrWhiteSpace(authToken))
         {
-            Profiler.Instance.SetAuthToken(authToken);
+            Environment.SetEnvironmentVariable("PYROSCOPE_AUTH_TOKEN", authToken);
             return;
         }
 
