@@ -10,12 +10,12 @@ namespace PenguinTwitchBot.Services;
 
 public sealed class ThemeMetricsService : IThemeMetricsService
 {
-    private static readonly Prometheus.Gauge UserThemePreferences = Prometheus.Metrics.CreateGauge(
+    internal static readonly Prometheus.Gauge UserThemePreferences = Prometheus.Metrics.CreateGauge(
         "user_theme_preferences",
         "Number of users with configured theme preferences",
         ["theme_id", "theme_name", "mode"]);
 
-    private static readonly Prometheus.Gauge ActiveUsersByTheme = Prometheus.Metrics.CreateGauge(
+    internal static readonly Prometheus.Gauge ActiveUsersByTheme = Prometheus.Metrics.CreateGauge(
         "active_users_by_theme",
         "Number of active connected dashboard users/circuits using each theme",
         ["theme_id", "theme_name", "mode"]);
@@ -36,10 +36,7 @@ public sealed class ThemeMetricsService : IThemeMetricsService
 
         try
         {
-            Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(async () =>
-            {
-                await UpdateMetricsAsync();
-            });
+            Prometheus.Metrics.DefaultRegistry.AddBeforeCollectCallback(UpdateMetricsAsync);
         }
         catch (Exception ex)
         {
@@ -59,8 +56,9 @@ public sealed class ThemeMetricsService : IThemeMetricsService
         _activeSessions.TryRemove(sessionId, out _);
     }
 
-    public async Task UpdateMetricsAsync()
+    public async Task UpdateMetricsAsync(CancellationToken cancellationToken = default)
     {
+        if (cancellationToken.IsCancellationRequested) return;
         try
         {
             var themes = _customThemeService.GetCachedThemes();

@@ -17,6 +17,8 @@ public sealed class UserThemeService : IUserThemeService
     private readonly string _sessionId = Guid.NewGuid().ToString();
     private List<CustomThemeModel> _availableThemes = [];
     private string? _authenticatedUserId;
+    private readonly object _saveLock = new();
+    private Task _lastSaveTask = Task.CompletedTask;
     private bool _disposed;
 
     public bool IsDarkMode { get; private set; } = true;
@@ -237,6 +239,8 @@ public sealed class UserThemeService : IUserThemeService
         IsDarkMode = isDark;
         OnThemeChanged?.Invoke();
 
+        var saveTask = EnqueuePreferenceSave();
+
         try
         {
             await jsRuntime.InvokeVoidAsync("penguinTheme.setPreference", IsDarkMode, CurrentThemeId);
@@ -246,10 +250,7 @@ public sealed class UserThemeService : IUserThemeService
             // JS exception ignored (e.g. disconnected circuit)
         }
 
-        if (!string.IsNullOrWhiteSpace(_authenticatedUserId) && _preferenceService != null)
-        {
-            _ = _preferenceService.SavePreferenceAsync(_authenticatedUserId, CurrentThemeId, IsDarkMode);
-        }
+        await saveTask;
 
         _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
     }
@@ -273,6 +274,8 @@ public sealed class UserThemeService : IUserThemeService
 
         OnThemeChanged?.Invoke();
 
+        var saveTask = EnqueuePreferenceSave();
+
         try
         {
             await jsRuntime.InvokeVoidAsync("penguinTheme.setPreference", IsDarkMode, CurrentThemeId);
@@ -282,13 +285,54 @@ public sealed class UserThemeService : IUserThemeService
             // JS exception ignored
         }
 
-        if (!string.IsNullOrWhiteSpace(_authenticatedUserId) && _preferenceService != null)
-        {
-            _ = _preferenceService.SavePreferenceAsync(_authenticatedUserId, CurrentThemeId, IsDarkMode);
-        }
+        await saveTask;
 
         _metricsService?.TrackActiveSession(_sessionId, CurrentThemeId, IsDarkMode);
         return applied;
+    }
+
+    private Task EnqueuePreferenceSave()
+    {
+        if (string.IsNullOrWhiteSpace(_authenticatedUserId) || _preferenceService == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var snapshotUserId = _authenticatedUserId;
+        var snapshotThemeId = CurrentThemeId;
+        var snapshotIsDarkMode = IsDarkMode;
+
+        lock (_saveLock)
+        {
+            var previousTask = _lastSaveTask;
+            var currentTask = ProcessSaveAsync(previousTask, snapshotUserId, snapshotThemeId, snapshotIsDarkMode);
+            _lastSaveTask = currentTask;
+            return currentTask;
+        }
+    }
+
+    private async Task ProcessSaveAsync(Task previousTask, string userId, string themeId, bool isDarkMode)
+    {
+        try
+        {
+            await previousTask;
+        }
+        catch (Exception)
+        {
+            // Ensure previous failures do not block subsequent queued saves
+        }
+
+        if (_preferenceService != null)
+        {
+            try
+            {
+                await _preferenceService.SavePreferenceAsync(userId, themeId, isDarkMode);
+            }
+            catch (Exception)
+            {
+                // Ignored
+            }
+        }
     }
 
     public async Task RefreshThemesAsync()
