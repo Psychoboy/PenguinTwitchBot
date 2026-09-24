@@ -13,6 +13,10 @@ public interface ICustomThemeService
     Task SetDefaultThemeAsync(string id);
     Task SetThemeEnabledAsync(string id, bool isEnabled);
     Task ResetToDefaultsAsync();
+    string ExportThemeToJson(CustomThemeModel theme);
+    string ExportThemesToJson(IEnumerable<CustomThemeModel> themes);
+    List<CustomThemeModel> ParseThemesFromJson(string json);
+    Task<List<CustomThemeModel>> ImportThemesFromJsonAsync(string json, bool assignNewIds = true);
     event EventHandler? ThemesChanged;
 }
 

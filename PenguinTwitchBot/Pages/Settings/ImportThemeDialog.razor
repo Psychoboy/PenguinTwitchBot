@@ -1,0 +1,255 @@
+@using MudBlazor
+@using PenguinTwitchBot.Models.Themes
+@using PenguinTwitchBot.Services
+@inject ICustomThemeService CustomThemeService
+@inject IUserThemeService UserThemeService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.FileUpload" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Import Theme</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudTabs Rounded="true" ApplyEffectsToContainer="true" Elevation="0" Color="Color.Primary" Class="mb-3">
+            <MudTabPanel Text="Upload File" Icon="@Icons.Material.Filled.UploadFile">
+                <MudStack Spacing="3" Class="py-3">
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        Select a previously exported theme JSON file (.json).
+                    </MudText>
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".json">
+                        <CustomContent>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.FolderOpen"
+                                       OnClick="@context.OpenFilePickerAsync">
+                                @(_selectedFileName ?? "Choose Theme JSON File")
+                            </MudButton>
+                        </CustomContent>
+                    </MudFileUpload>
+                </MudStack>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Paste JSON" Icon="@Icons.Material.Filled.Code">
+                <MudStack Spacing="2" Class="py-3">
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        Paste exported theme JSON content directly into the box below.
+                    </MudText>
+                    <MudTextField @bind-Value="_jsonText"
+                                  Label="Theme JSON"
+                                  Lines="7"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="{ &quot;name&quot;: &quot;My Theme&quot;, ... }" />
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Check"
+                               OnClick="ParseJsonText"
+                               Disabled="@string.IsNullOrWhiteSpace(_jsonText)">
+                        Parse JSON
+                    </MudButton>
+                </MudStack>
+            </MudTabPanel>
+        </MudTabs>
+
+        @if (!string.IsNullOrWhiteSpace(_parseError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="my-2">
+                @_parseError
+            </MudAlert>
+        }
+
+        @if (_parsedThemes.Count > 0)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="my-2">
+                Found @(_parsedThemes.Count) theme(s) ready to import.
+            </MudAlert>
+
+            <MudStack Spacing="3" Class="mt-2" Style="max-height: 380px; overflow-y: auto;">
+                @foreach (var theme in _parsedThemes)
+                {
+                    <MudCard Outlined="true" Class="pa-3">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="theme.Name"
+                                              Label="Theme Name"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="theme.Description"
+                                              Label="Description"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">Dark Mode Palette Preview</MudText>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.DarkPalette.Primary ?? "#594AE2"); border: 1px solid #444;" title="Primary: @theme.DarkPalette.Primary"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.DarkPalette.Secondary ?? "#00C853"); border: 1px solid #444;" title="Secondary: @theme.DarkPalette.Secondary"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.DarkPalette.Background ?? "#000000"); border: 1px solid #444;" title="Background: @theme.DarkPalette.Background"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.DarkPalette.Surface ?? "#222222"); border: 1px solid #444;" title="Surface: @theme.DarkPalette.Surface"></div>
+                                    <MudText Typo="Typo.caption" Class="ml-2">@(theme.DarkPalette.Primary ?? "") / @(theme.DarkPalette.Secondary ?? "")</MudText>
+                                </MudStack>
+                            </MudItem>
+
+                            <MudItem xs="12" sm="6">
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-1">Light Mode Palette Preview</MudText>
+                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.LightPalette.Primary ?? "#594AE2"); border: 1px solid #ccc;" title="Primary: @theme.LightPalette.Primary"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.LightPalette.Secondary ?? "#00C853"); border: 1px solid #ccc;" title="Secondary: @theme.LightPalette.Secondary"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.LightPalette.Background ?? "#ffffff"); border: 1px solid #ccc;" title="Background: @theme.LightPalette.Background"></div>
+                                    <div style="width: 22px; height: 22px; border-radius: 4px; background-color: @(theme.LightPalette.Surface ?? "#ffffff"); border: 1px solid #ccc;" title="Surface: @theme.LightPalette.Surface"></div>
+                                    <MudText Typo="Typo.caption" Class="ml-2">@(theme.LightPalette.Primary ?? "") / @(theme.LightPalette.Secondary ?? "")</MudText>
+                                </MudStack>
+                            </MudItem>
+                        </MudGrid>
+                    </MudCard>
+                }
+
+                <MudCheckBox @bind-Value="_applyAfterImport"
+                             Label="Switch my active session to this theme after import"
+                             Color="Color.Primary"
+                             Dense="true" />
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.FileDownloadDone"
+                   Disabled="@(_parsedThemes.Count == 0 || _isImporting)"
+                   OnClick="ImportAsync">
+            @if (_isImporting)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Importing...</span>
+            }
+            else
+            {
+                <span>Import @(_parsedThemes.Count > 1 ? $"{_parsedThemes.Count} Themes" : "Theme")</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private string? _selectedFileName;
+    private string _jsonText = string.Empty;
+    private string _parseError = string.Empty;
+    private List<CustomThemeModel> _parsedThemes = [];
+    private bool _applyAfterImport = true;
+    private bool _isImporting;
+
+    private async Task OnFileSelected(IBrowserFile? file)
+    {
+        if (file == null) return;
+
+        _selectedFileName = file.Name;
+        _parseError = string.Empty;
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            _jsonText = content;
+            LoadFromContent(content);
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Error reading file: {ex.Message}";
+            _parsedThemes.Clear();
+        }
+    }
+
+    private void ParseJsonText()
+    {
+        _selectedFileName = null;
+        LoadFromContent(_jsonText);
+    }
+
+    private void LoadFromContent(string content)
+    {
+        _parseError = string.Empty;
+        _parsedThemes.Clear();
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            _parseError = "No JSON content provided.";
+            return;
+        }
+
+        try
+        {
+            var themes = CustomThemeService.ParseThemesFromJson(content);
+            if (themes.Count == 0)
+            {
+                _parseError = "No valid themes found in the JSON.";
+                return;
+            }
+
+            _parsedThemes = themes;
+        }
+        catch (Exception ex)
+        {
+            _parseError = $"Failed to parse theme JSON: {ex.Message}";
+        }
+    }
+
+    private async Task ImportAsync()
+    {
+        if (_parsedThemes.Count == 0) return;
+
+        _isImporting = true;
+        try
+        {
+            // Verify names
+            foreach (var t in _parsedThemes)
+            {
+                if (string.IsNullOrWhiteSpace(t.Name))
+                {
+                    Snackbar.Add("Theme name cannot be empty.", Severity.Warning);
+                    _isImporting = false;
+                    return;
+                }
+            }
+
+            var serialized = CustomThemeService.ExportThemesToJson(_parsedThemes);
+            var imported = await CustomThemeService.ImportThemesFromJsonAsync(serialized, assignNewIds: true);
+
+            Snackbar.Add($"Successfully imported {imported.Count} theme(s).", Severity.Success);
+
+            if (_applyAfterImport && imported.Count > 0)
+            {
+                await UserThemeService.RefreshThemesAsync();
+                var applied = await UserThemeService.SelectThemeAsync(imported[0].Id, JSRuntime);
+                if (!applied)
+                {
+                    Snackbar.Add($"Theme '{imported[0].Name}' could not be applied.", Severity.Warning);
+                }
+            }
+
+            MudDialog.Close(DialogResult.Ok(imported));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isImporting = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}
