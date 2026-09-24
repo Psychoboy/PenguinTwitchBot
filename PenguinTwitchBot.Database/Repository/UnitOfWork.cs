@@ -82,6 +82,7 @@ namespace PenguinTwitchBot.Database.Repository
             OverlayWidgets = new OverlayWidgetRepository(_context);
 
             OBSConnections = new OBSConnectionsRepository(_context);
+            UserThemePreferences = new UserThemePreferencesRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -154,6 +155,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IOverlayWidgetRepository OverlayWidgets { get; private set; }
 
         public IOBSConnectionsRepository OBSConnections { get; private set; }
+        public IUserThemePreferencesRepository UserThemePreferences { get; private set; }
 
         public void Dispose()
         {

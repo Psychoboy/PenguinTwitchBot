@@ -11,6 +11,7 @@ using PenguinTwitchBot.Database.Bot.Models.Wheel;
 using PenguinTwitchBot.Database.Bot.Models.Obs;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Bot.Models.Themes;
 using PenguinTwitchBot.Database.Bot.Core;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,6 +90,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
 
         public DbSet<BannedSong> BannedSongs { get; set; } = null!;
         public DbSet<SongCooldown> SongCooldowns { get; set; } = null!;
+        public DbSet<UserThemePreference> UserThemePreferences { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

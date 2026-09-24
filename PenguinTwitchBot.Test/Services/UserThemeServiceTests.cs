@@ -1,8 +1,12 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 using NSubstitute;
 using PenguinTwitchBot.Models.Themes;
 using PenguinTwitchBot.Services;
 using Xunit;
+using DbThemePreference = PenguinTwitchBot.Database.Bot.Models.Themes.UserThemePreference;
+using UserThemePreference = PenguinTwitchBot.Models.Themes.UserThemePreference;
 
 namespace PenguinTwitchBot.Test.Services;
 
@@ -181,5 +185,91 @@ public class UserThemeServiceTests
 
         Assert.False(service.IsDarkMode);
         Assert.Equal(PresetThemes.CyberpunkThemeId, service.CurrentThemeId);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenAuthenticatedAndNoDbRecord_SavesLocalPrefToDb()
+    {
+        var prefService = Substitute.For<IUserThemePreferenceService>();
+        var metricsService = Substitute.For<IThemeMetricsService>();
+        var authProvider = Substitute.For<AuthenticationStateProvider>();
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("UserId", "user-123")], "TestAuth"));
+        authProvider.GetAuthenticationStateAsync().Returns(Task.FromResult(new AuthenticationState(user)));
+        prefService.GetPreferenceAsync("user-123").Returns(Task.FromResult<DbThemePreference?>(null));
+
+        var savedPreference = new UserThemePreference
+        {
+            IsDarkMode = false,
+            ThemeId = PresetThemes.ArcticThemeId
+        };
+        _jsRuntime.InvokeAsync<UserThemePreference?>("penguinTheme.getPreference", Arg.Any<object?[]>())
+            .Returns(new ValueTask<UserThemePreference?>(savedPreference));
+
+        var service = new UserThemeService(_customThemeService, null, prefService, metricsService, authProvider);
+        await service.InitializeAsync(_jsRuntime);
+
+        await prefService.Received(1).SavePreferenceAsync("user-123", PresetThemes.ArcticThemeId, false);
+        metricsService.Received().TrackActiveSession(Arg.Any<string>(), PresetThemes.ArcticThemeId, false);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenAuthenticatedAndDbRecordDiffers_UpdatesLocalFromDb()
+    {
+        var prefService = Substitute.For<IUserThemePreferenceService>();
+        var metricsService = Substitute.For<IThemeMetricsService>();
+        var authProvider = Substitute.For<AuthenticationStateProvider>();
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("UserId", "user-456")], "TestAuth"));
+        authProvider.GetAuthenticationStateAsync().Returns(Task.FromResult(new AuthenticationState(user)));
+
+        // Local cache has Arctic light mode
+        var localPref = new UserThemePreference
+        {
+            IsDarkMode = false,
+            ThemeId = PresetThemes.ArcticThemeId
+        };
+        _jsRuntime.InvokeAsync<UserThemePreference?>("penguinTheme.getPreference", Arg.Any<object?[]>())
+            .Returns(new ValueTask<UserThemePreference?>(localPref));
+
+        // DB has Cyberpunk dark mode
+        var dbPref = new DbThemePreference
+        {
+            UserId = "user-456",
+            ThemeId = PresetThemes.CyberpunkThemeId,
+            IsDarkMode = true
+        };
+        prefService.GetPreferenceAsync("user-456").Returns(Task.FromResult<DbThemePreference?>(dbPref));
+
+        var service = new UserThemeService(_customThemeService, null, prefService, metricsService, authProvider);
+        await service.InitializeAsync(_jsRuntime);
+
+        // Should have updated to Cyberpunk dark mode from DB
+        Assert.Equal(PresetThemes.CyberpunkThemeId, service.CurrentThemeId);
+        Assert.True(service.IsDarkMode);
+
+        // Should have synchronized to JS
+        await _jsRuntime.Received().InvokeAsync<Microsoft.JSInterop.Infrastructure.IJSVoidResult>(
+            "penguinTheme.setPreference",
+            Arg.Is<object?[]>(args => (bool)args[0]! == true && (string)args[1]! == PresetThemes.CyberpunkThemeId));
+    }
+
+    [Fact]
+    public async Task SelectThemeAsync_WhenAuthenticated_SavesToDbAndTracksActive()
+    {
+        var prefService = Substitute.For<IUserThemePreferenceService>();
+        var metricsService = Substitute.For<IThemeMetricsService>();
+        var authProvider = Substitute.For<AuthenticationStateProvider>();
+
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("UserId", "user-789")], "TestAuth"));
+        authProvider.GetAuthenticationStateAsync().Returns(Task.FromResult(new AuthenticationState(user)));
+
+        var service = new UserThemeService(_customThemeService, null, prefService, metricsService, authProvider);
+        await service.InitializeAsync(_jsRuntime);
+
+        await service.SelectThemeAsync(PresetThemes.MidnightPurpleThemeId, _jsRuntime);
+
+        await prefService.Received().SavePreferenceAsync("user-789", PresetThemes.MidnightPurpleThemeId, true);
+        metricsService.Received().TrackActiveSession(Arg.Any<string>(), PresetThemes.MidnightPurpleThemeId, true);
     }
 }

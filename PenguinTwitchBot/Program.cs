@@ -277,6 +277,8 @@ internal class Program
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSingleton<ICustomThemeService, CustomThemeService>();
+        builder.Services.AddSingleton<IUserThemePreferenceService, UserThemePreferenceService>();
+        builder.Services.AddSingleton<IThemeMetricsService, ThemeMetricsService>();
         builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();

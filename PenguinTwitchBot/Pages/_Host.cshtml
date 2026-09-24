@@ -5,11 +5,42 @@
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @inject IHttpContextAccessor httpContextAccessor;
 @inject IConfiguration Configuration
+@inject PenguinTwitchBot.Services.IUserThemePreferenceService ThemePrefService
 @{
+    var httpContext = httpContextAccessor.HttpContext;
     var remoteIpAddress =
-           httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString();
+           httpContext?.Connection?.RemoteIpAddress?.ToString();
     var initialThemePref =
-           httpContextAccessor.HttpContext?.Request?.Cookies["penguin_theme_pref"];
+           httpContext?.Request?.Cookies["penguin_theme_pref"];
+
+    if (string.IsNullOrWhiteSpace(initialThemePref) && httpContext?.User?.Identity?.IsAuthenticated == true)
+    {
+        var user = httpContext.User;
+        var userId = user.FindFirst("UserId")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            var dbPref = await ThemePrefService.GetPreferenceAsync(userId);
+            if (dbPref != null)
+            {
+                initialThemePref = System.Text.Json.JsonSerializer.Serialize(new PenguinTwitchBot.Models.Themes.UserThemePreference
+                {
+                    ThemeId = dbPref.ThemeId,
+                    IsDarkMode = dbPref.IsDarkMode
+                });
+
+                try
+                {
+                    httpContext.Response?.Cookies.Append("penguin_theme_pref", Uri.EscapeDataString(initialThemePref), new Microsoft.AspNetCore.Http.CookieOptions
+                    {
+                        Path = "/",
+                        MaxAge = TimeSpan.FromDays(365),
+                        SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax
+                    });
+                }
+                catch { }
+            }
+        }
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
