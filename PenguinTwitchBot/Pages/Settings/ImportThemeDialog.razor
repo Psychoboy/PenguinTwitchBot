@@ -232,7 +232,11 @@
             if (_applyAfterImport && imported.Count > 0)
             {
                 await UserThemeService.RefreshThemesAsync();
-                await UserThemeService.SelectThemeAsync(imported[0].Id, JSRuntime);
+                var applied = await UserThemeService.SelectThemeAsync(imported[0].Id, JSRuntime);
+                if (!applied)
+                {
+                    Snackbar.Add($"Theme '{imported[0].Name}' could not be applied.", Severity.Warning);
+                }
             }
 
             MudDialog.Close(DialogResult.Ok(imported));

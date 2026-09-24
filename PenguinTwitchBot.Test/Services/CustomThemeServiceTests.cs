@@ -423,5 +423,87 @@ public class CustomThemeServiceTests : IDisposable
         var originalArctic = allThemes.First(t => t.Id == PresetThemes.ArcticThemeId);
         Assert.Equal("Penguin Arctic", originalArctic.Name);
     }
+
+    [Fact]
+    public void ParseThemesFromJson_PackageWithPascalCaseThemes_ParsesSuccessfully()
+    {
+        var service = new CustomThemeService(_scopeFactory);
+        var json = """
+        {
+            "Version": 1,
+            "ExportedAt": "2026-09-24T12:00:00Z",
+            "Themes": [
+                { "id": "t1", "name": "Pascal Theme 1" },
+                { "id": "t2", "name": "Pascal Theme 2" }
+            ]
+        }
+        """;
+
+        var parsed = service.ParseThemesFromJson(json);
+
+        Assert.Equal(2, parsed.Count);
+        Assert.Equal("Pascal Theme 1", parsed[0].Name);
+        Assert.Equal("Pascal Theme 2", parsed[1].Name);
+    }
+
+    [Fact]
+    public async Task ImportThemesFromJsonAsync_PreservesIsDefault_WhenReplacingDefaultTheme()
+    {
+        var service = new CustomThemeService(_scopeFactory);
+        var custom = new CustomThemeModel
+        {
+            Id = "custom-default-theme",
+            Name = "Original Default",
+            IsDefault = true,
+            IsEnabled = true,
+            LightPalette = new ThemePaletteModel { Primary = "#111111" },
+            DarkPalette = new ThemePaletteModel { Primary = "#222222" }
+        };
+        await service.SaveThemeAsync(custom);
+
+        var json = """
+        {
+            "id": "custom-default-theme",
+            "name": "Updated Default Theme",
+            "isDefault": false,
+            "lightPalette": { "primary": "#333333" },
+            "darkPalette": { "primary": "#444444" }
+        }
+        """;
+
+        var imported = await service.ImportThemesFromJsonAsync(json, assignNewIds: false);
+
+        Assert.Single(imported);
+        Assert.Equal("custom-default-theme", imported[0].Id);
+        Assert.True(imported[0].IsDefault);
+        Assert.True(imported[0].IsEnabled);
+
+        var allThemes = await service.GetThemesAsync();
+        var retrieved = allThemes.First(t => t.Id == "custom-default-theme");
+        Assert.True(retrieved.IsDefault);
+        Assert.Equal("Updated Default Theme", retrieved.Name);
+    }
+
+    [Fact]
+    public async Task ImportThemesFromJsonAsync_DuplicateIdsInImportPayload_AssignsDistinctIdsAndPersistsAll()
+    {
+        var service = new CustomThemeService(_scopeFactory);
+        var json = """
+        [
+            { "id": "duplicate-id", "name": "First Duplicate" },
+            { "id": "duplicate-id", "name": "Second Duplicate" }
+        ]
+        """;
+
+        var imported = await service.ImportThemesFromJsonAsync(json, assignNewIds: false);
+
+        Assert.Equal(2, imported.Count);
+        Assert.NotEqual(imported[0].Id, imported[1].Id);
+
+        var allThemes = await service.GetThemesAsync();
+        Assert.Contains(allThemes, t => t.Id == imported[0].Id && t.Name == "First Duplicate");
+        Assert.Contains(allThemes, t => t.Id == imported[1].Id && t.Name == "Second Duplicate");
+    }
 }
+
 

@@ -345,7 +345,7 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
         }
         else if (root.ValueKind == JsonValueKind.Object)
         {
-            if (root.TryGetProperty("themes", out var themesProp) && themesProp.ValueKind == JsonValueKind.Array)
+            if ((root.TryGetProperty("themes", out var themesProp) || root.TryGetProperty("Themes", out themesProp)) && themesProp.ValueKind == JsonValueKind.Array)
             {
                 var package = JsonSerializer.Deserialize<ThemeExportPackage>(json, JsonOptions);
                 if (package?.Themes != null)
@@ -425,19 +425,28 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
                 PresetThemes.ForestEmeraldThemeId
             };
 
+            var seenImportedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var imported in parsedThemes)
             {
                 imported.IsBuiltIn = false;
                 imported.IsDefault = false;
 
-                if (assignNewIds || string.IsNullOrWhiteSpace(imported.Id) || presetIds.Contains(imported.Id))
+                if (assignNewIds || string.IsNullOrWhiteSpace(imported.Id) || presetIds.Contains(imported.Id) || seenImportedIds.Contains(imported.Id))
                 {
                     imported.Id = Guid.NewGuid().ToString();
                 }
 
+                seenImportedIds.Add(imported.Id);
+
                 var existingIdx = existingThemes.FindIndex(x => string.Equals(x.Id, imported.Id, StringComparison.OrdinalIgnoreCase));
                 if (existingIdx >= 0)
                 {
+                    imported.IsDefault = existingThemes[existingIdx].IsDefault;
+                    if (imported.IsDefault)
+                    {
+                        imported.IsEnabled = true;
+                    }
                     existingThemes[existingIdx] = imported;
                 }
                 else
