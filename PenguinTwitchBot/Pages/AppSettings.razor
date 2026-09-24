@@ -956,7 +956,7 @@
     private void ApplyGeneratedCronToTarget()
     {
         var generatedCron = BuildCronFromHelper();
-        if (!CronExpression.IsValidExpression(generatedCron))
+        if (!CronExpression.TryParse(generatedCron, out _))
         {
             Snackbar.Add($"Generated cron is invalid: {generatedCron}", Severity.Error);
             return;
@@ -1006,7 +1006,7 @@
 
     private bool ValidateCronSetting(string label, string cronExpression)
     {
-        if (string.IsNullOrWhiteSpace(cronExpression) || !CronExpression.IsValidExpression(cronExpression))
+        if (string.IsNullOrWhiteSpace(cronExpression) || !CronExpression.TryParse(cronExpression, out _))
         {
             Snackbar.Add($"Invalid cron for {label}: {cronExpression}", Severity.Error);
             return false;

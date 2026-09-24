@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.StreamSchedule;
+using PenguinTwitchBot.Bot.StreamSchedule;
 using Quartz;
 
 namespace PenguinTwitchBot.Bot.ScheduledJobs
@@ -6,9 +6,9 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
     [DisallowConcurrentExecution]
     public class UpdateDiscordEvents(ISchedule schedule) : IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
-            return schedule.UpdateEvents();
+            await schedule.UpdateEvents();
         }
     }
 }

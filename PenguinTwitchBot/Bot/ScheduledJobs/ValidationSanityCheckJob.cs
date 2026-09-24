@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Validation;
+using PenguinTwitchBot.Bot.Validation;
 using Quartz;
 
 namespace PenguinTwitchBot.Bot.ScheduledJobs
@@ -16,7 +16,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
             _logger = logger;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Starting scheduled validation sanity check");
 
