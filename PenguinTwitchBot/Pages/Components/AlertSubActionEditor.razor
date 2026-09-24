@@ -449,9 +449,8 @@
 
         try
         {
-            var baseName = Path.GetFileNameWithoutExtension(Alert.File);
             using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
-            var result = await MediaUploadService.UploadAlertCompanionAudioAsync(stream, baseName, file.Name);
+            var result = await MediaUploadService.UploadAlertCompanionAudioAsync(stream, Alert.File, file.Name);
 
             if (result.Success && !string.IsNullOrEmpty(result.FileName))
             {

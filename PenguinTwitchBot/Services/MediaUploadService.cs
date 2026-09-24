@@ -128,7 +128,6 @@ namespace PenguinTwitchBot.Services
                 var sanitizedFileName = $"{sanitizedBase}{extension}";
 
                 Directory.CreateDirectory(AudioDirectory);
-                var targetPath = Path.Combine(AudioDirectory, sanitizedFileName);
 
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
@@ -145,10 +144,11 @@ namespace PenguinTwitchBot.Services
                     return MediaUploadResult.Fail("File header verification failed. The file is corrupted or not a valid audio file.");
                 }
 
+                var (uniqueBase, uniqueFileName, targetPath) = GetUniqueFilePath(AudioDirectory, sanitizedBase, extension);
                 await File.WriteAllBytesAsync(targetPath, data);
                 _logger.LogInformation("Saved audio file: {TargetPath}", targetPath);
 
-                return MediaUploadResult.Ok(sanitizedBase, sanitizedFileName);
+                return MediaUploadResult.Ok(uniqueBase, uniqueFileName);
             }
             catch (Exception ex)
             {
@@ -171,11 +171,24 @@ namespace PenguinTwitchBot.Services
                 }
 
                 var allowedExtensions = SupportedImageExtensions.Concat(SupportedVideoExtensions).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var allFiles = Directory.GetFiles(GifsDirectory);
 
-                return Directory.GetFiles(GifsDirectory)
+                // Identify companion audio files in GifsDirectory to exclude from alert media list
+                var companionAudioFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in allFiles)
+                {
+                    var fileName = Path.GetFileName(file);
+                    var companion = GetCompanionAudioFileName(fileName);
+                    if (!string.IsNullOrEmpty(companion))
+                    {
+                        companionAudioFiles.Add(companion);
+                    }
+                }
+
+                return allFiles
                     .Where(f => allowedExtensions.Contains(Path.GetExtension(f)))
                     .Select(Path.GetFileName)
-                    .Where(f => !string.IsNullOrWhiteSpace(f))
+                    .Where(f => !string.IsNullOrWhiteSpace(f) && !companionAudioFiles.Contains(f!))
                     .Select(f => f!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(f => f)
@@ -193,11 +206,18 @@ namespace PenguinTwitchBot.Services
             if (string.IsNullOrWhiteSpace(mediaFileName) || !Directory.Exists(GifsDirectory))
                 return null;
 
+            var mediaFileNameOnly = Path.GetFileName(mediaFileName);
             var baseName = Path.GetFileNameWithoutExtension(mediaFileName);
 
             foreach (var ext in SupportedAudioExtensions)
             {
-                var candidate = Path.Combine(GifsDirectory, $"{baseName}{ext}");
+                var candidateName = $"{baseName}{ext}";
+                if (string.Equals(candidateName, mediaFileNameOnly, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // Exclude the media file itself from companion lookup!
+                }
+
+                var candidate = Path.Combine(GifsDirectory, candidateName);
                 if (File.Exists(candidate))
                 {
                     return Path.GetFileName(candidate);
@@ -259,7 +279,6 @@ namespace PenguinTwitchBot.Services
                 var sanitizedFileName = $"{sanitizedBase}{extension}";
 
                 Directory.CreateDirectory(GifsDirectory);
-                var targetPath = Path.Combine(GifsDirectory, sanitizedFileName);
 
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
@@ -280,10 +299,11 @@ namespace PenguinTwitchBot.Services
                     return MediaUploadResult.Fail("File header verification failed. The file is corrupted or not a valid media file.");
                 }
 
+                var (uniqueBase, uniqueFileName, targetPath) = GetUniqueFilePath(GifsDirectory, sanitizedBase, extension);
                 await File.WriteAllBytesAsync(targetPath, data);
                 _logger.LogInformation("Saved alert media file: {TargetPath}", targetPath);
 
-                return MediaUploadResult.Ok(sanitizedBase, sanitizedFileName);
+                return MediaUploadResult.Ok(uniqueBase, uniqueFileName);
             }
             catch (Exception ex)
             {
@@ -292,14 +312,17 @@ namespace PenguinTwitchBot.Services
             }
         }
 
-        public async Task<MediaUploadResult> UploadAlertCompanionAudioAsync(Stream stream, string baseName, string originalFileName, long maxSizeBytes = 25 * 1024 * 1024)
+        public async Task<MediaUploadResult> UploadAlertCompanionAudioAsync(Stream stream, string alertMediaFileName, string originalFileName, long maxSizeBytes = 25 * 1024 * 1024)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(baseName))
+                if (string.IsNullOrWhiteSpace(alertMediaFileName))
                     return MediaUploadResult.Fail("A base media file must be specified to upload companion audio.");
 
-                var sanitizedBase = SanitizeFileName(Path.GetFileNameWithoutExtension(baseName));
+                var mediaFileNameOnly = Path.GetFileName(alertMediaFileName);
+                var mediaExt = Path.GetExtension(alertMediaFileName);
+
+                var sanitizedBase = SanitizeFileName(Path.GetFileNameWithoutExtension(alertMediaFileName));
                 if (string.IsNullOrWhiteSpace(sanitizedBase))
                     return MediaUploadResult.Fail("Invalid base media filename.");
 
@@ -307,6 +330,11 @@ namespace PenguinTwitchBot.Services
                 if (!SupportedAudioExtensions.Contains(audioExtension))
                 {
                     return MediaUploadResult.Fail($"Unsupported companion audio format: '{audioExtension}'. Supported: {string.Join(", ", SupportedAudioExtensions)}");
+                }
+
+                if (!string.IsNullOrEmpty(mediaExt) && string.Equals(audioExtension, mediaExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    return MediaUploadResult.Fail($"Companion audio extension '{audioExtension}' cannot be the same as the media file extension.");
                 }
 
                 Directory.CreateDirectory(GifsDirectory);
@@ -326,10 +354,16 @@ namespace PenguinTwitchBot.Services
                     return MediaUploadResult.Fail("Audio file header verification failed. The file is corrupted or not a valid audio file.");
                 }
 
-                // Delete any existing companion audio files with different extensions for this baseName
+                // Delete any existing companion audio files with different extensions for this baseName, excluding the media file itself
                 foreach (var ext in SupportedAudioExtensions)
                 {
-                    var existingFile = Path.Combine(GifsDirectory, $"{sanitizedBase}{ext}");
+                    var candidateName = $"{sanitizedBase}{ext}";
+                    if (string.Equals(candidateName, mediaFileNameOnly, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue; // Exclude the media file itself!
+                    }
+
+                    var existingFile = Path.Combine(GifsDirectory, candidateName);
                     if (File.Exists(existingFile))
                     {
                         try { File.Delete(existingFile); } catch { /* Ignore cleanup issues */ }
@@ -346,7 +380,7 @@ namespace PenguinTwitchBot.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to upload alert companion audio for base {BaseName}", baseName);
+                _logger.LogError(ex, "Failed to upload alert companion audio for media {AlertMediaFileName}", alertMediaFileName);
                 return MediaUploadResult.Fail($"Upload failed: {ex.Message}");
             }
         }
@@ -478,6 +512,24 @@ namespace PenguinTwitchBot.Services
                 return true;
 
             return false;
+        }
+
+        private static (string uniqueBase, string uniqueFileName, string targetPath) GetUniqueFilePath(string directory, string sanitizedBase, string extension)
+        {
+            var uniqueBase = sanitizedBase;
+            var uniqueFileName = $"{uniqueBase}{extension}";
+            var targetPath = Path.Combine(directory, uniqueFileName);
+            var counter = 1;
+
+            while (File.Exists(targetPath))
+            {
+                uniqueBase = $"{sanitizedBase}_{counter}";
+                uniqueFileName = $"{uniqueBase}{extension}";
+                targetPath = Path.Combine(directory, uniqueFileName);
+                counter++;
+            }
+
+            return (uniqueBase, uniqueFileName, targetPath);
         }
 
         #endregion

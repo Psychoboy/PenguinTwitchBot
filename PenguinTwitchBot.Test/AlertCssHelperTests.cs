@@ -67,16 +67,23 @@ namespace PenguinTwitchBot.Test
         }
 
         [Fact]
-        public void ParseCss_HandlesRgbaTextShadow()
+        public void ParseCss_PreservesCommaContainingTextShadowInExtraCss()
         {
-            const string css = "color: #ffffff;font-size: 40px;text-shadow: rgba(0, 0, 0, 0.75) 2px 3px 10px;";
+            const string css = "color: #ffffff;font-size: 40px;text-shadow: #00ffff 0 0 10px, #0088ff 0 0 20px;";
             var options = AlertCssHelper.ParseCss(css);
 
-            Assert.True(options.EnableShadow);
-            Assert.Equal("rgba(0, 0, 0, 0.75)", options.ShadowColor);
-            Assert.Equal(2, options.ShadowOffsetX);
-            Assert.Equal(3, options.ShadowOffsetY);
-            Assert.Equal(10, options.ShadowBlur);
+            Assert.False(options.EnableShadow);
+            Assert.Contains("text-shadow: #00ffff 0 0 10px, #0088ff 0 0 20px;", options.ExtraCss);
+        }
+
+        [Fact]
+        public void ParseCss_PreservesFailedPxValuesInExtraCss()
+        {
+            const string css = "font-size: 2.5rem;width: 80vw;";
+            var options = AlertCssHelper.ParseCss(css);
+
+            Assert.Contains("font-size: 2.5rem;", options.ExtraCss);
+            Assert.Contains("width: 80vw;", options.ExtraCss);
         }
 
         [Fact]

@@ -19,6 +19,7 @@
                 @bind-Value="audioCommand.CommandName" />
                 <AudioFilePicker @bind-SelectedFile="audioCommand.AudioFile"
                                  AvailableFiles="audioFiles"
+                                 OnFileUploaded="OnAudioUploaded"
                                  Label="Audio File"
                                  HelperText="Select the audio file to play or upload a new one"
                                  Required="true" />
@@ -160,6 +161,16 @@
         if (audioCommand != null)
         {
             audioCommand.SpecificUsersOnly?.Remove(user);
+        }
+    }
+
+    private void OnAudioUploaded(string baseName)
+    {
+        audioFiles ??= new List<string>();
+        if (!audioFiles.Contains(baseName, StringComparer.OrdinalIgnoreCase))
+        {
+            audioFiles.Add(baseName);
+            audioFiles.Sort();
         }
     }
 }

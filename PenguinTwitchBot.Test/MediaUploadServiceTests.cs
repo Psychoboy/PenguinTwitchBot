@@ -69,6 +69,13 @@ namespace PenguinTwitchBot.Test
             return bytes;
         }
 
+        private static byte[] CreateFakeWebm()
+        {
+            var bytes = new byte[64];
+            bytes[0] = 0x1A; bytes[1] = 0x45; bytes[2] = 0xDF; bytes[3] = 0xA3;
+            return bytes;
+        }
+
         [Fact]
         public void ValidateAudioSignature_ValidFormats_ReturnsTrue()
         {
@@ -205,6 +212,114 @@ namespace PenguinTwitchBot.Test
 
             var oldWavPath = Path.Combine(_service.GifsDirectory, "dance.wav");
             Assert.False(File.Exists(oldWavPath));
+        }
+
+        [Fact]
+        public async Task UploadAudioAsync_ChoosesUnusedNumericSuffixOnCollision()
+        {
+            var mp3Bytes = CreateFakeMp3();
+
+            // First upload
+            using (var stream = new MemoryStream(mp3Bytes))
+            {
+                var result1 = await _service.UploadAudioAsync(stream, "fanfare.mp3");
+                Assert.True(result1.Success);
+                Assert.Equal("fanfare", result1.BaseName);
+                Assert.Equal("fanfare.mp3", result1.FileName);
+            }
+
+            // Second upload with same name
+            using (var stream = new MemoryStream(mp3Bytes))
+            {
+                var result2 = await _service.UploadAudioAsync(stream, "fanfare.mp3");
+                Assert.True(result2.Success);
+                Assert.Equal("fanfare_1", result2.BaseName);
+                Assert.Equal("fanfare_1.mp3", result2.FileName);
+            }
+
+            // Third upload with same name
+            using (var stream = new MemoryStream(mp3Bytes))
+            {
+                var result3 = await _service.UploadAudioAsync(stream, "fanfare.mp3");
+                Assert.True(result3.Success);
+                Assert.Equal("fanfare_2", result3.BaseName);
+                Assert.Equal("fanfare_2.mp3", result3.FileName);
+            }
+        }
+
+        [Fact]
+        public async Task UploadAlertCompanionAudioAsync_RejectsSameExtensionAsMedia()
+        {
+            var webmBytes = CreateFakeWebm();
+
+            // 1. Upload video media
+            using (var stream = new MemoryStream(webmBytes))
+            {
+                var mediaResult = await _service.UploadAlertMediaAsync(stream, "clip.webm");
+                Assert.True(mediaResult.Success);
+            }
+
+            // 2. Upload companion audio with same extension (.webm) -> should be rejected!
+            using (var stream = new MemoryStream(webmBytes))
+            {
+                var soundResult = await _service.UploadAlertCompanionAudioAsync(stream, "clip.webm", "sound.webm");
+                Assert.False(soundResult.Success);
+                Assert.Contains("cannot be the same", soundResult.ErrorMessage);
+            }
+        }
+
+        [Fact]
+        public async Task UploadAlertCompanionAudioAsync_DoesNotDeleteVideoMediaFile()
+        {
+            var webmBytes = CreateFakeWebm();
+            var mp3Bytes = CreateFakeMp3();
+
+            // 1. Upload webm video media
+            using (var stream = new MemoryStream(webmBytes))
+            {
+                var mediaResult = await _service.UploadAlertMediaAsync(stream, "action.webm");
+                Assert.True(mediaResult.Success);
+            }
+
+            var videoPath = Path.Combine(_service.GifsDirectory, "action.webm");
+            Assert.True(File.Exists(videoPath));
+
+            // 2. Upload companion audio .mp3
+            using (var stream = new MemoryStream(mp3Bytes))
+            {
+                var soundResult = await _service.UploadAlertCompanionAudioAsync(stream, "action.webm", "action.mp3");
+                Assert.True(soundResult.Success);
+            }
+
+            // 3. Verify video media file was NOT deleted during companion audio cleanup
+            Assert.True(File.Exists(videoPath), "Video media file was deleted during companion audio cleanup!");
+
+            // 4. Verify companion lookup returns the audio, not the video itself
+            var companion = _service.GetCompanionAudioFileName("action.webm");
+            Assert.Equal("action.mp3", companion);
+        }
+
+        [Fact]
+        public async Task GetAlertMediaFiles_DoesNotListCompanionAudio()
+        {
+            var gifBytes = CreateFakeGif();
+            var mp3Bytes = CreateFakeMp3();
+
+            // Upload alert media
+            using (var stream = new MemoryStream(gifBytes))
+            {
+                await _service.UploadAlertMediaAsync(stream, "cheer.gif");
+            }
+
+            // Upload companion audio
+            using (var stream = new MemoryStream(mp3Bytes))
+            {
+                await _service.UploadAlertCompanionAudioAsync(stream, "cheer.gif", "audio.mp3");
+            }
+
+            var alertMedia = _service.GetAlertMediaFiles();
+            Assert.Contains("cheer.gif", alertMedia);
+            Assert.DoesNotContain("cheer.mp3", alertMedia);
         }
     }
 }

@@ -403,7 +403,7 @@
             _model = AlertCssHelper.Presets["Classic White with Outline"].Clone();
         }
 
-        RefreshGeneratedCss();
+        _generatedCss = AlertCssHelper.GenerateCss(_model);
     }
 
     private void RefreshGeneratedCss()

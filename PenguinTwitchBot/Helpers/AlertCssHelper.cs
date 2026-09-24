@@ -172,7 +172,7 @@ namespace PenguinTwitchBot.Helpers
                 WordWrap = true,
                 EnableStroke = false,
                 EnableShadow = true,
-                ShadowColor = "rgba(0,0,0,0.7)",
+                ShadowColor = "#222222",
                 ShadowOffsetX = 1,
                 ShadowOffsetY = 1,
                 ShadowBlur = 4
@@ -280,6 +280,7 @@ namespace PenguinTwitchBot.Helpers
                         break;
                     case "font-size":
                         if (TryParsePx(val, out var fs)) options.FontSize = fs;
+                        else unhandled.Add($"{key}: {val};");
                         break;
                     case "font-family":
                         options.FontFamily = val.Trim('\'', '"');
@@ -295,6 +296,7 @@ namespace PenguinTwitchBot.Helpers
                         break;
                     case "width":
                         if (TryParsePx(val, out var w)) options.Width = w;
+                        else unhandled.Add($"{key}: {val};");
                         break;
                     case "word-wrap":
                     case "overflow-wrap":
@@ -309,7 +311,14 @@ namespace PenguinTwitchBot.Helpers
                         options.StrokeColor = val;
                         break;
                     case "text-shadow":
-                        ParseTextShadow(val, options);
+                        if (val.Contains(','))
+                        {
+                            unhandled.Add($"{key}: {val};");
+                        }
+                        else
+                        {
+                            ParseTextShadow(val, options);
+                        }
                         break;
                     default:
                         unhandled.Add($"{key}: {val};");
