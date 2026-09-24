@@ -137,9 +137,22 @@ public class CustomThemeServiceTests : IDisposable
         var foundBefore = await service.GetThemeByIdAsync("theme-to-delete");
         Assert.NotNull(foundBefore);
 
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await uow.UserThemePreferences.UpsertPreferenceAsync("user-1", "theme-to-delete", true);
+        }
+
         await service.DeleteThemeAsync("theme-to-delete");
         var foundAfter = await service.GetThemeByIdAsync("theme-to-delete");
         Assert.Null(foundAfter);
+
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var pref = await uow.UserThemePreferences.GetByUserIdAsync("user-1");
+            Assert.Null(pref);
+        }
     }
 
     [Fact]

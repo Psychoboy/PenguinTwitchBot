@@ -8,7 +8,7 @@ using PenguinTwitchBot.Models.Themes;
 
 namespace PenguinTwitchBot.Services;
 
-public sealed class ThemeMetricsService : IThemeMetricsService
+public sealed class ThemeMetricsService : IThemeMetricsService, IDisposable
 {
     internal static readonly Prometheus.Gauge UserThemePreferences = Prometheus.Metrics.CreateGauge(
         "user_theme_preferences",
@@ -24,6 +24,8 @@ public sealed class ThemeMetricsService : IThemeMetricsService
     private readonly IUserThemePreferenceService _preferenceService;
     private readonly ICustomThemeService _customThemeService;
     private readonly ILogger<ThemeMetricsService> _logger;
+    private readonly HashSet<(string ThemeId, string ThemeName, string Mode)> _publishedLabels = [];
+    private readonly object _metricsLock = new();
 
     public ThemeMetricsService(
         IUserThemePreferenceService preferenceService,
@@ -41,6 +43,20 @@ public sealed class ThemeMetricsService : IThemeMetricsService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to register Prometheus before-collect callback for theme metrics");
+        }
+
+        _customThemeService.ThemesChanged += HandleThemesChanged;
+    }
+
+    private async void HandleThemesChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await UpdateMetricsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating theme metrics after themes changed");
         }
     }
 
@@ -62,7 +78,6 @@ public sealed class ThemeMetricsService : IThemeMetricsService
         try
         {
             var themes = _customThemeService.GetCachedThemes();
-            var themeLookup = themes.ToDictionary(t => t.Id, t => t.Name, StringComparer.OrdinalIgnoreCase);
 
             // 1. Update Active Sessions Metric
             var activeCounts = _activeSessions.Values
@@ -73,29 +88,47 @@ public sealed class ThemeMetricsService : IThemeMetricsService
             var prefCounts = (await _preferenceService.GetThemePreferenceCountsAsync())
                 .ToDictionary(c => (c.ThemeId, c.IsDarkMode), c => c.Count);
 
-            var allKeys = new HashSet<(string ThemeId, bool IsDarkMode)>();
-
-            // Include all available themes for both dark and light modes
-            foreach (var theme in themes)
+            lock (_metricsLock)
             {
-                allKeys.Add((theme.Id, true));
-                allKeys.Add((theme.Id, false));
-            }
+                var currentLabels = new HashSet<(string ThemeId, string ThemeName, string Mode)>();
 
-            // Include any additional themes from active sessions or saved preferences
-            foreach (var key in activeCounts.Keys) allKeys.Add(key);
-            foreach (var key in prefCounts.Keys) allKeys.Add(key);
+                // Only record metrics for themes that actually exist
+                foreach (var theme in themes)
+                {
+                    foreach (var isDark in new[] { true, false })
+                    {
+                        var modeStr = isDark ? "dark" : "light";
+                        var labelTuple = (theme.Id, theme.Name, modeStr);
+                        currentLabels.Add(labelTuple);
 
-            foreach (var (themeId, isDark) in allKeys)
-            {
-                var modeStr = isDark ? "dark" : "light";
-                var themeName = themeLookup.TryGetValue(themeId, out var name) ? name : themeId;
+                        activeCounts.TryGetValue((theme.Id, isDark), out var activeCount);
+                        ActiveUsersByTheme.WithLabels(theme.Id, theme.Name, modeStr).Set(activeCount);
 
-                activeCounts.TryGetValue((themeId, isDark), out var activeCount);
-                ActiveUsersByTheme.WithLabels(themeId, themeName, modeStr).Set(activeCount);
+                        prefCounts.TryGetValue((theme.Id, isDark), out var prefCount);
+                        UserThemePreferences.WithLabels(theme.Id, theme.Name, modeStr).Set(prefCount);
+                    }
+                }
 
-                prefCounts.TryGetValue((themeId, isDark), out var prefCount);
-                UserThemePreferences.WithLabels(themeId, themeName, modeStr).Set(prefCount);
+                // Remove stale label series (e.g. from renamed or removed themes)
+                foreach (var stale in _publishedLabels)
+                {
+                    if (!currentLabels.Contains(stale))
+                    {
+                        try
+                        {
+                            ActiveUsersByTheme.RemoveLabelled(stale.ThemeId, stale.ThemeName, stale.Mode);
+                        }
+                        catch { }
+                        try
+                        {
+                            UserThemePreferences.RemoveLabelled(stale.ThemeId, stale.ThemeName, stale.Mode);
+                        }
+                        catch { }
+                    }
+                }
+
+                _publishedLabels.Clear();
+                _publishedLabels.UnionWith(currentLabels);
             }
         }
         catch (Exception ex)
@@ -103,5 +136,9 @@ public sealed class ThemeMetricsService : IThemeMetricsService
             _logger.LogError(ex, "Error updating theme metrics");
         }
     }
-}
 
+    public void Dispose()
+    {
+        _customThemeService.ThemesChanged -= HandleThemesChanged;
+    }
+}
