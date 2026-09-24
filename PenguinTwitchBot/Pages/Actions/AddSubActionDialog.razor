@@ -101,7 +101,30 @@
                      <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
                  }
 
-                @RenderConfiguration()
+                @if (_selectedType == SubActionTypes.PlaySound && _currentSubAction is PlaySoundType playSound)
+                {
+                    <MudStack Spacing="3">
+                        <AudioFilePicker SelectedFile="@playSound.File"
+                                         SelectedFileChanged="@(v => OnPlaySoundFileChanged(playSound, v))"
+                                         Label="Sound File"
+                                         HelperText="Select an audio file from wwwroot/audio or upload a new one"
+                                         Required="true" />
+                        <MudSwitch Value="@playSound.Enabled"
+                                   ValueChanged="@((bool v) => OnPlaySoundEnabledChanged(playSound, v))"
+                                   Label="Enabled"
+                                   Color="Color.Success" />
+                    </MudStack>
+                }
+                else if (_selectedType == SubActionTypes.Alert && _currentSubAction is AlertType alert)
+                {
+                    <AlertSubActionEditor Alert="@alert"
+                                          AlertChanged="@(a => OnAlertChanged(a))"
+                                          OnChanged="@StateHasChanged" />
+                }
+                else
+                {
+                    @RenderConfiguration()
+                }
             }
         </MudStack>
     </DialogContent>
@@ -394,6 +417,35 @@
             uiProvider.SetValues(_fieldValues);
         }
 
+        StateHasChanged();
+    }
+
+    private void OnPlaySoundFileChanged(PlaySoundType playSound, string? newFile)
+    {
+        playSound.File = newFile ?? "";
+        _fieldValues[nameof(PlaySoundType.File)] = playSound.File;
+        _validationError = null;
+        StateHasChanged();
+    }
+
+    private void OnPlaySoundEnabledChanged(PlaySoundType playSound, bool enabled)
+    {
+        playSound.Enabled = enabled;
+        _fieldValues[nameof(PlaySoundType.Enabled)] = enabled;
+        _validationError = null;
+        StateHasChanged();
+    }
+
+    private void OnAlertChanged(AlertType alert)
+    {
+        _fieldValues[nameof(AlertType.Text)] = alert.Text;
+        _fieldValues[nameof(AlertType.File)] = alert.File;
+        _fieldValues[nameof(AlertType.Duration)] = alert.Duration;
+        _fieldValues[nameof(AlertType.Volume)] = alert.Volume;
+        _fieldValues[nameof(AlertType.CSS)] = alert.CSS;
+        _fieldValues[nameof(AlertType.AlertChannel)] = alert.AlertChannel;
+        _fieldValues[nameof(AlertType.Enabled)] = alert.Enabled;
+        _validationError = null;
         StateHasChanged();
     }
 

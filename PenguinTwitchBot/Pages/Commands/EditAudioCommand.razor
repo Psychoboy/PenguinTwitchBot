@@ -17,13 +17,11 @@
             <MudCardContent>
                 <MudTextField Label="Command" Required="true" RequiredError="Command is required"
                 @bind-Value="audioCommand.CommandName" />
-                <MudSelect @bind-Value="@audioCommand.AudioFile" Required="true" Label="Audio File"
-                    RequiredError="Audio File is required">
-                    @foreach (string file in audioFiles)
-                    {
-                        <MudSelectItem Value="@file">@file</MudSelectItem>
-                    }
-                </MudSelect>
+                <AudioFilePicker @bind-SelectedFile="audioCommand.AudioFile"
+                                 AvailableFiles="audioFiles"
+                                 Label="Audio File"
+                                 HelperText="Select the audio file to play or upload a new one"
+                                 Required="true" />
                 <MudTextField Label="Category"
                 @bind-Value="audioCommand.Category" />
 

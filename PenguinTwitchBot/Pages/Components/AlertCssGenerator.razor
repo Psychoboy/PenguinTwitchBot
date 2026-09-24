@@ -1,0 +1,497 @@
+@using MudBlazor
+@using PenguinTwitchBot.Helpers
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<MudPaper Outlined="true" Class="pa-4 my-2" Style="background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-lines-default); border-radius: 8px;">
+    <!-- Header -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3" Wrap="Wrap.Wrap">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AutoFixHigh" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.subtitle1"><b>Alert CSS Generator</b></MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Generate visual styles or select a preset for alert text</MudText>
+            </div>
+        </MudStack>
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.FileDownload"
+                       OnClick="ImportFromCurrentCss"
+                       Disabled="@string.IsNullOrWhiteSpace(Css)">
+                Import Current CSS
+            </MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       OnClick="ApplyToAlert">
+                Apply CSS
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    <!-- Presets bar -->
+    <MudGrid Class="mb-2">
+        <MudItem xs="12" sm="8">
+            <MudSelect T="string"
+                       Label="Quick Presets"
+                       Value="@_selectedPreset"
+                       ValueChanged="OnPresetSelected"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Dense="true"
+                       AdornmentIcon="@Icons.Material.Filled.Palette">
+                @foreach (var preset in AlertCssHelper.Presets.Keys)
+                {
+                    <MudSelectItem Value="@preset">@preset</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-center">
+            <MudSwitch @bind-Value="_autoApply"
+                       Label="Auto-apply to Alert"
+                       Color="Color.Primary" />
+        </MudItem>
+    </MudGrid>
+
+    <!-- Live Preview Stage -->
+    <div class="mb-4" style="width: 100%; min-height: 120px; background-color: #0c0d12; background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0); background-size: 14px 14px; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 16px; overflow: hidden; position: relative;">
+        <span style="position: absolute; top: 4px; left: 8px; font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px;">Live CSS Preview</span>
+        <p style="margin: 0; max-width: 100%; line-height: 1.2; text-align: @_model.TextAlign; @_generatedCss">
+            @(string.IsNullOrWhiteSpace(SampleText) ? "Sample Alert Text" : SampleText)
+        </p>
+    </div>
+
+    <!-- Builder Tabs -->
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
+        <!-- Tab 1: Typography & Color -->
+        <MudTabPanel Text="Typography & Colors" Icon="@Icons.Material.Filled.TextFields">
+            <MudGrid Class="pt-3">
+                <!-- Font Family -->
+                <MudItem xs="12" sm="6">
+                    <MudAutocomplete T="string"
+                                     Label="Font Family"
+                                     @bind-Value="_model.FontFamily"
+                                     @bind-Value:after="RefreshGeneratedCss"
+                                     SearchFunc="SearchFonts"
+                                     CoerceText="true"
+                                     CoerceValue="true"
+                                     ResetValueOnEmptyText="false"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Placeholder="Type or select font..." />
+                </MudItem>
+
+                <!-- Font Weight -->
+                <MudItem xs="6" sm="3">
+                    <MudSelect T="string"
+                               Label="Font Weight"
+                               @bind-Value="_model.FontWeight"
+                               @bind-Value:after="RefreshGeneratedCss"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var weight in AlertCssHelper.FontWeights)
+                        {
+                            <MudSelectItem Value="@weight">@weight</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Text Align -->
+                <MudItem xs="6" sm="3">
+                    <MudSelect T="string"
+                               Label="Text Alignment"
+                               @bind-Value="_model.TextAlign"
+                               @bind-Value:after="RefreshGeneratedCss"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var align in AlertCssHelper.TextAlignments)
+                        {
+                            <MudSelectItem Value="@align">@align</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Font Size -->
+                <MudItem xs="12" sm="8">
+                    <MudStack Spacing="0">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Font Size</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Primary"><b>@(_model.FontSize)px</b></MudText>
+                        </MudStack>
+                        <MudSlider @bind-Value="_model.FontSize"
+                                   @bind-Value:after="RefreshGeneratedCss"
+                                   Min="12"
+                                   Max="120"
+                                   Step="1"
+                                   Color="Color.Primary" />
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12" sm="4" Class="d-flex align-center">
+                    <MudSwitch @bind-Value="_model.FontStyleItalic"
+                               @bind-Value:after="RefreshGeneratedCss"
+                               Label="Italic"
+                               Color="Color.Secondary" />
+                </MudItem>
+
+                <!-- Text Color -->
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1"><b>Text Color</b></MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                        <MudTextField @bind-Value="_model.Color"
+                                      @bind-Value:after="RefreshGeneratedCss"
+                                      Label="Color (Name or #Hex)"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Style="max-width: 180px;" />
+
+                        <div style="width: 32px; height: 32px; border-radius: 4px; background-color: @_model.Color; border: 1px solid rgba(255,255,255,0.3);"></div>
+
+                        <!-- Quick Color Swatches -->
+                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                            @foreach (var c in _colorSwatches)
+                            {
+                                <div style="width: 24px; height: 24px; border-radius: 3px; background-color: @c; cursor: pointer; border: 1px solid rgba(255,255,255,0.4);"
+                                     title="@c"
+                                     @onclick="@(() => OnColorSwatchClicked(c))"></div>
+                            }
+                        </MudStack>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <!-- Tab 2: Stroke & Outline -->
+        <MudTabPanel Text="Text Stroke / Outline" Icon="@Icons.Material.Filled.FormatPaint">
+            <MudStack Spacing="3" Class="pt-3">
+                <MudSwitch @bind-Value="_model.EnableStroke"
+                           @bind-Value:after="RefreshGeneratedCss"
+                           Label="Enable Text Outline (-webkit-text-stroke)"
+                           Color="Color.Primary" />
+
+                @if (_model.EnableStroke)
+                {
+                    <MudGrid>
+                        <!-- Stroke Width -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Stroke Width</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Primary"><b>@(_model.StrokeWidth)px</b></MudText>
+                                </MudStack>
+                                <MudSlider @bind-Value="_model.StrokeWidth"
+                                           @bind-Value:after="RefreshGeneratedCss"
+                                           Min="0.5"
+                                           Max="8.0"
+                                           Step="0.5"
+                                           Color="Color.Primary" />
+                            </MudStack>
+                        </MudItem>
+
+                        <!-- Stroke Color -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudTextField @bind-Value="_model.StrokeColor"
+                                              @bind-Value:after="RefreshGeneratedCss"
+                                              Label="Stroke Color"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Style="max-width: 160px;" />
+                                <div style="width: 32px; height: 32px; border-radius: 4px; background-color: @_model.StrokeColor; border: 1px solid rgba(255,255,255,0.3);"></div>
+                                <MudStack Row="true" Spacing="1">
+                                    @foreach (var c in new[] { "black", "#111111", "white", "#333333", "#ff0000", "#00ffff" })
+                                    {
+                                        <div style="width: 22px; height: 22px; border-radius: 3px; background-color: @c; cursor: pointer; border: 1px solid rgba(255,255,255,0.4);"
+                                             title="@c"
+                                             @onclick="@(() => OnStrokeColorSwatchClicked(c))"></div>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudItem>
+                    </MudGrid>
+                }
+            </MudStack>
+        </MudTabPanel>
+
+        <!-- Tab 3: Shadow & Glow -->
+        <MudTabPanel Text="Shadow & Glow" Icon="@Icons.Material.Filled.WbTwilight">
+            <MudStack Spacing="3" Class="pt-3">
+                <MudSwitch @bind-Value="_model.EnableShadow"
+                           @bind-Value:after="RefreshGeneratedCss"
+                           Label="Enable Text Shadow"
+                           Color="Color.Primary" />
+
+                @if (_model.EnableShadow)
+                {
+                    <MudGrid>
+                        <!-- Shadow Color -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudTextField @bind-Value="_model.ShadowColor"
+                                              @bind-Value:after="RefreshGeneratedCss"
+                                              Label="Shadow Color"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Style="max-width: 160px;" />
+                                <div style="width: 32px; height: 32px; border-radius: 4px; background-color: @_model.ShadowColor; border: 1px solid rgba(255,255,255,0.3);"></div>
+                                <MudStack Row="true" Spacing="1">
+                                    @foreach (var c in new[] { "black", "#222222", "#00ffff", "#ff0000", "#ffff00", "#00ff66" })
+                                    {
+                                        <div style="width: 22px; height: 22px; border-radius: 3px; background-color: @c; cursor: pointer; border: 1px solid rgba(255,255,255,0.4);"
+                                             title="@c"
+                                             @onclick="@(() => OnShadowColorSwatchClicked(c))"></div>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudItem>
+
+                        <!-- Blur Radius -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Blur Radius (Glow)</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Primary"><b>@(_model.ShadowBlur)px</b></MudText>
+                                </MudStack>
+                                <MudSlider @bind-Value="_model.ShadowBlur"
+                                           @bind-Value:after="RefreshGeneratedCss"
+                                           Min="0"
+                                           Max="30"
+                                           Step="1"
+                                           Color="Color.Primary" />
+                            </MudStack>
+                        </MudItem>
+
+                        <!-- Offset X -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Offset X</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Primary"><b>@(_model.ShadowOffsetX)px</b></MudText>
+                                </MudStack>
+                                <MudSlider @bind-Value="_model.ShadowOffsetX"
+                                           @bind-Value:after="RefreshGeneratedCss"
+                                           Min="-20"
+                                           Max="20"
+                                           Step="1"
+                                           Color="Color.Secondary" />
+                            </MudStack>
+                        </MudItem>
+
+                        <!-- Offset Y -->
+                        <MudItem xs="12" sm="6">
+                            <MudStack Spacing="0">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Offset Y</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Primary"><b>@(_model.ShadowOffsetY)px</b></MudText>
+                                </MudStack>
+                                <MudSlider @bind-Value="_model.ShadowOffsetY"
+                                           @bind-Value:after="RefreshGeneratedCss"
+                                           Min="-20"
+                                           Max="20"
+                                           Step="1"
+                                           Color="Color.Secondary" />
+                            </MudStack>
+                        </MudItem>
+                    </MudGrid>
+                }
+            </MudStack>
+        </MudTabPanel>
+
+        <!-- Tab 4: Layout & Extra -->
+        <MudTabPanel Text="Layout & Advanced" Icon="@Icons.Material.Filled.Tune">
+            <MudGrid Class="pt-3">
+                <!-- Width -->
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_model.Width"
+                                     @bind-Value:after="RefreshGeneratedCss"
+                                     Label="Container Width (px)"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Min="100"
+                                     Max="1920"
+                                     Step="50"
+                                     HelperText="Max width for alert text wrapping" />
+                </MudItem>
+
+                <!-- Word Wrap -->
+                <MudItem xs="12" sm="6" Class="d-flex align-center">
+                    <MudSwitch @bind-Value="_model.WordWrap"
+                               @bind-Value:after="RefreshGeneratedCss"
+                               Label="Word Wrap (break-word)"
+                               Color="Color.Primary" />
+                </MudItem>
+
+                <!-- Extra Custom CSS -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_model.ExtraCss"
+                                  @bind-Value:after="RefreshGeneratedCss"
+                                  Label="Extra Custom CSS (Appended directly)"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Lines="2"
+                                  Placeholder="e.g. text-transform: uppercase; letter-spacing: 2px;"
+                                  HelperText="Add any other custom CSS rules here" />
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+
+    <MudDivider Class="my-3" />
+
+    <!-- Generated CSS Output & Copy Bar -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+        <div style="flex: 1 1 auto; min-width: 0;">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Generated CSS String:</MudText>
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--mud-palette-lines-default); border-radius: 4px; padding: 6px 10px; font-family: monospace; font-size: 12px; word-break: break-all; color: var(--mud-palette-text-primary);">
+                @_generatedCss
+            </div>
+        </div>
+
+        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+            <MudTooltip Text="Copy CSS to clipboard">
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="CopyCssToClipboard" />
+            </MudTooltip>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Check"
+                       OnClick="ApplyToAlert">
+                Apply to Alert
+            </MudButton>
+        </MudStack>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Css { get; set; }
+    [Parameter] public EventCallback<string> CssChanged { get; set; }
+    [Parameter] public string? SampleText { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private AlertCssOptions _model = new();
+    private string _generatedCss = string.Empty;
+    private string _selectedPreset = "Classic White with Outline";
+    private bool _autoApply = true;
+
+    private readonly string[] _colorSwatches = new[]
+    {
+        "white",
+        "#ffff00",
+        "#ff3333",
+        "#00ff66",
+        "#00ffff",
+        "#b266ff",
+        "#ffd700",
+        "black"
+    };
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(Css))
+        {
+            _model = AlertCssHelper.ParseCss(Css);
+        }
+        else
+        {
+            _model = AlertCssHelper.Presets["Classic White with Outline"].Clone();
+        }
+
+        RefreshGeneratedCss();
+    }
+
+    private void RefreshGeneratedCss()
+    {
+        _generatedCss = AlertCssHelper.GenerateCss(_model);
+        if (_autoApply)
+        {
+            _ = ApplyToAlert();
+        }
+    }
+
+    private async Task ApplyToAlert()
+    {
+        _generatedCss = AlertCssHelper.GenerateCss(_model);
+        await CssChanged.InvokeAsync(_generatedCss);
+        await OnChanged.InvokeAsync();
+    }
+
+    private void ImportFromCurrentCss()
+    {
+        if (string.IsNullOrWhiteSpace(Css))
+        {
+            Snackbar.Add("No CSS to import.", Severity.Info);
+            return;
+        }
+
+        _model = AlertCssHelper.ParseCss(Css);
+        RefreshGeneratedCss();
+        Snackbar.Add("Imported CSS settings into generator!", Severity.Success);
+    }
+
+    private void OnPresetSelected(string presetName)
+    {
+        _selectedPreset = presetName;
+        if (AlertCssHelper.Presets.TryGetValue(presetName, out var preset))
+        {
+            _model = preset.Clone();
+            RefreshGeneratedCss();
+        }
+    }
+
+    private Task<IEnumerable<string>> SearchFonts(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(AlertCssHelper.PopularFontFamilies);
+        }
+
+        var filtered = AlertCssHelper.PopularFontFamilies
+            .Where(f => f.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!filtered.Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            filtered.Insert(0, value);
+        }
+
+        return Task.FromResult<IEnumerable<string>>(filtered);
+    }
+
+    private async Task CopyCssToClipboard()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _generatedCss);
+            Snackbar.Add("CSS copied to clipboard!", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Failed to copy CSS.", Severity.Warning);
+        }
+    }
+
+    private void OnColorSwatchClicked(string color)
+    {
+        _model.Color = color;
+        RefreshGeneratedCss();
+    }
+
+    private void OnStrokeColorSwatchClicked(string color)
+    {
+        _model.StrokeColor = color;
+        RefreshGeneratedCss();
+    }
+
+    private void OnShadowColorSwatchClicked(string color)
+    {
+        _model.ShadowColor = color;
+        RefreshGeneratedCss();
+    }
+}
