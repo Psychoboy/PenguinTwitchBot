@@ -1,0 +1,226 @@
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@using PenguinTwitchBot.Services
+@inject MediaUploadService MediaUploadService
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<MudStack Spacing="1">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <div style="flex: 1 1 auto; min-width: 0;">
+            <MudAutocomplete T="string"
+                             Value="@SelectedFile"
+                             ValueChanged="OnSelectedValueChanged"
+                             SearchFunc="@SearchAudioFiles"
+                             Label="@Label"
+                             Required="@Required"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             Clearable="true"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="false"
+                             CoerceValue="false"
+                             MaxItems="100"
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.VolumeUp"
+                             Placeholder="Type to search audio files..." />
+        </div>
+
+        <!-- Preview Button -->
+        <MudTooltip Text="@(_isPlaying ? "Stop Preview" : "Preview Audio")">
+            <MudIconButton Icon="@(_isPlaying ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                           Color="@(_isPlaying ? Color.Error : Color.Primary)"
+                           Variant="Variant.Filled"
+                           Size="Size.Medium"
+                           OnClick="TogglePreview"
+                           Disabled="@(string.IsNullOrWhiteSpace(SelectedFile) || _isUploading)"
+                           Style="height: 40px; width: 40px;" />
+        </MudTooltip>
+
+        <!-- Upload Button -->
+        <MudFileUpload T="IBrowserFile"
+                       FilesChanged="UploadAudioFile"
+                       Accept=".mp3,.wav,.ogg,.aac,.webm,.opus,.m4a"
+                       Disabled="@_isUploading"
+                       Class="d-inline-flex">
+            <CustomContent>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Secondary"
+                           StartIcon="@(_isUploading ? null : Icons.Material.Filled.CloudUpload)"
+                           OnClick="@context.OpenFilePickerAsync"
+                           Disabled="@_isUploading"
+                           Size="Size.Medium"
+                           Style="height: 40px; white-space: nowrap;">
+                    @if (_isUploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <text>Uploading...</text>
+                    }
+                    else
+                    {
+                        <text>Upload Sound</text>
+                    }
+                </MudButton>
+            </CustomContent>
+            <SelectedTemplate Context="_"></SelectedTemplate>
+        </MudFileUpload>
+    </MudStack>
+
+    @if (!string.IsNullOrEmpty(HelperText))
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+            @HelperText
+        </MudText>
+    }
+
+    @if (!string.IsNullOrEmpty(_audioPreviewUrl))
+    {
+        <audio @key="_audioPreviewKey" autoplay src="@_audioPreviewUrl" @onended="OnAudioEnded" style="display: none;"></audio>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string? SelectedFile { get; set; }
+    [Parameter] public EventCallback<string?> SelectedFileChanged { get; set; }
+    [Parameter] public List<string>? AvailableFiles { get; set; }
+    [Parameter] public EventCallback<string> OnFileUploaded { get; set; }
+    [Parameter] public string Label { get; set; } = "Audio File";
+    [Parameter] public string HelperText { get; set; } = "Select an audio file to play or upload a new one";
+    [Parameter] public bool Required { get; set; } = true;
+
+    private List<string> _audioFiles = new();
+    private bool _isPlaying = false;
+    private bool _isUploading = false;
+    private string? _audioPreviewUrl;
+    private string _audioPreviewKey = Guid.NewGuid().ToString();
+
+    protected override void OnInitialized()
+    {
+        LoadAudioFiles();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (AvailableFiles != null && AvailableFiles.Count > 0)
+        {
+            _audioFiles = AvailableFiles;
+        }
+        else if (_audioFiles.Count == 0)
+        {
+            LoadAudioFiles();
+        }
+    }
+
+    private void LoadAudioFiles()
+    {
+        _audioFiles = MediaUploadService.GetAudioFiles();
+    }
+
+    private Task<IEnumerable<string>> SearchAudioFiles(string value, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult<IEnumerable<string>>(_audioFiles);
+        }
+
+        var filtered = _audioFiles
+            .Where(f => f.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return Task.FromResult<IEnumerable<string>>(filtered);
+    }
+
+    private async Task OnSelectedValueChanged(string? value)
+    {
+        StopPreview();
+        SelectedFile = value;
+        await SelectedFileChanged.InvokeAsync(value);
+    }
+
+    private void TogglePreview()
+    {
+        if (_isPlaying)
+        {
+            StopPreview();
+        }
+        else
+        {
+            StartPreview();
+        }
+    }
+
+    private void StartPreview()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedFile))
+            return;
+
+        var url = MediaUploadService.ResolveAudioUrl(SelectedFile);
+        if (string.IsNullOrEmpty(url))
+        {
+            Snackbar.Add($"Could not locate audio file for '{SelectedFile}' on the server.", Severity.Warning);
+            StopPreview();
+            return;
+        }
+
+        _audioPreviewKey = Guid.NewGuid().ToString();
+        _audioPreviewUrl = $"{url}?t={DateTime.UtcNow.Ticks}";
+        _isPlaying = true;
+    }
+
+    private void StopPreview()
+    {
+        _isPlaying = false;
+        _audioPreviewUrl = null;
+    }
+
+    private void OnAudioEnded()
+    {
+        _isPlaying = false;
+        _audioPreviewUrl = null;
+        StateHasChanged();
+    }
+
+    private async Task UploadAudioFile(IBrowserFile? file)
+    {
+        if (file == null) return;
+
+        StopPreview();
+        _isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Max allowed 25MB for audio
+            using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+            var result = await MediaUploadService.UploadAudioAsync(stream, file.Name);
+
+            if (result.Success && !string.IsNullOrEmpty(result.BaseName))
+            {
+                LoadAudioFiles();
+                SelectedFile = result.BaseName;
+                await SelectedFileChanged.InvokeAsync(SelectedFile);
+                await OnFileUploaded.InvokeAsync(result.BaseName);
+
+                Snackbar.Add($"Sound file '{result.FileName}' uploaded and verified successfully!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? "Failed to upload audio file.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        StopPreview();
+    }
+}

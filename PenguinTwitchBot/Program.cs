@@ -292,6 +292,7 @@ internal class Program
         builder.Services.AddSingleton<ICooldownCleanupService, CooldownCleanupService>();
         builder.Services.AddSingleton<IFileCleanupService, FileCleanupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.MediaUploadService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.IIntegrationTestService, PenguinTwitchBot.Services.IntegrationTestService>();
         builder.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService, PenguinTwitchBot.Services.HelpContentService>();

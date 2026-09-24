@@ -17,13 +17,12 @@
             <MudCardContent>
                 <MudTextField Label="Command" Required="true" RequiredError="Command is required"
                 @bind-Value="audioCommand.CommandName" />
-                <MudSelect @bind-Value="@audioCommand.AudioFile" Required="true" Label="Audio File"
-                    RequiredError="Audio File is required">
-                    @foreach (string file in audioFiles)
-                    {
-                        <MudSelectItem Value="@file">@file</MudSelectItem>
-                    }
-                </MudSelect>
+                <AudioFilePicker @bind-SelectedFile="audioCommand.AudioFile"
+                                 AvailableFiles="audioFiles"
+                                 OnFileUploaded="OnAudioUploaded"
+                                 Label="Audio File"
+                                 HelperText="Select the audio file to play or upload a new one"
+                                 Required="true" />
                 <MudTextField Label="Category"
                 @bind-Value="audioCommand.Category" />
 
@@ -162,6 +161,16 @@
         if (audioCommand != null)
         {
             audioCommand.SpecificUsersOnly?.Remove(user);
+        }
+    }
+
+    private void OnAudioUploaded(string baseName)
+    {
+        audioFiles ??= new List<string>();
+        if (!audioFiles.Contains(baseName, StringComparer.OrdinalIgnoreCase))
+        {
+            audioFiles.Add(baseName);
+            audioFiles.Sort();
         }
     }
 }

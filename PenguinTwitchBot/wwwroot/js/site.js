@@ -23,6 +23,13 @@ window.downloadFile = async function(filename, content) {
     document.body.removeChild(a);
 };
 
+window.setMediaVolume = function(elementId, volume) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.volume = Math.max(0, Math.min(1, volume));
+    }
+};
+
 window.panScrollElementById = function (elementId, deltaX, deltaY) {
     const el = document.getElementById(elementId);
     if (!el) return;
