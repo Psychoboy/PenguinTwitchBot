@@ -214,6 +214,11 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
                 newDefault.IsEnabled = true;
             }
 
+            // Clean up any user preferences referencing the deleted theme
+            var orphanPrefs = await unitOfWork.UserThemePreferences.GetAsync(x => x.ThemeId == id);
+            unitOfWork.UserThemePreferences.RemoveRange(orphanPrefs);
+
+
             await SaveThemesInternalAsync(unitOfWork, themes);
             lock (_cacheLock) { _cachedThemes = themes; }
         }
@@ -296,6 +301,10 @@ public sealed class CustomThemeService(IServiceScopeFactory scopeFactory) : ICus
             using var scope = scopeFactory.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             var presets = PresetThemes.GetPresets();
+
+            var presetIds = new HashSet<string>(presets.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+            var orphanPrefs = await unitOfWork.UserThemePreferences.GetAsync(x => !presetIds.Contains(x.ThemeId));
+            unitOfWork.UserThemePreferences.RemoveRange(orphanPrefs);
 
             await SaveThemesInternalAsync(unitOfWork, presets);
             lock (_cacheLock) { _cachedThemes = presets; }

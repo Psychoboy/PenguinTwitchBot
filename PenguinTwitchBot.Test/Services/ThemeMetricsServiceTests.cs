@@ -67,4 +67,79 @@ public class ThemeMetricsServiceTests
         Assert.Equal(3, ThemeMetricsService.UserThemePreferences.WithLabels(PresetThemes.DefaultThemeId, defaultTheme.Name, "dark").Value);
         Assert.Equal(1, ThemeMetricsService.UserThemePreferences.WithLabels(PresetThemes.ArcticThemeId, arcticTheme.Name, "light").Value);
     }
+
+    [Fact]
+    public async Task UpdateMetricsAsync_WhenThemeRenamed_RemovesOldLabelAndSetsNewLabel()
+    {
+        var customTheme = new CustomThemeModel
+        {
+            Id = "test-rename-id",
+            Name = "Original Name",
+            LightPalette = new ThemePaletteModel(),
+            DarkPalette = new ThemePaletteModel()
+        };
+        _themes.Add(customTheme);
+
+        _preferenceService.GetThemePreferenceCountsAsync().Returns(Task.FromResult(new List<ThemeUsageCount>
+        {
+            new("test-rename-id", true, 1)
+        }));
+
+        var service = new ThemeMetricsService(_preferenceService, _customThemeService, _logger);
+        await service.UpdateMetricsAsync();
+
+        Assert.Equal(1, ThemeMetricsService.UserThemePreferences.WithLabels("test-rename-id", "Original Name", "dark").Value);
+
+        // Rename theme
+        customTheme.Name = "New Name";
+        await service.UpdateMetricsAsync();
+
+        // New name label has the count
+        Assert.Equal(1, ThemeMetricsService.UserThemePreferences.WithLabels("test-rename-id", "New Name", "dark").Value);
+
+        // Old name label was removed (re-querying returns default 0, not old value 1)
+        Assert.Equal(0, ThemeMetricsService.UserThemePreferences.WithLabels("test-rename-id", "Original Name", "dark").Value);
+
+        // Clean up
+        _themes.Remove(customTheme);
+        await service.UpdateMetricsAsync();
+    }
+
+    [Fact]
+    public async Task UpdateMetricsAsync_WhenThemeRemoved_RemovesDeletedThemeMetrics()
+    {
+        var tempTheme = new CustomThemeModel
+        {
+            Id = "test-delete-id",
+            Name = "Temp Delete Theme",
+            LightPalette = new ThemePaletteModel(),
+            DarkPalette = new ThemePaletteModel()
+        };
+        _themes.Add(tempTheme);
+
+        _preferenceService.GetThemePreferenceCountsAsync().Returns(Task.FromResult(new List<ThemeUsageCount>
+        {
+            new("test-delete-id", true, 1)
+        }));
+
+        var service = new ThemeMetricsService(_preferenceService, _customThemeService, _logger);
+        service.TrackActiveSession("session-temp", "test-delete-id", true);
+
+        await service.UpdateMetricsAsync();
+
+        Assert.Equal(1, ThemeMetricsService.UserThemePreferences.WithLabels("test-delete-id", "Temp Delete Theme", "dark").Value);
+        Assert.Equal(1, ThemeMetricsService.ActiveUsersByTheme.WithLabels("test-delete-id", "Temp Delete Theme", "dark").Value);
+
+        // Remove theme
+        _themes.Remove(tempTheme);
+        service.UntrackActiveSession("session-temp");
+        _preferenceService.GetThemePreferenceCountsAsync().Returns(Task.FromResult(new List<ThemeUsageCount>()));
+
+        await service.UpdateMetricsAsync();
+
+        // Stale labels were removed from Prometheus
+        Assert.Equal(0, ThemeMetricsService.UserThemePreferences.WithLabels("test-delete-id", "Temp Delete Theme", "dark").Value);
+        Assert.Equal(0, ThemeMetricsService.ActiveUsersByTheme.WithLabels("test-delete-id", "Temp Delete Theme", "dark").Value);
+    }
 }
+
