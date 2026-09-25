@@ -1,0 +1,201 @@
+@using PenguinTwitchBot.Services
+@inject MediaUploadService MediaUploadService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
+
+<MudStack Spacing="1" Class="@Class" Style="@Style">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <div style="flex: 1 1 auto; min-width: 0;">
+            <MudTextField T="string"
+                          Value="@Value"
+                          ValueChanged="OnValueChanged"
+                          Label="@Label"
+                          Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Enter URL (e.g. /media/prize.png or https://...)" : Placeholder)"
+                          Required="@Required"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Image" />
+        </div>
+
+        @if (AllowBrowse)
+        {
+            <MudTooltip Text="Browse Media Library">
+                <MudIconButton Icon="@Icons.Material.Filled.PhotoLibrary"
+                               Color="Color.Default"
+                               Variant="Variant.Outlined"
+                               Size="Size.Medium"
+                               OnClick="OpenMediaLibraryAsync"
+                               Disabled="@_isUploading"
+                               Style="height: 40px; width: 40px;" />
+            </MudTooltip>
+        }
+
+        <MudFileUpload T="IBrowserFile"
+                       FilesChanged="UploadMediaFile"
+                       Accept="@Accept"
+                       Disabled="@_isUploading"
+                       Class="d-inline-flex">
+            <CustomContent>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@(_isUploading ? null : Icons.Material.Filled.CloudUpload)"
+                           OnClick="@context.OpenFilePickerAsync"
+                           Disabled="@_isUploading"
+                           Size="Size.Medium"
+                           Style="height: 40px; white-space: nowrap;">
+                    @if (_isUploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <text>Uploading...</text>
+                    }
+                    else
+                    {
+                        <text>Upload Image</text>
+                    }
+                </MudButton>
+            </CustomContent>
+            <SelectedTemplate Context="_"></SelectedTemplate>
+        </MudFileUpload>
+    </MudStack>
+
+    @if (!string.IsNullOrWhiteSpace(HelperText))
+    {
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+            @HelperText
+        </MudText>
+    }
+
+    @if (ShowPreview && !string.IsNullOrWhiteSpace(Value))
+    {
+        <MudPaper Outlined="true" Class="pa-2 mt-1 d-flex align-center gap-3" Style="background: var(--mud-palette-background-grey);">
+            <img src="@Value"
+                 alt="Preview"
+                 style="height: 56px; max-width: 100px; object-fit: contain; border-radius: 4px;"
+                 onerror="this.style.display='none'"
+                 onload="this.style.display='block'" />
+            <div style="flex: 1 1 auto; min-width: 0;">
+                <MudText Typo="Typo.caption" Class="text-truncate" Style="display: block; font-weight: 500;">
+                    @Value
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Image preview
+                </MudText>
+            </div>
+            <MudTooltip Text="Copy URL to Clipboard">
+                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                               Size="Size.Small"
+                               OnClick="CopyUrlAsync" />
+            </MudTooltip>
+            <MudTooltip Text="Clear Image">
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               OnClick="ClearUrlAsync" />
+            </MudTooltip>
+        </MudPaper>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "Image URL";
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public bool Required { get; set; } = false;
+    [Parameter] public string Accept { get; set; } = ".png,.jpg,.jpeg,.gif,.webp";
+    [Parameter] public bool AllowBrowse { get; set; } = true;
+    [Parameter] public bool ShowPreview { get; set; } = true;
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+
+    private bool _isUploading = false;
+
+    private async Task OnValueChanged(string? val)
+    {
+        Value = val;
+        await ValueChanged.InvokeAsync(val);
+    }
+
+    private async Task UploadMediaFile(IBrowserFile file)
+    {
+        if (file == null) return;
+        _isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            var result = await MediaUploadService.UploadMediaAsync(stream, file.Name);
+            if (result.Success && !string.IsNullOrEmpty(result.RelativeUrl))
+            {
+                Value = result.RelativeUrl;
+                await ValueChanged.InvokeAsync(Value);
+                Snackbar.Add($"Uploaded and set URL to '{Value}'", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Upload failed: {result.ErrorMessage}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenMediaLibraryAsync()
+    {
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { x => x.SelectionMode, true }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Select Media", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is MediaFileInfo selectedFile)
+        {
+            Value = selectedFile.RelativeUrl;
+            await ValueChanged.InvokeAsync(Value);
+            Snackbar.Add($"Selected '{selectedFile.FileName}'", Severity.Info);
+        }
+    }
+
+    private async Task CopyUrlAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Value)) return;
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", Value);
+            if (success)
+            {
+                Snackbar.Add($"Copied '{Value}' to clipboard!", Severity.Info);
+                return;
+            }
+        }
+        catch { /* Fallback */ }
+
+        Snackbar.Add($"URL: {Value}", Severity.Info);
+    }
+
+    private async Task ClearUrlAsync()
+    {
+        Value = null;
+        await ValueChanged.InvokeAsync(null);
+    }
+}
