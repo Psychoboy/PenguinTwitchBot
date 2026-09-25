@@ -1,0 +1,343 @@
+@using PenguinTwitchBot.Services
+@inject MediaUploadService MediaUploadService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="px-4 pt-2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.PhotoLibrary" Color="Color.Primary" Size="Size.Medium" />
+                <MudText Typo="Typo.h6">Media Library</MudText>
+            </MudStack>
+            <MudFileUpload T="IBrowserFile"
+                           FilesChanged="OnUploadFiles"
+                           Accept=".png,.jpg,.jpeg,.gif,.webp,.webm,.mp4,.ogg,.ogv,.mp3,.wav,.aac,.opus,.m4a"
+                           Disabled="@_isUploading"
+                           Class="d-inline-flex">
+                <CustomContent>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               StartIcon="@(_isUploading ? null : Icons.Material.Filled.CloudUpload)"
+                               OnClick="@context.OpenFilePickerAsync"
+                               Disabled="@_isUploading">
+                        @if (_isUploading)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                            <text>Uploading...</text>
+                        }
+                        else
+                        {
+                            <text>Upload Media</text>
+                        }
+                    </MudButton>
+                </CustomContent>
+                <SelectedTemplate Context="_"></SelectedTemplate>
+            </MudFileUpload>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <div class="px-4 pb-2">
+            <!-- Filter & Search Toolbar -->
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3" Wrap="Wrap.Wrap">
+                <div style="flex: 1 1 200px; min-width: 150px;">
+                    <MudTextField @bind-Value="_searchQuery"
+                                  Placeholder="Search media files..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Clearable="true"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </div>
+                <MudButtonGroup Variant="Variant.Outlined" Size="Size.Small">
+                    <MudButton Color="@(_filter == MediaTypeFilter.All ? Color.Primary : Color.Default)"
+                               Variant="@(_filter == MediaTypeFilter.All ? Variant.Filled : Variant.Outlined)"
+                               OnClick="@(() => _filter = MediaTypeFilter.All)">All</MudButton>
+                    <MudButton Color="@(_filter == MediaTypeFilter.Images ? Color.Primary : Color.Default)"
+                               Variant="@(_filter == MediaTypeFilter.Images ? Variant.Filled : Variant.Outlined)"
+                               OnClick="@(() => _filter = MediaTypeFilter.Images)">Images</MudButton>
+                    <MudButton Color="@(_filter == MediaTypeFilter.Videos ? Color.Primary : Color.Default)"
+                               Variant="@(_filter == MediaTypeFilter.Videos ? Variant.Filled : Variant.Outlined)"
+                               OnClick="@(() => _filter = MediaTypeFilter.Videos)">Videos</MudButton>
+                    <MudButton Color="@(_filter == MediaTypeFilter.Audio ? Color.Primary : Color.Default)"
+                               Variant="@(_filter == MediaTypeFilter.Audio ? Variant.Filled : Variant.Outlined)"
+                               OnClick="@(() => _filter = MediaTypeFilter.Audio)">Audio</MudButton>
+                </MudButtonGroup>
+                <MudTooltip Text="Toggle Grid / List View">
+                    <MudToggleIconButton @bind-Toggled="_isGridView"
+                                         Icon="@Icons.Material.Filled.ViewList"
+                                         ToggledIcon="@Icons.Material.Filled.GridView"
+                                         Size="Size.Small" />
+                </MudTooltip>
+            </MudStack>
+
+            <!-- File List / Grid -->
+            @{
+                var filtered = GetFilteredFiles();
+            }
+
+            @if (filtered.Count == 0)
+            {
+                <div class="d-flex flex-column align-center justify-center py-8">
+                    <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">No media files found.</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Upload media files or drop images into the markdown editor to populate this library.</MudText>
+                </div>
+            }
+            else if (_isGridView)
+            {
+                <div style="max-height: 480px; overflow-y: auto;">
+                    <MudGrid Spacing="2">
+                        @foreach (var file in filtered)
+                        {
+                            <MudItem xs="6" sm="4" md="3">
+                                <MudCard Outlined="true" Class="h-100 d-flex flex-column">
+                                    <div class="d-flex align-center justify-center pa-2" style="height: 120px; background-color: var(--mud-palette-background-grey); overflow: hidden;">
+                                        @if (file.IsImage)
+                                        {
+                                            <img src="@file.RelativeUrl"
+                                                 alt="@file.FileName"
+                                                 style="max-height: 100%; max-width: 100%; object-fit: contain; border-radius: 4px;"
+                                                 loading="lazy" />
+                                        }
+                                        else if (file.IsVideo)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Large" Color="Color.Primary" />
+                                        }
+                                        else if (file.IsAudio)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Large" Color="Color.Secondary" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Large" Color="Color.Default" />
+                                        }
+                                    </div>
+                                    <MudCardContent Class="pa-2 flex-grow-1">
+                                        <MudTooltip Text="@file.FileName">
+                                            <MudText Typo="Typo.body2" Class="text-truncate" Style="font-weight: 500;">@file.FileName</MudText>
+                                        </MudTooltip>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                                            @FormatBytes(file.SizeBytes) &bull; @file.LastModified.ToLocalTime().ToString("MMM d, yyyy")
+                                        </MudText>
+                                    </MudCardContent>
+                                    <MudCardActions Class="pa-1 justify-space-between" Style="border-top: 1px solid var(--mud-palette-lines-default);">
+                                        @if (SelectionMode)
+                                        {
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       OnClick="@(() => SelectFile(file))">
+                                                Select
+                                            </MudButton>
+                                        }
+                                        <MudTooltip Text="Copy URL to Clipboard">
+                                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Delete File">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Size="Size.Small"
+                                                           Color="Color.Error"
+                                                           OnClick="@(() => DeleteFileAsync(file))" />
+                                        </MudTooltip>
+                                    </MudCardActions>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </div>
+            }
+            else
+            {
+                <div style="max-height: 480px; overflow-y: auto;">
+                    <MudSimpleTable Dense="true" Hover="true" Outlined="true">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">Preview</th>
+                                <th>Name</th>
+                                <th style="width: 90px;">Size</th>
+                                <th style="width: 120px;">Modified</th>
+                                <th style="width: 140px; text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var file in filtered)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (file.IsImage)
+                                        {
+                                            <img src="@file.RelativeUrl" alt="@file.FileName" style="height: 32px; width: 32px; object-fit: contain; border-radius: 4px;" loading="lazy" />
+                                        }
+                                        else if (file.IsVideo)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Small" Color="Color.Primary" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Small" Color="Color.Secondary" />
+                                        }
+                                    </td>
+                                    <td>
+                                        <MudText Typo="Typo.body2" Class="text-truncate">@file.FileName</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@file.RelativeUrl</MudText>
+                                    </td>
+                                    <td>@FormatBytes(file.SizeBytes)</td>
+                                    <td>@file.LastModified.ToLocalTime().ToString("MMM d, yyyy")</td>
+                                    <td style="text-align: right;">
+                                        @if (SelectionMode)
+                                        {
+                                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SelectFile(file))">
+                                                Select
+                                            </MudButton>
+                                        }
+                                        <MudTooltip Text="Copy URL to Clipboard">
+                                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
+                                        </MudTooltip>
+                                        <MudTooltip Text="Delete File">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteFileAsync(file))" />
+                                        </MudTooltip>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </div>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public bool SelectionMode { get; set; } = false;
+
+    private enum MediaTypeFilter { All, Images, Videos, Audio }
+
+    private List<MediaFileInfo> _files = new();
+    private string _searchQuery = string.Empty;
+    private MediaTypeFilter _filter = MediaTypeFilter.All;
+    private bool _isGridView = true;
+    private bool _isUploading = false;
+
+    protected override void OnInitialized()
+    {
+        LoadFiles();
+    }
+
+    private void LoadFiles()
+    {
+        _files = MediaUploadService.GetMediaFiles();
+    }
+
+    private List<MediaFileInfo> GetFilteredFiles()
+    {
+        return _files
+            .Where(f =>
+            {
+                if (_filter == MediaTypeFilter.Images && !f.IsImage) return false;
+                if (_filter == MediaTypeFilter.Videos && !f.IsVideo) return false;
+                if (_filter == MediaTypeFilter.Audio && !f.IsAudio) return false;
+
+                if (!string.IsNullOrWhiteSpace(_searchQuery))
+                {
+                    return f.FileName.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return true;
+            })
+            .ToList();
+    }
+
+    private async Task OnUploadFiles(IBrowserFile file)
+    {
+        if (file == null) return;
+        _isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            var result = await MediaUploadService.UploadMediaAsync(stream, file.Name);
+            if (result.Success)
+            {
+                Snackbar.Add($"Uploaded '{result.FileName}' successfully!", Severity.Success);
+                LoadFiles();
+            }
+            else
+            {
+                Snackbar.Add($"Upload failed: {result.ErrorMessage}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SelectFile(MediaFileInfo file)
+    {
+        MudDialog.Close(DialogResult.Ok(file));
+    }
+
+    private async Task CopyUrlAsync(string relativeUrl)
+    {
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", relativeUrl);
+            if (success)
+            {
+                Snackbar.Add($"Copied '{relativeUrl}' to clipboard!", Severity.Info);
+                return;
+            }
+        }
+        catch { /* Fallback */ }
+
+        Snackbar.Add($"URL: {relativeUrl}", Severity.Info);
+    }
+
+    private async Task DeleteFileAsync(MediaFileInfo file)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Media File",
+            $"Are you sure you want to permanently delete '{file.FileName}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        var deleted = MediaUploadService.DeleteMediaFile(file.FileName);
+        if (deleted)
+        {
+            Snackbar.Add($"Deleted '{file.FileName}'", Severity.Warning);
+            LoadFiles();
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add($"Failed to delete '{file.FileName}'", Severity.Error);
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

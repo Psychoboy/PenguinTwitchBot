@@ -321,5 +321,113 @@ namespace PenguinTwitchBot.Test
             Assert.Contains("cheer.gif", alertMedia);
             Assert.DoesNotContain("cheer.mp3", alertMedia);
         }
+
+        [Fact]
+        public async Task UploadMediaAsync_ValidImage_SavesToMediaDirectoryAndReturnsRelativeUrl()
+        {
+            var pngBytes = CreateFakePng();
+            using var stream = new MemoryStream(pngBytes);
+
+            var result = await _service.UploadMediaAsync(stream, "prize_card.png");
+
+            Assert.True(result.Success);
+            Assert.Equal("prize_card", result.BaseName);
+            Assert.Equal("prize_card.png", result.FileName);
+            Assert.Equal("/media/prize_card.png", result.RelativeUrl);
+
+            var mediaFiles = _service.GetMediaFiles();
+            Assert.Single(mediaFiles);
+            Assert.Equal("prize_card.png", mediaFiles[0].FileName);
+            Assert.True(mediaFiles[0].IsImage);
+            Assert.False(mediaFiles[0].IsVideo);
+            Assert.False(mediaFiles[0].IsAudio);
+            Assert.Equal("/media/prize_card.png", mediaFiles[0].RelativeUrl);
+
+            var resolvedUrl = _service.ResolveMediaUrl("prize_card.png");
+            Assert.Equal("/media/prize_card.png", resolvedUrl);
+        }
+
+        [Fact]
+        public async Task UploadMediaAsync_GeneratesUniqueFileNameOnCollision()
+        {
+            var gifBytes = CreateFakeGif();
+
+            using (var stream = new MemoryStream(gifBytes))
+            {
+                var r1 = await _service.UploadMediaAsync(stream, "trophy.gif");
+                Assert.True(r1.Success);
+                Assert.Equal("trophy.gif", r1.FileName);
+                Assert.Equal("/media/trophy.gif", r1.RelativeUrl);
+            }
+
+            using (var stream = new MemoryStream(gifBytes))
+            {
+                var r2 = await _service.UploadMediaAsync(stream, "trophy.gif");
+                Assert.True(r2.Success);
+                Assert.Equal("trophy_1.gif", r2.FileName);
+                Assert.Equal("/media/trophy_1.gif", r2.RelativeUrl);
+            }
+
+            var files = _service.GetMediaFiles();
+            Assert.Equal(2, files.Count);
+        }
+
+        [Fact]
+        public async Task UploadMediaAsync_UnsupportedExtension_Fails()
+        {
+            var badBytes = Encoding.UTF8.GetBytes("fake exe");
+            using var stream = new MemoryStream(badBytes);
+
+            var result = await _service.UploadMediaAsync(stream, "virus.exe");
+
+            Assert.False(result.Success);
+            Assert.Contains("Unsupported media format", result.ErrorMessage);
+        }
+
+        [Fact]
+        public async Task DeleteMediaFile_DeletesExistingFileAndPreventsTraversal()
+        {
+            var pngBytes = CreateFakePng();
+            using (var stream = new MemoryStream(pngBytes))
+            {
+                var upload = await _service.UploadMediaAsync(stream, "delete_me.png");
+                Assert.True(upload.Success);
+            }
+
+            Assert.Single(_service.GetMediaFiles());
+
+            // Attempt directory traversal deletion
+            var traversalDeleted = _service.DeleteMediaFile("../../someotherfile.txt");
+            Assert.False(traversalDeleted);
+
+            // Valid deletion
+            var deleted = _service.DeleteMediaFile("delete_me.png");
+            Assert.True(deleted);
+            Assert.Empty(_service.GetMediaFiles());
+        }
+
+        [Fact]
+        public async Task UploadMediaAsync_ExceedsMaxSizeBytes_Fails()
+        {
+            var pngBytes = CreateFakePng(); // 64 bytes
+            using var stream = new MemoryStream(pngBytes);
+
+            // Pass maxSizeBytes = 32 so 64 bytes exceeds it
+            var result = await _service.UploadMediaAsync(stream, "large.png", maxSizeBytes: 32);
+
+            Assert.False(result.Success);
+            Assert.Contains("exceeds maximum allowed size", result.ErrorMessage);
+        }
+
+        [Fact]
+        public async Task UploadMediaAsync_EmptyStream_Fails()
+        {
+            using var stream = new MemoryStream([]);
+
+            var result = await _service.UploadMediaAsync(stream, "empty.png");
+
+            Assert.False(result.Success);
+            Assert.Contains("empty", result.ErrorMessage);
+        }
     }
 }

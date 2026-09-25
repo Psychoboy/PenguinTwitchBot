@@ -1,5 +1,9 @@
 @using PenguinTwitchBot.Helpers
+@using PenguinTwitchBot.Services
 @inject IJSRuntime JSRuntime
+@inject MediaUploadService MediaUploadService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <div class="github-markdown-editor @(Resizable ? "editor-resizable" : "") @Class" style="@Style">
     @if (!string.IsNullOrWhiteSpace(Label))
@@ -84,6 +88,16 @@
                 <MudTooltip Text="Code Block">
                     <MudIconButton Icon="@Icons.Material.Filled.Terminal" Size="Size.Small" OnClick="@(() => InsertAsync("```text\n", "\n```\n", "code block"))" />
                 </MudTooltip>
+                <MudTooltip Text="Upload or Attach Image">
+                    <MudMenu Icon="@Icons.Material.Filled.Image" Size="Size.Small">
+                        <MudMenuItem Icon="@Icons.Material.Filled.CloudUpload" OnClick="TriggerFileUpload">
+                            Upload Image...
+                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.PhotoLibrary" OnClick="OpenMediaBrowserAsync">
+                            Browse Media Library...
+                        </MudMenuItem>
+                    </MudMenu>
+                </MudTooltip>
 
                 <MudDivider Vertical="true" FlexItem="true" Class="my-1 mx-1" />
 
@@ -161,6 +175,17 @@
 
             <MudDivider />
 
+            <!-- Hidden InputFile for drag-and-drop, paste, and toolbar upload -->
+            <InputFile id="@_fileInputId" OnChange="OnFilesUploaded" multiple accept="image/*" style="display: none;" />
+
+            <!-- Drag overlay -->
+            <div class="editor-drop-overlay">
+                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.subtitle1" Color="Color.Primary" Style="font-weight: 600;">
+                    Drop images here to upload and insert into Markdown
+                </MudText>
+            </div>
+
             <!-- Write Text Area -->
             <div id="@_elementId" class="pa-2">
                 <MudTextField T="string"
@@ -171,6 +196,23 @@
                               Underline="false"
                               Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Type markdown here..." : Placeholder)"
                               Style="width: 100%; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 14px;" />
+            </div>
+
+            <!-- GitHub style upload footer -->
+            <div class="editor-upload-footer d-flex align-center justify-space-between px-3 py-1">
+                <div class="d-flex align-center gap-1" style="cursor: pointer;" @onclick="TriggerFileUpload">
+                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Color="Color.Secondary" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Attach files by dragging & dropping, selecting or pasting them.
+                    </MudText>
+                </div>
+                @if (_isUploadingMedia)
+                {
+                    <div class="d-flex align-center gap-1">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="height: 14px; width: 14px;" />
+                        <MudText Typo="Typo.caption" Color="Color.Primary">Uploading media...</MudText>
+                    </div>
+                }
             </div>
         </div>
 
@@ -241,6 +283,43 @@
         min-height: @(MinHeight ?? Math.Max(80, Lines * 20))px;
         @(MaxHeight.HasValue ? $"max-height: {MaxHeight.Value}px;" : "")
     }
+
+    .github-markdown-editor {
+        position: relative;
+    }
+
+    .github-markdown-editor .editor-drop-overlay {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(var(--mud-palette-surface-rgb, 255, 255, 255), 0.92);
+        border: 2px dashed var(--mud-palette-primary);
+        border-radius: 6px;
+        z-index: 100;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        pointer-events: none;
+    }
+
+    .github-markdown-editor.drag-active .editor-drop-overlay {
+        display: flex;
+    }
+
+    .github-markdown-editor .editor-upload-footer {
+        border-top: 1px dashed var(--mud-palette-lines-default);
+        background-color: var(--mud-palette-background-grey);
+        font-size: 12px;
+        user-select: none;
+    }
+
+    .github-markdown-editor .editor-upload-footer:hover {
+        background-color: var(--mud-palette-action-default-hover);
+    }
 </style>
 
 @code {
@@ -260,6 +339,8 @@
 
     private EditorTab _activeTab = EditorTab.Write;
     private readonly string _elementId = $"md-editor-{Guid.NewGuid():N}";
+    private readonly string _fileInputId = $"md-file-input-{Guid.NewGuid():N}";
+    private bool _isUploadingMedia = false;
 
     private sealed record QuickSampleIcon(string Name, string Label, string HexColor, string ColorName);
 
@@ -328,6 +409,7 @@
             try
             {
                 await JSRuntime.InvokeVoidAsync("window.setupMarkdownTextarea", _elementId);
+                await JSRuntime.InvokeVoidAsync("window.setupMarkdownDropZone", _elementId, _fileInputId);
             }
             catch
             {
@@ -377,8 +459,6 @@
         await ValueChanged.InvokeAsync(Value);
     }
 
-    [Inject] private IDialogService DialogService { get; set; } = null!;
-
     private async Task OpenIconPickerAsync()
     {
         try
@@ -402,6 +482,144 @@
         if (result is not null && !result.Canceled && result.Data is string iconMarkdown)
         {
             await InsertAsync(iconMarkdown + " ");
+        }
+    }
+
+    private async Task TriggerFileUpload()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("window.triggerFileInput", _fileInputId);
+        }
+        catch { /* Fallback */ }
+    }
+
+    private async Task OpenMediaBrowserAsync()
+    {
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { x => x.SelectionMode, true }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Browse Media Library", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is MediaFileInfo selectedFile)
+        {
+            var markdownImage = $"![{selectedFile.BaseName}]({selectedFile.RelativeUrl})\n";
+            await InsertAsync(markdownImage);
+            Snackbar.Add($"Inserted image '{selectedFile.FileName}'", Severity.Info);
+        }
+    }
+
+    private async Task OnFilesUploaded(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(10);
+        if (files == null || files.Count == 0) return;
+
+        _isUploadingMedia = true;
+        StateHasChanged();
+
+        try
+        {
+            foreach (var file in files)
+            {
+                var uploadToken = Guid.NewGuid().ToString("N")[..8];
+                var placeholder = $"![Uploading {file.Name} ({uploadToken})...]()\n";
+
+                // Insert placeholder at current cursor position
+                try
+                {
+                    var updated = await JSRuntime.InvokeAsync<string?>("window.insertMarkdownText", _elementId, placeholder, "", "");
+                    if (updated != null)
+                    {
+                        Value = updated;
+                        await ValueChanged.InvokeAsync(Value);
+                    }
+                    else
+                    {
+                        Value = (Value ?? "") + placeholder;
+                        await ValueChanged.InvokeAsync(Value);
+                    }
+                }
+                catch
+                {
+                    Value = (Value ?? "") + placeholder;
+                    await ValueChanged.InvokeAsync(Value);
+                }
+
+                // Upload the file
+                try
+                {
+                    using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+                    var result = await MediaUploadService.UploadMediaAsync(stream, file.Name);
+
+                    if (result.Success && !string.IsNullOrEmpty(result.RelativeUrl))
+                    {
+                        var replacement = $"![{result.BaseName}]({result.RelativeUrl})\n";
+                        try
+                        {
+                            var finalVal = await JSRuntime.InvokeAsync<string?>("window.replaceMarkdownText", _elementId, placeholder, replacement);
+                            if (finalVal != null)
+                            {
+                                Value = finalVal;
+                            }
+                            else
+                            {
+                                Value = (Value ?? "").Replace(placeholder, replacement);
+                            }
+                        }
+                        catch
+                        {
+                            Value = (Value ?? "").Replace(placeholder, replacement);
+                        }
+
+                        await ValueChanged.InvokeAsync(Value);
+                        Snackbar.Add($"Uploaded '{result.FileName}' successfully!", Severity.Success);
+                    }
+                    else
+                    {
+                        // Remove placeholder on failure
+                        try
+                        {
+                            var finalVal = await JSRuntime.InvokeAsync<string?>("window.replaceMarkdownText", _elementId, placeholder, "");
+                            Value = finalVal ?? (Value ?? "").Replace(placeholder, "");
+                        }
+                        catch
+                        {
+                            Value = (Value ?? "").Replace(placeholder, "");
+                        }
+                        await ValueChanged.InvokeAsync(Value);
+                        Snackbar.Add($"Upload failed: {result.ErrorMessage}", Severity.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Remove placeholder on exception
+                    try
+                    {
+                        var finalVal = await JSRuntime.InvokeAsync<string?>("window.replaceMarkdownText", _elementId, placeholder, "");
+                        Value = finalVal ?? (Value ?? "").Replace(placeholder, "");
+                    }
+                    catch
+                    {
+                        Value = (Value ?? "").Replace(placeholder, "");
+                    }
+                    await ValueChanged.InvokeAsync(Value);
+                    Snackbar.Add($"Upload error: {ex.Message}", Severity.Error);
+                }
+            }
+        }
+        finally
+        {
+            _isUploadingMedia = false;
+            StateHasChanged();
         }
     }
 }

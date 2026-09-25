@@ -8,13 +8,27 @@ namespace PenguinTwitchBot.Services
         public bool Success { get; set; }
         public string? BaseName { get; set; }
         public string? FileName { get; set; }
+        public string? RelativeUrl { get; set; }
         public string? ErrorMessage { get; set; }
 
-        public static MediaUploadResult Ok(string baseName, string fileName) =>
-            new() { Success = true, BaseName = baseName, FileName = fileName };
+        public static MediaUploadResult Ok(string baseName, string fileName, string? relativeUrl = null) =>
+            new() { Success = true, BaseName = baseName, FileName = fileName, RelativeUrl = relativeUrl };
 
         public static MediaUploadResult Fail(string error) =>
             new() { Success = false, ErrorMessage = error };
+    }
+
+    public class MediaFileInfo
+    {
+        public string FileName { get; set; } = string.Empty;
+        public string BaseName { get; set; } = string.Empty;
+        public string RelativeUrl { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
+        public DateTime LastModified { get; set; }
+        public string Extension { get; set; } = string.Empty;
+        public bool IsImage { get; set; }
+        public bool IsVideo { get; set; }
+        public bool IsAudio { get; set; }
     }
 
     public class MediaUploadService
@@ -46,6 +60,7 @@ namespace PenguinTwitchBot.Services
 
         public string AudioDirectory => Path.Combine(_webRootPath, "audio");
         public string GifsDirectory => Path.Combine(_webRootPath, "gifs");
+        public string MediaDirectory => Path.Combine(_webRootPath, "media");
 
         #region Audio Management (Audio Commands & PlaySound)
 
@@ -129,26 +144,24 @@ namespace PenguinTwitchBot.Services
 
                 Directory.CreateDirectory(AudioDirectory);
 
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
-                var data = memoryStream.ToArray();
+                var (data, readError) = await ReadStreamBoundedAsync(
+                    stream,
+                    maxSizeBytes,
+                    "The uploaded file is empty.",
+                    $"File size exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).");
 
-                if (data.Length == 0)
-                    return MediaUploadResult.Fail("The uploaded file is empty.");
-
-                if (data.Length > maxSizeBytes)
-                    return MediaUploadResult.Fail($"File size ({data.Length / (1024 * 1024.0):F1} MB) exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).");
+                if (data == null)
+                    return MediaUploadResult.Fail(readError!);
 
                 if (!ValidateAudioSignature(data, extension))
                 {
                     return MediaUploadResult.Fail("File header verification failed. The file is corrupted or not a valid audio file.");
                 }
 
-                var (uniqueBase, uniqueFileName, targetPath) = GetUniqueFilePath(AudioDirectory, sanitizedBase, extension);
-                await File.WriteAllBytesAsync(targetPath, data);
+                var (uniqueBase, uniqueFileName, targetPath) = await SaveFileAtomicallyAsync(AudioDirectory, sanitizedBase, extension, data);
                 _logger.LogInformation("Saved audio file: {TargetPath}", targetPath);
 
-                return MediaUploadResult.Ok(uniqueBase, uniqueFileName);
+                return MediaUploadResult.Ok(uniqueBase, uniqueFileName, $"/audio/{Uri.EscapeDataString(uniqueFileName)}");
             }
             catch (Exception ex)
             {
@@ -280,15 +293,14 @@ namespace PenguinTwitchBot.Services
 
                 Directory.CreateDirectory(GifsDirectory);
 
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
-                var data = memoryStream.ToArray();
+                var (data, readError) = await ReadStreamBoundedAsync(
+                    stream,
+                    maxSizeBytes,
+                    "The uploaded file is empty.",
+                    $"File size exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).");
 
-                if (data.Length == 0)
-                    return MediaUploadResult.Fail("The uploaded file is empty.");
-
-                if (data.Length > maxSizeBytes)
-                    return MediaUploadResult.Fail($"File size ({data.Length / (1024 * 1024.0):F1} MB) exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).");
+                if (data == null)
+                    return MediaUploadResult.Fail(readError!);
 
                 var valid = isImage
                     ? ValidateImageSignature(data, extension)
@@ -299,11 +311,10 @@ namespace PenguinTwitchBot.Services
                     return MediaUploadResult.Fail("File header verification failed. The file is corrupted or not a valid media file.");
                 }
 
-                var (uniqueBase, uniqueFileName, targetPath) = GetUniqueFilePath(GifsDirectory, sanitizedBase, extension);
-                await File.WriteAllBytesAsync(targetPath, data);
+                var (uniqueBase, uniqueFileName, targetPath) = await SaveFileAtomicallyAsync(GifsDirectory, sanitizedBase, extension, data);
                 _logger.LogInformation("Saved alert media file: {TargetPath}", targetPath);
 
-                return MediaUploadResult.Ok(uniqueBase, uniqueFileName);
+                return MediaUploadResult.Ok(uniqueBase, uniqueFileName, $"/gifs/{Uri.EscapeDataString(uniqueFileName)}");
             }
             catch (Exception ex)
             {
@@ -339,15 +350,14 @@ namespace PenguinTwitchBot.Services
 
                 Directory.CreateDirectory(GifsDirectory);
 
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
-                var data = memoryStream.ToArray();
+                var (data, readError) = await ReadStreamBoundedAsync(
+                    stream,
+                    maxSizeBytes,
+                    "The companion audio file is empty.",
+                    $"Audio size exceeds limit ({maxSizeBytes / (1024 * 1024)} MB).");
 
-                if (data.Length == 0)
-                    return MediaUploadResult.Fail("The companion audio file is empty.");
-
-                if (data.Length > maxSizeBytes)
-                    return MediaUploadResult.Fail($"Audio size ({data.Length / (1024 * 1024.0):F1} MB) exceeds limit ({maxSizeBytes / (1024 * 1024)} MB).");
+                if (data == null)
+                    return MediaUploadResult.Fail(readError!);
 
                 if (!ValidateAudioSignature(data, audioExtension))
                 {
@@ -376,12 +386,163 @@ namespace PenguinTwitchBot.Services
                 await File.WriteAllBytesAsync(targetPath, data);
                 _logger.LogInformation("Saved alert companion audio file: {TargetPath}", targetPath);
 
-                return MediaUploadResult.Ok(sanitizedBase, targetFileName);
+                return MediaUploadResult.Ok(sanitizedBase, targetFileName, $"/gifs/{Uri.EscapeDataString(targetFileName)}");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to upload alert companion audio for media {AlertMediaFileName}", alertMediaFileName);
                 return MediaUploadResult.Fail($"Upload failed: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region General Media Management (Markdown & Web Media)
+
+        public List<MediaFileInfo> GetMediaFiles()
+        {
+            try
+            {
+                if (!Directory.Exists(MediaDirectory))
+                {
+                    return [];
+                }
+
+                var allowedExtensions = SupportedImageExtensions
+                    .Concat(SupportedVideoExtensions)
+                    .Concat(SupportedAudioExtensions)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var dirInfo = new DirectoryInfo(MediaDirectory);
+                return dirInfo.GetFiles()
+                    .Where(f => allowedExtensions.Contains(f.Extension))
+                    .OrderByDescending(f => f.LastWriteTimeUtc)
+                    .Select(f =>
+                    {
+                        var ext = f.Extension.ToLowerInvariant();
+                        return new MediaFileInfo
+                        {
+                            FileName = f.Name,
+                            BaseName = Path.GetFileNameWithoutExtension(f.Name),
+                            RelativeUrl = $"/media/{Uri.EscapeDataString(f.Name)}",
+                            SizeBytes = f.Length,
+                            LastModified = f.LastWriteTimeUtc,
+                            Extension = ext,
+                            IsImage = SupportedImageExtensions.Contains(ext),
+                            IsVideo = SupportedVideoExtensions.Contains(ext),
+                            IsAudio = SupportedAudioExtensions.Contains(ext)
+                        };
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading media files from {MediaDirectory}", MediaDirectory);
+                return [];
+            }
+        }
+
+        public string? ResolveMediaUrl(string? mediaFileName)
+        {
+            if (string.IsNullOrWhiteSpace(mediaFileName) || !Directory.Exists(MediaDirectory))
+                return null;
+
+            var fileNameOnly = Path.GetFileName(mediaFileName);
+            var path = Path.Combine(MediaDirectory, fileNameOnly);
+            if (File.Exists(path))
+            {
+                return $"/media/{Uri.EscapeDataString(fileNameOnly)}";
+            }
+
+            return null;
+        }
+
+        public async Task<MediaUploadResult> UploadMediaAsync(Stream stream, string originalFileName, long maxSizeBytes = 50 * 1024 * 1024)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(originalFileName))
+                    return MediaUploadResult.Fail("File name cannot be empty.");
+
+                var extension = Path.GetExtension(originalFileName).ToLowerInvariant();
+                var isImage = SupportedImageExtensions.Contains(extension);
+                var isVideo = SupportedVideoExtensions.Contains(extension);
+                var isAudio = SupportedAudioExtensions.Contains(extension);
+
+                if (!isImage && !isVideo && !isAudio)
+                {
+                    var allAllowed = SupportedImageExtensions.Concat(SupportedVideoExtensions).Concat(SupportedAudioExtensions);
+                    return MediaUploadResult.Fail($"Unsupported media format: '{extension}'. Supported formats: {string.Join(", ", allAllowed)}");
+                }
+
+                var sanitizedBase = SanitizeFileName(Path.GetFileNameWithoutExtension(originalFileName));
+                if (string.IsNullOrWhiteSpace(sanitizedBase))
+                    sanitizedBase = $"media_{DateTime.UtcNow.Ticks}";
+
+                Directory.CreateDirectory(MediaDirectory);
+
+                var (data, readError) = await ReadStreamBoundedAsync(
+                    stream,
+                    maxSizeBytes,
+                    "The uploaded file is empty.",
+                    $"File size exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).");
+
+                if (data == null)
+                    return MediaUploadResult.Fail(readError!);
+
+                var valid = isImage
+                    ? ValidateImageSignature(data, extension)
+                    : isVideo
+                        ? ValidateVideoSignature(data, extension)
+                        : ValidateAudioSignature(data, extension);
+
+                if (!valid)
+                {
+                    return MediaUploadResult.Fail("File header verification failed. The file is corrupted or not a valid media file.");
+                }
+
+                var (uniqueBase, uniqueFileName, targetPath) = await SaveFileAtomicallyAsync(MediaDirectory, sanitizedBase, extension, data);
+                _logger.LogInformation("Saved media file: {TargetPath}", targetPath);
+
+                var relativeUrl = $"/media/{Uri.EscapeDataString(uniqueFileName)}";
+                return MediaUploadResult.Ok(uniqueBase, uniqueFileName, relativeUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to upload media {OriginalFileName}", originalFileName);
+                return MediaUploadResult.Fail($"Upload failed: {ex.Message}");
+            }
+        }
+
+        public bool DeleteMediaFile(string fileName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(fileName) || !Directory.Exists(MediaDirectory))
+                    return false;
+
+                var fileNameOnly = Path.GetFileName(SanitizeFileName(fileName));
+                var targetPath = Path.Combine(MediaDirectory, fileNameOnly);
+
+                // Ensure targetPath stays inside MediaDirectory
+                var fullTargetPath = Path.GetFullPath(targetPath);
+                var fullDirPath = Path.GetFullPath(MediaDirectory);
+                if (!fullTargetPath.StartsWith(fullDirPath, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                    _logger.LogInformation("Deleted media file: {TargetPath}", targetPath);
+                    return true;
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to delete media file {FileName}", fileName);
+                return false;
             }
         }
 
@@ -514,22 +675,63 @@ namespace PenguinTwitchBot.Services
             return false;
         }
 
-        private static (string uniqueBase, string uniqueFileName, string targetPath) GetUniqueFilePath(string directory, string sanitizedBase, string extension)
+        private static async Task<(byte[]? Data, string? ErrorMessage)> ReadStreamBoundedAsync(
+            Stream stream,
+            long maxSizeBytes,
+            string emptyErrorMessage = "The uploaded file is empty.",
+            string? oversizeErrorMessage = null)
         {
-            var uniqueBase = sanitizedBase;
-            var uniqueFileName = $"{uniqueBase}{extension}";
-            var targetPath = Path.Combine(directory, uniqueFileName);
-            var counter = 1;
+            using var memoryStream = new MemoryStream();
+            var buffer = new byte[81920];
+            long totalRead = 0;
+            int bytesRead;
 
-            while (File.Exists(targetPath))
+            oversizeErrorMessage ??= $"File size exceeds maximum allowed size ({maxSizeBytes / (1024 * 1024)} MB).";
+
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
             {
-                uniqueBase = $"{sanitizedBase}_{counter}";
-                uniqueFileName = $"{uniqueBase}{extension}";
-                targetPath = Path.Combine(directory, uniqueFileName);
-                counter++;
+                totalRead += bytesRead;
+                if (totalRead > maxSizeBytes)
+                {
+                    return (null, oversizeErrorMessage);
+                }
+                await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead));
             }
 
-            return (uniqueBase, uniqueFileName, targetPath);
+            if (totalRead == 0)
+            {
+                return (null, emptyErrorMessage);
+            }
+
+            return (memoryStream.ToArray(), null);
+        }
+
+        private static async Task<(string uniqueBase, string uniqueFileName, string targetPath)> SaveFileAtomicallyAsync(
+            string directory,
+            string sanitizedBase,
+            string extension,
+            byte[] data)
+        {
+            var counter = 0;
+            while (true)
+            {
+                var uniqueBase = counter == 0 ? sanitizedBase : $"{sanitizedBase}_{counter}";
+                var uniqueFileName = $"{uniqueBase}{extension}";
+                var targetPath = Path.Combine(directory, uniqueFileName);
+
+                try
+                {
+                    await using (var fileStream = new FileStream(targetPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    {
+                        await fileStream.WriteAsync(data);
+                    }
+                    return (uniqueBase, uniqueFileName, targetPath);
+                }
+                catch (IOException) when (File.Exists(targetPath))
+                {
+                    counter++;
+                }
+            }
         }
 
         #endregion
