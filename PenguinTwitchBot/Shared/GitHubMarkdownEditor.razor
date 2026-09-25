@@ -530,7 +530,8 @@
         {
             foreach (var file in files)
             {
-                var placeholder = $"![Uploading {file.Name}...]()\n";
+                var uploadToken = Guid.NewGuid().ToString("N")[..8];
+                var placeholder = $"![Uploading {file.Name} ({uploadToken})...]()\n";
 
                 // Insert placeholder at current cursor position
                 try

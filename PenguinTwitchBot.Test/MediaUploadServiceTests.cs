@@ -405,5 +405,29 @@ namespace PenguinTwitchBot.Test
             Assert.True(deleted);
             Assert.Empty(_service.GetMediaFiles());
         }
+
+        [Fact]
+        public async Task UploadMediaAsync_ExceedsMaxSizeBytes_Fails()
+        {
+            var pngBytes = CreateFakePng(); // 64 bytes
+            using var stream = new MemoryStream(pngBytes);
+
+            // Pass maxSizeBytes = 32 so 64 bytes exceeds it
+            var result = await _service.UploadMediaAsync(stream, "large.png", maxSizeBytes: 32);
+
+            Assert.False(result.Success);
+            Assert.Contains("exceeds maximum allowed size", result.ErrorMessage);
+        }
+
+        [Fact]
+        public async Task UploadMediaAsync_EmptyStream_Fails()
+        {
+            using var stream = new MemoryStream([]);
+
+            var result = await _service.UploadMediaAsync(stream, "empty.png");
+
+            Assert.False(result.Success);
+            Assert.Contains("empty", result.ErrorMessage);
+        }
     }
 }

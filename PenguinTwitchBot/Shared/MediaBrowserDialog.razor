@@ -1,6 +1,7 @@
 @using PenguinTwitchBot.Services
 @inject MediaUploadService MediaUploadService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
 
 <MudDialog>
@@ -310,6 +311,14 @@
 
     private async Task DeleteFileAsync(MediaFileInfo file)
     {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Media File",
+            $"Are you sure you want to permanently delete '{file.FileName}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
         var deleted = MediaUploadService.DeleteMediaFile(file.FileName);
         if (deleted)
         {
