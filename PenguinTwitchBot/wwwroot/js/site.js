@@ -247,6 +247,154 @@ window.restoreMarkdownCursorAndScroll = function (elementId) {
     setTimeout(restore, 50);
 };
 
+window.setupMarkdownDropZone = function (elementId, fileInputId) {
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    const editor = container.closest('.github-markdown-editor');
+    if (!editor) return;
+
+    if (editor._dropZoneInitialized) return;
+    editor._dropZoneInitialized = true;
+
+    let dragCounter = 0;
+
+    const isFileDrag = (e) => {
+        if (!e.dataTransfer || !e.dataTransfer.types) return false;
+        for (let i = 0; i < e.dataTransfer.types.length; i++) {
+            if (e.dataTransfer.types[i] === 'Files') return true;
+        }
+        return false;
+    };
+
+    editor.addEventListener('dragenter', function (e) {
+        if (!isFileDrag(e)) return;
+        e.preventDefault();
+        dragCounter++;
+        editor.classList.add('drag-active');
+    });
+
+    editor.addEventListener('dragover', function (e) {
+        if (!isFileDrag(e)) return;
+        e.preventDefault();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+        editor.classList.add('drag-active');
+    });
+
+    editor.addEventListener('dragleave', function (e) {
+        if (!isFileDrag(e)) return;
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            editor.classList.remove('drag-active');
+        }
+    });
+
+    editor.addEventListener('drop', function (e) {
+        if (!isFileDrag(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter = 0;
+        editor.classList.remove('drag-active');
+
+        const fileInput = document.getElementById(fileInputId);
+        if (!fileInput) return;
+        const files = e.dataTransfer ? e.dataTransfer.files : null;
+        if (files && files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
+    const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
+    if (textarea && !textarea._pasteInitialized) {
+        textarea._pasteInitialized = true;
+        textarea.addEventListener('paste', function (e) {
+            const fileInput = document.getElementById(fileInputId);
+            if (!fileInput) return;
+
+            const clipboard = e.clipboardData || (window.clipboardData ? window.clipboardData : null);
+            if (!clipboard) return;
+
+            const items = clipboard.items;
+            let hasImage = false;
+            if (items) {
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type && items[i].type.indexOf('image') !== -1) {
+                        hasImage = true;
+                        break;
+                    }
+                }
+            }
+
+            if (hasImage && clipboard.files && clipboard.files.length > 0) {
+                e.preventDefault();
+                fileInput.files = clipboard.files;
+                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
+};
+
+window.replaceMarkdownText = function (elementId, target, replacement) {
+    const container = document.getElementById(elementId);
+    if (!container) return null;
+    const textarea = container.tagName === 'TEXTAREA' ? container : container.querySelector('textarea');
+    if (!textarea) return null;
+
+    const state = getMarkdownEditorState(elementId);
+    const text = textarea.value || '';
+    if (!text.includes(target)) return text;
+
+    const newText = text.replace(target, replacement);
+    textarea.value = newText;
+
+    if (state && typeof state.selectionStart === 'number') {
+        const diff = replacement.length - target.length;
+        state.selectionStart = Math.max(0, state.selectionStart + diff);
+        state.selectionEnd = Math.max(0, state.selectionEnd + diff);
+    }
+
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    return newText;
+};
+
+window.triggerFileInput = function (fileInputId) {
+    const fileInput = document.getElementById(fileInputId);
+    if (fileInput) {
+        fileInput.click();
+    }
+};
+
+window.copyToClipboard = async function (text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            // fallback below
+        }
+    }
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return successful;
+    } catch (err) {
+        document.body.removeChild(textArea);
+        return false;
+    }
+};
+
 window.penguinTheme = {
     getPreference: function () {
         try {

@@ -36,7 +36,9 @@
         <MudCardContent>
             <MudStack Spacing="3">
                 <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" Variant="Variant.Outlined" />
-                <MudTextField Label="Image Url" @bind-Value="@Image" Variant="Variant.Outlined" />
+                <MediaUrlPicker Label="Prize Image URL"
+                                @bind-Value="@Image"
+                                HelperText="Direct image URL or upload prize artwork/photo. Generates relative URL (/media/...) automatically." />
                 <MudTextField Label="Prize Tier" @bind-Value="@PrizeTier" Variant="Variant.Outlined" />
                 <GitHubMarkdownEditor Label="Additional Details"
                                       @bind-Value="@PrizeAdditionalDetails"

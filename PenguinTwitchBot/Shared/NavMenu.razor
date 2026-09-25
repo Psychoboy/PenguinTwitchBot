@@ -116,7 +116,8 @@
                         <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
                     }
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "settings/updates", "backups", "validation-status")">
+                <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools/media", "settings/updates", "backups", "validation-status")">
+                    <MudNavLink Icon="@Icons.Material.Filled.PhotoLibrary" Href="/tools/media" Match="NavLinkMatch.Prefix">Media Library</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Update" Href="/settings/updates" Match="NavLinkMatch.Prefix">Updates & Logs</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
@@ -293,6 +294,7 @@
             CreateQuickLink("Bot Settings", "/settings/app", Icons.Material.Filled.SettingsSuggest, "Configuration", "app settings"),
             CreateQuickLink("Themes", "/settings/themes", Icons.Material.Filled.Palette, "Configuration", "theme custom color dark light mode"),
             CreateQuickLink("Integrations", "/settings/integrations", Icons.Material.Filled.Extension, "Configuration"),
+            CreateQuickLink("Media Library", "/tools/media", Icons.Material.Filled.PhotoLibrary, "Configuration", "media images uploads files"),
             CreateQuickLink("Updates & Logs", "/settings/updates", Icons.Material.Filled.Update, "Configuration", "updates logs"),
             CreateQuickLink("Backups", "/backups", Icons.Material.Filled.Backup, "Configuration"),
             CreateQuickLink("Validation Status", "/validation-status", Icons.Material.Filled.BugReport, "Configuration", "validation"),

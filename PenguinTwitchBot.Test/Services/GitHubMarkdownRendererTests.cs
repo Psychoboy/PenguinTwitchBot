@@ -339,4 +339,24 @@ Normal icon outside: [icon:heart #f85149]";
             Assert.False(string.IsNullOrWhiteSpace(svg), $"Alias '{alias}' resolved to empty SVG.");
         }
     }
+
+    [Fact]
+    public void RenderToHtml_RelativeImage_RendersImgTagWithRelativeSrc()
+    {
+        var md = "![Giveaway Prize](/media/ps5_console.png)";
+        var html = GitHubMarkdownRenderer.RenderToHtml(md);
+
+        Assert.Contains(@"<img src=""/media/ps5_console.png"" alt=""Giveaway Prize""", html);
+    }
+
+    [Fact]
+    public void RenderToHtml_LinkedRelativeImage_RendersLinkAndImgTag()
+    {
+        var md = "[![Giveaway Prize](/media/ps5_console.png)](https://twitch.tv)";
+        var html = GitHubMarkdownRenderer.RenderToHtml(md);
+
+        Assert.Contains(@"<a href=""https://twitch.tv""", html);
+        Assert.Contains(@"target=""_blank""", html);
+        Assert.Contains(@"<img src=""/media/ps5_console.png"" alt=""Giveaway Prize""", html);
+    }
 }
