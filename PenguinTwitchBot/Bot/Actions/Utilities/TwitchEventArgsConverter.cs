@@ -1,4 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Events;
+using PenguinTwitchBot.Bot.Events;
+using PenguinTwitchBot.Helpers;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -19,9 +20,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Username"] = eventArgs.Username ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Username"] = ViewerInputSanitizer.Sanitize(eventArgs.Username),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["FollowDate"] = eventArgs.FollowDate.ToString("o"),
                 ["FollowEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
@@ -39,10 +40,11 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
-                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
+                ["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
                 ["Amount"] = eventArgs.Amount.ToString(),
                 ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
                 ["CheerEventArgs"] = JsonSerializer.Serialize(eventArgs)
@@ -61,16 +63,17 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["Count"] = eventArgs.Count?.ToString() ?? string.Empty,
                 ["Streak"] = eventArgs.Streak?.ToString() ?? string.Empty,
                 ["Tier"] = eventArgs.Tier ?? string.Empty,
                 ["IsGift"] = eventArgs.IsGift.ToString(),
                 ["IsRenewal"] = eventArgs.IsRenewal.ToString(),
                 ["HadPreviousSub"] = eventArgs.HadPreviousSub.ToString(),
-                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
+                ["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
                 ["SubscriptionEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
@@ -87,9 +90,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["GiftAmount"] = eventArgs.GiftAmount.ToString(),
                 ["TotalGifted"] = eventArgs.TotalGifted?.ToString() ?? string.Empty,
                 ["SubscriptionGiftEventArgs"] = JsonSerializer.Serialize(eventArgs)
@@ -108,8 +111,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["User"] = eventArgs.Name ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
                 ["SubscriptionEndEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
@@ -126,9 +129,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["NumberOfViewers"] = eventArgs.NumberOfViewers.ToString(),
                 ["Viewers"] = eventArgs.NumberOfViewers.ToString(),
                 ["RaidEventArgs"] = JsonSerializer.Serialize(eventArgs)
@@ -147,15 +150,16 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Sender"] = eventArgs.Sender ?? string.Empty,
-                ["Name"] = eventArgs.Sender ?? string.Empty,
-                ["Username"] = eventArgs.Username ?? eventArgs.Sender ?? string.Empty,
-                ["DisplayName"] = eventArgs.Sender ?? string.Empty,
-                ["User"] = eventArgs.Sender ?? string.Empty,
+                ["Sender"] = ViewerInputSanitizer.Sanitize(eventArgs.Sender),
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Sender),
+                ["Username"] = ViewerInputSanitizer.Sanitize(eventArgs.Username ?? eventArgs.Sender),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.Sender),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.Sender),
                 ["Title"] = eventArgs.Title ?? string.Empty,
                 ["RewardName"] = eventArgs.Title ?? string.Empty,
-                ["UserInput"] = eventArgs.UserInput ?? string.Empty,
-                ["Message"] = eventArgs.UserInput ?? string.Empty,
+                ["UserInput"] = ViewerInputSanitizer.Sanitize(eventArgs.UserInput),
+                ["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.UserInput),
+                ["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.UserInput),
                 ["ChannelPointRedeemEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
 
@@ -190,8 +194,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["User"] = eventArgs.Name ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
                 ["IsUnBan"] = eventArgs.IsUnBan.ToString(),
                 ["BanEndsAt"] = eventArgs.BanEndsAt?.ToString("o") ?? string.Empty,
                 ["BanEventArgs"] = JsonSerializer.Serialize(eventArgs)
@@ -210,12 +214,13 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["Amount"] = eventArgs.Amount.ToString(),
                 ["Bits"] = eventArgs.Amount.ToString(),
-                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
+                ["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
                 ["Type"] = eventArgs.Type,
                 ["IsPowerUp"] = eventArgs.IsPowerUp.ToString(),
                 ["PowerUpType"] = eventArgs.PowerUp?.Type ?? string.Empty,
@@ -240,13 +245,14 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             {
                 // Common fields
                 ["UserId"] = eventArgs.UserId ?? string.Empty,
-                ["Name"] = eventArgs.Name ?? string.Empty,
-                ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
-                ["User"] = eventArgs.DisplayName ?? string.Empty,
+                ["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                ["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                ["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
                 ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
                 ["NoticeType"] = eventArgs.NoticeType,
                 ["SystemMessage"] = eventArgs.SystemMessage,
-                ["Message"] = eventArgs.Message ?? string.Empty,
+                ["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
+                ["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Message),
                 // Sub (notice_type == "sub")
                 ["Sub.SubTier"] = eventArgs.Sub?.SubTier ?? string.Empty,
                 ["Sub.DurationMonths"] = eventArgs.Sub?.DurationMonths.ToString() ?? string.Empty,

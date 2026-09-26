@@ -41,7 +41,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 throw new SubActionHandlerException(subAction, "URL is required for ObsSetBrowserSourceUrl");
 
             var inputName = VariableReplacer.ReplaceVariables(urlAction.InputName, variables);
-            var url = VariableReplacer.ReplaceVariables(urlAction.Url, variables);
+            var url = VariableReplacer.ReplaceVariables(urlAction.Url, variables).Trim();
+
+            if (url.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase) ||
+                url.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+                url.StartsWith("vbscript:", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new SubActionHandlerException(subAction, "Invalid or unsafe URL scheme for ObsSetBrowserSourceUrl: {0}", url);
+            }
 
             try
             {

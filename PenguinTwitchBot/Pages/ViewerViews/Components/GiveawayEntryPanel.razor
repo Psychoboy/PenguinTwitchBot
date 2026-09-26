@@ -80,13 +80,26 @@
             <EditForm Model="@model" OnValidSubmit="EnterTickets">
                 <DataAnnotationsValidator />
                 <MudStack Spacing="2">
-                    <MudNumericField @bind-Value="model.EnterAmount"
-                                     For="@(() => model.EnterAmount)"
-                                     Label="@(pointsPerEntry > 1 ? $"Number of Entries (costs {pointsPerEntry} {PointTypeName} each)" : $"Number of {PointTypeName} to Enter")"
-                                     HelperText="@userEntriesText"
-                                     Variant="Variant.Outlined"
-                                     Disabled="@isSubmitting"
-                                     Immediate="true" />
+                    <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                        <MudNumericField @bind-Value="model.EnterAmount"
+                                         For="@(() => model.EnterAmount)"
+                                         Label="@(pointsPerEntry > 1 ? $"Number of Entries (costs {pointsPerEntry} {PointTypeName} each)" : $"Number of {PointTypeName} to Enter")"
+                                         HelperText="@userEntriesText"
+                                         Variant="Variant.Outlined"
+                                         Disabled="@isSubmitting"
+                                         Immediate="true"
+                                         Min="1"
+                                         Max="1000000"
+                                         Class="flex-grow-1" />
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   OnClick="SetMaxEntries"
+                                   Disabled="@(isSubmitting || maxAffordableEntries <= 0)"
+                                   Style="height: 56px; min-width: 80px;"
+                                   StartIcon="@Icons.Material.Filled.VerticalAlignTop">
+                            Max
+                        </MudButton>
+                    </MudStack>
                     <MudButton ButtonType="ButtonType.Submit"
                                Variant="Variant.Filled"
                                Color="Color.Primary"
@@ -265,6 +278,15 @@
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private void SetMaxEntries()
+    {
+        if (maxAffordableEntries > 0)
+        {
+            model.EnterAmount = (int)Math.Min(maxAffordableEntries, 1000000);
+            StateHasChanged();
+        }
     }
 
     private async Task EnterTickets()
