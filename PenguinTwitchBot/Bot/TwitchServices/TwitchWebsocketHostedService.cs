@@ -218,7 +218,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Event.UserName, args.Event.Message.Text);
             var e = args.Event;
             var messageText = args.Event.Message.Text;
-            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
             var chatMessage = new ChatMessageEventArgs
             {
                 Message = messageText,
@@ -296,7 +296,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return new ChatOverlayFragment
             {
                 Type = f.Type ?? "text",
-                Text = ViewerInputSanitizer.Sanitize(f.Text),
+                Text = ViewerInputSanitizer.Sanitize(f.Text, trim: false),
             };
         }
 
@@ -701,10 +701,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     HasBitsMessage = payload.Event.Message != null,
                     BitsMessage = payload.Event.Message == null ? null : new BitsMessage
                     {
-                        Text = payload.Event.Message.Text,
+                        Text = ViewerInputSanitizer.Sanitize(payload.Event.Message.Text),
                         Emotes = payload.Event.Message.Fragments?.Select(emote => new BitsEmote
                         {
-                            Text = emote.Text,
+                            Text = ViewerInputSanitizer.Sanitize(emote.Text, trim: false),
                             Type = emote.Type,
                             EmoteId = emote.Emote?.Id,
                             EmoteSetId = emote.Emote?.EmoteSetId,

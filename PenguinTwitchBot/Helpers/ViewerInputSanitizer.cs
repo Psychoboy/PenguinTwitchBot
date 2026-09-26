@@ -20,7 +20,10 @@ namespace PenguinTwitchBot.Helpers
         [GeneratedRegex(@"\bon\w+\s*=\s*(?:'[^']*'|""[^""]*""|[^\s>]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex InlineEventHandlerRegex();
 
-        [GeneratedRegex(@"(?:javascript|vbscript|data\s*:\s*text\/html)\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        [GeneratedRegex(@"[\x00-\x1F\x7F]")]
+        private static partial Regex ControlCharactersRegex();
+
+        [GeneratedRegex(@"(?:(?:javascript|vbscript)\s*:|data\s*:\s*text\/html(?:\s*;[^\s,;]+)*\s*(?:;\s*base64\b|,))[^\s""'>]*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex ExecutableUriRegex();
 
         [GeneratedRegex(@"<[/!]?[a-zA-Z][^>]*>?", RegexOptions.CultureInvariant)]
@@ -28,10 +31,10 @@ namespace PenguinTwitchBot.Helpers
 
         /// <summary>
         /// Sanitizes untrusted viewer input by removing executable script blocks, dangerous HTML tags,
-        /// inline event handlers, and executable URI schemes.
+        /// inline event handlers, C0/DEL control characters, and executable URI schemes.
         /// Chat emoticons such as '&lt;3' or math expressions like 'x &lt; 5' are preserved.
         /// </summary>
-        public static string Sanitize(string? input)
+        public static string Sanitize(string? input, bool trim = true)
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
@@ -46,13 +49,16 @@ namespace PenguinTwitchBot.Helpers
             // 3. Remove inline event handlers (e.g. onerror=, onload=)
             result = InlineEventHandlerRegex().Replace(result, string.Empty);
 
-            // 4. Remove executable URI schemes (javascript:, vbscript:, data:text/html:)
+            // 4. Strip C0 control characters and DEL (0x00-0x1F, 0x7F) before scheme checks
+            result = ControlCharactersRegex().Replace(result, string.Empty);
+
+            // 5. Remove executable URI schemes (javascript:, vbscript:, data:text/html)
             result = ExecutableUriRegex().Replace(result, string.Empty);
 
-            // 5. Remove any remaining HTML tags starting with <letter, </letter, or <!
+            // 6. Remove any remaining HTML tags starting with <letter, </letter, or <!
             result = HtmlTagRegex().Replace(result, string.Empty);
 
-            return result.Trim();
+            return trim ? result.Trim() : result;
         }
     }
 }

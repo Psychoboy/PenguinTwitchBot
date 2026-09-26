@@ -200,7 +200,7 @@ async function handleGifAlert(json) {
     // p object to hold custom gif alert text and style
     textObj = $('<p/>', {
         'style': gifCss
-    }).html(sanitizeAlertText(gifText));
+    }).text(gifText);
 
     await sleep(500);
 
@@ -615,17 +615,6 @@ function htmlEscape(str) {
         .replace(/'/g, '&#39;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-}
-
-function sanitizeAlertText(text) {
-    if (!text) return '';
-    var clean = String(text);
-    clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    clean = clean.replace(/<(?:iframe|object|embed|svg|style|meta|link|base|form|applet)\b[^<]*(?:(?!<\/(?:iframe|object|embed|svg|style|meta|link|base|form|applet)>)<[^<]*)*<\/(?:iframe|object|embed|svg|style|meta|link|base|form|applet)>/gi, '');
-    clean = clean.replace(/<(?:iframe|object|embed|svg|style|meta|link|base|form|applet)\b[^>]*>/gi, '');
-    clean = clean.replace(/\son\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '');
-    clean = clean.replace(/(?:javascript|vbscript|data\s*:\s*text\/html)\s*:/gi, '');
-    return clean;
 }
 
 function printDebug(message, force) {

@@ -78,14 +78,27 @@ namespace PenguinTwitchBot.Test.Helpers
         [Theory]
         [InlineData("javascript:alert(1)")]
         [InlineData("JAVASCRIPT:alert(1)")]
+        [InlineData("java\tscript:alert(1)")]
+        [InlineData("java\r\nscript:alert(1)")]
+        [InlineData("java\0script:alert(1)")]
         [InlineData("vbscript:msgbox(1)")]
         [InlineData("data:text/html;base64,PHNjcmlwdD4=")]
+        [InlineData("data:text/html,<script>alert(1)</script>")]
         public void Sanitize_StripsExecutableUriSchemes(string input)
         {
             var result = ViewerInputSanitizer.Sanitize(input);
-            Assert.DoesNotContain("javascript:", result, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("vbscript:", result, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("data:text/html:", result, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("javascript", result, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("vbscript", result, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("data:text/html", result, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void Sanitize_PreservesLeadingAndTrailingWhitespace_WhenTrimIsFalse()
+        {
+            var input = "  hello world  ";
+            var result = ViewerInputSanitizer.Sanitize(input, trim: false);
+            Assert.Equal("  hello world  ", result);
         }
 
         [Theory]
