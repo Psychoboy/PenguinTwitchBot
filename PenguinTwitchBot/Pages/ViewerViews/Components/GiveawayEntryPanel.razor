@@ -80,26 +80,35 @@
             <EditForm Model="@model" OnValidSubmit="EnterTickets">
                 <DataAnnotationsValidator />
                 <MudStack Spacing="2">
-                    <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
-                        <MudNumericField @bind-Value="model.EnterAmount"
-                                         For="@(() => model.EnterAmount)"
-                                         Label="@(pointsPerEntry > 1 ? $"Number of Entries (costs {pointsPerEntry} {PointTypeName} each)" : $"Number of {PointTypeName} to Enter")"
-                                         HelperText="@userEntriesText"
-                                         Variant="Variant.Outlined"
-                                         Disabled="@isSubmitting"
-                                         Immediate="true"
-                                         Min="1"
-                                         Max="1000000"
-                                         Class="flex-grow-1" />
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Secondary"
-                                   OnClick="SetMaxEntries"
-                                   Disabled="@(isSubmitting || maxAffordableEntries <= 0)"
-                                   Style="height: 56px; min-width: 80px;"
-                                   StartIcon="@Icons.Material.Filled.VerticalAlignTop">
-                            Max
-                        </MudButton>
-                    </MudStack>
+                    <MudNumericField @bind-Value="model.EnterAmount"
+                                     For="@(() => model.EnterAmount)"
+                                     Label="@(pointsPerEntry > 1 ? $"Entries ({pointsPerEntry} {PointTypeName} each)" : $"Number of {PointTypeName} to Enter")"
+                                     Variant="Variant.Outlined"
+                                     Disabled="@isSubmitting"
+                                     Immediate="true"
+                                     Min="1"
+                                     Max="1000000"
+                                     HideSpinButtons="true"
+                                     FullWidth="true" />
+                    @if (maxAffordableEntries > 0)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mt-n1 mb-1">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mr-1">Quick Select:</MudText>
+                            @if (maxAffordableEntries > 1)
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.25)" Disabled="@isSubmitting">25%</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.50)" Disabled="@isSubmitting">50%</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" OnClick="() => SetPercentageEntries(0.75)" Disabled="@isSubmitting">75%</MudChip>
+                            }
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" OnClick="SetMaxEntries" Disabled="@isSubmitting">Max</MudChip>
+                        </MudStack>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(userEntriesText))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-1">
+                            @userEntriesText
+                        </MudText>
+                    }
                     <MudButton ButtonType="ButtonType.Submit"
                                Variant="Variant.Filled"
                                Color="Color.Primary"
@@ -285,6 +294,16 @@
         if (maxAffordableEntries > 0)
         {
             model.EnterAmount = (int)Math.Min(maxAffordableEntries, 1000000);
+            StateHasChanged();
+        }
+    }
+
+    private void SetPercentageEntries(double percentage)
+    {
+        if (maxAffordableEntries > 0)
+        {
+            var calculated = (int)Math.Floor(maxAffordableEntries * percentage);
+            model.EnterAmount = Math.Clamp(calculated, 1, 1000000);
             StateHasChanged();
         }
     }
