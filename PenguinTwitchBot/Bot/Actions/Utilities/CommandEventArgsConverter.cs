@@ -29,18 +29,18 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             dictionary["IsMod"] = eventArgs.IsMod.ToString();
             dictionary["IsVip"] = eventArgs.IsVip.ToString();
             dictionary["IsBroadcaster"] = eventArgs.IsBroadcaster.ToString();
-            dictionary["DisplayName"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName);
-            dictionary["Name"] = ViewerInputSanitizer.Sanitize(eventArgs.Name);
+            dictionary["DisplayName"] = eventArgs.DisplayName ?? string.Empty;
+            dictionary["Name"] = eventArgs.Name ?? string.Empty;
             dictionary["UserId"] = eventArgs.UserId ?? string.Empty;
             dictionary["MessageId"] = eventArgs.MessageId ?? string.Empty;
             dictionary["IsSubOrHigher"] = eventArgs.IsSubOrHigher().ToString();
             dictionary["IsVipOrHigher"] = eventArgs.IsVipOrHigher().ToString();
             dictionary["IsModOrHigher"] = eventArgs.IsModOrHigher().ToString();
-            dictionary["User"] = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName);
+            dictionary["User"] = eventArgs.DisplayName ?? string.Empty;
             dictionary["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
             dictionary["Command"] = eventArgs.Command ?? string.Empty;
             dictionary["Arg"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
-            dictionary["TargetUser"] = ViewerInputSanitizer.Sanitize(eventArgs.TargetUser);
+            dictionary["TargetUser"] = eventArgs.TargetUser ?? string.Empty;
             dictionary["IsWhisper"] = eventArgs.IsWhisper.ToString();
             dictionary["IsDiscord"] = eventArgs.IsDiscord.ToString();
             dictionary["DiscordMention"] = eventArgs.DiscordMention ?? string.Empty;
@@ -56,7 +56,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 dictionary["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
             } else
             {
-                dictionary["targetorself"] = ViewerInputSanitizer.Sanitize(eventArgs.Name);
+                dictionary["targetorself"] = eventArgs.Name ?? string.Empty;
                 dictionary["target"] = string.Empty;
                 dictionary["args"] = string.Empty;
                 dictionary["rawInput"] = string.Empty;
@@ -68,14 +68,14 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 IsMod = eventArgs.IsMod,
                 IsVip = eventArgs.IsVip,
                 IsBroadcaster = eventArgs.IsBroadcaster,
-                DisplayName = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
-                Name = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                DisplayName = eventArgs.DisplayName,
+                Name = eventArgs.Name,
                 UserId = eventArgs.UserId ?? string.Empty,
                 MessageId = eventArgs.MessageId ?? string.Empty,
                 Command = eventArgs.Command ?? string.Empty,
                 Arg = ViewerInputSanitizer.Sanitize(eventArgs.Arg),
                 Args = eventArgs.Args?.Select(a => ViewerInputSanitizer.Sanitize(a)).ToList() ?? [],
-                TargetUser = ViewerInputSanitizer.Sanitize(eventArgs.TargetUser),
+                TargetUser = eventArgs.TargetUser,
                 IsWhisper = eventArgs.IsWhisper,
                 IsDiscord = eventArgs.IsDiscord,
                 DiscordMention = eventArgs.DiscordMention ?? string.Empty,

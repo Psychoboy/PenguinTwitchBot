@@ -974,35 +974,122 @@ public class ChatNotificationConverterTests
     }
 
     [Fact]
-    public void ToDictionary_SanitizesSystemMessageAndNestedUserFields()
+    public void ToDictionary_SanitizesUserEnteredMessage()
     {
         var args = new ChatNotificationEventArgs
         {
-            NoticeType = "resub",
-            SystemMessage = "<script>alert('xss')</script>User subscribed!",
-            Resub = new ChatNotificationResubInfo
+            NoticeType = "sub",
+            Name = "subscriber1",
+            DisplayName = "Subscriber1",
+            SystemMessage = "Subscriber1 subscribed!",
+            Message = "<script>alert('xss')</script>Hello streamer!"
+        };
+
+        var dict = TwitchEventArgsConverter.ToDictionary(args);
+
+        Assert.Equal("subscriber1", dict["Name"]);
+        Assert.Equal("Subscriber1", dict["DisplayName"]);
+        Assert.Equal("Subscriber1 subscribed!", dict["SystemMessage"]);
+        Assert.Equal("Hello streamer!", dict["Message"]);
+
+        // Verify serialized ChatNotificationEventArgs has sanitized Message
+        var serializedChatNotification = dict["ChatNotificationEventArgs"];
+        Assert.DoesNotContain("<script>", serializedChatNotification);
+        Assert.Contains("Hello streamer!", serializedChatNotification);
+    }
+
+    [Fact]
+    public void CheerEventArgs_SerializedEntry_IsSanitized()
+    {
+        var args = new CheerEventArgs
+        {
+            UserId = "123",
+            Name = "cheerer",
+            DisplayName = "Cheerer",
+            Message = "cheer100 <script>alert('xss')</script>hello",
+            Amount = 100,
+            IsAnonymous = false
+        };
+
+        var dict = TwitchEventArgsConverter.ToDictionary(args);
+
+        Assert.Equal("cheerer", dict["Name"]);
+        Assert.Equal("Cheerer", dict["DisplayName"]);
+        Assert.Equal("cheer100 hello", dict["Message"]);
+
+        var serialized = dict["CheerEventArgs"];
+        Assert.DoesNotContain("<script>", serialized);
+        Assert.Contains("cheer100 hello", serialized);
+    }
+
+    [Fact]
+    public void SubscriptionEventArgs_SerializedEntry_IsSanitized()
+    {
+        var args = new SubscriptionEventArgs
+        {
+            UserId = "123",
+            Name = "subber",
+            DisplayName = "Subber",
+            Message = "<script>alert('sub')</script>Yay sub!"
+        };
+
+        var dict = TwitchEventArgsConverter.ToDictionary(args);
+
+        Assert.Equal("Yay sub!", dict["Message"]);
+        var serialized = dict["SubscriptionEventArgs"];
+        Assert.DoesNotContain("<script>", serialized);
+        Assert.Contains("Yay sub!", serialized);
+    }
+
+    [Fact]
+    public void ChannelPointRedeemEventArgs_SerializedEntry_IsSanitized()
+    {
+        var args = new ChannelPointRedeemEventArgs
+        {
+            UserId = "123",
+            Sender = "Viewer",
+            UserInput = "<script>alert('redeem')</script>My Request"
+        };
+
+        var dict = TwitchEventArgsConverter.ToDictionary(args);
+
+        Assert.Equal("Viewer", dict["Sender"]);
+        Assert.Equal("My Request", dict["UserInput"]);
+        var serialized = dict["ChannelPointRedeemEventArgs"];
+        Assert.DoesNotContain("<script>", serialized);
+        Assert.Contains("My Request", serialized);
+    }
+
+    [Fact]
+    public void BitsUseEventArgs_SerializedEntry_IsSanitized()
+    {
+        var args = new BitsUseEventArgs
+        {
+            UserId = "123",
+            Name = "bitsuser",
+            DisplayName = "BitsUser",
+            Message = "<script>alert(1)</script>cheer100",
+            CustomPowerUp = new CustomPowerUp
             {
-                GifterUserName = "<iframe src='evil.com'></iframe>Gifter",
-                GifterUserLogin = "<svg onload=alert(1)>gifterlogin"
+                Title = "Mega Cheer",
+                RewardId = "rew-1"
             },
-            Raid = new ChatNotificationRaidInfo
+            BitsMessage = new BitsMessage
             {
-                UserName = "<script>alert(1)</script>Raider",
-                UserLogin = "raiderlogin"
-            },
-            CharityDonation = new ChatNotificationCharityDonationInfo
-            {
-                CharityName = "<script>alert('charity')</script>Good Cause"
+                Text = "<script>alert(1)</script>cheer100"
             }
         };
 
         var dict = TwitchEventArgsConverter.ToDictionary(args);
 
-        Assert.Equal("User subscribed!", dict["SystemMessage"]);
-        Assert.Equal("Gifter", dict["Resub.GifterUserName"]);
-        Assert.Equal("gifterlogin", dict["Resub.GifterUserLogin"]);
-        Assert.Equal("Raider", dict["Raid.UserName"]);
-        Assert.Equal("raiderlogin", dict["Raid.UserLogin"]);
-        Assert.Equal("Good Cause", dict["CharityDonation.CharityName"]);
+        Assert.Equal("bitsuser", dict["Name"]);
+        Assert.Equal("BitsUser", dict["DisplayName"]);
+        Assert.Equal("cheer100", dict["Message"]);
+        Assert.Equal("Mega Cheer", dict["CustomPowerUpTitle"]);
+
+        var serialized = dict["BitsUseEventArgs"];
+        Assert.DoesNotContain("<script>", serialized);
+        Assert.Contains("cheer100", serialized);
     }
 }
+
