@@ -52,5 +52,32 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.Contains("is not of AlertType class", exception.Message);
         }
+
+        [Fact]
+        public void AlertType_Generate_WithQuotesAndSpecialCharacters_ProducesValidJson()
+        {
+            var alert = new AlertType
+            {
+                Text = "Hello \"world\"! Here is a \\ slash and \", \"injected\": true",
+                File = "alert.gif",
+                Duration = 4,
+                Volume = 0.5f,
+                CSS = "color: blue;",
+                AlertChannel = "test-channel"
+            };
+
+            var json = alert.Generate();
+
+            // Must deserialize cleanly without JSON syntax error
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            Assert.True(root.TryGetProperty("alert_image", out var alertImageProp));
+            Assert.Contains("Hello \"world\"!", alertImageProp.GetString());
+            Assert.True(root.TryGetProperty("ignoreIsPlaying", out var ignoreProp));
+            Assert.False(ignoreProp.GetBoolean());
+            Assert.True(root.TryGetProperty("alertChannel", out var channelProp));
+            Assert.Equal("test-channel", channelProp.GetString());
+            Assert.False(root.TryGetProperty("injected", out _));
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿isDebug = true;
+isDebug = true;
 let audioFormats = {
     maybe: [],
     probably: []
@@ -190,7 +190,7 @@ async function handleClipAlert(json) {
     // p object to hold custom clip alert text and style
     textObj = $('<p/>', {
         'id': 'textObj'
-    }).html(clipText);
+    }).text(clipText);
 
     await sleep(500);
 

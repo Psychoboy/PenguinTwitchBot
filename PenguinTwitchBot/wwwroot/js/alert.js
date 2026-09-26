@@ -200,7 +200,7 @@ async function handleGifAlert(json) {
     // p object to hold custom gif alert text and style
     textObj = $('<p/>', {
         'style': gifCss
-    }).html(gifText);
+    }).text(gifText);
 
     await sleep(500);
 

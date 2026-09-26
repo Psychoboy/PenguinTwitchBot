@@ -1,4 +1,5 @@
-﻿using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Helpers;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -36,9 +37,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             dictionary["IsVipOrHigher"] = eventArgs.IsVipOrHigher().ToString();
             dictionary["IsModOrHigher"] = eventArgs.IsModOrHigher().ToString();
             dictionary["User"] = eventArgs.DisplayName ?? string.Empty;
-            dictionary["Message"] = eventArgs.Arg ?? string.Empty;
+            dictionary["Message"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
             dictionary["Command"] = eventArgs.Command ?? string.Empty;
-            dictionary["Arg"] = eventArgs.Arg ?? string.Empty;
+            dictionary["Arg"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
             dictionary["TargetUser"] = eventArgs.TargetUser ?? string.Empty;
             dictionary["IsWhisper"] = eventArgs.IsWhisper.ToString();
             dictionary["IsDiscord"] = eventArgs.IsDiscord.ToString();
@@ -49,24 +50,48 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
 
             if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
-                dictionary["targetorself"] = eventArgs.Args[0].Replace("@", "").Trim();
-                dictionary["target"] = eventArgs.Args[0].Replace("@", "").Trim();
-                dictionary["args"] = eventArgs.Arg ?? string.Empty;
+                dictionary["targetorself"] = ViewerInputSanitizer.Sanitize(eventArgs.Args[0].Replace("@", "").Trim());
+                dictionary["target"] = ViewerInputSanitizer.Sanitize(eventArgs.Args[0].Replace("@", "").Trim());
+                dictionary["args"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
+                dictionary["rawInput"] = ViewerInputSanitizer.Sanitize(eventArgs.Arg);
             } else
             {
                 dictionary["targetorself"] = eventArgs.Name ?? string.Empty;
                 dictionary["target"] = string.Empty;
                 dictionary["args"] = string.Empty;
+                dictionary["rawInput"] = string.Empty;
             }
 
-            dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs);
+            var sanitizedEventArgs = new CommandEventArgs
+            {
+                IsSub = eventArgs.IsSub,
+                IsMod = eventArgs.IsMod,
+                IsVip = eventArgs.IsVip,
+                IsBroadcaster = eventArgs.IsBroadcaster,
+                DisplayName = eventArgs.DisplayName,
+                Name = eventArgs.Name,
+                UserId = eventArgs.UserId ?? string.Empty,
+                MessageId = eventArgs.MessageId ?? string.Empty,
+                Command = eventArgs.Command ?? string.Empty,
+                Arg = ViewerInputSanitizer.Sanitize(eventArgs.Arg),
+                Args = eventArgs.Args?.Select(a => ViewerInputSanitizer.Sanitize(a)).ToList() ?? [],
+                TargetUser = eventArgs.TargetUser,
+                IsWhisper = eventArgs.IsWhisper,
+                IsDiscord = eventArgs.IsDiscord,
+                DiscordMention = eventArgs.DiscordMention ?? string.Empty,
+                FromAlias = eventArgs.FromAlias,
+                SkipLock = eventArgs.SkipLock,
+                FromOwnChannel = eventArgs.FromOwnChannel
+            };
+
+            dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs);
 
             // Add Args as indexed items (Args_0, Args_1, etc.)
             if (eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
                 for (int i = 0; i < eventArgs.Args.Count; i++)
                 {
-                    dictionary[$"Args_{i}"] = eventArgs.Args[i] ?? string.Empty;
+                    dictionary[$"Args_{i}"] = ViewerInputSanitizer.Sanitize(eventArgs.Args[i]);
                 }
             }
 

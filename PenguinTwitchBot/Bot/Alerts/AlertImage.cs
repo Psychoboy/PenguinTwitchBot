@@ -11,13 +11,28 @@ namespace PenguinTwitchBot.Bot.Alerts
 
         public string Generate()
         {
-            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false,\"alertChannel\":\"\"}}",
-            FileName, Duration, Volume, CSS, Message);
+            var alertImage = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}, {1}, {2:n1}, {3}, {4}",
+                FileName, Duration, Volume, CSS, Message);
+
+            var payload = new Dictionary<string, object>
+            {
+                ["alert_image"] = alertImage,
+                ["ignoreIsPlaying"] = false,
+                ["alertChannel"] = ""
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(payload);
         }
 
         public string Generate(string fullConfig)
         {
-            return string.Format("{{\"alert_image\":\"{0}\",\"ignoreIsPlaying\":false}}", fullConfig);
+            var payload = new Dictionary<string, object>
+            {
+                ["alert_image"] = fullConfig,
+                ["ignoreIsPlaying"] = false
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(payload);
         }
     }
 }

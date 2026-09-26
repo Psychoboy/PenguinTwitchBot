@@ -23,9 +23,21 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public string Generate()
         {
-            var channelSuffix = string.IsNullOrWhiteSpace(AlertChannel) ? "" : $",\"alertChannel\":\"{AlertChannel}\"";
-            return string.Format("{{\"alert_image\":\"{0}, {1}, {2:n1}, {3}, {4}\",\"ignoreIsPlaying\":false{5}}}",
-            File, Duration, Volume, CSS, Text, channelSuffix);
+            var alertImage = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0}, {1}, {2:n1}, {3}, {4}",
+                File, Duration, Volume, CSS, Text);
+
+            var payload = new Dictionary<string, object>
+            {
+                ["alert_image"] = alertImage,
+                ["ignoreIsPlaying"] = false
+            };
+
+            if (!string.IsNullOrWhiteSpace(AlertChannel))
+            {
+                payload["alertChannel"] = AlertChannel;
+            }
+
+            return System.Text.Json.JsonSerializer.Serialize(payload);
         }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
