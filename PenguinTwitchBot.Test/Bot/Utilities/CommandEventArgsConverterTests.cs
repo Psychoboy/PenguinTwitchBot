@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Bot.Actions.Utilities;
+using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events.Chat;
 using Xunit;
 using System.Collections.Concurrent;
@@ -223,6 +223,34 @@ namespace PenguinTwitchBot.Test.Bot.Utilities
             {
                 Assert.Equal(((char)('a' + i)).ToString(), result[$"Args_{i}"]);
             }
+        }
+
+        [Fact]
+        public void ToDictionary_OriginalEventArgs_ContainsSanitizedValues()
+        {
+            // Arrange
+            var eventArgs = new CommandEventArgs
+            {
+                Command = "test",
+                DisplayName = "<script>alert('user')</script>TestUser",
+                Arg = "<iframe src='evil.com'></iframe>arg1 <script>alert(1)</script>arg2",
+                TargetUser = "<svg onload=alert(1)>target",
+                Args = new List<string> { "<script>alert('a')</script>a", "b" }
+            };
+
+            // Act
+            var result = CommandEventArgsConverter.ToDictionary(eventArgs);
+            var deserialized = CommandEventArgsConverter.FromDictionary(result);
+
+            // Assert
+            Assert.Equal("TestUser", deserialized.DisplayName);
+            Assert.Equal("arg1 arg2", deserialized.Arg);
+            Assert.Equal("target", deserialized.TargetUser);
+            Assert.Equal(2, deserialized.Args.Count);
+            Assert.Equal("a", deserialized.Args[0]);
+            Assert.DoesNotContain("<script>", result["OriginalEventArgs"]);
+            Assert.DoesNotContain("<iframe>", result["OriginalEventArgs"]);
+            Assert.DoesNotContain("<svg", result["OriginalEventArgs"]);
         }
     }
 }

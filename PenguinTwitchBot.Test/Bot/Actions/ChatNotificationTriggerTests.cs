@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Events;
@@ -971,5 +971,38 @@ public class ChatNotificationConverterTests
 
         foreach (var key in expectedKeys)
             Assert.True(dict.ContainsKey(key), $"Missing key: {key}");
+    }
+
+    [Fact]
+    public void ToDictionary_SanitizesSystemMessageAndNestedUserFields()
+    {
+        var args = new ChatNotificationEventArgs
+        {
+            NoticeType = "resub",
+            SystemMessage = "<script>alert('xss')</script>User subscribed!",
+            Resub = new ChatNotificationResubInfo
+            {
+                GifterUserName = "<iframe src='evil.com'></iframe>Gifter",
+                GifterUserLogin = "<svg onload=alert(1)>gifterlogin"
+            },
+            Raid = new ChatNotificationRaidInfo
+            {
+                UserName = "<script>alert(1)</script>Raider",
+                UserLogin = "raiderlogin"
+            },
+            CharityDonation = new ChatNotificationCharityDonationInfo
+            {
+                CharityName = "<script>alert('charity')</script>Good Cause"
+            }
+        };
+
+        var dict = TwitchEventArgsConverter.ToDictionary(args);
+
+        Assert.Equal("User subscribed!", dict["SystemMessage"]);
+        Assert.Equal("Gifter", dict["Resub.GifterUserName"]);
+        Assert.Equal("gifterlogin", dict["Resub.GifterUserLogin"]);
+        Assert.Equal("Raider", dict["Raid.UserName"]);
+        Assert.Equal("raiderlogin", dict["Raid.UserLogin"]);
+        Assert.Equal("Good Cause", dict["CharityDonation.CharityName"]);
     }
 }

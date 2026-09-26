@@ -62,7 +62,29 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 dictionary["rawInput"] = string.Empty;
             }
 
-            dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(eventArgs);
+            var sanitizedEventArgs = new CommandEventArgs
+            {
+                IsSub = eventArgs.IsSub,
+                IsMod = eventArgs.IsMod,
+                IsVip = eventArgs.IsVip,
+                IsBroadcaster = eventArgs.IsBroadcaster,
+                DisplayName = ViewerInputSanitizer.Sanitize(eventArgs.DisplayName),
+                Name = ViewerInputSanitizer.Sanitize(eventArgs.Name),
+                UserId = eventArgs.UserId ?? string.Empty,
+                MessageId = eventArgs.MessageId ?? string.Empty,
+                Command = eventArgs.Command ?? string.Empty,
+                Arg = ViewerInputSanitizer.Sanitize(eventArgs.Arg),
+                Args = eventArgs.Args?.Select(a => ViewerInputSanitizer.Sanitize(a)).ToList() ?? [],
+                TargetUser = ViewerInputSanitizer.Sanitize(eventArgs.TargetUser),
+                IsWhisper = eventArgs.IsWhisper,
+                IsDiscord = eventArgs.IsDiscord,
+                DiscordMention = eventArgs.DiscordMention ?? string.Empty,
+                FromAlias = eventArgs.FromAlias,
+                SkipLock = eventArgs.SkipLock,
+                FromOwnChannel = eventArgs.FromOwnChannel
+            };
+
+            dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs);
 
             // Add Args as indexed items (Args_0, Args_1, etc.)
             if (eventArgs.Args != null && eventArgs.Args.Count > 0)
