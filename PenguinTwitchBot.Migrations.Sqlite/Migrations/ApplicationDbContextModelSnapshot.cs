@@ -963,6 +963,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<double>("LineSnapChance")
                         .HasColumnType("REAL");
 
+                    b.Property<double>("NetBreakChance")
+                        .HasColumnType("REAL");
+
                     b.Property<int>("RarityEpicThreshold")
                         .HasColumnType("INTEGER");
 
@@ -978,7 +981,16 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<int>("RarityUncommonThreshold")
                         .HasColumnType("INTEGER");
 
+                    b.Property<double>("ReelJamChance")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("RepairCostMultiplier")
+                        .HasColumnType("REAL");
+
                     b.Property<double>("RodSnapChance")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("TackleBoxLostChance")
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");
@@ -1017,6 +1029,12 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("DisableBreaking")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("DurabilityLossPerUse")
+                        .HasColumnType("REAL");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
 
@@ -1027,6 +1045,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsConsumable")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MaxDurability")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("MaxUses")
@@ -1304,6 +1325,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<double?>("CurrentDurability")
+                        .HasColumnType("REAL");
 
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("INTEGER");

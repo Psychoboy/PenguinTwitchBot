@@ -107,49 +107,93 @@ async function handleFishingAlert(fishingData) {
         weight = 0,
         gold = 0,
         imageFileName = '',
+        lineSnapped = false,
+        rodSnapped = false,
+        reelJammed = false,
+        tackleBoxLost = false,
+        netBroken = false,
+        isAccident = false,
+        accidentReason = '',
         duration = 5000
     } = fishingData ?? {};
 
-    const normalizedRarity = normalizeRarity(rarity);
-    const safeRarity = normalizedRarity.label;
-    const safeRarityClass = normalizedRarity.cssClass;
-    const safeStars = Math.max(0, Math.floor(toFiniteNumber(stars, 0)));
-    const safeWeight = toFiniteNumber(weight, 0);
-    const safeGold = toFiniteNumber(gold, 0);
-
-    $('#username').text(`${username} caught:`);
-    $('#fish-name').text(fishName);
+    const isFailure = isAccident || lineSnapped || rodSnapped || reelJammed || tackleBoxLost || netBroken || String(rarity).toLowerCase() === 'accident';
 
     const fishImage = $('#fish-image');
+    const accidentIcon = $('#accident-icon');
+    const statsRow = $('#stats-row');
+    const starsElement = $('#stars');
+    const rarityElement = $('#rarity');
     let audioFile = null;
 
-    if (imageFileName && imageFileName.length > 0) {
-        const imagePath = '/fishes/' + imageFileName;
-        fishImage.attr('src', imagePath);
-        fishImage.show();
+    if (isFailure) {
+        $('#username').text(`${username} had an equipment failure!`);
 
-        // Try to find matching audio file using the fish base filename.
-        const dotIndex = imageFileName.lastIndexOf('.');
-        const fileNameNoExt = dotIndex > 0 ? imageFileName.substring(0, dotIndex) : imageFileName;
-        const baseFileName = fileNameNoExt.replace(/_(thumbnail|small|medium|large)$/i, '');
-        audioFile = await findAudioFile(baseFileName);
-    } else {
-        fishImage.attr('src', '');
+        let failureText = accidentReason || fishName;
+        let icon = '💥';
+        if (rodSnapped) {
+            failureText = 'ROD SNAPPED';
+            icon = '🎣💥';
+        } else if (reelJammed) {
+            failureText = 'REEL JAMMED';
+            icon = '⚙️⚠️';
+        } else if (tackleBoxLost) {
+            failureText = 'TACKLE BOX LOST';
+            icon = '🧰🌊';
+        } else if (netBroken) {
+            failureText = 'NET BROKEN';
+            icon = '🕸️💥';
+        } else if (lineSnapped) {
+            failureText = 'LINE SNAPPED';
+            icon = '🧵💥';
+        }
+
+        $('#fish-name').text(failureText);
         fishImage.hide();
+        accidentIcon.text(icon).show();
+        rarityElement.removeClass().addClass('rarity accident').text('ACCIDENT');
+        starsElement.empty().hide();
+        statsRow.hide();
+    } else {
+        const normalizedRarity = normalizeRarity(rarity);
+        const safeRarity = normalizedRarity.label;
+        const safeRarityClass = normalizedRarity.cssClass;
+        const safeStars = Math.max(0, Math.floor(toFiniteNumber(stars, 0)));
+        const safeWeight = toFiniteNumber(weight, 0);
+        const safeGold = toFiniteNumber(gold, 0);
+
+        $('#username').text(`${username} caught:`);
+        $('#fish-name').text(fishName);
+        accidentIcon.hide();
+
+        if (imageFileName && imageFileName.length > 0) {
+            const imagePath = '/fishes/' + imageFileName;
+            fishImage.attr('src', imagePath);
+            fishImage.show();
+
+            // Try to find matching audio file using the fish base filename.
+            const dotIndex = imageFileName.lastIndexOf('.');
+            const fileNameNoExt = dotIndex > 0 ? imageFileName.substring(0, dotIndex) : imageFileName;
+            const baseFileName = fileNameNoExt.replace(/_(thumbnail|small|medium|large)$/i, '');
+            audioFile = await findAudioFile(baseFileName);
+        } else {
+            fishImage.attr('src', '');
+            fishImage.hide();
+        }
+
+        rarityElement.removeClass().addClass('rarity').addClass(safeRarityClass);
+        rarityElement.text(safeRarity);
+
+        let starHtml = '';
+        for (let i = 0; i < safeStars; i++) {
+            starHtml += '<span class="star">★</span>';
+        }
+        starsElement.html(starHtml).show();
+
+        $('#weight').text(`${safeWeight} kg`);
+        $('#gold').text(`${safeGold} g`);
+        statsRow.show();
     }
-
-    const rarityElement = $('#rarity');
-    rarityElement.removeClass().addClass('rarity').addClass(safeRarityClass);
-    rarityElement.text(safeRarity);
-
-    let starHtml = '';
-    for (let i = 0; i < safeStars; i++) {
-        starHtml += '<span class="star">★</span>';
-    }
-    $('#stars').html(starHtml);
-
-    $('#weight').text(`${safeWeight} kg`);
-    $('#gold').text(`${safeGold} g`);
 
     await sleep(100);
 

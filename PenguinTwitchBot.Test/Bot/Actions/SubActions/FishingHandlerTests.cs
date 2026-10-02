@@ -244,6 +244,90 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
+        public async Task ReelJam_SendsReelJammedMessage()
+        {
+            var logger = Substitute.For<ILogger<FishingHandler>>();
+            var fishingService = Substitute.For<IFishingService>();
+            var gameplayService = Substitute.For<IFishingGameplayService>();
+            var webSocket = Substitute.For<IWebSocketMessenger>();
+
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
+            fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
+
+            var type = new FishingType { Attempts = 1 };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
+
+            gameplayService.PerformFishingAttempt("123", "testuser").Returns(
+                new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.ReelJammed,
+                    FishCatch = null
+                });
+
+            await handler.ExecuteAsync(type, variables);
+
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Is<string>(msg => msg.Contains("\"reelJammed\":true") && msg.Contains("\"accidentReason\":\"REEL JAMMED\"")));
+            Assert.Equal("REEL JAMMED", variables["fish_type"]);
+            Assert.Equal("Accident", variables["fish_rarity"]);
+        }
+
+        [Fact]
+        public async Task TackleBoxLost_SendsTackleBoxLostMessage()
+        {
+            var logger = Substitute.For<ILogger<FishingHandler>>();
+            var fishingService = Substitute.For<IFishingService>();
+            var gameplayService = Substitute.For<IFishingGameplayService>();
+            var webSocket = Substitute.For<IWebSocketMessenger>();
+
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
+            fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
+
+            var type = new FishingType { Attempts = 1 };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
+
+            gameplayService.PerformFishingAttempt("123", "testuser").Returns(
+                new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.TackleBoxLost,
+                    FishCatch = null
+                });
+
+            await handler.ExecuteAsync(type, variables);
+
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Is<string>(msg => msg.Contains("\"tackleBoxLost\":true") && msg.Contains("\"accidentReason\":\"TACKLE BOX LOST\"")));
+            Assert.Equal("TACKLE BOX LOST", variables["fish_type"]);
+            Assert.Equal("Accident", variables["fish_rarity"]);
+        }
+
+        [Fact]
+        public async Task NetBreak_SendsNetBrokenMessage()
+        {
+            var logger = Substitute.For<ILogger<FishingHandler>>();
+            var fishingService = Substitute.For<IFishingService>();
+            var gameplayService = Substitute.For<IFishingGameplayService>();
+            var webSocket = Substitute.For<IWebSocketMessenger>();
+
+            var handler = CreateHandler(logger, fishingService, gameplayService, webSocket);
+            fishingService.GetSettings().Returns(new FishingSettings { Enabled = true, DisplayDurationMs = 100 });
+
+            var type = new FishingType { Attempts = 1 };
+            var variables = new ConcurrentDictionary<string, string> { ["user"] = "testuser", ["userid"] = "123" };
+
+            gameplayService.PerformFishingAttempt("123", "testuser").Returns(
+                new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.NetBroken,
+                    FishCatch = null
+                });
+
+            await handler.ExecuteAsync(type, variables);
+
+            await webSocket.Received(1).AddToQueue(WsTopics.Fishing, Arg.Is<string>(msg => msg.Contains("\"netBroken\":true") && msg.Contains("\"accidentReason\":\"NET BROKEN\"")));
+            Assert.Equal("NET BROKEN", variables["fish_type"]);
+            Assert.Equal("Accident", variables["fish_rarity"]);
+        }
+
+        [Fact]
         public void SupportedType_IsFishing()
         {
             var handler = CreateHandler(

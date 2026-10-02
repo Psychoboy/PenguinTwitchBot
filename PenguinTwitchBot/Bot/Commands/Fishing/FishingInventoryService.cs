@@ -27,14 +27,24 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.UserFishingBoosts.GetAsync(b => b.UserId == userId, includeProperties: ShopItemInclude);
+            var boosts = await db.UserFishingBoosts.GetAsync(b => b.UserId == userId, includeProperties: ShopItemInclude);
+            foreach (var b in boosts)
+            {
+                ReconcileDurability(b);
+            }
+            return boosts;
         }
 
         public async Task<List<UserFishingBoost>> GetUserEquippedItems(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await db.UserFishingBoosts.GetAsync(b => b.UserId == userId && b.IsEquipped, includeProperties: ShopItemInclude);
+            var boosts = await db.UserFishingBoosts.GetAsync(b => b.UserId == userId && b.IsEquipped, includeProperties: ShopItemInclude);
+            foreach (var b in boosts)
+            {
+                ReconcileDurability(b);
+            }
+            return boosts;
         }
 
         public async Task<Dictionary<EquipmentSlot, UserFishingBoost>> GetUserEquipmentBySlot(string userId)
@@ -44,6 +54,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var equipped = await db.UserFishingBoosts.GetAsync(
                 b => b.UserId == userId && b.IsEquipped && b.ShopItem!.EquipmentSlot != null,
                 includeProperties: ShopItemInclude);
+
+            foreach (var b in equipped)
+            {
+                ReconcileDurability(b);
+            }
 
             return equipped.ToDictionary(e => e.ShopItem!.EquipmentSlot!.Value, e => e);
         }
@@ -123,7 +138,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync()
                 ?? throw new InvalidOperationException("User gold record not found");
 
-            gold.TotalGold += FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem);
+            gold.TotalGold += FishingInventorySellRules.GetSellPrice(userBoost!.ShopItem, userBoost);
             db.UserFishingBoosts.Remove(userBoost);
             await db.SaveChangesAsync();
         }
@@ -135,6 +150,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var userBoost = await FindUserBoost(db, userId, userBoostId)
                 ?? throw new InvalidOperationException("Item not found");
+
+            if (userBoost.IsBroken)
+            {
+                throw new InvalidOperationException("Broken items cannot be equipped until repaired");
+            }
 
             // Limited-use items with no uses left cannot be equipped.
             if (userBoost.ShopItem!.MaxUses.HasValue && userBoost.RemainingUses == 0)
@@ -214,23 +234,206 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
+        public async Task ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
+        {
+            var ids = userBoostIds.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return;
+            }
+
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var userBoosts = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && ids.Contains(b.Id) && b.IsEquipped,
+                includeProperties: "ShopItem");
+
+            if (userBoosts.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var userBoost in userBoosts)
+            {
+                ReconcileDurability(userBoost);
+                var shopItem = userBoost.ShopItem;
+                if (shopItem?.MaxDurability.HasValue == true && userBoost.CurrentDurability.HasValue)
+                {
+                    var loss = Math.Max(0.0, shopItem.DurabilityLossPerUse ?? 1.0);
+                    userBoost.CurrentDurability = Math.Max(0.0, userBoost.CurrentDurability.Value - loss);
+
+                    if (userBoost.CurrentDurability.Value <= 0.0)
+                    {
+                        if (repairCostMultiplier > 0)
+                        {
+                            // Preserved for repair; durability capped at 0
+                            userBoost.CurrentDurability = 0.0;
+                        }
+                        else
+                        {
+                            // Permanently broken & removed; auto-equip spare if available
+                            await RemoveAndEquipReplacement(db, userBoost);
+                        }
+                    }
+                }
+            }
+
+            await db.SaveChangesAsync();
+        }
+
         public Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
         {
-            return ApplySnap(userId, username, "Line", includeRodLoss: false);
+            return ApplySnap(userId, username, "Line", SnapLossType.Line);
         }
 
         public Task<FishingSnapEvent> ConsumeItemsOnRodSnap(string userId, string username)
         {
-            return ApplySnap(userId, username, "Rod", includeRodLoss: true);
+            return ApplySnap(userId, username, "Rod", SnapLossType.Rod);
         }
 
-        private async Task<FishingSnapEvent> ApplySnap(string userId, string username, string snapType, bool includeRodLoss)
+        public Task<FishingSnapEvent> ConsumeItemsOnReelJam(string userId, string username)
+        {
+            return ApplySnap(userId, username, "Reel", SnapLossType.Reel);
+        }
+
+        public Task<FishingSnapEvent> ConsumeItemsOnTackleBoxLost(string userId, string username)
+        {
+            return ApplySnap(userId, username, "TackleBox", SnapLossType.TackleBox);
+        }
+
+        public Task<FishingSnapEvent> ConsumeItemsOnNetBreak(string userId, string username)
+        {
+            return ApplySnap(userId, username, "Net", SnapLossType.Net);
+        }
+
+        public int CalculateRepairCost(FishingShopItem shopItem, double currentDurability, double repairCostMultiplier)
+        {
+            if (repairCostMultiplier <= 0 || !shopItem.MaxDurability.HasValue || shopItem.MaxDurability.Value <= 0)
+            {
+                return 0;
+            }
+
+            var missingRatio = Math.Max(0.0, (shopItem.MaxDurability.Value - currentDurability) / shopItem.MaxDurability.Value);
+            if (missingRatio <= 0.0)
+            {
+                return 0;
+            }
+
+            return Math.Max(1, (int)Math.Ceiling(shopItem.Cost * missingRatio * repairCostMultiplier));
+        }
+
+        public async Task<int> RepairItem(string userId, int userBoostId, double? repairCostMultiplier = null)
         {
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var lossResult = await ApplySnapLosses(db, userId, includeRodLoss);
+            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
+            if (multiplier <= 0)
+            {
+                throw new InvalidOperationException("Repair feature is currently disabled");
+            }
+
+            var boost = await FindUserBoost(db, userId, userBoostId)
+                ?? throw new InvalidOperationException("Item not found");
+
+            ReconcileDurability(boost);
+
+            var shopItem = boost.ShopItem;
+            if (shopItem == null || !shopItem.MaxDurability.HasValue || !boost.CurrentDurability.HasValue)
+            {
+                throw new InvalidOperationException("This item does not have durability");
+            }
+
+            if (boost.CurrentDurability.Value >= shopItem.MaxDurability.Value)
+            {
+                throw new InvalidOperationException("Item is already at full durability");
+            }
+
+            var cost = CalculateRepairCost(shopItem, boost.CurrentDurability.Value, multiplier);
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
+            if (gold == null || gold.TotalGold < cost)
+            {
+                throw new InvalidOperationException("Not enough gold to repair item");
+            }
+
+            gold.TotalGold -= cost;
+            boost.CurrentDurability = (double)shopItem.MaxDurability.Value;
+
+            await db.SaveChangesAsync();
+            return cost;
+        }
+
+        public async Task<int> RepairAllEquippedItems(string userId, double? repairCostMultiplier = null)
+        {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var multiplier = repairCostMultiplier ?? (await db.FishingSettings.Find(s => true).FirstOrDefaultAsync())?.RepairCostMultiplier ?? 0.0;
+            if (multiplier <= 0)
+            {
+                throw new InvalidOperationException("Repair feature is currently disabled");
+            }
+
+            var equipped = await db.UserFishingBoosts.GetAsync(
+                b => b.UserId == userId && b.IsEquipped,
+                includeProperties: ShopItemInclude);
+
+            var repairable = new List<(UserFishingBoost Boost, int Cost)>();
+            var totalCost = 0;
+
+            foreach (var boost in equipped)
+            {
+                ReconcileDurability(boost);
+                var shopItem = boost.ShopItem;
+                if (shopItem?.MaxDurability.HasValue == true && boost.CurrentDurability.HasValue && boost.CurrentDurability.Value < shopItem.MaxDurability.Value)
+                {
+                    var cost = CalculateRepairCost(shopItem, boost.CurrentDurability.Value, multiplier);
+                    repairable.Add((boost, cost));
+                    totalCost += cost;
+                }
+            }
+
+            if (repairable.Count == 0)
+            {
+                return 0;
+            }
+
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
+            if (gold == null || gold.TotalGold < totalCost)
+            {
+                throw new InvalidOperationException("Not enough gold to repair all items");
+            }
+
+            gold.TotalGold -= totalCost;
+            foreach (var (boost, _) in repairable)
+            {
+                boost.CurrentDurability = (double)boost.ShopItem!.MaxDurability!.Value;
+            }
+
+            await db.SaveChangesAsync();
+            return totalCost;
+        }
+
+        private enum SnapLossType
+        {
+            Line,
+            Rod,
+            Reel,
+            TackleBox,
+            Net
+        }
+
+        private async Task<FishingSnapEvent> ApplySnap(string userId, string username, string snapType, SnapLossType lossType)
+        {
+            using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var lossResult = await ApplySnapLosses(db, userId, lossType);
             var snapEvent = new FishingSnapEvent
             {
                 UserId = userId,
@@ -247,7 +450,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return snapEvent;
         }
 
-        private static async Task<FishingSnapLossResult> ApplySnapLosses(IUnitOfWork db, string userId, bool includeRodLoss)
+        private static async Task<FishingSnapLossResult> ApplySnapLosses(IUnitOfWork db, string userId, SnapLossType lossType)
         {
             var lossResult = new FishingSnapLossResult();
 
@@ -257,14 +460,27 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             foreach (var item in equippedItems)
             {
+                ReconcileDurability(item);
+
+                // Unbreakable items never break or get lost during accidents
+                if (item.ShopItem?.DisableBreaking == true)
+                {
+                    continue;
+                }
+
                 var slot = item.ShopItem?.EquipmentSlot;
 
-                // Rods only break on a rod snap; line and hook are always lost.
-                var alwaysLost = (includeRodLoss && slot == EquipmentSlot.Rod)
-                    || slot == EquipmentSlot.Line
-                    || slot == EquipmentSlot.Hook;
+                var isTargetSlotLost = lossType switch
+                {
+                    SnapLossType.Rod => slot == EquipmentSlot.Rod || slot == EquipmentSlot.Line || slot == EquipmentSlot.Hook,
+                    SnapLossType.Line => slot == EquipmentSlot.Line || slot == EquipmentSlot.Hook,
+                    SnapLossType.Reel => slot == EquipmentSlot.Reel,
+                    SnapLossType.TackleBox => slot == EquipmentSlot.TackleBox,
+                    SnapLossType.Net => slot == EquipmentSlot.Net,
+                    _ => false
+                };
 
-                if (alwaysLost)
+                if (isTargetSlotLost)
                 {
                     RegisterFullItemLoss(lossResult, item);
                     db.UserFishingBoosts.Remove(item);
@@ -329,13 +545,36 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .FirstOrDefaultAsync();
         }
 
+        private static void ReconcileDurability(UserFishingBoost boost)
+        {
+            var shopItem = boost.ShopItem;
+            if (shopItem == null) return;
+
+            if (shopItem.MaxDurability.HasValue)
+            {
+                if (!boost.CurrentDurability.HasValue)
+                {
+                    boost.CurrentDurability = (double)shopItem.MaxDurability.Value;
+                }
+                else if (boost.CurrentDurability.Value > shopItem.MaxDurability.Value)
+                {
+                    boost.CurrentDurability = (double)shopItem.MaxDurability.Value;
+                }
+            }
+            else
+            {
+                boost.CurrentDurability = null;
+            }
+        }
+
         private static UserFishingBoost NewBoost(string userId, FishingShopItem shopItem)
         {
             return new UserFishingBoost
             {
                 UserId = userId,
                 ShopItemId = shopItem.Id,
-                RemainingUses = shopItem.MaxUses ?? -1 // -1 means unlimited
+                RemainingUses = shopItem.MaxUses ?? -1, // -1 means unlimited
+                CurrentDurability = shopItem.MaxDurability.HasValue ? (double)shopItem.MaxDurability.Value : null
             };
         }
 

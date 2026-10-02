@@ -485,7 +485,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
-            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance);
+            var reelJamChance = !double.IsNaN(settings.ReelJamChance) && !double.IsInfinity(settings.ReelJamChance) &&
+                settings.ReelJamChance >= 0 && settings.ReelJamChance <= 1
+                ? settings.ReelJamChance
+                : FishingSettings.DefaultReelJamChance;
+            var tackleBoxLostChance = !double.IsNaN(settings.TackleBoxLostChance) && !double.IsInfinity(settings.TackleBoxLostChance) &&
+                settings.TackleBoxLostChance >= 0 && settings.TackleBoxLostChance <= 1
+                ? settings.TackleBoxLostChance
+                : FishingSettings.DefaultTackleBoxLostChance;
+            var netBreakChance = !double.IsNaN(settings.NetBreakChance) && !double.IsInfinity(settings.NetBreakChance) &&
+                settings.NetBreakChance >= 0 && settings.NetBreakChance <= 1
+                ? settings.NetBreakChance
+                : FishingSettings.DefaultNetBreakChance;
+            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance) * (1.0 - reelJamChance) * (1.0 - tackleBoxLostChance) * (1.0 - netBreakChance);
 
             var shopItemCosts = await context.FishingShopItems
                 .AsNoTracking()
@@ -969,7 +981,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
                 ? settings.RodSnapChance
                 : FishingSettings.DefaultRodSnapChance;
-            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance);
+            var reelJamChance = !double.IsNaN(settings.ReelJamChance) && !double.IsInfinity(settings.ReelJamChance) &&
+                settings.ReelJamChance >= 0 && settings.ReelJamChance <= 1
+                ? settings.ReelJamChance
+                : FishingSettings.DefaultReelJamChance;
+            var tackleBoxLostChance = !double.IsNaN(settings.TackleBoxLostChance) && !double.IsInfinity(settings.TackleBoxLostChance) &&
+                settings.TackleBoxLostChance >= 0 && settings.TackleBoxLostChance <= 1
+                ? settings.TackleBoxLostChance
+                : FishingSettings.DefaultTackleBoxLostChance;
+            var netBreakChance = !double.IsNaN(settings.NetBreakChance) && !double.IsInfinity(settings.NetBreakChance) &&
+                settings.NetBreakChance >= 0 && settings.NetBreakChance <= 1
+                ? settings.NetBreakChance
+                : FishingSettings.DefaultNetBreakChance;
+            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance) * (1.0 - reelJamChance) * (1.0 - tackleBoxLostChance) * (1.0 - netBreakChance);
 
             report.ConfiguredLineSnapChance = lineSnapChance;
             report.ConfiguredRodSnapChance = rodSnapChance;
