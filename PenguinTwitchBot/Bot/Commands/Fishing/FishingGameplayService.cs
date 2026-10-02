@@ -47,22 +47,138 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var settings = settingsTask.Result;
             var userBoosts = userBoostsTask.Result;
 
-            var lineSnapChance = settings != null &&
-                !double.IsNaN(settings.LineSnapChance) &&
-                !double.IsInfinity(settings.LineSnapChance) &&
-                settings.LineSnapChance >= 0 &&
-                settings.LineSnapChance <= 1
-                ? settings.LineSnapChance
-                : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = settings != null &&
-                !double.IsNaN(settings.RodSnapChance) &&
-                !double.IsInfinity(settings.RodSnapChance) &&
-                settings.RodSnapChance >= 0 &&
-                settings.RodSnapChance <= 1
-                ? settings.RodSnapChance
-                : FishingSettings.DefaultRodSnapChance;
+            var lineSnapChance = NormalizeChance(settings?.LineSnapChance, FishingSettings.DefaultLineSnapChance);
+            var rodSnapChance = NormalizeChance(settings?.RodSnapChance, FishingSettings.DefaultRodSnapChance);
+            var reelJamChance = NormalizeChance(settings?.ReelJamChance, FishingSettings.DefaultReelJamChance);
+            var tackleBoxLostChance = NormalizeChance(settings?.TackleBoxLostChance, FishingSettings.DefaultTackleBoxLostChance);
+            var netBreakChance = NormalizeChance(settings?.NetBreakChance, FishingSettings.DefaultNetBreakChance);
 
-            if (StaticTools.NextDouble() < rodSnapChance)
+            var equippedBySlot = userBoosts
+                .Where(b => b.ShopItem?.EquipmentSlot.HasValue == true)
+                .GroupBy(b => b.ShopItem!.EquipmentSlot!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(b => b.PurchasedAt).ThenByDescending(b => b.Id).First());
+
+            // 1. Reel Jam Check (only if reel is equipped, not broken, and breaking is not disabled)
+            if (equippedBySlot.TryGetValue(EquipmentSlot.Reel, out var equippedReel) &&
+                equippedReel.ShopItem?.DisableBreaking != true &&
+                !equippedReel.IsBroken &&
+                StaticTools.NextDouble() < reelJamChance)
+            {
+                await _inventoryService.ConsumeItemsOnReelJam(userId, username);
+
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                    {
+                        Id = 0,
+                        UserId = userId,
+                        Username = username,
+                        FishTypeId = 0,
+                        FishName = "REEL JAMMED",
+                        FishRarity = "Accident",
+                        FishImageFileName = "",
+                        Stars = 0,
+                        Weight = 0.0,
+                        GoldEarned = 0,
+                        CaughtAt = DateTime.UtcNow,
+                        IsReelJammed = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to broadcast jammed reel event via SignalR");
+                }
+
+                return new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.ReelJammed,
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Reel }
+                };
+            }
+
+            // 2. Tackle Box Lost Check
+            if (equippedBySlot.TryGetValue(EquipmentSlot.TackleBox, out var equippedTackleBox) &&
+                equippedTackleBox.ShopItem?.DisableBreaking != true &&
+                !equippedTackleBox.IsBroken &&
+                StaticTools.NextDouble() < tackleBoxLostChance)
+            {
+                await _inventoryService.ConsumeItemsOnTackleBoxLost(userId, username);
+
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                    {
+                        Id = 0,
+                        UserId = userId,
+                        Username = username,
+                        FishTypeId = 0,
+                        FishName = "TACKLE BOX LOST",
+                        FishRarity = "Accident",
+                        FishImageFileName = "",
+                        Stars = 0,
+                        Weight = 0.0,
+                        GoldEarned = 0,
+                        CaughtAt = DateTime.UtcNow,
+                        IsTackleBoxLost = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to broadcast tackle box lost event via SignalR");
+                }
+
+                return new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.TackleBoxLost,
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.TackleBox }
+                };
+            }
+
+            // 3. Net Break Check
+            if (equippedBySlot.TryGetValue(EquipmentSlot.Net, out var equippedNet) &&
+                equippedNet.ShopItem?.DisableBreaking != true &&
+                !equippedNet.IsBroken &&
+                StaticTools.NextDouble() < netBreakChance)
+            {
+                await _inventoryService.ConsumeItemsOnNetBreak(userId, username);
+
+                try
+                {
+                    await _hubContext.Clients.All.SendAsync("ReceiveFishCatch", new
+                    {
+                        Id = 0,
+                        UserId = userId,
+                        Username = username,
+                        FishTypeId = 0,
+                        FishName = "NET BROKEN",
+                        FishRarity = "Accident",
+                        FishImageFileName = "",
+                        Stars = 0,
+                        Weight = 0.0,
+                        GoldEarned = 0,
+                        CaughtAt = DateTime.UtcNow,
+                        IsNetBroken = true
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to broadcast net broken event via SignalR");
+                }
+
+                return new FishingAttemptResult
+                {
+                    Outcome = FishingAttemptOutcome.NetBroken,
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Net }
+                };
+            }
+
+            // 4. Rod Snap Check
+            var canRodSnap = (!equippedBySlot.TryGetValue(EquipmentSlot.Rod, out var equippedRod) ||
+                (equippedRod.ShopItem?.DisableBreaking != true && !equippedRod.IsBroken));
+
+            if (canRodSnap && StaticTools.NextDouble() < rodSnapChance)
             {
                 await _inventoryService.ConsumeItemsOnRodSnap(userId, username);
 
@@ -102,7 +218,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 };
             }
 
-            if (StaticTools.NextDouble() < lineSnapChance)
+            // 5. Line Snap Check
+            var canLineSnap = (!equippedBySlot.TryGetValue(EquipmentSlot.Line, out var equippedLine) ||
+                (equippedLine.ShopItem?.DisableBreaking != true && !equippedLine.IsBroken));
+
+            if (canLineSnap && StaticTools.NextDouble() < lineSnapChance)
             {
                 await _inventoryService.ConsumeItemsOnLineSnap(userId, username);
 
@@ -136,9 +256,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 };
             }
 
-            var fishType = FishingCalculations.SelectRandomFish(fishTypes, settings, userBoosts);
-            var stars = FishingCalculations.CalculateStars(fishType, userBoosts);
-            var weight = FishingCalculations.CalculateWeight(fishType, stars, userBoosts);
+            var activeBoosts = userBoosts.Where(b => !b.IsBroken).ToList();
+            var fishType = FishingCalculations.SelectRandomFish(fishTypes, settings, activeBoosts);
+            var stars = FishingCalculations.CalculateStars(fishType, activeBoosts);
+            var weight = FishingCalculations.CalculateWeight(fishType, stars, activeBoosts);
             var gold = FishingCalculations.CalculateGold(fishType, stars, weight);
 
             using var scope = _scopeFactory.CreateScope();
@@ -200,6 +321,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             // Consume uses from all equipped items in a single batched update
             await _inventoryService.ConsumeItemUses(userId, userBoosts.Select(b => b.Id));
 
+            // Consume durability from all equipped items
+            var repairMultiplier = settings?.RepairCostMultiplier ?? 0.0;
+            await _inventoryService.ConsumeItemDurability(userId, userBoosts.Select(b => b.Id), repairMultiplier);
+
             // Broadcast the new catch to all connected clients via SignalR
             try
             {
@@ -230,5 +355,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 FishCatch = fishCatch
             };
         }
+
+        private static double NormalizeChance(double? chance, double defaultChance) =>
+            chance.HasValue && !double.IsNaN(chance.Value) && !double.IsInfinity(chance.Value) && chance.Value >= 0 && chance.Value <= 1
+                ? chance.Value
+                : defaultChance;
     }
 }

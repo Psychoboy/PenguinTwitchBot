@@ -15,23 +15,48 @@
 
             <MudDivider />
 
-            <MudStack Row="true" Spacing="2">
-                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning">
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Variant="Variant.Outlined">
                     @ShopItem.Cost Gold
                 </MudChip>
                 @if (ShopItem.EquipmentSlot.HasValue)
                 {
-                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info">
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Category" Color="Color.Info" Variant="Variant.Outlined">
                         @ShopItem.EquipmentSlot.Value Slot
                     </MudChip>
                 }
                 @if (ShopItem.IsConsumable && ShopItem.MaxUses.HasValue)
                 {
-                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary">
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary" Variant="Variant.Outlined">
                         @ShopItem.MaxUses Uses
                     </MudChip>
                 }
+                @if (ShopItem.MaxDurability.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info" Variant="Variant.Outlined">
+                        @ShopItem.MaxDurability.Value Max Durability (-@(ShopItem.DurabilityLossPerUse ?? 1.0)/use)
+                    </MudChip>
+                }
+                @if (ShopItem.DisableBreaking)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Shield" Color="Color.Success" Variant="Variant.Outlined">
+                        Unbreakable
+                    </MudChip>
+                }
             </MudStack>
+
+            @if (ShopItem.MaxDurability.HasValue)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="my-1">
+                    Durability equipment: Degrades by @(ShopItem.DurabilityLossPerUse ?? 1.0) per cast. Can be repaired in your inventory with gold.
+                </MudAlert>
+            }
+            else if (ShopItem.DisableBreaking)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true" Class="my-1">
+                    Unbreakable: Immune to snapping, jamming, breakage, and equipment accidents.
+                </MudAlert>
+            }
 
             <MudDivider />
 

@@ -14,5 +14,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         // Equipment and usage tracking
         public bool IsEquipped { get; set; } = false;
         public int RemainingUses { get; set; } = 0; // -1 = unlimited
+        public double? CurrentDurability { get; set; }
+        public bool IsBroken => CurrentDurability.HasValue && CurrentDurability.Value <= 0.000001;
     }
 }

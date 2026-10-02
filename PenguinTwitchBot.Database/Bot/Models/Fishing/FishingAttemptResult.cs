@@ -13,6 +13,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
     {
         CaughtFish,
         LineSnapped,
-        RodSnapped
+        RodSnapped,
+        ReelJammed,
+        TackleBoxLost,
+        NetBroken
     }
 }

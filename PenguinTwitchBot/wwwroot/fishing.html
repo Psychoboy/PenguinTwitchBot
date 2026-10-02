@@ -122,6 +122,20 @@
             box-shadow: 0 0 18px rgba(211, 84, 0, 0.45);
         }
 
+        .accident-icon {
+            font-size: 72px;
+            line-height: 120px;
+            text-align: center;
+            margin: 6px auto 2px;
+            animation: accident-shake 0.6s ease-in-out infinite alternate;
+            user-select: none;
+        }
+
+        @keyframes accident-shake {
+            0% { transform: rotate(-8deg) scale(0.95); }
+            100% { transform: rotate(8deg) scale(1.05); }
+        }
+
         @keyframes legendary-glow {
             0%, 100% { box-shadow: 0 0 20px #FFD700; }
             50% { box-shadow: 0 0 40px #FFA500; }
@@ -192,13 +206,14 @@
         <div id="fishing-alert" style="display: none;">
             <div class="content">
                 <div class="username" id="username"></div>
+                <div class="accident-icon" id="accident-icon" style="display: none;">💥</div>
                 <img class="fish-image" id="fish-image" alt="Fish" style="display: none;" />
                 <div class="fish-name" id="fish-name"></div>
                 <div class="info-row">
                     <div class="middle-section">
                         <div class="rarity" id="rarity"></div>
                         <div class="stars" id="stars"></div>
-                        <div class="stats-row">
+                        <div class="stats-row" id="stats-row">
                             <div class="stat-item" id="weight"></div>
                             <div class="stat-item gold" id="gold"></div>
                         </div>

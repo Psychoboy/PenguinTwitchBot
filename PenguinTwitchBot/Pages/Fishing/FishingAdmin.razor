@@ -230,6 +230,7 @@
                         <MudTh>Boost Amount</MudTh>
                         <MudTh>Equipment Slot</MudTh>
                         <MudTh>Uses</MudTh>
+                        <MudTh>Durability</MudTh>
                         <MudTh>Admin Only</MudTh>
                         <MudTh>Enabled</MudTh>
                         <MudTh>Actions</MudTh>
@@ -304,6 +305,22 @@
                                 </MudChip>
                             }
                         </MudTd>
+                        <MudTd DataLabel="Durability">
+                            <MudStack Spacing="0">
+                                @if (context.DisableBreaking)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Shield">Unbreakable</MudChip>
+                                }
+                                @if (context.MaxDurability.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Build">@context.MaxDurability.Value HP (-@context.DurabilityLossPerUse?.ToString("0.#"))</MudChip>
+                                }
+                                else if (!context.DisableBreaking)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Standard</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
                         <MudTd DataLabel="Admin Only">
                             @if (context.IsAdminOnly)
                             {
@@ -371,11 +388,11 @@
 
                 <MudDivider />
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2">Snap Chances</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Set per-attempt probabilities. Values use decimal format (0.02 = 2%).</MudText>
+                    <MudText Typo="Typo.subtitle2">Equipment Failure & Accident Chances</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Set per-attempt probabilities. Values use decimal format (0.02 = 2%). Default for new failures is 0%.</MudText>
                 </MudStack>
                 <MudGrid>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="4">
                         <MudNumericField @bind-Value="settings.LineSnapChance"
                                          Label="Line Snap Chance"
                                          HelperText="Default: 0.02 (2%)"
@@ -385,7 +402,7 @@
                                          Adornment="Adornment.End"
                                          AdornmentText="prob" />
                     </MudItem>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="4">
                         <MudNumericField @bind-Value="settings.RodSnapChance"
                                          Label="Rod Snap Chance"
                                          HelperText="Default: 0.0005 (0.05%)"
@@ -394,6 +411,55 @@
                                          Step="0.0001"
                                          Adornment="Adornment.End"
                                          AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.ReelJamChance"
+                                         Label="Reel Jam Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.TackleBoxLostChance"
+                                         Label="Tackle Box Lost Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.NetBreakChance"
+                                         Label="Net Break Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-3" />
+
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2">Item Repair System</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configure global repair cost multiplier. When 0, repairing is disabled and 0% durability items are lost permanently.</MudText>
+                </MudStack>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="settings.RepairCostMultiplier"
+                                         Label="Repair Cost Multiplier"
+                                         HelperText="Percentage of item cost to repair full durability (e.g. 0.25 = 25%). 0 = Disabled."
+                                         Min="0.0"
+                                         Max="10.0"
+                                         Step="0.01"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="mult" />
                     </MudItem>
                 </MudGrid>
 
@@ -1311,6 +1377,40 @@
                     }
                 </MudStack>
 
+                <MudStack Spacing="1">
+                    <MudSwitch @bind-Value="editingShopItem.DisableBreaking" 
+                               Label="Disable Breaking / Unbreakable" 
+                               Color="Color.Info"
+                               ThumbIcon="@(editingShopItem.DisableBreaking ? Icons.Material.Filled.Shield : Icons.Material.Outlined.Shield)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, this item will never break or jam in fishing accidents.</MudText>
+                </MudStack>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudCheckBox @bind-Value="hasDurability" 
+                                 Label="Has Durability" 
+                                 Color="Color.Primary" />
+                    @if (hasDurability)
+                    {
+                        <MudNumericField @bind-Value="maxDurabilityValue" 
+                                         Label="Max Durability" 
+                                         Min="1" 
+                                         Variant="Variant.Outlined"
+                                         HelperText="Maximum durability points"
+                                         Style="flex: 1;" />
+                        <MudNumericField @bind-Value="durabilityLossValue" 
+                                         Label="Loss Per Use" 
+                                         Min="0.1" 
+                                         Step="0.5" 
+                                         Variant="Variant.Outlined"
+                                         HelperText="Durability lost per catch"
+                                         Style="flex: 1;" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">No durability (never degrades over time)</MudText>
+                    }
+                </MudStack>
+
                 <MudDivider />
 
                 <MudStack Spacing="1">
@@ -1554,6 +1654,9 @@
     // Shop item dialog state
     private bool hasMaxUses = false;
     private int maxUsesValue = 10;
+    private bool hasDurability = false;
+    private int maxDurabilityValue = 100;
+    private double durabilityLossValue = 1.0;
 
     // Player management state
     private List<FishingGold> allPlayers = new();
@@ -1581,6 +1684,10 @@
             settings = loadedSettings;
             settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
             settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
+            settings.ReelJamChance = NormalizeProbability(settings.ReelJamChance, FishingSettings.DefaultReelJamChance);
+            settings.TackleBoxLostChance = NormalizeProbability(settings.TackleBoxLostChance, FishingSettings.DefaultTackleBoxLostChance);
+            settings.NetBreakChance = NormalizeProbability(settings.NetBreakChance, FishingSettings.DefaultNetBreakChance);
+            settings.RepairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
         }
     }
 
@@ -1856,6 +1963,9 @@
         editingShopItem = new FishingShopItem();
         hasMaxUses = false;
         maxUsesValue = 10;
+        hasDurability = false;
+        maxDurabilityValue = 100;
+        durabilityLossValue = 1.0;
         shopItemDialogVisible = true;
     }
 
@@ -1879,10 +1989,16 @@
                 EquipmentSlot = item.EquipmentSlot,
                 MaxUses = item.MaxUses,
                 IsConsumable = item.IsConsumable,
-                IsAdminOnly = item.IsAdminOnly
+                IsAdminOnly = item.IsAdminOnly,
+                DisableBreaking = item.DisableBreaking,
+                MaxDurability = item.MaxDurability,
+                DurabilityLossPerUse = item.DurabilityLossPerUse
             };
         hasMaxUses = item.MaxUses.HasValue;
         maxUsesValue = item.MaxUses ?? 10;
+        hasDurability = item.MaxDurability.HasValue;
+        maxDurabilityValue = item.MaxDurability ?? 100;
+        durabilityLossValue = item.DurabilityLossPerUse ?? 1.0;
         shopItemDialogVisible = true;
     }
 
@@ -1904,6 +2020,8 @@
         {
             // Set MaxUses based on checkbox
             editingShopItem.MaxUses = hasMaxUses ? maxUsesValue : null;
+            editingShopItem.MaxDurability = hasDurability ? Math.Max(1, maxDurabilityValue) : null;
+            editingShopItem.DurabilityLossPerUse = hasDurability ? Math.Max(0.01, durabilityLossValue) : null;
 
             if (editingShopItem.Id == 0)
             {
@@ -1977,6 +2095,10 @@
         {
             settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
             settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
+            settings.ReelJamChance = NormalizeProbability(settings.ReelJamChance, FishingSettings.DefaultReelJamChance);
+            settings.TackleBoxLostChance = NormalizeProbability(settings.TackleBoxLostChance, FishingSettings.DefaultTackleBoxLostChance);
+            settings.NetBreakChance = NormalizeProbability(settings.NetBreakChance, FishingSettings.DefaultNetBreakChance);
+            settings.RepairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
 
             if (!FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var thresholdValidationMessage))
             {

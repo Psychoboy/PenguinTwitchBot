@@ -75,11 +75,16 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     var attemptResult = await _fishingGameplayService.PerformFishingAttempt(userId, username);
 
-                    if (attemptResult.Outcome == FishingAttemptOutcome.LineSnapped ||
-                        attemptResult.Outcome == FishingAttemptOutcome.RodSnapped)
+                    if (attemptResult.Outcome != FishingAttemptOutcome.CaughtFish)
                     {
-                        var isRodSnap = attemptResult.Outcome == FishingAttemptOutcome.RodSnapped;
-                        var failText = isRodSnap ? "ROD SNAPPED" : "LINE SNAPPED";
+                        var (failText, isRodSnap, isLineSnap, isReelJam, isTackleBoxLost, isNetBreak, logItem) = attemptResult.Outcome switch
+                        {
+                            FishingAttemptOutcome.RodSnapped => ("ROD SNAPPED", true, false, false, false, false, "rod"),
+                            FishingAttemptOutcome.ReelJammed => ("REEL JAMMED", false, false, true, false, false, "reel"),
+                            FishingAttemptOutcome.TackleBoxLost => ("TACKLE BOX LOST", false, false, false, true, false, "tackle box"),
+                            FishingAttemptOutcome.NetBroken => ("NET BROKEN", false, false, false, false, true, "net"),
+                            _ => ("LINE SNAPPED", false, true, false, false, false, "line")
+                        };
 
                         var snappedMessage = new
                         {
@@ -92,8 +97,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                                 weight = 0.0,
                                 gold = 0,
                                 imageFileName = "",
-                                lineSnapped = true,
+                                lineSnapped = isLineSnap,
                                 rodSnapped = isRodSnap,
+                                reelJammed = isReelJam,
+                                tackleBoxLost = isTackleBoxLost,
+                                netBroken = isNetBreak,
+                                isAccident = true,
+                                accidentReason = failText,
                                 duration = settings.DisplayDurationMs
                             }
                         };
@@ -105,7 +115,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                             await Task.Delay(settings.DisplayDurationMs + 500);
                         }
 
-                        _logger.LogInformation("User {Username} had a snapped {SnapType} and caught nothing", username, isRodSnap ? "rod" : "line");
+                        _logger.LogInformation("User {Username} had an accident ({Accident}) and caught nothing", username, logItem);
                         variables["fish_type"] = failText;
                         variables["fish_type_id"] = "0";
                         variables["fish_rarity"] = "Accident";

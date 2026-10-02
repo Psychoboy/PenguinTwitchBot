@@ -32,6 +32,9 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int? MaxUses { get; set; } // null = unlimited uses
         public bool IsConsumable { get; set; } = false; // If true, item is removed after uses expire
         public bool IsAdminOnly { get; set; } = false; // If true, item is not shown in shop and can only be given by admins
+        public bool DisableBreaking { get; set; } = false; // If true, item does not break or jam in accidents
+        public int? MaxDurability { get; set; } // null = infinite durability
+        public double? DurabilityLossPerUse { get; set; } // Durability consumed per fishing catch
     }
 
     public enum EquipmentTier

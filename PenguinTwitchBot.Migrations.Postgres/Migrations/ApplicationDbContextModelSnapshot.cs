@@ -1011,6 +1011,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<double>("LineSnapChance")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("NetBreakChance")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("RarityEpicThreshold")
                         .HasColumnType("integer");
 
@@ -1026,7 +1029,16 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("RarityUncommonThreshold")
                         .HasColumnType("integer");
 
+                    b.Property<double>("ReelJamChance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("RepairCostMultiplier")
+                        .HasColumnType("double precision");
+
                     b.Property<double>("RodSnapChance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TackleBoxLostChance")
                         .HasColumnType("double precision");
 
                     b.HasKey("Id");
@@ -1067,6 +1079,12 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("DisableBreaking")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("DurabilityLossPerUse")
+                        .HasColumnType("double precision");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1078,6 +1096,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.Property<bool>("IsConsumable")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("MaxDurability")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("MaxUses")
                         .HasColumnType("integer");
@@ -1368,6 +1389,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double?>("CurrentDurability")
+                        .HasColumnType("double precision");
 
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("boolean");
