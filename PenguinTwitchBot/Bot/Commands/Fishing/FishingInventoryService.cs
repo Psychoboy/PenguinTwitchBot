@@ -482,6 +482,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     continue;
                 }
 
+                if (lossType != SnapLossType.Line && lossType != SnapLossType.Rod)
+                {
+                    continue;
+                }
+
                 if (slot != EquipmentSlot.Bait && slot != EquipmentSlot.Lure)
                 {
                     continue;

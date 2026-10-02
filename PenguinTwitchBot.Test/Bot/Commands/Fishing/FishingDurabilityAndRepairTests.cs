@@ -404,19 +404,31 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             // Attempt accident losses
             var rodSnap = await _sut.ConsumeItemsOnRodSnap("user1", "user1");
             Assert.Equal(0, rodSnap.TotalGoldLost);
-            Assert.NotNull(await _context.UserFishingBoosts.FindAsync(10));
+            using (var freshContext = CreateFreshContext())
+            {
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(10));
+            }
 
             var reelJam = await _sut.ConsumeItemsOnReelJam("user1", "user1");
             Assert.Equal(0, reelJam.TotalGoldLost);
-            Assert.NotNull(await _context.UserFishingBoosts.FindAsync(11));
+            using (var freshContext = CreateFreshContext())
+            {
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(11));
+            }
 
             var boxLost = await _sut.ConsumeItemsOnTackleBoxLost("user1", "user1");
             Assert.Equal(0, boxLost.TotalGoldLost);
-            Assert.NotNull(await _context.UserFishingBoosts.FindAsync(12));
+            using (var freshContext = CreateFreshContext())
+            {
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(12));
+            }
 
             var netBreak = await _sut.ConsumeItemsOnNetBreak("user1", "user1");
             Assert.Equal(0, netBreak.TotalGoldLost);
-            Assert.NotNull(await _context.UserFishingBoosts.FindAsync(13));
+            using (var freshContext = CreateFreshContext())
+            {
+                Assert.NotNull(await freshContext.UserFishingBoosts.FindAsync(13));
+            }
         }
 
         [Fact]
@@ -450,6 +462,27 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.NotNull(updated);
             Assert.True(updated!.IsEquipped);
             Assert.True(updated.IsBroken);
+        }
+
+        [Fact]
+        public async Task Accidents_SkipBaitAndLureLoss_ForReelTackleBoxAndNet()
+        {
+            var reel = new FishingShopItem { Id = 20, Name = "Reel", Cost = 100, EquipmentSlot = EquipmentSlot.Reel };
+            var bait = new FishingShopItem { Id = 21, Name = "Bait", Cost = 50, EquipmentSlot = EquipmentSlot.Bait, MaxUses = 5 };
+            _context.FishingShopItems.AddRange(reel, bait);
+
+            var bReel = new UserFishingBoost { Id = 20, UserId = "userAccident", ShopItemId = 20, IsEquipped = true };
+            var bBait = new UserFishingBoost { Id = 21, UserId = "userAccident", ShopItemId = 21, IsEquipped = true, RemainingUses = 5 };
+            _context.UserFishingBoosts.AddRange(bReel, bBait);
+            await _context.SaveChangesAsync();
+
+            var reelJamResult = await _sut.ConsumeItemsOnReelJam("userAccident", "userAccident");
+            Assert.Equal(100, reelJamResult.TotalGoldLost);
+
+            using var verifyContext = CreateFreshContext();
+            var baitAfterJam = await verifyContext.UserFishingBoosts.FindAsync(21);
+            Assert.NotNull(baitAfterJam);
+            Assert.Equal(5, baitAfterJam!.RemainingUses);
         }
     }
 }

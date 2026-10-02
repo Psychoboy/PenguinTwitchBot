@@ -897,8 +897,25 @@
 
             if (result == true)
             {
-                await inventoryService.RepairItem(userId, userBoostId, repairCostMultiplier);
-                Snackbar.Add($"{item.ShopItem.Name} repaired successfully!", Severity.Success);
+                var latestSettings = await fishingService.GetSettings();
+                var currentMultiplier = latestSettings?.RepairCostMultiplier ?? 0.0;
+                if (currentMultiplier <= 0)
+                {
+                    Snackbar.Add("Repair feature is currently disabled.", Severity.Warning);
+                    await LoadData();
+                    return;
+                }
+
+                var freshCost = inventoryService.CalculateRepairCost(item.ShopItem, currentDur, currentMultiplier);
+                if (freshCost != cost)
+                {
+                    Snackbar.Add($"Repair cost has changed to {freshCost} gold. Please confirm again.", Severity.Warning);
+                    await LoadData();
+                    return;
+                }
+
+                var chargedGold = await inventoryService.RepairItem(userId, userBoostId, currentMultiplier);
+                Snackbar.Add($"{item.ShopItem.Name} repaired successfully for {chargedGold} gold!", Severity.Success);
                 await LoadData();
             }
         }
@@ -931,8 +948,31 @@
 
             if (result == true)
             {
-                var repairedCount = await inventoryService.RepairAllEquippedItems(userId, repairCostMultiplier);
-                Snackbar.Add($"Repaired {repairedCount} equipped items for {totalCost} gold.", Severity.Success);
+                var latestSettings = await fishingService.GetSettings();
+                var currentMultiplier = latestSettings?.RepairCostMultiplier ?? 0.0;
+                if (currentMultiplier <= 0)
+                {
+                    Snackbar.Add("Repair feature is currently disabled.", Severity.Warning);
+                    await LoadData();
+                    return;
+                }
+
+                var freshTotalCost = equippedBySlot.Values
+                    .Where(e => e.ShopItem?.MaxDurability.HasValue == true)
+                    .Sum(e => inventoryService.CalculateRepairCost(e.ShopItem!, e.CurrentDurability ?? e.ShopItem!.MaxDurability!.Value, currentMultiplier));
+
+                if (freshTotalCost != totalCost)
+                {
+                    Snackbar.Add($"Total repair cost has changed to {freshTotalCost} gold. Please confirm again.", Severity.Warning);
+                    await LoadData();
+                    return;
+                }
+
+                var itemsToRepairCount = equippedBySlot.Values
+                    .Count(e => e.ShopItem?.MaxDurability.HasValue == true && (e.CurrentDurability ?? e.ShopItem.MaxDurability.Value) < e.ShopItem.MaxDurability.Value);
+
+                var goldCharged = await inventoryService.RepairAllEquippedItems(userId, currentMultiplier);
+                Snackbar.Add($"Repaired {itemsToRepairCount} equipped item(s) for {goldCharged} gold.", Severity.Success);
                 await LoadData();
             }
         }

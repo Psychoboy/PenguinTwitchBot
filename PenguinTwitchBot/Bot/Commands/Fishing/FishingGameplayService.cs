@@ -55,7 +55,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var equippedBySlot = userBoosts
                 .Where(b => b.ShopItem?.EquipmentSlot.HasValue == true)
-                .ToDictionary(b => b.ShopItem!.EquipmentSlot!.Value, b => b);
+                .GroupBy(b => b.ShopItem!.EquipmentSlot!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(b => b.PurchasedAt).ThenByDescending(b => b.Id).First());
 
             // 1. Reel Jam Check (only if reel is equipped, not broken, and breaking is not disabled)
             if (equippedBySlot.TryGetValue(EquipmentSlot.Reel, out var equippedReel) &&
