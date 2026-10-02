@@ -1082,7 +1082,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("DisableBreaking")
                         .HasColumnType("boolean");
 
-                    b.Property<double>("DurabilityLossPerUse")
+                    b.Property<double?>("DurabilityLossPerUse")
                         .HasColumnType("double precision");
 
                     b.Property<bool>("Enabled")
