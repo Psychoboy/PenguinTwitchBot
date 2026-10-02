@@ -66,7 +66,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 !equippedReel.IsBroken &&
                 StaticTools.NextDouble() < reelJamChance)
             {
-                await _inventoryService.ConsumeItemsOnReelJam(userId, username);
+                var snapEvent = await _inventoryService.ConsumeItemsOnReelJam(userId, username);
 
                 try
                 {
@@ -94,7 +94,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return new FishingAttemptResult
                 {
                     Outcome = FishingAttemptOutcome.ReelJammed,
-                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Reel }
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Reel },
+                    SnapEvent = snapEvent
                 };
             }
 
@@ -104,7 +105,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 !equippedTackleBox.IsBroken &&
                 StaticTools.NextDouble() < tackleBoxLostChance)
             {
-                await _inventoryService.ConsumeItemsOnTackleBoxLost(userId, username);
+                var snapEvent = await _inventoryService.ConsumeItemsOnTackleBoxLost(userId, username);
 
                 try
                 {
@@ -132,7 +133,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return new FishingAttemptResult
                 {
                     Outcome = FishingAttemptOutcome.TackleBoxLost,
-                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.TackleBox }
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.TackleBox },
+                    SnapEvent = snapEvent
                 };
             }
 
@@ -142,7 +144,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 !equippedNet.IsBroken &&
                 StaticTools.NextDouble() < netBreakChance)
             {
-                await _inventoryService.ConsumeItemsOnNetBreak(userId, username);
+                var snapEvent = await _inventoryService.ConsumeItemsOnNetBreak(userId, username);
 
                 try
                 {
@@ -170,7 +172,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return new FishingAttemptResult
                 {
                     Outcome = FishingAttemptOutcome.NetBroken,
-                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Net }
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Net },
+                    SnapEvent = snapEvent
                 };
             }
 
@@ -180,7 +183,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (canRodSnap && StaticTools.NextDouble() < rodSnapChance)
             {
-                await _inventoryService.ConsumeItemsOnRodSnap(userId, username);
+                var snapEvent = await _inventoryService.ConsumeItemsOnRodSnap(userId, username);
 
                 try
                 {
@@ -214,7 +217,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         EquipmentSlot.Rod,
                         EquipmentSlot.Line,
                         EquipmentSlot.Hook
-                    }
+                    },
+                    SnapEvent = snapEvent
                 };
             }
 
@@ -224,7 +228,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (canLineSnap && StaticTools.NextDouble() < lineSnapChance)
             {
-                await _inventoryService.ConsumeItemsOnLineSnap(userId, username);
+                var snapEvent = await _inventoryService.ConsumeItemsOnLineSnap(userId, username);
 
                 try
                 {
@@ -252,7 +256,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return new FishingAttemptResult
                 {
                     Outcome = FishingAttemptOutcome.LineSnapped,
-                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Line, EquipmentSlot.Hook }
+                    LostEquipmentSlots = new List<EquipmentSlot> { EquipmentSlot.Line, EquipmentSlot.Hook },
+                    SnapEvent = snapEvent
                 };
             }
 
@@ -323,7 +328,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             // Consume durability from all equipped items
             var repairMultiplier = settings?.RepairCostMultiplier ?? 0.0;
-            await _inventoryService.ConsumeItemDurability(userId, userBoosts.Select(b => b.Id), repairMultiplier);
+            var brokenItems = await _inventoryService.ConsumeItemDurability(userId, userBoosts.Select(b => b.Id), repairMultiplier);
 
             // Broadcast the new catch to all connected clients via SignalR
             try
@@ -352,7 +357,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return new FishingAttemptResult
             {
                 Outcome = FishingAttemptOutcome.CaughtFish,
-                FishCatch = fishCatch
+                FishCatch = fishCatch,
+                BrokenItems = brokenItems
             };
         }
 

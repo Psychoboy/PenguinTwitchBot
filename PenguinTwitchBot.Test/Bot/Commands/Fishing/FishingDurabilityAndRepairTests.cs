@@ -484,5 +484,101 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.NotNull(baitAfterJam);
             Assert.Equal(5, baitAfterJam!.RemainingUses);
         }
+
+        [Fact]
+        public async Task ConsumeItemDurability_ReturnsBrokenItem_WhenTransitioningFromPositiveToZero()
+        {
+            var rod = new FishingShopItem
+            {
+                Id = 30,
+                Name = "Test Rod",
+                Cost = 100,
+                EquipmentSlot = EquipmentSlot.Rod,
+                MaxDurability = 10,
+                DurabilityLossPerUse = 10
+            };
+            _context.FishingShopItems.Add(rod);
+
+            var boost = new UserFishingBoost
+            {
+                Id = 30,
+                UserId = "userBreak",
+                ShopItemId = 30,
+                IsEquipped = true,
+                CurrentDurability = 5.0
+            };
+            _context.UserFishingBoosts.Add(boost);
+            await _context.SaveChangesAsync();
+
+            var broken = await _sut.ConsumeItemDurability("userBreak", new[] { 30 }, repairCostMultiplier: 0.25);
+
+            Assert.Single(broken);
+            Assert.Equal(30, broken[0].UserBoostId);
+            Assert.Equal(30, broken[0].ShopItemId);
+            Assert.Equal("Test Rod", broken[0].ItemName);
+            Assert.Equal(EquipmentSlot.Rod, broken[0].EquipmentSlot);
+            Assert.Equal(100, broken[0].ItemCost);
+            Assert.False(broken[0].WasReplaced);
+        }
+
+        [Fact]
+        public async Task ConsumeItemDurability_DoesNotReturnBrokenItem_WhenAlreadyZero()
+        {
+            var rod = new FishingShopItem
+            {
+                Id = 31,
+                Name = "Already Broken Rod",
+                Cost = 100,
+                EquipmentSlot = EquipmentSlot.Rod,
+                MaxDurability = 10,
+                DurabilityLossPerUse = 10
+            };
+            _context.FishingShopItems.Add(rod);
+
+            var boost = new UserFishingBoost
+            {
+                Id = 31,
+                UserId = "userBreak2",
+                ShopItemId = 31,
+                IsEquipped = true,
+                CurrentDurability = 0.0
+            };
+            _context.UserFishingBoosts.Add(boost);
+            await _context.SaveChangesAsync();
+
+            var broken = await _sut.ConsumeItemDurability("userBreak2", new[] { 31 }, repairCostMultiplier: 0.25);
+
+            Assert.Empty(broken);
+        }
+
+        [Fact]
+        public async Task ConsumeItemDurability_DoesNotReturnBrokenItem_WhenRemainingDurabilityAboveZero()
+        {
+            var rod = new FishingShopItem
+            {
+                Id = 32,
+                Name = "Healthy Rod",
+                Cost = 100,
+                EquipmentSlot = EquipmentSlot.Rod,
+                MaxDurability = 100,
+                DurabilityLossPerUse = 5
+            };
+            _context.FishingShopItems.Add(rod);
+
+            var boost = new UserFishingBoost
+            {
+                Id = 32,
+                UserId = "userBreak3",
+                ShopItemId = 32,
+                IsEquipped = true,
+                CurrentDurability = 80.0
+            };
+            _context.UserFishingBoosts.Add(boost);
+            await _context.SaveChangesAsync();
+
+            var broken = await _sut.ConsumeItemDurability("userBreak3", new[] { 32 }, repairCostMultiplier: 0.25);
+
+            Assert.Empty(broken);
+        }
     }
 }

@@ -229,12 +229,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
+        public async Task<List<FishingBrokenItemInfo>> ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
         {
             var ids = userBoostIds.Distinct().ToList();
             if (ids.Count == 0)
             {
-                return;
+                return [];
             }
 
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
@@ -247,8 +247,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (userBoosts.Count == 0)
             {
-                return;
+                return [];
             }
+
+            var brokenItems = new List<FishingBrokenItemInfo>();
 
             foreach (var userBoost in userBoosts)
             {
@@ -256,11 +258,23 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var shopItem = userBoost.ShopItem;
                 if (shopItem?.MaxDurability.HasValue == true && userBoost.CurrentDurability.HasValue)
                 {
+                    var previousDurability = userBoost.CurrentDurability.Value;
                     var loss = Math.Max(0.0, shopItem.DurabilityLossPerUse ?? 1.0);
                     userBoost.CurrentDurability = Math.Max(0.0, userBoost.CurrentDurability.Value - loss);
 
-                    if (userBoost.CurrentDurability.Value <= 0.0)
+                    if (previousDurability > 0.0 && userBoost.CurrentDurability.Value <= 0.0)
                     {
+                        var brokenInfo = new FishingBrokenItemInfo
+                        {
+                            UserBoostId = userBoost.Id,
+                            ShopItemId = userBoost.ShopItemId,
+                            ItemName = shopItem.Name,
+                            EquipmentSlot = shopItem.EquipmentSlot ?? EquipmentSlot.Rod,
+                            ItemCost = shopItem.Cost,
+                            WasReplaced = repairCostMultiplier <= 0
+                        };
+                        brokenItems.Add(brokenInfo);
+
                         if (repairCostMultiplier > 0)
                         {
                             // Preserved for repair; durability capped at 0
@@ -276,6 +290,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             await db.SaveChangesAsync();
+            return brokenItems;
         }
 
         public Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)

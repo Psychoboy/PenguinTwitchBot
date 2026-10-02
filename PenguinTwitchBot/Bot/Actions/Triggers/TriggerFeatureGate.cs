@@ -13,6 +13,8 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 [TriggerTypes.FishingTournamentStart] = FeatureKeys.Fishing,
                 [TriggerTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
                 [TriggerTypes.FishCatch] = FeatureKeys.Fishing,
+                [TriggerTypes.FishingItemBroken] = FeatureKeys.Fishing,
+                [TriggerTypes.FishingAccident] = FeatureKeys.Fishing,
                 [TriggerTypes.BannedSongRequest] = FeatureKeys.MusicPlayer
             };
 
