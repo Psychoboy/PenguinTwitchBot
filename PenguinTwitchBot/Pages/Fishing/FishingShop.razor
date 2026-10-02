@@ -105,28 +105,30 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="6" md="3">
-                        <MudSelect T="bool?" 
-                                   @bind-Value="filterConsumable" 
+                        <MudSelect T="string?" 
+                                   @bind-Value="filterItemType" 
                                    Label="Item Type" 
-                                   Clearable="true"
+                                   Clearable="true" 
                                    Variant="Variant.Outlined"
                                    dense="true"
                                    AdornmentIcon="@Icons.Material.Filled.FilterList">
-                            <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
-                            <MudSelectItem T="bool?" Value="@((bool?)false)">Unlimited Uses</MudSelectItem>
-                            <MudSelectItem T="bool?" Value="@((bool?)true)">Limited Uses</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@((string?)null)">All Items</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@("durability")">Has Durability</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@("unbreakable")">Unbreakable Gear</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@("consumable")">Consumables (Uses)</MudSelectItem>
+                            <MudSelectItem T="string?" Value="@("unlimited")">Standard Unlimited</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="6" md="3">
                         <MudTextField T="string" 
                                       @bind-Value="filterSearch" 
                                       Label="Search" 
-                                      Variant="Variant.Outlined"
-                                      dense="true"
-                                      Immediate="true"
-                                      DebounceInterval="300"
-                                      Clearable="true"
-                                      Adornment="Adornment.Start"
+                                      Variant="Variant.Outlined" 
+                                      dense="true" 
+                                      Immediate="true" 
+                                      DebounceInterval="300" 
+                                      Clearable="true" 
+                                      Adornment="Adornment.Start" 
                                       AdornmentIcon="@Icons.Material.Filled.Search" />
                     </MudItem>
                 </MudGrid>
@@ -141,9 +143,9 @@
                 <MudTable Items="@filteredShopItems" dense="true" Hover="true" Striped="true" Elevation="1">
                     <HeaderContent>
                         <MudTh>Item</MudTh>
-                        <MudTh>Type/Target</MudTh>
-                        <MudTh>Boost</MudTh>
-                        <MudTh>Slot/Uses</MudTh>
+                        <MudTh>Slot</MudTh>
+                        <MudTh>Boost / Effect</MudTh>
+                        <MudTh>Durability / Uses</MudTh>
                         <MudTh>Cost</MudTh>
                         <MudTh Style="text-align: right;">Actions</MudTh>
                     </HeaderContent>
@@ -169,60 +171,69 @@
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
                             </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="Type/Target">
-                            <MudStack Spacing="0">
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
-                                @if (context.BoostType2.HasValue)
-                                {
-                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType2.Value)</MudChip>
-                                }
-                                @if (context.BoostType3.HasValue)
-                                {
-                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType3.Value)</MudChip>
-                                }
-                                @if (context.TargetFishTypeId.HasValue)
-                                {
-                                    if (fishTypeLookup.TryGetValue(context.TargetFishTypeId.Value, out var fishName))
+                        <MudTd DataLabel="Slot">
+                            @if (context.EquipmentSlot.HasValue)
+                            {
+                                <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.EquipmentSlot.Value)">@context.EquipmentSlot.Value</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">Permanent</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Boost / Effect">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(context.BoostAmount < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                        @GetBoostTypeDisplay(context.BoostType) @FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)
+                                    </MudChip>
+                                    @if (context.BoostType2.HasValue && context.BoostAmount2.HasValue)
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">→ @fishName</MudText>
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="@(context.BoostAmount2.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                            @GetBoostTypeDisplay(context.BoostType2.Value) @FishingBoostDisplayHelper.FormatPercent(context.BoostAmount2.Value)
+                                        </MudChip>
                                     }
+                                    @if (context.BoostType3.HasValue && context.BoostAmount3.HasValue)
+                                    {
+                                        <MudChip T="string" Variant="Variant.Outlined" Color="@(context.BoostAmount3.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                            @GetBoostTypeDisplay(context.BoostType3.Value) @FishingBoostDisplayHelper.FormatPercent(context.BoostAmount3.Value)
+                                        </MudChip>
+                                    }
+                                </MudStack>
+                                @if (context.TargetFishTypeId.HasValue && fishTypeLookup.TryGetValue(context.TargetFishTypeId.Value, out var fishName))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">🎯 Targets: <strong>@fishName</strong></MudText>
                                 }
                                 @if (!string.IsNullOrWhiteSpace(context.TargetCategory))
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">→ @context.TargetCategory</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">🎯 Category: <strong>@context.TargetCategory</strong></MudText>
                                 }
                             </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="Boost">
+                        <MudTd DataLabel="Durability / Uses">
                             <MudStack Spacing="0">
-                                <MudChip T="string" Color="@(context.BoostAmount < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)</MudChip>
-                                @if (context.BoostType2.HasValue && context.BoostAmount2.HasValue)
+                                @if (context.MaxDurability.HasValue)
                                 {
-                                    <MudChip T="string" Color="@(context.BoostAmount2.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount2.Value)</MudChip>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Build">
+                                        @context.MaxDurability.Value Durability
+                                    </MudChip>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">-@(context.DurabilityLossPerUse ?? 1.0)/use</MudText>
                                 }
-                                @if (context.BoostType3.HasValue && context.BoostAmount3.HasValue)
+                                else if (context.DisableBreaking)
                                 {
-                                    <MudChip T="string" Color="@(context.BoostAmount3.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount3.Value)</MudChip>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Shield">
+                                        Unbreakable
+                                    </MudChip>
                                 }
-                            </MudStack>
-                        </MudTd>
-                        <MudTd DataLabel="Slot/Uses">
-                            <MudStack Spacing="0">
-                                @if (context.EquipmentSlot.HasValue)
+                                else if (context.MaxUses.HasValue)
                                 {
-                                    <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Icon="@GetSlotIcon(context.EquipmentSlot.Value)">@context.EquipmentSlot.Value</MudChip>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.Timer">
+                                        @context.MaxUses uses
+                                    </MudChip>
                                 }
                                 else
                                 {
-                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Permanent</MudChip>
-                                }
-                                @if (context.MaxUses.HasValue)
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.MaxUses uses</MudText>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Success">Unlimited</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Standard (can fail)</MudText>
                                 }
                             </MudStack>
                         </MudTd>
@@ -297,9 +308,8 @@
                     <HeaderContent>
                         <MudTh>Item</MudTh>
                         <MudTh>Slot</MudTh>
-                        <MudTh>Type/Target</MudTh>
-                        <MudTh>Boost</MudTh>
-                        <MudTh>Uses</MudTh>
+                        <MudTh>Boost / Effect</MudTh>
+                        <MudTh>Durability / Uses</MudTh>
                         <MudTh>Status</MudTh>
                         <MudTh>Purchased</MudTh>
                         <MudTh>Actions</MudTh>
@@ -353,54 +363,66 @@
                                 <MudChip T="string" Color="Color.Default" Size="Size.Small">Permanent</MudChip>
                             }
                         </MudTd>
-                        <MudTd DataLabel="Boost Type">
+                        <MudTd DataLabel="Boost / Effect">
                             <MudStack Spacing="0">
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem?.BoostType ?? FishingBoostType.GeneralRarityBoost)</MudChip>
-                                @if (shopItem?.BoostType2.HasValue == true)
-                                {
-                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem.BoostType2.Value)</MudChip>
-                                }
-                                @if (shopItem?.BoostType3.HasValue == true)
-                                {
-                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(shopItem.BoostType3.Value)</MudChip>
-                                }
-                            </MudStack>
-                        </MudTd>
-                        <MudTd DataLabel="Boost">
-                            <MudStack Spacing="0">
-                                <MudChip T="string" Color="@((shopItem?.BoostAmount ?? 0) < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(shopItem?.BoostAmount ?? 0)</MudChip>
+                                <MudChip T="string" Variant="Variant.Outlined" Color="@((shopItem?.BoostAmount ?? 0) < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                    @GetBoostTypeDisplay(shopItem?.BoostType ?? FishingBoostType.GeneralRarityBoost) @FishingBoostDisplayHelper.FormatPercent(shopItem?.BoostAmount ?? 0)
+                                </MudChip>
                                 @if (shopItem?.BoostType2.HasValue == true && shopItem?.BoostAmount2.HasValue == true)
                                 {
-                                    <MudChip T="string" Color="@(shopItem.BoostAmount2.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(shopItem.BoostAmount2.Value)</MudChip>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(shopItem.BoostAmount2.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                        @GetBoostTypeDisplay(shopItem.BoostType2.Value) @FishingBoostDisplayHelper.FormatPercent(shopItem.BoostAmount2.Value)
+                                    </MudChip>
                                 }
                                 @if (shopItem?.BoostType3.HasValue == true && shopItem?.BoostAmount3.HasValue == true)
                                 {
-                                    <MudChip T="string" Color="@(shopItem.BoostAmount3.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">@FishingBoostDisplayHelper.FormatPercent(shopItem.BoostAmount3.Value)</MudChip>
+                                    <MudChip T="string" Variant="Variant.Outlined" Color="@(shopItem.BoostAmount3.Value < 0 ? Color.Error : Color.Success)" Size="Size.Small">
+                                        @GetBoostTypeDisplay(shopItem.BoostType3.Value) @FishingBoostDisplayHelper.FormatPercent(shopItem.BoostAmount3.Value)
+                                    </MudChip>
                                 }
                             </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="Uses">
-                            @if (boost.RemainingUses >= 0)
+                        <MudTd DataLabel="Durability / Uses">
+                            @if (shopItem?.MaxDurability.HasValue == true)
+                            {
+                                var cur = boost.CurrentDurability ?? shopItem.MaxDurability.Value;
+                                var max = shopItem.MaxDurability.Value;
+                                var pct = max > 0 ? (int)Math.Round((cur / max) * 100) : 0;
+                                var durColor = boost.IsBroken ? Color.Error : pct < 30 ? Color.Warning : Color.Success;
+                                <MudStack Spacing="0" Style="min-width: 90px;">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@cur.ToString("0.#") / @max (@pct%)</MudText>
+                                    <MudProgressLinear Color="@durColor" Value="@pct" Size="Size.Small" Rounded="true" />
+                                </MudStack>
+                            }
+                            else if (shopItem?.DisableBreaking == true)
+                            {
+                                <MudChip T="string" Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Shield">Unbreakable</MudChip>
+                            }
+                            else if (boost.RemainingUses >= 0)
                             {
                                 <MudText Typo="Typo.body2" Color="@GetUsesColor(boost)">@boost.RemainingUses / @(shopItem?.MaxUses ?? 0)</MudText>
                             }
                             else
                             {
-                                <MudText Typo="Typo.body2" Color="Color.Success">∞</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Success">Unlimited</MudText>
                             }
                         </MudTd>
                         <MudTd DataLabel="Status">
-                            @if (boost.IsEquipped)
+                            @if (boost.IsBroken)
                             {
-                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.BrokenImage">Broken</MudChip>
+                            }
+                            else if (boost.IsEquipped)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">Equipped</MudChip>
                             }
                             else if (shopItem?.MaxUses.HasValue == true && boost.RemainingUses == 0)
                             {
-                                <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
+                                <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.Cancel">Depleted</MudChip>
                             }
                             else
                             {
-                                <MudIcon Icon="@Icons.Material.Filled.Inventory" Color="Color.Default" Size="Size.Small" />
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">In Bag</MudChip>
                             }
                         </MudTd>
                         <MudTd DataLabel="Purchased">
@@ -533,18 +555,18 @@
         }
     }
 
-    private bool? _filterConsumable = null;
-    private bool? filterConsumable
+    private string? _filterItemType = null;
+    private string? filterItemType
     {
-        get => _filterConsumable;
+        get => _filterItemType;
         set
         {
-            if (_filterConsumable == value)
+            if (string.Equals(_filterItemType, value, StringComparison.Ordinal))
             {
                 return;
             }
 
-            _filterConsumable = value;
+            _filterItemType = value;
             ApplyFilters();
         }
     }
@@ -752,10 +774,17 @@
                 i.BoostType3 == filterBoostType.Value);
         }
 
-        // Filter by limited or unlimited uses.
-        if (filterConsumable.HasValue)
+        // Filter by item type (consumable, durability, unbreakable, unlimited)
+        if (!string.IsNullOrWhiteSpace(filterItemType))
         {
-            filtered = filtered.Where(i => i.MaxUses.HasValue == filterConsumable.Value);
+            filtered = filterItemType switch
+            {
+                "consumable" => filtered.Where(i => i.MaxUses.HasValue),
+                "durability" => filtered.Where(i => i.MaxDurability.HasValue),
+                "unbreakable" => filtered.Where(i => i.DisableBreaking),
+                "unlimited" => filtered.Where(i => !i.MaxUses.HasValue && !i.MaxDurability.HasValue),
+                _ => filtered
+            };
         }
 
         // Filter by search text using culture-insensitive comparison

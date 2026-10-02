@@ -151,11 +151,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var userBoost = await FindUserBoost(db, userId, userBoostId)
                 ?? throw new InvalidOperationException("Item not found");
 
-            if (userBoost.IsBroken)
-            {
-                throw new InvalidOperationException("Broken items cannot be equipped until repaired");
-            }
-
             // Limited-use items with no uses left cannot be equipped.
             if (userBoost.ShopItem!.MaxUses.HasValue && userBoost.RemainingUses == 0)
             {

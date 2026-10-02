@@ -420,7 +420,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
-        public async Task EquipItem_RejectsBrokenItem()
+        public async Task EquipItem_AllowsBrokenItem_CanBeEquippedAndRepaired()
         {
             var shopItem = new FishingShopItem
             {
@@ -443,8 +443,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             _context.UserFishingBoosts.Add(boost);
             await _context.SaveChangesAsync();
 
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _sut.EquipItem("user1", 14));
-            Assert.Contains("broken", ex.Message, StringComparison.OrdinalIgnoreCase);
+            await _sut.EquipItem("user1", 14);
+
+            using var verifyContext = CreateFreshContext();
+            var updated = await verifyContext.UserFishingBoosts.FindAsync(14);
+            Assert.NotNull(updated);
+            Assert.True(updated!.IsEquipped);
+            Assert.True(updated.IsBroken);
         }
     }
 }
