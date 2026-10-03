@@ -160,6 +160,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public int? MaxUses { get; set; }
         public int? MaxDurability { get; set; }
         public double DurabilityLossPerUse { get; set; }
+        public bool DisableBreaking { get; set; }
         public bool IsUnbreakable { get; set; }
 
         // Maintenance & Operating Cost
