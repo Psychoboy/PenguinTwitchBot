@@ -479,6 +479,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var consumableSink = Math.Round(CalculateExpectedConsumableSink(items), 2);
                 var netAttempt = Math.Round(grossAttempt - upkeep - accidentSink - consumableSink, 2);
                 var margin = grossAttempt > 0 ? Math.Round((netAttempt / grossAttempt) * 100.0, 1) : 0;
+                var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost);
 
                 model.TierEconomics.Add(new TierProjectedEconomics
                 {
@@ -492,7 +493,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     ConsumableSinkPerAttempt = consumableSink,
                     NetGoldPerAttempt = netAttempt,
                     ProfitMarginPercent = margin,
-                    EquippedItems = items.Select(i => i.Name).ToList()
+                    EquippedItems = items.Select(i => i.Name).ToList(),
+                    RarityBoostPercent = Math.Round(rarityBoost * 100.0, 1),
+                    StarBoostPercent = Math.Round(starBoost * 100.0, 1),
+                    WeightBoostPercent = Math.Round(weightBoost * 100.0, 1),
+                    ExpectedRarePlusPercent = quality.RarePlusPercent,
+                    ExpectedThreeStarPercent = quality.ThreeStarPercent,
+                    ExpectedTwoStarPercent = quality.TwoStarPercent,
+                    ExpectedOneStarPercent = quality.OneStarPercent,
+                    ExpectedAverageWeight = quality.AverageWeight,
+                    ExpectedRarityPercentages = quality.RarityPercentages
                 });
             }
 
@@ -575,6 +585,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             else
                 financialStatus = "Rapid Accumulation (Very generous)";
 
+            var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost);
+
             return new BalanceSimulationResult
             {
                 SuccessRatePercent = Math.Round(successRate * 100.0, 2),
@@ -592,7 +604,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 SessionsToAffordTopGear = sessionsToAfford,
                 WeeksToAffordTopGear = weeksToAfford,
                 FinancialStatus = financialStatus,
-                EquippedItemNames = equippedItems.Select(i => i.Name).ToList()
+                EquippedItemNames = equippedItems.Select(i => i.Name).ToList(),
+                RarityBoostPercent = Math.Round(rarityBoost * 100.0, 1),
+                StarBoostPercent = Math.Round(starBoost * 100.0, 1),
+                WeightBoostPercent = Math.Round(weightBoost * 100.0, 1),
+                ExpectedRarePlusPercent = quality.RarePlusPercent,
+                ExpectedThreeStarPercent = quality.ThreeStarPercent,
+                ExpectedAverageWeight = quality.AverageWeight,
+                ExpectedRarityPercentages = quality.RarityPercentages
             };
         }
 
@@ -689,6 +708,63 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     paybackAttempts = Math.Round(item.Cost / netValue, 0);
                 }
 
+                // Boost Summary & Identity
+                var boostParts = new List<string>();
+                void AppendBoostPart(FishingBoostType? type, double? amount, FishType? targetFish)
+                {
+                    if (type == null || !amount.HasValue || amount.Value <= 0) return;
+                    var pct = Math.Round(amount.Value * 100.0, 1);
+                    switch (type.Value)
+                    {
+                        case FishingBoostType.GeneralRarityBoost:
+                            boostParts.Add($"+{pct}% Rarity");
+                            break;
+                        case FishingBoostType.StarBoost:
+                            boostParts.Add($"+{pct}% 3-Star");
+                            break;
+                        case FishingBoostType.WeightBoost:
+                            boostParts.Add($"+{pct}% Weight");
+                            break;
+                        case FishingBoostType.SpecificFishBoost:
+                            boostParts.Add($"+{pct}% {targetFish?.Name ?? "Target Fish"}");
+                            break;
+                        case FishingBoostType.SpecificCategoryBoost:
+                            boostParts.Add($"+{pct}% Category");
+                            break;
+                    }
+                }
+
+                AppendBoostPart(item.BoostType, item.BoostAmount, item.TargetFishType);
+                AppendBoostPart(item.BoostType2, item.BoostAmount2, item.TargetFishType);
+                AppendBoostPart(item.BoostType3, item.BoostAmount3, item.TargetFishType);
+
+                var boostSummary = boostParts.Any() ? string.Join(", ", boostParts) : "—";
+
+                string primaryCategory;
+                if (rarityBoost > 0 && rarityBoost >= starBoost && rarityBoost >= weightBoost)
+                    primaryCategory = "Rarity";
+                else if (starBoost > 0 && starBoost >= weightBoost)
+                    primaryCategory = "Stars";
+                else if (weightBoost > 0)
+                    primaryCategory = "Weight";
+                else if (item.IsConsumable)
+                    primaryCategory = "Consumable";
+                else
+                    primaryCategory = "Utility";
+
+                string trophyRole = item.EquipmentSlot switch
+                {
+                    EquipmentSlot.Rod => rarityBoost >= 0.25 ? "Elite Trophy Rod" : "Rarity Hunter Rod",
+                    EquipmentSlot.Reel => starBoost >= 0.15 ? "Master Quality Reel" : "Star Quality Reel",
+                    EquipmentSlot.Line => weightBoost >= 0.30 ? "Heavy Game Line" : "Weight Line",
+                    EquipmentSlot.Hook => starBoost >= 0.10 ? "Trophy Hook" : "Precision Hook",
+                    EquipmentSlot.Net => weightBoost >= 0.20 ? "Monster Landing Net" : "Weight Net",
+                    EquipmentSlot.TackleBox => "Tackle Organizer",
+                    EquipmentSlot.Bait => "Fish Attractant",
+                    EquipmentSlot.Lure => "Lure Attractant",
+                    _ => "Fishing Gear"
+                };
+
                 // Rating
                 string rating;
                 if (item.IsConsumable)
@@ -708,8 +784,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 {
                     if (netValue > 0 && paybackAttempts.HasValue && paybackAttempts.Value <= 500)
                         rating = "Profitable Investment";
+                    else if (rarityBoost >= 0.15)
+                        rating = "Elite Trophy Gear";
+                    else if (starBoost >= 0.10)
+                        rating = "Master Quality Gear";
+                    else if (weightBoost >= 0.25)
+                        rating = "Big Game Specialist";
                     else if (netValue > 0)
                         rating = "Fair Upgrade";
+                    else if (rarityBoost > 0 || starBoost > 0 || weightBoost > 0)
+                        rating = "Prestige Trophy Gear";
                     else
                         rating = "Luxury Sink";
                 }
@@ -739,6 +823,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     NetValuePerAttempt = Math.Round(netValue, 2),
                     PaybackAttempts = paybackAttempts,
                     EconomicRating = rating,
+                    PrimaryBoostCategory = primaryCategory,
+                    BoostSummary = boostSummary,
+                    TrophyRole = trophyRole,
                     PlayersWhoCanAfford = affordCount,
                     PercentageWhoCanAfford = affordPct,
                     AttemptsNeededToBuy = attemptsNeeded,
@@ -853,6 +940,50 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             else
             {
                 real.ObservedSuccessRatePercent = Math.Round(successfulAttemptChance * 100.0, 2);
+            }
+
+            // Catch Quality & Trophy Telemetry (Observed Rarity, Stars & Weight)
+            if (catches.Any())
+            {
+                foreach (FishRarity rarity in Enum.GetValues<FishRarity>())
+                {
+                    var count = catches.Count(c => c.FishType?.Rarity == rarity);
+                    real.ObservedRarityCounts[rarity] = count;
+                    real.ObservedRarityPercentages[rarity] = Math.Round((double)count / catches.Count * 100.0, 1);
+                }
+
+                var rarePlusCount = catches.Count(c => c.FishType != null && c.FishType.Rarity is FishRarity.Rare or FishRarity.Epic or FishRarity.Legendary or FishRarity.Mythical);
+                real.ObservedRarePlusPercent = Math.Round((double)rarePlusCount / catches.Count * 100.0, 1);
+
+                for (int star = 1; star <= 3; star++)
+                {
+                    var count = catches.Count(c => c.Stars == star);
+                    real.ObservedStarCounts[star] = count;
+                }
+                real.ObservedOneStarPercent = Math.Round((double)real.ObservedStarCounts[1] / catches.Count * 100.0, 1);
+                real.ObservedTwoStarPercent = Math.Round((double)real.ObservedStarCounts[2] / catches.Count * 100.0, 1);
+                real.ObservedThreeStarPercent = Math.Round((double)real.ObservedStarCounts[3] / catches.Count * 100.0, 1);
+
+                real.ObservedAverageWeight = Math.Round(catches.Average(c => c.Weight), 2);
+
+                var heaviest = catches.OrderByDescending(c => c.Weight).First();
+                real.HeaviestFishName = heaviest.FishType?.Name ?? "Unknown";
+                real.HeaviestFishWeight = Math.Round(heaviest.Weight, 2);
+                real.HeaviestFishCatcher = heaviest.Username;
+                real.HeaviestFishStars = heaviest.Stars;
+                real.HeaviestFishRarity = heaviest.FishType?.Rarity;
+            }
+            else
+            {
+                foreach (FishRarity rarity in Enum.GetValues<FishRarity>())
+                {
+                    real.ObservedRarityCounts[rarity] = 0;
+                    real.ObservedRarityPercentages[rarity] = 0.0;
+                }
+                for (int star = 1; star <= 3; star++)
+                {
+                    real.ObservedStarCounts[star] = 0;
+                }
             }
 
             // Durability upkeep calculation from active users' equipped loadouts
@@ -1571,6 +1702,85 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { 2, p2 },
                 { 3, p3 }
             };
+        }
+
+        public class CatchQualityProfile
+        {
+            public Dictionary<FishRarity, double> RarityPercentages { get; set; } = new();
+            public double RarePlusPercent { get; set; }
+            public double ThreeStarPercent { get; set; }
+            public double TwoStarPercent { get; set; }
+            public double OneStarPercent { get; set; }
+            public double AverageWeight { get; set; }
+        }
+
+        private static CatchQualityProfile CalculateCatchQualityProfile(
+            List<FishType> fishTypes,
+            double rarityBoost,
+            double starBoost,
+            double weightBoost)
+        {
+            var profile = new CatchQualityProfile();
+            var starProbabilities = BuildStarProbabilities(starBoost);
+            profile.OneStarPercent = Math.Round(starProbabilities.GetValueOrDefault(1, 0.0) * 100.0, 1);
+            profile.TwoStarPercent = Math.Round(starProbabilities.GetValueOrDefault(2, 0.0) * 100.0, 1);
+            profile.ThreeStarPercent = Math.Round(starProbabilities.GetValueOrDefault(3, 0.0) * 100.0, 1);
+
+            if (!fishTypes.Any())
+            {
+                return profile;
+            }
+
+            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
+            if (rarityBoost > 0)
+            {
+                foreach (var rarity in rarityWeights.Keys.ToList())
+                {
+                    if (rarity != FishRarity.Common)
+                    {
+                        rarityWeights[rarity] *= (1.0 + rarityBoost);
+                    }
+                }
+            }
+
+            var totalRarityWeight = rarityWeights.Values.Sum();
+            if (totalRarityWeight <= 0)
+            {
+                return profile;
+            }
+
+            double rarePlus = 0.0;
+            foreach (var (rarity, weight) in rarityWeights)
+            {
+                var pct = Math.Round((weight / totalRarityWeight) * 100.0, 1);
+                profile.RarityPercentages[rarity] = pct;
+                if (rarity is FishRarity.Rare or FishRarity.Epic or FishRarity.Legendary or FishRarity.Mythical)
+                {
+                    rarePlus += pct;
+                }
+            }
+            profile.RarePlusPercent = Math.Round(rarePlus, 1);
+
+            var avgStarWeightMultiplier =
+                (starProbabilities.GetValueOrDefault(1, 0.0) * 1.0) +
+                (starProbabilities.GetValueOrDefault(2, 0.0) * 1.2) +
+                (starProbabilities.GetValueOrDefault(3, 0.0) * 1.5);
+            var avgRollWeightMultiplier = (0.8 + 1.13) / 2.0;
+            var gearWeightMultiplier = 1.0 + weightBoost;
+
+            double expectedBaseWeight = 0.0;
+            foreach (var (rarity, weight) in rarityWeights)
+            {
+                var fishOfRarity = fishTypes.Where(f => f.Rarity == rarity).ToList();
+                if (!fishOfRarity.Any()) continue;
+                var rarityProbability = weight / totalRarityWeight;
+                var rarityAvgBaseWeight = fishOfRarity.Average(f => f.BaseWeight);
+                expectedBaseWeight += rarityProbability * rarityAvgBaseWeight;
+            }
+
+            profile.AverageWeight = Math.Round(expectedBaseWeight * avgRollWeightMultiplier * avgStarWeightMultiplier * gearWeightMultiplier, 2);
+
+            return profile;
         }
 
         private Dictionary<FishRarity, double> CalculateRarityWeights(
