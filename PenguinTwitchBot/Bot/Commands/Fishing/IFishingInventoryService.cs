@@ -19,7 +19,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<FishingSnapEvent> ConsumeItemsOnReelJam(string userId, string username);
         Task<FishingSnapEvent> ConsumeItemsOnTackleBoxLost(string userId, string username);
         Task<FishingSnapEvent> ConsumeItemsOnNetBreak(string userId, string username);
-        Task ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier);
+        Task<List<FishingBrokenItemInfo>> ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier);
         int CalculateRepairCost(FishingShopItem shopItem, double currentDurability, double repairCostMultiplier);
         Task<int> RepairItem(string userId, int userBoostId, double? repairCostMultiplier = null);
         Task<int> RepairAllEquippedItems(string userId, double? repairCostMultiplier = null);

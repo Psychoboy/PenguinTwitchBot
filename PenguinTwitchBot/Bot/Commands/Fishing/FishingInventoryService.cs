@@ -229,12 +229,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             await db.SaveChangesAsync();
         }
 
-        public async Task ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
+        public async Task<List<FishingBrokenItemInfo>> ConsumeItemDurability(string userId, IEnumerable<int> userBoostIds, double repairCostMultiplier)
         {
             var ids = userBoostIds.Distinct().ToList();
             if (ids.Count == 0)
             {
-                return;
+                return [];
             }
 
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
@@ -247,8 +247,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (userBoosts.Count == 0)
             {
-                return;
+                return [];
             }
+
+            var brokenItems = new List<FishingBrokenItemInfo>();
 
             foreach (var userBoost in userBoosts)
             {
@@ -256,11 +258,23 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var shopItem = userBoost.ShopItem;
                 if (shopItem?.MaxDurability.HasValue == true && userBoost.CurrentDurability.HasValue)
                 {
+                    var previousDurability = userBoost.CurrentDurability.Value;
                     var loss = Math.Max(0.0, shopItem.DurabilityLossPerUse ?? 1.0);
                     userBoost.CurrentDurability = Math.Max(0.0, userBoost.CurrentDurability.Value - loss);
 
-                    if (userBoost.CurrentDurability.Value <= 0.0)
+                    if (previousDurability > 0.0 && userBoost.CurrentDurability.Value <= 0.0)
                     {
+                        var brokenInfo = new FishingBrokenItemInfo
+                        {
+                            UserBoostId = userBoost.Id,
+                            ShopItemId = userBoost.ShopItemId,
+                            ItemName = shopItem.Name,
+                            EquipmentSlot = shopItem.EquipmentSlot,
+                            ItemCost = shopItem.Cost,
+                            WasReplaced = false
+                        };
+                        brokenItems.Add(brokenInfo);
+
                         if (repairCostMultiplier > 0)
                         {
                             // Preserved for repair; durability capped at 0
@@ -269,13 +283,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         else
                         {
                             // Permanently broken & removed; auto-equip spare if available
-                            await RemoveAndEquipReplacement(db, userBoost);
+                            brokenInfo.WasReplaced = await RemoveAndEquipReplacement(db, userBoost);
                         }
                     }
                 }
             }
 
             await db.SaveChangesAsync();
+            return brokenItems;
         }
 
         public Task<FishingSnapEvent> ConsumeItemsOnLineSnap(string userId, string username)
@@ -516,7 +531,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return lossResult;
         }
 
-        private static async Task RemoveAndEquipReplacement(IUnitOfWork db, UserFishingBoost item)
+        private static async Task<bool> RemoveAndEquipReplacement(IUnitOfWork db, UserFishingBoost item)
         {
             item.IsEquipped = false;
             db.UserFishingBoosts.Remove(item);
@@ -534,7 +549,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (replacement != null)
             {
                 replacement.IsEquipped = true;
+                return true;
             }
+
+            return false;
         }
 
         private static Task<UserFishingBoost?> FindUserBoost(IUnitOfWork db, string userId, int userBoostId)

@@ -18,8 +18,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         private readonly IFishingGameplayService _fishingGameplayService;
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
-        private const string FishCatchTriggerName = "Fishing.FishCaught";
+        public const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
+        public const string FishCatchTriggerName = "Fishing.FishCaught";
+        public const string FishingItemBrokenTriggerName = "Fishing.ItemBroken";
+        public const string FishingAccidentTriggerName = "Fishing.Accident";
 
         public SubActionTypes SupportedType => SubActionTypes.Fishing;
 
@@ -122,6 +124,20 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         variables["fish_stars"] = "0";
                         variables["fish_weight"] = "0";
                         variables["fish_gold"] = "0";
+
+                        var accidentVariables = new ConcurrentDictionary<string, string>(variables);
+                        var lostItemNames = attemptResult.SnapEvent?.LostItemsJson != null
+                            ? DeserializeLostItemNames(attemptResult.SnapEvent.LostItemsJson)
+                            : string.Empty;
+
+                        accidentVariables["accident_type"] = attemptResult.Outcome.ToString();
+                        accidentVariables["accident_name"] = failText;
+                        accidentVariables["accident_reason"] = failText;
+                        accidentVariables["accident_items_lost"] = lostItemNames;
+                        accidentVariables["accident_gear"] = attemptResult.SnapEvent?.SnapType ?? string.Empty;
+                        accidentVariables["accident_gold_lost"] = (attemptResult.SnapEvent?.TotalGoldLost ?? 0).ToString();
+                        await TriggerFishingAccidentActionsAsync(accidentVariables, attemptResult.Outcome);
+
                         continue;
                     }
 
@@ -166,6 +182,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     variables["fish_categories"] = string.Join(", ", fishCategoryNames);
                     await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId, fishCategoryNames);
                     await TriggerFishCatchActionsAsync(variables, fishCatch, fishCategoryNames);
+
+                    if (attemptResult.BrokenItems.Count > 0)
+                    {
+                        await TriggerFishingItemBrokenActionsAsync(variables, attemptResult.BrokenItems);
+                    }
 
                 }
                 catch (Exception ex)
@@ -472,6 +493,204 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             catch
             {
                 return new FishCatchTriggerConfiguration();
+            }
+        }
+
+        private async Task TriggerFishingAccidentActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            FishingAttemptOutcome outcome)
+        {
+            try
+            {
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
+                    TriggerTypes.FishingAccident,
+                    FishingAccidentTriggerName);
+
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var action in actions)
+                {
+                    var triggers = action.Triggers
+                        .Where(t => t.Type == TriggerTypes.FishingAccident && t.Enabled && t.Name == FishingAccidentTriggerName)
+                        .ToList();
+
+                    if (triggers.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    bool shouldExecute = false;
+
+                    foreach (var trigger in triggers)
+                    {
+                        var config = DeserializeFishingAccidentConfiguration(trigger.Configuration);
+
+                        if (config.AccidentTypes.Count > 0 && !config.AccidentTypes.Contains(outcome))
+                        {
+                            continue;
+                        }
+
+                        shouldExecute = true;
+                        break;
+                    }
+
+                    if (!shouldExecute)
+                    {
+                        continue;
+                    }
+
+                    await actionService.EnqueueAction(new ConcurrentDictionary<string, string>(variables), action);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fishing accident actions");
+            }
+        }
+
+        private async Task TriggerFishingItemBrokenActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            IReadOnlyList<FishingBrokenItemInfo> brokenItems)
+        {
+            try
+            {
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
+                    TriggerTypes.FishingItemBroken,
+                    FishingItemBrokenTriggerName);
+
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var action in actions)
+                {
+                    var triggers = action.Triggers
+                        .Where(t => t.Type == TriggerTypes.FishingItemBroken && t.Enabled && t.Name == FishingItemBrokenTriggerName)
+                        .ToList();
+
+                    if (triggers.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    foreach (var item in brokenItems)
+                    {
+                        var slotName = item.EquipmentSlot?.ToString() ?? string.Empty;
+                        bool shouldExecute = false;
+
+                        foreach (var trigger in triggers)
+                        {
+                            var config = DeserializeFishingItemBrokenConfiguration(trigger.Configuration);
+
+                            if (config.EquipmentSlots.Count > 0 &&
+                                !config.EquipmentSlots.Any(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+
+                            if (config.ShopItemIds.Count > 0 && !config.ShopItemIds.Contains(item.ShopItemId))
+                            {
+                                continue;
+                            }
+
+                            shouldExecute = true;
+                            break;
+                        }
+
+                        if (!shouldExecute)
+                        {
+                            continue;
+                        }
+
+                        var itemVariables = new ConcurrentDictionary<string, string>(variables)
+                        {
+                            ["broken_item_name"] = item.ItemName,
+                            ["broken_item_slot"] = slotName,
+                            ["broken_item_shop_id"] = item.ShopItemId.ToString(),
+                            ["broken_item_boost_id"] = item.UserBoostId.ToString(),
+                            ["broken_item_cost"] = item.ItemCost.ToString(),
+                            ["broken_item_replaced"] = item.WasReplaced ? "true" : "false",
+                            ["broken_items_count"] = brokenItems.Count.ToString()
+                        };
+
+                        await actionService.EnqueueAction(itemVariables, action);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fishing item broken actions");
+            }
+        }
+
+        private static FishingAccidentTriggerConfiguration DeserializeFishingAccidentConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new FishingAccidentTriggerConfiguration();
+            }
+
+            try
+            {
+                var config = JsonSerializer.Deserialize<FishingAccidentTriggerConfiguration>(configuration)
+                    ?? new FishingAccidentTriggerConfiguration();
+                config.AccidentTypes ??= [];
+                return config;
+            }
+            catch
+            {
+                return new FishingAccidentTriggerConfiguration();
+            }
+        }
+
+        private static FishingItemBrokenTriggerConfiguration DeserializeFishingItemBrokenConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new FishingItemBrokenTriggerConfiguration();
+            }
+
+            try
+            {
+                var config = JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(configuration)
+                    ?? new FishingItemBrokenTriggerConfiguration();
+                config.EquipmentSlots ??= [];
+                config.ShopItemIds ??= [];
+                return config;
+            }
+            catch
+            {
+                return new FishingItemBrokenTriggerConfiguration();
+            }
+        }
+
+        private static string DeserializeLostItemNames(string lostItemsJson)
+        {
+            try
+            {
+                var items = JsonSerializer.Deserialize<List<FishingSnapLostItem>>(lostItemsJson);
+                if (items == null || items.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                return string.Join(", ", items.Select(i => i.ItemName));
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
     }
