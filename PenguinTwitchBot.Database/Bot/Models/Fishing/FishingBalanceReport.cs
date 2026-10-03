@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public double EstimatedSnapReplacementCostPerAttempt => RealEconomy.AverageAccidentLossPerAttempt;
         public double EstimatedSnapReplacementCostTotal => (double)RealEconomy.TotalGoldLostToAccidents;
         public double SnapAdjustedAverageGoldPerAttempt => RealEconomy.NetGoldPerAttempt;
-        public double SnapAdjustedMedianGoldPerAttempt => RealEconomy.NetGoldPerAttempt;
+        public double SnapAdjustedMedianGoldPerAttempt => RealEconomy.MedianNetGoldPerAttempt;
         public double SnapAdjustedTotalNetGold => RealEconomy.NetTotalGoldFlow;
         public string AttemptDataSource => RealEconomy.AttemptDataSource;
         public double CasualAttemptsPerSession => RealEconomy.CasualAttemptsPerSession;
@@ -130,6 +130,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
         // Net Economy Flow
         public double NetGoldPerAttempt { get; set; }
+        public double MedianNetGoldPerAttempt { get; set; }
         public double NetTotalGoldFlow { get; set; }
 
         // Player Engagement Percentiles

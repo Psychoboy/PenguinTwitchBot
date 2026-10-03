@@ -865,6 +865,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             double realDurabilityUpkeep = 0.0;
             var midTierUpkeep = report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Mid")?.DurabilityUpkeepPerAttempt ?? 1.5;
 
+            var userUpkeepMap = new Dictionary<string, double>();
             if (activeUserIds.Any() && real.TotalAttemptsRecorded > 0)
             {
                 var activeUserEquippedBoosts = await context.UserFishingBoosts
@@ -914,6 +915,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                             }
                         }
                     }
+                    userUpkeepMap[userId] = userUpkeepPerAttempt;
                     totalWeightedUpkeep += userUpkeepPerAttempt * userAttempts;
                     totalAttemptsCounted += userAttempts;
                 }
@@ -951,6 +953,38 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             {
                 real.NetGoldPerAttempt = Math.Round(report.ProjectedEconomy.BaselineGrossGoldPerAttempt - (report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Mid")?.AccidentSinkPerAttempt ?? 0.0), 2);
                 real.NetTotalGoldFlow = 0;
+            }
+
+            // Median Net Gold Per Attempt across all observed and estimated attempts
+            var netAttemptValues = new List<double>();
+            foreach (var c in catches)
+            {
+                var upkeep = userUpkeepMap.TryGetValue(c.UserId, out var u) ? u : real.AverageDurabilityUpkeepPerAttempt;
+                netAttemptValues.Add(c.GoldEarned - upkeep);
+            }
+            foreach (var s in snapEvents)
+            {
+                var upkeep = userUpkeepMap.TryGetValue(s.UserId, out var u) ? u : real.AverageDurabilityUpkeepPerAttempt;
+                netAttemptValues.Add(-(double)s.TotalGoldLost - upkeep);
+            }
+
+            var unobservedAttempts = Math.Max(0, real.TotalAttemptsRecorded - netAttemptValues.Count);
+            for (int i = 0; i < unobservedAttempts; i++)
+            {
+                netAttemptValues.Add(-real.AverageDurabilityUpkeepPerAttempt);
+            }
+
+            if (netAttemptValues.Any())
+            {
+                netAttemptValues.Sort();
+                var mid = netAttemptValues.Count / 2;
+                real.MedianNetGoldPerAttempt = netAttemptValues.Count % 2 == 0
+                    ? Math.Round((netAttemptValues[mid - 1] + netAttemptValues[mid]) / 2.0, 2)
+                    : Math.Round(netAttemptValues[mid], 2);
+            }
+            else
+            {
+                real.MedianNetGoldPerAttempt = real.NetGoldPerAttempt;
             }
 
             // Engagement percentiles

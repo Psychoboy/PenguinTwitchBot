@@ -9,7 +9,7 @@ The Fishing Balance Analysis dashboard provides data-driven telemetry into playe
 - **Gross Gold / Cast**: Average and median gold earned per cast across all successful catches.
 - **Accident Sink / Cast**: Risk-weighted gold lost to equipment accidents (Line snaps, Rod snaps, Reel jams, Tackle Box losses, Net breaks).
 - **Durability Upkeep / Cast**: Operating maintenance wear cost per attempt based on configured `RepairCostMultiplier` and item degradation rates.
-- **Net Gold / Cast**: The true bottom-line profit retained by players per cast (`Gross Gold - Upkeep - Accident Losses`).
+- **Net Gold / Cast**: The true bottom-line profit retained by players per cast (`Gross Gold - Upkeep - Accident Losses - Consumable Costs`).
 - **Economy Health Diagnostics**: Automated warning system that alerts you if the game falls into a deflationary spiral (players losing gold), if failure rates are excessively punitive, or if item costs are too cheap or too grindy.
 
 ---
@@ -45,7 +45,7 @@ The Fishing Balance Analysis dashboard provides data-driven telemetry into playe
 
 - **Real-Time Sandbox**: Test adjustments to failure rates, repair multipliers, and viewer habits without altering live database settings.
 - **Accident Sliders**: Tune Line Snap, Rod Snap, Reel Jam, Tackle Box Loss, and Net Break chances with live feedback.
-- **Durability Upkeep Slider**: Adjust the repair cost multiplier (0.0x to 1.0x) to balance gear maintenance.
+- **Durability Upkeep Slider**: Adjust the repair cost multiplier (0.0x to 1.0x) to balance gear maintenance. Setting this to 0.0x disables repairs (broken gear is removed upon depletion, with upkeep estimated at full replacement cost).
 - **Pacing Projections**: Instantly calculates streams and weeks required to afford top-tier gear under simulated conditions.
 
 ---

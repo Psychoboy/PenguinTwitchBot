@@ -251,6 +251,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(325m, report.RealEconomy.TotalGoldLostToAccidents);
             Assert.True(report.RealEconomy.AverageDurabilityUpkeepPerAttempt > 0, "Real durability upkeep should be calculated from active fishers equipped gear");
             Assert.True(report.RealEconomy.EstimatedDurabilityUpkeepIncurred > 0);
+            Assert.Equal(20.0, report.RealEconomy.MedianNetGoldPerAttempt);
+            Assert.Equal(20.0, report.SnapAdjustedMedianGoldPerAttempt);
 
             Assert.NotNull(report.SettingsSnapshot);
             Assert.NotNull(report.ProjectedEconomy);
