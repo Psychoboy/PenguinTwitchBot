@@ -2,6 +2,7 @@ using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
 {
@@ -39,7 +40,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 BoostModeMultiplier = boostModeMultiplier
             };
 
-            // Initialize counters
             foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
             {
                 result.RarityCounts[rarity] = 0;
@@ -48,38 +48,39 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             result.StarCounts[2] = 0;
             result.StarCounts[3] = 0;
 
-            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
             var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 throw new InvalidOperationException("No fish types available for simulation");
             }
 
-            // Get shop items for simulation
             var shopItems = await context.FishingShopItems
                 .AsNoTracking()
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
 
-            // Create mock user boosts from shop items
             var mockBoosts = shopItems.Select(item => new UserFishingBoost
             {
                 UserId = "simulation",
                 ShopItemId = item.Id,
                 ShopItem = item,
                 IsEquipped = true,
-                RemainingUses = item.MaxUses ?? -1
+                RemainingUses = item.MaxUses ?? -1,
+                CurrentDurability = item.MaxDurability.HasValue ? (double)item.MaxDurability.Value : null
             }).ToList();
 
             result.ItemsUsed = shopItems.Select(i => i.Name).ToList();
 
-            // Use current live settings for simulation behavior.
             var simulationSettings = new FishingSettings
             {
                 BoostMode = boostModeActive,
                 BoostModeRarityMultiplier = boostModeMultiplier,
                 LineSnapChance = settings.LineSnapChance,
                 RodSnapChance = settings.RodSnapChance,
+                ReelJamChance = settings.ReelJamChance,
+                TackleBoxLostChance = settings.TackleBoxLostChance,
+                NetBreakChance = settings.NetBreakChance,
+                RepairCostMultiplier = settings.RepairCostMultiplier,
                 RarityUncommonThreshold = settings.RarityUncommonThreshold,
                 RarityRareThreshold = settings.RarityRareThreshold,
                 RarityEpicThreshold = settings.RarityEpicThreshold,
@@ -87,14 +88,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 RarityMythicalThreshold = settings.RarityMythicalThreshold
             };
 
-            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
-                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
-                ? settings.LineSnapChance
-                : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
-                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
-                ? settings.RodSnapChance
-                : FishingSettings.DefaultRodSnapChance;
+            var lineSnapChance = Math.Clamp(settings.LineSnapChance, 0.0, 1.0);
+            var rodSnapChance = Math.Clamp(settings.RodSnapChance, 0.0, 1.0);
+            var reelJamChance = Math.Clamp(settings.ReelJamChance, 0.0, 1.0);
+            var tackleBoxLostChance = Math.Clamp(settings.TackleBoxLostChance, 0.0, 1.0);
+            var netBreakChance = Math.Clamp(settings.NetBreakChance, 0.0, 1.0);
 
             result.AppliedLineSnapChance = lineSnapChance;
             result.AppliedRodSnapChance = rodSnapChance;
@@ -106,7 +104,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var maxWeight = 0.0;
             var heaviestFishName = string.Empty;
 
-            // Run simulations
             for (int i = 0; i < iterations; i++)
             {
                 if (StaticTools.NextDouble() < rodSnapChance)
@@ -125,14 +122,33 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     continue;
                 }
 
+                if (StaticTools.NextDouble() < reelJamChance)
+                {
+                    result.FailedAttempts++;
+                    snapReplacementCost += ApplySlotLoss(mockBoosts, EquipmentSlot.Reel);
+                    continue;
+                }
+
+                if (StaticTools.NextDouble() < tackleBoxLostChance)
+                {
+                    result.FailedAttempts++;
+                    snapReplacementCost += ApplySlotLoss(mockBoosts, EquipmentSlot.TackleBox);
+                    continue;
+                }
+
+                if (StaticTools.NextDouble() < netBreakChance)
+                {
+                    result.FailedAttempts++;
+                    snapReplacementCost += ApplySlotLoss(mockBoosts, EquipmentSlot.Net);
+                    continue;
+                }
+
                 var fish = FishingCalculations.SelectRandomFish(fishTypes, simulationSettings, mockBoosts);
                 var stars = FishingCalculations.CalculateStars(fish, mockBoosts);
                 var weight = FishingCalculations.CalculateWeight(fish, stars, mockBoosts);
                 var gold = FishingCalculations.CalculateGold(fish, stars, weight);
 
                 result.SuccessfulCatches++;
-
-                // Update counters
                 result.RarityCounts[fish.Rarity]++;
 
                 if (!result.FishCounts.ContainsKey(fish.Name))
@@ -140,7 +156,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 result.FishCounts[fish.Name]++;
 
                 result.StarCounts[stars]++;
-
                 totalWeight += weight;
                 totalGold += gold;
 
@@ -156,7 +171,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 ConsumeUsesAfterCatch(mockBoosts);
             }
 
-            // Calculate statistics
             result.AverageWeight = result.SuccessfulCatches > 0
                 ? Math.Round(totalWeight / result.SuccessfulCatches, 2)
                 : 0;
@@ -187,21 +201,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // Get enabled fish types (with categories, needed for SpecificCategoryBoost matching)
             var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
                 return new Dictionary<int, FishProbability>();
             }
 
-            // Get shop items
             var shopItems = await context.FishingShopItems
                 .AsNoTracking()
                 .Include(s => s.TargetFishType)
                 .Where(i => shopItemIds.Contains(i.Id))
                 .ToListAsync();
 
-            // Create mock boosts
             var mockBoosts = shopItems.Select(item => new UserFishingBoost
             {
                 UserId = "calculation",
@@ -211,19 +222,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 RemainingUses = 999
             }).ToList();
 
-            // Calculate rarity weights (same logic as SelectRandomFish but for probability display)
             var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, mockBoosts);
             var totalRarityWeight = rarityWeights.Values.Sum();
-
-            // Calculate probabilities for each fish
             var probabilities = new Dictionary<int, FishProbability>();
 
             foreach (var fish in fishTypes)
             {
                 var rarityChance = rarityWeights[fish.Rarity] / totalRarityWeight;
                 var fishOfRarity = fishTypes.Where(f => f.Rarity == fish.Rarity).ToList();
-
-                // Calculate specific fish weight within rarity
                 var withinRarityChance = CalculateWithinRarityChance(fish, fishOfRarity, mockBoosts);
                 var overallChance = rarityChance * withinRarityChance;
 
@@ -248,6 +254,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
+            if (!fishTypes.Any())
+            {
+                return new RarityProbability();
+            }
+
             var shopItems = await context.FishingShopItems
                 .AsNoTracking()
                 .Include(s => s.TargetFishType)
@@ -266,15 +277,17 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var rarityWeights = CalculateRarityWeights(fishTypes, useBoostMode, boostModeMultiplier, mockBoosts);
             var totalWeight = rarityWeights.Values.Sum();
 
-            var result = new RarityProbability
+            var result = new RarityProbability();
+            var rarityOrder = new[]
             {
-                BoostModeActive = useBoostMode,
-                BoostModeMultiplier = boostModeMultiplier,
-                ItemsEquipped = shopItems.Select(i => i.Name).ToList(),
-                Probabilities = new Dictionary<FishRarity, double>()
+                FishRarity.Common,
+                FishRarity.Uncommon,
+                FishRarity.Rare,
+                FishRarity.Epic,
+                FishRarity.Legendary,
+                FishRarity.Mythical
             };
 
-            var rarityOrder = Enum.GetValues<FishRarity>().OrderBy(r => (int)r).ToList();
             foreach (var rarity in rarityOrder)
             {
                 result.Probabilities[rarity] = 0.0;
@@ -287,7 +300,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             double runningTotal = 0;
-
             for (int i = 0; i < presentRarities.Count; i++)
             {
                 var rarity = presentRarities[i];
@@ -309,110 +321,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return result;
         }
 
-        private Dictionary<FishRarity, double> CalculateRarityWeights(
-            List<FishType> fishTypes,
-            bool useBoostMode,
-            double boostModeMultiplier,
-            List<UserFishingBoost> mockBoosts)
-        {
-            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
-
-            if (useBoostMode)
-            {
-                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, boostModeMultiplier);
-            }
-
-            foreach (var boost in mockBoosts)
-            {
-                ApplyBoostsToRarityWeights(rarityWeights, fishTypes, boost);
-            }
-
-            return rarityWeights;
-        }
-
-        private void ApplyBoostsToRarityWeights(
-            Dictionary<FishRarity, double> rarityWeights,
-            List<FishType> fishTypes,
-            UserFishingBoost boost)
-        {
-            // Apply primary boost
-            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType, boost.ShopItem?.BoostAmount ?? 0, boost.ShopItem?.TargetFishTypeId);
-            // Apply secondary boost
-            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType2, boost.ShopItem?.BoostAmount2 ?? 0, boost.ShopItem?.TargetFishTypeId);
-            // Apply tertiary boost
-            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType3, boost.ShopItem?.BoostAmount3 ?? 0, boost.ShopItem?.TargetFishTypeId);
-        }
-
-        private void ApplySingleBoostToRarityWeights(
-            Dictionary<FishRarity, double> rarityWeights,
-            List<FishType> fishTypes,
-            FishingBoostType? boostType,
-            double boostAmount,
-            int? targetFishTypeId)
-        {
-            if (boostType == FishingBoostType.GeneralRarityBoost)
-            {
-                foreach (var rarity in rarityWeights.Keys.ToList())
-                {
-                    if (rarity != FishRarity.Common)
-                    {
-                        rarityWeights[rarity] *= (1.0 + boostAmount);
-                    }
-                }
-            }
-
-        }
-
-        private double CalculateWithinRarityChance(FishType targetFish, List<FishType> fishOfRarity, List<UserFishingBoost> mockBoosts)
-        {
-            var targetedBoosts = mockBoosts.Where(b =>
-                (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
-                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
-                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
-                b.ShopItem.TargetFishTypeId != null ||
-                (b.ShopItem?.BoostType == FishingBoostType.SpecificCategoryBoost ||
-                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
-                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificCategoryBoost) &&
-                !string.IsNullOrWhiteSpace(b.ShopItem?.TargetCategory)).ToList();
-
-            if (targetedBoosts.Any())
-            {
-                var weightedFish = new List<(FishType fish, double weight)>();
-                foreach (var f in fishOfRarity)
-                {
-                    var weight = 1.0;
-                    foreach (var boost in targetedBoosts)
-                    {
-                        weight *= FishingCalculations.GetTargetedBoostMultiplier(boost.ShopItem, f);
-                    }
-                    weightedFish.Add((f, weight));
-                }
-
-                var totalFishWeight = weightedFish.Sum(w => w.weight);
-                var fishWeight = weightedFish.First(w => w.fish.Id == targetFish.Id).weight;
-                return fishWeight / totalFishWeight;
-            }
-
-            return 1.0 / fishOfRarity.Count;
-        }
-
         public async Task<double> CalculateBaselineExpectedGold()
         {
-            _logger.LogInformation("[BASELINE] CalculateBaselineExpectedGold() CALLED - Pure baseline (no equipment)");
-
-            // Calculate expected gold per catch for a player with NO equipment
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
-                _logger.LogWarning("[BASELINE] No fish types found, returning 0");
                 return 0.0;
             }
 
             var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
-
             var totalRarityWeight = rarityWeights.Values.Sum();
             var starProbabilities = BuildStarProbabilities(0.0);
 
@@ -457,96 +377,1068 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            var result = Math.Round(expectedGold, 2);
-            _logger.LogInformation("[BASELINE] Pure baseline result: {Result}g/catch (NO equipment boosts)", result);
-            return result;
+            return Math.Round(expectedGold, 2);
         }
 
         public async Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26)
         {
-            _logger.LogInformation("[PROGRESSIVE] CalculateProgressiveBaselineGold() CALLED - targetWeeks: {TargetWeeks}", targetWeeks);
-
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             var fishTypes = await context.FishTypes.AsNoTracking().Where(f => f.Enabled).ToListAsync();
             if (!fishTypes.Any())
             {
-                _logger.LogWarning("[PROGRESSIVE] No fish types found, returning 0");
                 return 0.0;
             }
 
             var settings = await _fishingService.GetSettings() ?? new FishingSettings();
-            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
-                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
-                ? settings.LineSnapChance
-                : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
-                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
-                ? settings.RodSnapChance
-                : FishingSettings.DefaultRodSnapChance;
-            var reelJamChance = !double.IsNaN(settings.ReelJamChance) && !double.IsInfinity(settings.ReelJamChance) &&
-                settings.ReelJamChance >= 0 && settings.ReelJamChance <= 1
-                ? settings.ReelJamChance
-                : FishingSettings.DefaultReelJamChance;
-            var tackleBoxLostChance = !double.IsNaN(settings.TackleBoxLostChance) && !double.IsInfinity(settings.TackleBoxLostChance) &&
-                settings.TackleBoxLostChance >= 0 && settings.TackleBoxLostChance <= 1
-                ? settings.TackleBoxLostChance
-                : FishingSettings.DefaultTackleBoxLostChance;
-            var netBreakChance = !double.IsNaN(settings.NetBreakChance) && !double.IsInfinity(settings.NetBreakChance) &&
-                settings.NetBreakChance >= 0 && settings.NetBreakChance <= 1
-                ? settings.NetBreakChance
-                : FishingSettings.DefaultNetBreakChance;
+            var lineSnapChance = Math.Clamp(settings.LineSnapChance, 0.0, 1.0);
+            var rodSnapChance = Math.Clamp(settings.RodSnapChance, 0.0, 1.0);
+            var reelJamChance = Math.Clamp(settings.ReelJamChance, 0.0, 1.0);
+            var tackleBoxLostChance = Math.Clamp(settings.TackleBoxLostChance, 0.0, 1.0);
+            var netBreakChance = Math.Clamp(settings.NetBreakChance, 0.0, 1.0);
+            var repairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
+
             var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance) * (1.0 - reelJamChance) * (1.0 - tackleBoxLostChance) * (1.0 - netBreakChance);
 
-            var shopItemCosts = await context.FishingShopItems
-                .AsNoTracking()
-                .ToDictionaryAsync(i => i.Name, i => i.Cost, StringComparer.OrdinalIgnoreCase);
-
+            var shopItems = await context.FishingShopItems.AsNoTracking().ToListAsync();
             var tiers = BuildProgressionTiers(targetWeeks);
-
             var totalWeeks = tiers.Sum(t => t.Weeks);
             double weightedGold = 0.0;
 
-            _logger.LogInformation("[PROGRESSIVE] Tier breakdown:");
             foreach (var tier in tiers)
             {
                 var grossTierGold = CalculateExpectedGoldWithBoosts(fishTypes, tier.RarityBoost, tier.StarBoost, tier.WeightBoost);
-                var snapReplacementCost = CalculateExpectedSnapReplacementCost(
-                    tier,
-                    shopItemCosts,
-                    lineSnapChance,
-                    rodSnapChance);
-                var tierGold = Math.Max(0.0, (grossTierGold * successfulAttemptChance) - snapReplacementCost);
-                var tierWeight = tier.Weeks / (double)totalWeeks;
-                var contribution = tierGold * tierWeight;
-                weightedGold += contribution;
+                var tierItems = ResolveTierItems(tier.Name, shopItems);
 
-                _logger.LogInformation("[PROGRESSIVE]   {Name}: {Weeks}wk, gross={Gross}g, success={Success:P2}, snapSink={Sink}g => net={Net}g - {Weight:P1} = {Contribution}g",
-                    tier.Name,
-                    tier.Weeks,
-                    Math.Round(grossTierGold, 2),
-                    successfulAttemptChance,
-                    Math.Round(snapReplacementCost, 2),
-                    Math.Round(tierGold, 2),
-                    tierWeight,
-                    Math.Round(contribution, 2));
+                var accidentSink = CalculateExpectedAccidentSink(
+                    tierItems,
+                    lineSnapChance,
+                    rodSnapChance,
+                    reelJamChance,
+                    tackleBoxLostChance,
+                    netBreakChance);
+
+                var upkeepSink = CalculateExpectedDurabilityUpkeep(tierItems, repairCostMultiplier);
+
+                var tierGold = Math.Max(0.0, (grossTierGold * successfulAttemptChance) - accidentSink - upkeepSink);
+                var tierWeight = totalWeeks > 0 ? tier.Weeks / (double)totalWeeks : 0;
+                weightedGold += tierGold * tierWeight;
             }
 
-            var result = Math.Round(weightedGold, 2);
-            _logger.LogInformation("[PROGRESSIVE] Progressive baseline result: {Result}g/attempt (WITH equipment progression)", result);
+            return Math.Round(weightedGold, 2);
+        }
+
+        public async Task<ProjectedEconomyModel> CalculateProjectedEconomy()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
+            var shopItems = await context.FishingShopItems.AsNoTracking().ToListAsync();
+            var settings = await _fishingService.GetSettings() ?? new FishingSettings();
+
+            var lineSnap = Math.Clamp(settings.LineSnapChance, 0.0, 1.0);
+            var rodSnap = Math.Clamp(settings.RodSnapChance, 0.0, 1.0);
+            var reelJam = Math.Clamp(settings.ReelJamChance, 0.0, 1.0);
+            var tackleLost = Math.Clamp(settings.TackleBoxLostChance, 0.0, 1.0);
+            var netBreak = Math.Clamp(settings.NetBreakChance, 0.0, 1.0);
+            var repairMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
+
+            var successRate = (1.0 - rodSnap) * (1.0 - lineSnap) * (1.0 - reelJam) * (1.0 - tackleLost) * (1.0 - netBreak);
+            var baselineGrossGoldPerCatch = await CalculateBaselineExpectedGold();
+            var baselineGrossGoldPerAttempt = Math.Round(baselineGrossGoldPerCatch * successRate, 2);
+
+            var model = new ProjectedEconomyModel
+            {
+                BaselineGrossGoldPerCatch = baselineGrossGoldPerCatch,
+                BaselineGrossGoldPerAttempt = baselineGrossGoldPerAttempt,
+                BaselineSuccessRatePercent = Math.Round(successRate * 100.0, 2)
+            };
+
+            var tierNames = new[] { "Bare Hands", "Entry", "Mid", "High", "Top" };
+            foreach (var tierName in tierNames)
+            {
+                var items = ResolveTierItems(tierName, shopItems);
+                var rarityBoost = 0.0;
+                var starBoost = 0.0;
+                var weightBoost = 0.0;
+
+                foreach (var item in items)
+                {
+                    AccumulateBoosts(item, ref rarityBoost, ref starBoost, ref weightBoost);
+                }
+
+                var grossCatch = fishTypes.Any()
+                    ? CalculateExpectedGoldWithBoosts(fishTypes, rarityBoost, starBoost, weightBoost)
+                    : baselineGrossGoldPerCatch;
+
+                var grossAttempt = Math.Round(grossCatch * successRate, 2);
+                var upkeep = Math.Round(CalculateExpectedDurabilityUpkeep(items, repairMultiplier), 2);
+                var accidentSink = Math.Round(CalculateExpectedAccidentSink(items, lineSnap, rodSnap, reelJam, tackleLost, netBreak), 2);
+                var consumableSink = Math.Round(CalculateExpectedConsumableSink(items), 2);
+                var netAttempt = Math.Round(grossAttempt - upkeep - accidentSink - consumableSink, 2);
+                var margin = grossAttempt > 0 ? Math.Round((netAttempt / grossAttempt) * 100.0, 1) : 0;
+
+                model.TierEconomics.Add(new TierProjectedEconomics
+                {
+                    TierName = tierName,
+                    TotalLoadoutCost = items.Sum(i => i.Cost),
+                    SuccessRatePercent = Math.Round(successRate * 100.0, 2),
+                    GrossGoldPerCatch = Math.Round(grossCatch, 2),
+                    GrossGoldPerAttempt = grossAttempt,
+                    DurabilityUpkeepPerAttempt = upkeep,
+                    AccidentSinkPerAttempt = accidentSink,
+                    ConsumableSinkPerAttempt = consumableSink,
+                    NetGoldPerAttempt = netAttempt,
+                    ProfitMarginPercent = margin,
+                    EquippedItems = items.Select(i => i.Name).ToList()
+                });
+            }
+
+            return model;
+        }
+
+        public async Task<BalanceSimulationResult> SimulateScenario(BalanceSimulationScenario scenario)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
+            var shopItems = await context.FishingShopItems.AsNoTracking().ToListAsync();
+
+            var lineSnap = Math.Clamp(scenario.LineSnapChance, 0.0, 1.0);
+            var rodSnap = Math.Clamp(scenario.RodSnapChance, 0.0, 1.0);
+            var reelJam = Math.Clamp(scenario.ReelJamChance, 0.0, 1.0);
+            var tackleLost = Math.Clamp(scenario.TackleBoxLostChance, 0.0, 1.0);
+            var netBreak = Math.Clamp(scenario.NetBreakChance, 0.0, 1.0);
+            var repairMultiplier = Math.Max(0.0, scenario.RepairCostMultiplier);
+
+            var successRate = (1.0 - rodSnap) * (1.0 - lineSnap) * (1.0 - reelJam) * (1.0 - tackleLost) * (1.0 - netBreak);
+            var combinedAccidentRate = 1.0 - successRate;
+
+            List<FishingShopItem> equippedItems;
+            if (string.Equals(scenario.SelectedLoadoutTier, "Custom", StringComparison.OrdinalIgnoreCase))
+            {
+                equippedItems = shopItems.Where(i => scenario.CustomShopItemIds.Contains(i.Id)).ToList();
+            }
+            else
+            {
+                equippedItems = ResolveTierItems(scenario.SelectedLoadoutTier, shopItems);
+            }
+
+            var rarityBoost = 0.0;
+            var starBoost = 0.0;
+            var weightBoost = 0.0;
+
+            foreach (var item in equippedItems)
+            {
+                AccumulateBoosts(item, ref rarityBoost, ref starBoost, ref weightBoost);
+            }
+
+            var grossGoldPerCatch = fishTypes.Any()
+                ? CalculateExpectedGoldWithBoosts(fishTypes, rarityBoost, starBoost, weightBoost)
+                : 0.0;
+
+            var grossGoldPerAttempt = grossGoldPerCatch * successRate;
+            var durabilityUpkeep = CalculateExpectedDurabilityUpkeep(equippedItems, repairMultiplier);
+            var accidentSink = CalculateExpectedAccidentSink(equippedItems, lineSnap, rodSnap, reelJam, tackleLost, netBreak);
+            var consumableSink = CalculateExpectedConsumableSink(equippedItems);
+
+            var netGoldPerAttempt = Math.Round(grossGoldPerAttempt - durabilityUpkeep - accidentSink - consumableSink, 2);
+            var attemptsPerSession = Math.Max(1.0, scenario.AttemptsPerSession);
+            var streamsPerWeek = Math.Max(0.1, scenario.StreamsPerWeek);
+            var netGoldPerSession = Math.Round(netGoldPerAttempt * attemptsPerSession, 2);
+            var netGoldPerWeek = Math.Round(netGoldPerSession * streamsPerWeek, 2);
+
+            var margin = grossGoldPerAttempt > 0
+                ? Math.Round((netGoldPerAttempt / grossGoldPerAttempt) * 100.0, 1)
+                : 0.0;
+
+            var topGearItems = ResolveTierItems("Top", shopItems);
+            var topGearCost = topGearItems.Sum(i => i.Cost);
+
+            var sessionsToAfford = (netGoldPerSession > 0 && topGearCost > 0)
+                ? Math.Round(topGearCost / netGoldPerSession, 1)
+                : 999.0;
+            var weeksToAfford = (netGoldPerWeek > 0 && topGearCost > 0)
+                ? Math.Round(topGearCost / netGoldPerWeek, 1)
+                : 999.0;
+
+            string financialStatus;
+            if (netGoldPerAttempt <= 0)
+                financialStatus = "Deflationary Loss (Players lose gold)";
+            else if (margin < 25.0)
+                financialStatus = "Tight Margin (High upkeep / risk)";
+            else if (margin <= 75.0)
+                financialStatus = "Sustainable Growth (Balanced progression)";
+            else
+                financialStatus = "Rapid Accumulation (Very generous)";
+
+            return new BalanceSimulationResult
+            {
+                SuccessRatePercent = Math.Round(successRate * 100.0, 2),
+                CombinedAccidentRatePercent = Math.Round(combinedAccidentRate * 100.0, 2),
+                GrossGoldPerCatch = Math.Round(grossGoldPerCatch, 2),
+                GrossGoldPerAttempt = Math.Round(grossGoldPerAttempt, 2),
+                DurabilityUpkeepPerAttempt = Math.Round(durabilityUpkeep, 2),
+                AccidentSinkPerAttempt = Math.Round(accidentSink, 2),
+                ConsumableSinkPerAttempt = Math.Round(consumableSink, 2),
+                NetGoldPerAttempt = netGoldPerAttempt,
+                NetGoldPerSession = netGoldPerSession,
+                NetGoldPerWeek = netGoldPerWeek,
+                ProfitMarginPercent = margin,
+                TotalLoadoutCost = equippedItems.Sum(i => i.Cost),
+                SessionsToAffordTopGear = sessionsToAfford,
+                WeeksToAffordTopGear = weeksToAfford,
+                FinancialStatus = financialStatus,
+                EquippedItemNames = equippedItems.Select(i => i.Name).ToList()
+            };
+        }
+
+        public async Task<List<ItemEconomyAnalysis>> CalculateItemEconomyAnalysis()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var shopItems = await context.FishingShopItems
+                .AsNoTracking()
+                .Include(i => i.TargetFishType)
+                .Where(i => i.Enabled)
+                .ToListAsync();
+
+            var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
+            var settings = await _fishingService.GetSettings() ?? new FishingSettings();
+
+            var lineSnap = Math.Clamp(settings.LineSnapChance, 0.0, 1.0);
+            var rodSnap = Math.Clamp(settings.RodSnapChance, 0.0, 1.0);
+            var reelJam = Math.Clamp(settings.ReelJamChance, 0.0, 1.0);
+            var tackleLost = Math.Clamp(settings.TackleBoxLostChance, 0.0, 1.0);
+            var netBreak = Math.Clamp(settings.NetBreakChance, 0.0, 1.0);
+            var repairMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
+
+            var successRate = (1.0 - rodSnap) * (1.0 - lineSnap) * (1.0 - reelJam) * (1.0 - tackleLost) * (1.0 - netBreak);
+            var baselineGrossGoldPerCatch = await CalculateBaselineExpectedGold();
+            var baselineGrossGoldPerAttempt = baselineGrossGoldPerCatch * successRate;
+
+            var userGolds = await context.FishingGolds.AsNoTracking().Select(g => g.TotalGold).ToListAsync();
+            var totalUsers = userGolds.Count;
+
+            var analysisList = new List<ItemEconomyAnalysis>();
+
+            foreach (var item in shopItems)
+            {
+                var hasDurability = item.MaxDurability.HasValue && item.MaxDurability.Value > 0;
+                var isUnbreakable = !hasDurability && !item.IsConsumable && item.DisableBreaking;
+
+                // Durability Upkeep
+                double durabilityUpkeep = 0.0;
+                if (hasDurability)
+                {
+                    var loss = Math.Max(0.0, item.DurabilityLossPerUse ?? 1.0);
+                    var wearRatio = loss / item.MaxDurability!.Value;
+                    var effectiveMult = repairMultiplier > 0 ? repairMultiplier : 1.0;
+                    durabilityUpkeep = item.Cost * wearRatio * effectiveMult;
+                }
+
+                // Consumable per use cost
+                double consumableCost = 0.0;
+                if (item.IsConsumable && item.MaxUses.HasValue && item.MaxUses.Value > 0)
+                {
+                    consumableCost = (double)item.Cost / item.MaxUses.Value;
+                }
+
+                // Accident Risk
+                double accidentRisk = 0.0;
+                if (!item.DisableBreaking)
+                {
+                    var perUseCostForAccident = item.IsConsumable && item.MaxUses.HasValue && item.MaxUses.Value > 0
+                        ? (double)item.Cost / item.MaxUses.Value
+                        : item.Cost;
+
+                    accidentRisk = item.EquipmentSlot switch
+                    {
+                        EquipmentSlot.Rod => rodSnap * item.Cost,
+                        EquipmentSlot.Line or EquipmentSlot.Hook => (rodSnap + ((1.0 - rodSnap) * lineSnap)) * item.Cost,
+                        EquipmentSlot.Reel => reelJam * item.Cost,
+                        EquipmentSlot.TackleBox => tackleLost * item.Cost,
+                        EquipmentSlot.Net => netBreak * item.Cost,
+                        EquipmentSlot.Bait or EquipmentSlot.Lure => (rodSnap + ((1.0 - rodSnap) * lineSnap)) * perUseCostForAccident,
+                        _ => 0.0
+                    };
+                }
+
+                var totalOperatingCost = durabilityUpkeep + accidentRisk + consumableCost;
+
+                // Expected Gross Boost
+                var rarityBoost = 0.0;
+                var starBoost = 0.0;
+                var weightBoost = 0.0;
+                AccumulateBoosts(item, ref rarityBoost, ref starBoost, ref weightBoost);
+
+                var grossCatchWithItem = fishTypes.Any()
+                    ? CalculateExpectedGoldWithBoosts(fishTypes, rarityBoost, starBoost, weightBoost)
+                    : baselineGrossGoldPerCatch;
+                var grossAttemptWithItem = grossCatchWithItem * successRate;
+                var grossBoost = Math.Max(0.0, grossAttemptWithItem - baselineGrossGoldPerAttempt);
+
+                var netValue = grossBoost - totalOperatingCost;
+                double? paybackAttempts = null;
+                if (netValue > 0 && item.Cost > 0)
+                {
+                    paybackAttempts = Math.Round(item.Cost / netValue, 0);
+                }
+
+                // Rating
+                string rating;
+                if (item.IsConsumable)
+                {
+                    var ratio = consumableCost > 0 && baselineGrossGoldPerCatch > 0
+                        ? consumableCost / baselineGrossGoldPerCatch
+                        : 1.0;
+                    rating = ratio switch
+                    {
+                        <= 0.5 => "Great Value",
+                        <= 1.0 => "Good Value",
+                        <= 2.0 => "Fair Trade",
+                        _ => "Consumable Sink"
+                    };
+                }
+                else
+                {
+                    if (netValue > 0 && paybackAttempts.HasValue && paybackAttempts.Value <= 500)
+                        rating = "Profitable Investment";
+                    else if (netValue > 0)
+                        rating = "Fair Upgrade";
+                    else
+                        rating = "Luxury Sink";
+                }
+
+                // Affordability
+                var affordCount = userGolds.Count(g => g >= item.Cost);
+                var affordPct = totalUsers > 0 ? Math.Round((double)affordCount / totalUsers * 100.0, 1) : 0;
+                var effGoldPerAttempt = baselineGrossGoldPerAttempt > 0 ? baselineGrossGoldPerAttempt : 10.0;
+                var attemptsNeeded = Math.Round(item.Cost / effGoldPerAttempt, 0);
+
+                var analysis = new ItemEconomyAnalysis
+                {
+                    ShopItemId = item.Id,
+                    ItemName = item.Name,
+                    EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
+                    Cost = item.Cost,
+                    IsConsumable = item.IsConsumable,
+                    MaxUses = item.MaxUses,
+                    MaxDurability = item.MaxDurability,
+                    DurabilityLossPerUse = item.DurabilityLossPerUse ?? 1.0,
+                    DisableBreaking = item.DisableBreaking,
+                    IsUnbreakable = isUnbreakable,
+                    DurabilityUpkeepPerAttempt = Math.Round(durabilityUpkeep, 2),
+                    AccidentRiskPerAttempt = Math.Round(accidentRisk, 2),
+                    TotalOperatingCostPerAttempt = Math.Round(totalOperatingCost, 2),
+                    ExpectedGrossGoldBoostPerAttempt = Math.Round(grossBoost, 2),
+                    NetValuePerAttempt = Math.Round(netValue, 2),
+                    PaybackAttempts = paybackAttempts,
+                    EconomicRating = rating,
+                    PlayersWhoCanAfford = affordCount,
+                    PercentageWhoCanAfford = affordPct,
+                    AttemptsNeededToBuy = attemptsNeeded,
+                    SessionsToAffordCasual = Math.Round(attemptsNeeded / 15.0, 1),
+                    SessionsToAffordActive = Math.Round(attemptsNeeded / 30.0, 1),
+                    SessionsToAffordHardcore = Math.Round(attemptsNeeded / 100.0, 1),
+                    WeeksToAffordActive = Math.Round((attemptsNeeded / 30.0) / 3.0, 1)
+                };
+
+                PopulateItemEffectPreview(analysis, item, fishTypes, settings);
+                analysisList.Add(analysis);
+            }
+
+            return analysisList;
+        }
+
+        public async Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var report = new FishingBalanceReport
+            {
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            var settings = await _fishingService.GetSettings() ?? new FishingSettings();
+            var lineSnapChance = Math.Clamp(settings.LineSnapChance, 0.0, 1.0);
+            var rodSnapChance = Math.Clamp(settings.RodSnapChance, 0.0, 1.0);
+            var reelJamChance = Math.Clamp(settings.ReelJamChance, 0.0, 1.0);
+            var tackleBoxLostChance = Math.Clamp(settings.TackleBoxLostChance, 0.0, 1.0);
+            var netBreakChance = Math.Clamp(settings.NetBreakChance, 0.0, 1.0);
+            var repairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
+
+            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance) * (1.0 - reelJamChance) * (1.0 - tackleBoxLostChance) * (1.0 - netBreakChance);
+            var combinedAccidentChance = 1.0 - successfulAttemptChance;
+
+            report.SettingsSnapshot = new BalanceSettingsSnapshot
+            {
+                LineSnapChance = lineSnapChance,
+                RodSnapChance = rodSnapChance,
+                ReelJamChance = reelJamChance,
+                TackleBoxLostChance = tackleBoxLostChance,
+                NetBreakChance = netBreakChance,
+                RepairCostMultiplier = repairCostMultiplier,
+                BoostMode = settings.BoostMode,
+                BoostModeRarityMultiplier = settings.BoostModeRarityMultiplier,
+                TheoreticalSuccessRatePercent = Math.Round(successfulAttemptChance * 100.0, 2),
+                CombinedAccidentRatePercent = Math.Round(combinedAccidentChance * 100.0, 2)
+            };
+
+            // Calculate Projected Economics
+            report.ProjectedEconomy = await CalculateProjectedEconomy();
+
+            // Calculate Item Economics & ROI
+            report.ItemAnalysis = await CalculateItemEconomyAnalysis();
+
+            var topGearItems = report.ProjectedEconomy.TierEconomics
+                .FirstOrDefault(t => t.TierName == "Top");
+            report.TopGearTotalCost = topGearItems?.TotalLoadoutCost ?? 0;
+
+            // Query Catches in date range
+            var catchesQuery = context.FishCatches.Include(c => c.FishType).AsQueryable();
+            if (startDate.HasValue) catchesQuery = catchesQuery.Where(c => c.CaughtAt >= startDate.Value);
+            if (endDate.HasValue) catchesQuery = catchesQuery.Where(c => c.CaughtAt <= endDate.Value);
+            var catches = await catchesQuery.ToListAsync();
+
+            // Query Snap Events in date range
+            var snapQuery = context.FishingSnapEvents.AsQueryable();
+            if (startDate.HasValue) snapQuery = snapQuery.Where(s => s.SnappedAt >= startDate.Value);
+            if (endDate.HasValue) snapQuery = snapQuery.Where(s => s.SnappedAt <= endDate.Value);
+            var snapEvents = await snapQuery.ToListAsync();
+
+            // Combine into unified attempts
+            var attemptSamples = catches
+                .Select(c => new { c.UserId, Timestamp = c.CaughtAt, IsCatch = true })
+                .Concat(snapEvents.Select(s => new { s.UserId, Timestamp = s.SnappedAt, IsCatch = false }))
+                .OrderBy(a => a.Timestamp)
+                .ToList();
+
+            var observedAttempts = attemptSamples.Count;
+            var hasObservedData = observedAttempts > 0;
+            var hasSnapData = snapEvents.Count > 0;
+
+            var real = new RealEconomyTelemetry
+            {
+                TotalCatches = catches.Count,
+                UniqueFishers = attemptSamples.Any()
+                    ? attemptSamples.Select(a => a.UserId).Distinct().Count()
+                    : catches.Select(c => c.UserId).Distinct().Count(),
+                TotalAttemptsRecorded = hasSnapData ? observedAttempts : (successfulAttemptChance > 0 ? (int)Math.Round(catches.Count / successfulAttemptChance) : catches.Count),
+                AttemptDataSource = hasSnapData
+                    ? "Observed telemetry (catches + recorded accidents)"
+                    : "Estimated from catch rate model (no accident telemetry in range)"
+            };
+
+            // Accident breakdown
+            real.TotalAccidentsRecorded = snapEvents.Count;
+            real.RodSnapsRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "Rod", StringComparison.OrdinalIgnoreCase));
+            real.LineSnapsRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "Line", StringComparison.OrdinalIgnoreCase));
+            real.ReelJamsRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "Reel", StringComparison.OrdinalIgnoreCase));
+            real.TackleBoxLossesRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "TackleBox", StringComparison.OrdinalIgnoreCase));
+            real.NetBreaksRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "Net", StringComparison.OrdinalIgnoreCase));
+            real.TotalGoldLostToAccidents = snapEvents.Sum(s => s.TotalGoldLost);
+
+            if (real.TotalAttemptsRecorded > 0)
+            {
+                real.AverageAccidentLossPerAttempt = (double)real.TotalGoldLostToAccidents / real.TotalAttemptsRecorded;
+                real.ObservedSuccessRatePercent = Math.Round((double)real.TotalCatches / real.TotalAttemptsRecorded * 100.0, 2);
+            }
+            else
+            {
+                real.ObservedSuccessRatePercent = Math.Round(successfulAttemptChance * 100.0, 2);
+            }
+
+            // Durability upkeep calculation from active users' equipped loadouts
+            var activeUserIds = attemptSamples.Select(a => a.UserId).Distinct().ToList();
+            if (!activeUserIds.Any() && catches.Any())
+            {
+                activeUserIds = catches.Select(c => c.UserId).Distinct().ToList();
+            }
+
+            double realDurabilityUpkeep = 0.0;
+            var midTierUpkeep = report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Mid")?.DurabilityUpkeepPerAttempt ?? 1.5;
+
+            if (activeUserIds.Any() && real.TotalAttemptsRecorded > 0)
+            {
+                var activeUserEquippedBoosts = await context.UserFishingBoosts
+                    .AsNoTracking()
+                    .Include(b => b.ShopItem)
+                    .Where(b => activeUserIds.Contains(b.UserId) && b.IsEquipped && b.ShopItem != null)
+                    .ToListAsync();
+
+                // Group by user and resolve equipped slot (in case of duplicate slot items, use most recent)
+                var userEquippedGear = activeUserEquippedBoosts
+                    .GroupBy(b => b.UserId)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.GroupBy(b => b.ShopItem?.EquipmentSlot)
+                              .Select(slotGroup => slotGroup.OrderByDescending(b => b.PurchasedAt).ThenByDescending(b => b.Id).First())
+                              .ToList());
+
+                // Group attempts by user
+                var attemptsByUser = attemptSamples
+                    .GroupBy(a => a.UserId)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                if (!attemptsByUser.Any() && catches.Any())
+                {
+                    attemptsByUser = catches
+                        .GroupBy(c => c.UserId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                }
+
+                double totalWeightedUpkeep = 0.0;
+                int totalAttemptsCounted = 0;
+
+                foreach (var (userId, userAttempts) in attemptsByUser)
+                {
+                    double userUpkeepPerAttempt = 0.0;
+                    if (userEquippedGear.TryGetValue(userId, out var userBoosts))
+                    {
+                        foreach (var boost in userBoosts)
+                        {
+                            var shopItem = boost.ShopItem;
+                            if (shopItem?.MaxDurability.HasValue == true && shopItem.MaxDurability.Value > 0)
+                            {
+                                var lossPerUse = Math.Max(0.0, shopItem.DurabilityLossPerUse ?? 1.0);
+                                var wearRatio = lossPerUse / shopItem.MaxDurability.Value;
+                                var effectiveMultiplier = repairCostMultiplier > 0 ? repairCostMultiplier : 1.0;
+                                userUpkeepPerAttempt += shopItem.Cost * wearRatio * effectiveMultiplier;
+                            }
+                        }
+                    }
+                    totalWeightedUpkeep += userUpkeepPerAttempt * userAttempts;
+                    totalAttemptsCounted += userAttempts;
+                }
+
+                if (totalAttemptsCounted > 0)
+                {
+                    realDurabilityUpkeep = totalWeightedUpkeep / totalAttemptsCounted;
+                }
+            }
+
+            // Fallback to mid-tier projection if no user gear was found or no telemetry in range
+            if (realDurabilityUpkeep <= 0.0 && (!activeUserIds.Any() || real.TotalAttemptsRecorded == 0))
+            {
+                realDurabilityUpkeep = midTierUpkeep;
+            }
+
+            real.AverageDurabilityUpkeepPerAttempt = Math.Round(realDurabilityUpkeep, 2);
+            real.EstimatedDurabilityUpkeepIncurred = Math.Round(realDurabilityUpkeep * real.TotalAttemptsRecorded, 2);
+
+            // Gold Metrics
+            if (catches.Any())
+            {
+                var goldValues = catches.Select(c => c.GoldEarned).OrderBy(g => g).ToList();
+                real.TotalGrossGoldEarned = goldValues.Sum();
+                real.AverageGoldPerCatch = Math.Round((double)real.TotalGrossGoldEarned / catches.Count, 2);
+                real.MedianGoldPerCatch = goldValues.Count % 2 == 0
+                    ? (goldValues[goldValues.Count / 2 - 1] + goldValues[goldValues.Count / 2]) / 2.0
+                    : goldValues[goldValues.Count / 2];
+
+                var grossGoldPerAttempt = (real.ObservedSuccessRatePercent / 100.0) * real.AverageGoldPerCatch;
+                real.NetGoldPerAttempt = Math.Round(grossGoldPerAttempt - real.AverageAccidentLossPerAttempt - real.AverageDurabilityUpkeepPerAttempt, 2);
+                real.NetTotalGoldFlow = Math.Round((double)real.TotalGrossGoldEarned - (double)real.TotalGoldLostToAccidents - real.EstimatedDurabilityUpkeepIncurred, 2);
+            }
+            else
+            {
+                real.NetGoldPerAttempt = Math.Round(report.ProjectedEconomy.BaselineGrossGoldPerAttempt - (report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Mid")?.AccidentSinkPerAttempt ?? 0.0), 2);
+                real.NetTotalGoldFlow = 0;
+            }
+
+            // Engagement percentiles
+            var userSessionAverages = CalculateUserAverageCatchesPerSession(
+                attemptSamples.Select(a => (a.UserId, a.Timestamp)),
+                SessionGap,
+                minTotalCatches: 3,
+                minSessions: 1);
+
+            if (!userSessionAverages.Any())
+            {
+                userSessionAverages = CalculateUserAverageCatchesPerSession(
+                    attemptSamples.Select(a => (a.UserId, a.Timestamp)),
+                    SessionGap);
+            }
+
+            userSessionAverages = userSessionAverages.OrderBy(v => v).ToList();
+
+            double casual = 15.0;
+            double active = 30.0;
+            double hardcore = 100.0;
+
+            if (userSessionAverages.Count > 0)
+            {
+                var p25Index = Math.Max(0, (int)Math.Ceiling(userSessionAverages.Count * 0.25) - 1);
+                casual = Math.Max(userSessionAverages[p25Index], 1.0);
+
+                var p50Index = userSessionAverages.Count / 2;
+                active = userSessionAverages.Count % 2 == 0
+                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
+                    : userSessionAverages[p50Index];
+
+                var p75Index = Math.Min(userSessionAverages.Count - 1, (int)Math.Ceiling(userSessionAverages.Count * 0.75) - 1);
+                hardcore = userSessionAverages[p75Index];
+            }
+
+            var (streamsPerWeek, _, analysisWindowDays) = CalculateStreamsPerWeekFromAttempts(
+                attemptSamples.Select(a => a.Timestamp),
+                startDate,
+                endDate);
+            var analysisWeeks = Math.Max(analysisWindowDays / 7.0, 1.0 / 7.0);
+
+            real.CasualAttemptsPerSession = Math.Round(casual, 1);
+            real.ActiveAttemptsPerSession = Math.Round(active, 1);
+            real.HardcoreAttemptsPerSession = Math.Round(hardcore, 1);
+            real.StreamsPerWeek = streamsPerWeek > 0 ? streamsPerWeek : 3.0;
+            real.AttemptsPerWeek = Math.Round(real.TotalAttemptsRecorded / analysisWeeks, 1);
+            real.CatchesPerWeek = Math.Round(real.TotalCatches / analysisWeeks, 1);
+
+            report.RealEconomy = real;
+
+            // Variance Calculation
+            if (catches.Any())
+            {
+                var baselineCatch = report.ProjectedEconomy.BaselineGrossGoldPerCatch;
+                report.Variance = new EconomyVarianceSummary
+                {
+                    GrossGoldCatchVariancePercent = baselineCatch > 0 ? Math.Round(((real.AverageGoldPerCatch / baselineCatch) - 1.0) * 100.0, 1) : 0,
+                    SuccessRateVariancePercent = Math.Round(real.ObservedSuccessRatePercent - report.SettingsSnapshot.TheoreticalSuccessRatePercent, 1),
+                    AccidentRateVariancePercent = Math.Round((100.0 - real.ObservedSuccessRatePercent) - report.SettingsSnapshot.CombinedAccidentRatePercent, 1),
+                    NetGoldAttemptVariancePercent = report.ProjectedEconomy.BaselineGrossGoldPerAttempt > 0
+                        ? Math.Round(((real.NetGoldPerAttempt / report.ProjectedEconomy.BaselineGrossGoldPerAttempt) - 1.0) * 100.0, 1)
+                        : 0,
+                    SummaryNotes = real.ObservedSuccessRatePercent >= report.SettingsSnapshot.TheoreticalSuccessRatePercent - 2.0
+                        ? "Real catch performance aligns closely with theoretical probability models."
+                        : "Observed success rate is lower than expected; check accident logs and player equipment usage."
+                };
+            }
+
+            // Progression Milestones
+            var projectionWindows = new[]
+            {
+                (Weeks: 12, Label: "3 Months (12 weeks)"),
+                (Weeks: 26, Label: "6 Months (26 weeks)"),
+                (Weeks: 52, Label: "1 Year (52 weeks)")
+            };
+
+            var effGold = Math.Max(0.0, real.NetGoldPerAttempt);
+            var effCatchRate = real.ObservedSuccessRatePercent / 100.0;
+
+            foreach (var window in projectionWindows)
+            {
+                var milestone = new LoadoutProgressionMilestone
+                {
+                    Weeks = window.Weeks,
+                    Label = window.Label
+                };
+
+                foreach (var tierProfile in new[]
+                {
+                    (Name: "Casual", Attempts: real.CasualAttemptsPerSession),
+                    (Name: "Active", Attempts: real.ActiveAttemptsPerSession),
+                    (Name: "Hardcore", Attempts: real.HardcoreAttemptsPerSession)
+                })
+                {
+                    var attemptsPerWeek = tierProfile.Attempts * real.StreamsPerWeek;
+                    var projectedAttempts = attemptsPerWeek * window.Weeks;
+                    var projectedCatches = projectedAttempts * effCatchRate;
+                    var projectedGrossGold = projectedCatches * (real.AverageGoldPerCatch > 0 ? real.AverageGoldPerCatch : report.ProjectedEconomy.BaselineGrossGoldPerCatch);
+                    var projectedAccidentSink = projectedAttempts * real.AverageAccidentLossPerAttempt;
+                    var projectedUpkeepSink = projectedAttempts * real.AverageDurabilityUpkeepPerAttempt;
+                    var projectedNetGold = Math.Max(0, projectedGrossGold - projectedAccidentSink - projectedUpkeepSink);
+                    var maxGearProgress = report.TopGearTotalCost > 0
+                        ? Math.Min(999.0, (projectedNetGold / report.TopGearTotalCost) * 100.0)
+                        : 0;
+
+                    milestone.Tiers.Add(new LoadoutProgressionTier
+                    {
+                        TierName = tierProfile.Name,
+                        AttemptsPerSession = Math.Round(tierProfile.Attempts, 1),
+                        StreamsPerWeek = real.StreamsPerWeek,
+                        AttemptsPerWeek = Math.Round(attemptsPerWeek, 1),
+                        ProjectedAttempts = Math.Round(projectedAttempts, 0),
+                        ProjectedCatches = Math.Round(projectedCatches, 0),
+                        ProjectedGrossGold = Math.Round(projectedGrossGold, 0),
+                        ProjectedAccidentSink = Math.Round(projectedAccidentSink, 0),
+                        ProjectedUpkeepSink = Math.Round(projectedUpkeepSink, 0),
+                        ProjectedNetGold = Math.Round(projectedNetGold, 0),
+                        MaxGearProgressPercent = Math.Round(maxGearProgress, 1)
+                    });
+                }
+
+                report.ProgressionMilestones.Add(milestone);
+            }
+
+            // Automated Diagnostics & Health Checks
+            EvaluateHealthDiagnostics(report);
+
+            return report;
+        }
+
+        private static void EvaluateHealthDiagnostics(FishingBalanceReport report)
+        {
+            var diagnostics = new List<BalanceHealthDiagnostic>();
+            var recommendations = new List<string>();
+
+            // 1. Deflation check
+            if (report.RealEconomy.NetGoldPerAttempt <= 0)
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Error,
+                    Title = "Deflationary Death Spiral Detected",
+                    Message = $"Net gold per attempt is {report.RealEconomy.NetGoldPerAttempt:F2}g. On average, players lose gold by fishing.",
+                    RemediationAdvice = "Decrease accident failure chances (Line/Rod snaps, Reel jams) or lower repair cost multipliers."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"🚨 {diag.Title}: {diag.Message} {diag.RemediationAdvice}");
+            }
+
+            // 2. High accident failure rate
+            if (report.SettingsSnapshot.CombinedAccidentRatePercent > 7.0)
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Warning,
+                    Title = "High Failure Rate",
+                    Message = $"Combined accident probability is {report.SettingsSnapshot.CombinedAccidentRatePercent:F1}%. More than 1 in 14 casts result in lost gear.",
+                    RemediationAdvice = "Consider lowering line snap (currently {report.SettingsSnapshot.LineSnapChance:P1}) or reel jam chance to reduce player frustration."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"⚠️ {diag.Title}: {diag.Message}");
+            }
+
+            // 3. Disabled accident chances
+            var zeroChances = new List<string>();
+            if (report.SettingsSnapshot.ReelJamChance <= 0) zeroChances.Add("Reel Jam");
+            if (report.SettingsSnapshot.TackleBoxLostChance <= 0) zeroChances.Add("Tackle Box Lost");
+            if (report.SettingsSnapshot.NetBreakChance <= 0) zeroChances.Add("Net Break");
+
+            if (zeroChances.Any())
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Info,
+                    Title = "Disabled Failure Types",
+                    Message = $"The following accident types have 0% chance: {string.Join(", ", zeroChances)}.",
+                    RemediationAdvice = "If you want a full equipment economy sink, configure non-zero values (e.g. 0.5% - 1.0%) in Fishing Settings."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"ℹ️ {diag.Title}: {diag.Message}");
+            }
+
+            // 4. Repair cost multiplier check
+            if (report.SettingsSnapshot.RepairCostMultiplier <= 0)
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Warning,
+                    Title = "Repairs Disabled / Free",
+                    Message = "RepairCostMultiplier is 0.0. Broken items cannot be repaired and must be repurchased, or repairs are completely free.",
+                    RemediationAdvice = "Set RepairCostMultiplier between 0.15 and 0.50 for a healthy durability economy."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"⚠️ {diag.Title}: {diag.Message}");
+            }
+            else if (report.SettingsSnapshot.RepairCostMultiplier > 0.80)
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Warning,
+                    Title = "High Repair Cost Multiplier",
+                    Message = $"RepairCostMultiplier is set to {report.SettingsSnapshot.RepairCostMultiplier:F2}x. Upkeep costs will consume a large share of player earnings.",
+                    RemediationAdvice = "Consider reducing to 0.25 - 0.40x to prevent high maintenance fees from stalling progression."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"⚠️ {diag.Title}: {diag.Message}");
+            }
+
+            // 5. Progression pacing check
+            var overPriced = report.ItemAnalysis
+                .Where(i => !i.IsConsumable && i.WeeksToAffordActive > 20)
+                .ToList();
+            if (overPriced.Any())
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Warning,
+                    Title = "Very Slow Progression",
+                    Message = $"{overPriced.Count} permanent items take more than 20 weeks for active players to afford.",
+                    RemediationAdvice = "Consider lowering prices on top-tier items or increasing fish sell gold."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"⚠️ {diag.Title}: {diag.Message}");
+            }
+
+            // 6. Healthy status
+            if (!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error || d.Severity == DiagnosticSeverity.Warning))
+            {
+                var diag = new BalanceHealthDiagnostic
+                {
+                    Severity = DiagnosticSeverity.Success,
+                    Title = "Economy Health Excellent",
+                    Message = "All failure rates, repair multipliers, and item ROI ratings are within optimal game balance targets.",
+                    RemediationAdvice = "No changes required. Progression curve is smooth and rewarding."
+                };
+                diagnostics.Add(diag);
+                recommendations.Add($"✅ {diag.Title}: {diag.Message}");
+            }
+
+            report.Diagnostics = diagnostics;
+            report.BalanceRecommendations = recommendations;
+        }
+
+        public async Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            var catchSamples = await context.FishCatches
+                .Select(c => new { c.UserId, Timestamp = c.CaughtAt })
+                .ToListAsync();
+
+            var snapSamples = await context.FishingSnapEvents
+                .Select(s => new { s.UserId, Timestamp = s.SnappedAt })
+                .ToListAsync();
+
+            var attemptSamples = catchSamples
+                .Select(c => new { c.UserId, c.Timestamp })
+                .Concat(snapSamples.Select(s => new { s.UserId, s.Timestamp }))
+                .OrderBy(a => a.Timestamp)
+                .ToList();
+
+            var userSessionAverages = CalculateUserAverageCatchesPerSession(
+                attemptSamples.Select(c => (c.UserId, c.Timestamp)),
+                SessionGap,
+                minTotalCatches: 5,
+                minSessions: 2);
+
+            if (!userSessionAverages.Any())
+            {
+                userSessionAverages = CalculateUserAverageCatchesPerSession(
+                    attemptSamples.Select(c => (c.UserId, c.Timestamp)),
+                    SessionGap);
+            }
+
+            userSessionAverages = userSessionAverages.OrderBy(v => v).ToList();
+
+            double activeAttemptsPerSession = 30.0;
+            if (userSessionAverages.Count > 0)
+            {
+                var p50Index = userSessionAverages.Count / 2;
+                activeAttemptsPerSession = userSessionAverages.Count % 2 == 0
+                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
+                    : userSessionAverages[p50Index];
+            }
+
+            var (streamsPerWeek, _, _) = CalculateStreamsPerWeekFromAttempts(
+                attemptSamples.Select(a => a.Timestamp),
+                null,
+                null);
+
+            if (streamsPerWeek <= 0)
+            {
+                streamsPerWeek = 3.0;
+            }
+
+            var expectedNetGoldPerAttempt = await CalculateProgressiveBaselineGold(targetWeeksForEndgame);
+            if (expectedNetGoldPerAttempt <= 0)
+            {
+                expectedNetGoldPerAttempt = Math.Max(1.0, await CalculateBaselineExpectedGold() * 0.75);
+            }
+
+            var scaleFactor = targetWeeksForEndgame / 26.0;
+
+            var pricingTiers = new List<(string Name, int TargetWeeks)>
+            {
+                ("Entry", Math.Max(1, (int)Math.Round(2 * scaleFactor))),
+                ("Mid", Math.Max(2, (int)Math.Round(6 * scaleFactor))),
+                ("High", Math.Max(4, (int)Math.Round(12 * scaleFactor))),
+                ("Top", targetWeeksForEndgame)
+            };
+
+            var recommendations = new Dictionary<string, int>();
+
+            var itemTiers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "Bamboo Rod", "Entry" },
+                { "Basic Reel", "Entry" },
+                { "Monofilament Line", "Entry" },
+                { "Standard Hook", "Entry" },
+                { "Basic Tackle Box", "Entry" },
+                { "Landing Net", "Entry" },
+
+                { "Fiberglass Rod", "Mid" },
+                { "Precision Reel", "Mid" },
+                { "Braided Line", "Mid" },
+                { "Circle Hook", "Mid" },
+                { "Pro Tackle Box", "Mid" },
+                { "Knotless Net", "Mid" },
+
+                { "Carbon Fiber Rod", "High" },
+                { "Professional Reel", "High" },
+                { "Fluorocarbon Line", "High" },
+                { "Treble Hook", "High" },
+                { "Master Tackle Box", "High" },
+                { "Tournament Net", "High" },
+
+                { "Legendary Rod", "Top" },
+                { "Master Reel", "Top" },
+                { "Titanium Wire", "Top" },
+                { "Diamond Hook", "Top" }
+            };
+
+            foreach (var (itemName, tierName) in itemTiers)
+            {
+                var tier = pricingTiers.FirstOrDefault(t => t.Name == tierName);
+                if (tier == default) continue;
+
+                var sessionsNeeded = tier.TargetWeeks * streamsPerWeek;
+                var attemptsNeeded = sessionsNeeded * activeAttemptsPerSession;
+                var targetPrice = (int)Math.Round(attemptsNeeded * expectedNetGoldPerAttempt);
+
+                recommendations[itemName] = Math.Max(10, targetPrice);
+            }
+
+            return recommendations;
+        }
+
+        #region Helper Calculation Methods
+        private static void AccumulateBoosts(FishingShopItem item, ref double rarityBoost, ref double starBoost, ref double weightBoost)
+        {
+            ApplyBoostAmount(item.BoostType, item.BoostAmount, ref rarityBoost, ref starBoost, ref weightBoost);
+            ApplyBoostAmount(item.BoostType2, item.BoostAmount2 ?? 0, ref rarityBoost, ref starBoost, ref weightBoost);
+            ApplyBoostAmount(item.BoostType3, item.BoostAmount3 ?? 0, ref rarityBoost, ref starBoost, ref weightBoost);
+        }
+
+        private static void ApplyBoostAmount(FishingBoostType? boostType, double amount, ref double rarityBoost, ref double starBoost, ref double weightBoost)
+        {
+            if (boostType == null || amount <= 0) return;
+
+            switch (boostType.Value)
+            {
+                case FishingBoostType.GeneralRarityBoost:
+                    rarityBoost += amount;
+                    break;
+                case FishingBoostType.StarBoost:
+                    starBoost += amount;
+                    break;
+                case FishingBoostType.WeightBoost:
+                    weightBoost += amount;
+                    break;
+            }
+        }
+
+        private static List<FishingShopItem> ResolveTierItems(string tierName, List<FishingShopItem> allShopItems)
+        {
+            var byName = allShopItems.ToDictionary(i => i.Name, i => i, StringComparer.OrdinalIgnoreCase);
+            var result = new List<FishingShopItem>();
+
+            var targetNames = tierName switch
+            {
+                "Entry" => new[] { "Bamboo Rod", "Basic Reel", "Monofilament Line", "Standard Hook", "Basic Tackle Box", "Landing Net" },
+                "Mid" => new[] { "Fiberglass Rod", "Precision Reel", "Braided Line", "Circle Hook", "Pro Tackle Box", "Knotless Net" },
+                "High" => new[] { "Carbon Fiber Rod", "Professional Reel", "Fluorocarbon Line", "Treble Hook", "Master Tackle Box", "Tournament Net" },
+                "Top" => new[] { "Legendary Rod", "Master Reel", "Titanium Wire", "Diamond Hook", "Master Tackle Box", "Tournament Net" },
+                _ => Array.Empty<string>()
+            };
+
+            foreach (var name in targetNames)
+            {
+                if (byName.TryGetValue(name, out var item))
+                {
+                    result.Add(item);
+                }
+            }
+
             return result;
+        }
+
+        private static double CalculateExpectedAccidentSink(
+            IEnumerable<FishingShopItem> items,
+            double lineSnapChance,
+            double rodSnapChance,
+            double reelJamChance,
+            double tackleBoxLostChance,
+            double netBreakChance)
+        {
+            var list = items.Where(i => !i.DisableBreaking).ToList();
+            var rodCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.Rod)?.Cost ?? 0;
+            var lineCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.Line)?.Cost ?? 0;
+            var hookCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.Hook)?.Cost ?? 0;
+            var reelCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.Reel)?.Cost ?? 0;
+            var tackleCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.TackleBox)?.Cost ?? 0;
+            var netCost = list.FirstOrDefault(i => i.EquipmentSlot == EquipmentSlot.Net)?.Cost ?? 0;
+
+            var baitLureCost = 0.0;
+            foreach (var baitLure in list.Where(i => i.EquipmentSlot == EquipmentSlot.Bait || i.EquipmentSlot == EquipmentSlot.Lure))
+            {
+                if (baitLure.MaxUses.HasValue && baitLure.MaxUses.Value > 0)
+                    baitLureCost += (double)baitLure.Cost / baitLure.MaxUses.Value;
+                else
+                    baitLureCost += baitLure.Cost;
+            }
+
+            var rodLoss = rodCost + lineCost + hookCost + baitLureCost;
+            var lineLoss = lineCost + hookCost + baitLureCost;
+            var reelLoss = reelCost;
+            var tackleLoss = tackleCost;
+            var netLoss = netCost;
+
+            return (rodSnapChance * rodLoss)
+                 + ((1.0 - rodSnapChance) * lineSnapChance * lineLoss)
+                 + (reelJamChance * reelLoss)
+                 + (tackleBoxLostChance * tackleLoss)
+                 + (netBreakChance * netLoss);
+        }
+
+        private static double CalculateExpectedDurabilityUpkeep(
+            IEnumerable<FishingShopItem> items,
+            double repairCostMultiplier)
+        {
+            double totalUpkeep = 0.0;
+            foreach (var item in items)
+            {
+                if (item.MaxDurability.HasValue && item.MaxDurability.Value > 0)
+                {
+                    var lossPerUse = Math.Max(0.0, item.DurabilityLossPerUse ?? 1.0);
+                    var wearRatio = lossPerUse / item.MaxDurability.Value;
+                    var effectiveMultiplier = repairCostMultiplier > 0 ? repairCostMultiplier : 1.0;
+                    totalUpkeep += item.Cost * wearRatio * effectiveMultiplier;
+                }
+            }
+            return totalUpkeep;
+        }
+
+        private static double CalculateExpectedConsumableSink(IEnumerable<FishingShopItem> items)
+        {
+            double consumableSink = 0.0;
+            foreach (var item in items)
+            {
+                if (item.IsConsumable && item.MaxUses.HasValue && item.MaxUses.Value > 0)
+                {
+                    consumableSink += (double)item.Cost / item.MaxUses.Value;
+                }
+            }
+            return consumableSink;
         }
 
         private static List<ProgressionTier> BuildProgressionTiers(int targetWeeks)
         {
             var tiers = new List<ProgressionTier>
             {
-                new ProgressionTier { Name = "Naked", Weeks = 2, RarityBoost = 0.0, StarBoost = 0.0, WeightBoost = 0.0 },
-                new ProgressionTier { Name = "Entry", Weeks = 5, RarityBoost = 0.05, StarBoost = 0.10, WeightBoost = 0.10, RodName = "Bamboo Rod", LineName = "Monofilament Line", HookName = "Standard Hook" },
-                new ProgressionTier { Name = "Mid", Weeks = 6, RarityBoost = 0.10, StarBoost = 0.20, WeightBoost = 0.20, RodName = "Fiberglass Rod", LineName = "Braided Line", HookName = "Circle Hook" },
-                new ProgressionTier { Name = "High", Weeks = 7, RarityBoost = 0.15, StarBoost = 0.30, WeightBoost = 0.30, RodName = "Carbon Fiber Rod", LineName = "Fluorocarbon Line", HookName = "Treble Hook" },
-                new ProgressionTier { Name = "Top", Weeks = 6, RarityBoost = 0.25, StarBoost = 0.42, WeightBoost = 0.45, RodName = "Legendary Rod", LineName = "Titanium Wire", HookName = "Diamond Hook" }
+                new() { Name = "Naked", Weeks = 2, RarityBoost = 0.0, StarBoost = 0.0, WeightBoost = 0.0 },
+                new() { Name = "Entry", Weeks = 5, RarityBoost = 0.10, StarBoost = 0.10, WeightBoost = 0.30, RodName = "Bamboo Rod", LineName = "Monofilament Line", HookName = "Standard Hook" },
+                new() { Name = "Mid", Weeks = 6, RarityBoost = 0.20, StarBoost = 0.20, WeightBoost = 0.55, RodName = "Fiberglass Rod", LineName = "Braided Line", HookName = "Circle Hook" },
+                new() { Name = "High", Weeks = 7, RarityBoost = 0.30, StarBoost = 0.30, WeightBoost = 0.80, RodName = "Carbon Fiber Rod", LineName = "Fluorocarbon Line", HookName = "Treble Hook" },
+                new() { Name = "Top", Weeks = 6, RarityBoost = 0.40, StarBoost = 0.42, WeightBoost = 0.95, RodName = "Legendary Rod", LineName = "Titanium Wire", HookName = "Diamond Hook" }
             };
 
             if (targetWeeks != 26)
@@ -561,77 +1453,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return tiers;
         }
 
-        private static double CalculateWeightedSnapReplacementCostPerAttempt(
-            List<ProgressionTier> tiers,
-            Dictionary<string, int> shopItemCosts,
-            double lineSnapChance,
-            double rodSnapChance)
-        {
-            var totalWeeks = tiers.Sum(t => t.Weeks);
-            if (totalWeeks <= 0)
-            {
-                return 0.0;
-            }
-
-            double weighted = 0.0;
-            foreach (var tier in tiers)
-            {
-                var weight = tier.Weeks / (double)totalWeeks;
-                var tierCost = CalculateExpectedSnapReplacementCost(tier, shopItemCosts, lineSnapChance, rodSnapChance);
-                weighted += tierCost * weight;
-            }
-
-            return weighted;
-        }
-
-        private static double CalculateExpectedSnapReplacementCost(
-            ProgressionTier tier,
-            Dictionary<string, int> shopItemCosts,
-            double lineSnapChance,
-            double rodSnapChance)
-        {
-            if (string.IsNullOrWhiteSpace(tier.LineName) || string.IsNullOrWhiteSpace(tier.HookName))
-            {
-                return 0.0;
-            }
-
-            var lineCost = ResolveCost(tier.LineName, shopItemCosts, tier.Name, "line");
-            var hookCost = ResolveCost(tier.HookName, shopItemCosts, tier.Name, "hook");
-            var rodCost = string.IsNullOrWhiteSpace(tier.RodName)
-                ? 0
-                : ResolveCost(tier.RodName, shopItemCosts, tier.Name, "rod");
-
-            var lineFailureCost = lineCost + hookCost;
-            var rodFailureCost = rodCost + lineCost + hookCost;
-
-            return ((1.0 - rodSnapChance) * lineSnapChance * lineFailureCost) + (rodSnapChance * rodFailureCost);
-        }
-
-        private static int ResolveCost(string itemName, Dictionary<string, int> shopItemCosts, string tierName, string slot)
-        {
-            if (shopItemCosts.TryGetValue(itemName, out var liveCost) && liveCost > 0)
-            {
-                return liveCost;
-            }
-
-            return tierName switch
-            {
-                "Entry" when slot == "rod" => 150,
-                "Entry" when slot == "line" => 175,
-                "Entry" when slot == "hook" => 150,
-                "Mid" when slot == "rod" => 400,
-                "Mid" when slot == "line" => 450,
-                "Mid" when slot == "hook" => 400,
-                "High" when slot == "rod" => 1000,
-                "High" when slot == "line" => 1100,
-                "High" when slot == "hook" => 1000,
-                "Top" when slot == "rod" => 2500,
-                "Top" when slot == "line" => 2800,
-                "Top" when slot == "hook" => 2500,
-                _ => 0
-            };
-        }
-
         private double CalculateExpectedGoldWithBoosts(
             List<FishType> fishTypes,
             double rarityBoost,
@@ -642,17 +1463,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (rarityBoost > 0)
             {
-                rarityWeights[FishRarity.Uncommon] *= (1.0 + rarityBoost);
-                rarityWeights[FishRarity.Rare] *= (1.0 + rarityBoost);
-                rarityWeights[FishRarity.Epic] *= (1.0 + rarityBoost);
-                rarityWeights[FishRarity.Legendary] *= (1.0 + rarityBoost);
-                rarityWeights[FishRarity.Mythical] *= (1.0 + rarityBoost);
+                foreach (var rarity in rarityWeights.Keys.ToList())
+                {
+                    if (rarity != FishRarity.Common)
+                    {
+                        rarityWeights[rarity] *= (1.0 + rarityBoost);
+                    }
+                }
             }
 
             var totalRarityWeight = rarityWeights.Values.Sum();
+            if (totalRarityWeight <= 0) return 0.0;
 
             var starProbabilities = BuildStarProbabilities(starBoost);
-
             var weightMultiplier = 1.0 + weightBoost;
             double expectedGold = 0.0;
 
@@ -700,8 +1523,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private static Dictionary<int, double> BuildStarProbabilities(double totalStarBoost)
         {
-            // Match runtime behavior in FishingCalculations.CalculateStars() where thresholds
-            // can overlap and effectively clamp at 100% because rolls are 0-100.
             var threeStarThreshold = 5.0 + (totalStarBoost * 100.0);
             var twoStarThreshold = 20.0 + (totalStarBoost * 100.0);
 
@@ -716,6 +1537,89 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 { 2, p2 },
                 { 3, p3 }
             };
+        }
+
+        private Dictionary<FishRarity, double> CalculateRarityWeights(
+            List<FishType> fishTypes,
+            bool useBoostMode,
+            double boostModeMultiplier,
+            List<UserFishingBoost> mockBoosts)
+        {
+            var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
+
+            if (useBoostMode)
+            {
+                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, boostModeMultiplier);
+            }
+
+            foreach (var boost in mockBoosts)
+            {
+                ApplyBoostsToRarityWeights(rarityWeights, fishTypes, boost);
+            }
+
+            return rarityWeights;
+        }
+
+        private void ApplyBoostsToRarityWeights(
+            Dictionary<FishRarity, double> rarityWeights,
+            List<FishType> fishTypes,
+            UserFishingBoost boost)
+        {
+            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType, boost.ShopItem?.BoostAmount ?? 0, boost.ShopItem?.TargetFishTypeId);
+            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType2, boost.ShopItem?.BoostAmount2 ?? 0, boost.ShopItem?.TargetFishTypeId);
+            ApplySingleBoostToRarityWeights(rarityWeights, fishTypes, boost.ShopItem?.BoostType3, boost.ShopItem?.BoostAmount3 ?? 0, boost.ShopItem?.TargetFishTypeId);
+        }
+
+        private void ApplySingleBoostToRarityWeights(
+            Dictionary<FishRarity, double> rarityWeights,
+            List<FishType> fishTypes,
+            FishingBoostType? boostType,
+            double boostAmount,
+            int? targetFishTypeId)
+        {
+            if (boostType == FishingBoostType.GeneralRarityBoost)
+            {
+                foreach (var rarity in rarityWeights.Keys.ToList())
+                {
+                    if (rarity != FishRarity.Common)
+                    {
+                        rarityWeights[rarity] *= (1.0 + boostAmount);
+                    }
+                }
+            }
+        }
+
+        private double CalculateWithinRarityChance(FishType targetFish, List<FishType> fishOfRarity, List<UserFishingBoost> mockBoosts)
+        {
+            var targetedBoosts = mockBoosts.Where(b =>
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificFishBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificFishBoost) &&
+                b.ShopItem.TargetFishTypeId != null ||
+                (b.ShopItem?.BoostType == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+                 b.ShopItem?.BoostType3 == FishingBoostType.SpecificCategoryBoost) &&
+                !string.IsNullOrWhiteSpace(b.ShopItem?.TargetCategory)).ToList();
+
+            if (targetedBoosts.Any())
+            {
+                var weightedFish = new List<(FishType fish, double weight)>();
+                foreach (var f in fishOfRarity)
+                {
+                    var weight = 1.0;
+                    foreach (var boost in targetedBoosts)
+                    {
+                        weight *= FishingCalculations.GetTargetedBoostMultiplier(boost.ShopItem, f);
+                    }
+                    weightedFish.Add((f, weight));
+                }
+
+                var totalFishWeight = weightedFish.Sum(w => w.weight);
+                var fishWeight = weightedFish.First(w => w.fish.Id == targetFish.Id).weight;
+                return fishWeight / totalFishWeight;
+            }
+
+            return 1.0 / fishOfRarity.Count;
         }
 
         private Dictionary<int, FishProbability> BuildFishProbabilityMap(
@@ -751,12 +1655,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         }
 
         private void PopulateItemEffectPreview(
-            ItemAffordability affordability,
+            ItemEconomyAnalysis analysis,
             FishingShopItem item,
-            Dictionary<int, FishProbability> baselineProbabilities,
             List<FishType> fishTypes,
-            bool useBoostMode,
-            double boostModeMultiplier)
+            FishingSettings settings)
         {
             var boostEntries = new List<(FishingBoostType? Type, double Amount)>
             {
@@ -765,21 +1667,17 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 (item.BoostType3, item.BoostAmount3 ?? 0)
             };
 
-            var specificBoost = boostEntries
-                .Where(b => b.Type == FishingBoostType.SpecificFishBoost)
-                .Sum(b => b.Amount);
-            var categoryBoost = boostEntries
-                .Where(b => b.Type == FishingBoostType.SpecificCategoryBoost)
-                .Sum(b => b.Amount);
-            var generalBoost = boostEntries
-                .Where(b => b.Type == FishingBoostType.GeneralRarityBoost)
-                .Sum(b => b.Amount);
-            var starBoost = boostEntries
-                .Where(b => b.Type == FishingBoostType.StarBoost)
-                .Sum(b => b.Amount);
-            var weightBoost = boostEntries
-                .Where(b => b.Type == FishingBoostType.WeightBoost)
-                .Sum(b => b.Amount);
+            var specificBoost = boostEntries.Where(b => b.Type == FishingBoostType.SpecificFishBoost).Sum(b => b.Amount);
+            var categoryBoost = boostEntries.Where(b => b.Type == FishingBoostType.SpecificCategoryBoost).Sum(b => b.Amount);
+            var generalBoost = boostEntries.Where(b => b.Type == FishingBoostType.GeneralRarityBoost).Sum(b => b.Amount);
+            var starBoost = boostEntries.Where(b => b.Type == FishingBoostType.StarBoost).Sum(b => b.Amount);
+            var weightBoost = boostEntries.Where(b => b.Type == FishingBoostType.WeightBoost).Sum(b => b.Amount);
+
+            var baselineProbabilities = BuildFishProbabilityMap(
+                fishTypes,
+                settings.BoostMode,
+                settings.BoostModeRarityMultiplier,
+                new List<UserFishingBoost>());
 
             var mockBoost = new UserFishingBoost
             {
@@ -792,18 +1690,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var withItemProbabilities = BuildFishProbabilityMap(
                 fishTypes,
-                useBoostMode,
-                boostModeMultiplier,
+                settings.BoostMode,
+                settings.BoostModeRarityMultiplier,
                 new List<UserFishingBoost> { mockBoost });
 
             if (specificBoost > 0 && item.TargetFishTypeId.HasValue &&
                 baselineProbabilities.TryGetValue(item.TargetFishTypeId.Value, out var baselineTarget) &&
                 withItemProbabilities.TryGetValue(item.TargetFishTypeId.Value, out var boostedTarget))
             {
-                affordability.HasEffectPreview = true;
-                affordability.EffectMetric = $"{baselineTarget.FishName} catch chance";
-                affordability.EffectBaselineValue = baselineTarget.OverallChance;
-                affordability.EffectWithItemValue = boostedTarget.OverallChance;
+                analysis.HasEffectPreview = true;
+                analysis.EffectMetric = $"{baselineTarget.FishName} catch chance";
+                analysis.EffectBaselineValue = baselineTarget.OverallChance;
+                analysis.EffectWithItemValue = boostedTarget.OverallChance;
             }
             else if (categoryBoost > 0 && !string.IsNullOrWhiteSpace(item.TargetCategory))
             {
@@ -819,10 +1717,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .Where(p => categoryFishIds.Contains(p.FishId))
                     .Sum(p => p.OverallChance);
 
-                affordability.HasEffectPreview = true;
-                affordability.EffectMetric = $"{item.TargetCategory} catch chance";
-                affordability.EffectBaselineValue = Math.Round(baselineCategoryChance, 4);
-                affordability.EffectWithItemValue = Math.Round(withItemCategoryChance, 4);
+                analysis.HasEffectPreview = true;
+                analysis.EffectMetric = $"{item.TargetCategory} catch chance";
+                analysis.EffectBaselineValue = Math.Round(baselineCategoryChance, 4);
+                analysis.EffectWithItemValue = Math.Round(withItemCategoryChance, 4);
             }
             else if (generalBoost > 0)
             {
@@ -833,47 +1731,35 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .Where(p => p.Rarity != FishRarity.Common)
                     .Sum(p => p.OverallChance);
 
-                affordability.HasEffectPreview = true;
-                affordability.EffectMetric = "Uncommon+ catch chance";
-                affordability.EffectBaselineValue = Math.Round(baselineUncommonPlus, 4);
-                affordability.EffectWithItemValue = Math.Round(withItemUncommonPlus, 4);
+                analysis.HasEffectPreview = true;
+                analysis.EffectMetric = "Uncommon+ catch chance";
+                analysis.EffectBaselineValue = Math.Round(baselineUncommonPlus, 4);
+                analysis.EffectWithItemValue = Math.Round(withItemUncommonPlus, 4);
             }
             else if (starBoost > 0)
             {
                 var baselineThreeStar = BuildStarProbabilities(0.0)[3] * 100.0;
                 var boostedThreeStar = BuildStarProbabilities(starBoost)[3] * 100.0;
 
-                affordability.HasEffectPreview = true;
-                affordability.EffectMetric = "3-star catch chance";
-                affordability.EffectBaselineValue = Math.Round(baselineThreeStar, 2);
-                affordability.EffectWithItemValue = Math.Round(boostedThreeStar, 2);
+                analysis.HasEffectPreview = true;
+                analysis.EffectMetric = "3-star catch chance";
+                analysis.EffectBaselineValue = Math.Round(baselineThreeStar, 2);
+                analysis.EffectWithItemValue = Math.Round(boostedThreeStar, 2);
             }
             else if (weightBoost > 0)
             {
-                affordability.HasEffectPreview = true;
-                affordability.EffectMetric = "Average weight multiplier";
-                affordability.EffectBaselineValue = 100.0;
-                affordability.EffectWithItemValue = Math.Round((1.0 + weightBoost) * 100.0, 2);
+                analysis.HasEffectPreview = true;
+                analysis.EffectMetric = "Average weight multiplier";
+                analysis.EffectBaselineValue = 100.0;
+                analysis.EffectWithItemValue = Math.Round((1.0 + weightBoost) * 100.0, 2);
             }
 
-            if (affordability.HasEffectPreview && affordability.EffectBaselineValue > 0)
+            if (analysis.HasEffectPreview && analysis.EffectBaselineValue > 0)
             {
-                affordability.EffectRelativeChangePercent = Math.Round(
-                    ((affordability.EffectWithItemValue / affordability.EffectBaselineValue) - 1.0) * 100.0,
+                analysis.EffectRelativeChangePercent = Math.Round(
+                    ((analysis.EffectWithItemValue / analysis.EffectBaselineValue) - 1.0) * 100.0,
                     2);
             }
-        }
-
-        private class ProgressionTier
-        {
-            public string Name { get; set; } = string.Empty;
-            public int Weeks { get; set; }
-            public double RarityBoost { get; set; }
-            public double StarBoost { get; set; }
-            public double WeightBoost { get; set; }
-            public string? RodName { get; set; }
-            public string? LineName { get; set; }
-            public string? HookName { get; set; }
         }
 
         private static List<double> CalculateUserAverageCatchesPerSession(
@@ -887,8 +1773,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             foreach (var userCatches in catches.GroupBy(c => c.UserId))
             {
                 var ordered = userCatches.OrderBy(c => c.CaughtAt).ToList();
-                if (!ordered.Any())
-                    continue;
+                if (!ordered.Any()) continue;
 
                 var sessionCount = 1;
                 var currentSessionCatches = 1;
@@ -913,7 +1798,6 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
 
                 totalSessionCatches += currentSessionCatches;
-
                 if (totalSessionCatches < minTotalCatches || sessionCount < minSessions)
                     continue;
 
@@ -928,10 +1812,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             DateTime? startDate,
             DateTime? endDate)
         {
-            var attempts = attemptTimestamps
-                .OrderBy(t => t)
-                .ToList();
-
+            var attempts = attemptTimestamps.OrderBy(t => t).ToList();
             if (!attempts.Any())
             {
                 return (0, 0, 0);
@@ -946,10 +1827,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             }
 
             var analysisWindowDays = Math.Max(1, (windowEnd - windowStart).Days + 1);
-            var activeDays = attempts
-                .Select(t => t.Date)
-                .Distinct()
-                .Count();
+            var activeDays = attempts.Select(t => t.Date).Distinct().Count();
 
             var windowWeeks = analysisWindowDays / 7.0;
             if (windowWeeks <= 0)
@@ -961,634 +1839,39 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return (Math.Round(streamsPerWeek, 2), activeDays, analysisWindowDays);
         }
 
-        public async Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null)
+        private static double ApplySlotLoss(List<UserFishingBoost> boosts, EquipmentSlot slot)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var report = new FishingBalanceReport
+            var item = boosts.FirstOrDefault(b => b.ShopItem?.EquipmentSlot == slot);
+            if (item?.ShopItem != null && !item.ShopItem.DisableBreaking)
             {
-                StartDate = startDate,
-                EndDate = endDate
-            };
-
-            var settings = await _fishingService.GetSettings() ?? new FishingSettings();
-            var lineSnapChance = !double.IsNaN(settings.LineSnapChance) && !double.IsInfinity(settings.LineSnapChance) &&
-                settings.LineSnapChance >= 0 && settings.LineSnapChance <= 1
-                ? settings.LineSnapChance
-                : FishingSettings.DefaultLineSnapChance;
-            var rodSnapChance = !double.IsNaN(settings.RodSnapChance) && !double.IsInfinity(settings.RodSnapChance) &&
-                settings.RodSnapChance >= 0 && settings.RodSnapChance <= 1
-                ? settings.RodSnapChance
-                : FishingSettings.DefaultRodSnapChance;
-            var reelJamChance = !double.IsNaN(settings.ReelJamChance) && !double.IsInfinity(settings.ReelJamChance) &&
-                settings.ReelJamChance >= 0 && settings.ReelJamChance <= 1
-                ? settings.ReelJamChance
-                : FishingSettings.DefaultReelJamChance;
-            var tackleBoxLostChance = !double.IsNaN(settings.TackleBoxLostChance) && !double.IsInfinity(settings.TackleBoxLostChance) &&
-                settings.TackleBoxLostChance >= 0 && settings.TackleBoxLostChance <= 1
-                ? settings.TackleBoxLostChance
-                : FishingSettings.DefaultTackleBoxLostChance;
-            var netBreakChance = !double.IsNaN(settings.NetBreakChance) && !double.IsInfinity(settings.NetBreakChance) &&
-                settings.NetBreakChance >= 0 && settings.NetBreakChance <= 1
-                ? settings.NetBreakChance
-                : FishingSettings.DefaultNetBreakChance;
-            var successfulAttemptChance = (1.0 - rodSnapChance) * (1.0 - lineSnapChance) * (1.0 - reelJamChance) * (1.0 - tackleBoxLostChance) * (1.0 - netBreakChance);
-
-            report.ConfiguredLineSnapChance = lineSnapChance;
-            report.ConfiguredRodSnapChance = rodSnapChance;
-            report.EstimatedSuccessfulAttemptRatePercent = Math.Round(successfulAttemptChance * 100.0, 2);
-
-            // Build query for catches within date range
-            var catchesQuery = context.FishCatches
-                .Include(c => c.FishType)
-                .AsQueryable();
-
-            if (startDate.HasValue)
-                catchesQuery = catchesQuery.Where(c => c.CaughtAt >= startDate.Value);
-            if (endDate.HasValue)
-                catchesQuery = catchesQuery.Where(c => c.CaughtAt <= endDate.Value);
-
-            var catches = await catchesQuery.ToListAsync();
-
-            // Build query for snap events within date range
-            var snapEventsQuery = context.FishingSnapEvents.AsQueryable();
-            if (startDate.HasValue)
-                snapEventsQuery = snapEventsQuery.Where(s => s.SnappedAt >= startDate.Value);
-            if (endDate.HasValue)
-                snapEventsQuery = snapEventsQuery.Where(s => s.SnappedAt <= endDate.Value);
-
-            var snapEvents = await snapEventsQuery.ToListAsync();
-
-            var attemptSamples = catches
-                .Select(c => new { c.UserId, Timestamp = c.CaughtAt, IsCatch = true })
-                .Concat(snapEvents.Select(s => new { s.UserId, Timestamp = s.SnappedAt, IsCatch = false }))
-                .OrderBy(a => a.Timestamp)
-                .ToList();
-
-            // Basic statistics
-            report.TotalCatches = catches.Count;
-            report.UniqueUsers = attemptSamples.Any()
-                ? attemptSamples.Select(a => a.UserId).Distinct().Count()
-                : catches.Select(c => c.UserId).Distinct().Count();
-
-            var observedAttempts = attemptSamples.Count;
-            var hasObservedAttemptData = observedAttempts > 0;
-            var hasObservedSnapData = snapEvents.Count > 0;
-
-            report.AttemptDataSource = hasObservedSnapData
-                ? "Observed attempts (catches + recorded snaps)"
-                : "Estimated attempts from catch success model (no snap telemetry in range)";
-
-            report.EstimatedTotalAttempts = hasObservedSnapData
-                ? observedAttempts
-                : (successfulAttemptChance > 0
-                    ? (int)Math.Round(report.TotalCatches / successfulAttemptChance)
-                    : report.TotalCatches);
-            report.EstimatedFailedAttempts = Math.Max(0, report.EstimatedTotalAttempts - report.TotalCatches);
-
-            if (hasObservedSnapData)
-            {
-                report.EstimatedLineSnaps = snapEvents.Count(s => string.Equals(s.SnapType, "Line", StringComparison.OrdinalIgnoreCase));
-                report.EstimatedRodSnaps = snapEvents.Count(s => string.Equals(s.SnapType, "Rod", StringComparison.OrdinalIgnoreCase));
+                return item.ShopItem.Cost;
             }
-            else
-            {
-                report.EstimatedLineSnaps = (int)Math.Round(report.EstimatedTotalAttempts * (1.0 - rodSnapChance) * lineSnapChance);
-                report.EstimatedRodSnaps = (int)Math.Round(report.EstimatedTotalAttempts * rodSnapChance);
-            }
-
-            var observedSuccessChance = report.EstimatedTotalAttempts > 0
-                ? report.TotalCatches / (double)report.EstimatedTotalAttempts
-                : successfulAttemptChance;
-            report.EstimatedSuccessfulAttemptRatePercent = Math.Round(observedSuccessChance * 100.0, 2);
-
-            var (streamsPerWeekFromAttempts, _, analysisWindowDays) = CalculateStreamsPerWeekFromAttempts(
-                attemptSamples.Select(a => a.Timestamp),
-                startDate,
-                endDate);
-            var analysisWindowWeeks = Math.Max(analysisWindowDays / 7.0, 1.0 / 7.0);
-
-            report.StreamsPerWeekFromAttempts = streamsPerWeekFromAttempts;
-            report.AttemptsPerWeek = Math.Round(report.EstimatedTotalAttempts / analysisWindowWeeks, 2);
-            report.CatchesPerWeek = Math.Round(report.TotalCatches / analysisWindowWeeks, 2);
-
-            var shopItemCosts = await context.FishingShopItems
-                .AsNoTracking()
-                .ToDictionaryAsync(i => i.Name, i => i.Cost, StringComparer.OrdinalIgnoreCase);
-            var progressionTiers = BuildProgressionTiers(26);
-            var weightedSnapCostPerAttempt = CalculateWeightedSnapReplacementCostPerAttempt(
-                progressionTiers,
-                shopItemCosts,
-                lineSnapChance,
-                rodSnapChance);
-
-            var observedSnapCostTotal = snapEvents.Sum(s => (double)s.TotalGoldLost);
-            var observedSnapCostPerAttempt = report.EstimatedTotalAttempts > 0
-                ? observedSnapCostTotal / report.EstimatedTotalAttempts
-                : 0;
-            var selectedSnapCostPerAttempt = hasObservedSnapData
-                ? observedSnapCostPerAttempt
-                : weightedSnapCostPerAttempt;
-
-            report.EstimatedSnapReplacementCostPerAttempt = Math.Round(selectedSnapCostPerAttempt, 2);
-            report.EstimatedSnapReplacementCostTotal = Math.Round(selectedSnapCostPerAttempt * report.EstimatedTotalAttempts, 2);
-
-            if (report.TotalCatches == 0)
-            {
-                report.SnapAdjustedAverageGoldPerAttempt = Math.Round(0.0 - selectedSnapCostPerAttempt, 2);
-                report.SnapAdjustedMedianGoldPerAttempt = Math.Round(0.0 - selectedSnapCostPerAttempt, 2);
-                report.SnapAdjustedTotalNetGold = Math.Round(0.0 - report.EstimatedSnapReplacementCostTotal, 2);
-                report.BalanceRecommendations = ["No catches found in the specified date range."];
-                return report;
-            }
-
-            // Gold economics
-            var goldValues = catches.Select(c => c.GoldEarned).OrderBy(g => g).ToList();
-            report.TotalGoldEarned = goldValues.Sum();
-            report.AverageGoldPerCatch = Math.Round((double)report.TotalGoldEarned / report.TotalCatches, 2);
-            report.MedianGoldPerCatch = goldValues.Count % 2 == 0
-                ? (goldValues[goldValues.Count / 2 - 1] + goldValues[goldValues.Count / 2]) / 2.0
-                : goldValues[goldValues.Count / 2];
-            report.SnapAdjustedAverageGoldPerAttempt = Math.Round((report.AverageGoldPerCatch * observedSuccessChance) - selectedSnapCostPerAttempt, 2);
-            report.SnapAdjustedMedianGoldPerAttempt = Math.Round((report.MedianGoldPerCatch * observedSuccessChance) - selectedSnapCostPerAttempt, 2);
-            report.SnapAdjustedTotalNetGold = Math.Round(report.TotalGoldEarned - report.EstimatedSnapReplacementCostTotal, 2);
-
-            var userGroups = catches.GroupBy(c => c.UserId)
-                .Select(g => new
-                {
-                    UserId = g.Key,
-                    CatchCount = g.Count(),
-                    TotalGold = g.Sum(c => c.GoldEarned)
-                })
-                .ToList();
-
-            // Calculate real engagement tiers from timestamped ATTEMPTS per session (catches + snaps)
-            var userAttemptSessionAverages = CalculateUserAverageCatchesPerSession(
-                attemptSamples.Select(a => (a.UserId, a.Timestamp)),
-                SessionGap,
-                minTotalCatches: 5,
-                minSessions: 2);
-
-            if (!userAttemptSessionAverages.Any())
-            {
-                userAttemptSessionAverages = CalculateUserAverageCatchesPerSession(
-                    attemptSamples.Select(a => (a.UserId, a.Timestamp)),
-                    SessionGap);
-            }
-
-            userAttemptSessionAverages = userAttemptSessionAverages
-                .OrderBy(v => v)
-                .ToList();
-
-            // Use percentiles to define player engagement types.
-            double casualAttemptsPerSession = 15.0;
-            double activeAttemptsPerSession = 30.0;
-            double hardcoreAttemptsPerSession = 100.0;
-
-            if (userAttemptSessionAverages.Count > 0)
-            {
-                var p25Index = (int)Math.Ceiling(userAttemptSessionAverages.Count * 0.25) - 1;
-                casualAttemptsPerSession = Math.Max(userAttemptSessionAverages[Math.Max(0, p25Index)], 1.0);
-
-                var p50Index = userAttemptSessionAverages.Count / 2;
-                activeAttemptsPerSession = userAttemptSessionAverages.Count % 2 == 0
-                    ? (userAttemptSessionAverages[p50Index - 1] + userAttemptSessionAverages[p50Index]) / 2.0
-                    : userAttemptSessionAverages[p50Index];
-
-                var p75Index = (int)Math.Ceiling(userAttemptSessionAverages.Count * 0.75) - 1;
-                hardcoreAttemptsPerSession = userAttemptSessionAverages[Math.Min(p75Index, userAttemptSessionAverages.Count - 1)];
-            }
-
-            report.CasualAttemptsPerSession = Math.Round(casualAttemptsPerSession, 1);
-            report.ActiveAttemptsPerSession = Math.Round(activeAttemptsPerSession, 1);
-            report.HardcoreAttemptsPerSession = Math.Round(hardcoreAttemptsPerSession, 1);
-
-            // Item affordability analysis
-            var shopItems = await context.FishingShopItems
-                .AsNoTracking()
-                .Include(i => i.TargetFishType)
-                .Where(i => i.Enabled)
-                .ToListAsync();
-            var enabledFishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
-            var userGoldTotals = userGroups.Select(u => u.TotalGold).OrderBy(g => g).ToList();
-            var medianUserGold = userGoldTotals.Count > 0
-                ? (userGoldTotals.Count % 2 == 0
-                    ? (userGoldTotals[userGoldTotals.Count / 2 - 1] + userGoldTotals[userGoldTotals.Count / 2]) / 2.0
-                    : userGoldTotals[userGoldTotals.Count / 2])
-                : 0;
-
-            var useBoostMode = settings?.BoostMode ?? false;
-            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
-            var baselineProbabilities = BuildFishProbabilityMap(
-                enabledFishTypes,
-                useBoostMode,
-                boostModeMultiplier,
-                new List<UserFishingBoost>());
-
-            var effectiveGoldPerAttempt = Math.Max(0, report.SnapAdjustedAverageGoldPerAttempt);
-
-            foreach (var item in shopItems)
-            {
-                var isLimitedUse = item.MaxUses.HasValue;
-
-                var affordability = new ItemAffordability
-                {
-                    ItemName = item.Name,
-                    Cost = item.Cost,
-                    IsConsumable = isLimitedUse,
-                    MaxUses = item.MaxUses,
-                    EquipmentSlot = item.EquipmentSlot?.ToString() ?? "None",
-                    CostPerUse = isLimitedUse && item.MaxUses.HasValue && item.MaxUses > 0
-                        ? Math.Round((double)item.Cost / item.MaxUses.Value, 2)
-                        : item.Cost,
-                    MedianUserGold = medianUserGold
-                };
-
-                // How many users can afford this item right now
-                affordability.UsersWhoCanAfford = userGroups.Count(u => u.TotalGold >= item.Cost);
-                affordability.PercentageWhoCanAfford = report.UniqueUsers > 0
-                    ? Math.Round((double)affordability.UsersWhoCanAfford / report.UniqueUsers * 100, 2)
-                    : 0;
-
-                // How many catches needed to afford
-                affordability.AttemptsNeededToBuy = effectiveGoldPerAttempt > 0
-                    ? Math.Round(item.Cost / effectiveGoldPerAttempt, 1)
-                    : 0;
-
-                // Sessions to afford based on REAL attempt/session engagement percentiles.
-                affordability.SessionsToAffordCasual = affordability.AttemptsNeededToBuy > 0
-                    ? Math.Round(affordability.AttemptsNeededToBuy / casualAttemptsPerSession, 1)
-                    : 0;
-
-                affordability.SessionsToAffordActive = affordability.AttemptsNeededToBuy > 0
-                    ? Math.Round(affordability.AttemptsNeededToBuy / activeAttemptsPerSession, 1)
-                    : 0;
-
-                affordability.SessionsToAffordHardcore = affordability.AttemptsNeededToBuy > 0
-                    ? Math.Round(affordability.AttemptsNeededToBuy / hardcoreAttemptsPerSession, 1)
-                    : 0;
-
-                // Affordability rating for permanent items
-                // Based on sessions needed for active players (median engagement, 2-3 sessions/week)
-                // Starter=<2 sessions, Low=2-5 sessions, Mid=5-10 sessions, High=10-20 sessions, Endgame=20+ sessions
-                if (!isLimitedUse)
-                {
-                    var sessionsNeeded = affordability.SessionsToAffordActive;
-
-                    if (sessionsNeeded < 1)
-                        affordability.AffordabilityRating = "Too Cheap";
-                    else if (sessionsNeeded < 2)
-                        affordability.AffordabilityRating = "Starter Tier";
-                    else if (sessionsNeeded < 5)
-                        affordability.AffordabilityRating = "Low Tier";
-                    else if (sessionsNeeded < 10)
-                        affordability.AffordabilityRating = "Mid Tier";
-                    else if (sessionsNeeded < 20)
-                        affordability.AffordabilityRating = "High Tier";
-                    else
-                        affordability.AffordabilityRating = "Endgame Tier";
-                }
-
-                // Value rating for consumables
-                if (isLimitedUse)
-                {
-                    var goldPerUseRatio = affordability.CostPerUse / report.AverageGoldPerCatch;
-                    affordability.ValueRating = goldPerUseRatio switch
-                    {
-                        <= 0.5 => "Excellent Value",
-                        <= 1.0 => "Good Value",
-                        <= 2.0 => "Fair Trade",
-                        <= 3.0 => "Moderate Sink",
-                        _ => "Significant Gold Sink"
-                    };
-                }
-
-                PopulateItemEffectPreview(
-                    affordability,
-                    item,
-                    baselineProbabilities,
-                    enabledFishTypes,
-                    useBoostMode,
-                    boostModeMultiplier);
-
-                report.ItemAffordabilityAnalysis.Add(affordability);
-            }
-
-            var topGearItems = shopItems
-                .Where(i => i.Enabled && !i.MaxUses.HasValue && i.EquipmentSlot.HasValue &&
-                            i.EquipmentSlot != EquipmentSlot.Bait && i.EquipmentSlot != EquipmentSlot.Lure)
-                .GroupBy(i => i.EquipmentSlot!.Value)
-                .Select(g => g.OrderByDescending(i => i.Cost).First())
-                .ToList();
-
-            report.TopGearTotalCost = topGearItems.Sum(i => i.Cost);
-
-            var projectedSuccessRate = report.EstimatedTotalAttempts > 0
-                ? report.TotalCatches / (double)report.EstimatedTotalAttempts
-                : 0;
-
-            var projectionWindows = new[]
-            {
-                (Weeks: 12, Label: "3 Months"),
-                (Weeks: 26, Label: "6 Months"),
-                (Weeks: 52, Label: "12 Months")
-            };
-
-            foreach (var window in projectionWindows)
-            {
-                var projection = new BalanceProjectionWindow
-                {
-                    Weeks = window.Weeks,
-                    Label = window.Label
-                };
-
-                foreach (var tier in new[]
-                {
-                    (Name: "Casual", AttemptsPerSession: report.CasualAttemptsPerSession),
-                    (Name: "Active", AttemptsPerSession: report.ActiveAttemptsPerSession),
-                    (Name: "Hardcore", AttemptsPerSession: report.HardcoreAttemptsPerSession)
-                })
-                {
-                    var attemptsPerWeek = tier.AttemptsPerSession * report.StreamsPerWeekFromAttempts;
-                    var projectedAttempts = attemptsPerWeek * window.Weeks;
-                    var projectedCatches = projectedAttempts * projectedSuccessRate;
-                    var projectedGrossGold = projectedCatches * report.AverageGoldPerCatch;
-                    var projectedSnapSink = projectedAttempts * report.EstimatedSnapReplacementCostPerAttempt;
-                    var projectedNetGold = Math.Max(0, projectedGrossGold - projectedSnapSink);
-                    var maxGearProgress = report.TopGearTotalCost > 0
-                        ? Math.Min(999.0, (projectedNetGold / report.TopGearTotalCost) * 100.0)
-                        : 0;
-
-                    projection.Tiers.Add(new BalanceProjectionTier
-                    {
-                        TierName = tier.Name,
-                        AttemptsPerSession = Math.Round(tier.AttemptsPerSession, 2),
-                        StreamsPerWeek = report.StreamsPerWeekFromAttempts,
-                        AttemptsPerWeek = Math.Round(attemptsPerWeek, 2),
-                        ProjectedAttempts = Math.Round(projectedAttempts, 1),
-                        ProjectedCatches = Math.Round(projectedCatches, 1),
-                        ProjectedGrossGold = Math.Round(projectedGrossGold, 1),
-                        ProjectedSnapSink = Math.Round(projectedSnapSink, 1),
-                        ProjectedNetGold = Math.Round(projectedNetGold, 1),
-                        MaxGearProgressPercent = Math.Round(maxGearProgress, 1)
-                    });
-                }
-
-                report.ProjectionWindows.Add(projection);
-            }
-
-            // Generate balance recommendations
-            var recommendations = new List<string>();
-
-            if (report.SnapAdjustedAverageGoldPerAttempt <= 0)
-                recommendations.Add("?? Snap-adjusted net gold/attempt is non-positive. Lower snap rates or reduce rod/line/hook prices.");
-
-            if (report.EstimatedFailedAttempts > 0 && report.EstimatedTotalAttempts > 0)
-            {
-                var failPct = Math.Round((double)report.EstimatedFailedAttempts / report.EstimatedTotalAttempts * 100.0, 2);
-                if (failPct > 5.0)
-                {
-                    recommendations.Add($"?? Estimated snap failure rate is {failPct:F2}%. Consider lowering line/rod snap chances.");
-                }
-            }
-
-            // Gold economy check - items taking more than 20 sessions for active players.
-            var expensiveItems = report.ItemAffordabilityAnalysis
-                .Where(i => !i.IsConsumable && i.SessionsToAffordActive > 20)
-                .ToList();
-
-            if (expensiveItems.Any())
-                recommendations.Add($"?? {expensiveItems.Count} permanent items take over 20 active sessions. At {report.StreamsPerWeekFromAttempts:F2} streams/week this can be very slow progression.");
-
-            // Check for progression that's TOO fast
-            var tooFastItems = report.ItemAffordabilityAnalysis
-                .Where(i => !i.IsConsumable && i.SessionsToAffordActive < 1 && i.Cost > 100)
-                .ToList();
-
-            if (tooFastItems.Any())
-                recommendations.Add($"?? {tooFastItems.Count} permanent items can be bought in less than 1 session. Consider increasing prices to extend progression.");
-
-            // Consumable value check
-            var poorValueConsumables = report.ItemAffordabilityAnalysis
-                .Where(i => i.IsConsumable && i.ValueRating.Contains("Sink"))
-                .ToList();
-
-            if (poorValueConsumables.Any())
-                recommendations.Add($"?? {poorValueConsumables.Count} consumables are expensive relative to rewards. Review pricing or boost effectiveness.");
-
-            if (!recommendations.Any())
-                recommendations.Add("? Game balance looks healthy! No major issues detected.");
-
-            report.BalanceRecommendations = recommendations;
-            return report;
-        }
-
-        public async Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26)
-        {
-            _logger.LogInformation("[PRICING] CalculateRecommendedPricing() CALLED - targetWeeksForEndgame: {Weeks}", targetWeeksForEndgame);
-
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var catchSamples = await context.FishCatches
-                .Select(c => new { c.UserId, Timestamp = c.CaughtAt })
-                .ToListAsync();
-
-            var snapSamples = await context.FishingSnapEvents
-                .Select(s => new { s.UserId, Timestamp = s.SnappedAt })
-                .ToListAsync();
-
-            var attemptSamples = catchSamples
-                .Select(c => new { c.UserId, c.Timestamp })
-                .Concat(snapSamples.Select(s => new { s.UserId, s.Timestamp }))
-                .OrderBy(a => a.Timestamp)
-                .ToList();
-
-            if (!attemptSamples.Any())
-            {
-                _logger.LogWarning("[PRICING] No attempt data available, returning empty recommendations");
-                return new Dictionary<string, int>();
-            }
-
-            var userSessionAverages = CalculateUserAverageCatchesPerSession(
-                attemptSamples.Select(c => (c.UserId, c.Timestamp)),
-                SessionGap,
-                minTotalCatches: 5,
-                minSessions: 2);
-
-            if (!userSessionAverages.Any())
-            {
-                userSessionAverages = CalculateUserAverageCatchesPerSession(
-                    attemptSamples.Select(c => (c.UserId, c.Timestamp)),
-                    SessionGap);
-            }
-
-            userSessionAverages = userSessionAverages
-                .OrderBy(v => v)
-                .ToList();
-
-            double activeAttemptsPerSession = 30.0; // Fallback
-            if (userSessionAverages.Count > 0)
-            {
-                var p50Index = userSessionAverages.Count / 2;
-                activeAttemptsPerSession = userSessionAverages.Count % 2 == 0
-                    ? (userSessionAverages[p50Index - 1] + userSessionAverages[p50Index]) / 2.0
-                    : userSessionAverages[p50Index];
-            }
-
-            var (streamsPerWeek, _, _) = CalculateStreamsPerWeekFromAttempts(
-                attemptSamples.Select(a => a.Timestamp),
-                null,
-                null);
-
-            if (streamsPerWeek <= 0)
-            {
-                streamsPerWeek = 1.0;
-            }
-
-            // Calculate progressive baseline gold (with equipment progression over time)
-            var expectedGoldPerAttempt = await CalculateProgressiveBaselineGold(targetWeeksForEndgame);
-
-            _logger.LogInformation("[PRICING] Active player engagement: {Attempts} attempts/session", Math.Round(activeAttemptsPerSession, 1));
-            _logger.LogInformation("[PRICING] Observed streams/week from attempts: {StreamsPerWeek}", Math.Round(streamsPerWeek, 2));
-            _logger.LogInformation("[PRICING] Expected net gold per attempt: {Gold}g (with progression)", Math.Round(expectedGoldPerAttempt, 2));
-
-            // Define progression tier targets (in weeks, scaled to endgame horizon)
-            // Scale weeks based on targetWeeksForEndgame parameter
-            var scaleFactor = targetWeeksForEndgame / 26.0; // Default is 26 weeks for endgame
-
-            var pricingTiers = new List<(string Name, int TargetWeeks)>
-            {
-                ("Entry", (int)Math.Round(2 * scaleFactor)),      // ~8% of progression (2/26)
-                ("Mid", (int)Math.Round(6 * scaleFactor)),         // ~23% of progression (6/26)
-                ("High", (int)Math.Round(12 * scaleFactor)),       // ~46% of progression (12/26)
-                ("Top", targetWeeksForEndgame)                      // 100% - endgame
-            };
-
-            var recommendations = new Dictionary<string, int>();
-
-            _logger.LogInformation("[PRICING] Tier targets: Entry={EntryWeeks}w, Mid={MidWeeks}w, High={HighWeeks}w, Top={TopWeeks}w",
-                pricingTiers[0].TargetWeeks, pricingTiers[1].TargetWeeks, pricingTiers[2].TargetWeeks, pricingTiers[3].TargetWeeks);
-
-            // Define item distribution across tiers
-            var itemTiers = new Dictionary<string, string>
-            {
-                // Entry Tier Rods
-                { "Bamboo Rod", "Entry" },
-                // Entry Tier Reels
-                { "Basic Reel", "Entry" },
-                // Entry Tier Lines
-                { "Monofilament Line", "Entry" },
-                // Entry Tier Hooks
-                { "Standard Hook", "Entry" },
-                // Entry Tier Tackle Boxes
-                { "Basic Tackle Box", "Entry" },
-                // Entry Tier Nets
-                { "Landing Net", "Entry" },
-
-                // Mid Tier Rods
-                { "Fiberglass Rod", "Mid" },
-                // Mid Tier Reels
-                { "Precision Reel", "Mid" },
-                // Mid Tier Lines
-                { "Braided Line", "Mid" },
-                // Mid Tier Hooks
-                { "Circle Hook", "Mid" },
-                // Mid Tier Tackle Boxes
-                { "Pro Tackle Box", "Mid" },
-                // Mid Tier Nets
-                { "Knotless Net", "Mid" },
-
-                // High Tier Rods
-                { "Carbon Fiber Rod", "High" },
-                // High Tier Reels
-                { "Professional Reel", "High" },
-                // High Tier Lines
-                { "Fluorocarbon Line", "High" },
-                // High Tier Hooks
-                { "Treble Hook", "High" },
-                // High Tier Tackle Boxes
-                { "Master Tackle Box", "High" },
-                // High Tier Nets
-                { "Tournament Net", "High" },
-
-                // Top Tier Rods
-                { "Legendary Rod", "Top" },
-                // Top Tier Reels
-                { "Master Reel", "Top" },
-                // Top Tier Lines
-                { "Titanium Wire", "Top" },
-                // Top Tier Hooks
-                { "Diamond Hook", "Top" }
-            };
-
-            // Calculate prices for each item based on tier's target weeks
-            foreach (var (itemName, tierName) in itemTiers)
-            {
-                var tier = pricingTiers.FirstOrDefault(t => t.Name == tierName);
-                if (tier == default)
-                {
-                    _logger.LogWarning("[PRICING] Unknown tier '{Tier}' for item '{Item}'", tierName, itemName);
-                    continue;
-                }
-
-                // Calculate price: sessions * attempts/session * net gold/attempt
-                var sessionsNeeded = tier.TargetWeeks * streamsPerWeek;
-                var attemptsNeeded = sessionsNeeded * activeAttemptsPerSession;
-                var targetPrice = (int)Math.Round(attemptsNeeded * expectedGoldPerAttempt);
-
-                recommendations[itemName] = targetPrice;
-
-                _logger.LogDebug("[PRICING] {Item} ({Tier}): {Price}g = {Weeks}w * {SessionsPerWeek} * {AttemptsPerSession} * {NetGoldPerAttempt}g",
-                    itemName, tierName, targetPrice, tier.TargetWeeks, streamsPerWeek, Math.Round(activeAttemptsPerSession, 1), Math.Round(expectedGoldPerAttempt, 2));
-            }
-
-            _logger.LogInformation("[PRICING] Generated {Count} pricing recommendations based on real engagement data",
-                recommendations.Count);
-
-            return recommendations;
+            return 0.0;
         }
 
         private static double ApplyLineSnapLosses(List<UserFishingBoost> boosts)
         {
             var replacementCost = 0.0;
-
-            // Charge replacement for line/hook every time they snap,
-            // but keep them in the simulated loadout so future snaps can still incur cost.
-            foreach (var item in boosts.Where(b => b.ShopItem?.EquipmentSlot == EquipmentSlot.Line || b.ShopItem?.EquipmentSlot == EquipmentSlot.Hook))
+            foreach (var item in boosts.Where(b => (b.ShopItem?.EquipmentSlot == EquipmentSlot.Line || b.ShopItem?.EquipmentSlot == EquipmentSlot.Hook) && b.ShopItem?.DisableBreaking != true))
             {
                 replacementCost += item.ShopItem?.Cost ?? 0;
             }
 
             var baitLureItems = boosts
-                .Where(b => b.ShopItem?.EquipmentSlot == EquipmentSlot.Bait || b.ShopItem?.EquipmentSlot == EquipmentSlot.Lure)
+                .Where(b => (b.ShopItem?.EquipmentSlot == EquipmentSlot.Bait || b.ShopItem?.EquipmentSlot == EquipmentSlot.Lure) && b.ShopItem?.DisableBreaking != true)
                 .ToList();
 
             foreach (var item in baitLureItems)
             {
                 if (item.RemainingUses == -1)
                 {
-                    // Unlimited bait/lure are lost and replaced on snap.
                     replacementCost += item.ShopItem?.Cost ?? 0;
-                    continue;
                 }
-
-                if (item.RemainingUses > 0)
+                else if (item.RemainingUses > 0)
                 {
-                    item.RemainingUses--;
-
                     var maxUses = item.ShopItem?.MaxUses ?? 1;
-                    var perUseCost = maxUses > 0
-                        ? (item.ShopItem?.Cost ?? 0) / (double)maxUses
-                        : item.ShopItem?.Cost ?? 0;
-
+                    var perUseCost = maxUses > 0 ? (item.ShopItem?.Cost ?? 0) / (double)maxUses : item.ShopItem?.Cost ?? 0;
                     replacementCost += perUseCost;
-                }
-
-                if (item.RemainingUses <= 0)
-                {
-                    boosts.Remove(item);
                 }
             }
 
@@ -1598,10 +1881,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         private static double ApplyRodSnapLosses(List<UserFishingBoost> boosts)
         {
             var replacementCost = 0.0;
-
-            // Charge replacement for rod every time it snaps,
-            // but keep it in simulated loadout for future attempts.
-            foreach (var rod in boosts.Where(b => b.ShopItem?.EquipmentSlot == EquipmentSlot.Rod))
+            foreach (var rod in boosts.Where(b => b.ShopItem?.EquipmentSlot == EquipmentSlot.Rod && b.ShopItem?.DisableBreaking != true))
             {
                 replacementCost += rod.ShopItem?.Cost ?? 0;
             }
@@ -1616,10 +1896,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             foreach (var boost in boosts)
             {
-                if (boost.RemainingUses == -1)
-                {
-                    continue;
-                }
+                if (boost.RemainingUses == -1) continue;
 
                 if (boost.RemainingUses > 0)
                 {
@@ -1637,5 +1914,18 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 boosts.Remove(expired);
             }
         }
+
+        private class ProgressionTier
+        {
+            public string Name { get; set; } = string.Empty;
+            public int Weeks { get; set; }
+            public double RarityBoost { get; set; }
+            public double StarBoost { get; set; }
+            public double WeightBoost { get; set; }
+            public string? RodName { get; set; }
+            public string? LineName { get; set; }
+            public string? HookName { get; set; }
+        }
+        #endregion
     }
 }

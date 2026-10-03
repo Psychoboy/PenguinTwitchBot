@@ -1,56 +1,203 @@
+using System;
+using System.Collections.Generic;
+
 namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 {
     public class FishingBalanceReport
     {
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public int TotalCatches { get; set; }
-        public int UniqueUsers { get; set; }
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
 
-        // Gold Economics
-        public int TotalGoldEarned { get; set; }
+        // Settings Snapshot
+        public BalanceSettingsSnapshot SettingsSnapshot { get; set; } = new();
+
+        // Theoretical / Projected Economics (Mathematical expectation from settings & items)
+        public ProjectedEconomyModel ProjectedEconomy { get; set; } = new();
+
+        // Real / Observed Telemetry (From DB catches, snap events, user golds)
+        public RealEconomyTelemetry RealEconomy { get; set; } = new();
+
+        // Side-by-side Variance Indicators (Real vs Projected)
+        public EconomyVarianceSummary Variance { get; set; } = new();
+
+        // Item Economics & ROI Deep-Dive
+        public List<ItemEconomyAnalysis> ItemAnalysis { get; set; } = new();
+
+        // Multi-month Loadout Progression Projections
+        public List<LoadoutProgressionMilestone> ProgressionMilestones { get; set; } = new();
+
+        // Automated Health Diagnostics & Remediation Flags
+        public List<BalanceHealthDiagnostic> Diagnostics { get; set; } = new();
+
+        #region Convenience Backwards-Compatible Properties
+        public int TotalCatches => RealEconomy.TotalCatches;
+        public int UniqueUsers => RealEconomy.UniqueFishers;
+        public int TotalGoldEarned => (int)RealEconomy.TotalGrossGoldEarned;
+        public double AverageGoldPerCatch => RealEconomy.AverageGoldPerCatch;
+        public double MedianGoldPerCatch => RealEconomy.MedianGoldPerCatch;
+        public double ConfiguredLineSnapChance => SettingsSnapshot.LineSnapChance;
+        public double ConfiguredRodSnapChance => SettingsSnapshot.RodSnapChance;
+        public double EstimatedSuccessfulAttemptRatePercent => RealEconomy.ObservedSuccessRatePercent > 0 
+            ? RealEconomy.ObservedSuccessRatePercent 
+            : SettingsSnapshot.TheoreticalSuccessRatePercent;
+        public int EstimatedTotalAttempts => RealEconomy.TotalAttemptsRecorded;
+        public int EstimatedFailedAttempts => Math.Max(0, RealEconomy.TotalAttemptsRecorded - RealEconomy.TotalCatches);
+        public int EstimatedLineSnaps => RealEconomy.LineSnapsRecorded;
+        public int EstimatedRodSnaps => RealEconomy.RodSnapsRecorded;
+        public double EstimatedSnapReplacementCostPerAttempt => RealEconomy.AverageAccidentLossPerAttempt;
+        public double EstimatedSnapReplacementCostTotal => (double)RealEconomy.TotalGoldLostToAccidents;
+        public double SnapAdjustedAverageGoldPerAttempt => RealEconomy.NetGoldPerAttempt;
+        public double SnapAdjustedMedianGoldPerAttempt => RealEconomy.NetGoldPerAttempt;
+        public double SnapAdjustedTotalNetGold => RealEconomy.NetTotalGoldFlow;
+        public string AttemptDataSource => RealEconomy.AttemptDataSource;
+        public double CasualAttemptsPerSession => RealEconomy.CasualAttemptsPerSession;
+        public double ActiveAttemptsPerSession => RealEconomy.ActiveAttemptsPerSession;
+        public double HardcoreAttemptsPerSession => RealEconomy.HardcoreAttemptsPerSession;
+        public double StreamsPerWeekFromAttempts => RealEconomy.StreamsPerWeek;
+        public double AttemptsPerWeek => RealEconomy.AttemptsPerWeek;
+        public double CatchesPerWeek => RealEconomy.CatchesPerWeek;
+        public int TopGearTotalCost { get; set; }
+        public List<string> BalanceRecommendations { get; set; } = new();
+        #endregion
+    }
+
+    public class BalanceSettingsSnapshot
+    {
+        public double LineSnapChance { get; set; }
+        public double RodSnapChance { get; set; }
+        public double ReelJamChance { get; set; }
+        public double TackleBoxLostChance { get; set; }
+        public double NetBreakChance { get; set; }
+        public double RepairCostMultiplier { get; set; }
+        public bool BoostMode { get; set; }
+        public double BoostModeRarityMultiplier { get; set; }
+        public double CombinedAccidentRatePercent { get; set; }
+        public double TheoreticalSuccessRatePercent { get; set; }
+    }
+
+    public class ProjectedEconomyModel
+    {
+        public double BaselineGrossGoldPerCatch { get; set; }
+        public double BaselineGrossGoldPerAttempt { get; set; }
+        public double BaselineSuccessRatePercent { get; set; }
+
+        // Progressive loadout tiers (Bare Hands, Entry, Mid, High, Top)
+        public List<TierProjectedEconomics> TierEconomics { get; set; } = new();
+    }
+
+    public class TierProjectedEconomics
+    {
+        public string TierName { get; set; } = string.Empty;
+        public int TotalLoadoutCost { get; set; }
+        public double SuccessRatePercent { get; set; }
+        public double GrossGoldPerCatch { get; set; }
+        public double GrossGoldPerAttempt { get; set; }
+        public double DurabilityUpkeepPerAttempt { get; set; }
+        public double AccidentSinkPerAttempt { get; set; }
+        public double ConsumableSinkPerAttempt { get; set; }
+        public double NetGoldPerAttempt { get; set; }
+        public double ProfitMarginPercent { get; set; }
+
+        // Equipment items in this loadout
+        public List<string> EquippedItems { get; set; } = new();
+    }
+
+    public class RealEconomyTelemetry
+    {
+        public int TotalCatches { get; set; }
+        public int TotalAttemptsRecorded { get; set; }
+        public int UniqueFishers { get; set; }
+        public long TotalGrossGoldEarned { get; set; }
         public double AverageGoldPerCatch { get; set; }
         public double MedianGoldPerCatch { get; set; }
-
-        // Snap-adjusted economics
-        public double ConfiguredLineSnapChance { get; set; }
-        public double ConfiguredRodSnapChance { get; set; }
-        public double EstimatedSuccessfulAttemptRatePercent { get; set; }
-        public int EstimatedTotalAttempts { get; set; }
-        public int EstimatedFailedAttempts { get; set; }
-        public int EstimatedLineSnaps { get; set; }
-        public int EstimatedRodSnaps { get; set; }
-        public double EstimatedSnapReplacementCostPerAttempt { get; set; }
-        public double EstimatedSnapReplacementCostTotal { get; set; }
-        public double SnapAdjustedAverageGoldPerAttempt { get; set; }
-        public double SnapAdjustedMedianGoldPerAttempt { get; set; }
-        public double SnapAdjustedTotalNetGold { get; set; }
+        public double ObservedSuccessRatePercent { get; set; }
         public string AttemptDataSource { get; set; } = string.Empty;
 
-        // Item Affordability Analysis
-        public List<ItemAffordability> ItemAffordabilityAnalysis { get; set; } = new();
+        // Accident Telemetry
+        public int TotalAccidentsRecorded { get; set; }
+        public int RodSnapsRecorded { get; set; }
+        public int LineSnapsRecorded { get; set; }
+        public int ReelJamsRecorded { get; set; }
+        public int TackleBoxLossesRecorded { get; set; }
+        public int NetBreaksRecorded { get; set; }
+        public decimal TotalGoldLostToAccidents { get; set; }
+        public double AverageAccidentLossPerAttempt { get; set; }
 
-        // Engagement Metrics (calculated from actual attempt data)
+        // Durability Upkeep Telemetry
+        public double EstimatedDurabilityUpkeepIncurred { get; set; }
+        public double AverageDurabilityUpkeepPerAttempt { get; set; }
+
+        // Net Economy Flow
+        public double NetGoldPerAttempt { get; set; }
+        public double NetTotalGoldFlow { get; set; }
+
+        // Player Engagement Percentiles
         public double CasualAttemptsPerSession { get; set; }
         public double ActiveAttemptsPerSession { get; set; }
         public double HardcoreAttemptsPerSession { get; set; }
-        public double StreamsPerWeekFromAttempts { get; set; }
+        public double StreamsPerWeek { get; set; }
         public double AttemptsPerWeek { get; set; }
         public double CatchesPerWeek { get; set; }
-        public int TopGearTotalCost { get; set; }
-        public List<BalanceProjectionWindow> ProjectionWindows { get; set; } = new();
-
-        public List<string> BalanceRecommendations { get; set; } = new();
     }
 
-    public class BalanceProjectionWindow
+    public class EconomyVarianceSummary
+    {
+        public double GrossGoldCatchVariancePercent { get; set; }
+        public double SuccessRateVariancePercent { get; set; }
+        public double AccidentRateVariancePercent { get; set; }
+        public double NetGoldAttemptVariancePercent { get; set; }
+        public string SummaryNotes { get; set; } = string.Empty;
+    }
+
+    public class ItemEconomyAnalysis
+    {
+        public int ShopItemId { get; set; }
+        public string ItemName { get; set; } = string.Empty;
+        public string EquipmentSlot { get; set; } = string.Empty;
+        public int Cost { get; set; }
+        public bool IsConsumable { get; set; }
+        public int? MaxUses { get; set; }
+        public int? MaxDurability { get; set; }
+        public double DurabilityLossPerUse { get; set; }
+        public bool IsUnbreakable { get; set; }
+
+        // Maintenance & Operating Cost
+        public double DurabilityUpkeepPerAttempt { get; set; }
+        public double AccidentRiskPerAttempt { get; set; }
+        public double TotalOperatingCostPerAttempt { get; set; }
+
+        // Performance & ROI
+        public double ExpectedGrossGoldBoostPerAttempt { get; set; }
+        public double NetValuePerAttempt { get; set; }
+        public double? PaybackAttempts { get; set; }
+        public string EconomicRating { get; set; } = string.Empty; // "Profitable Investment", "Fair Upgrade", "Luxury Sink", "Consumable Sink", "Great Value"
+
+        // Player Affordability
+        public int PlayersWhoCanAfford { get; set; }
+        public double PercentageWhoCanAfford { get; set; }
+        public double AttemptsNeededToBuy { get; set; }
+        public double SessionsToAffordCasual { get; set; }
+        public double SessionsToAffordActive { get; set; }
+        public double SessionsToAffordHardcore { get; set; }
+        public double WeeksToAffordActive { get; set; }
+
+        // Boost Effect Preview
+        public bool HasEffectPreview { get; set; }
+        public string EffectMetric { get; set; } = string.Empty;
+        public double EffectBaselineValue { get; set; }
+        public double EffectWithItemValue { get; set; }
+        public double EffectRelativeChangePercent { get; set; }
+    }
+
+    public class LoadoutProgressionMilestone
     {
         public int Weeks { get; set; }
         public string Label { get; set; } = string.Empty;
-        public List<BalanceProjectionTier> Tiers { get; set; } = new();
+        public List<LoadoutProgressionTier> Tiers { get; set; } = new();
     }
 
-    public class BalanceProjectionTier
+    public class LoadoutProgressionTier
     {
         public string TierName { get; set; } = string.Empty;
         public double AttemptsPerSession { get; set; }
@@ -59,40 +206,59 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public double ProjectedAttempts { get; set; }
         public double ProjectedCatches { get; set; }
         public double ProjectedGrossGold { get; set; }
-        public double ProjectedSnapSink { get; set; }
+        public double ProjectedUpkeepSink { get; set; }
+        public double ProjectedAccidentSink { get; set; }
         public double ProjectedNetGold { get; set; }
         public double MaxGearProgressPercent { get; set; }
     }
 
-    public class ItemAffordability
+    public enum DiagnosticSeverity
     {
-        public string ItemName { get; set; } = string.Empty;
-        public int Cost { get; set; }
-        public bool IsConsumable { get; set; }
-        public int? MaxUses { get; set; }
-        public string EquipmentSlot { get; set; } = string.Empty;
-        public double CostPerUse { get; set; }
+        Info,
+        Warning,
+        Error,
+        Success
+    }
 
-        // Current affordability
-        public int UsersWhoCanAfford { get; set; }
-        public double PercentageWhoCanAfford { get; set; }
+    public class BalanceHealthDiagnostic
+    {
+        public DiagnosticSeverity Severity { get; set; } = DiagnosticSeverity.Info;
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string RemediationAdvice { get; set; } = string.Empty;
+    }
 
-        // Long-term affordability (calculated from REAL player engagement percentiles)
-        public double AttemptsNeededToBuy { get; set; }
-        public double SessionsToAffordCasual { get; set; }  // Based on 25th percentile player
-        public double SessionsToAffordActive { get; set; }  // Based on 50th percentile (median) player
-        public double SessionsToAffordHardcore { get; set; } // Based on 75th percentile player
+    public class BalanceSimulationScenario
+    {
+        public double LineSnapChance { get; set; } = 0.02;
+        public double RodSnapChance { get; set; } = 0.0005;
+        public double ReelJamChance { get; set; } = 0.01;
+        public double TackleBoxLostChance { get; set; } = 0.005;
+        public double NetBreakChance { get; set; } = 0.01;
+        public double RepairCostMultiplier { get; set; } = 0.25;
+        public double AttemptsPerSession { get; set; } = 30.0;
+        public double StreamsPerWeek { get; set; } = 3.0;
+        public string SelectedLoadoutTier { get; set; } = "Mid"; // Baseline, Entry, Mid, High, Top, Custom
+        public List<int> CustomShopItemIds { get; set; } = new();
+    }
 
-        // Value analysis
-        public double MedianUserGold { get; set; }
-        public string AffordabilityRating { get; set; } = string.Empty; // For permanent items
-        public string ValueRating { get; set; } = string.Empty; // For consumables: "Gold Sink", "Fair Trade", "Great Value"
-
-        // Effect preview (single-item impact reference for admin balancing)
-        public bool HasEffectPreview { get; set; }
-        public string EffectMetric { get; set; } = string.Empty;
-        public double EffectBaselineValue { get; set; }
-        public double EffectWithItemValue { get; set; }
-        public double EffectRelativeChangePercent { get; set; }
+    public class BalanceSimulationResult
+    {
+        public double SuccessRatePercent { get; set; }
+        public double CombinedAccidentRatePercent { get; set; }
+        public double GrossGoldPerCatch { get; set; }
+        public double GrossGoldPerAttempt { get; set; }
+        public double DurabilityUpkeepPerAttempt { get; set; }
+        public double AccidentSinkPerAttempt { get; set; }
+        public double ConsumableSinkPerAttempt { get; set; }
+        public double NetGoldPerAttempt { get; set; }
+        public double NetGoldPerSession { get; set; }
+        public double NetGoldPerWeek { get; set; }
+        public double ProfitMarginPercent { get; set; }
+        public int TotalLoadoutCost { get; set; }
+        public double SessionsToAffordTopGear { get; set; }
+        public double WeeksToAffordTopGear { get; set; }
+        public string FinancialStatus { get; set; } = string.Empty; // "Deflationary Loss", "Tight Margin", "Sustainable Growth", "High Accumulation"
+        public List<string> EquippedItemNames { get; set; } = new();
     }
 }
