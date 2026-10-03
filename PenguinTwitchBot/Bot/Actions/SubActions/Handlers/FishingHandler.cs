@@ -587,7 +587,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
                     foreach (var item in brokenItems)
                     {
-                        var slotName = item.EquipmentSlot.ToString();
+                        var slotName = item.EquipmentSlot?.ToString() ?? string.Empty;
                         bool shouldExecute = false;
 
                         foreach (var trigger in triggers)
@@ -644,8 +644,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             try
             {
-                return JsonSerializer.Deserialize<FishingAccidentTriggerConfiguration>(configuration)
+                var config = JsonSerializer.Deserialize<FishingAccidentTriggerConfiguration>(configuration)
                     ?? new FishingAccidentTriggerConfiguration();
+                config.AccidentTypes ??= [];
+                return config;
             }
             catch
             {
@@ -662,8 +664,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             try
             {
-                return JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(configuration)
+                var config = JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(configuration)
                     ?? new FishingItemBrokenTriggerConfiguration();
+                config.EquipmentSlots ??= [];
+                config.ShopItemIds ??= [];
+                return config;
             }
             catch
             {

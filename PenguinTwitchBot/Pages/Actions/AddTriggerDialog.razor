@@ -542,6 +542,7 @@
     private int _fishCatchMinGold = 0;
     private bool _fishCatchRequireActiveTournament = false;
     private IReadOnlyCollection<string> _fishingItemBrokenSlots = new HashSet<string>();
+    private List<int> _fishingItemBrokenShopItemIds = new();
     private IReadOnlyCollection<FishingAttemptOutcome> _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
     private List<FishType> _fishTypes = new();
     private bool IsEditMode => ExistingTrigger != null;
@@ -659,11 +660,13 @@
             {
                 var config = System.Text.Json.JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(trigger.Configuration)
                     ?? new FishingItemBrokenTriggerConfiguration();
-                _fishingItemBrokenSlots = new HashSet<string>(config.EquipmentSlots);
+                _fishingItemBrokenSlots = new HashSet<string>(config.EquipmentSlots ?? []);
+                _fishingItemBrokenShopItemIds = config.ShopItemIds ?? [];
             }
             catch
             {
                 _fishingItemBrokenSlots = new HashSet<string>();
+                _fishingItemBrokenShopItemIds = new List<int>();
             }
         }
         else if (trigger.Type == TriggerTypes.FishingAccident)
@@ -1044,7 +1047,8 @@
         {
             var config = new FishingItemBrokenTriggerConfiguration
             {
-                EquipmentSlots = _fishingItemBrokenSlots.ToList()
+                EquipmentSlots = _fishingItemBrokenSlots.ToList(),
+                ShopItemIds = _fishingItemBrokenShopItemIds
             };
             configuration = System.Text.Json.JsonSerializer.Serialize(config);
             _triggerName = "Fishing.ItemBroken";

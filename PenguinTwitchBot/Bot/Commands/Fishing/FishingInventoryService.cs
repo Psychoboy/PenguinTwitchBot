@@ -269,9 +269,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                             UserBoostId = userBoost.Id,
                             ShopItemId = userBoost.ShopItemId,
                             ItemName = shopItem.Name,
-                            EquipmentSlot = shopItem.EquipmentSlot ?? EquipmentSlot.Rod,
+                            EquipmentSlot = shopItem.EquipmentSlot,
                             ItemCost = shopItem.Cost,
-                            WasReplaced = repairCostMultiplier <= 0
+                            WasReplaced = false
                         };
                         brokenItems.Add(brokenInfo);
 
@@ -283,7 +283,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         else
                         {
                             // Permanently broken & removed; auto-equip spare if available
-                            await RemoveAndEquipReplacement(db, userBoost);
+                            brokenInfo.WasReplaced = await RemoveAndEquipReplacement(db, userBoost);
                         }
                     }
                 }
@@ -531,7 +531,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return lossResult;
         }
 
-        private static async Task RemoveAndEquipReplacement(IUnitOfWork db, UserFishingBoost item)
+        private static async Task<bool> RemoveAndEquipReplacement(IUnitOfWork db, UserFishingBoost item)
         {
             item.IsEquipped = false;
             db.UserFishingBoosts.Remove(item);
@@ -549,7 +549,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (replacement != null)
             {
                 replacement.IsEquipped = true;
+                return true;
             }
+
+            return false;
         }
 
         private static Task<UserFishingBoost?> FindUserBoost(IUnitOfWork db, string userId, int userBoostId)
