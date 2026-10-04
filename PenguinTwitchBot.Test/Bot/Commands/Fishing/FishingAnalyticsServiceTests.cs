@@ -86,7 +86,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
                 new() { Id = 8, Name = "Landing Net", Cost = 350, EquipmentSlot = EquipmentSlot.Net, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.15, MaxDurability = 150, DurabilityLossPerUse = 1, Enabled = true },
                 new() { Id = 9, Name = "Worms", Cost = 75, EquipmentSlot = EquipmentSlot.Bait, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, IsConsumable = true, MaxUses = 5, Enabled = true },
                 new() { Id = 10, Name = "Titanium Wire", Cost = 2800, EquipmentSlot = EquipmentSlot.Line, BoostType = FishingBoostType.WeightBoost, BoostAmount = 0.45, DisableBreaking = true, Enabled = true },
-                new() { Id = 11, Name = "Carbon Fiber Rod", Cost = 1000, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, MaxDurability = 100, DurabilityLossPerUse = 2, DisableBreaking = true, Enabled = true }
+                new() { Id = 11, Name = "Carbon Fiber Rod", Cost = 1000, EquipmentSlot = EquipmentSlot.Rod, BoostType = FishingBoostType.GeneralRarityBoost, BoostAmount = 0.15, MaxDurability = 100, DurabilityLossPerUse = 2, DisableBreaking = true, Enabled = true },
+                new() { Id = 12, Name = "Master Reel", Cost = 3500, EquipmentSlot = EquipmentSlot.Reel, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 300, DurabilityLossPerUse = 1, Enabled = true },
+                new() { Id = 13, Name = "Diamond Hook", Cost = 3000, EquipmentSlot = EquipmentSlot.Hook, BoostType = FishingBoostType.StarBoost, BoostAmount = 0.20, MaxDurability = 200, DurabilityLossPerUse = 1, Enabled = true }
             };
             _context.FishingShopItems.AddRange(shopItems);
 
@@ -125,6 +127,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.True(entryTier.DurabilityUpkeepPerAttempt > 0, "Entry tier should have durability upkeep");
             Assert.True(entryTier.AccidentSinkPerAttempt > 0, "Entry tier should have accident sink");
             Assert.True(entryTier.NetGoldPerAttempt > 0, "Entry tier should have positive net gold");
+            Assert.True(entryTier.ExpectedThreeStarPercent > 0);
+            Assert.True(entryTier.ExpectedRarePlusPercent > 0);
+            Assert.True(entryTier.ExpectedAverageWeight > 0);
+
+            var topTier = projected.TierEconomics.FirstOrDefault(t => t.TierName == "Top");
+            var bareHands = projected.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands");
+            Assert.NotNull(topTier);
+            Assert.NotNull(bareHands);
+            Assert.True(topTier.ExpectedThreeStarPercent > bareHands.ExpectedThreeStarPercent, "Top tier should have significantly higher 3-star chance");
+            Assert.True(topTier.ExpectedRarePlusPercent > bareHands.ExpectedRarePlusPercent, "Top tier should have higher rare+ chance");
+            Assert.True(topTier.ExpectedAverageWeight > bareHands.ExpectedAverageWeight, "Top tier should catch heavier fish");
         }
 
         [Fact]
@@ -153,6 +166,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.True(result.NetGoldPerSession > 0, "Balanced settings should yield positive net session gold");
             Assert.True(result.NetGoldPerWeek > 0);
             Assert.False(string.IsNullOrWhiteSpace(result.FinancialStatus));
+            Assert.True(result.ExpectedThreeStarPercent > 0);
+            Assert.True(result.ExpectedRarePlusPercent > 0);
+            Assert.True(result.ExpectedAverageWeight > 0);
 
             // Test harsh scenario detects deflation
             var harshScenario = new BalanceSimulationScenario
@@ -185,6 +201,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.True(bamboo.DurabilityUpkeepPerAttempt > 0, "Bamboo Rod should incur durability upkeep");
             Assert.True(bamboo.AccidentRiskPerAttempt > 0, "Bamboo Rod should have accident risk");
             Assert.True(bamboo.ExpectedGrossGoldBoostPerAttempt >= 0, "Should calculate boost");
+            Assert.Equal("Rarity", bamboo.PrimaryBoostCategory);
+            Assert.Contains("Rarity", bamboo.BoostSummary);
+            Assert.Contains("Rod", bamboo.TrophyRole);
+
+            // Legendary Rod should receive trophy rating
+            var legRod = analysis.FirstOrDefault(i => i.ItemName == "Legendary Rod");
+            Assert.NotNull(legRod);
+            Assert.Equal("Elite Trophy Gear", legRod.EconomicRating);
 
             // Titanium Wire with DisableBreaking and no durability
             var titanium = analysis.FirstOrDefault(i => i.ItemName == "Titanium Wire");
@@ -192,6 +216,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.True(titanium.IsUnbreakable);
             Assert.Equal(0.0, titanium.DurabilityUpkeepPerAttempt);
             Assert.Equal(0.0, titanium.AccidentRiskPerAttempt);
+            Assert.Equal("Big Game Specialist", titanium.EconomicRating);
 
             // Carbon Fiber Rod with DisableBreaking = true AND MaxDurability = 100
             var carbon = analysis.FirstOrDefault(i => i.ItemName == "Carbon Fiber Rod");
@@ -214,9 +239,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         {
             // Seed sample catches
             _context.FishCatches.AddRange(
-                new FishCatch { UserId = "u1", FishTypeId = 1, GoldEarned = 12, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u1", FishTypeId = 2, GoldEarned = 38, CaughtAt = DateTime.UtcNow.AddDays(-2) },
-                new FishCatch { UserId = "u2", FishTypeId = 3, GoldEarned = 80, CaughtAt = DateTime.UtcNow.AddDays(-1) }
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 1, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 2, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = 3, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
             );
 
             // Seed sample snap/accident event
@@ -251,14 +276,147 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(325m, report.RealEconomy.TotalGoldLostToAccidents);
             Assert.True(report.RealEconomy.AverageDurabilityUpkeepPerAttempt > 0, "Real durability upkeep should be calculated from active fishers equipped gear");
             Assert.True(report.RealEconomy.EstimatedDurabilityUpkeepIncurred > 0);
+            Assert.Equal(0, report.RealEconomy.TotalRepairsRecorded);
+            Assert.Equal("Estimated from equipment wear model (no repairs in range)", report.RealEconomy.DurabilityDataSource);
             Assert.Equal(20.0, report.RealEconomy.MedianNetGoldPerAttempt);
             Assert.Equal(20.0, report.SnapAdjustedMedianGoldPerAttempt);
+
+            // Observed Catch Quality Telemetry & Stream Trophy
+            Assert.Equal("Salmon", report.RealEconomy.HeaviestFishName);
+            Assert.Equal(7.5, report.RealEconomy.HeaviestFishWeight);
+            Assert.Equal("FisherBob", report.RealEconomy.HeaviestFishCatcher);
+            Assert.Equal(3, report.RealEconomy.HeaviestFishStars);
+            Assert.Equal(FishRarity.Rare, report.RealEconomy.HeaviestFishRarity);
+            Assert.True(report.RealEconomy.ObservedThreeStarPercent > 0);
+            Assert.True(report.RealEconomy.ObservedRarePlusPercent > 0);
+            Assert.True(report.RealEconomy.ObservedAverageWeight > 0);
 
             Assert.NotNull(report.SettingsSnapshot);
             Assert.NotNull(report.ProjectedEconomy);
             Assert.NotEmpty(report.ItemAnalysis);
             Assert.NotEmpty(report.ProgressionMilestones);
             Assert.NotEmpty(report.Diagnostics);
+        }
+
+        [Fact]
+        public async Task AnalyzeGameBalance_WithRepairEvents_UsesObservedRepairTelemetry()
+        {
+            _context.FishCatches.AddRange(
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 1, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 2, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = 3, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
+            );
+
+            _context.FishingSnapEvents.Add(new FishingSnapEvent
+            {
+                UserId = "u1",
+                Username = "player1",
+                SnapType = "Line",
+                TotalGoldLost = 100,
+                LostItemCount = 1,
+                SnappedAt = DateTime.UtcNow.AddDays(-1)
+            });
+
+            _context.FishingRepairEvents.AddRange(
+                new FishingRepairEvent
+                {
+                    UserId = "u1",
+                    Username = "player1",
+                    ShopItemId = 11,
+                    UserBoostId = 1,
+                    ItemName = "Carbon Fiber Rod",
+                    EquipmentSlot = "Rod",
+                    DurabilityRestored = 20,
+                    MaxDurability = 100,
+                    DurabilityBefore = 80,
+                    DurabilityAfter = 100,
+                    GoldPaid = 50m,
+                    RepairCostMultiplier = 0.25,
+                    RepairType = "Single",
+                    RepairedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new FishingRepairEvent
+                {
+                    UserId = "u1",
+                    Username = "player1",
+                    ShopItemId = 12,
+                    UserBoostId = 2,
+                    ItemName = "Pro Reel",
+                    EquipmentSlot = "Reel",
+                    DurabilityRestored = 10,
+                    MaxDurability = 100,
+                    DurabilityBefore = 90,
+                    DurabilityAfter = 100,
+                    GoldPaid = 30m,
+                    RepairCostMultiplier = 0.25,
+                    RepairType = "Single",
+                    RepairedAt = DateTime.UtcNow.AddDays(-1)
+                }
+            );
+
+            await _context.SaveChangesAsync();
+
+            var report = await _sut.AnalyzeGameBalance();
+
+            Assert.NotNull(report);
+            Assert.Equal(2, report.RealEconomy.TotalRepairsRecorded);
+            Assert.Equal(80m, report.RealEconomy.TotalGoldSpentOnRepairs);
+            Assert.Equal(40.0, report.RealEconomy.AverageRepairCostPerRepair);
+            Assert.Equal(1, report.RealEconomy.RepairsBySlot["Rod"]);
+            Assert.Equal(1, report.RealEconomy.RepairsBySlot["Reel"]);
+            Assert.Equal(50m, report.RealEconomy.RepairGoldBySlot["Rod"]);
+            Assert.Equal(30m, report.RealEconomy.RepairGoldBySlot["Reel"]);
+
+            Assert.StartsWith("Observed repair telemetry", report.RealEconomy.DurabilityDataSource);
+            // 4 attempts (3 catches + 1 snap). Upkeep = 80g / 4 attempts = 20g/attempt
+            Assert.Equal(20.0, report.RealEconomy.AverageDurabilityUpkeepPerAttempt);
+            Assert.Equal(80.0, report.RealEconomy.EstimatedDurabilityUpkeepIncurred);
+        }
+
+        [Fact]
+        public async Task AnalyzeGameBalance_SpecificCategoryBoost_DisplaysTargetCategoryInItemAnalysis()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 99,
+                Name = "Ocean Lure",
+                Cost = 300,
+                EquipmentSlot = EquipmentSlot.Bait,
+                BoostType = FishingBoostType.SpecificCategoryBoost,
+                BoostAmount = 0.25,
+                TargetCategory = "Saltwater",
+                Enabled = true
+            });
+            await _context.SaveChangesAsync();
+
+            var report = await _sut.AnalyzeGameBalance();
+
+            var item = report.ItemAnalysis.FirstOrDefault(i => i.ItemName == "Ocean Lure");
+            Assert.NotNull(item);
+            Assert.Contains("+25% Saltwater", item!.BoostSummary);
+        }
+
+        [Fact]
+        public async Task CalculateProjectedEconomy_WithBoostMode_ScalesCatchQualityProfile()
+        {
+            var boostSettings = new FishingSettings
+            {
+                Id = 1,
+                BoostMode = true,
+                BoostModeRarityMultiplier = 2.0,
+                LineSnapChance = 0.02,
+                RepairCostMultiplier = 0.25
+            };
+            _fishingService.GetSettings().Returns(Task.FromResult<FishingSettings?>(boostSettings));
+
+            var projected = await _sut.CalculateProjectedEconomy();
+
+            Assert.NotNull(projected);
+            var entryTier = projected.TierEconomics.FirstOrDefault(t => t.TierName == "Entry");
+            Assert.NotNull(entryTier);
+            Assert.True(entryTier!.ExpectedRarePlusPercent > 0);
+            Assert.True(entryTier.ExpectedThreeStarPercent > 0);
+            Assert.True(entryTier.ExpectedAverageWeight > 0);
         }
 
         [Fact]

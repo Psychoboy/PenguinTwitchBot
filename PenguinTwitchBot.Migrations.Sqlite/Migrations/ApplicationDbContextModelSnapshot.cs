@@ -942,6 +942,78 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("FishingGolds");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingRepairEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("DurabilityAfter")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DurabilityBefore")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("DurabilityRestored")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("EquipmentSlot")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("GoldPaid")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("MaxDurability")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("RepairCostMultiplier")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("RepairType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RepairedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ShopItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserBoostId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_RepairedAt");
+
+                    b.HasIndex("EquipmentSlot", "RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_EquipmentSlot_RepairedAt");
+
+                    b.HasIndex("UserId", "RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_UserId_RepairedAt");
+
+                    b.ToTable("FishingRepairEvents");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSettings", b =>
                 {
                     b.Property<int>("Id")

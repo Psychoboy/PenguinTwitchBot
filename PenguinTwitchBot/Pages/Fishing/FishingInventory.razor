@@ -661,6 +661,7 @@
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = null!;
 
     private string userId = string.Empty;
+    private string userName = string.Empty;
     private FishingGold? userGold;
     private List<UserFishingBoost> allItems = new();
     private Dictionary<EquipmentSlot, UserFishingBoost> equippedBySlot = new();
@@ -708,6 +709,7 @@
     {
         var user = HttpContextAccessor.HttpContext?.User;
         userId = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        userName = user?.Identity?.Name ?? string.Empty;
 
         if (!string.IsNullOrEmpty(userId))
         {
@@ -914,7 +916,7 @@
                     return;
                 }
 
-                var chargedGold = await inventoryService.RepairItem(userId, userBoostId, currentMultiplier);
+                var chargedGold = await inventoryService.RepairItem(userId, userBoostId, currentMultiplier, userName);
                 Snackbar.Add($"{item.ShopItem.Name} repaired successfully for {chargedGold} gold!", Severity.Success);
                 await LoadData();
             }
@@ -971,7 +973,7 @@
                 var itemsToRepairCount = equippedBySlot.Values
                     .Count(e => e.ShopItem?.MaxDurability.HasValue == true && (e.CurrentDurability ?? e.ShopItem.MaxDurability.Value) < e.ShopItem.MaxDurability.Value);
 
-                var goldCharged = await inventoryService.RepairAllEquippedItems(userId, currentMultiplier);
+                var goldCharged = await inventoryService.RepairAllEquippedItems(userId, currentMultiplier, userName);
                 Snackbar.Add($"Repaired {itemsToRepairCount} equipped item(s) for {goldCharged} gold.", Severity.Success);
                 await LoadData();
             }

@@ -101,6 +101,17 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
 
         // Equipment items in this loadout
         public List<string> EquippedItems { get; set; } = new();
+
+        // Catch Quality & Trophy Progression (Rarity, Stars & Weight)
+        public double RarityBoostPercent { get; set; }
+        public double StarBoostPercent { get; set; }
+        public double WeightBoostPercent { get; set; }
+        public double ExpectedRarePlusPercent { get; set; }
+        public double ExpectedThreeStarPercent { get; set; }
+        public double ExpectedTwoStarPercent { get; set; }
+        public double ExpectedOneStarPercent { get; set; }
+        public double ExpectedAverageWeight { get; set; }
+        public Dictionary<FishRarity, double> ExpectedRarityPercentages { get; set; } = new();
     }
 
     public class RealEconomyTelemetry
@@ -113,6 +124,21 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public double MedianGoldPerCatch { get; set; }
         public double ObservedSuccessRatePercent { get; set; }
         public string AttemptDataSource { get; set; } = string.Empty;
+
+        // Catch Quality & Trophy Telemetry (Observed Rarity, Stars & Weight)
+        public Dictionary<FishRarity, int> ObservedRarityCounts { get; set; } = new();
+        public Dictionary<FishRarity, double> ObservedRarityPercentages { get; set; } = new();
+        public double ObservedRarePlusPercent { get; set; }
+        public Dictionary<int, int> ObservedStarCounts { get; set; } = new();
+        public double ObservedThreeStarPercent { get; set; }
+        public double ObservedTwoStarPercent { get; set; }
+        public double ObservedOneStarPercent { get; set; }
+        public double ObservedAverageWeight { get; set; }
+        public string HeaviestFishName { get; set; } = string.Empty;
+        public double HeaviestFishWeight { get; set; }
+        public string HeaviestFishCatcher { get; set; } = string.Empty;
+        public int HeaviestFishStars { get; set; }
+        public FishRarity? HeaviestFishRarity { get; set; }
 
         // Accident Telemetry
         public int TotalAccidentsRecorded { get; set; }
@@ -127,6 +153,14 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         // Durability Upkeep Telemetry
         public double EstimatedDurabilityUpkeepIncurred { get; set; }
         public double AverageDurabilityUpkeepPerAttempt { get; set; }
+        public string DurabilityDataSource { get; set; } = string.Empty;
+
+        // Recorded Repair Telemetry
+        public int TotalRepairsRecorded { get; set; }
+        public decimal TotalGoldSpentOnRepairs { get; set; }
+        public double AverageRepairCostPerRepair { get; set; }
+        public Dictionary<string, int> RepairsBySlot { get; set; } = new();
+        public Dictionary<string, decimal> RepairGoldBySlot { get; set; } = new();
 
         // Net Economy Flow
         public double NetGoldPerAttempt { get; set; }
@@ -190,6 +224,11 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public double EffectBaselineValue { get; set; }
         public double EffectWithItemValue { get; set; }
         public double EffectRelativeChangePercent { get; set; }
+
+        // Gameplay Identity & Boost Summary
+        public string PrimaryBoostCategory { get; set; } = string.Empty; // "Rarity", "Stars", "Weight", "Consumable", "General"
+        public string BoostSummary { get; set; } = string.Empty; // e.g. "+25% Rarity", "+20% 3-Star", "+45% Weight"
+        public string TrophyRole { get; set; } = string.Empty; // e.g. "Trophy Hunting Rod", "Quality Reel", "Big Game Line"
     }
 
     public class LoadoutProgressionMilestone
@@ -262,5 +301,14 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         public double WeeksToAffordTopGear { get; set; }
         public string FinancialStatus { get; set; } = string.Empty; // "Deflationary Loss", "Tight Margin", "Sustainable Growth", "High Accumulation"
         public List<string> EquippedItemNames { get; set; } = new();
+
+        // Simulated Catch Quality
+        public double RarityBoostPercent { get; set; }
+        public double StarBoostPercent { get; set; }
+        public double WeightBoostPercent { get; set; }
+        public double ExpectedRarePlusPercent { get; set; }
+        public double ExpectedThreeStarPercent { get; set; }
+        public double ExpectedAverageWeight { get; set; }
+        public Dictionary<FishRarity, double> ExpectedRarityPercentages { get; set; } = new();
     }
 }

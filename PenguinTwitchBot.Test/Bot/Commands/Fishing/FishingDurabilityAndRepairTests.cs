@@ -244,6 +244,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(100.0, updatedBoost!.CurrentDurability);
             Assert.NotNull(updatedGold);
             Assert.Equal(450, updatedGold!.TotalGold);
+
+            var repairEvent = await verifyContext.FishingRepairEvents.FirstOrDefaultAsync();
+            Assert.NotNull(repairEvent);
+            Assert.Equal("user1", repairEvent!.UserId);
+            Assert.Equal("Titanium Rod", repairEvent.ItemName);
+            Assert.Equal("Rod", repairEvent.EquipmentSlot);
+            Assert.Equal(50.0, repairEvent.DurabilityRestored);
+            Assert.Equal(50m, repairEvent.GoldPaid);
+            Assert.Equal("Single", repairEvent.RepairType);
         }
 
         [Fact]
@@ -361,6 +370,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var updatedReel = await verifyContext.UserFishingBoosts.FindAsync(9);
             Assert.Equal(100.0, updatedRod!.CurrentDurability);
             Assert.Equal(100.0, updatedReel!.CurrentDurability);
+
+            var repairEvents = await verifyContext.FishingRepairEvents.OrderBy(r => r.ShopItemId).ToListAsync();
+            Assert.Equal(2, repairEvents.Count);
+            Assert.All(repairEvents, r => Assert.Equal("AllEquipped", r.RepairType));
+            Assert.Equal("Rod", repairEvents[0].EquipmentSlot);
+            Assert.Equal(50m, repairEvents[0].GoldPaid);
+            Assert.Equal("Reel", repairEvents[1].EquipmentSlot);
+            Assert.Equal(50m, repairEvents[1].GoldPaid);
         }
 
         [Fact]

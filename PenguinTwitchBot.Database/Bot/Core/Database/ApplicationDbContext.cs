@@ -69,6 +69,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<FishCategory> FishCategories { get; set; } = null!;
         public DbSet<FishCatch> FishCatches { get; set; } = null!;
         public DbSet<FishingSnapEvent> FishingSnapEvents { get; set; } = null!;
+        public DbSet<FishingRepairEvent> FishingRepairEvents { get; set; } = null!;
         public DbSet<FishingGold> FishingGolds { get; set; } = null!;
         public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
@@ -248,6 +249,27 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
             modelBuilder.Entity<FishingSnapEvent>()
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .Property(e => e.UserId)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .Property(e => e.GoldPaid)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => new { e.UserId, e.RepairedAt })
+                .HasDatabaseName("IX_FishingRepairEvents_UserId_RepairedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => new { e.EquipmentSlot, e.RepairedAt })
+                .HasDatabaseName("IX_FishingRepairEvents_EquipmentSlot_RepairedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => e.RepairedAt)
+                .HasDatabaseName("IX_FishingRepairEvents_RepairedAt");
 
             modelBuilder.Entity<FishingTournament>()
                 .HasMany(t => t.EligibleFish)

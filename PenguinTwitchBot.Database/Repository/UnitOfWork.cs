@@ -70,6 +70,7 @@ namespace PenguinTwitchBot.Database.Repository
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
             FishingSnapEvents = new FishingSnapEventRepository(_context);
+            FishingRepairEvents = new FishingRepairEventRepository(_context);
             FishCategories = new FishCategoryRepository(_context);
             FishingTournaments = new FishingTournamentRepository(_context);
             FishingTournamentFishTypes = new FishingTournamentFishTypeRepository(_context);
@@ -143,6 +144,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
         public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
+        public IFishingRepairEventRepository FishingRepairEvents { get; private set; }
         public IFishCategoryRepository FishCategories { get; private set; }
         public IFishingTournamentRepository FishingTournaments { get; private set; }
         public IFishingTournamentFishTypeRepository FishingTournamentFishTypes { get; private set; }
