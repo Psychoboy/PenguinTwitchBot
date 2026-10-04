@@ -137,7 +137,7 @@
                                             -@report.RealEconomy.AverageDurabilityUpkeepPerAttempt.ToString("F2")g
                                         </MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Tertiary">
-                                            Rate: @(report.SettingsSnapshot.RepairCostMultiplier > 0 ? $"{report.SettingsSnapshot.RepairCostMultiplier:F2}x" : "Permaloss")
+                                            @(report.RealEconomy.TotalRepairsRecorded > 0 ? $"{report.RealEconomy.TotalRepairsRecorded} repairs ({report.RealEconomy.TotalGoldSpentOnRepairs:N0}g)" : (report.SettingsSnapshot.RepairCostMultiplier > 0 ? $"Rate: {report.SettingsSnapshot.RepairCostMultiplier:F2}x (Wear Model)" : "Permaloss"))
                                         </MudText>
                                     </MudStack>
                                 </MudPaper>
@@ -480,26 +480,67 @@
                             </MudItem>
 
                             <MudItem xs="12" md="4">
-                                <MudPaper Elevation="2" Class="pa-4">
-                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 700;" Class="mb-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
-                                        Recorded Accident Breakdown
-                                    </MudText>
-                                    <MudList T="string" Dense="true">
-                                        <MudListItem Text="@($"Rod Snaps: {report.RealEconomy.RodSnapsRecorded}")" Icon="@Icons.Material.Filled.BrokenImage" IconColor="Color.Error" />
-                                        <MudListItem Text="@($"Line Snaps: {report.RealEconomy.LineSnapsRecorded}")" Icon="@Icons.Material.Filled.LinearScale" IconColor="Color.Error" />
-                                        <MudListItem Text="@($"Reel Jams: {report.RealEconomy.ReelJamsRecorded}")" Icon="@Icons.Material.Filled.Settings" IconColor="Color.Warning" />
-                                        <MudListItem Text="@($"Tackle Losses: {report.RealEconomy.TackleBoxLossesRecorded}")" Icon="@Icons.Material.Filled.Inventory2" IconColor="Color.Warning" />
-                                        <MudListItem Text="@($"Net Breaks: {report.RealEconomy.NetBreaksRecorded}")" Icon="@Icons.Material.Filled.FilterNone" IconColor="Color.Warning" />
-                                    </MudList>
-                                    <MudDivider Class="my-2" />
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween">
-                                        <MudText Typo="Typo.body2">Total Gold Lost:</MudText>
-                                        <MudText Typo="Typo.body2" Color="Color.Error" Style="font-weight: 700;">
-                                            @report.RealEconomy.TotalGoldLostToAccidents.ToString("N0")g
+                                <MudStack Spacing="3">
+                                    <MudPaper Elevation="2" Class="pa-4">
+                                        <MudText Typo="Typo.subtitle1" Style="font-weight: 700;" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
+                                            Recorded Accident Breakdown
                                         </MudText>
-                                    </MudStack>
-                                </MudPaper>
+                                        <MudList T="string" Dense="true">
+                                            <MudListItem Text="@($"Rod Snaps: {report.RealEconomy.RodSnapsRecorded}")" Icon="@Icons.Material.Filled.BrokenImage" IconColor="Color.Error" />
+                                            <MudListItem Text="@($"Line Snaps: {report.RealEconomy.LineSnapsRecorded}")" Icon="@Icons.Material.Filled.LinearScale" IconColor="Color.Error" />
+                                            <MudListItem Text="@($"Reel Jams: {report.RealEconomy.ReelJamsRecorded}")" Icon="@Icons.Material.Filled.Settings" IconColor="Color.Warning" />
+                                            <MudListItem Text="@($"Tackle Losses: {report.RealEconomy.TackleBoxLossesRecorded}")" Icon="@Icons.Material.Filled.Inventory2" IconColor="Color.Warning" />
+                                            <MudListItem Text="@($"Net Breaks: {report.RealEconomy.NetBreaksRecorded}")" Icon="@Icons.Material.Filled.FilterNone" IconColor="Color.Warning" />
+                                        </MudList>
+                                        <MudDivider Class="my-2" />
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                            <MudText Typo="Typo.body2">Total Gold Lost:</MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Error" Style="font-weight: 700;">
+                                                @report.RealEconomy.TotalGoldLostToAccidents.ToString("N0")g
+                                            </MudText>
+                                        </MudStack>
+                                    </MudPaper>
+
+                                    <MudPaper Elevation="2" Class="pa-4">
+                                        <MudText Typo="Typo.subtitle1" Style="font-weight: 700;" Class="mb-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Build" Size="Size.Small" Color="Color.Info" Class="mr-1" />
+                                            Recorded Equipment Repair Breakdown
+                                        </MudText>
+                                        @if (report.RealEconomy.TotalRepairsRecorded > 0)
+                                        {
+                                            <MudList T="string" Dense="true">
+                                                @foreach (var slot in report.RealEconomy.RepairsBySlot.OrderBy(kv => kv.Key))
+                                                {
+                                                    var gold = report.RealEconomy.RepairGoldBySlot.TryGetValue(slot.Key, out var g) ? g : 0m;
+                                                    <MudListItem Text="@($"{slot.Key}: {slot.Value} repairs ({gold:N0}g)")" Icon="@Icons.Material.Filled.Handyman" IconColor="Color.Info" />
+                                                }
+                                            </MudList>
+                                            <MudDivider Class="my-2" />
+                                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.body2">Total Repairs / Gold:</MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Warning" Style="font-weight: 700;">
+                                                    @report.RealEconomy.TotalRepairsRecorded repairs (@report.RealEconomy.TotalGoldSpentOnRepairs.ToString("N0")g)
+                                                </MudText>
+                                            </MudStack>
+                                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Avg Cost / Repair:</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                    @report.RealEconomy.AverageRepairCostPerRepair.ToString("F1")g
+                                                </MudText>
+                                            </MudStack>
+                                        }
+                                        else
+                                        {
+                                            <MudAlert Severity="Severity.Normal" Dense="true" Class="my-2">
+                                                No repair events recorded in this date range. Upkeep is estimated via equipment wear model.
+                                            </MudAlert>
+                                        }
+                                        <MudText Typo="Typo.caption" Color="Color.Tertiary" Class="mt-1 d-block">
+                                            Source: @report.RealEconomy.DurabilityDataSource
+                                        </MudText>
+                                    </MudPaper>
+                                </MudStack>
                             </MudItem>
                         </MudGrid>
 

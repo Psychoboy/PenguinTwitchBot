@@ -900,6 +900,12 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (endDate.HasValue) snapQuery = snapQuery.Where(s => s.SnappedAt <= endDate.Value);
             var snapEvents = await snapQuery.ToListAsync();
 
+            // Query Repair Events in date range
+            var repairQuery = context.FishingRepairEvents.AsQueryable();
+            if (startDate.HasValue) repairQuery = repairQuery.Where(r => r.RepairedAt >= startDate.Value);
+            if (endDate.HasValue) repairQuery = repairQuery.Where(r => r.RepairedAt <= endDate.Value);
+            var repairEvents = await repairQuery.ToListAsync();
+
             // Combine into unified attempts
             var attemptSamples = catches
                 .Select(c => new { c.UserId, Timestamp = c.CaughtAt, IsCatch = true })
@@ -931,6 +937,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             real.TackleBoxLossesRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "TackleBox", StringComparison.OrdinalIgnoreCase));
             real.NetBreaksRecorded = snapEvents.Count(s => string.Equals(s.SnapType, "Net", StringComparison.OrdinalIgnoreCase));
             real.TotalGoldLostToAccidents = snapEvents.Sum(s => s.TotalGoldLost);
+
+            // Repair breakdown
+            real.TotalRepairsRecorded = repairEvents.Count;
+            real.TotalGoldSpentOnRepairs = repairEvents.Sum(r => r.GoldPaid);
+            real.AverageRepairCostPerRepair = repairEvents.Count > 0
+                ? Math.Round((double)real.TotalGoldSpentOnRepairs / repairEvents.Count, 2)
+                : 0.0;
+
+            foreach (var slotGroup in repairEvents.GroupBy(r => string.IsNullOrWhiteSpace(r.EquipmentSlot) ? "Unknown" : r.EquipmentSlot))
+            {
+                real.RepairsBySlot[slotGroup.Key] = slotGroup.Count();
+                real.RepairGoldBySlot[slotGroup.Key] = slotGroup.Sum(r => r.GoldPaid);
+            }
 
             if (real.TotalAttemptsRecorded > 0)
             {
@@ -1057,14 +1076,54 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            // Fallback to mid-tier projection if no user gear was found or no telemetry in range
-            if (realDurabilityUpkeep <= 0.0 && (!activeUserIds.Any() || real.TotalAttemptsRecorded == 0))
+            if (repairEvents.Count > 0)
             {
-                realDurabilityUpkeep = midTierUpkeep;
-            }
+                realDurabilityUpkeep = real.TotalAttemptsRecorded > 0
+                    ? (double)real.TotalGoldSpentOnRepairs / real.TotalAttemptsRecorded
+                    : 0.0;
+                real.AverageDurabilityUpkeepPerAttempt = Math.Round(realDurabilityUpkeep, 2);
+                real.EstimatedDurabilityUpkeepIncurred = (double)real.TotalGoldSpentOnRepairs;
+                real.DurabilityDataSource = $"Observed repair telemetry ({repairEvents.Count} repairs recorded)";
 
-            real.AverageDurabilityUpkeepPerAttempt = Math.Round(realDurabilityUpkeep, 2);
-            real.EstimatedDurabilityUpkeepIncurred = Math.Round(realDurabilityUpkeep * real.TotalAttemptsRecorded, 2);
+                var repairsByUser = repairEvents
+                    .GroupBy(r => r.UserId)
+                    .ToDictionary(g => g.Key, g => (double)g.Sum(r => r.GoldPaid));
+
+                var attemptsByUser = attemptSamples
+                    .GroupBy(a => a.UserId)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                if (!attemptsByUser.Any() && catches.Any())
+                {
+                    attemptsByUser = catches
+                        .GroupBy(c => c.UserId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                }
+
+                foreach (var userId in activeUserIds)
+                {
+                    if (repairsByUser.TryGetValue(userId, out var paid) && attemptsByUser.TryGetValue(userId, out var att) && att > 0)
+                    {
+                        userUpkeepMap[userId] = paid / att;
+                    }
+                    else
+                    {
+                        userUpkeepMap[userId] = realDurabilityUpkeep;
+                    }
+                }
+            }
+            else
+            {
+                // Fallback to mid-tier projection if no user gear was found or no telemetry in range
+                if (realDurabilityUpkeep <= 0.0 && (!activeUserIds.Any() || real.TotalAttemptsRecorded == 0))
+                {
+                    realDurabilityUpkeep = midTierUpkeep;
+                }
+
+                real.DurabilityDataSource = "Estimated from equipment wear model (no repairs in range)";
+                real.AverageDurabilityUpkeepPerAttempt = Math.Round(realDurabilityUpkeep, 2);
+                real.EstimatedDurabilityUpkeepIncurred = Math.Round(realDurabilityUpkeep * real.TotalAttemptsRecorded, 2);
+            }
 
             // Gold Metrics
             if (catches.Any())

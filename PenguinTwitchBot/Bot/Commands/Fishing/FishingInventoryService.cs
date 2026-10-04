@@ -334,7 +334,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return Math.Max(1, (int)Math.Ceiling(shopItem.Cost * missingRatio * repairCostMultiplier));
         }
 
-        public async Task<int> RepairItem(string userId, int userBoostId, double? repairCostMultiplier = null)
+        public async Task<int> RepairItem(string userId, int userBoostId, double? repairCostMultiplier = null, string? username = null)
         {
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
@@ -369,14 +369,43 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Not enough gold to repair item");
             }
 
-            gold.TotalGold -= cost;
-            boost.CurrentDurability = (double)shopItem.MaxDurability.Value;
+            var durabilityBefore = boost.CurrentDurability.Value;
+            var maxDur = (double)shopItem.MaxDurability.Value;
+            var durabilityRestored = Math.Max(0.0, maxDur - durabilityBefore);
 
+            gold.TotalGold -= cost;
+            boost.CurrentDurability = maxDur;
+
+            var resolvedUsername = username;
+            if (string.IsNullOrWhiteSpace(resolvedUsername))
+            {
+                resolvedUsername = (await db.Viewers.Find(v => v.UserId == userId).FirstOrDefaultAsync())?.Username ?? userId;
+            }
+
+            var repairEvent = new FishingRepairEvent
+            {
+                UserId = userId,
+                Username = resolvedUsername,
+                ShopItemId = shopItem.Id,
+                UserBoostId = boost.Id,
+                ItemName = shopItem.Name,
+                EquipmentSlot = shopItem.EquipmentSlot?.ToString() ?? "Unknown",
+                DurabilityBefore = durabilityBefore,
+                DurabilityAfter = maxDur,
+                DurabilityRestored = durabilityRestored,
+                MaxDurability = maxDur,
+                GoldPaid = cost,
+                RepairCostMultiplier = multiplier,
+                RepairType = "Single",
+                RepairedAt = DateTime.UtcNow
+            };
+
+            db.FishingRepairEvents.Add(repairEvent);
             await db.SaveChangesAsync();
             return cost;
         }
 
-        public async Task<int> RepairAllEquippedItems(string userId, double? repairCostMultiplier = null)
+        public async Task<int> RepairAllEquippedItems(string userId, double? repairCostMultiplier = null, string? username = null)
         {
             using var userLock = await _userLocks.AcquireAsync(userId, CancellationToken.None);
             using var scope = _scopeFactory.CreateScope();
@@ -418,10 +447,41 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Not enough gold to repair all items");
             }
 
-            gold.TotalGold -= totalCost;
-            foreach (var (boost, _) in repairable)
+            var resolvedUsername = username;
+            if (string.IsNullOrWhiteSpace(resolvedUsername))
             {
-                boost.CurrentDurability = (double)boost.ShopItem!.MaxDurability!.Value;
+                resolvedUsername = (await db.Viewers.Find(v => v.UserId == userId).FirstOrDefaultAsync())?.Username ?? userId;
+            }
+            var now = DateTime.UtcNow;
+
+            gold.TotalGold -= totalCost;
+            foreach (var (boost, itemCost) in repairable)
+            {
+                var durabilityBefore = boost.CurrentDurability!.Value;
+                var maxDur = (double)boost.ShopItem!.MaxDurability!.Value;
+                var durabilityRestored = Math.Max(0.0, maxDur - durabilityBefore);
+
+                boost.CurrentDurability = maxDur;
+
+                var repairEvent = new FishingRepairEvent
+                {
+                    UserId = userId,
+                    Username = resolvedUsername,
+                    ShopItemId = boost.ShopItemId,
+                    UserBoostId = boost.Id,
+                    ItemName = boost.ShopItem.Name,
+                    EquipmentSlot = boost.ShopItem.EquipmentSlot?.ToString() ?? "Unknown",
+                    DurabilityBefore = durabilityBefore,
+                    DurabilityAfter = maxDur,
+                    DurabilityRestored = durabilityRestored,
+                    MaxDurability = maxDur,
+                    GoldPaid = itemCost,
+                    RepairCostMultiplier = multiplier,
+                    RepairType = "AllEquipped",
+                    RepairedAt = now
+                };
+
+                db.FishingRepairEvents.Add(repairEvent);
             }
 
             await db.SaveChangesAsync();

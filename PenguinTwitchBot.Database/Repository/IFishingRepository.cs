@@ -32,6 +32,10 @@ namespace PenguinTwitchBot.Database.Repository
     {
     }
 
+    public interface IFishingRepairEventRepository : IGenericRepository<FishingRepairEvent>
+    {
+    }
+
     public interface IFishCategoryRepository : IGenericRepository<FishCategory>
     {
     }

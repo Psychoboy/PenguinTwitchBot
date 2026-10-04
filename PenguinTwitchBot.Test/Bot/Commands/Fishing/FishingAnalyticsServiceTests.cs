@@ -276,6 +276,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.Equal(325m, report.RealEconomy.TotalGoldLostToAccidents);
             Assert.True(report.RealEconomy.AverageDurabilityUpkeepPerAttempt > 0, "Real durability upkeep should be calculated from active fishers equipped gear");
             Assert.True(report.RealEconomy.EstimatedDurabilityUpkeepIncurred > 0);
+            Assert.Equal(0, report.RealEconomy.TotalRepairsRecorded);
+            Assert.Equal("Estimated from equipment wear model (no repairs in range)", report.RealEconomy.DurabilityDataSource);
             Assert.Equal(20.0, report.RealEconomy.MedianNetGoldPerAttempt);
             Assert.Equal(20.0, report.SnapAdjustedMedianGoldPerAttempt);
 
@@ -294,6 +296,81 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             Assert.NotEmpty(report.ItemAnalysis);
             Assert.NotEmpty(report.ProgressionMilestones);
             Assert.NotEmpty(report.Diagnostics);
+        }
+
+        [Fact]
+        public async Task AnalyzeGameBalance_WithRepairEvents_UsesObservedRepairTelemetry()
+        {
+            _context.FishCatches.AddRange(
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 1, GoldEarned = 12, Stars = 1, Weight = 0.6, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u1", Username = "FisherJoe", FishTypeId = 2, GoldEarned = 38, Stars = 2, Weight = 2.4, CaughtAt = DateTime.UtcNow.AddDays(-2) },
+                new FishCatch { UserId = "u2", Username = "FisherBob", FishTypeId = 3, GoldEarned = 80, Stars = 3, Weight = 7.5, CaughtAt = DateTime.UtcNow.AddDays(-1) }
+            );
+
+            _context.FishingSnapEvents.Add(new FishingSnapEvent
+            {
+                UserId = "u1",
+                Username = "player1",
+                SnapType = "Line",
+                TotalGoldLost = 100,
+                LostItemCount = 1,
+                SnappedAt = DateTime.UtcNow.AddDays(-1)
+            });
+
+            _context.FishingRepairEvents.AddRange(
+                new FishingRepairEvent
+                {
+                    UserId = "u1",
+                    Username = "player1",
+                    ShopItemId = 11,
+                    UserBoostId = 1,
+                    ItemName = "Carbon Fiber Rod",
+                    EquipmentSlot = "Rod",
+                    DurabilityRestored = 20,
+                    MaxDurability = 100,
+                    DurabilityBefore = 80,
+                    DurabilityAfter = 100,
+                    GoldPaid = 50m,
+                    RepairCostMultiplier = 0.25,
+                    RepairType = "Single",
+                    RepairedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new FishingRepairEvent
+                {
+                    UserId = "u1",
+                    Username = "player1",
+                    ShopItemId = 12,
+                    UserBoostId = 2,
+                    ItemName = "Pro Reel",
+                    EquipmentSlot = "Reel",
+                    DurabilityRestored = 10,
+                    MaxDurability = 100,
+                    DurabilityBefore = 90,
+                    DurabilityAfter = 100,
+                    GoldPaid = 30m,
+                    RepairCostMultiplier = 0.25,
+                    RepairType = "Single",
+                    RepairedAt = DateTime.UtcNow.AddDays(-1)
+                }
+            );
+
+            await _context.SaveChangesAsync();
+
+            var report = await _sut.AnalyzeGameBalance();
+
+            Assert.NotNull(report);
+            Assert.Equal(2, report.RealEconomy.TotalRepairsRecorded);
+            Assert.Equal(80m, report.RealEconomy.TotalGoldSpentOnRepairs);
+            Assert.Equal(40.0, report.RealEconomy.AverageRepairCostPerRepair);
+            Assert.Equal(1, report.RealEconomy.RepairsBySlot["Rod"]);
+            Assert.Equal(1, report.RealEconomy.RepairsBySlot["Reel"]);
+            Assert.Equal(50m, report.RealEconomy.RepairGoldBySlot["Rod"]);
+            Assert.Equal(30m, report.RealEconomy.RepairGoldBySlot["Reel"]);
+
+            Assert.StartsWith("Observed repair telemetry", report.RealEconomy.DurabilityDataSource);
+            // 4 attempts (3 catches + 1 snap). Upkeep = 80g / 4 attempts = 20g/attempt
+            Assert.Equal(20.0, report.RealEconomy.AverageDurabilityUpkeepPerAttempt);
+            Assert.Equal(80.0, report.RealEconomy.EstimatedDurabilityUpkeepIncurred);
         }
 
         [Fact]

@@ -153,6 +153,14 @@ namespace PenguinTwitchBot.Database.Bot.Models.Fishing
         // Durability Upkeep Telemetry
         public double EstimatedDurabilityUpkeepIncurred { get; set; }
         public double AverageDurabilityUpkeepPerAttempt { get; set; }
+        public string DurabilityDataSource { get; set; } = string.Empty;
+
+        // Recorded Repair Telemetry
+        public int TotalRepairsRecorded { get; set; }
+        public decimal TotalGoldSpentOnRepairs { get; set; }
+        public double AverageRepairCostPerRepair { get; set; }
+        public Dictionary<string, int> RepairsBySlot { get; set; } = new();
+        public Dictionary<string, decimal> RepairGoldBySlot { get; set; } = new();
 
         // Net Economy Flow
         public double NetGoldPerAttempt { get; set; }

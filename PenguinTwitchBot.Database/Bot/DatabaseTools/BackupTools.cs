@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PenguinTwitchBot.Database.Repository;
 using System;
 using System.IO.Abstractions;
