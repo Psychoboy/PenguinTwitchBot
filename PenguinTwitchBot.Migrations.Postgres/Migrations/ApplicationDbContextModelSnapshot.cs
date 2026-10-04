@@ -2806,7 +2806,30 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("ElevatedCommand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RankToExecuteAs")
+                        .HasColumnType("text");
+
                     b.ToTable("subactions_executeaction", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ExecuteCommandType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ElevatedCommand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RankToExecuteAs")
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_executecommand", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ExecuteDefaultCommandType", b =>

@@ -53,6 +53,7 @@ public static class SubActionUIFieldEnhancer
             GiftPointsType gift => EnhanceGiftPoints(fields, gift, scope.ServiceProvider),
             ForEachViewerType foreachViewer => EnhanceForEachViewer(fields, foreachViewer, scope.ServiceProvider),
             ExecuteDefaultCommandType defaultCmd => EnhanceExecuteDefaultCommand(fields, defaultCmd, scope.ServiceProvider),
+            ExecuteCommandType cmd => EnhanceExecuteCommand(fields, cmd, scope.ServiceProvider),
             ChannelPointSetEnabledStateType channelPoint => EnhanceChannelPointSetEnabledState(fields, channelPoint, scope.ServiceProvider),
             CheckPointsType checkPoints => EnhanceCheckPoints(fields, checkPoints, scope.ServiceProvider),
             SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
@@ -493,6 +494,16 @@ public static class SubActionUIFieldEnhancer
             Clearable = true
         });
 
+        fields.RemoveAll(f => f.PropertyName == nameof(ExecuteActionType.RankToExecuteAs));
+        fields.Insert(3, new SubActionUIField
+        {
+            PropertyName = nameof(ExecuteActionType.RankToExecuteAs),
+            Label = "Rank Level to Run At",
+            FieldType = UIFieldType.Select,
+            Options = [.. Enum.GetNames<Rank>()],
+            HelperText = "If elevated rank is enabled, execute the action at the selected level."
+        });
+
         return fields;
     }
 
@@ -752,6 +763,53 @@ public static class SubActionUIFieldEnhancer
         fields.Insert(1, new SubActionUIField
         {
             PropertyName = nameof(ExecuteDefaultCommandType.RankToExecuteAs),
+            Label = "Rank Level to Run At",
+            FieldType = UIFieldType.Select,
+            Options = [.. Enum.GetNames<Rank>()],
+            HelperText = "If elevated rank is enabled, execute the command at the selected level."
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceExecuteCommand(List<SubActionUIField> fields, ExecuteCommandType cmd, IServiceProvider serviceProvider)
+    {
+        var actionCommandService = serviceProvider.GetRequiredService<IActionCommandService>();
+        var commandHandler = serviceProvider.GetRequiredService<ICommandHandler>();
+
+        var actionCommands = Task.Run(async () => await actionCommandService.GetAllAsync()).GetAwaiter().GetResult();
+        var defaultCommands = Task.Run(async () => await commandHandler.GetDefaultCommandsFromDb()).GetAwaiter().GetResult();
+
+        var commands = new List<SelectOption>();
+        foreach (var ac in actionCommands)
+        {
+            var cmdName = ac.CommandName.TrimStart('!');
+            commands.Add(new SelectOption { Name = $"!{cmdName} (Action)", Value = cmdName });
+        }
+        foreach (var dc in defaultCommands)
+        {
+            var cmdName = dc.CustomCommandName.TrimStart('!');
+            commands.Add(new SelectOption { Name = $"!{cmdName} (Default)", Value = cmdName });
+        }
+
+        commands = commands.DistinctBy(c => c.Value, StringComparer.OrdinalIgnoreCase).OrderBy(c => c.Name).ToList();
+
+        fields.RemoveAll(f => f.PropertyName == nameof(ExecuteCommandType.CommandName));
+        fields.Insert(0, new SubActionUIField
+        {
+            PropertyName = nameof(ExecuteCommandType.CommandName),
+            Label = "Command",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            AllowCustomValue = true,
+            SelectOptions = [.. commands],
+            HelperText = "Select or type the command to execute."
+        });
+
+        fields.RemoveAll(f => f.PropertyName == nameof(ExecuteCommandType.RankToExecuteAs));
+        fields.Insert(1, new SubActionUIField
+        {
+            PropertyName = nameof(ExecuteCommandType.RankToExecuteAs),
             Label = "Rank Level to Run At",
             FieldType = UIFieldType.Select,
             Options = [.. Enum.GetNames<Rank>()],

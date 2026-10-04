@@ -3,49 +3,44 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
-        displayName: "Execute Action",
-        description: "Execute another action",
+        displayName: "Execute Command",
+        description: "Execute a command.",
         icon: "mdi-play",
         color: "Primary",
-        tableName: "subactions_executeaction")]
-    public class ExecuteActionType : SubActionType, ISubActionUIProvider
+        tableName: "subactions_executecommand")]
+    public class ExecuteCommandType : SubActionType, ISubActionUIProvider
     {
-        public int? ActionId { get; set; }
-        public string ActionName { get; set; } = string.Empty;
+        public string CommandName { get; set; } = null!;
         public bool ElevatedCommand { get; set; }
         public string? RankToExecuteAs { get; set; }
 
-        public ExecuteActionType()
-        {
-            SubActionTypes = SubActionTypes.ExecuteAction;
-        }
+        public ExecuteCommandType() { SubActionTypes = SubActionTypes.ExecuteCommand; }
 
         public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
         {
             return [
-                new SubActionUIField
+                new()
                 {
-                    PropertyName = nameof(ActionId),
-                    Label = "Action to Execute",
+                    PropertyName = nameof(CommandName),
+                    Label = "Command",
                     FieldType = UIFieldType.Select,
-                    SelectOptions = [],
                     Required = true,
-                    Clearable = true
+                    SelectOptions = []
                 },
                 new()
                 {
                     PropertyName = nameof(Text),
-                    Label = "Action Parameters",
+                    Label = "Command Parameters",
                     FieldType = UIFieldType.Text,
                     Required = false,
-                    HelperText = "Optional parameters to pass to the action. Separate multiple parameters with spaces. Can use variables like %user%."
+                    HelperText = "Optional parameters to pass to the command. Separate multiple parameters with spaces. Can use variables like %user%."
                 },
                 new()
                 {
                     PropertyName = nameof(ElevatedCommand),
                     Label = "Run with Elevated Rank?",
                     FieldType = UIFieldType.Switch,
-                    HelperText = "If enabled, the action will run with elevated rank. Use with caution."
+                    HelperText = "If enabled, the command will run with elevated rank, allowing it to bypass user level requirements. Use with caution."
                 },
                 new()
                 {
@@ -53,7 +48,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Label = "Rank Level to Run At",
                     FieldType = UIFieldType.Select,
                     Options = [],
-                    HelperText = "If elevated rank is enabled, execute the action at the selected level."
+                    HelperText = "If elevated rank is enabled, execute the command at the selected level."
                 },
                 new()
                 {
@@ -77,8 +72,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         {
             return new Dictionary<string, object?>
             {
-                { nameof(ActionId), ActionId?.ToString() ?? string.Empty },
-                { nameof(ActionName), ActionName },
+                { nameof(CommandName), CommandName },
                 { nameof(Text), Text },
                 { nameof(ElevatedCommand), ElevatedCommand },
                 { nameof(RankToExecuteAs), RankToExecuteAs },
@@ -88,15 +82,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public void SetValues(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(ActionId), out var actionId) && 
-                !string.IsNullOrWhiteSpace(actionId?.ToString()) &&
-                int.TryParse(actionId?.ToString(), out var parsedId))
+            if (values.TryGetValue(nameof(CommandName), out var commandName))
             {
-                ActionId = parsedId;
-            }
-            else
-            {
-                ActionId = null;
+                CommandName = commandName as string ?? "";
             }
 
             if (values.TryGetValue(nameof(Text), out var text))
@@ -120,20 +108,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             {
                 Enabled = enabled as bool? ?? true;
             }
-
-            if (values.TryGetValue(nameof(ActionName), out var actionName))
-            {
-                ActionName = actionName?.ToString() ?? string.Empty;
-            }
         }
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if (!values.TryGetValue(nameof(ActionId), out var actionId) ||
-                string.IsNullOrWhiteSpace(actionId?.ToString()) ||
-                !int.TryParse(actionId?.ToString(), out var parsedId) || parsedId <= 0)
+            if (!values.TryGetValue(nameof(CommandName), out var commandName) ||
+                string.IsNullOrWhiteSpace(commandName?.ToString()))
             {
-                return "Action to Execute is required";
+                return "Command to Execute is required";
             }
 
             var elevatedCommand = false;
@@ -149,7 +131,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 if (!values.TryGetValue(nameof(RankToExecuteAs), out var rankToExecuteAs) ||
                     string.IsNullOrWhiteSpace(rankToExecuteAs?.ToString()))
                 {
-                    return "Rank to Execute As is required when Elevated Rank is enabled";
+                    return "Rank to Execute As is required when Elevated Command is enabled";
                 }
             }
 
