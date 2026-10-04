@@ -129,6 +129,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 
                 SubActionTypes.LogicIfElse or SubActionTypes.Break or SubActionTypes.Delay
                     or SubActionTypes.ExecuteAction or SubActionTypes.ExecuteDefaultCommand
+                    or SubActionTypes.ExecuteCommand
                     or SubActionTypes.ToggleCommandDisabledState or SubActionTypes.TimerGroupSetEnabledState
                     or SubActionTypes.ResetCooldowns
                     => SubActionCategories.LogicAndFlow,
