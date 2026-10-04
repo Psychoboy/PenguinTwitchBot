@@ -106,7 +106,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
             if (values.TryGetValue(nameof(ElevatedCommand), out var elevatedCommand))
             {
-                ElevatedCommand = elevatedCommand as bool? ?? false;
+                ElevatedCommand =
+                    elevatedCommand as bool? ??
+                    (bool.TryParse(elevatedCommand?.ToString(), out var parsedElevatedCommand) && parsedElevatedCommand);
             }
 
             if (values.TryGetValue(nameof(RankToExecuteAs), out var permission))
