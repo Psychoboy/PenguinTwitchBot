@@ -1317,6 +1317,10 @@
         var accidentDelta = report.Variance.AccidentRateVariancePercent;
         var netDelta = report.Variance.NetGoldAttemptVariancePercent;
 
+        var rarePlusBaseline = report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedRarePlusPercent ?? 5.4;
+        var avgWeightBaseline = report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedAverageWeight ?? 0.0;
+        var hasCatches = report.RealEconomy.TotalCatches > 0;
+
         return new List<VarianceRow>
         {
             new()
@@ -1355,25 +1359,33 @@
             {
                 Metric = "3-Star Catch Rate",
                 Theoretical = "5.0% (Baseline)",
-                Observed = $"{report.RealEconomy.ObservedThreeStarPercent:F1}%",
-                Variance = $"{(report.RealEconomy.ObservedThreeStarPercent >= 5.0 ? "+" : "")}{(report.RealEconomy.ObservedThreeStarPercent - 5.0):F1}%",
-                DeltaColor = report.RealEconomy.ObservedThreeStarPercent >= 5.0 ? Color.Success : Color.Warning
+                Observed = hasCatches ? $"{report.RealEconomy.ObservedThreeStarPercent:F1}%" : "No catches in range",
+                Variance = hasCatches
+                    ? $"{(report.RealEconomy.ObservedThreeStarPercent >= 5.0 ? "+" : "")}{(report.RealEconomy.ObservedThreeStarPercent - 5.0):F1}%"
+                    : "—",
+                DeltaColor = hasCatches
+                    ? (report.RealEconomy.ObservedThreeStarPercent >= 5.0 ? Color.Success : Color.Warning)
+                    : Color.Default
             },
             new()
             {
                 Metric = "Rare+ Catch Rate",
-                Theoretical = $"{report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedRarePlusPercent ?? 5.4:F1}% (Baseline)",
-                Observed = $"{report.RealEconomy.ObservedRarePlusPercent:F1}%",
-                Variance = $"{(report.RealEconomy.ObservedRarePlusPercent >= 5.4 ? "+" : "")}{(report.RealEconomy.ObservedRarePlusPercent - (report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedRarePlusPercent ?? 5.4)):F1}%",
-                DeltaColor = Color.Info
+                Theoretical = $"{rarePlusBaseline:F1}% (Baseline)",
+                Observed = hasCatches ? $"{report.RealEconomy.ObservedRarePlusPercent:F1}%" : "No catches in range",
+                Variance = hasCatches
+                    ? $"{(report.RealEconomy.ObservedRarePlusPercent >= rarePlusBaseline ? "+" : "")}{(report.RealEconomy.ObservedRarePlusPercent - rarePlusBaseline):F1}%"
+                    : "—",
+                DeltaColor = hasCatches ? Color.Info : Color.Default
             },
             new()
             {
                 Metric = "Average Catch Weight",
-                Theoretical = $"{report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedAverageWeight ?? 0:N1} lbs (Baseline)",
-                Observed = $"{report.RealEconomy.ObservedAverageWeight:N1} lbs",
-                Variance = $"{(report.RealEconomy.ObservedAverageWeight >= (report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedAverageWeight ?? 0) ? "+" : "")}{(report.RealEconomy.ObservedAverageWeight - (report.ProjectedEconomy.TierEconomics.FirstOrDefault(t => t.TierName == "Bare Hands")?.ExpectedAverageWeight ?? 0)):N1} lbs",
-                DeltaColor = Color.Primary
+                Theoretical = $"{avgWeightBaseline:N1} lbs (Baseline)",
+                Observed = hasCatches ? $"{report.RealEconomy.ObservedAverageWeight:N1} lbs" : "No catches in range",
+                Variance = hasCatches
+                    ? $"{(report.RealEconomy.ObservedAverageWeight >= avgWeightBaseline ? "+" : "")}{(report.RealEconomy.ObservedAverageWeight - avgWeightBaseline):N1} lbs"
+                    : "—",
+                DeltaColor = hasCatches ? Color.Primary : Color.Default
             }
         };
     }

@@ -479,7 +479,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var consumableSink = Math.Round(CalculateExpectedConsumableSink(items), 2);
                 var netAttempt = Math.Round(grossAttempt - upkeep - accidentSink - consumableSink, 2);
                 var margin = grossAttempt > 0 ? Math.Round((netAttempt / grossAttempt) * 100.0, 1) : 0;
-                var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost);
+                var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost, settings.BoostMode, settings.BoostModeRarityMultiplier, items);
 
                 model.TierEconomics.Add(new TierProjectedEconomics
                 {
@@ -516,6 +516,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             var fishTypes = await context.FishTypes.AsNoTracking().Include(f => f.Categories).Where(f => f.Enabled).ToListAsync();
             var shopItems = await context.FishingShopItems.AsNoTracking().ToListAsync();
+            var settings = await _fishingService.GetSettings();
+            var useBoostMode = settings?.BoostMode ?? false;
+            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
 
             var lineSnap = Math.Clamp(scenario.LineSnapChance, 0.0, 1.0);
             var rodSnap = Math.Clamp(scenario.RodSnapChance, 0.0, 1.0);
@@ -585,7 +588,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             else
                 financialStatus = "Rapid Accumulation (Very generous)";
 
-            var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost);
+            var quality = CalculateCatchQualityProfile(fishTypes, rarityBoost, starBoost, weightBoost, useBoostMode, boostModeMultiplier, equippedItems);
 
             return new BalanceSimulationResult
             {
@@ -710,7 +713,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 // Boost Summary & Identity
                 var boostParts = new List<string>();
-                void AppendBoostPart(FishingBoostType? type, double? amount, FishType? targetFish)
+                void AppendBoostPart(FishingBoostType? type, double? amount, FishType? targetFish, string? targetCategory)
                 {
                     if (type == null || !amount.HasValue || amount.Value <= 0) return;
                     var pct = Math.Round(amount.Value * 100.0, 1);
@@ -729,14 +732,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                             boostParts.Add($"+{pct}% {targetFish?.Name ?? "Target Fish"}");
                             break;
                         case FishingBoostType.SpecificCategoryBoost:
-                            boostParts.Add($"+{pct}% Category");
+                            boostParts.Add($"+{pct}% {(string.IsNullOrWhiteSpace(targetCategory) ? "Category" : targetCategory)}");
                             break;
                     }
                 }
 
-                AppendBoostPart(item.BoostType, item.BoostAmount, item.TargetFishType);
-                AppendBoostPart(item.BoostType2, item.BoostAmount2, item.TargetFishType);
-                AppendBoostPart(item.BoostType3, item.BoostAmount3, item.TargetFishType);
+                AppendBoostPart(item.BoostType, item.BoostAmount, item.TargetFishType, item.TargetCategory);
+                AppendBoostPart(item.BoostType2, item.BoostAmount2, item.TargetFishType, item.TargetCategory);
+                AppendBoostPart(item.BoostType3, item.BoostAmount3, item.TargetFishType, item.TargetCategory);
 
                 var boostSummary = boostParts.Any() ? string.Join(", ", boostParts) : "—";
 
@@ -1773,24 +1776,34 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public double AverageWeight { get; set; }
         }
 
-        private static CatchQualityProfile CalculateCatchQualityProfile(
+        private CatchQualityProfile CalculateCatchQualityProfile(
             List<FishType> fishTypes,
             double rarityBoost,
             double starBoost,
-            double weightBoost)
+            double weightBoost,
+            bool useBoostMode = false,
+            double boostModeMultiplier = 1.0,
+            List<FishingShopItem>? equippedItems = null)
         {
             var profile = new CatchQualityProfile();
-            var starProbabilities = BuildStarProbabilities(starBoost);
-            profile.OneStarPercent = Math.Round(starProbabilities.GetValueOrDefault(1, 0.0) * 100.0, 1);
-            profile.TwoStarPercent = Math.Round(starProbabilities.GetValueOrDefault(2, 0.0) * 100.0, 1);
-            profile.ThreeStarPercent = Math.Round(starProbabilities.GetValueOrDefault(3, 0.0) * 100.0, 1);
 
             if (!fishTypes.Any())
             {
                 return profile;
             }
 
+            var starProbabilities = BuildStarProbabilities(starBoost);
+            profile.OneStarPercent = Math.Round(starProbabilities.GetValueOrDefault(1, 0.0) * 100.0, 1);
+            profile.TwoStarPercent = Math.Round(starProbabilities.GetValueOrDefault(2, 0.0) * 100.0, 1);
+            profile.ThreeStarPercent = Math.Round(starProbabilities.GetValueOrDefault(3, 0.0) * 100.0, 1);
+
             var rarityWeights = FishingRarityWeightProfiles.CreateAvailableWeights(fishTypes);
+
+            if (useBoostMode)
+            {
+                FishingRarityWeightProfiles.ApplyGlobalRarityMultiplier(rarityWeights, boostModeMultiplier);
+            }
+
             if (rarityBoost > 0)
             {
                 foreach (var rarity in rarityWeights.Keys.ToList())
@@ -1827,13 +1840,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var avgRollWeightMultiplier = (0.8 + 1.13) / 2.0;
             var gearWeightMultiplier = 1.0 + weightBoost;
 
+            var mockBoosts = (equippedItems ?? Enumerable.Empty<FishingShopItem>()).Select(item => new UserFishingBoost
+            {
+                UserId = "calculation",
+                ShopItemId = item.Id,
+                ShopItem = item,
+                IsEquipped = true,
+                RemainingUses = 999
+            }).ToList();
+
             double expectedBaseWeight = 0.0;
             foreach (var (rarity, weight) in rarityWeights)
             {
                 var fishOfRarity = fishTypes.Where(f => f.Rarity == rarity).ToList();
                 if (!fishOfRarity.Any()) continue;
                 var rarityProbability = weight / totalRarityWeight;
-                var rarityAvgBaseWeight = fishOfRarity.Average(f => f.BaseWeight);
+                var rarityAvgBaseWeight = fishOfRarity.Sum(f => f.BaseWeight * CalculateWithinRarityChance(f, fishOfRarity, mockBoosts));
                 expectedBaseWeight += rarityProbability * rarityAvgBaseWeight;
             }
 

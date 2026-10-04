@@ -374,6 +374,52 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
         }
 
         [Fact]
+        public async Task AnalyzeGameBalance_SpecificCategoryBoost_DisplaysTargetCategoryInItemAnalysis()
+        {
+            _context.FishingShopItems.Add(new FishingShopItem
+            {
+                Id = 99,
+                Name = "Ocean Lure",
+                Cost = 300,
+                EquipmentSlot = EquipmentSlot.Bait,
+                BoostType = FishingBoostType.SpecificCategoryBoost,
+                BoostAmount = 0.25,
+                TargetCategory = "Saltwater",
+                Enabled = true
+            });
+            await _context.SaveChangesAsync();
+
+            var report = await _sut.AnalyzeGameBalance();
+
+            var item = report.ItemAnalysis.FirstOrDefault(i => i.ItemName == "Ocean Lure");
+            Assert.NotNull(item);
+            Assert.Contains("+25% Saltwater", item!.BoostSummary);
+        }
+
+        [Fact]
+        public async Task CalculateProjectedEconomy_WithBoostMode_ScalesCatchQualityProfile()
+        {
+            var boostSettings = new FishingSettings
+            {
+                Id = 1,
+                BoostMode = true,
+                BoostModeRarityMultiplier = 2.0,
+                LineSnapChance = 0.02,
+                RepairCostMultiplier = 0.25
+            };
+            _fishingService.GetSettings().Returns(Task.FromResult<FishingSettings?>(boostSettings));
+
+            var projected = await _sut.CalculateProjectedEconomy();
+
+            Assert.NotNull(projected);
+            var entryTier = projected.TierEconomics.FirstOrDefault(t => t.TierName == "Entry");
+            Assert.NotNull(entryTier);
+            Assert.True(entryTier!.ExpectedRarePlusPercent > 0);
+            Assert.True(entryTier.ExpectedThreeStarPercent > 0);
+            Assert.True(entryTier.ExpectedAverageWeight > 0);
+        }
+
+        [Fact]
         public async Task CalculateRecommendedPricing_ReturnsValidPricesForProgression()
         {
             var pricing = await _sut.CalculateRecommendedPricing(targetWeeksForEndgame: 26);
