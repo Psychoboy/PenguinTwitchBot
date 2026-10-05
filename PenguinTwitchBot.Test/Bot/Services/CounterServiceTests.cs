@@ -290,13 +290,57 @@ namespace PenguinTwitchBot.Test.Bot.Services
             Assert.True(res4.Success);
             Assert.Equal(0, res4.NewValue);
 
+            // Test relative "+5"
+            var argsPlusVal = new CommandEventArgs { Arg = "+5", Args = ["+5"], IsBroadcaster = true };
+            var resPlusVal = await _service.EvaluateCommandArgsAsync("score", argsPlusVal);
+            Assert.True(resPlusVal.Success);
+            Assert.Equal(CounterOperation.Increment, resPlusVal.Operation);
+            Assert.Equal(5, resPlusVal.NewValue);
+
+            // Test relative "-2"
+            var argsMinusVal = new CommandEventArgs { Arg = "-2", Args = ["-2"], IsBroadcaster = true };
+            var resMinusVal = await _service.EvaluateCommandArgsAsync("score", argsMinusVal);
+            Assert.True(resMinusVal.Success);
+            Assert.Equal(CounterOperation.Decrement, resMinusVal.Operation);
+            Assert.Equal(3, resMinusVal.NewValue);
+
+            // Test unsigned numeric "42" (Set behavior)
+            var argsUnsigned = new CommandEventArgs { Arg = "42", Args = ["42"], IsBroadcaster = true };
+            var resUnsigned = await _service.EvaluateCommandArgsAsync("score", argsUnsigned);
+            Assert.True(resUnsigned.Success);
+            Assert.Equal(CounterOperation.Set, resUnsigned.Operation);
+            Assert.Equal(42, resUnsigned.NewValue);
+
             // Test no args / empty (should GET value without modifying)
             var argsEmpty = new CommandEventArgs { Arg = "", Args = [], IsBroadcaster = false };
             var resEmpty = await _service.EvaluateCommandArgsAsync("score", argsEmpty);
             Assert.True(resEmpty.Success);
             Assert.Equal(CounterOperation.Get, resEmpty.Operation);
-            Assert.Equal(0, resEmpty.NewValue);
-            Assert.Equal(0, counter.Amount);
+            Assert.Equal(42, resEmpty.NewValue);
+            Assert.Equal(42, counter.Amount);
+        }
+
+        [Fact]
+        public async Task AdjustCounterAsync_ConcurrentAdjustments_SerializeOperations()
+        {
+            var counter = new Counter
+            {
+                Id = 1,
+                CounterName = "concurrent_counter",
+                Amount = 0,
+                Step = 1,
+                IncrementRank = Rank.Viewer
+            };
+            _dbCounters.Add(counter);
+
+            var tasks = Enumerable.Range(0, 20)
+                .Select(_ => _service.AdjustCounterAsync("concurrent_counter", CounterOperation.Increment))
+                .ToList();
+
+            var results = await Task.WhenAll(tasks);
+
+            Assert.All(results, r => Assert.True(r.Success));
+            Assert.Equal(20, counter.Amount);
         }
 
         [Fact]

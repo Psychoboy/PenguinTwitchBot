@@ -10,6 +10,7 @@ using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Helpers;
 
 namespace PenguinTwitchBot.Bot.Services;
 
@@ -18,6 +19,8 @@ public class CounterService(
     IHubContext<MainHub> hubContext,
     ILogger<CounterService> logger) : ICounterService
 {
+    private static readonly KeyedSemaphore _counterLocks = new(StringComparer.OrdinalIgnoreCase);
+
     public async Task<List<Counter>> GetAllCountersAsync()
     {
         await using var scope = scopeFactory.CreateAsyncScope();
@@ -362,9 +365,11 @@ public class CounterService(
     {
         ArgumentNullException.ThrowIfNull(counter);
 
+        var normalizedName = counter.CounterName.Trim().ToLowerInvariant();
+        using var counterLock = await _counterLocks.AcquireAsync(normalizedName, CancellationToken.None);
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        var normalizedName = counter.CounterName.Trim().ToLowerInvariant();
         var existing = await unitOfWork.Counters
             .Find(c => (counter.Id.HasValue && c.Id == counter.Id) || c.CounterName.ToLower() == normalizedName)
             .FirstOrDefaultAsync();
@@ -428,6 +433,8 @@ public class CounterService(
         }
 
         var normalized = counterName.Trim().ToLowerInvariant();
+        using var counterLock = await _counterLocks.AcquireAsync(normalized, CancellationToken.None);
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
@@ -560,6 +567,16 @@ public class CounterService(
                 operation = CounterOperation.Set;
                 directValue = parsedVal;
             }
+        }
+        else if (rawArg.StartsWith('+') && int.TryParse(rawArg[1..].Trim(), out var plusNum))
+        {
+            operation = CounterOperation.Increment;
+            directValue = plusNum == int.MinValue ? int.MaxValue : Math.Abs(plusNum);
+        }
+        else if (rawArg.StartsWith('-') && int.TryParse(rawArg[1..].Trim(), out var minusNum))
+        {
+            operation = CounterOperation.Decrement;
+            directValue = minusNum == int.MinValue ? int.MaxValue : Math.Abs(minusNum);
         }
         else if (int.TryParse(rawArg, out var directNum))
         {

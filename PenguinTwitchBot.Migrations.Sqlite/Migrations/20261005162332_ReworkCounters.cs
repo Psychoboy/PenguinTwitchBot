@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -38,7 +38,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 table: "Counters",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 5);
 
             migrationBuilder.AddColumn<string>(
                 name: "DisplayName",
@@ -51,7 +51,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 table: "Counters",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 5);
 
             migrationBuilder.AddColumn<int>(
                 name: "InitialValue",
@@ -77,14 +77,14 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 table: "Counters",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 6);
 
             migrationBuilder.AddColumn<int>(
                 name: "SetRank",
                 table: "Counters",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 5);
 
             migrationBuilder.AddColumn<int>(
                 name: "Step",

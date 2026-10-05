@@ -112,5 +112,76 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.Equal("11", variables["custom_dest"]);
         }
+
+        [Fact]
+        public async Task ExecuteAsync_WithoutOriginalEventArgs_PassesNullEventArgs()
+        {
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
+
+            counterService.AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                null).Returns(Task.FromResult(new CounterResult { Success = true, CounterName = "test" }));
+
+            var type = new MultiCounterType
+            {
+                Name = "test",
+                Operation = CounterOperation.Increment
+            };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await handler.ExecuteAsync(type, variables);
+
+            await counterService.Received(1).AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                null);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithOriginalEventArgs_PassesDeserializedEventArgs()
+        {
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
+
+            counterService.AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                Arg.Is<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(e => e.Name == "testuser")).Returns(Task.FromResult(new CounterResult { Success = true, CounterName = "test" }));
+
+            var type = new MultiCounterType
+            {
+                Name = "test",
+                Operation = CounterOperation.Increment
+            };
+            var variables = new ConcurrentDictionary<string, string>
+            {
+                ["OriginalEventArgs"] = System.Text.Json.JsonSerializer.Serialize(new PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs
+                {
+                    Name = "testuser",
+                    DisplayName = "TestUser"
+                })
+            };
+
+            await handler.ExecuteAsync(type, variables);
+
+            await counterService.Received(1).AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                Arg.Is<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(e => e.Name == "testuser"));
+        }
     }
 }

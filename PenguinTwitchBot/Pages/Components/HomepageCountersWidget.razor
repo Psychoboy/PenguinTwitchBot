@@ -145,7 +145,7 @@
                         var deathItem = _items.FirstOrDefault(i => i.IsDeath);
                         if (deathItem != null)
                         {
-                            deathItem.Value = payload.Count;
+                            deathItem.Value = payload.Amount;
                             StateHasChanged();
                         }
                     });
@@ -245,7 +245,8 @@
     private sealed class DeathCounterUpdatedPayload
     {
         public string? Game { get; set; }
-        public int Count { get; set; }
+        public int Amount { get; set; }
+        public int Count { get => Amount; set => Amount = value; }
     }
 }
 

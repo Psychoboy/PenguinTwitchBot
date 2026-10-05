@@ -27,7 +27,7 @@ public class MultiCounterHandler(ICounterService counterService) : ISubActionHan
             return;
         }
 
-        var eventArgs = CommandEventArgsConverter.FromDictionary(variables);
+        var eventArgs = variables.ContainsKey("OriginalEventArgs") ? CommandEventArgsConverter.FromDictionary(variables) : null;
         CounterResult result;
 
         if (multiCounterSubAction.Operation == CounterOperation.CommandArgs)

@@ -34,7 +34,8 @@
             borderRadius: parseInt(p("borderRadius", "0"), 10) || 0,
             padding: parseInt(p("padding", "8"), 10) || 8,
             gap: parseInt(p("gap", "8"), 10) || 8,
-            layout: p("layout", "horizontal")
+            layout: p("layout", "horizontal"),
+            align: p("align", "start")
         };
     }
 
