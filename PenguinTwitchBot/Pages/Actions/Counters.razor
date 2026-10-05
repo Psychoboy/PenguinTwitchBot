@@ -101,10 +101,12 @@
     private List<Counter> _counters = [];
     private bool _loading = true;
     private HubConnection? _hubConnection;
+    private Task? _initialLoadTask;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadCountersAsync();
+        _initialLoadTask = LoadCountersAsync();
+        await _initialLoadTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -113,6 +115,11 @@
         {
             try
             {
+                if (_initialLoadTask != null)
+                {
+                    await _initialLoadTask;
+                }
+
                 _hubConnection = new HubConnectionBuilder()
                     .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
                     .WithAutomaticReconnect()
@@ -155,6 +162,11 @@
         try
         {
             _counters = await CounterService.GetAllCountersAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load counters");
+            Snackbar.Add("Failed to load counters.", Severity.Error);
         }
         finally
         {
