@@ -1,4 +1,5 @@
 @page "/actions/counters"
+@attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Bot.Services
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Models
@@ -9,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 @inject IConfiguration AppConfiguration
+@inject ILogger<Counters> logger
 @implements IAsyncDisposable
 
 <PageTitle>Counters - PenguinBot</PageTitle>
@@ -103,41 +105,47 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadCountersAsync();
+    }
 
-        try
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
-                .WithAutomaticReconnect()
-                .Build();
-
-            _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+            try
             {
-                await InvokeAsync(() =>
-                {
-                    var existing = _counters.FirstOrDefault(c => c.CounterName.Equals(counter.CounterName, StringComparison.OrdinalIgnoreCase));
-                    if (existing != null)
-                    {
-                        existing.Amount = counter.Amount;
-                        existing.DisplayName = counter.DisplayName;
-                        existing.Step = counter.Step;
-                        existing.Min = counter.Min;
-                        existing.Max = counter.Max;
-                    }
-                    else
-                    {
-                        _counters.Add(counter);
-                        _counters = _counters.OrderBy(c => c.CounterName).ToList();
-                    }
-                    StateHasChanged();
-                });
-            });
+                _hubConnection = new HubConnectionBuilder()
+                    .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
+                    .WithAutomaticReconnect()
+                    .Build();
 
-            await _hubConnection.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Hub connection failed: {ex.Message}");
+                _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+                {
+                    await InvokeAsync(() =>
+                    {
+                        var existing = _counters.FirstOrDefault(c => c.CounterName.Equals(counter.CounterName, StringComparison.OrdinalIgnoreCase));
+                        if (existing != null)
+                        {
+                            existing.Amount = counter.Amount;
+                            existing.DisplayName = counter.DisplayName;
+                            existing.Step = counter.Step;
+                            existing.Min = counter.Min;
+                            existing.Max = counter.Max;
+                        }
+                        else
+                        {
+                            _counters.Add(counter);
+                            _counters = _counters.OrderBy(c => c.CounterName).ToList();
+                        }
+                        StateHasChanged();
+                    });
+                });
+
+                await _hubConnection.StartWithExpectedExceptionHandlingAsync(logger, Snackbar);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to start hub connection on Counters page");
+            }
         }
     }
 
@@ -292,7 +300,8 @@
     {
         if (_hubConnection != null)
         {
-            await _hubConnection.DisposeAsync();
+            await _hubConnection.DisposeGracefullyAsync(logger);
+            _hubConnection = null;
         }
     }
 }
