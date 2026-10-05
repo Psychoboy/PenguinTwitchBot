@@ -1,0 +1,292 @@
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Database.Bot.Models.Commands
+@using PenguinTwitchBot.Bot.Services
+@using PenguinTwitchBot.Bot.Commands
+@using MudBlazor
+@inject IActionCommandService ActionCommandService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">@(IsEditMode ? "Edit Counter" : "Add Counter")</MudText>
+
+            <MudTextField @bind-Value="Counter.CounterName" Label="Counter Name" Variant="Variant.Outlined" Required="true"
+                          ReadOnly="IsEditMode" MaxLength="100"
+                          HelperText="Unique identifier used in commands and subactions (e.g. 'wins', 'gold')." />
+
+            <MudTextField @bind-Value="Counter.DisplayName" Label="Display Name" Variant="Variant.Outlined" MaxLength="100"
+                          HelperText="Friendly title for widgets and notifications (e.g. 'Total Wins'). Defaults to Counter Name." />
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="Counter.Amount" Label="Current Value" Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="Counter.InitialValue" Label="Initial / Reset Value" Variant="Variant.Outlined"
+                                     HelperText="Value applied when counter is reset." />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="Counter.Step" Label="Default Step" Variant="Variant.Outlined" Min="1" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="Counter.Min" Label="Minimum (Optional)" Variant="Variant.Outlined" Clearable="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudNumericField @bind-Value="Counter.Max" Label="Maximum (Optional)" Variant="Variant.Outlined" Clearable="true" />
+                </MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-2" />
+            <MudText Typo="Typo.subtitle2"><b>Permissions (Minimum User Rank)</b></MudText>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="Rank" @bind-Value="Counter.IncrementRank" Label="Increment (+)" Variant="Variant.Outlined" Dense="true">
+                        @foreach (var rank in Enum.GetValues<Rank>())
+                        {
+                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="Rank" @bind-Value="Counter.DecrementRank" Label="Decrement (-)" Variant="Variant.Outlined" Dense="true">
+                        @foreach (var rank in Enum.GetValues<Rank>())
+                        {
+                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="Rank" @bind-Value="Counter.ResetRank" Label="Reset" Variant="Variant.Outlined" Dense="true">
+                        @foreach (var rank in Enum.GetValues<Rank>())
+                        {
+                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="Rank" @bind-Value="Counter.SetRank" Label="Set (Exact Value)" Variant="Variant.Outlined" Dense="true">
+                        @foreach (var rank in Enum.GetValues<Rank>())
+                        {
+                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            @if (IsEditMode && _existingCommand != null)
+            {
+                <MudDivider Class="my-2" />
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.subtitle2"><b>Linked Chat Command</b></MudText>
+                        <MudText Typo="Typo.body2">
+                            Command: <code>!@_existingCommand.CommandName</code> &bull; Min Rank: @_existingCommand.MinimumRank &bull; Cooldown: @(_existingCommand.UserCooldown)s
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            To customize subactions or trigger actions, visit the <MudLink Href="/commands/actioncommands">Action Commands</MudLink> or <MudLink Href="/actions">Actions</MudLink> page.
+                        </MudText>
+                    </MudStack>
+                </MudPaper>
+            }
+            else
+            {
+                <MudDivider Class="my-2" />
+                <MudSwitch @bind-Value="_createActionAndCommand" Color="Color.Primary"
+                           Label="@(IsEditMode ? "Generate Chat Command & Action for this Counter" : "Create Chat Command, Action & Subactions")" />
+
+                @if (_createActionAndCommand)
+                {
+                    <MudPaper Outlined="true" Class="pa-3">
+                        <MudStack Spacing="3">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Automatically configures a chat command, an action, a multi-counter subaction to evaluate arguments (+, -, reset, set), and a chat response message.
+                            </MudText>
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField @bind-Value="CommandNameInput" Label="Command Name" Variant="Variant.Outlined"
+                                                  Adornment="Adornment.Start" AdornmentText="!"
+                                                  HelperText="Chat command without '!' (e.g. 'deaths', 'wins')."
+                                                  Required="true" MaxLength="50" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="Rank" @bind-Value="_commandRank" Label="Command Minimum Rank" Variant="Variant.Outlined" Dense="true"
+                                               HelperText="Minimum rank required to run this command.">
+                                        @foreach (var rank in Enum.GetValues<Rank>())
+                                        {
+                                            <MudSelectItem Value="@rank">@rank</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudTextField @bind-Value="_responseMessage" Label="Chat Response Message" Variant="Variant.Outlined"
+                                          Lines="2" MaxLength="500"
+                                          HelperText="Supported variables: %counter_display_name%, %counter_value%, %counter_NAME%, %user%. Leave empty for no chat reply." />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="4">
+                                    <MudNumericField @bind-Value="_userCooldown" Label="User Cooldown (s)" Variant="Variant.Outlined" Min="0" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudNumericField @bind-Value="_globalCooldown" Label="Global Cooldown (s)" Variant="Variant.Outlined" Min="0" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudTextField @bind-Value="_group" Label="Action Group" Variant="Variant.Outlined" MaxLength="50" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public Counter Counter { get; set; } = new();
+
+    [Parameter]
+    public Counter Model { get => Counter; set => Counter = value; }
+
+    [Parameter]
+    public bool IsNew { get; set; }
+
+    private string _error = string.Empty;
+
+    private bool IsEditMode => !IsNew && (Counter.Id ?? 0) > 0;
+
+    private ActionCommand? _existingCommand;
+    private bool _createActionAndCommand = true;
+    private string _commandName = string.Empty;
+    private bool _commandNameCustomized = false;
+    private Rank _commandRank = Rank.Viewer;
+    private string _responseMessage = "%counter_display_name%: %counter_value%";
+    private int _userCooldown = 5;
+    private int _globalCooldown = 0;
+    private string _group = "Counters";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEditMode && !string.IsNullOrWhiteSpace(Counter.CounterName))
+        {
+            _existingCommand = await ActionCommandService.GetByCommandNameAsync(Counter.CounterName);
+            // In edit mode, default toggle to false if no command exists
+            _createActionAndCommand = false;
+        }
+    }
+
+    private string CommandNameInput
+    {
+        get => _commandNameCustomized ? _commandName : (Counter.CounterName ?? string.Empty).Trim().ToLowerInvariant();
+        set
+        {
+            _commandName = value;
+            _commandNameCustomized = true;
+        }
+    }
+
+    private void Save()
+    {
+        _error = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(Counter.CounterName))
+        {
+            _error = "Counter name is required.";
+            return;
+        }
+
+        Counter.CounterName = Counter.CounterName.Trim();
+
+        if (Counter.Min.HasValue && Counter.Max.HasValue && Counter.Min.Value > Counter.Max.Value)
+        {
+            _error = "Minimum cannot be greater than Maximum.";
+            return;
+        }
+
+        if (Counter.Step <= 0)
+        {
+            Counter.Step = 1;
+        }
+
+        if (Counter.Min.HasValue)
+        {
+            if (Counter.Amount < Counter.Min.Value) Counter.Amount = Counter.Min.Value;
+            if (Counter.InitialValue < Counter.Min.Value) Counter.InitialValue = Counter.Min.Value;
+        }
+
+        if (Counter.Max.HasValue)
+        {
+            if (Counter.Amount > Counter.Max.Value) Counter.Amount = Counter.Max.Value;
+            if (Counter.InitialValue > Counter.Max.Value) Counter.InitialValue = Counter.Max.Value;
+        }
+
+        if (_createActionAndCommand && _existingCommand == null)
+        {
+            var cmd = (string.IsNullOrWhiteSpace(_commandName) && !_commandNameCustomized ? Counter.CounterName : _commandName)
+                ?.Trim().TrimStart('!');
+
+            if (string.IsNullOrWhiteSpace(cmd))
+            {
+                _error = "Command name is required when creating a chat command.";
+                return;
+            }
+
+            if (cmd.Contains(' '))
+            {
+                _error = "Command name cannot contain spaces.";
+                return;
+            }
+
+            var options = new CounterActionCreationOptions
+            {
+                CreateActionAndCommand = true,
+                CommandName = cmd.ToLowerInvariant(),
+                ResponseMessage = _responseMessage,
+                MinimumRank = _commandRank,
+                UserCooldown = _userCooldown,
+                GlobalCooldown = _globalCooldown,
+                Group = string.IsNullOrWhiteSpace(_group) ? "Counters" : _group.Trim()
+            };
+
+            MudDialog.Close(DialogResult.Ok(new CreateCounterDialogResult
+            {
+                Counter = Counter,
+                ActionOptions = options
+            }));
+            return;
+        }
+
+        if (IsNew)
+        {
+            MudDialog.Close(DialogResult.Ok(new CreateCounterDialogResult
+            {
+                Counter = Counter,
+                ActionOptions = new CounterActionCreationOptions { CreateActionAndCommand = false }
+            }));
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(Counter));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}
+

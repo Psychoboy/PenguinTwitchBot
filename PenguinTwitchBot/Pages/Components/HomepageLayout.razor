@@ -1,11 +1,13 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using PenguinTwitchBot.Database.Bot.Models
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Bot.Services
 
 @inject PenguinTwitchBot.Services.HomepageLayoutService HomepageLayoutService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ISnackbar Snackbar
 @inject IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
+@inject ICounterService CounterService
 @implements IDisposable
 
 @if (!isLoaded)
@@ -93,6 +95,52 @@ else
                                         {
                                             <MudNumericField T="int?" Label="Months to Include" Min="0" @bind-Value="widget.Months" />
                                         }
+
+                                        @if (widget.Type == HomepageWidgetCatalog.Counters)
+                                        {
+                                            <MudDivider Class="my-2" />
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.subtitle2">Counters Displayed</MudText>
+                                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                           StartIcon="@Icons.Material.Filled.Add"
+                                                           OnClick="@(() => widget.Counters.Add(new HomepageCounterItemConfig { CounterType = "generic" }))">
+                                                    Add Counter
+                                                </MudButton>
+                                            </MudStack>
+
+                                            @for (var cIdx = 0; cIdx < widget.Counters.Count; cIdx++)
+                                            {
+                                                var counterIndex = cIdx;
+                                                var counterItem = widget.Counters[counterIndex];
+                                                <MudPaper Class="pa-2 my-1" Outlined="true">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                        <MudSelect T="string" Label="Type" Dense="true" Style="min-width: 110px;"
+                                                                   Value="@counterItem.CounterType"
+                                                                   ValueChanged="@((string val) => { counterItem.CounterType = val; })">
+                                                            <MudSelectItem Value="@("generic")">Generic</MudSelectItem>
+                                                            <MudSelectItem Value="@("death")">Death</MudSelectItem>
+                                                        </MudSelect>
+
+                                                        @if (counterItem.CounterType == "generic")
+                                                        {
+                                                            <MudSelect T="string" Label="Counter" Dense="true" Style="min-width: 160px;"
+                                                                       @bind-Value="counterItem.CounterName">
+                                                                @foreach (var cName in _availableCounterNames)
+                                                                {
+                                                                    <MudSelectItem Value="@cName">@cName</MudSelectItem>
+                                                                }
+                                                            </MudSelect>
+                                                        }
+
+                                                        <MudTextField T="string" Label="Custom Label (optional)" Margin="Margin.Dense" Immediate="true"
+                                                                      @bind-Value="counterItem.CustomLabel" />
+
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                                       OnClick="@(() => widget.Counters.RemoveAt(counterIndex))" />
+                                                    </MudStack>
+                                                </MudPaper>
+                                            }
+                                        }
                                     </MudStack>
                                 </MudPaper>
                             }
@@ -132,6 +180,7 @@ else
     private bool isStreamer;
     private bool isEditing;
     private string selectedWidgetType = HomepageWidgetCatalog.SongRequests;
+    private List<string> _availableCounterNames = [];
     private bool _disposed;
 
     protected override async Task OnInitializedAsync()
@@ -140,6 +189,16 @@ else
 
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         isStreamer = authState.User.IsInRole("Streamer");
+
+        try
+        {
+            var counters = await CounterService.GetAllCountersAsync();
+            _availableCounterNames = counters.Select(c => c.CounterName).ToList();
+        }
+        catch
+        {
+            _availableCounterNames = [];
+        }
 
         await ReloadLayoutAsync();
         isLoaded = true;

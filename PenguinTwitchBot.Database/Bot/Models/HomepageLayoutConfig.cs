@@ -16,6 +16,17 @@ public sealed class HomepageWidgetConfig
     public int? SongLimit { get; set; }
 
     public int? Months { get; set; }
+
+    public List<HomepageCounterItemConfig> Counters { get; set; } = [];
+}
+
+public sealed class HomepageCounterItemConfig
+{
+    public string CounterType { get; set; } = "generic"; // "generic" or "death"
+
+    public string CounterName { get; set; } = string.Empty;
+
+    public string? CustomLabel { get; set; }
 }
 
 public sealed class HomepageWidgetDefinition
@@ -60,6 +71,7 @@ public static class HomepageWidgetCatalog
     public const string StreamSchedule = "stream-schedule";
     public const string SongRequests = "song-requests";
     public const string TopRequestedSongs = "top-requested-songs";
+    public const string Counters = "counters";
 
     public static readonly IReadOnlyList<HomepageWidgetDefinition> Definitions =
     [
@@ -88,6 +100,12 @@ public static class HomepageWidgetCatalog
             "Shows the most requested songs.",
             supportsTitle: true,
             supportsMonths: true),
+        new HomepageWidgetDefinition(
+            Counters,
+            "Counters",
+            "Displays one or more counters with quick controls for the streamer.",
+            supportsTitle: true,
+            streamerOnly: false),
     ];
 
     public static HomepageLayoutConfig CreateDefaultLayout() => new()
@@ -120,6 +138,12 @@ public static class HomepageWidgetCatalog
                 Type = TopRequestedSongs,
                 Title = "Top 5 Requested Songs",
                 Months = 3
+            },
+            Counters => new HomepageWidgetConfig
+            {
+                Type = Counters,
+                Title = "Counters",
+                Counters = []
             },
             _ => new HomepageWidgetConfig { Type = type }
         };
@@ -155,6 +179,15 @@ public static class HomepageWidgetCatalog
             ? Giveaway
             : normalized.Type.Trim();
         normalized.Title = string.IsNullOrWhiteSpace(normalized.Title) ? null : normalized.Title.Trim();
+        normalized.Counters = normalized.Counters?
+            .Where(c => !string.IsNullOrWhiteSpace(c.CounterName) || string.Equals(c.CounterType, "death", StringComparison.OrdinalIgnoreCase))
+            .Select(c => new HomepageCounterItemConfig
+            {
+                CounterType = string.Equals(c.CounterType, "death", StringComparison.OrdinalIgnoreCase) ? "death" : "generic",
+                CounterName = (c.CounterName ?? string.Empty).Trim(),
+                CustomLabel = string.IsNullOrWhiteSpace(c.CustomLabel) ? null : c.CustomLabel.Trim()
+            })
+            .ToList() ?? [];
 
         return normalized;
     }

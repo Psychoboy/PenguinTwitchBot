@@ -1,0 +1,298 @@
+@page "/actions/counters"
+@using PenguinTwitchBot.Bot.Services
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Helpers
+@using Microsoft.AspNetCore.SignalR.Client
+@inject ICounterService CounterService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IConfiguration AppConfiguration
+@implements IAsyncDisposable
+
+<PageTitle>Counters - PenguinBot</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
+    <MudStack Spacing="4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <div>
+                <MudText Typo="Typo.h4">Counters</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Create and manage custom generic counters. Configure per-parameter permissions and use them in subactions and overlays.
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialogAsync">
+                Create Counter
+            </MudButton>
+        </MudStack>
+
+        <MudCard Outlined="true">
+            <MudCardContent>
+                @if (_loading)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+                }
+                else if (_counters.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text">
+                        No counters found. Click "Create Counter" above to add your first counter.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="_counters" Hover="true" Dense="true" Striped="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Display Name</MudTh>
+                            <MudTh Style="text-align: center;">Value</MudTh>
+                            <MudTh>Step</MudTh>
+                            <MudTh>Bounds (Min / Max)</MudTh>
+                            <MudTh>Permissions (Inc / Dec / Reset / Set)</MudTh>
+                            <MudTh Style="text-align: center;">Adjust</MudTh>
+                            <MudTh Style="text-align: right;">Actions</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Name">
+                                <MudText Typo="Typo.body1" Style="font-weight: 600;">@context.CounterName</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Display Name">
+                                @(string.IsNullOrWhiteSpace(context.DisplayName) ? "-" : context.DisplayName)
+                            </MudTd>
+                            <MudTd DataLabel="Value" Style="text-align: center;">
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Style="font-weight: bold; min-width: 40px; text-align: center;">
+                                    @context.Amount
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Step">@context.Step</MudTd>
+                            <MudTd DataLabel="Bounds">@context.Min / @context.Max</MudTd>
+                            <MudTd DataLabel="Permissions">
+                                <MudText Typo="Typo.caption">
+                                    +:@context.IncrementRank | -:@context.DecrementRank | 0:@context.ResetRank | =:@context.SetRank
+                                </MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Adjust" Style="text-align: center;">
+                                <MudButtonGroup Size="Size.Small" Variant="Variant.Outlined">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small" Color="Color.Warning"
+                                                   OnClick="@(() => AdjustCounterAsync(context, CounterOperation.Decrement))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => AdjustCounterAsync(context, CounterOperation.Increment))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" Color="Color.Default"
+                                                   OnClick="@(() => AdjustCounterAsync(context, CounterOperation.Reset))" />
+                                </MudButtonGroup>
+                            </MudTd>
+                            <MudTd DataLabel="Actions" Style="text-align: right;">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                                               OnClick="@(() => OpenEditDialogAsync(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DeleteCounterAsync(context))" />
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<Counter> _counters = [];
+    private bool _loading = true;
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCountersAsync();
+
+        try
+        {
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+            {
+                await InvokeAsync(() =>
+                {
+                    var existing = _counters.FirstOrDefault(c => c.CounterName.Equals(counter.CounterName, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
+                    {
+                        existing.Amount = counter.Amount;
+                        existing.DisplayName = counter.DisplayName;
+                        existing.Step = counter.Step;
+                        existing.Min = counter.Min;
+                        existing.Max = counter.Max;
+                    }
+                    else
+                    {
+                        _counters.Add(counter);
+                        _counters = _counters.OrderBy(c => c.CounterName).ToList();
+                    }
+                    StateHasChanged();
+                });
+            });
+
+            await _hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hub connection failed: {ex.Message}");
+        }
+    }
+
+    private async Task LoadCountersAsync()
+    {
+        _loading = true;
+        try
+        {
+            _counters = await CounterService.GetAllCountersAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task AdjustCounterAsync(Counter counter, CounterOperation operation)
+    {
+        var result = await CounterService.AdjustCounterAsync(counter.CounterName, operation);
+        if (result.Success)
+        {
+            counter.Amount = result.NewValue;
+        }
+        else
+        {
+            Snackbar.Add(result.ErrorMessage ?? "Failed to adjust counter.", Severity.Error);
+        }
+    }
+
+    private async Task OpenCreateDialogAsync()
+    {
+        var newCounter = new Counter
+        {
+            CounterName = string.Empty,
+            DisplayName = string.Empty,
+            Amount = 0,
+            InitialValue = 0,
+            Step = 1,
+            Min = null,
+            Max = null,
+            IncrementRank = Rank.Moderator,
+            DecrementRank = Rank.Moderator,
+            ResetRank = Rank.Streamer,
+            SetRank = Rank.Moderator
+        };
+
+        var parameters = new DialogParameters { ["Counter"] = newCounter, ["IsNew"] = true };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EditCounterDialog>("Create Counter", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            try
+            {
+                if (result.Data is CreateCounterDialogResult createResult)
+                {
+                    await CounterService.CreateCounterWithActionAsync(createResult.Counter, createResult.ActionOptions);
+                    var cmdMsg = createResult.ActionOptions?.CreateActionAndCommand == true
+                        ? $" with command '!{createResult.ActionOptions.CommandName}' and action"
+                        : "";
+                    Snackbar.Add($"Counter '{createResult.Counter.CounterName}' created{cmdMsg}.", Severity.Success);
+                    await LoadCountersAsync();
+                }
+                else if (result.Data is Counter created)
+                {
+                    await CounterService.CreateCounterAsync(created);
+                    Snackbar.Add($"Counter '{created.CounterName}' created.", Severity.Success);
+                    await LoadCountersAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error creating counter: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task OpenEditDialogAsync(Counter counter)
+    {
+        // Clone counter for dialog editing
+        var clone = new Counter
+        {
+            Id = counter.Id,
+            CounterName = counter.CounterName,
+            DisplayName = counter.DisplayName,
+            Amount = counter.Amount,
+            InitialValue = counter.InitialValue,
+            Step = counter.Step,
+            Min = counter.Min,
+            Max = counter.Max,
+            IncrementRank = counter.IncrementRank,
+            DecrementRank = counter.DecrementRank,
+            ResetRank = counter.ResetRank,
+            SetRank = counter.SetRank
+        };
+
+        var parameters = new DialogParameters { ["Counter"] = clone, ["IsNew"] = false };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EditCounterDialog>("Edit Counter", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            try
+            {
+                if (result.Data is CreateCounterDialogResult editResult)
+                {
+                    await CounterService.UpdateCounterAsync(editResult.Counter);
+                    if (editResult.ActionOptions?.CreateActionAndCommand == true)
+                    {
+                        await CounterService.CreateActionForCounterAsync(editResult.Counter, editResult.ActionOptions);
+                        Snackbar.Add($"Counter '{editResult.Counter.CounterName}' updated and command '!{editResult.ActionOptions.CommandName}' created.", Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add($"Counter '{editResult.Counter.CounterName}' updated.", Severity.Success);
+                    }
+                    await LoadCountersAsync();
+                }
+                else if (result.Data is Counter updated)
+                {
+                    await CounterService.UpdateCounterAsync(updated);
+                    Snackbar.Add($"Counter '{updated.CounterName}' updated.", Severity.Success);
+                    await LoadCountersAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating counter: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task DeleteCounterAsync(Counter counter)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Delete Counter",
+            $"Are you sure you want to delete counter '{counter.CounterName}'?",
+            yesText: "Delete",
+            cancelText: "Cancel");
+
+        if (confirmed == true && counter.Id.HasValue)
+        {
+            await CounterService.DeleteCounterAsync(counter.Id.Value);
+            Snackbar.Add($"Counter '{counter.CounterName}' deleted.", Severity.Success);
+            await LoadCountersAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection != null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Pages.Components
                 FollowAgeType => "Gets follow age",
                 UptimeType => "Gets stream uptime",
                 WatchTimeType => "Gets watch time",
-                MultiCounterType multi => $"{multi.Name} counter. Variable: %counter_{multi.Name}%",
+                MultiCounterType multi => $"{multi.Name} counter ({multi.Operation}). Variable: %counter_{multi.Name}%",
                 SelectRandomViewersType randomViewers => $"Select {randomViewers.ViewerCount} random {(randomViewers.ActiveOnly ? "active " : "")}viewer(s)",
                 ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
                 ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
