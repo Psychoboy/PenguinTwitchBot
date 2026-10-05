@@ -150,6 +150,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
+            services.AddScoped<Bot.Services.ICounterService, Bot.Services.CounterService>();
             services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
@@ -220,7 +221,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Tracks daily messages and subscriptions."
             );
-            services.AddRuntimeFeatureService<Bot.Commands.Misc.DeathCounters>(
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.IDeathCounterService, Bot.Commands.Misc.DeathCounters>(
                 FeatureKeys.DeathCounter,
                 "Death Counter",
                 moduleName: "DeathCounter",

@@ -73,12 +73,13 @@
                 <MudNavLink Icon="@Icons.Material.Filled.AudioFile" Href="/actions/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Schedule" Href="/commands/cooldowns" Match="NavLinkMatch.Prefix">Command Cooldowns</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="@GetGroupExpanded("actions", "actions/timers", "actions/manage", "actions/globalvariables", "actions/history", "actions/queues")">
+            <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="@GetGroupExpanded("actions", "actions/timers", "actions/manage", "actions/counters", "actions/globalvariables", "actions/history", "actions/queues")">
                 <MudNavLink Icon="@Icons.Material.Filled.Tune" Href="/actions/manage" Match="NavLinkMatch.Prefix">Manage Actions</MudNavLink>
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))
                 {
                     <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Timers</MudNavLink>
                 }
+                <MudNavLink Icon="@Icons.Material.Filled.Numbers" Href="/actions/counters" Match="NavLinkMatch.Prefix">Counters</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Storage" Href="/actions/globalvariables" Match="NavLinkMatch.Prefix">Global Variables</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
@@ -282,6 +283,7 @@
             CreateQuickLink("Keywords", "/actions/keywords", Icons.Material.Filled.Key, "Commands", "chat interactions"),
             CreateQuickLink("Audio Commands", "/actions/audiocommands", Icons.Material.Filled.AudioFile, "Commands", "chat interactions"),
             CreateQuickLink("Manage Actions", "/actions/manage", Icons.Material.Filled.Tune, "Actions", "automation"),
+            CreateQuickLink("Counters", "/actions/counters", Icons.Material.Filled.Numbers, "Actions", "counter tally value"),
             CreateQuickLink("Global Variables", "/actions/globalvariables", Icons.Material.Filled.Storage, "Actions", "automation"),
             CreateQuickLink("Action History", "/actions/history", Icons.Material.Filled.History, "Actions", "automation"),
             CreateQuickLink("Queues", "/actions/queues", Icons.Material.Filled.ViewList, "Actions", "automation"),

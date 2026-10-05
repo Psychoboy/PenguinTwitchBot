@@ -1,0 +1,252 @@
+@using PenguinTwitchBot.Bot.Commands.Misc
+@using PenguinTwitchBot.Bot.Services
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Models
+@using PenguinTwitchBot.Helpers
+@using Microsoft.AspNetCore.SignalR.Client
+@inject ICounterService CounterService
+@inject IDeathCounterService DeathCounterService
+@inject NavigationManager NavigationManager
+@inject IConfiguration AppConfiguration
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-4" Elevation="3">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Numbers" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">@(string.IsNullOrWhiteSpace(Widget.Title) ? "Counters" : Widget.Title)</MudText>
+            </MudStack>
+            @if (IsStreamer)
+            {
+                <MudTooltip Text="Manage Counters">
+                    <MudIconButton Icon="@Icons.Material.Filled.Settings" Size="Size.Small" Href="/actions/counters" />
+                </MudTooltip>
+            }
+        </MudStack>
+
+        <MudDivider Class="my-2" />
+
+        @if (_items.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="my-2">
+                No counters configured for this widget. Edit the homepage layout to select counters.
+            </MudAlert>
+        }
+        else
+        {
+            <MudStack Spacing="2">
+                @foreach (var item in _items)
+                {
+                    <MudPaper Class="pa-2 px-3" Outlined="true" Style="background: rgba(255, 255, 255, 0.02);">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle2" Style="font-weight: 600;">@item.Label</MudText>
+                                @if (item.IsDeath && !string.IsNullOrWhiteSpace(_currentGame))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@_currentGame</MudText>
+                                }
+                            </MudStack>
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                @if (IsStreamer)
+                                {
+                                    <MudTooltip Text="Decrement">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Remove" Size="Size.Small" Color="Color.Warning"
+                                                       OnClick="@(() => AdjustItem(item, CounterOperation.Decrement))" />
+                                    </MudTooltip>
+                                }
+
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Medium"
+                                         Style="min-width: 48px; text-align: center; font-weight: bold; font-size: 1.1rem;">
+                                    @item.Value
+                                </MudChip>
+
+                                @if (IsStreamer)
+                                {
+                                    <MudTooltip Text="Increment">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Success"
+                                                       OnClick="@(() => AdjustItem(item, CounterOperation.Increment))" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Reset">
+                                        <MudIconButton Icon="@Icons.Material.Filled.RestartAlt" Size="Size.Small" Color="Color.Default"
+                                                       OnClick="@(() => AdjustItem(item, CounterOperation.Reset))" />
+                                    </MudTooltip>
+                                }
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public HomepageWidgetConfig Widget { get; set; } = new();
+
+    [Parameter]
+    public bool IsStreamer { get; set; }
+
+    private sealed class DisplayCounterItem
+    {
+        public bool IsDeath { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public int Value { get; set; }
+    }
+
+    private List<DisplayCounterItem> _items = [];
+    private string _currentGame = string.Empty;
+    private HubConnection? _hubConnection;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStateAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadStateAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _hubConnection = new HubConnectionBuilder()
+                    .WithUrl(SignalRConnectionHelper.ResolveHubUri(AppConfiguration, NavigationManager, "/mainHub"))
+                    .WithAutomaticReconnect()
+                    .Build();
+
+                _hubConnection.On<Counter>("CounterUpdated", async (counter) =>
+                {
+                    await InvokeAsync(() =>
+                    {
+                        var match = _items.FirstOrDefault(i => !i.IsDeath && string.Equals(i.Name, counter.CounterName, StringComparison.OrdinalIgnoreCase));
+                        if (match != null)
+                        {
+                            match.Value = counter.Amount;
+                            StateHasChanged();
+                        }
+                    });
+                });
+
+                _hubConnection.On<DeathCounterUpdatedPayload>("DeathCounterUpdated", async (payload) =>
+                {
+                    await InvokeAsync(() =>
+                    {
+                        _currentGame = payload.Game ?? string.Empty;
+                        var deathItem = _items.FirstOrDefault(i => i.IsDeath);
+                        if (deathItem != null)
+                        {
+                            deathItem.Value = payload.Amount;
+                            StateHasChanged();
+                        }
+                    });
+                });
+
+                await _hubConnection.StartAsync();
+            }
+            catch
+            {
+                // Silently handle if hub fails to connect in background
+            }
+        }
+    }
+
+    private async Task LoadStateAsync()
+    {
+        var newItems = new List<DisplayCounterItem>();
+
+        var (game, deathCount) = await DeathCounterService.GetCurrentDeathCountAsync();
+        _currentGame = game;
+
+        foreach (var config in Widget.Counters)
+        {
+            if (string.Equals(config.CounterType, "death", StringComparison.OrdinalIgnoreCase))
+            {
+                newItems.Add(new DisplayCounterItem
+                {
+                    IsDeath = true,
+                    Name = "death",
+                    Label = !string.IsNullOrWhiteSpace(config.CustomLabel) ? config.CustomLabel : "Deaths",
+                    Value = deathCount
+                });
+            }
+            else if (!string.IsNullOrWhiteSpace(config.CounterName))
+            {
+                var counter = await CounterService.GetCounterByNameAsync(config.CounterName);
+                var label = !string.IsNullOrWhiteSpace(config.CustomLabel)
+                    ? config.CustomLabel
+                    : (counter != null && !string.IsNullOrWhiteSpace(counter.DisplayName) ? counter.DisplayName : config.CounterName);
+
+                newItems.Add(new DisplayCounterItem
+                {
+                    IsDeath = false,
+                    Name = config.CounterName,
+                    Label = label,
+                    Value = counter?.Amount ?? 0
+                });
+            }
+        }
+
+        _items = newItems;
+    }
+
+    private async Task AdjustItem(DisplayCounterItem item, CounterOperation op)
+    {
+        try
+        {
+            if (item.IsDeath)
+            {
+                var (_, count) = await DeathCounterService.AdjustCurrentDeathCountAsync(op);
+                item.Value = count;
+                StateHasChanged();
+            }
+            else
+            {
+                var result = await CounterService.AdjustCounterAsync(item.Name, op);
+                if (result.Success)
+                {
+                    item.Value = result.NewValue;
+                    StateHasChanged();
+                }
+                else
+                {
+                    Snackbar.Add(result.ErrorMessage ?? "Failed to update counter.", Severity.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error adjusting counter: {ex.Message}", Severity.Error);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+                _hubConnection = null;
+            }
+        }
+    }
+
+    private sealed class DeathCounterUpdatedPayload
+    {
+        public string? Game { get; set; }
+        public int Amount { get; set; }
+        public int Count { get => Amount; set => Amount = value; }
+    }
+}
+

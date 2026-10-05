@@ -771,9 +771,37 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DecrementRank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("IncrementRank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("InitialValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Max")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Min")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ResetRank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SetRank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Step")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CounterName");
+                    b.HasIndex("CounterName")
+                        .IsUnique();
 
                     b.ToTable("Counters");
                 });
@@ -2984,6 +3012,9 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<string>("DestinationVariable")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("Max")
                         .HasColumnType("INTEGER");
 
@@ -2993,6 +3024,12 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Operation")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Value")
+                        .HasColumnType("INTEGER");
 
                     b.ToTable("subactions_multicounter", (string)null);
                 });

@@ -6,6 +6,9 @@ using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
 using System.Text.Json;
 
+using PenguinTwitchBot.Bot.Commands.Misc;
+using PenguinTwitchBot.Bot.Services;
+
 namespace PenguinTwitchBot.Controllers
 {
     [Route("api/[controller]")]
@@ -16,13 +19,23 @@ namespace PenguinTwitchBot.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFishingService _fishingService;
         private readonly IStreamTimerService _streamTimerService;
+        private readonly ICounterService _counterService;
+        private readonly IDeathCounterService _deathCounterService;
         private readonly ILogger<OverlayController> _logger;
 
-        public OverlayController(IUnitOfWork unitOfWork, IFishingService fishingService, IStreamTimerService streamTimerService, ILogger<OverlayController> logger)
+        public OverlayController(
+            IUnitOfWork unitOfWork,
+            IFishingService fishingService,
+            IStreamTimerService streamTimerService,
+            ICounterService counterService,
+            IDeathCounterService deathCounterService,
+            ILogger<OverlayController> logger)
         {
             _unitOfWork = unitOfWork;
             _fishingService = fishingService;
             _streamTimerService = streamTimerService;
+            _counterService = counterService;
+            _deathCounterService = deathCounterService;
             _logger = logger;
         }
 
@@ -229,6 +242,46 @@ namespace PenguinTwitchBot.Controllers
         }
 
         /// <summary>
+        /// Returns current generic counters for overlay widgets.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("counter-state")]
+        public async Task<IActionResult> GetCounterState([FromQuery] string? names = null)
+        {
+            var counters = await _counterService.GetAllCountersAsync();
+            if (!string.IsNullOrWhiteSpace(names))
+            {
+                var requestedNames = names.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                counters = counters.Where(c => requestedNames.Contains(c.CounterName, StringComparer.OrdinalIgnoreCase)).ToList();
+            }
+
+            return Ok(counters.Select(c => new
+            {
+                name = c.CounterName,
+                displayName = c.DisplayName ?? c.CounterName,
+                amount = c.Amount,
+                step = c.Step,
+                min = c.Min,
+                max = c.Max
+            }));
+        }
+
+        /// <summary>
+        /// Returns current death counter for the active game for overlay widgets.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet("death-counter-state")]
+        public async Task<IActionResult> GetDeathCounterState()
+        {
+            var (game, count) = await _deathCounterService.GetCurrentDeathCountAsync();
+            return Ok(new
+            {
+                game,
+                count
+            });
+        }
+
+        /// <summary>
         /// Appends CustomSettings JSON fields as URL query parameters onto basePath.
         /// Null/empty/whitespace values are skipped.
         /// </summary>
@@ -245,7 +298,7 @@ namespace PenguinTwitchBot.Controllers
                     {
                         var val = p.Value.ValueKind == JsonValueKind.String
                             ? p.Value.GetString() ?? ""
-                            : p.Value.ToString();
+                            : p.Value.GetRawText();
                         return (key: p.Name, val);
                     })
                     .Where(t => !string.IsNullOrWhiteSpace(t.val))

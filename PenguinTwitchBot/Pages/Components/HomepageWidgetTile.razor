@@ -36,6 +36,10 @@ else if (Widget.Type == HomepageWidgetCatalog.TopRequestedSongs)
                        Months="@(Widget.Months ?? 3)"
                        Title="@(string.IsNullOrWhiteSpace(Widget.Title) ? "Top 5 Requested Songs" : Widget.Title)" />
 }
+else if (Widget.Type == HomepageWidgetCatalog.Counters)
+{
+    <HomepageCountersWidget Widget="Widget" IsStreamer="IsStreamer" />
+}
 else
 {
     <MudPaper Class="pa-4" Elevation="3">
