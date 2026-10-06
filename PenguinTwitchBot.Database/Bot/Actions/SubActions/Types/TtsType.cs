@@ -19,28 +19,20 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                 new()
                 {
                     PropertyName = nameof(Name),
-                    Label = "Username to get voice full",
-                    FieldType = UIFieldType.TextArea,
+                    Label = "Username to get voice from",
+                    FieldType = UIFieldType.Text,
                     Required = false,
-                    HelperText = "Who to get voice from, if empty or not found will get random voice. Can use %user% for current user.",
-                    Lines = 1
+                    HelperText = "Who to get voice from, if empty or not found will get random voice. Supports variables like %user%."
                 },
                 new()
                 {
                     PropertyName = nameof(Text),
-                    Label = "Message to be said",
+                    Label = "Message",
                     FieldType = UIFieldType.TextArea,
                     Required = true,
-                    HelperText = "The message that will be spoken by the TTS system. Can use %messsage% to get a chat message.",
-                    Lines = 1
-                },
-                new()
-                {
-                    PropertyName = "info_hint",
-                    Label = "The variable is %ExternalApiResponse%",
-                    FieldType = UIFieldType.Info,
-                    Severity = "Info",
-                    Dense = true
+                    HelperText = "The message that will be spoken by the TTS system. Supports variables like %user%, %target%, %message%.",
+                    Lines = 3,
+                    Resizable = true
                 },
                 new()
                 {
