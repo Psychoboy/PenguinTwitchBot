@@ -14,7 +14,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.FishingTournamentEnd] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingTournamentEligibleCatch] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingModify] = FeatureKeys.Fishing,
-                [SubActionTypes.Tts] = FeatureKeys.TTS
+                [SubActionTypes.Tts] = FeatureKeys.TTS,
+                [SubActionTypes.OpenAi] = FeatureKeys.OpenAI
             };
 
         public static bool IsAvailable(SubActionTypes subActionType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)
@@ -22,6 +23,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
             if (!FeatureBySubActionType.TryGetValue(subActionType, out var featureKey))
             {
                 return true;
+            }
+
+            if (!featureRuntimeCoordinator.HasFeature(featureKey))
+            {
+                return false;
             }
 
             return featureRuntimeCoordinator.IsEnabled(featureKey);

@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Database.Repository
             UserPoints = new UserPointsRepository(_context);
             PointCommands = new PointCommandsRepository(_context);
             ScAiResponses = new ScAiResponsesRepository(_context);
+            OpenAiResponses = new OpenAiResponseCodesRepository(_context);
             Actions = new ActionsRepository(_context);
             SubActions = new SubActionsRepository(_context);
             Triggers = new TriggersRepository(_context);
@@ -131,6 +132,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IUserPointsRepository UserPoints { get; private set; }
         public IPointCommandsRepository PointCommands { get; private set; }
         public IScAiResponsesRepository ScAiResponses { get; private set; }
+        public IOpenAiResponseCodesRepository OpenAiResponses { get; private set; }
         public IActionsRepository Actions { get; private set; }
         public ISubActionsRepository SubActions { get; private set; }
         public ITriggersRepository Triggers { get; private set; }

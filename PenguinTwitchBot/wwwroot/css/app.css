@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --mud-palette-table-striped: rgba(255,255,255,0.075) !important;
 }
 
@@ -16,4 +16,10 @@
 
 #components-reconnect-modal.components-reconnect-rejected > .rejected {
     display: block;
+}
+
+.resizable-textarea textarea.mud-input-slot,
+.resizable-textarea textarea {
+    resize: vertical !important;
+    min-height: 80px;
 }

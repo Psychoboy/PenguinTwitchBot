@@ -30,6 +30,7 @@ namespace PenguinTwitchBot.Bot.Features
         event Func<Task>? StateChangedAsync;
 
         IReadOnlyList<RuntimeFeatureState> GetFeatures();
+        bool HasFeature(string featureKey);
         bool IsEnabled(string featureKey);
         Task RestartAsync(string featureKey, CancellationToken cancellationToken = default);
         Task SetEnabledAsync(string featureKey, bool enabled, CancellationToken cancellationToken = default);
@@ -75,6 +76,8 @@ namespace PenguinTwitchBot.Bot.Features
                     x.Description))
                 .ToList();
         }
+
+        public bool HasFeature(string featureKey) => _registrationsByKey.ContainsKey(featureKey);
 
         public bool IsEnabled(string featureKey)
         {

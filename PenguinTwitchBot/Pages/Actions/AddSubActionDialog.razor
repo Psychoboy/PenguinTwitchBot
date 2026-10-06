@@ -1,5 +1,6 @@
 @using PenguinTwitchBot.Bot.Actions.SubActions
 @using PenguinTwitchBot.Bot.Actions.SubActions.UI
+@using PenguinTwitchBot.Bot.Ai
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -105,6 +106,16 @@
                      <MudAlert Severity="Severity.Error">@_validationError</MudAlert>
                  }
 
+                 @if (_isLoadingOpenAiModels)
+                 {
+                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Info" />
+                             <MudText Typo="Typo.body2">Fetching available models from OpenAI...</MudText>
+                         </MudStack>
+                     </MudAlert>
+                 }
+
                 @if (_selectedType == SubActionTypes.PlaySound && _currentSubAction is PlaySoundType playSound)
                 {
                     <MudStack Spacing="3">
@@ -170,6 +181,10 @@
 
     [Inject]
     private IActionVariableResolver? VariableResolver { get; set; }
+
+    private IOpenAiModelService? OpenAiModelService => ServiceProvider?.GetService<IOpenAiModelService>();
+
+    private ILogger<AddSubActionDialog>? Logger => ServiceProvider?.GetService<ILogger<AddSubActionDialog>>();
 
     [Parameter] 
     public SubActionType? ExistingSubAction { get; set; }
@@ -268,6 +283,14 @@
             Icon: Icons.Material.Filled.Code,
             Color: Color.Default,
             Order: 9
+        ),
+        new(
+            Id: "ai",
+            Name: SubActionCategories.Ai,
+            Description: "Generate AI responses and custom prompts with OpenAI",
+            Icon: Icons.Material.Filled.Psychology,
+            Color: Color.Secondary,
+            Order: 10
         )
     };
 
@@ -287,6 +310,7 @@
     private bool IsEditMode => ExistingSubAction != null;
     private SubActionType? _currentSubAction;
     private Dictionary<string, object?> _fieldValues = new();
+    private bool _isLoadingOpenAiModels;
 
     protected override void OnInitialized()
     {
@@ -309,6 +333,10 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadVariablesAsync();
+        if (_currentSubAction is OpenAiType)
+        {
+            EnsureOpenAiModelsLoaded();
+        }
     }
 
     private async Task LoadVariablesAsync()
@@ -457,6 +485,49 @@
                 _fieldValues = uiProvider.GetValues();
             }
         }
+
+        if (_currentSubAction is OpenAiType)
+        {
+            EnsureOpenAiModelsLoaded();
+        }
+    }
+
+    private void EnsureOpenAiModelsLoaded()
+    {
+        if (OpenAiModelService == null)
+            return;
+
+        if (OpenAiModelService.CachedModels != null && OpenAiModelService.CachedModels.Count > 0)
+        {
+            _isLoadingOpenAiModels = false;
+            return;
+        }
+
+        _isLoadingOpenAiModels = true;
+        _ = LoadOpenAiModelsAsync();
+    }
+
+    private async Task LoadOpenAiModelsAsync()
+    {
+        if (OpenAiModelService == null)
+            return;
+
+        try
+        {
+            await OpenAiModelService.GetAvailableTextModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogWarning(ex, "Failed to load OpenAI models asynchronously.");
+        }
+        finally
+        {
+            if (!_disposed)
+            {
+                _isLoadingOpenAiModels = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
     }
 
     private void GoBack()
@@ -465,6 +536,7 @@
         {
             _currentStep = _previousStep;
             _validationError = null;
+            _isLoadingOpenAiModels = false;
         }
         else if (_currentStep == WizardStep.SelectSubAction)
         {

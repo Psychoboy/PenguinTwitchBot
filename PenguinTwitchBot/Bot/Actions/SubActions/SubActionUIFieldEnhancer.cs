@@ -58,6 +58,7 @@ public static class SubActionUIFieldEnhancer
             CheckPointsType checkPoints => EnhanceCheckPoints(fields, checkPoints, scope.ServiceProvider),
             SetGlobalVariableType setGlobalVariable => EnhanceGlobalVariableNames(fields, setGlobalVariable, scope.ServiceProvider),
             GetGlobalVariableType getGlobalVariable => EnhanceGlobalVariableNames(fields, getGlobalVariable, scope.ServiceProvider),
+            OpenAiType openAi => EnhanceOpenAiModels(fields, openAi, scope.ServiceProvider),
             _ => fields
         };
     }
@@ -982,6 +983,25 @@ public static class SubActionUIFieldEnhancer
                             .ToList();
                     }
                 }
+            }
+        }
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceOpenAiModels(List<SubActionUIField> fields, OpenAiType openAi, IServiceProvider serviceProvider)
+    {
+        var modelField = fields.FirstOrDefault(f => f.PropertyName == nameof(OpenAiType.Model));
+        if (modelField == null)
+            return fields;
+
+        var modelService = serviceProvider.GetService<Ai.IOpenAiModelService>();
+        if (modelService != null)
+        {
+            var textModels = modelService.CachedModels;
+            if (textModels != null && textModels.Count > 0)
+            {
+                modelField.Options = textModels.ToArray();
             }
         }
 

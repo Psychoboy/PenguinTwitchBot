@@ -56,6 +56,7 @@ namespace PenguinTwitchBot.Pages.Components
                 ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandName} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
                 TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {timerGroup.TimerGroupName} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
                 CheckPointsType checkPoints => $"Gets {checkPoints.PointTypeName} points for {checkPoints.TargetUser} Variables: %TargetPoints% and %TargetPointsFormatted%",
+                OpenAiType ai => $"OpenAI: {(ai.Text?.Length > 50 ? ai.Text[..50] + "..." : ai.Text)} ({ai.Model})",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

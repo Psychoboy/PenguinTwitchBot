@@ -1759,6 +1759,26 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("obs_connections");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.OpenAiResponseCode", b =>
+                {
+                    b.Property<string>("SessionKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreviousResponseId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("SessionKey");
+
+                    b.HasIndex("SessionKey")
+                        .IsUnique();
+
+                    b.ToTable("OpenAiResponseCodes");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Overlay.OverlayLayout", b =>
                 {
                     b.Property<int>("Id")
@@ -3268,6 +3288,49 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.ToTable("subactions_obs_triggerhotkey", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OpenAiType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("AllowedDomains")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CleanOutput")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EnableWebSearch")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MaxOutputTokenCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResponseVariableName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SavePreviousResponse")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServiceTier")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SessionKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_openai", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerAddTimeType", b =>
