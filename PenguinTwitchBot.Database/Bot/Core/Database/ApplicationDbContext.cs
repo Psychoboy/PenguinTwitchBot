@@ -63,6 +63,7 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
 
         public DbSet<Models.ScAiResponseCodes> ScAiResponseCodes { get; set; }
+        public DbSet<Models.OpenAiResponseCode> OpenAiResponseCodes { get; set; } = null!;
 
         // Fishing tables
         public DbSet<FishType> FishTypes { get; set; } = null!;

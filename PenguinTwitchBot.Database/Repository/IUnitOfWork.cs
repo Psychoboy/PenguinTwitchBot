@@ -55,6 +55,7 @@ namespace PenguinTwitchBot.Database.Repository
         IUserPointsRepository UserPoints { get; }
         IPointCommandsRepository PointCommands { get; }
         IScAiResponsesRepository ScAiResponses { get; }
+        IOpenAiResponseCodesRepository OpenAiResponses { get; }
 
         IActionsRepository Actions { get; }
         ISubActionsRepository SubActions { get; }

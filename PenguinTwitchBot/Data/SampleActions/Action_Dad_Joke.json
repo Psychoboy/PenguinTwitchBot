@@ -1,0 +1,67 @@
+{
+  "Version": "1.1",
+  "ExportedAt": "2026-10-06T21:28:29.0307183Z",
+  "Actions": [
+    {
+      "Name": "Dad Joke",
+      "Group": "Chat Interaction",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "OpenAi",
+          "Instructions": "You are a Twitch chat bot that generates witty, family-friendly dad jokes.\n\nGuidelines:\n1. If a topic is provided in the prompt, make the dad joke specifically about that topic.\n2. If the topic is empty or not specified, invent a funny dad joke about any everyday topic.\n3. Keep the response to 1-2 short sentences so it fits neatly into Twitch chat.\n4. Do not include markdown, hashtags, quotation marks, or conversational filler like \u0022Here is your joke:\u0022. Output only the joke itself.",
+          "Model": "gpt-5.4-mini",
+          "MaxOutputTokenCount": 100,
+          "ServiceTier": "default",
+          "EnableWebSearch": false,
+          "AllowedDomains": "",
+          "SavePreviousResponse": false,
+          "SessionKey": "%UserId%",
+          "ResponseVariableName": "AiResponse",
+          "CleanOutput": true,
+          "Index": 0,
+          "Text": "Tell a dad joke. Topic: %Args%",
+          "Enabled": true,
+          "SubActionTypes": 66
+        },
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 1,
+          "Text": "%AiResponse%",
+          "Enabled": true,
+          "SubActionTypes": 22
+        }
+      ],
+      "CatchSubActions": [],
+      "Triggers": [
+        {
+          "Name": "!joke",
+          "Type": 0,
+          "Configuration": "{\u0022CommandId\u0022:942,\u0022CommandName\u0022:\u0022joke\u0022}",
+          "Enabled": true,
+          "CommandDefinition": {
+            "CommandName": "joke",
+            "UserCooldown": 0,
+            "UserCooldownMax": 0,
+            "GlobalCooldown": 0,
+            "GlobalCooldownMax": 0,
+            "MinimumRank": 0,
+            "Cost": 0,
+            "Disabled": false,
+            "SayCooldown": true
+          },
+          "KeywordDefinition": null,
+          "TimerGroupDefinition": null,
+          "DefaultCommandDefinition": null
+        }
+      ]
+    }
+  ]
+}

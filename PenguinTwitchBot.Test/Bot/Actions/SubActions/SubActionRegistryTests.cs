@@ -20,7 +20,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 SubActionCategories.PointsAndRewards,
                 SubActionCategories.Raffles,
                 SubActionCategories.TwitchAndViewers,
-                SubActionCategories.VariablesAndUtilities
+                SubActionCategories.VariablesAndUtilities,
+                SubActionCategories.Ai
             };
 
             var allMetadata = SubActionRegistry.Metadata.Values.ToList();
@@ -49,6 +50,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData(SubActionTypes.ChannelPointSetEnabledState, SubActionCategories.PointsAndRewards)]
         [InlineData(SubActionTypes.Uptime, SubActionCategories.TwitchAndViewers)]
         [InlineData(SubActionTypes.SetVariable, SubActionCategories.VariablesAndUtilities)]
+        [InlineData(SubActionTypes.OpenAi, SubActionCategories.Ai)]
         public void SubActions_AreAssignedToExpectedCategories(SubActionTypes type, string expectedCategory)
         {
             var meta = SubActionRegistry.GetMetadata(type);

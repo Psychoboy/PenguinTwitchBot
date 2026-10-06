@@ -349,6 +349,11 @@ public class ActionVariableResolver(
                 variables.SetVariable("ExternalApiResponse", "Raw string response payload from external API", source, category, "{\"status\":\"ok\"}");
                 break;
 
+            case OpenAiType openAi:
+                var targetVar = !string.IsNullOrWhiteSpace(openAi.ResponseVariableName) ? openAi.ResponseVariableName : "AiResponse";
+                variables.SetVariable(targetVar, "Generated AI text response from OpenAI", source, category, "Hello from the AI!");
+                break;
+
             case FishingType:
                 variables.SetVariable("fish_name", "Name of caught fish", source, category, "Largemouth Bass");
                 variables.SetVariable("fish_weight", "Weight of caught fish", source, category, "5.4");

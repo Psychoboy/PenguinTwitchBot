@@ -144,6 +144,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     or SubActionTypes.ExternalApi or SubActionTypes.WriteFile
                     => SubActionCategories.VariablesAndUtilities,
 
+                SubActionTypes.OpenAi
+                    => SubActionCategories.Ai,
+
                 _ => SubActionCategories.General
             };
         }
