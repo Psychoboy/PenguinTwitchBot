@@ -25,3 +25,8 @@ In the [Default Commands](/commands/default) edit view:
 - **Point Cost**: Require chatters to pay a specified point fee each time they execute the command.
 - **Point Type**: Choose which virtual currency is deducted from their account balance upon command execution.
 
+## Stream Together (Source Only)
+
+- **Source Only / Reply to Source Only**: When broadcasting with other creators using Twitch Stream Together (shared chat), enabling this setting ensures the bot only responds to commands sent from your channel's chat, ignoring triggers originating from other streamers' chats.
+
+

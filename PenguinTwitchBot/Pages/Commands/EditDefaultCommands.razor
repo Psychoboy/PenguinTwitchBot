@@ -188,7 +188,9 @@
                                 <MudSwitch T="bool" @bind-Value="@defaultCommand.ExcludeFromUi" Label="Hide from Public View" Color="Color.Primary" />
                             </MudItem>
                             <MudItem xs="12" sm="4">
-                                <MudSwitch T="bool" @bind-Value="@defaultCommand.SourceOnly" Label="Reply to Source Only (Stream Together)" Color="Color.Primary" />
+                                <MudTooltip Text="When streaming with other streamers (Stream Together / Shared Chat), only respond to commands from your own chat and ignore other streamers' chats.">
+                                    <MudSwitch T="bool" @bind-Value="@defaultCommand.SourceOnly" Label="Source Only (Own Channel / Stream Together)" Color="Color.Primary" />
+                                </MudTooltip>
                             </MudItem>
                         </MudGrid>
                     </MudCardContent>
