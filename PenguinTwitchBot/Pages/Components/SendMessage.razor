@@ -1,4 +1,4 @@
-﻿@attribute [Authorize(Roles = "Streamer")]
+@attribute [Authorize(Roles = "Streamer")]
 <MudContainer Class="pa-4">
     <EditForm Model="MessageModel" OnSubmit="SendChatMessage">
         <MudSelect Label="Send As" @bind-Value="MessageModel.SendAs">
@@ -7,7 +7,9 @@
         </MudSelect>
         @if (MessageModel.SendAs == SendAsType.Bot)
         {
-            <MudCheckBox @bind-Value ="MessageModel.SourceOnly" Label="Source Only (For Stream Together)" />
+            <MudTooltip Text="When streaming with other streamers (Stream Together / Shared Chat), send the message only to your own channel rather than all shared chats.">
+                <MudCheckBox @bind-Value="MessageModel.SourceOnly" Label="Source Only (Own Channel / Stream Together)" />
+            </MudTooltip>
         }
         <MudTextField @ref="textField" @bind-Value="MessageModel.Message" Label="Message" />
         <MudButton OnClick="SendChatMessage" Variant="Variant.Filled" Color="Color.Primary">Send</MudButton>

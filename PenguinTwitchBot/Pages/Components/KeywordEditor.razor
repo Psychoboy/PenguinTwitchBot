@@ -200,7 +200,9 @@
                     </MudStack>
                     <MudStack Row="true" Spacing="3">
                         <MudSwitch @bind-Value="Keyword.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
-                        <MudSwitch @bind-Value="Keyword.SourceOnly" Label="Source Only" Color="Color.Warning" />
+                        <MudTooltip Text="When streaming with other streamers (Stream Together / Shared Chat), only respond to keywords from your own chat and ignore other streamers' chats.">
+                            <MudSwitch @bind-Value="Keyword.SourceOnly" Label="Source Only (Own Channel / Stream Together)" Color="Color.Warning" />
+                        </MudTooltip>
                     </MudStack>
                 </MudStack>
             </MudItem>

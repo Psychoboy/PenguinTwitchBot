@@ -23,3 +23,10 @@ When an action command executes, the following variables are automatically injec
 ## Economy & Access Rules
 
 Just like default commands, action commands can require point costs (`Cost` and `PointType`), user/global cooldowns, and minimum rank permissions.
+
+## Stream Together & Source Only
+
+When participating in Twitch **Stream Together** (collaborative streams with shared chat):
+- **Source Only (Enabled)**: The command will only trigger when executed from *your own* channel's chat. Commands typed in collaborating streamers' chats are ignored.
+- **Source Only (Disabled)**: Viewers across all collaborating streams can trigger the command in shared chat.
+
