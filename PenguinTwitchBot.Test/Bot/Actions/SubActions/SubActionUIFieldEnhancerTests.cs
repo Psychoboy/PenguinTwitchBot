@@ -186,4 +186,40 @@ public class SubActionUIFieldEnhancerTests
         Assert.Equal(2, targetShopField.SelectOptions.Count);
         Assert.Contains(targetShopField.SelectOptions, o => o.Id == 10 && o.Name.Contains("Basic Rod"));
     }
+
+    [Fact]
+    public void GetEnhancedFields_OpenAiType_WhenCachedModelsAvailable_EnhancesOptions()
+    {
+        var services = new ServiceCollection();
+        var modelService = Substitute.For<PenguinTwitchBot.Bot.Ai.IOpenAiModelService>();
+        modelService.CachedModels.Returns(new List<string> { "gpt-5.1", "custom-gpt-test" });
+        services.AddSingleton(modelService);
+        var provider = services.BuildServiceProvider();
+
+        var subAction = new OpenAiType();
+        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var modelField = result.First(f => f.PropertyName == nameof(OpenAiType.Model));
+        Assert.NotNull(modelField.Options);
+        Assert.Contains("custom-gpt-test", modelField.Options);
+    }
+
+    [Fact]
+    public void GetEnhancedFields_OpenAiType_WhenCachedModelsNull_LeavesDefaultOptionsWithoutCallingApi()
+    {
+        var services = new ServiceCollection();
+        var modelService = Substitute.For<PenguinTwitchBot.Bot.Ai.IOpenAiModelService>();
+        modelService.CachedModels.Returns((IReadOnlyList<string>?)null);
+        services.AddSingleton(modelService);
+        var provider = services.BuildServiceProvider();
+
+        var subAction = new OpenAiType();
+        var result = SubActionUIFieldEnhancer.GetEnhancedFields(subAction, provider);
+
+        var modelField = result.First(f => f.PropertyName == nameof(OpenAiType.Model));
+        Assert.NotNull(modelField.Options);
+        Assert.Contains("gpt-5.1", modelField.Options);
+        Assert.Contains("gpt-4o", modelField.Options);
+        modelService.DidNotReceiveWithAnyArgs().GetAvailableTextModelsAsync();
+    }
 }

@@ -1,5 +1,6 @@
 using OpenAI;
 using OpenAI.Responses;
+using System.Text;
 
 namespace PenguinTwitchBot.Bot.Ai
 {
@@ -86,14 +87,26 @@ namespace PenguinTwitchBot.Bot.Ai
             try
             {
                 var response = await respClient.CreateResponseAsync(responseOptions, cts.Token);
-                foreach (var output in response.Value.OutputItems.Where(x => x is MessageResponseItem))
+                var textBuilder = new StringBuilder();
+
+                foreach (var output in response.Value.OutputItems.OfType<MessageResponseItem>())
                 {
-                    if (output is MessageResponseItem messageItem &&
-                        messageItem.Content != null && messageItem.Content.Count > 0)
+                    if (output.Content != null)
                     {
-                        var result = messageItem.Content.First().Text;
-                        return new OpenAiGenerationResult(result, response.Value.Id, true);
+                        foreach (var part in output.Content)
+                        {
+                            if (!string.IsNullOrEmpty(part.Text))
+                            {
+                                textBuilder.Append(part.Text);
+                            }
+                        }
                     }
+                }
+
+                var combinedText = textBuilder.ToString();
+                if (!string.IsNullOrWhiteSpace(combinedText))
+                {
+                    return new OpenAiGenerationResult(combinedText, response.Value.Id, true);
                 }
 
                 return new OpenAiGenerationResult("", response.Value.Id, false, "No message content in response.");

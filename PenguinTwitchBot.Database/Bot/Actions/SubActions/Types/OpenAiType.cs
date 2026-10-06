@@ -37,7 +37,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Label = "Prompt",
                     FieldType = UIFieldType.TextArea,
                     Required = true,
-                    Lines = 3,
+                    Lines = 4,
+                    Resizable = true,
                     HelperText = "Prompt to send to OpenAI. Supports variables like %user%, %rawinput%, %message%."
                 },
                 new()
@@ -45,7 +46,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     PropertyName = nameof(Instructions),
                     Label = "Instructions (System Prompt)",
                     FieldType = UIFieldType.TextArea,
-                    Lines = 3,
+                    Lines = 5,
+                    Resizable = true,
                     HelperText = "System behavior instructions for the AI. Supports variables."
                 },
                 new()

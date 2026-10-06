@@ -38,6 +38,9 @@ namespace PenguinTwitchBot.Test.Bot.Ai
             var logger = Substitute.For<ILogger<OpenAiModelService>>();
             var service = new OpenAiModelService(logger, null);
 
+            Assert.NotNull(service.CachedModels);
+            Assert.Contains("gpt-5.1", service.CachedModels);
+
             var models = await service.GetAvailableTextModelsAsync();
 
             Assert.NotNull(models);
@@ -45,6 +48,9 @@ namespace PenguinTwitchBot.Test.Bot.Ai
             Assert.Contains("gpt-5.1", models);
             Assert.Contains("gpt-4o", models);
             Assert.Contains("o3-mini", models);
+
+            Assert.NotNull(service.CachedModels);
+            Assert.Equal(models, service.CachedModels);
         }
     }
 }

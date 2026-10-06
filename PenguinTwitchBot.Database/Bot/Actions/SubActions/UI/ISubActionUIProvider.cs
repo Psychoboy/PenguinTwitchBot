@@ -70,6 +70,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
 
         // Text/TextArea specific
         public int? Lines { get; set; }
+        public bool Resizable { get; set; } = true;
 
         // Number/Float specific
         public object? Min { get; set; }

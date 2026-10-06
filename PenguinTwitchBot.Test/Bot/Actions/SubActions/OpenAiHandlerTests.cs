@@ -254,6 +254,65 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var error = type.Validate(values);
             Assert.Null(error);
         }
+
+        [Fact]
+        public void OpenAiType_GetUIFields_PromptAndInstructionsAreResizable()
+        {
+            var type = new OpenAiType();
+            var fields = type.GetUIFields();
+
+            var promptField = fields.FirstOrDefault(f => f.PropertyName == nameof(OpenAiType.Text));
+            var instructionsField = fields.FirstOrDefault(f => f.PropertyName == nameof(OpenAiType.Instructions));
+
+            Assert.NotNull(promptField);
+            Assert.True(promptField.Resizable);
+            Assert.Equal(4, promptField.Lines);
+
+            Assert.NotNull(instructionsField);
+            Assert.True(instructionsField.Resizable);
+            Assert.Equal(5, instructionsField.Lines);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_SerializesConcurrentRequestsForSameSession()
+        {
+            var handler = new OpenAiHandler(_unitOfWork, _logger, _openAiResponseService);
+            var subAction = new OpenAiType
+            {
+                Id = 99,
+                Text = "Concurrent test",
+                SavePreviousResponse = true,
+                SessionKey = "%UserId%",
+                ResponseVariableName = "AiResponse"
+            };
+
+            var variables1 = new ConcurrentDictionary<string, string> { ["UserId"] = "user_sync" };
+            var variables2 = new ConcurrentDictionary<string, string> { ["UserId"] = "user_sync" };
+
+            var runningCount = 0;
+            var maxConcurrent = 0;
+
+            _openAiResponseService.GenerateResponseAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>())
+                .Returns(async _ =>
+                {
+                    var current = Interlocked.Increment(ref runningCount);
+                    lock (_dbResponseCodes)
+                    {
+                        if (current > maxConcurrent) maxConcurrent = current;
+                    }
+                    await Task.Delay(50);
+                    Interlocked.Decrement(ref runningCount);
+                    return new OpenAiGenerationResult("Response", "resp-id", true);
+                });
+
+            var task1 = handler.ExecuteAsync(subAction, variables1);
+            var task2 = handler.ExecuteAsync(subAction, variables2);
+
+            await Task.WhenAll(task1, task2);
+
+            Assert.Equal(1, maxConcurrent);
+        }
     }
 }
 

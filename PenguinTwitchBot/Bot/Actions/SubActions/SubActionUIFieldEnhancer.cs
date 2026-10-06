@@ -998,7 +998,7 @@ public static class SubActionUIFieldEnhancer
         var modelService = serviceProvider.GetService<Ai.IOpenAiModelService>();
         if (modelService != null)
         {
-            var textModels = Task.Run(async () => await modelService.GetAvailableTextModelsAsync()).GetAwaiter().GetResult();
+            var textModels = modelService.CachedModels;
             if (textModels != null && textModels.Count > 0)
             {
                 modelField.Options = textModels.ToArray();

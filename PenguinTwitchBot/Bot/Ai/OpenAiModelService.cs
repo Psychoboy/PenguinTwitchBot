@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.Ai
         private IReadOnlyList<string>? _cachedModels;
         private DateTime _cacheExpiresAt = DateTime.MinValue;
         private static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+        private static readonly TimeSpan FallbackCacheDuration = TimeSpan.FromMinutes(1);
 
         public static readonly string[] DefaultTextModels =
         [
@@ -29,6 +30,23 @@ namespace PenguinTwitchBot.Bot.Ai
             _client = client;
         }
 
+        public IReadOnlyList<string>? CachedModels
+        {
+            get
+            {
+                if (_client == null)
+                {
+                    return DefaultTextModels;
+                }
+
+                if (_cachedModels != null && DateTime.UtcNow < _cacheExpiresAt)
+                {
+                    return _cachedModels;
+                }
+                return null;
+            }
+        }
+
         public async Task<IReadOnlyList<string>> GetAvailableTextModelsAsync(CancellationToken cancellationToken = default)
         {
             if (_cachedModels != null && DateTime.UtcNow < _cacheExpiresAt)
@@ -38,7 +56,9 @@ namespace PenguinTwitchBot.Bot.Ai
 
             if (_client == null)
             {
-                return DefaultTextModels;
+                _cachedModels = DefaultTextModels;
+                _cacheExpiresAt = DateTime.UtcNow.Add(CacheDuration);
+                return _cachedModels;
             }
 
             await _cacheLock.WaitAsync(cancellationToken);
@@ -64,17 +84,22 @@ namespace PenguinTwitchBot.Bot.Ai
                     _cacheExpiresAt = DateTime.UtcNow.Add(CacheDuration);
                     return _cachedModels;
                 }
+
+                _cachedModels = DefaultTextModels;
+                _cacheExpiresAt = DateTime.UtcNow.Add(FallbackCacheDuration);
+                return _cachedModels;
             }
             catch (Exception ex)
             {
+                _cachedModels = DefaultTextModels;
+                _cacheExpiresAt = DateTime.UtcNow.Add(FallbackCacheDuration);
                 _logger.LogWarning(ex, "Failed to query OpenAI models from API. Falling back to default text models.");
+                return _cachedModels;
             }
             finally
             {
                 _cacheLock.Release();
             }
-
-            return DefaultTextModels;
         }
 
         public static bool IsTextModel(string modelId)
