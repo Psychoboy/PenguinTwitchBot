@@ -351,6 +351,7 @@ internal class Program
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
         await ConfigureQuartzTriggersAsync(app.Services);
+        PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ServiceBackbone = app.Services.GetService<PenguinTwitchBot.Bot.Core.IServiceBackbone>();
 
         app.UseMiddleware<PenguinTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 

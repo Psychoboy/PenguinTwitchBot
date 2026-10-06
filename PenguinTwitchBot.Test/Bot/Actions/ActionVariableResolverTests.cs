@@ -50,20 +50,42 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
-        public async Task ResolveVariablesAsync_IncludesDbGlobalVariables()
+        public async Task ResolveVariablesAsync_IncludesSystemGlobals_And_UserGlobalsOnlyWhenGetGlobalVariableUsed()
         {
-            var result = await _resolver.ResolveVariablesAsync(
+            // 1. Without GetGlobalVariable subaction: DB globals are NOT present
+            var resultWithoutGetGlobal = await _resolver.ResolveVariablesAsync(
                 currentActionId: null,
                 triggers: null,
                 previousSubActions: null,
                 isCatchSubAction: false);
 
-            var streamGoal = result.FirstOrDefault(v => v.Name.Equals("StreamGoal", System.StringComparison.OrdinalIgnoreCase));
-            Assert.NotNull(streamGoal);
-            Assert.Null(streamGoal.ExampleValue);
-            Assert.Contains(result, v => v.Name.Equals("$math", System.StringComparison.OrdinalIgnoreCase));
-            Assert.DoesNotContain(result, v => v.Name.Equals("random", System.StringComparison.OrdinalIgnoreCase));
-            Assert.DoesNotContain(result, v => v.Name.Equals("bot", System.StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(resultWithoutGetGlobal, v => v.Name.Equals("StreamGoal", System.StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("$math", System.StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("bot", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("streamer", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("user", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("date", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("time", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("ticks", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("random", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+
+            // 2. With GetGlobalVariable subaction: Global appears under Previous Steps
+            var previousSteps = new List<SubActionType>
+            {
+                new GetGlobalVariableType { Text = "StreamGoal", TargetVariableName = "GoalLoaded" }
+            };
+
+            var resultWithGetGlobal = await _resolver.ResolveVariablesAsync(
+                currentActionId: null,
+                triggers: null,
+                previousSubActions: previousSteps,
+                isCatchSubAction: false);
+
+            var goalVar = resultWithGetGlobal.FirstOrDefault(v => v.Name.Equals("GoalLoaded", System.StringComparison.OrdinalIgnoreCase));
+            Assert.NotNull(goalVar);
+            Assert.Equal("Previous Steps", goalVar.Category);
+            Assert.Equal("SavedValue", goalVar.ExampleValue);
+            Assert.Contains("StreamGoal", goalVar.Description);
         }
 
         [Fact]

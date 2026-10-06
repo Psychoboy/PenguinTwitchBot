@@ -63,25 +63,16 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Variable">
-                    @if (context.Category.Equals("Globals", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <MudText Typo="Typo.body2" Style="font-family: monospace; font-weight: bold;">
-                            @context.Name
-                        </MudText>
-                    }
-                    else
-                    {
-                        <span title="Click to copy token">
-                            <MudChip T="string"
-                                     Size="Size.Small"
-                                     Color="Color.Primary"
-                                     Variant="Variant.Outlined"
-                                     OnClick="@(() => CopyToClipboardAsync(context.Name))"
-                                     Style="cursor: pointer; font-family: monospace; font-weight: bold;">
-                                @GetFormattedToken(context.Name)
-                            </MudChip>
-                        </span>
-                    }
+                    <span title="Click to copy token">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined"
+                                 OnClick="@(() => CopyToClipboardAsync(context.Name))"
+                                 Style="cursor: pointer; font-family: monospace; font-weight: bold;">
+                            @GetFormattedToken(context.Name)
+                        </MudChip>
+                    </span>
                 </MudTd>
                 <MudTd DataLabel="Description">
                     <MudText Typo="Typo.body2">@context.Description</MudText>
@@ -104,20 +95,13 @@
                     }
                 </MudTd>
                 <MudTd DataLabel="Copy" Style="text-align: center;">
-                    @if (context.Category.Equals("Globals", StringComparison.OrdinalIgnoreCase))
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Default">-</MudText>
-                    }
-                    else
-                    {
-                        <span title="Copy token to clipboard">
-                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                                           Size="Size.Small"
-                                           Color="Color.Default"
-                                           OnClick="@(() => CopyToClipboardAsync(context.Name))"
-                                           aria-label="Copy token to clipboard" />
-                        </span>
-                    }
+                    <span title="Copy token to clipboard">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="@(() => CopyToClipboardAsync(context.Name))"
+                                       aria-label="Copy token to clipboard" />
+                    </span>
                 </MudTd>
             </RowTemplate>
         </MudTable>
