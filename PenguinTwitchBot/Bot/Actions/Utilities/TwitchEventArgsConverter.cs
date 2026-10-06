@@ -58,6 +58,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["Message"] = sanitizedMessage,
                 ["rawInput"] = sanitizedMessage,
                 ["Amount"] = eventArgs.Amount.ToString(),
+                ["Bits"] = eventArgs.Amount.ToString(),
                 ["IsAnonymous"] = eventArgs.IsAnonymous.ToString(),
                 ["CheerEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs)
             };
@@ -95,6 +96,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["DisplayName"] = eventArgs.DisplayName ?? string.Empty,
                 ["User"] = eventArgs.DisplayName ?? string.Empty,
                 ["Count"] = eventArgs.Count?.ToString() ?? string.Empty,
+                ["Months"] = eventArgs.Count?.ToString() ?? string.Empty,
                 ["Streak"] = eventArgs.Streak?.ToString() ?? string.Empty,
                 ["Tier"] = eventArgs.Tier ?? string.Empty,
                 ["IsGift"] = eventArgs.IsGift.ToString(),
@@ -196,6 +198,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["User"] = eventArgs.Sender ?? string.Empty,
                 ["Title"] = eventArgs.Title ?? string.Empty,
                 ["RewardName"] = eventArgs.Title ?? string.Empty,
+                ["RewardTitle"] = eventArgs.Title ?? string.Empty,
                 ["UserInput"] = sanitizedUserInput,
                 ["Message"] = sanitizedUserInput,
                 ["rawInput"] = sanitizedUserInput,
@@ -215,7 +218,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Length"] = eventArgs.Length.ToString(),
+                ["DurationSeconds"] = eventArgs.Length.ToString(),
                 ["Automatic"] = eventArgs.Automatic.ToString(),
+                ["IsAutomatic"] = eventArgs.Automatic.ToString(),
                 ["StartedAt"] = eventArgs.StartedAt.ToString("o"),
                 ["AdBreakStartEventArgs"] = JsonSerializer.Serialize(eventArgs)
             };
@@ -430,7 +435,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["EventType"] = "StreamOnline",
-                ["Timestamp"] = DateTime.UtcNow.ToString("o")
+                ["Timestamp"] = DateTime.UtcNow.ToString("o"),
+                ["StreamStartedAt"] = DateTime.UtcNow.ToString("o")
             };
 
             return dictionary;

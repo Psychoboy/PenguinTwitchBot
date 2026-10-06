@@ -63,18 +63,76 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.True(resolver.CanHandle(TriggerTypes.TwitchEvent));
 
             var variables = new Dictionary<string, ActionVariableInfo>();
-            var cheerTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "Cheer" };
+            var cheerTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelCheer" };
             resolver.ResolveVariables(cheerTrigger, variables);
 
+            Assert.True(variables.ContainsKey("Amount"));
             Assert.True(variables.ContainsKey("Bits"));
             Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("User"));
 
             var subVariables = new Dictionary<string, ActionVariableInfo>();
-            var subTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "Subscribe" };
+            var subTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelSubscribe" };
             resolver.ResolveVariables(subTrigger, subVariables);
 
             Assert.True(subVariables.ContainsKey("Tier"));
+            Assert.True(subVariables.ContainsKey("Count"));
             Assert.True(subVariables.ContainsKey("Months"));
+            Assert.True(subVariables.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesAdBreakVariables()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var adBreakTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelAdBreakBegin" };
+            resolver.ResolveVariables(adBreakTrigger, variables);
+
+            Assert.True(variables.ContainsKey("Length"));
+            Assert.True(variables.ContainsKey("DurationSeconds"));
+            Assert.True(variables.ContainsKey("Automatic"));
+            Assert.True(variables.ContainsKey("IsAutomatic"));
+            Assert.True(variables.ContainsKey("StartedAt"));
+
+            // AdBreak has no user
+            Assert.False(variables.ContainsKey("User"));
+            Assert.False(variables.ContainsKey("UserName"));
+            Assert.False(variables.ContainsKey("DisplayName"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesChannelPointRewardVariables()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var cpTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelPointsCustomRewardRedemptionAdd" };
+            resolver.ResolveVariables(cpTrigger, variables);
+
+            Assert.True(variables.ContainsKey("Title"));
+            Assert.True(variables.ContainsKey("RewardName"));
+            Assert.True(variables.ContainsKey("RewardTitle"));
+            Assert.True(variables.ContainsKey("UserInput"));
+            Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("rawInput"));
+            Assert.True(variables.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesFromConfigurationEventName()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "TwitchEvent",
+                Configuration = "{\"EventName\":\"ChannelAdBreakBegin\"}"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            Assert.True(variables.ContainsKey("Length"));
+            Assert.True(variables.ContainsKey("Automatic"));
         }
 
         [Fact]
