@@ -19,8 +19,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             // Replace variables in left and right values
-            var leftValue = ReplaceVariables(ifElseType.LeftValue, variables);
-            var rightValue = ReplaceVariables(ifElseType.RightValue, variables);
+            var leftValue = VariableReplacer.ReplaceVariables(ifElseType.LeftValue, variables);
+            var rightValue = VariableReplacer.ReplaceVariables(ifElseType.RightValue, variables);
 
             // Evaluate the condition
             var result = EvaluateCondition(leftValue, rightValue, ifElseType.Operator);
@@ -52,16 +52,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     throw;
                 }
             }
-        }
-
-        private static string ReplaceVariables(string input, ConcurrentDictionary<string, string> variables)
-        {
-            var result = input;
-            foreach (var variable in variables)
-            {
-                result = result.Replace($"%{variable.Key}%", variable.Value, StringComparison.OrdinalIgnoreCase);
-            }
-            return result;
         }
 
         private bool EvaluateCondition(string left, string right, ComparisonOperator op)
