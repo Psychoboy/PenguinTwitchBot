@@ -432,11 +432,12 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
 
         public static ConcurrentDictionary<string, string> StreamOnlineVariables()
         {
+            var timestamp = DateTime.UtcNow.ToString("o");
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["EventType"] = "StreamOnline",
-                ["Timestamp"] = DateTime.UtcNow.ToString("o"),
-                ["StreamStartedAt"] = DateTime.UtcNow.ToString("o")
+                ["Timestamp"] = timestamp,
+                ["StreamStartedAt"] = timestamp
             };
 
             return dictionary;

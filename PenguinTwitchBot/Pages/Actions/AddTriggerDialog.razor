@@ -597,6 +597,10 @@
             {
                 _twitchEventConfig = config;
                 _selectedTwitchEvent = config.EventName;
+                if (!string.IsNullOrWhiteSpace(config.EventName))
+                {
+                    _triggerName = config.EventName;
+                }
             }
             else
             {
@@ -1004,6 +1008,7 @@
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
         {
             _twitchEventConfig.EventName = _selectedTwitchEvent;
+            _triggerName = _selectedTwitchEvent;
             configuration = _twitchEventConfig.ToJson();
         }
         else if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null)

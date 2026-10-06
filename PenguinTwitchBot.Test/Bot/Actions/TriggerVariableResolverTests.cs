@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Variables;
 using PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 using PenguinTwitchBot.Database.Bot.Actions;
@@ -242,6 +243,32 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var manualVars = new Dictionary<string, ActionVariableInfo>();
             resolver.ResolveVariables(new TriggerType { Type = TriggerTypes.Manual, Name = "ManualRun" }, manualVars);
             Assert.True(manualVars.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTrigger_NameResolvedFromConfigurationEventName()
+        {
+            var configJson = "{\"EventName\":\"ChannelCheer\",\"MinAmount\":50}";
+            Assert.True(TwitchEventTriggerConfig.TryFromJson(configJson, out var config));
+            Assert.NotNull(config);
+            Assert.Equal("ChannelCheer", config.EventName);
+
+            var trigger = new TriggerType
+            {
+                Type = TriggerTypes.TwitchEvent,
+                Name = config.EventName,
+                Configuration = configJson,
+                Enabled = true
+            };
+
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(trigger, variables);
+
+            Assert.Equal("ChannelCheer", trigger.Name);
+            Assert.True(variables.ContainsKey("Bits"));
+            Assert.True(variables.ContainsKey("Amount"));
+            Assert.True(variables.ContainsKey("User"));
         }
     }
 }

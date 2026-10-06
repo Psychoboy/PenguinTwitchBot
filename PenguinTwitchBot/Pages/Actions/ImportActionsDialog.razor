@@ -1106,6 +1106,23 @@
                     });
                     break;
                 }
+                case TriggerTypes.TwitchEvent:
+                {
+                    var triggerName = trigger.Name;
+                    if (PenguinTwitchBot.Bot.Actions.Triggers.TwitchEventTriggerConfig.TryFromJson(trigger.Configuration, out var config) && !string.IsNullOrWhiteSpace(config?.EventName))
+                    {
+                        triggerName = config.EventName;
+                    }
+
+                    triggers.Add(new TriggerType
+                    {
+                        Name = triggerName,
+                        Type = TriggerTypes.TwitchEvent,
+                        Configuration = trigger.Configuration,
+                        Enabled = trigger.Enabled
+                    });
+                    break;
+                }
                 default:
                     triggers.Add(new TriggerType
                     {
