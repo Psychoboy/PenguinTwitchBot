@@ -42,7 +42,22 @@ public class ActionVariableResolver(
         // 2. Caller Actions (via ExecuteAction)
         if (currentActionId.HasValue)
         {
-            await ResolveCallerActionsAsync(currentActionId.Value, variables, visitedActionIds, depth: 1);
+            List<ActionType>? allActions = null;
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                allActions = await unitOfWork.Actions.GetAllWithDetailsAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to load actions for caller action variable resolution");
+            }
+
+            if (allActions != null && allActions.Count > 0)
+            {
+                ResolveCallerActions(currentActionId.Value, variables, visitedActionIds, allActions, depth: 1);
+            }
         }
 
         // 3. Triggers for the current action
@@ -119,10 +134,10 @@ public class ActionVariableResolver(
                         SetVariable(
                             variables,
                             g.Name,
-                            "User-defined global persistent variable",
+                            "Persisted global variable name (load into a local variable using Get Global Variable before template use)",
                             "Database Global",
                             "Globals",
-                            g.Value);
+                            exampleValue: null);
                     }
                 }
             }
@@ -133,19 +148,17 @@ public class ActionVariableResolver(
         }
     }
 
-    private async Task ResolveCallerActionsAsync(
+    private void ResolveCallerActions(
         int targetActionId,
         Dictionary<string, ActionVariableInfo> variables,
         HashSet<int> visitedActionIds,
+        List<ActionType> allActions,
         int depth)
     {
         if (depth > MaxCallerDepth) return;
 
         try
         {
-            using var scope = scopeFactory.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var allActions = await unitOfWork.Actions.GetAllWithDetailsAsync();
             var callers = FindCallerActions(targetActionId, allActions);
 
             foreach (var (callerAction, execSubAction, subActionIdx) in callers)
@@ -180,7 +193,7 @@ public class ActionVariableResolver(
                 SetVariable(variables, "TargetUser", "Target user specified by caller action", callerLabel, "Caller Actions", "TargetViewer");
 
                 // Recursively check callers of the caller
-                await ResolveCallerActionsAsync(callerAction.Id.Value, variables, visitedActionIds, depth + 1);
+                ResolveCallerActions(callerAction.Id.Value, variables, visitedActionIds, allActions, depth + 1);
             }
         }
         catch (Exception ex)
@@ -197,30 +210,66 @@ public class ActionVariableResolver(
 
         foreach (var action in allActions)
         {
-            if (action.SubActions == null) continue;
-
-            for (int i = 0; i < action.SubActions.Count; i++)
+            if (action.SubActions != null)
             {
-                var subAction = action.SubActions[i];
-                if (subAction is ExecuteActionType exec && exec.ActionId == targetActionId)
+                for (int i = 0; i < action.SubActions.Count; i++)
                 {
-                    result.Add((action, exec, i));
-                }
-                else if (subAction is LogicIfElseType ifElse)
-                {
-                    var foundInTrue = ifElse.TrueSubActions.OfType<ExecuteActionType>().Any(e => e.ActionId == targetActionId);
-                    var foundInFalse = ifElse.FalseSubActions.OfType<ExecuteActionType>().Any(e => e.ActionId == targetActionId);
-                    if (foundInTrue || foundInFalse)
+                    if (ContainsExecuteAction(action.SubActions[i], targetActionId, out var matchingExec) && matchingExec != null)
                     {
-                        var matching = ifElse.TrueSubActions.OfType<ExecuteActionType>().FirstOrDefault(e => e.ActionId == targetActionId)
-                                    ?? ifElse.FalseSubActions.OfType<ExecuteActionType>().First(e => e.ActionId == targetActionId);
-                        result.Add((action, matching, i));
+                        result.Add((action, matchingExec, i));
+                    }
+                }
+            }
+
+            if (action.CatchSubActions != null)
+            {
+                for (int i = 0; i < action.CatchSubActions.Count; i++)
+                {
+                    if (ContainsExecuteAction(action.CatchSubActions[i], targetActionId, out var matchingExec) && matchingExec != null)
+                    {
+                        result.Add((action, matchingExec, action.SubActions?.Count ?? 0));
                     }
                 }
             }
         }
 
         return result;
+    }
+
+    private static bool ContainsExecuteAction(
+        SubActionType subAction,
+        int targetActionId,
+        out ExecuteActionType? matchingExec)
+    {
+        if (subAction is ExecuteActionType exec && exec.ActionId == targetActionId)
+        {
+            matchingExec = exec;
+            return true;
+        }
+
+        if (subAction is LogicIfElseType ifElse)
+        {
+            if (ifElse.TrueSubActions != null)
+            {
+                foreach (var s in ifElse.TrueSubActions)
+                {
+                    if (ContainsExecuteAction(s, targetActionId, out matchingExec))
+                        return true;
+                }
+            }
+
+            if (ifElse.FalseSubActions != null)
+            {
+                foreach (var s in ifElse.FalseSubActions)
+                {
+                    if (ContainsExecuteAction(s, targetActionId, out matchingExec))
+                        return true;
+                }
+            }
+        }
+
+        matchingExec = null;
+        return false;
     }
 
     private static void ResolveTriggerVariables(
@@ -245,7 +294,7 @@ public class ActionVariableResolver(
                 var source = sourcePrefix != null ? $"{sourcePrefix} ({label}: {triggerName})" : $"Trigger: {label} ({triggerName})";
 
                 SetVariable(variables, "User", "The username of the chatter executing the command", source, category, "penguin_fan");
-                SetVariable(variables, "UserName", "The username of the chatter", source, category, "penguin_fan");
+                SetVariable(variables, "Name", "The username of the chatter", source, category, "penguin_fan");
                 SetVariable(variables, "DisplayName", "The display name of the chatter", source, category, "Penguin_Fan");
                 SetVariable(variables, "Args", "The arguments passed after the command", source, category, "arg1 arg2");
                 SetVariable(variables, "TargetUser", "The targeted user (either 1st argument or command invoker)", source, category, "target_viewer");
@@ -484,7 +533,7 @@ public class ActionVariableResolver(
 
         // Standard command variables always forwarded on default command executions
         SetVariable(variables, "User", "The username of the chatter executing the command", source, category, "penguin_fan");
-        SetVariable(variables, "UserName", "The username of the chatter", source, category, "penguin_fan");
+        SetVariable(variables, "Name", "The username of the chatter", source, category, "penguin_fan");
         SetVariable(variables, "DisplayName", "The display name of the chatter", source, category, "Penguin_Fan");
         SetVariable(variables, "Command", "The name of the default command", source, category, "spinwheel");
         SetVariable(variables, "Arg", "Arguments passed after the command or event payload", source, category, "arg1");
@@ -756,6 +805,8 @@ public class ActionVariableResolver(
         string source,
         string category = "Previous Steps")
     {
+        if (!subAction.Enabled) return;
+
         switch (subAction)
         {
             case MultiCounterType counter:

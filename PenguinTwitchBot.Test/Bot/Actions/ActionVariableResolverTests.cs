@@ -58,7 +58,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions
                 previousSubActions: null,
                 isCatchSubAction: false);
 
-            Assert.Contains(result, v => v.Name.Equals("StreamGoal", System.StringComparison.OrdinalIgnoreCase));
+            var streamGoal = result.FirstOrDefault(v => v.Name.Equals("StreamGoal", System.StringComparison.OrdinalIgnoreCase));
+            Assert.NotNull(streamGoal);
+            Assert.Null(streamGoal.ExampleValue);
             Assert.Contains(result, v => v.Name.Equals("$math", System.StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(result, v => v.Name.Equals("random", System.StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(result, v => v.Name.Equals("bot", System.StringComparison.OrdinalIgnoreCase));
@@ -82,6 +84,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.NotNull(userVar);
             Assert.StartsWith("Trigger: Command (!test)", userVar.Source);
 
+            Assert.Contains(result, v => v.Name.Equals("Name", System.StringComparison.OrdinalIgnoreCase));
             Assert.Contains(result, v => v.Name.Equals("Args", System.StringComparison.OrdinalIgnoreCase));
             Assert.Contains(result, v => v.Name.Equals("TargetUser", System.StringComparison.OrdinalIgnoreCase));
         }
@@ -430,6 +433,57 @@ namespace PenguinTwitchBot.Test.Bot.Actions
 
             Assert.Contains(result, v => v.Name.Equals("User", System.StringComparison.OrdinalIgnoreCase));
             Assert.Contains(result, v => v.Name.Equals("DisplayName", System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Fact]
+        public async Task ResolveVariablesAsync_DisabledSubAction_ExcludedFromVariables()
+        {
+            var previousSubActions = new List<SubActionType>
+            {
+                new SetVariableType { Text = "DisabledVar", Value = "Test", Enabled = false },
+                new SetVariableType { Text = "EnabledVar", Value = "Test", Enabled = true }
+            };
+
+            var result = await _resolver.ResolveVariablesAsync(
+                currentActionId: 1,
+                triggers: null,
+                previousSubActions: previousSubActions,
+                isCatchSubAction: false);
+
+            Assert.DoesNotContain(result, v => v.Name.Equals("DisabledVar", System.StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(result, v => v.Name.Equals("EnabledVar", System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Fact]
+        public async Task ResolveVariablesAsync_CallerInNestedIfElseOrCatch_ResolvesCallerVariables()
+        {
+            var callerAction = new ActionType
+            {
+                Id = 10,
+                Name = "ParentAction",
+                SubActions = new List<SubActionType>
+                {
+                    new SetVariableType { Text = "ParentPreVar", Value = "Pre" },
+                    new LogicIfElseType
+                    {
+                        TrueSubActions = new List<SubActionType>
+                        {
+                            new ExecuteActionType { ActionId = 20 }
+                        }
+                    }
+                }
+            };
+
+            _unitOfWork.Actions.GetAllWithDetailsAsync().Returns(new List<ActionType> { callerAction });
+
+            var result = await _resolver.ResolveVariablesAsync(
+                currentActionId: 20,
+                triggers: null,
+                previousSubActions: null,
+                isCatchSubAction: false);
+
+            Assert.Contains(result, v => v.Name.Equals("ParentPreVar", System.StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(result, v => v.Name.Equals("Args", System.StringComparison.OrdinalIgnoreCase));
         }
     }
 }

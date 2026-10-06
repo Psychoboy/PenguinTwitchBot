@@ -20,9 +20,8 @@ It is important to understand the two types of variables in Penguin Twitch Bot:
 
 1. **Global Variables**:
    - Persistent across bot restarts and stored in the database.
-   - Configured on this page or modified via external scripts.
-   - Automatically available to all actions as template variables (`%variableName%`).
-   - Can be loaded into action variables using the `Get Global Variable` subaction.
+   - Configured on this page or modified via external scripts and subactions.
+   - Not injected automatically into action templates: load them into a local action variable using the `Get Global Variable` subaction before template use.
 
 2. **Local Action Variables**:
    - Scoped specifically to an action run during execution.
@@ -36,7 +35,7 @@ It is important to understand the two types of variables in Penguin Twitch Bot:
 - **Add Variable**: Click **Add Variable** in the top toolbar to create a new key and initial value.
 - **Inline Editing**: Click the Edit icon on any variable row to quickly modify its current string value.
 - **Search & Filter**: Use the search field to filter by variable name when managing large variable lists.
-- **Available Variables Reference**: On any Action edit page, you can open the **Available Variables** reference to view all global variables alongside trigger and subaction variables with click-to-copy tokens.
+- **Available Variables Reference**: On any Action edit page, you can open the **Available Variables** reference to view all configured global variable names to easily reference them when setting up `Get Global Variable`.
 
 ---
 

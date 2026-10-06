@@ -76,7 +76,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             Assert.Contains("Available Variables", dialogProvider.Markup);
             Assert.Contains("Test Action", dialogProvider.Markup);
-            Assert.Contains("%user%", dialogProvider.Markup);
+            Assert.Contains("user", dialogProvider.Markup);
+            Assert.DoesNotContain("%user%", dialogProvider.Markup);
+            Assert.Contains("%Args%", dialogProvider.Markup);
         }
 
         [Fact]
@@ -85,14 +87,15 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             SetupContext();
             var variables = new List<ActionVariableInfo>
             {
-                new("user", "User info", "System Global", "Globals", "Streamer"),
+                new("user", "User info", "Database Global", "Globals", null),
                 new("CustomVar", "User set variable", "Step 1", "Previous Steps", "123")
             };
 
             var cut = _ctx!.Render<ActionVariablesReference>(p => p
                 .Add(x => x.Variables, variables));
 
-            Assert.Contains("%user%", cut.Markup);
+            Assert.Contains("user", cut.Markup);
+            Assert.DoesNotContain("%user%", cut.Markup);
             Assert.Contains("%CustomVar%", cut.Markup);
             Assert.Contains("Globals", cut.Markup);
             Assert.Contains("Previous Steps", cut.Markup);

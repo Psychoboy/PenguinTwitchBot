@@ -52,17 +52,17 @@ Sub-actions are the modular building blocks executed when an action fires:
 Penguin Twitch Bot includes an interactive **Available Variables Reference** to make configuring subactions effortless:
 
 ### How to Access the Reference
-1. **Action SubActions Toolbar**: Click the **Available Variables** button in the SubActions header of any action in [Manage Actions](/actions) to view all variables available across the action.
+1. **Action SubActions Toolbar**: Click the **Available Variables** button in the SubActions header of any action in [Manage Actions](/actions/manage) to view all variables available across the action.
 2. **SubAction Wizard (Step 3: Configure)**: When adding or editing a subaction, an expandable **Available Variables** drawer appears at the bottom of the configuration panel, showing the exact variables available at that point in the sequence.
 3. **Logic: If/Else Editor**: Click **Available Variables** in the branch editor dialog to see variables available to the conditional branches.
 
 ### Variable Discovery & Overwrite Rules
 - **Unique & Case-Insensitive**: Template variables reside in a unified, case-insensitive dictionary. Every variable appears exactly once.
 - **Sequential Pipeline Precedence**: Variables are resolved in chronological order:
-  1. **Globals**: Persistent database global variables configured in [Global Variables](/actions/globals).
-  2. **Caller Actions**: If this action is called by another action via `Execute Action`, the caller's variables and passed arguments (`%Args%`, `%TargetUser%`) are inherited.
-  3. **Triggers**: Command arguments (`%Args%`, `%TargetUser%`), Default Command events (e.g., wheel spins `%WheelSpinResult%`, `%WinningLabel%`, `%WinningMessage%`, `%WheelName%`; gamble `%JackpotAmount%`, `%WinAmount%`, `%RolledValue%`; roll dice `%Dice1%`, `%Dice2%`; defuse wires `%ChosenWire%`, `%CorrectWire%`; slots `%Emote1%`, `%Emote2%`, `%Emote3%`; death counters `%NewCount%`, `%OldCount%`), Twitch event payloads (`%Bits%`, `%Tier%`, `%RewardTitle%`), or fishing tournament data.
-  4. **Preceding SubActions**: Steps executed prior to the current step (e.g., `Set Variable`, `Counter`, `RandomInt`, `CheckPoints`).
+  1. **Caller Actions**: If this action is called by another action via `Execute Action`, the caller's variables and passed arguments (`%Args%`, `%TargetUser%`) are inherited.
+  2. **Triggers**: Command arguments (`%Args%`, `%TargetUser%`), Default Command events (e.g., wheel spins `%WheelSpinResult%`, `%WinningLabel%`, `%WinningMessage%`, `%WheelName%`; gamble `%JackpotAmount%`, `%WinAmount%`, `%RolledValue%`; roll dice `%Dice1%`, `%Dice2%`; defuse wires `%ChosenWire%`, `%CorrectWire%`; slots `%Emote1%`, `%Emote2%`, `%Emote3%`; death counters `%NewCount%`, `%OldCount%`), Twitch event payloads (`%Bits%`, `%Tier%`, `%RewardTitle%`), or fishing tournament data.
+  3. **Preceding SubActions**: Steps executed prior to the current step (e.g., `Set Variable`, `Get Global Variable`, `Counter`, `RandomInt`, `CheckPoints`).
+- **Global Variables**: Persistent database global variables configured in [Global Variables](/actions/globalvariables) are discoverable in the reference, but are not automatically available as runtime template tokens; load them into a local action variable with the `Get Global Variable` subaction before template use.
 - **Source Indication**: If a later subaction (such as Step 2 `Set Variable`) re-assigns an existing variable (e.g., `%TargetUser%`), the variable reference shows the exact step that last set the value (e.g. `Step 2`).
 - **Click-to-Copy**: Click on any variable token chip to copy `%VariableName%` directly to your clipboard.
 

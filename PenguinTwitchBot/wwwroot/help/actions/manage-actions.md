@@ -38,4 +38,4 @@ When creating or editing an action, configure the following:
    - When configuring any subaction in Step 3, expand the **Available Variables** drawer to search and copy tokens like `%User%`, `%Args%`, or `%TargetUser%`.
 4. Reorder sub-actions using the up/down arrows to adjust execution flow. Preceding subactions pass their variables forward to downstream steps.
 5. In the **Catch SubActions** section, configure fallback steps to run if an error occurs (such as notifying chat or logging).
-6. Click **Test Action** in the toolbar to execute the action immediately and verify your setup.
+6. Click **Test** in the toolbar to execute the action immediately and verify your setup.
