@@ -32,6 +32,15 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
             _ctx.Services.AddSingleton(Substitute.For<IFeatureRuntimeCoordinator>());
+            var variableResolver = Substitute.For<PenguinTwitchBot.Bot.Actions.Variables.IActionVariableResolver>();
+            variableResolver.ResolveVariablesAsync(
+                Arg.Any<int?>(),
+                Arg.Any<IEnumerable<PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType>?>(),
+                Arg.Any<IEnumerable<SubActionType>?>(),
+                Arg.Any<bool>(),
+                Arg.Any<HashSet<int>?>())
+                .Returns(Task.FromResult(new List<PenguinTwitchBot.Bot.Actions.Variables.ActionVariableInfo>()));
+            _ctx.Services.AddSingleton(variableResolver);
         }
 
         [Fact]

@@ -4,7 +4,11 @@
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI
+@using PenguinTwitchBot.Bot.Actions.Variables
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Pages.Components
 @using MudBlazor
+@implements IDisposable
 
 <MudDialog>
     <DialogContent>
@@ -125,6 +129,16 @@
                 {
                     @RenderConfiguration()
                 }
+
+                @if (_availableVariables != null && _availableVariables.Count > 0)
+                {
+                    <MudExpansionPanels Class="mt-3" Elevation="0" Outlined="true">
+                        <MudExpansionPanel Text="@($"Available Variables ({_availableVariables.Count})")"
+                                           Icon="@Icons.Material.Filled.DataObject">
+                            <ActionVariablesReference Variables="_availableVariables" />
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
             }
         </MudStack>
     </DialogContent>
@@ -154,8 +168,23 @@
     [Inject]
     private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
 
+    [Inject]
+    private IActionVariableResolver? VariableResolver { get; set; }
+
     [Parameter] 
     public SubActionType? ExistingSubAction { get; set; }
+
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public IEnumerable<TriggerType>? Triggers { get; set; }
+
+    [Parameter]
+    public IEnumerable<SubActionType>? PreviousSubActions { get; set; }
+
+    [Parameter]
+    public bool IsCatchSubAction { get; set; }
 
     public record SubActionCategoryInfo(
         string Id,
@@ -272,6 +301,55 @@
                 _fieldValues = uiProvider.GetValues();
             }
         }
+    }
+
+    private List<ActionVariableInfo> _availableVariables = [];
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVariablesAsync();
+    }
+
+    private async Task LoadVariablesAsync()
+    {
+        if (VariableResolver == null || _disposed) return;
+
+        try
+        {
+            var task = VariableResolver.ResolveVariablesAsync(
+                ActionId,
+                Triggers,
+                PreviousSubActions,
+                IsCatchSubAction);
+            if (task != null)
+            {
+                var vars = await task;
+                if (!_disposed)
+                {
+                    _availableVariables = vars ?? [];
+                }
+            }
+            else
+            {
+                if (!_disposed)
+                {
+                    _availableVariables = [];
+                }
+            }
+        }
+        catch
+        {
+            if (!_disposed)
+            {
+                _availableVariables = [];
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
     }
 
     private List<SubActionCategoryInfo> GetAvailableCategories()

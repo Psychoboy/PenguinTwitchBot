@@ -1,6 +1,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Bot.Actions.SubActions
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Pages.Actions
 @inject MudBlazor.ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -10,10 +11,16 @@
     <MudStack Spacing="2">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.h6">SubActions (@SubActions.Count)</MudText>
-            <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
-                       OnClick="OpenAddSubActionDialog" Variant="Variant.Filled">
-                Add SubAction
-            </MudButton>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudButton StartIcon="@Icons.Material.Filled.DataObject" Color="Color.Info" Size="Size.Small" 
+                           OnClick="OpenAvailableVariablesDialog" Variant="Variant.Outlined">
+                    Available Variables
+                </MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small" 
+                           OnClick="OpenAddSubActionDialog" Variant="Variant.Filled">
+                    Add SubAction
+                </MudButton>
+            </MudStack>
         </MudStack>
 
         @if (SubActions.Count == 0)
@@ -81,7 +88,38 @@
     [Parameter]
     public bool ReadOnly { get; set; } = false;
 
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public string? ActionName { get; set; }
+
+    [Parameter]
+    public IEnumerable<TriggerType>? Triggers { get; set; }
+
+    [Parameter]
+    public bool IsCatchSubAction { get; set; }
+
     private SubActionType? _selectedSubAction;
+
+    private async Task OpenAvailableVariablesDialog()
+    {
+        var parameters = new DialogParameters<AvailableVariablesDialog>
+        {
+            { x => x.ActionId, ActionId },
+            { x => x.ActionName, ActionName },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, SubActions },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
+        };
+
+        await DialogService.ShowAsync<AvailableVariablesDialog>("Available Variables", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true
+        });
+    }
 
     private async Task MoveUp(int index)
     {
@@ -117,7 +155,15 @@
 
     private async Task OpenAddSubActionDialog()
     {
-        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add SubAction", new DialogOptions 
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, SubActions },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add SubAction", parameters, new DialogOptions 
         { 
             MaxWidth = MaxWidth.Medium, 
             FullWidth = true 
@@ -140,7 +186,11 @@
 
         var parameters = new DialogParameters<AddSubActionDialog>
         {
-            { x => x.ExistingSubAction, SubActions[index] }
+            { x => x.ExistingSubAction, SubActions[index] },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, SubActions.Take(index).ToList() },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit SubAction", parameters, new DialogOptions 
@@ -185,7 +235,11 @@
 
         var parameters = new DialogParameters<LogicIfElseEditor>
         {
-            { x => x.IfElseType, ifElseType }
+            { x => x.IfElseType, ifElseType },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.ParentPreviousSubActions, SubActions.Take(index).ToList() },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit True/False Branches", parameters, new DialogOptions 

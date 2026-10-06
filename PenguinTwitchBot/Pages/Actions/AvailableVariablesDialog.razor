@@ -1,0 +1,114 @@
+@using PenguinTwitchBot.Bot.Actions.Variables
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Pages.Components
+@implements IDisposable
+@inject IActionVariableResolver VariableResolver
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.DataObject" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">
+                Available Variables @(!string.IsNullOrWhiteSpace(ActionName) ? $"({ActionName})" : "")
+            </MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="2" Style="max-height: 70vh; overflow-y: auto;">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                These variables are dynamically resolved based on this action's triggers, caller actions, preceding subactions, and globals. Click any variable token to copy it to your clipboard.
+            </MudText>
+
+            @if (_isLoading)
+            {
+                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="pa-6">
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                    <MudText Typo="Typo.body2" Class="mt-2">Resolving available variables...</MudText>
+                </MudStack>
+            }
+            else
+            {
+                <ActionVariablesReference Variables="_variables" />
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">
+            Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public string? ActionName { get; set; }
+
+    [Parameter]
+    public IEnumerable<TriggerType>? Triggers { get; set; }
+
+    [Parameter]
+    public IEnumerable<SubActionType>? PreviousSubActions { get; set; }
+
+    [Parameter]
+    public bool IsCatchSubAction { get; set; }
+
+    private List<ActionVariableInfo> _variables = [];
+    private bool _isLoading = true;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVariablesAsync();
+    }
+
+    private async Task LoadVariablesAsync()
+    {
+        if (_disposed) return;
+        _isLoading = true;
+        try
+        {
+            var result = await VariableResolver.ResolveVariablesAsync(
+                ActionId,
+                Triggers,
+                PreviousSubActions,
+                IsCatchSubAction);
+
+            if (!_disposed)
+            {
+                _variables = result ?? [];
+            }
+        }
+        catch
+        {
+            if (!_disposed)
+            {
+                _variables = [];
+            }
+        }
+        finally
+        {
+            if (!_disposed)
+            {
+                _isLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private void Close()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+    }
+}

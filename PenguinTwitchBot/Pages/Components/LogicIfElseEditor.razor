@@ -1,6 +1,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 @using PenguinTwitchBot.Bot.Actions.SubActions
 @using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
 @using PenguinTwitchBot.Pages.Actions
 @inject IDialogService DialogService
 @inject MudBlazor.ISnackbar Snackbar
@@ -9,9 +10,15 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
-            <MudAlert Severity="Severity.Info" Dense="true">
-                Configure the subactions to execute when the condition is True or False.
-            </MudAlert>
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <MudAlert Severity="Severity.Info" Dense="true" Class="flex-grow-1">
+                    Configure the subactions to execute when the condition is True or False.
+                </MudAlert>
+                <MudButton StartIcon="@Icons.Material.Filled.DataObject" Color="Color.Info" Size="Size.Small" 
+                           OnClick="OpenAvailableVariablesDialog" Variant="Variant.Outlined">
+                    Available Variables
+                </MudButton>
+            </MudStack>
 
             <!-- True Branch -->
             <MudPaper Class="pa-3" Outlined="true">
@@ -166,9 +173,56 @@
     [Parameter]
     public LogicIfElseType IfElseType { get; set; } = null!;
 
+    [Parameter]
+    public int? ActionId { get; set; }
+
+    [Parameter]
+    public IEnumerable<TriggerType>? Triggers { get; set; }
+
+    [Parameter]
+    public List<SubActionType>? ParentPreviousSubActions { get; set; }
+
+    [Parameter]
+    public bool IsCatchSubAction { get; set; }
+
+    private async Task OpenAvailableVariablesDialog()
+    {
+        var combinedSubActions = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.TrueSubActions)
+            .Concat(IfElseType.FalseSubActions)
+            .ToList();
+
+        var parameters = new DialogParameters<AvailableVariablesDialog>
+        {
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, combinedSubActions },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
+        };
+
+        await DialogService.ShowAsync<AvailableVariablesDialog>("Available Variables", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true
+        });
+    }
+
     private async Task AddTrueSubAction()
     {
-        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add True SubAction", new DialogOptions 
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.TrueSubActions)
+            .ToList();
+
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add True SubAction", parameters, new DialogOptions 
         { 
             MaxWidth = MaxWidth.Medium, 
             FullWidth = true 
@@ -187,9 +241,17 @@
 
     private async Task EditTrueSubAction(int index)
     {
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.TrueSubActions.Take(index))
+            .ToList();
+
         var parameters = new DialogParameters<AddSubActionDialog>
         {
-            { x => x.ExistingSubAction, IfElseType.TrueSubActions[index] }
+            { x => x.ExistingSubAction, IfElseType.TrueSubActions[index] },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit True SubAction", parameters, new DialogOptions 
@@ -215,9 +277,17 @@
             return;
         }
 
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.TrueSubActions.Take(index))
+            .ToList();
+
         var parameters = new DialogParameters<LogicIfElseEditor>
         {
-            { x => x.IfElseType, nestedIfElse }
+            { x => x.IfElseType, nestedIfElse },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.ParentPreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 
@@ -269,7 +339,19 @@
 
     private async Task AddFalseSubAction()
     {
-        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add False SubAction", new DialogOptions 
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.FalseSubActions)
+            .ToList();
+
+        var parameters = new DialogParameters<AddSubActionDialog>
+        {
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
+        };
+
+        var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Add False SubAction", parameters, new DialogOptions 
         { 
             MaxWidth = MaxWidth.Medium, 
             FullWidth = true 
@@ -288,9 +370,17 @@
 
     private async Task EditFalseSubAction(int index)
     {
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.FalseSubActions.Take(index))
+            .ToList();
+
         var parameters = new DialogParameters<AddSubActionDialog>
         {
-            { x => x.ExistingSubAction, IfElseType.FalseSubActions[index] }
+            { x => x.ExistingSubAction, IfElseType.FalseSubActions[index] },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.PreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<AddSubActionDialog>("Edit False SubAction", parameters, new DialogOptions 
@@ -327,9 +417,17 @@
             return;
         }
 
+        var previous = (ParentPreviousSubActions ?? new List<SubActionType>())
+            .Concat(IfElseType.FalseSubActions.Take(index))
+            .ToList();
+
         var parameters = new DialogParameters<LogicIfElseEditor>
         {
-            { x => x.IfElseType, nestedIfElse }
+            { x => x.IfElseType, nestedIfElse },
+            { x => x.ActionId, ActionId },
+            { x => x.Triggers, Triggers },
+            { x => x.ParentPreviousSubActions, previous },
+            { x => x.IsCatchSubAction, IsCatchSubAction }
         };
 
         var dialog = await DialogService.ShowAsync<LogicIfElseEditor>("Edit Nested True/False Branches", parameters, new DialogOptions 

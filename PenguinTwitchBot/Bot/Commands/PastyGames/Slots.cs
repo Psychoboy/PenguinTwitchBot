@@ -108,6 +108,20 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
 
                 await ServiceBackbone.SendChatMessage(message);
                 await pointsSystem.AddPointsByUserIdAndGame(e.UserId, ModuleName, prizeWinnings);
+
+                // Trigger default command event for 2 of a kind
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "slot",
+                    DefaultCommandEventTypes.SlotsTwoOfAKind,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "Emote1", Emotes[e1] },
+                        { "Emote2", Emotes[e2] },
+                        { "Emote3", Emotes[e3] },
+                        { "WinAmount", prizeWinnings.ToString("N0") },
+                        { "MatchType", "2 of a kind" }
+                    });
                 return;
             }
             var randomLoseMessage = LoseMessages[StaticTools.Next(0, WinMessages.Count)];
