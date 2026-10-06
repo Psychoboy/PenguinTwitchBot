@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text.RegularExpressions;
 using org.mariuszgromada.math.mxparser;
 using PenguinTwitchBot.Bot.Core;
@@ -8,6 +9,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
     public static class VariableReplacer
     {
         private static bool CalledLicense = false;
+
+        private static readonly Regex SystemTokensRegex = new(
+            @"%(?<token>bot|streamer|user|date|time|ticks|random(?:\((?<min>-?\d+),\s*(?<max>-?\d+)\))?)%",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>
         /// Optional ambient service backbone used to resolve bot and streamer names in system variables.
@@ -24,7 +29,17 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
             // 1. Replace variables from dictionary (variables dictionary takes precedence)
             foreach (var variable in variables)
             {
-                input = input.Replace($"%{variable.Key}%", variable.Value, StringComparison.OrdinalIgnoreCase);
+                var replacement = variable.Value;
+                if (variable.Key.Equals("User", StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(replacement))
+                {
+                    var nameEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("Name", StringComparison.OrdinalIgnoreCase));
+                    if (!string.IsNullOrEmpty(nameEntry.Value))
+                    {
+                        replacement = nameEntry.Value;
+                    }
+                }
+
+                input = input.Replace($"%{variable.Key}%", replacement, StringComparison.OrdinalIgnoreCase);
             }
 
             // 2. Replace built-in system global variables if still present in input
@@ -42,71 +57,74 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
 
         private static string ReplaceSystemVariables(string input, ConcurrentDictionary<string, string> variables)
         {
-            if (input.Contains("%bot%", StringComparison.OrdinalIgnoreCase))
+            return SystemTokensRegex.Replace(input, match =>
             {
-                var botName = ServiceBackbone?.BotName ?? "Bot";
-                input = Regex.Replace(input, "%bot%", botName, RegexOptions.IgnoreCase);
-            }
+                var token = match.Groups["token"].Value;
 
-            if (input.Contains("%streamer%", StringComparison.OrdinalIgnoreCase))
-            {
-                var streamerName = ServiceBackbone?.BroadcasterName ?? "Streamer";
-                input = Regex.Replace(input, "%streamer%", streamerName, RegexOptions.IgnoreCase);
-            }
-
-            if (input.Contains("%user%", StringComparison.OrdinalIgnoreCase))
-            {
-                string userName;
-                if (variables.TryGetValue("User", out var u) && !string.IsNullOrEmpty(u))
+                if (token.Equals("bot", StringComparison.OrdinalIgnoreCase))
                 {
-                    userName = u;
-                }
-                else if (variables.TryGetValue("Name", out var n) && !string.IsNullOrEmpty(n))
-                {
-                    userName = n;
-                }
-                else
-                {
-                    userName = ServiceBackbone?.BroadcasterName ?? "Streamer";
+                    return ServiceBackbone?.BotName ?? "Bot";
                 }
 
-                input = Regex.Replace(input, "%user%", userName, RegexOptions.IgnoreCase);
-            }
-
-            if (input.Contains("%date%", StringComparison.OrdinalIgnoreCase))
-            {
-                input = Regex.Replace(input, "%date%", DateTime.Now.ToShortDateString(), RegexOptions.IgnoreCase);
-            }
-
-            if (input.Contains("%time%", StringComparison.OrdinalIgnoreCase))
-            {
-                input = Regex.Replace(input, "%time%", DateTime.Now.ToLongTimeString(), RegexOptions.IgnoreCase);
-            }
-
-            if (input.Contains("%ticks%", StringComparison.OrdinalIgnoreCase))
-            {
-                input = Regex.Replace(input, "%ticks%", DateTime.UtcNow.Ticks.ToString(), RegexOptions.IgnoreCase);
-            }
-
-            // %random(min, max)%
-            input = Regex.Replace(input, @"%random\((\d+),\s*(\d+)\)%", match =>
-            {
-                if (int.TryParse(match.Groups[1].Value, out var min) &&
-                    int.TryParse(match.Groups[2].Value, out var max) &&
-                    max >= min)
+                if (token.Equals("streamer", StringComparison.OrdinalIgnoreCase))
                 {
-                    return Random.Shared.Next(min, max + 1).ToString();
+                    return ServiceBackbone?.BroadcasterName ?? "Streamer";
                 }
+
+                if (token.Equals("user", StringComparison.OrdinalIgnoreCase))
+                {
+                    var userEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("User", StringComparison.OrdinalIgnoreCase));
+                    var nameEntry = variables.FirstOrDefault(kvp => kvp.Key.Equals("Name", StringComparison.OrdinalIgnoreCase));
+
+                    if (!string.IsNullOrEmpty(userEntry.Value))
+                    {
+                        return userEntry.Value;
+                    }
+
+                    if (!string.IsNullOrEmpty(nameEntry.Value))
+                    {
+                        return nameEntry.Value;
+                    }
+
+                    return ServiceBackbone?.BroadcasterName ?? "Streamer";
+                }
+
+                if (token.Equals("date", StringComparison.OrdinalIgnoreCase))
+                {
+                    return DateTime.Now.ToShortDateString();
+                }
+
+                if (token.Equals("time", StringComparison.OrdinalIgnoreCase))
+                {
+                    return DateTime.Now.ToLongTimeString();
+                }
+
+                if (token.Equals("ticks", StringComparison.OrdinalIgnoreCase))
+                {
+                    return DateTime.UtcNow.Ticks.ToString();
+                }
+
+                if (token.StartsWith("random", StringComparison.OrdinalIgnoreCase))
+                {
+                    var minGroup = match.Groups["min"];
+                    var maxGroup = match.Groups["max"];
+                    if (minGroup.Success && maxGroup.Success)
+                    {
+                        if (int.TryParse(minGroup.Value, out var min) &&
+                            int.TryParse(maxGroup.Value, out var max) &&
+                            max >= min)
+                        {
+                            return Random.Shared.NextInt64((long)min, (long)max + 1).ToString();
+                        }
+
+                        return match.Value;
+                    }
+
+                    return Random.Shared.Next(1, 101).ToString();
+                }
+
                 return match.Value;
-            }, RegexOptions.IgnoreCase);
-
-            // %random% (1-100)
-            if (input.Contains("%random%", StringComparison.OrdinalIgnoreCase))
-            {
-                input = Regex.Replace(input, "%random%", _ => Random.Shared.Next(1, 101).ToString(), RegexOptions.IgnoreCase);
-            }
-
-            return input;
+            });
         }
 
         private static string DoMath(string expression)

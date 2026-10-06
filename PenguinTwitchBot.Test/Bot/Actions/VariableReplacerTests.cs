@@ -162,6 +162,85 @@ namespace PenguinTwitchBot.Test.Bot.Actions
 
             Assert.Equal("Result: 25", result);
         }
+
+        [Fact]
+        public void ReplaceVariables_EmptyUserInDictionary_FallsBackToName()
+        {
+            var variables = new ConcurrentDictionary<string, string>();
+            variables["User"] = "";
+            variables["Name"] = "FallbackViewer";
+
+            var result = VariableReplacer.ReplaceVariables("User: %user%, Name: %name%", variables);
+
+            Assert.Equal("User: FallbackViewer, Name: FallbackViewer", result);
+        }
+
+        [Fact]
+        public void ReplaceVariables_EmptyUserAndNoNameInDictionary_ReplacesWithEmptyString()
+        {
+            var variables = new ConcurrentDictionary<string, string>();
+            variables["User"] = "";
+
+            var result = VariableReplacer.ReplaceVariables("User: [%user%]", variables);
+
+            Assert.Equal("User: []", result);
+        }
+
+        [Fact]
+        public void ReplaceVariables_DollarPrefixedNames_TreatedAsLiteralString()
+        {
+            var backbone = Substitute.For<IServiceBackbone>();
+            backbone.BotName.Returns("$100Bot");
+            backbone.BroadcasterName.Returns("$wagStreamer");
+            VariableReplacer.ServiceBackbone = backbone;
+
+            try
+            {
+                var variables = new ConcurrentDictionary<string, string>();
+                var result = VariableReplacer.ReplaceVariables("Bot: %bot%, Streamer: %streamer%, User: %user%", variables);
+
+                Assert.Equal("Bot: $100Bot, Streamer: $wagStreamer, User: $wagStreamer", result);
+            }
+            finally
+            {
+                VariableReplacer.ServiceBackbone = null;
+            }
+        }
+
+        [Fact]
+        public void ReplaceVariables_SubstitutedValues_NotProcessedByLaterTokenPasses()
+        {
+            var backbone = Substitute.For<IServiceBackbone>();
+            backbone.BotName.Returns("Bot %time% %random%");
+            VariableReplacer.ServiceBackbone = backbone;
+
+            try
+            {
+                var variables = new ConcurrentDictionary<string, string>();
+                var result = VariableReplacer.ReplaceVariables("Bot: %bot%", variables);
+
+                Assert.Equal("Bot: Bot %time% %random%", result);
+            }
+            finally
+            {
+                VariableReplacer.ServiceBackbone = null;
+            }
+        }
+
+        [Fact]
+        public void ReplaceVariables_RandomRangeWithIntMaxValue_HandlesUpperInclusiveBound()
+        {
+            var variables = new ConcurrentDictionary<string, string>();
+
+            // Boundary test with min == max == int.MaxValue
+            var singleValResult = VariableReplacer.ReplaceVariables("%random(2147483647, 2147483647)%", variables);
+            Assert.Equal(int.MaxValue.ToString(), singleValResult);
+
+            // Inclusive range containing int.MaxValue
+            var rangeResult = VariableReplacer.ReplaceVariables("%random(2147483646, 2147483647)%", variables);
+            var parsedVal = long.Parse(rangeResult);
+            Assert.InRange(parsedVal, 2147483646L, (long)int.MaxValue);
+        }
     }
 }
 
