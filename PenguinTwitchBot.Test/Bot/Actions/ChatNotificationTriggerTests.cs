@@ -1091,5 +1091,16 @@ public class ChatNotificationConverterTests
         Assert.DoesNotContain("<script>", serialized);
         Assert.Contains("cheer100", serialized);
     }
+
+    [Fact]
+    public void StreamOnlineVariables_TimestampAndStreamStartedAt_AreIdentical()
+    {
+        var dict = TwitchEventArgsConverter.StreamOnlineVariables();
+
+        Assert.Equal("StreamOnline", dict["EventType"]);
+        Assert.True(dict.ContainsKey("Timestamp"));
+        Assert.True(dict.ContainsKey("StreamStartedAt"));
+        Assert.Equal(dict["Timestamp"], dict["StreamStartedAt"]);
+    }
 }
 

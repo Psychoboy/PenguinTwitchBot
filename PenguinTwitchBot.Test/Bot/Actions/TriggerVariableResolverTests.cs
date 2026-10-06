@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Variables;
 using PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 using PenguinTwitchBot.Database.Bot.Actions;
@@ -63,18 +64,138 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.True(resolver.CanHandle(TriggerTypes.TwitchEvent));
 
             var variables = new Dictionary<string, ActionVariableInfo>();
-            var cheerTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "Cheer" };
+            var cheerTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelCheer" };
             resolver.ResolveVariables(cheerTrigger, variables);
 
+            Assert.True(variables.ContainsKey("Amount"));
             Assert.True(variables.ContainsKey("Bits"));
             Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("User"));
 
             var subVariables = new Dictionary<string, ActionVariableInfo>();
-            var subTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "Subscribe" };
+            var subTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelSubscribe" };
             resolver.ResolveVariables(subTrigger, subVariables);
 
             Assert.True(subVariables.ContainsKey("Tier"));
+            Assert.True(subVariables.ContainsKey("Count"));
             Assert.True(subVariables.ContainsKey("Months"));
+            Assert.True(subVariables.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesAdBreakVariables()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var adBreakTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelAdBreakBegin" };
+            resolver.ResolveVariables(adBreakTrigger, variables);
+
+            Assert.True(variables.ContainsKey("Length"));
+            Assert.True(variables.ContainsKey("DurationSeconds"));
+            Assert.True(variables.ContainsKey("Automatic"));
+            Assert.True(variables.ContainsKey("IsAutomatic"));
+            Assert.True(variables.ContainsKey("StartedAt"));
+
+            // AdBreak has no user
+            Assert.False(variables.ContainsKey("User"));
+            Assert.False(variables.ContainsKey("UserName"));
+            Assert.False(variables.ContainsKey("DisplayName"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesChannelPointRewardVariables()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var cpTrigger = new TriggerType { Type = TriggerTypes.TwitchEvent, Name = "ChannelPointsCustomRewardRedemptionAdd" };
+            resolver.ResolveVariables(cpTrigger, variables);
+
+            Assert.True(variables.ContainsKey("Title"));
+            Assert.True(variables.ContainsKey("RewardName"));
+            Assert.True(variables.ContainsKey("RewardTitle"));
+            Assert.True(variables.ContainsKey("UserInput"));
+            Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("rawInput"));
+            Assert.True(variables.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ResolvesFromConfigurationEventName()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "TwitchEvent",
+                Configuration = "{\"EventName\":\"ChannelAdBreakBegin\"}"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            Assert.True(variables.ContainsKey("Length"));
+            Assert.True(variables.ContainsKey("Automatic"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ChannelChatNotification_ResolvesAllVariablesWhenNoFilter()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "ChannelChatNotification"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            // Common fields
+            Assert.True(variables.ContainsKey("NoticeType"));
+            Assert.True(variables.ContainsKey("SystemMessage"));
+            Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("User"));
+
+            // Sub-type fields
+            Assert.True(variables.ContainsKey("Sub.SubTier"));
+            Assert.True(variables.ContainsKey("Resub.CumulativeMonths"));
+            Assert.True(variables.ContainsKey("SubGift.RecipientUserName"));
+            Assert.True(variables.ContainsKey("CommunitySubGift.Total"));
+            Assert.True(variables.ContainsKey("GiftPaidUpgrade.GifterUserName"));
+            Assert.True(variables.ContainsKey("PrimePaidUpgrade.SubTier"));
+            Assert.True(variables.ContainsKey("Raid.ViewerCount"));
+            Assert.True(variables.ContainsKey("PayItForward.RecipientUserName"));
+            Assert.True(variables.ContainsKey("Announcement.Color"));
+            Assert.True(variables.ContainsKey("CharityDonation.CharityName"));
+            Assert.True(variables.ContainsKey("BitsBadgeTier.Tier"));
+            Assert.True(variables.ContainsKey("WatchStreak.StreakCount"));
+            Assert.True(variables.ContainsKey("WatchStreak.ChannelPointsAwarded"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ChannelChatNotification_FiltersByNoticeTypes()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "ChannelChatNotification",
+                Configuration = "{\"EventName\":\"ChannelChatNotification\",\"NoticeTypes\":[\"announcement\",\"watch_streak\"]}"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            // Common fields always present
+            Assert.True(variables.ContainsKey("NoticeType"));
+            Assert.True(variables.ContainsKey("User"));
+
+            // Configured notice types present
+            Assert.True(variables.ContainsKey("Announcement.Color"));
+            Assert.True(variables.ContainsKey("WatchStreak.StreakCount"));
+
+            // Non-configured notice types omitted
+            Assert.False(variables.ContainsKey("Sub.SubTier"));
+            Assert.False(variables.ContainsKey("Resub.CumulativeMonths"));
+            Assert.False(variables.ContainsKey("CharityDonation.CharityName"));
+            Assert.False(variables.ContainsKey("Raid.ViewerCount"));
         }
 
         [Fact]
@@ -122,6 +243,32 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             var manualVars = new Dictionary<string, ActionVariableInfo>();
             resolver.ResolveVariables(new TriggerType { Type = TriggerTypes.Manual, Name = "ManualRun" }, manualVars);
             Assert.True(manualVars.ContainsKey("User"));
+        }
+
+        [Fact]
+        public void TwitchEventTrigger_NameResolvedFromConfigurationEventName()
+        {
+            var configJson = "{\"EventName\":\"ChannelCheer\",\"MinAmount\":50}";
+            Assert.True(TwitchEventTriggerConfig.TryFromJson(configJson, out var config));
+            Assert.NotNull(config);
+            Assert.Equal("ChannelCheer", config.EventName);
+
+            var trigger = new TriggerType
+            {
+                Type = TriggerTypes.TwitchEvent,
+                Name = config.EventName,
+                Configuration = configJson,
+                Enabled = true
+            };
+
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(trigger, variables);
+
+            Assert.Equal("ChannelCheer", trigger.Name);
+            Assert.True(variables.ContainsKey("Bits"));
+            Assert.True(variables.ContainsKey("Amount"));
+            Assert.True(variables.ContainsKey("User"));
         }
     }
 }
