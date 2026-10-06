@@ -136,6 +136,68 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public void TwitchEventTriggerVariableResolver_ChannelChatNotification_ResolvesAllVariablesWhenNoFilter()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "ChannelChatNotification"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            // Common fields
+            Assert.True(variables.ContainsKey("NoticeType"));
+            Assert.True(variables.ContainsKey("SystemMessage"));
+            Assert.True(variables.ContainsKey("Message"));
+            Assert.True(variables.ContainsKey("User"));
+
+            // Sub-type fields
+            Assert.True(variables.ContainsKey("Sub.SubTier"));
+            Assert.True(variables.ContainsKey("Resub.CumulativeMonths"));
+            Assert.True(variables.ContainsKey("SubGift.RecipientUserName"));
+            Assert.True(variables.ContainsKey("CommunitySubGift.Total"));
+            Assert.True(variables.ContainsKey("GiftPaidUpgrade.GifterUserName"));
+            Assert.True(variables.ContainsKey("PrimePaidUpgrade.SubTier"));
+            Assert.True(variables.ContainsKey("Raid.ViewerCount"));
+            Assert.True(variables.ContainsKey("PayItForward.RecipientUserName"));
+            Assert.True(variables.ContainsKey("Announcement.Color"));
+            Assert.True(variables.ContainsKey("CharityDonation.CharityName"));
+            Assert.True(variables.ContainsKey("BitsBadgeTier.Tier"));
+            Assert.True(variables.ContainsKey("WatchStreak.StreakCount"));
+            Assert.True(variables.ContainsKey("WatchStreak.ChannelPointsAwarded"));
+        }
+
+        [Fact]
+        public void TwitchEventTriggerVariableResolver_ChannelChatNotification_FiltersByNoticeTypes()
+        {
+            var resolver = new TwitchEventTriggerVariableResolver();
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            var trigger = new TriggerType 
+            { 
+                Type = TriggerTypes.TwitchEvent, 
+                Name = "ChannelChatNotification",
+                Configuration = "{\"EventName\":\"ChannelChatNotification\",\"NoticeTypes\":[\"announcement\",\"watch_streak\"]}"
+            };
+            resolver.ResolveVariables(trigger, variables);
+
+            // Common fields always present
+            Assert.True(variables.ContainsKey("NoticeType"));
+            Assert.True(variables.ContainsKey("User"));
+
+            // Configured notice types present
+            Assert.True(variables.ContainsKey("Announcement.Color"));
+            Assert.True(variables.ContainsKey("WatchStreak.StreakCount"));
+
+            // Non-configured notice types omitted
+            Assert.False(variables.ContainsKey("Sub.SubTier"));
+            Assert.False(variables.ContainsKey("Resub.CumulativeMonths"));
+            Assert.False(variables.ContainsKey("CharityDonation.CharityName"));
+            Assert.False(variables.ContainsKey("Raid.ViewerCount"));
+        }
+
+        [Fact]
         public void FishingTriggerVariableResolver_ResolvesCatchesAndTournaments()
         {
             var resolver = new FishingTriggerVariableResolver();

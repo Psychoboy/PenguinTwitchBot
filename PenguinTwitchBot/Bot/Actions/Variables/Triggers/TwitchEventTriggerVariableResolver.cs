@@ -20,8 +20,13 @@ public class TwitchEventTriggerVariableResolver : ITriggerVariableResolver
         const string category = "Triggers";
         var triggerName = !string.IsNullOrWhiteSpace(trigger.Name) ? trigger.Name : trigger.Type.ToString();
 
+        TwitchEventTriggerConfig? config = null;
+        if (!string.IsNullOrWhiteSpace(trigger.Configuration))
+        {
+            TwitchEventTriggerConfig.TryFromJson(trigger.Configuration, out config);
+        }
+
         if ((string.IsNullOrWhiteSpace(trigger.Name) || trigger.Name.Equals("TwitchEvent", StringComparison.OrdinalIgnoreCase)) &&
-            TwitchEventTriggerConfig.TryFromJson(trigger.Configuration, out var config) &&
             !string.IsNullOrWhiteSpace(config?.EventName))
         {
             triggerName = config.EventName;
@@ -189,15 +194,129 @@ public class TwitchEventTriggerVariableResolver : ITriggerVariableResolver
         else if (triggerName.Contains("ChatNotification", StringComparison.OrdinalIgnoreCase) || triggerName.Contains("Notification", StringComparison.OrdinalIgnoreCase))
         {
             // ChannelChatNotification
+            // Common fields - populated for all chat notification events
             variables.SetVariable("UserId", "Twitch user ID of the chatter", source, category, "12345678");
-            variables.SetVariable("Name", "Login name of the chatter", source, category, "penguin_fan");
-            variables.SetVariable("DisplayName", "Display name of the chatter", source, category, "Penguin_Fan");
-            variables.SetVariable("User", "The chatter in the notification", source, category, "Penguin_Fan");
+            variables.SetVariable("Name", "Twitch login name of the chatter", source, category, "penguin_fan");
+            variables.SetVariable("DisplayName", "Twitch display name of the chatter", source, category, "Penguin_Fan");
+            variables.SetVariable("User", "The chatter in the notification (same as DisplayName)", source, category, "Penguin_Fan");
             variables.SetVariable("IsAnonymous", "True if the notification sender was anonymous", source, category, "false");
-            variables.SetVariable("NoticeType", "Notice type (sub, resub, sub_gift, community_sub_gift, raid, announcement, etc.)", source, category, "sub");
-            variables.SetVariable("SystemMessage", "Twitch system notification message", source, category, "User subscribed at Tier 1.");
-            variables.SetVariable("Message", "Chat message text attached to the notification", source, category, "Hello world!");
-            variables.SetVariable("rawInput", "Sanitized chat message text", source, category, "Hello world!");
+            variables.SetVariable("NoticeType", "Type of chat notification (sub, resub, sub_gift, community_sub_gift, gift_paid_upgrade, prime_paid_upgrade, raid, pay_it_forward, announcement, charity_donation, bits_badge_tier, watch_streak)", source, category, "sub");
+            variables.SetVariable("SystemMessage", "Twitch system notification message displayed in chat", source, category, "Penguin_Fan subscribed at Tier 1.");
+            variables.SetVariable("Message", "User chat message text attached to the notification", source, category, "Loving the stream!");
+            variables.SetVariable("rawInput", "Sanitized chat message text", source, category, "Loving the stream!");
+
+            bool shouldInclude(string noticeType) =>
+                config?.NoticeTypes == null || config.NoticeTypes.Count == 0 ||
+                config.NoticeTypes.Any(nt => nt.Equals(noticeType, StringComparison.OrdinalIgnoreCase));
+
+            // Sub (populated when NoticeType is 'sub')
+            if (shouldInclude("sub"))
+            {
+                variables.SetVariable("Sub.SubTier", "Subscription tier when NoticeType is 'sub' (1000 = Tier 1, 2000 = Tier 2, 3000 = Tier 3, Prime)", source, category, "1000");
+                variables.SetVariable("Sub.DurationMonths", "Duration in months for the subscription (populated when NoticeType is 'sub')", source, category, "1");
+                variables.SetVariable("Sub.IsPrime", "True if the subscription was made using Twitch Prime (populated when NoticeType is 'sub')", source, category, "false");
+            }
+
+            // Resub (populated when NoticeType is 'resub')
+            if (shouldInclude("resub"))
+            {
+                variables.SetVariable("Resub.CumulativeMonths", "Cumulative total months the user has subscribed (populated when NoticeType is 'resub')", source, category, "12");
+                variables.SetVariable("Resub.DurationMonths", "Duration in months for this renewal (populated when NoticeType is 'resub')", source, category, "1");
+                variables.SetVariable("Resub.StreakMonths", "Consecutive subscription streak in months, if shared (populated when NoticeType is 'resub')", source, category, "6");
+                variables.SetVariable("Resub.SubTier", "Subscription tier (1000, 2000, 3000, Prime) when NoticeType is 'resub'", source, category, "1000");
+                variables.SetVariable("Resub.IsPrime", "True if renewed using Twitch Prime (populated when NoticeType is 'resub')", source, category, "false");
+                variables.SetVariable("Resub.IsGift", "True if this subscription was originally a gift (populated when NoticeType is 'resub')", source, category, "false");
+                variables.SetVariable("Resub.GifterIsAnonymous", "True if original gifter was anonymous (populated when NoticeType is 'resub')", source, category, "false");
+                variables.SetVariable("Resub.GifterUserId", "Twitch user ID of the original gifter (populated when NoticeType is 'resub')", source, category, "87654321");
+                variables.SetVariable("Resub.GifterUserName", "Display name of the original gifter (populated when NoticeType is 'resub')", source, category, "GenerousGifter");
+                variables.SetVariable("Resub.GifterUserLogin", "Login name of the original gifter (populated when NoticeType is 'resub')", source, category, "generousgifter");
+            }
+
+            // SubGift (populated when NoticeType is 'sub_gift')
+            if (shouldInclude("sub_gift"))
+            {
+                variables.SetVariable("SubGift.SubTier", "Subscription tier of the gift (1000, 2000, 3000) when NoticeType is 'sub_gift'", source, category, "1000");
+                variables.SetVariable("SubGift.DurationMonths", "Number of months gifted (populated when NoticeType is 'sub_gift')", source, category, "1");
+                variables.SetVariable("SubGift.CumulativeTotal", "Lifetime cumulative subscriptions gifted by this user (populated when NoticeType is 'sub_gift')", source, category, "25");
+                variables.SetVariable("SubGift.RecipientUserId", "Twitch user ID of the recipient receiving the gift (populated when NoticeType is 'sub_gift')", source, category, "23456789");
+                variables.SetVariable("SubGift.RecipientUserName", "Display name of the recipient receiving the gift (populated when NoticeType is 'sub_gift')", source, category, "LuckyViewer");
+                variables.SetVariable("SubGift.RecipientUserLogin", "Login name of the recipient receiving the gift (populated when NoticeType is 'sub_gift')", source, category, "luckyviewer");
+                variables.SetVariable("SubGift.CommunityGiftId", "ID linking this gift to a community gift bundle, if applicable (populated when NoticeType is 'sub_gift')", source, category, "batch-1234");
+            }
+
+            // CommunitySubGift (populated when NoticeType is 'community_sub_gift')
+            if (shouldInclude("community_sub_gift"))
+            {
+                variables.SetVariable("CommunitySubGift.Id", "Unique ID for the community gift batch (populated when NoticeType is 'community_sub_gift')", source, category, "comm-batch-5678");
+                variables.SetVariable("CommunitySubGift.Total", "Number of subscriptions gifted in this batch (populated when NoticeType is 'community_sub_gift')", source, category, "5");
+                variables.SetVariable("CommunitySubGift.SubTier", "Subscription tier of the community gifts (1000, 2000, 3000) when NoticeType is 'community_sub_gift'", source, category, "1000");
+                variables.SetVariable("CommunitySubGift.CumulativeTotal", "Lifetime cumulative subscriptions gifted by this user (populated when NoticeType is 'community_sub_gift')", source, category, "50");
+            }
+
+            // GiftPaidUpgrade (populated when NoticeType is 'gift_paid_upgrade')
+            if (shouldInclude("gift_paid_upgrade"))
+            {
+                variables.SetVariable("GiftPaidUpgrade.GifterIsAnonymous", "True if the original gifter was anonymous (populated when NoticeType is 'gift_paid_upgrade')", source, category, "false");
+                variables.SetVariable("GiftPaidUpgrade.GifterUserId", "Twitch user ID of the original gifter (populated when NoticeType is 'gift_paid_upgrade')", source, category, "87654321");
+                variables.SetVariable("GiftPaidUpgrade.GifterUserName", "Display name of the original gifter (populated when NoticeType is 'gift_paid_upgrade')", source, category, "OriginalGifter");
+                variables.SetVariable("GiftPaidUpgrade.GifterUserLogin", "Login name of the original gifter (populated when NoticeType is 'gift_paid_upgrade')", source, category, "originalgifter");
+            }
+
+            // PrimePaidUpgrade (populated when NoticeType is 'prime_paid_upgrade')
+            if (shouldInclude("prime_paid_upgrade"))
+            {
+                variables.SetVariable("PrimePaidUpgrade.SubTier", "Subscription tier upgraded to from Prime (1000, 2000, 3000) when NoticeType is 'prime_paid_upgrade'", source, category, "1000");
+            }
+
+            // Raid (populated when NoticeType is 'raid')
+            if (shouldInclude("raid"))
+            {
+                variables.SetVariable("Raid.UserId", "Twitch user ID of the raiding streamer (populated when NoticeType is 'raid')", source, category, "34567890");
+                variables.SetVariable("Raid.UserName", "Display name of the raiding streamer (populated when NoticeType is 'raid')", source, category, "FriendlyStreamer");
+                variables.SetVariable("Raid.UserLogin", "Login name of the raiding streamer (populated when NoticeType is 'raid')", source, category, "friendlystreamer");
+                variables.SetVariable("Raid.ViewerCount", "Number of viewers in the raid (populated when NoticeType is 'raid')", source, category, "45");
+                variables.SetVariable("Raid.ProfileImageUrl", "Profile image URL of the raiding streamer (populated when NoticeType is 'raid')", source, category, "https://static-cdn.jtvnw.net/...");
+            }
+
+            // PayItForward (populated when NoticeType is 'pay_it_forward')
+            if (shouldInclude("pay_it_forward"))
+            {
+                variables.SetVariable("PayItForward.GifterIsAnonymous", "True if original gifter was anonymous (populated when NoticeType is 'pay_it_forward')", source, category, "false");
+                variables.SetVariable("PayItForward.GifterUserId", "Twitch user ID of the original gifter (populated when NoticeType is 'pay_it_forward')", source, category, "87654321");
+                variables.SetVariable("PayItForward.GifterUserName", "Display name of the original gifter (populated when NoticeType is 'pay_it_forward')", source, category, "OriginalGifter");
+                variables.SetVariable("PayItForward.GifterUserLogin", "Login name of the original gifter (populated when NoticeType is 'pay_it_forward')", source, category, "originalgifter");
+                variables.SetVariable("PayItForward.RecipientUserId", "Twitch user ID of the new recipient (populated when NoticeType is 'pay_it_forward')", source, category, "45678901");
+                variables.SetVariable("PayItForward.RecipientUserName", "Display name of the new recipient (populated when NoticeType is 'pay_it_forward')", source, category, "ForwardRecipient");
+                variables.SetVariable("PayItForward.RecipientUserLogin", "Login name of the new recipient (populated when NoticeType is 'pay_it_forward')", source, category, "forwardrecipient");
+            }
+
+            // Announcement (populated when NoticeType is 'announcement')
+            if (shouldInclude("announcement"))
+            {
+                variables.SetVariable("Announcement.Color", "Highlight color of the announcement (blue, green, orange, purple, primary) when NoticeType is 'announcement'", source, category, "primary");
+            }
+
+            // CharityDonation (populated when NoticeType is 'charity_donation')
+            if (shouldInclude("charity_donation"))
+            {
+                variables.SetVariable("CharityDonation.CharityName", "Name of the charity receiving the donation (populated when NoticeType is 'charity_donation')", source, category, "St. Jude Children's Research Hospital");
+                variables.SetVariable("CharityDonation.AmountValue", "Donation amount in minor currency units (e.g. 500 = $5.00) when NoticeType is 'charity_donation'", source, category, "500");
+                variables.SetVariable("CharityDonation.AmountDecimalPlaces", "Decimal places for the donation currency (populated when NoticeType is 'charity_donation')", source, category, "2");
+                variables.SetVariable("CharityDonation.AmountCurrency", "Three-letter ISO currency code (e.g. USD) when NoticeType is 'charity_donation'", source, category, "USD");
+            }
+
+            // BitsBadgeTier (populated when NoticeType is 'bits_badge_tier')
+            if (shouldInclude("bits_badge_tier"))
+            {
+                variables.SetVariable("BitsBadgeTier.Tier", "Threshold tier for the newly unlocked Bits badge (e.g. 100, 1000, 10000) when NoticeType is 'bits_badge_tier'", source, category, "1000");
+            }
+
+            // WatchStreak (populated when NoticeType is 'watch_streak')
+            if (shouldInclude("watch_streak"))
+            {
+                variables.SetVariable("WatchStreak.StreakCount", "Number of consecutive streams the user has watched (populated when NoticeType is 'watch_streak')", source, category, "5");
+                variables.SetVariable("WatchStreak.ChannelPointsAwarded", "Channel points awarded for the watch streak (populated when NoticeType is 'watch_streak')", source, category, "350");
+            }
         }
         else
         {
