@@ -166,6 +166,16 @@ namespace PenguinTwitchBot.Bot.Commands.PastyGames
                 });
                 var joinTime = await gameSettingsService.GetIntSetting(GAMENAME, JOINTIME, 300);
                 JoinTimer = timeProvider.CreateTimer(JoinTimerCallback, this, TimeSpan.FromSeconds(joinTime), TimeSpan.FromSeconds(joinTime));
+
+                // Trigger default command event for heist started
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "heist",
+                    DefaultCommandEventTypes.HeistStarted,
+                    e,
+                    new Dictionary<string, string>
+                    {
+                        { "BetAmount", amount.ToString("N0") }
+                    });
             }
             else
             {

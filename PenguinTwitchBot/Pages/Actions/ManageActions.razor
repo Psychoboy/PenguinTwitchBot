@@ -247,7 +247,10 @@
                                            ActionTriggersChanged="OnActionTriggersChanged" />
 
                         <!-- SubActions Section -->
-                        <SubActionManagement SubActions="_selectedAction.SubActions" 
+                        <SubActionManagement ActionId="_selectedAction.Id"
+                                             ActionName="@_selectedAction.Name"
+                                             Triggers="_actionTriggers"
+                                             SubActions="_selectedAction.SubActions" 
                                              SubActionsChanged="OnSubActionsChanged" />
 
                         <!-- Catch SubActions Section -->
@@ -259,8 +262,12 @@
                                 </MudText>
                             </MudStack>
                         </MudPaper>
-                        <SubActionManagement SubActions="_selectedAction.CatchSubActions"
-                                             SubActionsChanged="OnCatchSubActionsChanged" />
+                        <SubActionManagement ActionId="_selectedAction.Id"
+                                             ActionName="@_selectedAction.Name"
+                                             Triggers="_actionTriggers"
+                                             SubActions="_selectedAction.CatchSubActions"
+                                             SubActionsChanged="OnCatchSubActionsChanged"
+                                             IsCatchSubAction="true" />
 
                         @if (!_isNewAction && _selectedAction.Id.HasValue)
                         {

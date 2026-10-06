@@ -152,6 +152,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
             services.AddScoped<Bot.Services.ICounterService, Bot.Services.CounterService>();
             services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
+            services.AddScoped<Bot.Actions.Variables.IActionVariableResolver, Bot.Actions.Variables.ActionVariableResolver>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
 
