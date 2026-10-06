@@ -140,6 +140,7 @@ public class HelpContentServiceTests
     [InlineData("global-variables", "Global Variables Guide", 1)]
     [InlineData("action-queues", "Queues Guide", 1)]
     [InlineData("action-history", "Action History Guide", 1)]
+    [InlineData("counters", "Counters Guide", 3)]
     [InlineData("fishing-admin", "Manage Fish & Shop Guide", 3)]
     [InlineData("image-processing", "Manage Images Guide", 1)]
     [InlineData("fishing-balance", "Balance Analysis Guide", 1)]

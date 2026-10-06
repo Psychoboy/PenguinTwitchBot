@@ -381,6 +381,15 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Execution Diagnostics", Icons.Material.Filled.Troubleshoot, "actions/history.md")
             ]
         ),
+        ["counters"] = (
+            "Counters Guide",
+            Icons.Material.Filled.Numbers,
+            [
+                ("Overview & Permissions", Icons.Material.Filled.Info, "actions/counters-overview.md"),
+                ("Chat & Sub-Actions", Icons.Material.Filled.Bolt, "actions/counters-usage.md"),
+                ("Overlay Integration", Icons.Material.Filled.Layers, "actions/counters-overlays.md")
+            ]
+        ),
         ["fishing-admin"] = (
             "Manage Fish & Shop Guide",
             Icons.Material.Filled.Phishing,
