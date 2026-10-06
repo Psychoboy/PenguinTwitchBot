@@ -52,6 +52,27 @@ namespace PenguinTwitchBot.Test.Bot.Ai
             Assert.NotNull(service.CachedModels);
             Assert.Equal(models, service.CachedModels);
         }
+
+        [Fact]
+        public async Task GetAvailableTextModelsAsync_WhenCanceled_ThrowsOperationCanceledException()
+        {
+            var logger = Substitute.For<ILogger<OpenAiModelService>>();
+            var client = new OpenAI.OpenAIClient("test-key");
+            var service = new OpenAiModelService(logger, client);
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.GetAvailableTextModelsAsync(cts.Token));
+
+            Assert.Null(service.CachedModels);
+            logger.DidNotReceiveWithAnyArgs().Log(
+                LogLevel.Warning,
+                Arg.Any<EventId>(),
+                Arg.Any<object>(),
+                Arg.Any<Exception?>(),
+                Arg.Any<Func<object, Exception?, string>>());
+        }
     }
 }
 

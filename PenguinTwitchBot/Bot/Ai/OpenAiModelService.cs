@@ -49,6 +49,8 @@ namespace PenguinTwitchBot.Bot.Ai
 
         public async Task<IReadOnlyList<string>> GetAvailableTextModelsAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (_cachedModels != null && DateTime.UtcNow < _cacheExpiresAt)
             {
                 return _cachedModels;
@@ -88,6 +90,10 @@ namespace PenguinTwitchBot.Bot.Ai
                 _cachedModels = DefaultTextModels;
                 _cacheExpiresAt = DateTime.UtcNow.Add(FallbackCacheDuration);
                 return _cachedModels;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
