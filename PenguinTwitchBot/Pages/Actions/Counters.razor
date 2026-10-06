@@ -19,7 +19,10 @@
     <MudStack Spacing="4">
         <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
             <div>
-                <MudText Typo="Typo.h4">Counters</MudText>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudText Typo="Typo.h4" GutterBottom="false">Counters</MudText>
+                    <HelpButton Topic="counters" />
+                </MudStack>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Create and manage custom generic counters. Configure per-parameter permissions and use them in subactions and overlays.
                 </MudText>
