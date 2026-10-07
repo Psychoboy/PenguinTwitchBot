@@ -3,10 +3,10 @@
     'use strict';
 
     var TAB_DEFS = {
-        giveaway: { id: 'giveaway', label: 'Giveaway', icon: '🎁', featureKey: 'giveaway' },
-        fishing: { id: 'fishing', label: 'Fishing', icon: '🎣', featureKey: 'fishing' },
-        leaderboards: { id: 'leaderboards', label: 'Rankings', icon: '🏆', featureKey: 'leaderboards' },
-        commands: { id: 'commands', label: 'Commands', icon: '💬', featureKey: 'commands' }
+        giveaway: { id: 'giveaway', label: 'Giveaway', icon: '', featureKey: 'giveaway' },
+        fishing: { id: 'fishing', label: 'Fishing', icon: '', featureKey: 'fishing' },
+        leaderboards: { id: 'leaderboards', label: 'Rankings', icon: '', featureKey: 'leaderboards' },
+        commands: { id: 'commands', label: 'Commands', icon: '', featureKey: 'commands' }
     };
 
     var state = {
@@ -130,7 +130,7 @@
             var btn = document.createElement('button');
             btn.className = 'nav-tab-btn' + (state.activeTab === tab.id ? ' active' : '');
             btn.setAttribute('data-tab', tab.id);
-            btn.innerHTML = '<span>' + tab.icon + '</span> ' + tab.label;
+            btn.innerHTML = tab.label;
             btn.addEventListener('click', function () {
                 switchTab(tab.id);
             });

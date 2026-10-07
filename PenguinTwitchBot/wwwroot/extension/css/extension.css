@@ -218,19 +218,19 @@ body {
     border: 1px solid var(--warning);
 }
 
-/* Main Nav Tabs (Fixed Height, No Scrollbar) */
+/* Main Nav Tabs (Underline Tab Bar) */
 .nav-tabs {
     display: flex;
-    background: var(--bg-card);
-    border-radius: var(--radius-md);
-    padding: 2px;
-    margin-bottom: 6px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0;
+    margin-bottom: 8px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge */
-    border: 1px solid var(--border-color);
-    gap: 2px;
+    gap: 4px;
     flex-shrink: 0;
 }
 .nav-tabs::-webkit-scrollbar {
@@ -241,31 +241,34 @@ body {
 .nav-tab-btn {
     flex: 1 1 0;
     min-width: 0;
-    padding: 5px 2px;
+    padding: 6px 3px 8px 3px;
     background: transparent;
     border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     color: var(--text-secondary);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    border-radius: var(--radius-sm);
     text-align: center;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.15s ease, border-color 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: -1px;
 }
 .nav-tab-btn:hover {
-    background: var(--bg-card-hover);
+    background: transparent;
     color: var(--text-primary);
 }
 .nav-tab-btn.active {
-    background: var(--primary);
-    color: #fff;
+    background: transparent;
+    color: var(--primary-light);
+    border-bottom: 2px solid var(--primary);
 }
 
 /* Tab Panels: Fills exact remaining vertical space without expanding outer container */
@@ -293,11 +296,12 @@ body {
     padding-right: 2px;
 }
 
-/* Sub Navigation (Pills, No Scrollbar) */
+/* Sub Navigation (Underline Sub-Tabs) */
 .sub-nav {
     display: flex;
-    gap: 4px;
-    margin-bottom: 6px;
+    gap: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -310,24 +314,30 @@ body {
     height: 0;
 }
 .sub-pill {
-    padding: 3px 8px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    padding: 4px 6px 7px 6px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     color: var(--text-secondary);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    margin-bottom: -1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .sub-pill:hover {
-    background: var(--bg-card-hover);
+    background: transparent;
     color: var(--text-primary);
 }
 .sub-pill.active {
-    background: var(--bg-input);
-    border-color: var(--primary);
-    color: var(--primary);
+    background: transparent;
+    border-bottom: 2px solid var(--primary);
+    color: var(--primary-light);
 }
 
 /* Identity Prompt Box */

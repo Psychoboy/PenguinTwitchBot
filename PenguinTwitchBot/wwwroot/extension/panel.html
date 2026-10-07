@@ -18,9 +18,9 @@
                 <div id="user-status-chip" class="user-chip" style="display: none;">
                     <span id="user-display-name">Viewer</span>
                 </div>
-                <a id="header-portal-link" class="header-link-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open Full Bot Web Interface" style="display: none;">
+                <!-- <a id="header-portal-link" class="header-link-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open Full Bot Web Interface" style="display: none;">
                     🌐
-                </a>
+                </a> -->
             </div>
         </header>
 
@@ -39,15 +39,16 @@
 
         <!-- 2. Fishing Panel -->
         <main id="panel-fishing" class="tab-panel" style="display: none;">
+            <div id="fishing-gold-bar" class="inventory-summary" style="display: none; margin-bottom: 6px;">
+                <span>Fishing Balance:</span>
+                <span class="gold-badge" id="fishing-gold-amount">🪙 0 Gold</span>
+            </div>
             <div class="sub-nav">
                 <button class="sub-pill active" data-sub="catches">Recent Catches</button>
                 <button class="sub-pill" data-sub="inventory">My Inventory</button>
                 <button class="sub-pill" data-sub="store">Fish Shop</button>
             </div>
-            <div id="fishing-gold-bar" class="inventory-summary" style="display: none; margin-bottom: 6px;">
-                <span>Fishing Balance:</span>
-                <span class="gold-badge" id="fishing-gold-amount">🪙 0 Gold</span>
-            </div>
+            
             <div id="fishing-sub-content">
                 <div class="loading-spinner">Loading fishing...</div>
             </div>
@@ -85,7 +86,7 @@
         <!-- Panel Footer -->
         <footer id="panel-footer" class="panel-footer" style="display: none;">
             <a id="web-portal-link" class="footer-portal-link" href="#" target="_blank" rel="noopener noreferrer">
-                <span>🌐 Open Full Web Interface</span>
+                <span>Open Full Web Interface</span>
                 <span class="external-icon">↗</span>
             </a>
         </footer>
