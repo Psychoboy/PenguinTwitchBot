@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Penguin Twitch Bot - Extension Configuration</title>
+    <title>Penguin Bot - Extension Configuration</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./css/extension.css" />
     <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
@@ -10,6 +10,9 @@
         body {
             width: 100%;
             max-width: 680px;
+            height: auto;
+            min-height: 100vh;
+            overflow-y: auto;
             padding: 16px;
             font-size: 13px;
         }
@@ -60,7 +63,7 @@
             width: 100%;
             background: var(--bg-input);
             border: 1px solid var(--border-color);
-            color: #fff;
+            color: var(--text-primary);
             padding: 8px 10px;
             border-radius: var(--radius-sm);
             font-size: 13px;

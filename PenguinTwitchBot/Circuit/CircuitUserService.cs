@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace PenguinTwitchBot.Circuit
 {
-    public class CircuitUserService(ILogger<CircuitUserService> logger, IpLog ipLog) : ICircuitUserService
+    public class CircuitUserService(ILogger<CircuitUserService> logger, IIpLog ipLog) : ICircuitUserService
     {
         public ConcurrentDictionary<string, CircuitUser> Circuits { get; private set; } = new ConcurrentDictionary<string, CircuitUser>();
 
@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Circuit
             }
             try
             {
-                await ipLog.AddLogEntry(UserName, userId, userIp);
+                await ipLog.LogInteractionAsync(UserName, userId, userIp);
             }
             catch (Exception ex)
             {

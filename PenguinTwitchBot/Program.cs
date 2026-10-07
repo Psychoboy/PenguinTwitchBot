@@ -249,6 +249,7 @@ internal class Program
         // Always register circuit services — MainLayout injects these and Blazor's SSR
         // prerender instantiates it even when the page specifies its own layout.
         builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IpLog>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IIpLog>(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>());
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
         builder.Services.AddScoped<CircuitHandler>((sp) =>
             new CircuitHandlerService(

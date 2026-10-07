@@ -1,4 +1,4 @@
-﻿name: Release
+name: Release
 
 on:
   push:
@@ -136,9 +136,37 @@ jobs:
           PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-update.zip
           PenguinTwitchBot-${{ env.BUILD_LABEL }}-${{ matrix.rid }}-update.zip.sha256
 
+  build-extension:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      BUILD_LABEL: ${{ (github.event_name == 'workflow_dispatch' && inputs.release_tag != '' && inputs.release_tag) || github.ref_name }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Package Twitch Extension Zip
+      shell: pwsh
+      run: |
+        $extSrc = "PenguinTwitchBot/wwwroot/extension"
+        $extZip = "PenguinBot-${{ env.BUILD_LABEL }}-twitch-extension.zip"
+        Compress-Archive -Path "$extSrc/*" -DestinationPath $extZip
+        $extHash = (Get-FileHash $extZip -Algorithm SHA256).Hash
+        Set-Content -Path "$extZip.sha256" -Value "$extHash  $extZip" -Encoding ASCII
+
+    - name: Upload Extension artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-twitch-extension
+        path: |
+          PenguinBot-*-twitch-extension.zip
+          PenguinBot-*-twitch-extension.zip.sha256
+
   release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-extension]
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.create_release && inputs.release_tag != '') }}
     permissions:
       contents: write

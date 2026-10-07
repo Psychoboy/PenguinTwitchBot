@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
@@ -6,8 +7,56 @@ using System.Net.Sockets;
 
 namespace PenguinTwitchBot.Circuit
 {
-    public class IpLog(ILogger<IpLog> logger, IServiceScopeFactory scopeFactory, IIpLogRetentionSettingsService ipLogRetentionSettingsService)
+    public class IpLog(
+        ILogger<IpLog> logger,
+        IServiceScopeFactory scopeFactory,
+        IIpLogRetentionSettingsService ipLogRetentionSettingsService,
+        IMemoryCache? memoryCache = null) : IIpLog
     {
+        private static readonly TimeSpan DefaultSlidingCacheDuration = TimeSpan.FromMinutes(15);
+
+        private static string GetCacheKey(string userId, string ipAddress) =>
+            $"IpLog:Interaction:{userId}:{ipAddress}";
+
+        public bool IsInteractionCached(string userId, string ipAddress)
+        {
+            if (memoryCache == null || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(ipAddress))
+            {
+                return false;
+            }
+
+            return memoryCache.TryGetValue(GetCacheKey(userId, ipAddress), out _);
+        }
+
+        public async Task LogInteractionAsync(string username, string userId, string ipAddress, TimeSpan? cacheDuration = null)
+        {
+            if (string.IsNullOrWhiteSpace(userId) ||
+                userId.Equals("anonymous", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(username) ||
+                username.Equals("anonymous", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(ipAddress) ||
+                ipAddress.Equals("unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (IsInteractionCached(userId, ipAddress))
+            {
+                return;
+            }
+
+            if (memoryCache != null)
+            {
+                var options = new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = cacheDuration ?? DefaultSlidingCacheDuration
+                };
+                memoryCache.Set(GetCacheKey(userId, ipAddress), true, options);
+            }
+
+            await AddLogEntry(username, userId, ipAddress);
+        }
+
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
             if (string.IsNullOrWhiteSpace(userId) ||

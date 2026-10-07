@@ -20,6 +20,8 @@
     var readyCallbacks = [];
     var configCallbacks = [];
     var authCallbacks = [];
+    var contextCallbacks = [];
+    var latestContext = null;
     var isReady = false;
 
     // Default configuration if broadcaster has not set one
@@ -155,6 +157,17 @@
         }
     }
 
+    function onContext(cb) {
+        contextCallbacks.push(cb);
+        if (latestContext) {
+            try {
+                cb(latestContext);
+            } catch (e) {
+                console.error('[TwitchExt] onContext error:', e);
+            }
+        }
+    }
+
     function triggerReady() {
         if (isReady) return;
         isReady = true;
@@ -175,6 +188,19 @@
         }
     }
 
+    function triggerContextChanged(context, changedProps) {
+        latestContext = context;
+        if (context && context.theme && typeof document !== 'undefined') {
+            try {
+                if (document.documentElement) document.documentElement.setAttribute('data-theme', context.theme);
+                if (document.body) document.body.setAttribute('data-theme', context.theme);
+            } catch (_) { /* ignore DOM attribute errors */ }
+        }
+        for (var i = 0; i < contextCallbacks.length; i++) {
+            try { contextCallbacks[i](context, changedProps); } catch (e) { console.error('[TwitchExt] Context listener error:', e); }
+        }
+    }
+
     function initTwitchHooks() {
         var ext = getTwitchExt();
         if (ext) {
@@ -191,6 +217,12 @@
                 triggerAuthorized(auth);
                 triggerReady();
             });
+
+            if (ext.onContext) {
+                ext.onContext(function (context, changedProperties) {
+                    triggerContextChanged(context, changedProperties);
+                });
+            }
 
             if (ext.configuration) {
                 ext.configuration.onChanged(function () {
@@ -286,6 +318,7 @@
         onReady: onReady,
         onConfigLoaded: onConfigLoaded,
         onAuthorized: onAuthorized,
+        onContext: onContext,
         getConfig: getConfig,
         saveConfig: saveConfig,
         requestIdentityShare: requestIdentityShare,

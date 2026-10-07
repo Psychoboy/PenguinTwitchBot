@@ -23,6 +23,10 @@ using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using Xunit;
 
+using Microsoft.AspNetCore.Mvc.Filters;
+using PenguinTwitchBot.Circuit;
+using System.Net;
+
 namespace PenguinTwitchBot.Test.Controllers;
 
 public class TwitchExtensionControllerTests
@@ -38,6 +42,7 @@ public class TwitchExtensionControllerTests
     private readonly IFeatureRuntimeCoordinator _featureCoordinator = Substitute.For<IFeatureRuntimeCoordinator>();
     private readonly IViewerFeature _viewerFeature = Substitute.For<IViewerFeature>();
     private readonly ITwitchService _twitchService = Substitute.For<ITwitchService>();
+    private readonly IIpLog _ipLog = Substitute.For<IIpLog>();
     private readonly IConfiguration _configuration = Substitute.For<IConfiguration>();
     private readonly ILogger<TwitchExtensionController> _logger = Substitute.For<ILogger<TwitchExtensionController>>();
 
@@ -59,6 +64,7 @@ public class TwitchExtensionControllerTests
             _featureCoordinator,
             _viewerFeature,
             _twitchService,
+            _ipLog,
             _configuration,
             _logger);
 
@@ -70,7 +76,9 @@ public class TwitchExtensionControllerTests
 
         controller.ControllerContext = new ControllerContext
         {
-            HttpContext = httpContext
+            HttpContext = httpContext,
+            RouteData = new Microsoft.AspNetCore.Routing.RouteData(),
+            ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor()
         };
 
         return controller;
@@ -267,6 +275,103 @@ public class TwitchExtensionControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result);
         await _fishingInventoryService.Received(1).UnequipItem("67890", 42);
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_LogsInteraction_WhenUserIsAuthenticatedAndNotCached()
+    {
+        var jwt = GenerateTestJwt("12345", "67890");
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+        controller.HttpContext.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.100");
+
+        _ipLog.IsInteractionCached("67890", "192.168.1.100").Returns(false);
+        _viewerFeature.GetViewerByUserId("67890").Returns(new Viewer { UserId = "67890", Username = "cooluser" });
+
+        var executed = false;
+        var actionExecutingContext = new ActionExecutingContext(
+            controller.ControllerContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+
+        await controller.OnActionExecutionAsync(actionExecutingContext, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(controller.ControllerContext, new List<IFilterMetadata>(), controller));
+        });
+
+        Assert.True(executed);
+        await _ipLog.Received(1).LogInteractionAsync("cooluser", "67890", "192.168.1.100");
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_SkipsDbLogging_WhenUserInteractionIsAlreadyCached()
+    {
+        var jwt = GenerateTestJwt("12345", "67890");
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+        controller.HttpContext.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.100");
+
+        _ipLog.IsInteractionCached("67890", "192.168.1.100").Returns(true);
+
+        var executed = false;
+        var actionExecutingContext = new ActionExecutingContext(
+            controller.ControllerContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+
+        await controller.OnActionExecutionAsync(actionExecutingContext, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(controller.ControllerContext, new List<IFilterMetadata>(), controller));
+        });
+
+        Assert.True(executed);
+        await _viewerFeature.DidNotReceive().GetViewerByUserId(Arg.Any<string>());
+        await _ipLog.DidNotReceive().LogInteractionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<TimeSpan?>());
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_DoesNotLog_WhenUserIsAnonymous()
+    {
+        var controller = CreateController(authHeader: null);
+        controller.HttpContext.Connection.RemoteIpAddress = IPAddress.Parse("192.168.1.100");
+
+        var executed = false;
+        var actionExecutingContext = new ActionExecutingContext(
+            controller.ControllerContext,
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller);
+
+        await controller.OnActionExecutionAsync(actionExecutingContext, () =>
+        {
+            executed = true;
+            return Task.FromResult(new ActionExecutedContext(controller.ControllerContext, new List<IFilterMetadata>(), controller));
+        });
+
+        Assert.True(executed);
+        await _ipLog.DidNotReceive().LogInteractionAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<TimeSpan?>());
+    }
+
+    [Fact]
+    public void TwitchExtensionController_ActionModel_DoesNotThrowParameterBindingException()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddMvcCore().AddApplicationPart(typeof(TwitchExtensionController).Assembly);
+        var provider = services.BuildServiceProvider();
+
+        var descriptorProvider = provider.GetRequiredService<Microsoft.AspNetCore.Mvc.Infrastructure.IActionDescriptorCollectionProvider>();
+        var descriptors = descriptorProvider.ActionDescriptors;
+
+        var extensionEndpoints = descriptors.Items
+            .OfType<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>()
+            .Where(x => x.ControllerTypeInfo == typeof(TwitchExtensionController))
+            .ToList();
+
+        Assert.NotEmpty(extensionEndpoints);
+        Assert.DoesNotContain(extensionEndpoints, x => x.ActionName == nameof(TwitchExtensionController.OnActionExecutionAsync));
     }
 }
 

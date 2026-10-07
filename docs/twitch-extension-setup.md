@@ -106,18 +106,18 @@ Twitch strictly enforces Content Security Policy (CSP) headers on extensions. An
 ### 4. Extension Views & Asset Hosting
 Under **Asset Hosting / Extension Views**:
 - **Panel Viewer Path**: `panel.html`
+- **Panel Height**: Set to **`500`** px (Twitch defaults this to `300` px. Setting it to `500` expands the extension iframe to match full-height panel extensions).
 - **Broadcaster Config Path**: `config.html`
 - **Testing Base URI** (if using Local Test):
   ```text
   https://localhost:8080/extension/
   ```
 - **If using Hosted Test (Recommended for Release)**:
-  - Zip the contents of `PenguinTwitchBot/wwwroot/extension/`:
+  - Download `PenguinBot-<version>-twitch-extension.zip` from the latest [GitHub Release](https://github.com/Psychoboy/PenguinTwitchBot/releases) assets, or zip the contents of `PenguinTwitchBot/wwwroot/extension/` directly:
     - `panel.html`
     - `config.html`
     - `css/`
     - `js/`
-    - *(Note: A pre-packaged clean zip is generated at `PenguinTwitchBot/extension.zip`)*.
   - Upload the zip to Twitch Asset Hosting.
 
 ### 5. Access & Streamer Allowlist (Restricting to Your Channel)
@@ -213,8 +213,9 @@ Use this checklist to ensure all required fields are satisfied:
 | | **Privacy Policy URL** | Direct URL to your public privacy policy webpage or hosted markdown file (see [privacy-policy.md](privacy-policy.md)). |
 | | **Chat Capabilities** | Set to **No** (the extension operates via panel UI and REST endpoints). |
 | **Monetization** | **Bits in Extensions** | Select **No** (unless you have separately configured Twitch Bits product catalogs). |
-| **Asset Hosting** | **Archive Package** | Upload `PenguinTwitchBot/extension.zip`. Verify file structure contains `panel.html`, `config.html`, `css/`, and `js/` at the root. |
+| **Asset Hosting** | **Archive Package** | Upload `PenguinBot-<version>-twitch-extension.zip` (downloaded from the latest GitHub Release assets) or zip `PenguinTwitchBot/wwwroot/extension/`. Verify file structure contains `panel.html`, `config.html`, `css/`, and `js/` at the root. |
 | | **Viewer Path** | `panel.html` |
+| | **Panel Height** | Set to `500` (Twitch defaults this to `300`). |
 | | **Config Path** | `config.html` |
 | **Allowed Domains (CSP)** | **Connect-Src (URL Fetching)** | Add your public HTTPS endpoint (e.g., `https://*.trycloudflare.com/` or your custom domain). Requests to unlisted domains will be blocked by Twitch CSP. |
 | | **Image Domains (`img-src`)** | Add base URLs from which the extension loads images (e.g. `https://*.trycloudflare.com/`, `https://i.imgur.com/`, or your custom domain where prize images are stored). |

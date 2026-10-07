@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="panel-view">
 <head>
     <meta charset="utf-8" />
     <title>Penguin Bot</title>
@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="./css/extension.css" />
     <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
 </head>
-<body>
+<body class="panel-view">
     <div class="panel-wrapper">
         <!-- Panel Header -->
         <header class="panel-header">
@@ -17,7 +17,6 @@
             <div class="header-actions">
                 <div id="user-status-chip" class="user-chip" style="display: none;">
                     <span id="user-display-name">Viewer</span>
-                    <span class="gold" id="user-header-gold">0g</span>
                 </div>
                 <a id="header-portal-link" class="header-link-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open Full Bot Web Interface" style="display: none;">
                     🌐
@@ -44,6 +43,10 @@
                 <button class="sub-pill active" data-sub="catches">Recent Catches</button>
                 <button class="sub-pill" data-sub="inventory">My Inventory</button>
                 <button class="sub-pill" data-sub="store">Fish Shop</button>
+            </div>
+            <div id="fishing-gold-bar" class="inventory-summary" style="display: none; margin-bottom: 6px;">
+                <span>Fishing Balance:</span>
+                <span class="gold-badge" id="fishing-gold-amount">🪙 0 Gold</span>
             </div>
             <div id="fishing-sub-content">
                 <div class="loading-spinner">Loading fishing...</div>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using PenguinTwitchBot.Bot;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Alias;
@@ -10,6 +11,7 @@ using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.TwitchServices;
+using PenguinTwitchBot.Circuit;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Points;
@@ -21,7 +23,7 @@ namespace PenguinTwitchBot.Controllers;
 [ApiController]
 [AllowAnonymous]
 [EnableCors("TwitchExtensionCors")]
-public class TwitchExtensionController : ControllerBase
+public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
 {
     private readonly IFishingService _fishingService;
     private readonly IFishingShopService _fishingShopService;
@@ -35,6 +37,7 @@ public class TwitchExtensionController : ControllerBase
     private readonly IFeatureRuntimeCoordinator _featureCoordinator;
     private readonly IViewerFeature _viewerFeature;
     private readonly ITwitchService _twitchService;
+    private readonly IIpLog _ipLog;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TwitchExtensionController> _logger;
 
@@ -51,6 +54,7 @@ public class TwitchExtensionController : ControllerBase
         IFeatureRuntimeCoordinator featureCoordinator,
         IViewerFeature viewerFeature,
         ITwitchService twitchService,
+        IIpLog ipLog,
         IConfiguration configuration,
         ILogger<TwitchExtensionController> logger)
     {
@@ -66,8 +70,16 @@ public class TwitchExtensionController : ControllerBase
         _featureCoordinator = featureCoordinator;
         _viewerFeature = viewerFeature;
         _twitchService = twitchService;
+        _ipLog = ipLog;
         _configuration = configuration;
         _logger = logger;
+    }
+
+    [NonAction]
+    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    {
+        await TrackExtensionUserInteractionAsync();
+        await next();
     }
 
     #region Feature Status & Metadata
@@ -348,6 +360,7 @@ public class TwitchExtensionController : ControllerBase
             IsEquipped: b.IsEquipped,
             RemainingUses: b.RemainingUses,
             CurrentDurability: b.CurrentDurability,
+            MaxDurability: b.ShopItem?.MaxDurability,
             IsBroken: b.IsBroken,
             BoostSummary: FormatBoostSummary(b.ShopItem))).ToList();
 
@@ -557,8 +570,69 @@ public class TwitchExtensionController : ControllerBase
 
     private TwitchExtensionClaims? GetClaims()
     {
+        if (HttpContext.Items.TryGetValue("TwitchExtensionClaims", out var cached) && cached is TwitchExtensionClaims claims)
+        {
+            return claims;
+        }
+
         var authHeader = Request.Headers.Authorization.ToString();
-        return TwitchExtensionSecurity.ParseAndValidateToken(authHeader, _configuration, _logger);
+        var parsed = TwitchExtensionSecurity.ParseAndValidateToken(authHeader, _configuration, _logger);
+        if (parsed != null)
+        {
+            HttpContext.Items["TwitchExtensionClaims"] = parsed;
+        }
+        return parsed;
+    }
+
+    private async Task TrackExtensionUserInteractionAsync()
+    {
+        try
+        {
+            var claims = GetClaims();
+            if (claims == null || !claims.HasUserId)
+            {
+                return;
+            }
+
+            var clientIp = GetClientIpAddress();
+            if (string.IsNullOrWhiteSpace(clientIp))
+            {
+                return;
+            }
+
+            if (_ipLog.IsInteractionCached(claims.UserId!, clientIp))
+            {
+                return;
+            }
+
+            var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(
+                claims.UserId!,
+                _viewerFeature,
+                _twitchService,
+                _logger);
+
+            var username = viewer?.Username ?? claims.UserId!;
+            await _ipLog.LogInteractionAsync(username, claims.UserId!, clientIp);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to track IP interaction for Twitch extension request");
+        }
+    }
+
+    private string? GetClientIpAddress()
+    {
+        var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var ip = forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(ip))
+            {
+                return ip;
+            }
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 
 
@@ -637,6 +711,7 @@ public record ExtensionUserFishingBoostResponse(
     bool IsEquipped,
     int RemainingUses,
     double? CurrentDurability,
+    double? MaxDurability,
     bool IsBroken,
     string BoostSummary);
 

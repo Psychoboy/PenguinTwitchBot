@@ -18,11 +18,30 @@
         cmdSearchText: '',
         cmdCategory: 'all',
         categoriesLoaded: false,
+        shopSearchText: '',
+        shopCategory: 'all',
+        fishingStoreItems: [],
+        fishingViewerData: null,
         botFeatures: null,
         config: null,
         refreshTimer: null,
-        searchDebounceTimer: null
+        searchDebounceTimer: null,
+        shopSearchDebounceTimer: null
     };
+
+    function getDurabilityPct(item) {
+        if (!item || item.currentDurability == null) return null;
+        var max = (item.maxDurability != null && item.maxDurability > 0) ? item.maxDurability : 100;
+        var pct;
+        if (item.maxDurability != null && item.maxDurability > 0) {
+            pct = Math.round((item.currentDurability / item.maxDurability) * 100);
+        } else if (item.currentDurability <= 1.0) {
+            pct = Math.round(item.currentDurability * 100);
+        } else {
+            pct = Math.round(item.currentDurability);
+        }
+        return Math.max(0, Math.min(100, pct));
+    }
 
     function showAlert(type, message, durationMs) {
         var el = document.getElementById('alert-banner');
@@ -111,6 +130,10 @@
         var isActiveVisible = visibleTabs.some(function (t) { return t.id === state.activeTab; });
         if (!isActiveVisible && visibleTabs.length > 0) {
             switchTab(visibleTabs[0].id);
+        } else if (state.activeTab) {
+            switchTab(state.activeTab);
+        } else if (visibleTabs.length > 0) {
+            switchTab(visibleTabs[0].id);
         }
     }
 
@@ -127,11 +150,17 @@
             }
         });
 
-        // Hide all panel elements
+        // Hide all panel elements, show active as flex
         ['giveaway', 'fishing', 'leaderboards', 'commands'].forEach(function (id) {
             var panel = document.getElementById('panel-' + id);
             if (panel) {
-                panel.style.display = (id === tabId) ? 'block' : 'none';
+                var isActive = (id === tabId);
+                panel.style.display = isActive ? 'flex' : 'none';
+                if (isActive) {
+                    panel.classList.add('active');
+                } else {
+                    panel.classList.remove('active');
+                }
             }
         });
 
@@ -139,27 +168,63 @@
         resetRefreshTimer();
     }
 
-    function loadActiveTabContent() {
+    function getActiveScrollContainer() {
         switch (state.activeTab) {
             case 'giveaway':
-                loadGiveaway();
+                return document.getElementById('giveaway-content');
+            case 'fishing':
+                return document.getElementById('fishing-sub-content');
+            case 'leaderboards':
+                return document.getElementById('leaderboard-content');
+            case 'commands':
+                return document.getElementById('commands-list-content');
+            default:
+                return null;
+        }
+    }
+
+    function loadActiveTabContent(isBackgroundRefresh) {
+        if (isBackgroundRefresh) {
+            var activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
+                // User is actively interacting with an input/filter; avoid disturbing input focus or scrolling
+                return;
+            }
+        }
+
+        var scrollContainer = getActiveScrollContainer();
+        var savedScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
+        var promise;
+        switch (state.activeTab) {
+            case 'giveaway':
+                promise = loadGiveaway(isBackgroundRefresh);
                 break;
             case 'fishing':
-                loadFishingContent();
+                promise = loadFishingContent(isBackgroundRefresh);
                 break;
             case 'leaderboards':
-                loadLeaderboards();
+                promise = loadLeaderboards(isBackgroundRefresh);
                 break;
             case 'commands':
-                loadCommands();
+                promise = loadCommands(isBackgroundRefresh);
                 break;
+        }
+
+        if (promise && typeof promise.then === 'function') {
+            promise.then(function () {
+                if (scrollContainer && isBackgroundRefresh && savedScrollTop > 0) {
+                    scrollContainer.scrollTop = savedScrollTop;
+                }
+            }).catch(function () {});
         }
     }
 
     // --- 1. Giveaway View ---
-    async function loadGiveaway() {
+    async function loadGiveaway(isBackgroundRefresh) {
         var container = document.getElementById('giveaway-content');
         if (!container) return;
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
 
         try {
             var giveawayData = await TwitchExtApi.getGiveaway();
@@ -175,8 +240,13 @@
             }
 
             renderGiveaway(container, giveawayData, viewerData);
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load giveaway information.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load giveaway information.</div>';
+            }
         }
     }
 
@@ -292,24 +362,27 @@
     }
 
     // --- 2. Fishing View ---
-    function loadFishingContent() {
+    function loadFishingContent(isBackgroundRefresh) {
         switch (state.fishingSubTab) {
             case 'catches':
-                loadRecentCatches();
+                loadRecentCatches(isBackgroundRefresh);
                 break;
             case 'inventory':
-                loadFishingInventory();
+                loadFishingInventory(isBackgroundRefresh);
                 break;
             case 'store':
-                loadFishingStore();
+                loadFishingStore(isBackgroundRefresh);
                 break;
         }
     }
 
-    async function loadRecentCatches() {
+    async function loadRecentCatches(isBackgroundRefresh) {
         var container = document.getElementById('fishing-sub-content');
         if (!container) return;
-        container.innerHTML = '<div class="loading-spinner">Loading catches...</div>';
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
+        if (!isBackgroundRefresh) {
+            container.innerHTML = '<div class="loading-spinner">Loading catches...</div>';
+        }
 
         try {
             var count = (state.config && state.config.recentCatchesCount) || 15;
@@ -331,14 +404,32 @@
             });
             html += '</div>';
             container.innerHTML = html;
+
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
+
+            if (TwitchExtApi.isIdentityShared()) {
+                TwitchExtApi.getFishingViewer().then(function (viewer) {
+                    if (viewer) {
+                        updateHeaderUser(viewer.username);
+                        updateFishingGold(viewer.totalGold);
+                    }
+                }).catch(function () {});
+            } else {
+                updateFishingGold(null);
+            }
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load recent catches.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load recent catches.</div>';
+            }
         }
     }
 
-    async function loadFishingInventory() {
+    async function loadFishingInventory(isBackgroundRefresh) {
         var container = document.getElementById('fishing-sub-content');
         if (!container) return;
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
 
         if (!TwitchExtApi.isIdentityShared()) {
             container.innerHTML = '<div class="identity-box">' +
@@ -347,29 +438,39 @@
                 '</div>';
             var linkBtn = document.getElementById('btn-inventory-link');
             if (linkBtn) linkBtn.addEventListener('click', TwitchExtApi.requestIdentityShare);
+            updateFishingGold(null);
             return;
         }
 
-        container.innerHTML = '<div class="loading-spinner">Loading inventory...</div>';
+        if (!isBackgroundRefresh) {
+            container.innerHTML = '<div class="loading-spinner">Loading inventory...</div>';
+        }
 
         try {
             var viewer = await TwitchExtApi.getFishingViewer();
-            updateHeaderUser(viewer.username, viewer.totalGold);
-
-            var html = '<div class="inventory-summary">' +
-                '<span><strong>' + escapeHtml(viewer.username) + '</strong></span>' +
-                '<span class="gold-badge">🪙 ' + formatNumber(viewer.totalGold) + ' Gold</span>' +
-                '</div>';
+            updateHeaderUser(viewer.username);
+            updateFishingGold(viewer.totalGold);
 
             if (!viewer.items || viewer.items.length === 0) {
-                html += '<div class="empty-state">You do not own any fishing equipment yet. Visit the Fish Shop to purchase items!</div>';
-                container.innerHTML = html;
+                container.innerHTML = '<div class="empty-state">You do not own any fishing equipment yet. Visit the Fish Shop to purchase items!</div>';
                 return;
             }
 
+            // Equipped items show first
+            viewer.items.sort(function (a, b) {
+                var aEq = a.isEquipped ? 1 : 0;
+                var bEq = b.isEquipped ? 1 : 0;
+                if (aEq !== bEq) return bEq - aEq;
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
+            var html = '';
             viewer.items.forEach(function (item) {
                 var isEquipped = item.isEquipped;
-                var durabilityPct = item.currentDurability != null ? Math.round(item.currentDurability * 100) : null;
+                var durabilityPct = getDurabilityPct(item);
+                if (item.isBroken) {
+                    durabilityPct = 0;
+                }
 
                 html += '<div class="item-card">' +
                     '<div class="item-header">' +
@@ -386,8 +487,9 @@
 
                 html += '<div class="item-stats">';
                 if (durabilityPct != null) {
-                    html += '<span>Durability: ' + durabilityPct + '%</span>' +
-                        '<div class="durability-bar"><div class="durability-fill ' + (durabilityPct < 25 ? 'durability-low' : '') + '" style="width:' + durabilityPct + '%;"></div></div>';
+                    var durLabel = item.isBroken ? 'Broken (0%)' : (durabilityPct + '%');
+                    html += '<span>Durability: ' + durLabel + '</span>' +
+                        '<div class="durability-bar"><div class="durability-fill ' + ((durabilityPct < 25 || item.isBroken) ? 'durability-low' : '') + '" style="width:' + durabilityPct + '%;"></div></div>';
                 }
                 if (item.remainingUses >= 0) {
                     html += '<span>Uses: ' + item.remainingUses + '</span>';
@@ -409,6 +511,9 @@
             });
 
             container.innerHTML = html;
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
 
             container.querySelectorAll('.btn-item-action').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
@@ -432,22 +537,24 @@
             });
 
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load fishing inventory.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load fishing inventory.</div>';
+            }
         }
     }
 
-    async function loadFishingStore() {
+    async function loadFishingStore(isBackgroundRefresh) {
         var container = document.getElementById('fishing-sub-content');
         if (!container) return;
-        container.innerHTML = '<div class="loading-spinner">Loading shop items...</div>';
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
+
+        if (!isBackgroundRefresh && (!state.fishingStoreItems || state.fishingStoreItems.length === 0)) {
+            container.innerHTML = '<div class="loading-spinner">Loading shop items...</div>';
+        }
 
         try {
             var items = await TwitchExtApi.getFishingStore();
-
-            if (!items || items.length === 0) {
-                container.innerHTML = '<div class="empty-state">Shop currently has no items for sale.</div>';
-                return;
-            }
+            state.fishingStoreItems = items || [];
 
             var isAuth = TwitchExtApi.isIdentityShared();
             var viewerData = null;
@@ -455,96 +562,212 @@
             if (isAuth) {
                 try {
                     viewerData = await TwitchExtApi.getFishingViewer();
-                    updateHeaderUser(viewerData.username, viewerData.totalGold);
+                    updateHeaderUser(viewerData.username);
+                    updateFishingGold(viewerData.totalGold);
                 } catch (_) {}
+            } else {
+                updateFishingGold(null);
+            }
+            state.fishingViewerData = viewerData;
+
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div class="empty-state">Shop currently has no items for sale.</div>';
+                return;
             }
 
-            var html = '';
+            var searchInput = document.getElementById('shop-search-input');
+            var categorySelect = document.getElementById('shop-category-select');
 
-            if (!isAuth) {
-                html += '<div class="identity-box" style="margin-bottom: 12px;">' +
-                    '<p>Share your Twitch ID to purchase items from the shop.</p>' +
-                    '<button id="btn-shop-link" class="btn-identity">Link Twitch Account</button>' +
-                    '</div>';
-            } else if (viewerData) {
-                html += '<div class="inventory-summary" style="margin-bottom: 12px;">' +
-                    '<span><strong>' + escapeHtml(viewerData.username) + '</strong></span>' +
-                    '<span class="gold-badge">🪙 ' + formatNumber(viewerData.totalGold) + ' Gold</span>' +
-                    '</div>';
-            }
-
-            items.forEach(function (item) {
-                var isDisabled = false;
-                var buttonTitle = '';
-
+            if (!searchInput || !categorySelect) {
+                var shellHtml = '';
                 if (!isAuth) {
-                    isDisabled = true;
-                    buttonTitle = 'Please link your Twitch account to buy items';
-                } else if (viewerData && viewerData.totalGold < item.cost) {
-                    isDisabled = true;
-                    buttonTitle = 'Not enough gold (costs ' + formatNumber(item.cost) + ' Gold)';
+                    shellHtml += '<div class="identity-box" style="margin-bottom: 8px;">' +
+                        '<p>Share your Twitch ID to purchase items from the shop.</p>' +
+                        '<button id="btn-shop-link" class="btn-identity">Link Twitch Account</button>' +
+                        '</div>';
                 }
 
-                var disabledAttr = isDisabled ? ' disabled' : '';
-                var titleAttr = buttonTitle ? ' title="' + escapeHtml(buttonTitle) + '"' : '';
+                shellHtml += '<div class="shop-filter-bar">' +
+                    '<input type="text" id="shop-search-input" class="search-input" placeholder="Search shop..." value="' + escapeHtml(state.shopSearchText) + '" />' +
+                    '<select id="shop-category-select" class="category-select">' +
+                    '<option value="all">All</option>' +
+                    '</select>' +
+                    '</div>' +
+                    '<div id="shop-items-list"></div>';
 
-                html += '<div class="item-card">' +
-                    '<div class="item-header">' +
-                    '<div>' +
-                    '<div class="item-name">' + escapeHtml(item.name) + '</div>' +
-                    '<div class="item-desc">' + escapeHtml(item.description) + '</div>' +
-                    '</div>' +
-                    (item.equipmentSlot ? '<span class="item-slot">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
-                    '</div>' +
-                    '<div class="item-stats">' +
-                    '<span style="color:var(--warning); font-weight:700;">🪙 ' + formatNumber(item.cost) + ' Gold</span>' +
-                    (item.maxUses ? '<span>Max Uses: ' + item.maxUses + '</span>' : '') +
-                    '</div>' +
-                    '<div class="item-actions">' +
-                    '<button class="btn-sm btn-buy btn-buy-store" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '"' + disabledAttr + titleAttr + '>Buy (1)</button>' +
-                    '</div>' +
-                    '</div>';
-            });
+                container.innerHTML = shellHtml;
 
-            container.innerHTML = html;
+                var linkBtn = document.getElementById('btn-shop-link');
+                if (linkBtn) {
+                    linkBtn.addEventListener('click', function () {
+                        TwitchExtApi.requestIdentityShare();
+                    });
+                }
 
-            var linkBtn = document.getElementById('btn-shop-link');
-            if (linkBtn) {
-                linkBtn.addEventListener('click', function () {
-                    TwitchExtApi.requestIdentityShare();
+                searchInput = document.getElementById('shop-search-input');
+                categorySelect = document.getElementById('shop-category-select');
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', function () {
+                        clearTimeout(state.shopSearchDebounceTimer);
+                        state.shopSearchDebounceTimer = setTimeout(function () {
+                            state.shopSearchText = searchInput.value;
+                            renderStoreItemsList();
+                        }, 250);
+                    });
+                }
+
+                if (categorySelect) {
+                    categorySelect.addEventListener('change', function () {
+                        state.shopCategory = categorySelect.value;
+                        renderStoreItemsList();
+                    });
+                }
+            }
+
+            if (categorySelect) {
+                var slots = [];
+                items.forEach(function (it) {
+                    var s = it.equipmentSlot ? it.equipmentSlot.trim() : '';
+                    if (s && slots.indexOf(s) === -1) slots.push(s);
+                });
+                slots.sort();
+
+                var currentVal = state.shopCategory || 'all';
+                categorySelect.innerHTML = '<option value="all">All</option>';
+                slots.forEach(function (slot) {
+                    var opt = document.createElement('option');
+                    opt.value = slot;
+                    opt.textContent = slot;
+                    if (currentVal.toLowerCase() === slot.toLowerCase()) {
+                        opt.selected = true;
+                    }
+                    categorySelect.appendChild(opt);
                 });
             }
 
-            container.querySelectorAll('.btn-buy-store').forEach(function (btn) {
-                btn.addEventListener('click', async function () {
-                    if (!TwitchExtApi.isIdentityShared()) {
-                        TwitchExtApi.requestIdentityShare();
-                        return;
-                    }
-                    var id = parseInt(btn.getAttribute('data-id'), 10);
-                    var name = btn.getAttribute('data-name');
-                    btn.disabled = true;
-                    try {
-                        await TwitchExtApi.buyFishingItem(id, 1);
-                        showAlert('success', 'Purchased ' + name + '!');
-                        loadFishingContent();
-                    } catch (err) {
-                        showAlert('error', err.message || 'Failed to purchase item.');
-                        btn.disabled = false;
-                    }
-                });
-            });
+            renderStoreItemsList();
+
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
 
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load shop items.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load shop items.</div>';
+            }
         }
     }
 
+    function renderStoreItemsList() {
+        var listEl = document.getElementById('shop-items-list');
+        if (!listEl) return;
+
+        var items = state.fishingStoreItems || [];
+        var search = (state.shopSearchText || '').trim().toLowerCase();
+        var cat = (state.shopCategory || 'all').toLowerCase();
+
+        var filtered = items.filter(function (it) {
+            if (cat !== 'all') {
+                var itCat = (it.equipmentSlot || '').toLowerCase();
+                if (itCat !== cat) return false;
+            }
+            if (search) {
+                var nameMatch = it.name && it.name.toLowerCase().indexOf(search) !== -1;
+                var descMatch = it.description && it.description.toLowerCase().indexOf(search) !== -1;
+                var slotMatch = it.equipmentSlot && it.equipmentSlot.toLowerCase().indexOf(search) !== -1;
+                var fishMatch = it.targetFishName && it.targetFishName.toLowerCase().indexOf(search) !== -1;
+                if (!nameMatch && !descMatch && !slotMatch && !fishMatch) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No shop items match your filter.</div>';
+            return;
+        }
+
+        var isAuth = TwitchExtApi.isIdentityShared();
+        var viewerData = state.fishingViewerData;
+
+        var html = '';
+        filtered.forEach(function (item) {
+            var isDisabled = false;
+            var buttonTitle = '';
+
+            if (!isAuth) {
+                isDisabled = true;
+                buttonTitle = 'Please link your Twitch account to buy items';
+            } else if (viewerData && viewerData.totalGold < item.cost) {
+                isDisabled = true;
+                buttonTitle = 'Not enough gold (costs ' + formatNumber(item.cost) + ' Gold)';
+            }
+
+            var disabledAttr = isDisabled ? ' disabled' : '';
+            var titleAttr = buttonTitle ? ' title="' + escapeHtml(buttonTitle) + '"' : '';
+
+            var fullDesc = item.description || item.name;
+            if (item.boostType && item.boostAmount) {
+                fullDesc += ' • ' + item.boostType + ': +' + item.boostAmount + '%';
+            }
+
+            var metaBadges = '';
+            if (item.boostType && item.boostAmount) {
+                metaBadges += '<span class="badge-boost" title="' + escapeHtml(item.boostType + ': +' + item.boostAmount + '%') + '">' + escapeHtml(item.boostType) + '</span>';
+            }
+            if (item.maxDurability) {
+                metaBadges += '<span title="Max Durability: ' + item.maxDurability + '">' + item.maxDurability + ' dur</span>';
+            } else if (item.maxUses) {
+                metaBadges += '<span title="Max Uses: ' + item.maxUses + '">' + item.maxUses + ' uses</span>';
+            }
+
+            html += '<div class="shop-card-compact">' +
+                '<div class="shop-card-top">' +
+                '<div class="shop-card-name-group">' +
+                (item.equipmentSlot ? '<span class="item-slot">' + escapeHtml(item.equipmentSlot) + '</span>' : '') +
+                '<span class="shop-card-name" title="' + escapeHtml(item.name) + '">' + escapeHtml(item.name) + '</span>' +
+                '</div>' +
+                '<div class="shop-card-actions">' +
+                '<span class="shop-card-cost">🪙 ' + formatNumber(item.cost) + '</span>' +
+                '<button class="btn-sm btn-buy btn-buy-store" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '"' + disabledAttr + titleAttr + '>Buy</button>' +
+                '</div>' +
+                '</div>' +
+                '<div class="shop-card-bottom">' +
+                '<span class="shop-card-desc" title="' + escapeHtml(fullDesc) + '">' + escapeHtml(item.description || 'No description') + '</span>' +
+                '<div class="shop-card-meta">' + metaBadges + '</div>' +
+                '</div>' +
+                '</div>';
+        });
+
+        listEl.innerHTML = html;
+
+        listEl.querySelectorAll('.btn-buy-store').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                if (!TwitchExtApi.isIdentityShared()) {
+                    TwitchExtApi.requestIdentityShare();
+                    return;
+                }
+                var id = parseInt(btn.getAttribute('data-id'), 10);
+                var name = btn.getAttribute('data-name');
+                btn.disabled = true;
+                try {
+                    await TwitchExtApi.buyFishingItem(id, 1);
+                    showAlert('success', 'Purchased ' + name + '!');
+                    loadFishingContent();
+                } catch (err) {
+                    showAlert('error', err.message || 'Failed to purchase item.');
+                    btn.disabled = false;
+                }
+            });
+        });
+    }
+
     // --- 3. Leaderboards View ---
-    async function loadLeaderboards() {
+    async function loadLeaderboards(isBackgroundRefresh) {
         var container = document.getElementById('leaderboard-content');
         var pointSelectorWrapper = document.getElementById('lb-point-type-selector-wrapper');
         if (!container) return;
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
 
         if (state.lbType === 'points') {
             if (pointSelectorWrapper) pointSelectorWrapper.style.display = 'block';
@@ -553,7 +776,9 @@
             if (pointSelectorWrapper) pointSelectorWrapper.style.display = 'none';
         }
 
-        container.innerHTML = '<div class="loading-spinner">Loading standings...</div>';
+        if (!isBackgroundRefresh) {
+            container.innerHTML = '<div class="loading-spinner">Loading standings...</div>';
+        }
 
         try {
             var top = (state.config && state.config.leaderboardTopCount) || 10;
@@ -561,13 +786,18 @@
             if (state.lbType === 'tournaments') {
                 var tournaments = await TwitchExtApi.getFishingTournaments(top);
                 renderTournaments(container, tournaments);
-                return;
+            } else {
+                var res = await TwitchExtApi.getLeaderboards(state.lbType, state.selectedPointTypeId, top);
+                renderRankingsTable(container, res);
             }
 
-            var res = await TwitchExtApi.getLeaderboards(state.lbType, state.selectedPointTypeId, top);
-            renderRankingsTable(container, res);
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load standings.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load standings.</div>';
+            }
         }
     }
 
@@ -652,9 +882,10 @@
     }
 
     // --- 4. Commands View ---
-    async function loadCommands() {
+    async function loadCommands(isBackgroundRefresh) {
         var container = document.getElementById('commands-list-content');
         if (!container) return;
+        var savedScrollTop = isBackgroundRefresh ? container.scrollTop : 0;
 
         if (!state.categoriesLoaded) {
             try {
@@ -672,7 +903,9 @@
             } catch (_) {}
         }
 
-        container.innerHTML = '<div class="loading-spinner">Searching commands...</div>';
+        if (!isBackgroundRefresh) {
+            container.innerHTML = '<div class="loading-spinner">Searching commands...</div>';
+        }
 
         try {
             var commands = await TwitchExtApi.getCommands(state.cmdCategory, state.cmdSearchText);
@@ -700,6 +933,10 @@
 
             container.innerHTML = html;
 
+            if (isBackgroundRefresh && savedScrollTop > 0) {
+                container.scrollTop = savedScrollTop;
+            }
+
             container.querySelectorAll('.btn-copy').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     var cmd = btn.getAttribute('data-cmd');
@@ -708,21 +945,30 @@
             });
 
         } catch (err) {
-            container.innerHTML = '<div class="empty-state">Unable to load commands list.</div>';
+            if (!isBackgroundRefresh) {
+                container.innerHTML = '<div class="empty-state">Unable to load commands list.</div>';
+            }
         }
     }
 
-    function updateHeaderUser(username, gold) {
+    function updateHeaderUser(username) {
         var chip = document.getElementById('user-status-chip');
         var nameEl = document.getElementById('user-display-name');
-        var goldEl = document.getElementById('user-header-gold');
 
-        if (chip && nameEl) {
+        if (chip && nameEl && username) {
             nameEl.textContent = username;
-            if (gold != null && goldEl) {
-                goldEl.textContent = formatNumber(gold) + 'g';
-            }
             chip.style.display = 'flex';
+        }
+    }
+
+    function updateFishingGold(gold) {
+        var bar = document.getElementById('fishing-gold-bar');
+        var amount = document.getElementById('fishing-gold-amount');
+        if (gold != null && bar && amount) {
+            amount.textContent = '🪙 ' + formatNumber(gold) + ' Gold';
+            bar.style.display = 'flex';
+        } else if (bar) {
+            bar.style.display = 'none';
         }
     }
 
@@ -730,7 +976,7 @@
         if (state.refreshTimer) clearInterval(state.refreshTimer);
         var intervalSec = (state.config && state.config.refreshIntervalSeconds) || 30;
         state.refreshTimer = setInterval(function () {
-            loadActiveTabContent();
+            loadActiveTabContent(true);
         }, intervalSec * 1000);
     }
 
@@ -843,6 +1089,33 @@
         renderNavigationTabs();
         loadActiveTabContent();
     }
+
+    function applyTheme(theme) {
+        var resolvedTheme = theme === 'light' ? 'light' : 'dark';
+        if (typeof document !== 'undefined') {
+            try {
+                if (document.documentElement) document.documentElement.setAttribute('data-theme', resolvedTheme);
+                if (document.body) document.body.setAttribute('data-theme', resolvedTheme);
+            } catch (_) { /* ignore DOM attribute errors */ }
+        }
+    }
+
+    // Default theme detection before onContext fires
+    try {
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            applyTheme('light');
+        } else {
+            applyTheme('dark');
+        }
+    } catch (_) {
+        applyTheme('dark');
+    }
+
+    TwitchExtApi.onContext(function (context) {
+        if (context && context.theme) {
+            applyTheme(context.theme);
+        }
+    });
 
     TwitchExtApi.onConfigLoaded(function (cfg) {
         state.config = cfg;

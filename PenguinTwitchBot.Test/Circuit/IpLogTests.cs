@@ -168,5 +168,80 @@ namespace PenguinTwitchBot.Test.Circuit
             Assert.Equal("currentname", entries[0].Username);
             Assert.Equal(9, entries[0].Count); // 3 + 5 + 1
         }
+
+        [Fact]
+        public async Task LogInteractionAsync_CreatesNewEntry_OnInitialCall()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            await cachedIpLog.LogInteractionAsync("CoolUser", "12345", "192.168.1.1");
+
+            var entry = await _context.IpLogEntrys.FirstOrDefaultAsync(x => x.UserId == "12345" && x.Ip == "192.168.1.1");
+            Assert.NotNull(entry);
+            Assert.Equal("cooluser", entry.Username);
+            Assert.Equal(1, entry.Count);
+            Assert.True(cachedIpLog.IsInteractionCached("12345", "192.168.1.1"));
+        }
+
+        [Fact]
+        public async Task LogInteractionAsync_DoesNotIncrementCount_WhenCalledAgainWithinCacheWindow()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            await cachedIpLog.LogInteractionAsync("CoolUser", "12345", "192.168.1.1");
+            await cachedIpLog.LogInteractionAsync("CoolUser", "12345", "192.168.1.1");
+
+            var entries = await _context.IpLogEntrys.Where(x => x.UserId == "12345" && x.Ip == "192.168.1.1").ToListAsync();
+            Assert.Single(entries);
+            Assert.Equal(1, entries[0].Count); // Count remains 1 because second call was cached
+        }
+
+        [Fact]
+        public async Task LogInteractionAsync_LogsSeparately_WhenUserConnectsFromDifferentIp()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            await cachedIpLog.LogInteractionAsync("CoolUser", "12345", "192.168.1.1");
+            await cachedIpLog.LogInteractionAsync("CoolUser", "12345", "10.0.0.1");
+
+            var entries = await _context.IpLogEntrys.Where(x => x.UserId == "12345").ToListAsync();
+            Assert.Equal(2, entries.Count);
+            Assert.True(cachedIpLog.IsInteractionCached("12345", "192.168.1.1"));
+            Assert.True(cachedIpLog.IsInteractionCached("12345", "10.0.0.1"));
+        }
+
+        [Fact]
+        public async Task LogInteractionAsync_LogsSeparately_WhenDifferentUsersShareIp()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            await cachedIpLog.LogInteractionAsync("UserA", "11111", "192.168.1.1");
+            await cachedIpLog.LogInteractionAsync("UserB", "22222", "192.168.1.1");
+
+            var entries = await _context.IpLogEntrys.Where(x => x.Ip == "192.168.1.1").ToListAsync();
+            Assert.Equal(2, entries.Count);
+        }
+
+        [Fact]
+        public async Task LogInteractionAsync_IgnoresAnonymousOrInvalidUsers()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            await cachedIpLog.LogInteractionAsync("anonymous", "anonymous", "192.168.1.1");
+            await cachedIpLog.LogInteractionAsync("ValidUser", "12345", "unknown");
+
+            var entries = await _context.IpLogEntrys.ToListAsync();
+            Assert.Empty(entries);
+        }
     }
 }
