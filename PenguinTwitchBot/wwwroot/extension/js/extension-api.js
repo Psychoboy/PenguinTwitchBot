@@ -73,7 +73,7 @@
                     return broadcasterConfig;
                 }
             }
-        } catch (_) {}
+        } catch (_) { /* ignore storage errors */ }
 
         if (!broadcasterConfig) {
             broadcasterConfig = Object.assign({}, DEFAULT_CONFIG);
@@ -230,6 +230,19 @@
         }
     }
 
+    async function extractError(response) {
+        var errorBody = null;
+        try {
+            errorBody = await response.json();
+        } catch (_) { /* ignore */ }
+
+        var message = (errorBody && (errorBody.message || errorBody.error)) || ('HTTP ' + response.status);
+        var err = new Error(message);
+        err.status = response.status;
+        err.data = errorBody;
+        return err;
+    }
+
     async function request(endpoint, options) {
         options = options || {};
         var headers = options.headers || {};
@@ -261,15 +274,8 @@
         }
 
         if (!response.ok) {
-            var errorBody = null;
-            try {
-                errorBody = await response.json();
-            } catch (_) {}
-
-            var err = new Error(errorBody && (errorBody.message || errorBody.error) ? (errorBody.message || errorBody.error) : 'HTTP ' + response.status);
-            err.status = response.status;
-            err.data = errorBody;
-            console.error('[TwitchExt] HTTP Error ' + response.status + ' from ' + fullUrl + ':', errorBody || err.message);
+            var err = await extractError(response);
+            console.error('[TwitchExt] HTTP Error ' + response.status + ' from ' + fullUrl + ':', err.data || err.message);
             throw err;
         }
 

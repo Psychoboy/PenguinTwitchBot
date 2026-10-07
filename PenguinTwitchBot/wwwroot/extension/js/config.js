@@ -1,3 +1,4 @@
+/* global TwitchExtApi */
 (function () {
     'use strict';
 
@@ -153,7 +154,7 @@
         };
 
         try {
-            var saved = await TwitchExtApi.saveConfig(configToSave);
+            await TwitchExtApi.saveConfig(configToSave);
             showAlert('success', 'Extension settings saved successfully!');
             loadFormValues();
         } catch (err) {

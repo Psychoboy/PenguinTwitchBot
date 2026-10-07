@@ -26,6 +26,24 @@ public static class TwitchExtensionSecurity
         IConfiguration configuration,
         ILogger logger)
     {
+        var token = ExtractBearerToken(authorizationHeader);
+        if (token == null)
+        {
+            return null;
+        }
+
+        var secret = GetExtensionSecret(configuration);
+        var principal = ValidateOrReadToken(token, secret, logger);
+        if (principal == null)
+        {
+            return null;
+        }
+
+        return ExtractClaims(principal);
+    }
+
+    private static string? ExtractBearerToken(string? authorizationHeader)
+    {
         if (string.IsNullOrWhiteSpace(authorizationHeader))
         {
             return null;
@@ -37,64 +55,70 @@ public static class TwitchExtensionSecurity
             token = token["Bearer ".Length..].Trim();
         }
 
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return null;
-        }
+        return string.IsNullOrWhiteSpace(token) ? null : token;
+    }
 
-        var secret = configuration["TwitchExtension:Secret"]
-                     ?? configuration["Twitch:Extension:Secret"]
-                     ?? configuration["twitchExtensionSecret"]
-                     ?? configuration["Twitch:ExtensionSecret"];
+    private static string? GetExtensionSecret(IConfiguration configuration)
+    {
+        return configuration["TwitchExtension:Secret"]
+               ?? configuration["Twitch:Extension:Secret"]
+               ?? configuration["twitchExtensionSecret"]
+               ?? configuration["Twitch:ExtensionSecret"];
+    }
 
-        ClaimsPrincipal? principal = null;
-
+    private static ClaimsPrincipal? ValidateOrReadToken(string token, string? secret, ILogger logger)
+    {
         if (!string.IsNullOrWhiteSpace(secret))
         {
-            try
-            {
-                var keyBytes = Convert.FromBase64String(secret);
-                var validationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(2)
-                };
-
-                principal = TokenHandler.ValidateToken(token, validationParameters, out _);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to validate Twitch Extension JWT signature");
-                return null;
-            }
+            return ValidateSignedToken(token, secret, logger);
         }
-        else
-        {
-            try
-            {
-                if (TokenHandler.CanReadToken(token))
-                {
-                    var jwtToken = TokenHandler.ReadJwtToken(token);
-                    var identity = new ClaimsIdentity(jwtToken.Claims, "TwitchExtension");
-                    principal = new ClaimsPrincipal(identity);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to read Twitch Extension JWT token payload");
-                return null;
-            }
-        }
+        return ReadUnsignedToken(token, logger);
+    }
 
-        if (principal == null)
+    private static ClaimsPrincipal? ValidateSignedToken(string token, string secret, ILogger logger)
+    {
+        try
         {
+            var keyBytes = Convert.FromBase64String(secret);
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(2)
+            };
+
+            return TokenHandler.ValidateToken(token, validationParameters, out _);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to validate Twitch Extension JWT signature");
             return null;
         }
+    }
 
+    private static ClaimsPrincipal? ReadUnsignedToken(string token, ILogger logger)
+    {
+        try
+        {
+            if (TokenHandler.CanReadToken(token))
+            {
+                var jwtToken = TokenHandler.ReadJwtToken(token);
+                var identity = new ClaimsIdentity(jwtToken.Claims, "TwitchExtension");
+                return new ClaimsPrincipal(identity);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read Twitch Extension JWT token payload");
+        }
+        return null;
+    }
+
+    private static TwitchExtensionClaims ExtractClaims(ClaimsPrincipal principal)
+    {
         var channelId = principal.FindFirst("channel_id")?.Value
                         ?? principal.FindFirst("channelId")?.Value
                         ?? string.Empty;

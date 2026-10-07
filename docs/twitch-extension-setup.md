@@ -5,7 +5,7 @@ This guide walks you through registering, configuring, and running the **Penguin
 ---
 
 > [!WARNING]
-> ### Crucial Notice: `localhost` Will NOT Work for Other Viewers!
+> ### Crucial Notice: `localhost` Will NOT Work for Other Viewers
 > Setting the Bot URL to `https://localhost:8080/` only works for **your personal browser on the same computer where the bot is running**.
 > 
 > When real viewers on Twitch open your channel, `localhost` from their device points to **their own machine**, not your bot! 
@@ -221,7 +221,7 @@ Use this checklist to ensure all required fields are satisfied:
 | | **Panel URLs** | Add base URLs that the viewer page is allowed to open in a new tab (e.g. `https://*.trycloudflare.com/` or your bot domain for the web dashboard and giveaway details links). |
 | **Visual Assets** | **Icons** | Upload required extension icon sizes (100x100 and 24x24 px). |
 | | **Screenshots** | Upload at least 1 screenshot of the extension in action (1280x720 px recommended). |
-| **Walkthrough & Review Notes** | **Review Notes** | In the reviewer notes field, clearly explain: <br>1. This extension is a self-hosted channel companion panel restricted exclusively to the channel via the Streamer Allowlist.<br>2. State that the bot backend is reachable at your configured public URL.<br>3. Provide step-by-step instructions on what reviewers can test (e.g., viewing leaderboards, browsing fish store items, and entering giveaways). |
+| **Walkthrough & Review Notes** | **Review Notes** | In the reviewer notes field, clearly explain: (1) This extension is a self-hosted channel companion panel restricted exclusively to the channel via the Streamer Allowlist. (2) State that the bot backend is reachable at your configured public URL. (3) Provide step-by-step instructions on what reviewers can test (e.g., viewing leaderboards, browsing fish store items, and entering giveaways). |
 
 ---
 

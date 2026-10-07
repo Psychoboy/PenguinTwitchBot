@@ -1,3 +1,4 @@
+/* global TwitchExtApi */
 (function () {
     'use strict';
 
@@ -62,7 +63,7 @@
             var old = btnEl.textContent;
             btnEl.textContent = 'Copied!';
             setTimeout(function () { btnEl.textContent = old; }, 1500);
-        } catch (_) {}
+        } catch (_) { /* ignore clipboard errors */ }
         document.body.removeChild(input);
     }
 
@@ -179,7 +180,7 @@
         }
     }
 
-    function renderGiveaway(container, g, v) {
+    function buildGiveawayHtml(g, v) {
         var html = '<div class="card giveaway-card">';
 
         if (g.imageUrl) {
@@ -211,7 +212,6 @@
         }
         html += '</div>';
 
-        // Entry Area
         if (!g.isClosed) {
             if (!TwitchExtApi.isIdentityShared()) {
                 html += '<div class="identity-box">' +
@@ -239,10 +239,10 @@
                     '</div>';
             }
         }
+        return html;
+    }
 
-        container.innerHTML = html;
-
-        // Wire Event Listeners
+    function wireGiveawayListeners(container, g, v) {
         var linkBtn = document.getElementById('btn-giveaway-link');
         if (linkBtn) {
             linkBtn.addEventListener('click', function () {
@@ -250,40 +250,45 @@
             });
         }
 
-        if (v && !g.isClosed) {
-            var amountInput = document.getElementById('giveaway-amount-input');
-            var chips = container.querySelectorAll('.quick-chip');
-            chips.forEach(function (chip) {
-                chip.addEventListener('click', function () {
-                    var pct = parseFloat(chip.getAttribute('data-pct'));
-                    if (pct === 1 && chip.textContent === '+1') {
-                        amountInput.value = Math.min(parseInt(amountInput.value || 0, 10) + 1, v.maxAffordableEntries);
-                    } else {
-                        var calculated = Math.floor(v.maxAffordableEntries * pct);
-                        amountInput.value = Math.max(1, Math.min(calculated, v.maxAffordableEntries));
-                    }
-                });
-            });
+        if (!v || g.isClosed) return;
 
-            var enterBtn = document.getElementById('btn-enter-giveaway');
-            if (enterBtn) {
-                enterBtn.addEventListener('click', async function () {
-                    var amount = parseInt(amountInput.value, 10);
-                    if (!amount || amount < 1) return;
-                    enterBtn.disabled = true;
-                    enterBtn.textContent = 'Entering...';
-                    try {
-                        var res = await TwitchExtApi.enterGiveaway(amount);
-                        showAlert('success', res.message || 'Entered successfully!');
-                        loadGiveaway();
-                    } catch (err) {
-                        showAlert('error', err.message || 'Failed to enter giveaway.');
-                        enterBtn.disabled = false;
-                        enterBtn.textContent = 'Enter Giveaway';
-                    }
-                });
-            }
+        var amountInput = document.getElementById('giveaway-amount-input');
+        var chips = container.querySelectorAll('.quick-chip');
+        chips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                var pct = parseFloat(chip.getAttribute('data-pct'));
+                if (pct === 1 && chip.textContent === '+1') {
+                    amountInput.value = Math.min(parseInt(amountInput.value || 0, 10) + 1, v.maxAffordableEntries);
+                } else {
+                    var calculated = Math.floor(v.maxAffordableEntries * pct);
+                    amountInput.value = Math.max(1, Math.min(calculated, v.maxAffordableEntries));
+                }
+            });
+        });
+
+        var enterBtn = document.getElementById('btn-enter-giveaway');
+        if (enterBtn) {
+            enterBtn.addEventListener('click', async function () {
+                var amount = parseInt(amountInput.value, 10);
+                if (!amount || amount < 1) return;
+                enterBtn.disabled = true;
+                enterBtn.textContent = 'Entering...';
+                try {
+                    var res = await TwitchExtApi.enterGiveaway(amount);
+                    showAlert('success', res.message || 'Entered successfully!');
+                    loadGiveaway();
+                } catch (err) {
+                    showAlert('error', err.message || 'Failed to enter giveaway.');
+                    enterBtn.disabled = false;
+                    enterBtn.textContent = 'Enter Giveaway';
+                }
+            });
         }
+    }
+
+    function renderGiveaway(container, g, v) {
+        container.innerHTML = buildGiveawayHtml(g, v);
+        wireGiveawayListeners(container, g, v);
     }
 
     // --- 2. Fishing View ---
