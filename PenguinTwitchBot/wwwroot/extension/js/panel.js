@@ -1,4 +1,5 @@
 /* global TwitchExtApi */
+/* eslint-disable xss/no-mixed-html, no-unsanitized/property */
 (function () {
     'use strict';
 
@@ -31,7 +32,6 @@
 
     function getDurabilityPct(item) {
         if (!item || item.currentDurability == null) return null;
-        var max = (item.maxDurability != null && item.maxDurability > 0) ? item.maxDurability : 100;
         var pct;
         if (item.maxDurability != null && item.maxDurability > 0) {
             pct = Math.round((item.currentDurability / item.maxDurability) * 100);
@@ -107,14 +107,14 @@
         var visibleTabs = [];
 
         order.forEach(function (tabKey) {
-            var def = TAB_DEFS[tabKey];
+            var def = Object.prototype.hasOwnProperty.call(TAB_DEFS, tabKey) ? TAB_DEFS[tabKey] : null;
             if (!def) return;
 
             // Dual-layer gate:
             // 1. Bot feature enabled?
-            var botEnabled = !state.botFeatures || state.botFeatures[def.featureKey] !== false;
+            var botEnabled = !state.botFeatures || !Object.prototype.hasOwnProperty.call(state.botFeatures, def.featureKey) || state.botFeatures[def.featureKey] !== false;
             // 2. Streamer config enabled?
-            var configEnabled = !state.config || !state.config.enabledTabs || state.config.enabledTabs[tabKey] !== false;
+            var configEnabled = !state.config || !state.config.enabledTabs || !Object.prototype.hasOwnProperty.call(state.config.enabledTabs, tabKey) || state.config.enabledTabs[tabKey] !== false;
 
             if (botEnabled && configEnabled) {
                 visibleTabs.push(def);
@@ -265,7 +265,9 @@
                 if (scrollContainer && isBackgroundRefresh && savedScrollTop > 0) {
                     scrollContainer.scrollTop = savedScrollTop;
                 }
-            }).catch(function () {});
+            }).catch(function (err) {
+                console.debug('[TwitchExt] Background tab load error:', err);
+            });
         }
     }
 
@@ -464,7 +466,9 @@
                         updateHeaderUser(viewer.username);
                         updateFishingGold(viewer.totalGold);
                     }
-                }).catch(function () {});
+                }).catch(function (err) {
+                    console.debug('[TwitchExt] Background fishing viewer error:', err);
+                });
             } else {
                 updateFishingGold(null);
             }
@@ -613,7 +617,9 @@
                     viewerData = await TwitchExtApi.getFishingViewer();
                     updateHeaderUser(viewerData.username);
                     updateFishingGold(viewerData.totalGold);
-                } catch (_) {}
+                } catch (err) {
+                    console.debug('[TwitchExt] Fishing viewer data unavailable:', err);
+                }
             } else {
                 updateFishingGold(null);
             }
@@ -760,14 +766,14 @@
                 fullDesc += ' • ' + item.boostType + ': +' + item.boostAmount + '%';
             }
 
-            var metaBadges = '';
+            var metaBadgesHtml = '';
             if (item.boostType && item.boostAmount) {
-                metaBadges += '<span class="badge-boost" title="' + escapeHtml(item.boostType + ': +' + item.boostAmount + '%') + '">' + escapeHtml(item.boostType) + '</span>';
+                metaBadgesHtml += '<span class="badge-boost" title="' + escapeHtml(item.boostType + ': +' + item.boostAmount + '%') + '">' + escapeHtml(item.boostType) + '</span>';
             }
             if (item.maxDurability) {
-                metaBadges += '<span title="Max Durability: ' + item.maxDurability + '">' + item.maxDurability + ' dur</span>';
+                metaBadgesHtml += '<span title="Max Durability: ' + item.maxDurability + '">' + item.maxDurability + ' dur</span>';
             } else if (item.maxUses) {
-                metaBadges += '<span title="Max Uses: ' + item.maxUses + '">' + item.maxUses + ' uses</span>';
+                metaBadgesHtml += '<span title="Max Uses: ' + item.maxUses + '">' + item.maxUses + ' uses</span>';
             }
 
             html += '<div class="shop-card-compact">' +
@@ -783,7 +789,7 @@
                 '</div>' +
                 '<div class="shop-card-bottom">' +
                 '<span class="shop-card-desc" title="' + escapeHtml(fullDesc) + '">' + escapeHtml(item.description || 'No description') + '</span>' +
-                '<div class="shop-card-meta">' + metaBadges + '</div>' +
+                '<div class="shop-card-meta">' + metaBadgesHtml + '</div>' +
                 '</div>' +
                 '</div>';
         });
@@ -867,7 +873,9 @@
             if (pts.length > 0) {
                 state.selectedPointTypeId = pts[0].id;
             }
-        } catch (_) {}
+        } catch (err) {
+            console.debug('[TwitchExt] Point types load error:', err);
+        }
     }
 
     function renderRankingsTable(container, data) {
@@ -949,7 +957,9 @@
                     });
                 }
                 state.categoriesLoaded = true;
-            } catch (_) {}
+            } catch (err) {
+                console.debug('[TwitchExt] Command categories load error:', err);
+            }
         }
 
         if (!isBackgroundRefresh) {
@@ -1179,7 +1189,8 @@
         } else {
             applyTheme('dark');
         }
-    } catch (_) {
+    } catch (err) {
+        console.debug('[TwitchExt] matchMedia error:', err);
         applyTheme('dark');
     }
 

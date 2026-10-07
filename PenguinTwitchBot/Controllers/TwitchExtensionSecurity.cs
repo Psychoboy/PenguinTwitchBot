@@ -101,19 +101,16 @@ public static class TwitchExtensionSecurity
         }
     }
 
+    private static string? GetFirstClaim(ClaimsPrincipal principal, string key1, string key2)
+    {
+        return principal.FindFirst(key1)?.Value ?? principal.FindFirst(key2)?.Value;
+    }
+
     private static TwitchExtensionClaims ExtractClaims(ClaimsPrincipal principal)
     {
-        var channelId = principal.FindFirst("channel_id")?.Value
-                        ?? principal.FindFirst("channelId")?.Value
-                        ?? string.Empty;
-
-        var userId = principal.FindFirst("user_id")?.Value
-                     ?? principal.FindFirst("userId")?.Value;
-
-        var opaqueUserId = principal.FindFirst("opaque_user_id")?.Value
-                           ?? principal.FindFirst("opaqueUserId")?.Value
-                           ?? string.Empty;
-
+        var channelId = GetFirstClaim(principal, "channel_id", "channelId") ?? string.Empty;
+        var userId = GetFirstClaim(principal, "user_id", "userId");
+        var opaqueUserId = GetFirstClaim(principal, "opaque_user_id", "opaqueUserId") ?? string.Empty;
         var role = principal.FindFirst("role")?.Value ?? "viewer";
 
         // In Twitch extensions, if identity is not shared, user_id is either absent or matches opaque_user_id starting with 'A'

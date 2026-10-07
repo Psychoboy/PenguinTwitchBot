@@ -179,21 +179,21 @@
     function triggerReady() {
         if (isReady) return;
         isReady = true;
-        for (var i = 0; i < readyCallbacks.length; i++) {
-            try { readyCallbacks[i](); } catch (e) { console.error('[TwitchExt] Ready listener error:', e); }
-        }
+        readyCallbacks.forEach(function (cb) {
+            try { cb(); } catch (e) { console.error('[TwitchExt] Ready listener error:', e); }
+        });
     }
 
     function triggerConfigChanged(cfg) {
-        for (var i = 0; i < configCallbacks.length; i++) {
-            try { configCallbacks[i](cfg); } catch (e) { console.error('[TwitchExt] Config listener error:', e); }
-        }
+        configCallbacks.forEach(function (cb) {
+            try { cb(cfg); } catch (e) { console.error('[TwitchExt] Config listener error:', e); }
+        });
     }
 
     function triggerAuthorized(auth) {
-        for (var i = 0; i < authCallbacks.length; i++) {
-            try { authCallbacks[i](auth); } catch (e) { console.error('[TwitchExt] Auth listener error:', e); }
-        }
+        authCallbacks.forEach(function (cb) {
+            try { cb(auth); } catch (e) { console.error('[TwitchExt] Auth listener error:', e); }
+        });
     }
 
     function triggerContextChanged(context, changedProps) {
@@ -202,11 +202,13 @@
             try {
                 if (document.documentElement) document.documentElement.setAttribute('data-theme', context.theme);
                 if (document.body) document.body.setAttribute('data-theme', context.theme);
-            } catch (_) { /* ignore DOM attribute errors */ }
+            } catch (err) {
+                console.debug('[TwitchExt] Theme attribute error:', err);
+            }
         }
-        for (var i = 0; i < contextCallbacks.length; i++) {
-            try { contextCallbacks[i](context, changedProps); } catch (e) { console.error('[TwitchExt] Context listener error:', e); }
-        }
+        contextCallbacks.forEach(function (cb) {
+            try { cb(context, changedProps); } catch (e) { console.error('[TwitchExt] Context listener error:', e); }
+        });
     }
 
     function initTwitchHooks() {

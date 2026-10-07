@@ -31,7 +31,8 @@
             li.className = 'order-item';
 
             var nameSpan = document.createElement('span');
-            nameSpan.textContent = (index + 1) + '. ' + (TAB_NAMES[tabKey] || tabKey);
+            var tabName = Object.prototype.hasOwnProperty.call(TAB_NAMES, tabKey) ? TAB_NAMES[tabKey] : tabKey;
+            nameSpan.textContent = (index + 1) + '. ' + tabName;
             li.appendChild(nameSpan);
 
             var actions = document.createElement('div');
@@ -67,9 +68,8 @@
     function moveTab(fromIndex, delta) {
         var toIndex = fromIndex + delta;
         if (toIndex < 0 || toIndex >= currentTabOrder.length) return;
-        var temp = currentTabOrder[fromIndex];
-        currentTabOrder[fromIndex] = currentTabOrder[toIndex];
-        currentTabOrder[toIndex] = temp;
+        var moved = currentTabOrder.splice(fromIndex, 1)[0];
+        currentTabOrder.splice(toIndex, 0, moved);
         renderTabOrderList();
     }
 
