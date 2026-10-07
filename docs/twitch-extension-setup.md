@@ -78,15 +78,30 @@ Under **Select how you will configure your extension**:
   - *Why*: This enables Twitch's hosted configuration store (`window.twitch.ext.configuration`). Broadcasters can configure their bot URL, tab ordering, and feature toggles inside Twitch Creator Dashboard without requiring an external database.
 
 ### 3. Allowed Domains (Content Security Policy / CSP)
-Twitch strictly blocks extensions from making network requests (`fetch`) to domains that are not explicitly allowlisted in this section:
+Twitch strictly enforces Content Security Policy (CSP) headers on extensions. Any domain not explicitly allowlisted here will be blocked by the browser:
 
-- **Allowlist for URL Fetching Domains** (CSP `connect-src`):
-  Add comma-separated base URLs where your bot is reachable:
-  ```text
-  https://twitch.tv/, https://dev.twitch.tv/, https://*.trycloudflare.com/, https://localhost:8080/
-  ```
-  *(Add your custom domain here if using Method B).*
-- Scroll to the bottom and click **Save Changes**.
+1. **Allowlist panel URLs**:
+   - Comma-separated list of URLs that your extension's viewer panel is allowed to open via links (`target="_blank"`) or navigation (such as the "Open Full Web Interface" link or "View Full Giveaway Details & Rules" button):
+     ```text
+     https://twitch.tv/, https://dev.twitch.tv/, https://*.trycloudflare.com/, https://localhost:8080/
+     ```
+     *(If using a custom domain like `https://bot.yourdomain.com/`, add it here).*
+
+2. **Allowlist for Image Domains** (CSP `img-src`):
+   - Comma-separated list of base URLs from which your extension is allowed to load images (e.g. `<img>` tags for giveaway prize images, custom icons, or external emblems):
+     ```text
+     https://twitch.tv/, https://dev.twitch.tv/, https://*.trycloudflare.com/, https://i.imgur.com/, https://imgur.com/, https://localhost:8080/
+     ```
+     *(Be sure to include any image host you use to host giveaway images, including your bot domain).*
+
+3. **Allowlist for URL Fetching Domains** (CSP `connect-src`):
+   - Comma-separated list of base URLs where your extension makes API calls (`fetch`):
+     ```text
+     https://twitch.tv/, https://dev.twitch.tv/, https://*.trycloudflare.com/, https://localhost:8080/
+     ```
+     *(Add your custom domain here if using Method B).*
+
+- Scroll down and click **Save Changes**.
 
 ### 4. Extension Views & Asset Hosting
 Under **Asset Hosting / Extension Views**:
@@ -104,6 +119,16 @@ Under **Asset Hosting / Extension Views**:
     - `js/`
     - *(Note: A pre-packaged clean zip is generated at `PenguinTwitchBot/extension.zip`)*.
   - Upload the zip to Twitch Asset Hosting.
+
+### 5. Access & Streamer Allowlist (Restricting to Your Channel)
+Under the **Access** tab:
+
+> [!IMPORTANT]
+> **Restrict Streamer Allowlist to Just Your Stream**:
+> - **Streamer Allowlist**: Search for and add **only your streamer account** (e.g. `SuperPenguinTV`).
+>   - *Why*: If this field is left empty or missing, **all broadcasters across Twitch** can see and install your extension from the Extension Manager! Because this extension is designed to interface with your personal, self-hosted Penguin Bot backend, you should restrict installation access exclusively to your own channel.
+> - **Testing Account Allowlist**: Add your streamer account and any moderator or alt accounts (e.g. `SuperPenguinTV`, `Super_Waffle_...`) that need access to test the extension in test mode without public test disclosure banners.
+> - Click **Save Changes**.
 
 ---
 
@@ -169,7 +194,38 @@ Once the extension is in **Hosted Test** (or Local Test):
 
 ---
 
-## (Optional) Part 5: Localhost Developer Testing with Self-Signed Certificates
+## Part 5: Extension Review & Submission Checklist (Getting Approved)
+
+Before moving your extension from **02 Hosted Test** through **03 In Review** to **04 Approved** and **05 Released**, Twitch requires all metadata and configuration items to be completely and accurately filled out. Incomplete submissions will be rejected by Twitch review moderators.
+
+Use this checklist to ensure all required fields are satisfied:
+
+| Category | Item | Required Value / Recommendation |
+| :--- | :--- | :--- |
+| **Version Details** | **Name** | `Penguin Bot` (must match branding in your panel and description). |
+| | **Summary** | Clear 1-sentence summary (e.g., *Interactive panel extension for giveaways, fishing minigames, leaderboards, and chat commands.*). |
+| | **Description** | Detailed summary covering what viewers can do (view giveaways & enter tickets, participate in the fishing game, equip gear, inspect channel leaderboards, and look up chat commands). |
+| | **Category** | Select **Streamer Tools** or **Viewer Engagement**. |
+| | **Support Email** | A valid contact email monitored by the streamer. |
+| **Access Control** | **Streamer Allowlist** | Add **only your streamer Twitch account** (e.g. `SuperPenguinTV`) to prevent other channels from installing your private self-hosted bot extension. |
+| | **Testing Account Allowlist** | Add your streamer username and any testing/moderator accounts. |
+| **Capabilities** | **Request Identity Link** | **Yes** (required for account-bound giveaway tickets, fishing inventory, and user rankings). |
+| | **Privacy Policy URL** | Direct URL to your public privacy policy webpage or hosted markdown file (see [privacy-policy.md](privacy-policy.md)). |
+| | **Chat Capabilities** | Set to **No** (the extension operates via panel UI and REST endpoints). |
+| **Monetization** | **Bits in Extensions** | Select **No** (unless you have separately configured Twitch Bits product catalogs). |
+| **Asset Hosting** | **Archive Package** | Upload `PenguinTwitchBot/extension.zip`. Verify file structure contains `panel.html`, `config.html`, `css/`, and `js/` at the root. |
+| | **Viewer Path** | `panel.html` |
+| | **Config Path** | `config.html` |
+| **Allowed Domains (CSP)** | **Connect-Src (URL Fetching)** | Add your public HTTPS endpoint (e.g., `https://*.trycloudflare.com/` or your custom domain). Requests to unlisted domains will be blocked by Twitch CSP. |
+| | **Image Domains (`img-src`)** | Add base URLs from which the extension loads images (e.g. `https://*.trycloudflare.com/`, `https://i.imgur.com/`, or your custom domain where prize images are stored). |
+| | **Panel URLs** | Add base URLs that the viewer page is allowed to open in a new tab (e.g. `https://*.trycloudflare.com/` or your bot domain for the web dashboard and giveaway details links). |
+| **Visual Assets** | **Icons** | Upload required extension icon sizes (100x100 and 24x24 px). |
+| | **Screenshots** | Upload at least 1 screenshot of the extension in action (1280x720 px recommended). |
+| **Walkthrough & Review Notes** | **Review Notes** | In the reviewer notes field, clearly explain: <br>1. This extension is a self-hosted channel companion panel restricted exclusively to the channel via the Streamer Allowlist.<br>2. State that the bot backend is reachable at your configured public URL.<br>3. Provide step-by-step instructions on what reviewers can test (e.g., viewing leaderboards, browsing fish store items, and entering giveaways). |
+
+---
+
+## (Optional) Part 6: Localhost Developer Testing with Self-Signed Certificates
 
 > [!NOTE]
 > This section is strictly for offline local debugging where an internet tunnel is not desired. Remember that this setup will only work on your local machine.

@@ -381,6 +381,30 @@ body {
     color: var(--text-muted);
     text-transform: uppercase;
 }
+.btn-giveaway-details {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary-light);
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+.btn-giveaway-details:hover {
+    background: var(--bg-card);
+    border-color: var(--primary);
+    color: #fff;
+}
+.btn-giveaway-details .external-icon {
+    font-size: 10px;
+}
 
 /* Giveaway Entry Form */
 .entry-form {

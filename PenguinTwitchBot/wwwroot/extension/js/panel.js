@@ -200,8 +200,14 @@
             '<div class="stat-box"><div class="stat-val">' + formatNumber(g.entriesCount) + '</div><div class="stat-lbl">Entries</div></div>' +
             '</div>';
 
-        if (g.rules) {
-            html += '<div style="font-size:10px; color:var(--text-muted); margin-bottom:8px;">' + escapeHtml(g.rules) + '</div>';
+        var cfg = TwitchExtApi.getConfig();
+        var baseUrl = cfg && cfg.botBaseUrl ? cfg.botBaseUrl.trim().replace(/\/+$/, '') : '';
+        if (baseUrl) {
+            html += '<div style="margin-top: 10px;">' +
+                '<a href="' + escapeHtml(baseUrl + '/giveaway') + '" target="_blank" rel="noopener noreferrer" class="btn-giveaway-details">' +
+                '<span>📜 View Full Giveaway Details & Rules</span> <span class="external-icon">↗</span>' +
+                '</a>' +
+                '</div>';
         }
         html += '</div>';
 
