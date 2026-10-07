@@ -14,6 +14,6 @@
   <!-- This block automatically installs these NuGet packages to ALL projects in your solution -->
   <ItemGroup>
     <PackageReference Include="Roslynator.Analyzers" Version="5.0.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
-    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="5.0.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="5.0.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 </Project>
