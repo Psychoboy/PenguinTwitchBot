@@ -334,6 +334,20 @@ internal class Program
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("192.168.0.0/16"));
         });
 
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("TwitchExtensionCors", policy =>
+            {
+                policy.SetIsOriginAllowed(origin =>
+                    origin.EndsWith(".ext-twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.StartsWith("https://localhost:", StringComparison.OrdinalIgnoreCase) ||
+                    origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase) ||
+                    origin.Equals("null", StringComparison.OrdinalIgnoreCase))
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+        });
+
         builder.WebHost.ConfigureKestrel((context, options) => ConfigureKestrelHttps(context, options));
 
         var app = builder.Build();
@@ -377,9 +391,26 @@ internal class Program
 
         app.UseStatusCodePagesWithReExecute("/NotFoundItem", "?statusCode={0}");
 
-        app.UseStaticFiles();
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                var path = ctx.Context.Request.Path.Value ?? string.Empty;
+                if (path.StartsWith("/extension", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.Remove("X-Frame-Options");
+                    ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                    ctx.Context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+                    ctx.Context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://*.twitch.tv https://twitch.tv https://*.ext-twitch.tv http://localhost:* https://localhost:*";
+                }
+            }
+        });
 
         app.UseRouting();
+        app.UseCors("TwitchExtensionCors");
 
 
         app.UseAuthorization();
@@ -394,6 +425,10 @@ internal class Program
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
         app.MapControllers();
+        app.MapGet("/extension", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/extension/config", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
+        app.MapGet("/panel.html", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/config.html", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
         app.MapGet("/sitemap.xml", (HttpContext context) =>
         {
             string sitemapXml;
@@ -525,6 +560,24 @@ try
         if (!string.IsNullOrWhiteSpace(explicitCertificatePath) && File.Exists(explicitCertificatePath))
         {
             return;
+        }
+
+        string[] searchPaths = [
+            Path.Combine(Directory.GetCurrentDirectory(), "Data", "certs", "localhost.pfx"),
+            Path.Combine(AppContext.BaseDirectory, "Data", "certs", "localhost.pfx")
+        ];
+
+        foreach (var pfxPath in searchPaths)
+        {
+            if (File.Exists(pfxPath))
+            {
+                options.ConfigureHttpsDefaults(httpsOptions =>
+                {
+                    httpsOptions.ServerCertificate = new X509Certificate2(pfxPath, "penguin");
+                });
+                Log.Information("Using persistent localhost certificate from {Path}", pfxPath);
+                return;
+            }
         }
 
         _generatedHttpsCertificate ??= CreateSelfSignedHttpsCertificate();

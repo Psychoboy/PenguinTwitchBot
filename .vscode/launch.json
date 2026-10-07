@@ -1,14 +1,5 @@
 {
     "version": "0.2.0",
-    "compounds": [
-        {
-            "name": "Both Projects",
-            "configurations": [
-                ".NET Core Launch (web) - Default",
-                "Twitch Extension"
-            ]
-        }
-    ],
     "configurations": [
         {
             // Use IntelliSense to find out which attributes exist for C# debugging
@@ -30,7 +21,7 @@
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -54,7 +45,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "postgres",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -78,7 +69,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "sqlite",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -96,24 +87,6 @@
             "stopAtEntry": false,
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
-        },
-        {
-            "name": "Twitch Extension",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-extension",
-            "program": "${workspaceFolder}/PenguinTwitchBot.TwitchExtension/bin/Debug/net10.0/PenguinTwitchBot.TwitchExtension.dll",
-            "console": "integratedTerminal",
-            "args": [],
-            "cwd": "${workspaceFolder}/PenguinTwitchBot.TwitchExtension",
-            "stopAtEntry": false,
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development",
-                "ASPNETCORE_URLS": "https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"

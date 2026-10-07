@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Penguin Twitch Bot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./css/extension.css" />
+    <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
+</head>
+<body>
+    <div class="panel-wrapper">
+        <!-- Panel Header -->
+        <header class="panel-header">
+            <div class="brand-title">
+                🐧 <span>PenguinBot</span>
+            </div>
+            <div id="user-status-chip" class="user-chip" style="display: none;">
+                <span id="user-display-name">Viewer</span>
+                <span class="gold" id="user-header-gold">0g</span>
+            </div>
+        </header>
+
+        <!-- Global Alert / Feedback Banner -->
+        <div id="alert-banner" class="banner"></div>
+
+        <!-- Dynamic Main Tabs (Ordered & Gated) -->
+        <nav id="main-nav-tabs" class="nav-tabs"></nav>
+
+        <!-- 1. Giveaway Panel -->
+        <main id="panel-giveaway" class="tab-panel" style="display: none;">
+            <div id="giveaway-content">
+                <div class="loading-spinner">Loading giveaway...</div>
+            </div>
+        </main>
+
+        <!-- 2. Fishing Panel -->
+        <main id="panel-fishing" class="tab-panel" style="display: none;">
+            <div class="sub-nav">
+                <button class="sub-pill active" data-sub="catches">Recent Catches</button>
+                <button class="sub-pill" data-sub="inventory">My Inventory</button>
+                <button class="sub-pill" data-sub="store">Fish Shop</button>
+            </div>
+            <div id="fishing-sub-content">
+                <div class="loading-spinner">Loading fishing...</div>
+            </div>
+        </main>
+
+        <!-- 3. Leaderboards Panel -->
+        <main id="panel-leaderboards" class="tab-panel" style="display: none;">
+            <div class="sub-nav">
+                <button class="sub-pill active" data-lb="points">Points</button>
+                <button class="sub-pill" data-lb="loudest">Loudest</button>
+                <button class="sub-pill" data-lb="time">Watch Time</button>
+                <button class="sub-pill" data-lb="tournaments">Tournaments</button>
+            </div>
+            <div id="lb-point-type-selector-wrapper" style="margin-bottom: 6px; display: none;">
+                <select id="lb-point-type-select" class="category-select" style="width: 100%; max-width: 100%;"></select>
+            </div>
+            <div id="leaderboard-content">
+                <div class="loading-spinner">Loading standings...</div>
+            </div>
+        </main>
+
+        <!-- 4. Commands Lookup Panel -->
+        <main id="panel-commands" class="tab-panel" style="display: none;">
+            <div class="search-bar">
+                <input type="text" id="cmd-search-input" class="search-input" placeholder="Search commands..." />
+                <select id="cmd-category-select" class="category-select">
+                    <option value="all">All</option>
+                </select>
+            </div>
+            <div id="commands-list-content">
+                <div class="loading-spinner">Loading commands...</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./js/extension-api.js"></script>
+    <script src="./js/panel.js"></script>
+</body>
+</html>
+

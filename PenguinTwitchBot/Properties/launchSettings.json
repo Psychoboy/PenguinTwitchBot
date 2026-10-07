@@ -1,4 +1,4 @@
-﻿{
+{
   "profiles": {
     "PenguinTwitchBot": {
       "commandName": "Project",
@@ -7,7 +7,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5000"
+      "applicationUrl": "http://localhost:5000;https://localhost:8080"
     },
     "PenguinTwitchBot (PostgreSQL)": {
       "commandName": "Project",
@@ -17,7 +17,7 @@
         "DATABASE_PROVIDER": "postgres"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5000"
+      "applicationUrl": "http://localhost:5000;https://localhost:8080"
     },
     "PenguinTwitchBot (SQLite)": {
       "commandName": "Project",
@@ -27,7 +27,7 @@
         "DATABASE_PROVIDER": "sqlite"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:5000"
+      "applicationUrl": "http://localhost:5000;https://localhost:8080"
     },
     "IIS Express": {
       "commandName": "IISExpress",

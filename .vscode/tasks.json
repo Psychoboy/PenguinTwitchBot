@@ -1,4 +1,4 @@
-﻿{
+{
     "version": "2.0.0",
     "tasks": [
         {
@@ -13,18 +13,7 @@
             ],
             "problemMatcher": "$msCompile"
         },
-        {
-            "label": "build-extension",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/PenguinTwitchBot.TwitchExtension/PenguinTwitchBot.TwitchExtension.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
+
         {
             "label": "publish",
             "command": "dotnet",
