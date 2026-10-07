@@ -25,6 +25,7 @@ A feature-rich, self-hosted Twitch bot and web dashboard built on .NET 10. Cross
 - [Web Dashboard](#web-dashboard)
 - [Raffles](#raffles)
 - [OBS Browser Sources](#obs-browser-sources)
+- [Twitch Panel Extension](docs/twitch-extension-setup.md)
 - [REST API & Stream Deck Integration](#rest-api--stream-deck-integration)
 - [Contributing / Building From Source](#contributing--building-from-source)
 - [License](#license)

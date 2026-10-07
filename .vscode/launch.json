@@ -21,7 +21,7 @@
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -45,7 +45,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "postgres",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
@@ -69,7 +69,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
                 "DATABASE_PROVIDER": "sqlite",
-                "ASPNETCORE_URLS": "http://localhost:5000"
+                "ASPNETCORE_URLS": "http://localhost:5000;https://localhost:8080"
             },
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"

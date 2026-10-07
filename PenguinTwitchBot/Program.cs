@@ -249,6 +249,7 @@ internal class Program
         // Always register circuit services — MainLayout injects these and Blazor's SSR
         // prerender instantiates it even when the page specifies its own layout.
         builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IpLog>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Circuit.IIpLog>(sp => sp.GetRequiredService<PenguinTwitchBot.Circuit.IpLog>());
         builder.Services.AddSingleton<ICircuitUserService, CircuitUserService>();
         builder.Services.AddScoped<CircuitHandler>((sp) =>
             new CircuitHandlerService(
@@ -334,11 +335,25 @@ internal class Program
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("192.168.0.0/16"));
         });
 
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("TwitchExtensionCors", policy =>
+            {
+                policy.SetIsOriginAllowed(origin =>
+                    origin.EndsWith(".ext-twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.EndsWith(".twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.Equals("https://twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.StartsWith("https://localhost:", StringComparison.OrdinalIgnoreCase) ||
+                    origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase) ||
+                    origin.Equals("null", StringComparison.OrdinalIgnoreCase))
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+            });
+        });
+
         builder.WebHost.ConfigureKestrel((context, options) => ConfigureKestrelHttps(context, options));
 
         var app = builder.Build();
-        app.UseAuthentication();
-        app.UseAuthorization();
         app.UseForwardedHeaders();
 
         // Always migrate — for SQLite this creates the database file and schema on first run.
@@ -377,12 +392,36 @@ internal class Program
 
         app.UseStatusCodePagesWithReExecute("/NotFoundItem", "?statusCode={0}");
 
-        app.UseStaticFiles();
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                var path = ctx.Context.Request.Path.Value ?? string.Empty;
+                if (path.StartsWith("/extension", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
+                    path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.Remove("X-Frame-Options");
+                    ctx.Context.Response.Headers["Access-Control-Allow-Origin"] = "*";
+                    ctx.Context.Response.Headers["Access-Control-Allow-Private-Network"] = "true";
+                    ctx.Context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self' https://*.twitch.tv https://twitch.tv https://*.ext-twitch.tv http://localhost:* https://localhost:*";
+                }
+            }
+        });
 
         app.UseRouting();
-
-
+        app.UseCors("TwitchExtensionCors");
+        app.UseAuthentication();
         app.UseAuthorization();
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api/twitch-extension"))
+            {
+                context.Response.Headers.Append("Access-Control-Allow-Private-Network", "true");
+            }
+            await next();
+        });
 
         var wsOptions = new WebSocketOptions
         {
@@ -394,6 +433,10 @@ internal class Program
             pattern: "{controller=Home}/{action=Index}/{id?}");
 
         app.MapControllers();
+        app.MapGet("/extension", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/extension/config", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
+        app.MapGet("/panel.html", () => Results.Redirect("/extension/panel.html")).AllowAnonymous();
+        app.MapGet("/config.html", () => Results.Redirect("/extension/config.html")).AllowAnonymous();
         app.MapGet("/sitemap.xml", (HttpContext context) =>
         {
             string sitemapXml;
@@ -515,8 +558,22 @@ try
 
     private static void ConfigureKestrelHttps(WebHostBuilderContext context, KestrelServerOptions options)
     {
+        var isDebugOrDevelopment = context.HostingEnvironment.IsDevelopment();
+#if DEBUG
+        isDebugOrDevelopment = true;
+#endif
+
+        if (!isDebugOrDevelopment)
+        {
+            return;
+        }
+
         var httpsEndpointUrl = context.Configuration["Kestrel:Endpoints:Https:Url"];
-        if (string.IsNullOrWhiteSpace(httpsEndpointUrl))
+        var aspnetUrls = context.Configuration["ASPNETCORE_URLS"] ?? context.Configuration["URLS"];
+        var hasHttpsEndpoint = !string.IsNullOrWhiteSpace(httpsEndpointUrl) ||
+                               (!string.IsNullOrWhiteSpace(aspnetUrls) && aspnetUrls.Contains("https://", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasHttpsEndpoint)
         {
             return;
         }
@@ -527,6 +584,42 @@ try
             return;
         }
 
+        string certsDir = Path.Combine(Directory.GetCurrentDirectory(), "Data", "certs");
+        string defaultPfxPath = Path.Combine(certsDir, "localhost.pfx");
+        string defaultCaPath = Path.Combine(certsDir, "ca.crt");
+
+        var pfxPassword = context.Configuration["Kestrel:Certificates:Default:Password"] ?? "penguin";
+
+        if (!File.Exists(defaultPfxPath))
+        {
+            try
+            {
+                EnsureLocalhostCertificates(certsDir, defaultPfxPath, defaultCaPath, pfxPassword);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to automatically generate local certificate files in {CertsDir}", certsDir);
+            }
+        }
+
+        string[] searchPaths = [
+            defaultPfxPath,
+            Path.Combine(AppContext.BaseDirectory, "Data", "certs", "localhost.pfx")
+        ];
+
+        foreach (var pfxPath in searchPaths)
+        {
+            if (File.Exists(pfxPath))
+            {
+                options.ConfigureHttpsDefaults(httpsOptions =>
+                {
+                    httpsOptions.ServerCertificate = X509CertificateLoader.LoadPkcs12FromFile(pfxPath, pfxPassword);
+                });
+                Log.Information("Using persistent localhost certificate from {Path}", pfxPath);
+                return;
+            }
+        }
+
         _generatedHttpsCertificate ??= CreateSelfSignedHttpsCertificate();
         options.ConfigureHttpsDefaults(httpsOptions =>
         {
@@ -534,6 +627,75 @@ try
         });
 
         Log.Information("No HTTPS certificate was configured for Kestrel. An application-generated self-signed certificate will be used for the HTTPS endpoint.");
+    }
+
+    private static void EnsureLocalhostCertificates(string certsDir, string pfxPath, string caPath, string pfxPassword)
+    {
+        Directory.CreateDirectory(certsDir);
+
+        using var caRsa = RSA.Create(2048);
+        var caRequest = new CertificateRequest(
+            "CN=PenguinTwitchBot Local CA",
+            caRsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        caRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: true, hasPathLengthConstraint: true, pathLengthConstraint: 1, critical: true));
+        caRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, critical: true));
+        caRequest.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(caRequest.PublicKey, critical: false));
+
+        using var caCert = caRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(10));
+
+        using var leafRsa = RSA.Create(2048);
+        var leafRequest = new CertificateRequest(
+            "CN=PenguinTwitchBot",
+            leafRsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+        sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddIpAddress(IPAddress.Loopback);
+        sanBuilder.AddIpAddress(IPAddress.IPv6Loopback);
+        foreach (var address in GetLocalIpv4Addresses())
+        {
+            sanBuilder.AddIpAddress(address);
+        }
+
+        leafRequest.CertificateExtensions.Add(sanBuilder.Build());
+        leafRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: false, hasPathLengthConstraint: false, pathLengthConstraint: 0, critical: false));
+        leafRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: false));
+        leafRequest.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(leafRequest.PublicKey, critical: false));
+
+        Span<byte> serialNumber = stackalloc byte[16];
+        RandomNumberGenerator.Fill(serialNumber);
+
+        using var leafCert = leafRequest.Create(
+            caCert,
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(5),
+            serialNumber);
+
+        using var leafWithKey = leafCert.CopyWithPrivateKey(leafRsa);
+
+        File.WriteAllText(caPath, caCert.ExportCertificatePem());
+        File.WriteAllBytes(pfxPath, leafWithKey.Export(X509ContentType.Pfx, pfxPassword));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetUnixFileMode(pfxPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to set Unix owner-only file permissions on {PfxPath}", pfxPath);
+            }
+        }
+
+        Log.Information("Generated persistent localhost development certificate at {PfxPath} and root CA at {CaPath}", pfxPath, caPath);
     }
 
     private static X509Certificate2 CreateSelfSignedHttpsCertificate()

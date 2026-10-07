@@ -241,8 +241,12 @@ ClientBin/
 *~
 *.dbmdl
 *.dbproj.schemaview
-*.jfm
 *.pfx
+*.key
+*.csr
+*.srl
+Data/certs/
+PenguinTwitchBot/Data/certs/
 *.publishsettings
 orleans.codegen.cs
 
@@ -530,7 +534,13 @@ PenguinTwitchBot/appsettings.secrets.json.bak.*
 PenguinTwitchBot/Data/backups/*
 PenguinTwitchBot/wwwroot/audio/*
 PenguinTwitchBot/wwwroot/gifs/*
+PenguinTwitchBot/wwwroot/media/*
 PenguinTwitchBot/vetoed.txt
 PenguinTwitchBot/kokoro.onnx
 PenguinTwitchBot/Data/piper/*
 /Data/piper/*
+
+# Twitch extension packages
+PenguinTwitchBot/extension.zip
+*twitch-extension.zip
+*twitch-extension.zip.sha256

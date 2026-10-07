@@ -265,6 +265,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToListAsync();
         }
 
+        public async Task<List<FishCatch>> GetRecentCatches(int count = 20)
+        {
+            count = Math.Max(1, Math.Min(count, 100));
+
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            return await context.FishCatches
+                .Include(c => c.FishType)
+                .OrderByDescending(c => c.CaughtAt)
+                .Take(count)
+                .ToListAsync();
+        }
+
         public async Task<FishingTournament?> GetFishingTournamentById(int id)
         {
             using var scope = _scopeFactory.CreateScope();
