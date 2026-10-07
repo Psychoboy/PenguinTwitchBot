@@ -558,8 +558,22 @@ try
 
     private static void ConfigureKestrelHttps(WebHostBuilderContext context, KestrelServerOptions options)
     {
+        var isDebugOrDevelopment = context.HostingEnvironment.IsDevelopment();
+#if DEBUG
+        isDebugOrDevelopment = true;
+#endif
+
+        if (!isDebugOrDevelopment)
+        {
+            return;
+        }
+
         var httpsEndpointUrl = context.Configuration["Kestrel:Endpoints:Https:Url"];
-        if (string.IsNullOrWhiteSpace(httpsEndpointUrl))
+        var aspnetUrls = context.Configuration["ASPNETCORE_URLS"] ?? context.Configuration["URLS"];
+        var hasHttpsEndpoint = !string.IsNullOrWhiteSpace(httpsEndpointUrl) ||
+                               (!string.IsNullOrWhiteSpace(aspnetUrls) && aspnetUrls.Contains("https://", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasHttpsEndpoint)
         {
             return;
         }
@@ -570,8 +584,24 @@ try
             return;
         }
 
+        string certsDir = Path.Combine(Directory.GetCurrentDirectory(), "Data", "certs");
+        string defaultPfxPath = Path.Combine(certsDir, "localhost.pfx");
+        string defaultCaPath = Path.Combine(certsDir, "ca.crt");
+
+        if (!File.Exists(defaultPfxPath))
+        {
+            try
+            {
+                EnsureLocalhostCertificates(certsDir, defaultPfxPath, defaultCaPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to automatically generate local certificate files in {CertsDir}", certsDir);
+            }
+        }
+
         string[] searchPaths = [
-            Path.Combine(Directory.GetCurrentDirectory(), "Data", "certs", "localhost.pfx"),
+            defaultPfxPath,
             Path.Combine(AppContext.BaseDirectory, "Data", "certs", "localhost.pfx")
         ];
 
@@ -595,6 +625,63 @@ try
         });
 
         Log.Information("No HTTPS certificate was configured for Kestrel. An application-generated self-signed certificate will be used for the HTTPS endpoint.");
+    }
+
+    private static void EnsureLocalhostCertificates(string certsDir, string pfxPath, string caPath)
+    {
+        Directory.CreateDirectory(certsDir);
+
+        using var caRsa = RSA.Create(2048);
+        var caRequest = new CertificateRequest(
+            "CN=PenguinTwitchBot Local CA",
+            caRsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        caRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: true, hasPathLengthConstraint: true, pathLengthConstraint: 1, critical: true));
+        caRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, critical: true));
+        caRequest.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(caRequest.PublicKey, critical: false));
+
+        using var caCert = caRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(10));
+
+        using var leafRsa = RSA.Create(2048);
+        var leafRequest = new CertificateRequest(
+            "CN=PenguinTwitchBot",
+            leafRsa,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1);
+
+        var sanBuilder = new SubjectAlternativeNameBuilder();
+        sanBuilder.AddDnsName("localhost");
+        sanBuilder.AddIpAddress(IPAddress.Loopback);
+        sanBuilder.AddIpAddress(IPAddress.IPv6Loopback);
+        foreach (var address in GetLocalIpv4Addresses())
+        {
+            sanBuilder.AddIpAddress(address);
+        }
+
+        leafRequest.CertificateExtensions.Add(sanBuilder.Build());
+        leafRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(certificateAuthority: false, hasPathLengthConstraint: false, pathLengthConstraint: 0, critical: false));
+        leafRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, critical: false));
+        leafRequest.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(leafRequest.PublicKey, critical: false));
+
+        Span<byte> serialNumber = stackalloc byte[16];
+        RandomNumberGenerator.Fill(serialNumber);
+
+        using var leafCert = leafRequest.Create(
+            caCert,
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddYears(5),
+            serialNumber);
+
+        using var leafWithKey = leafCert.CopyWithPrivateKey(leafRsa);
+
+        File.WriteAllText(caPath, caCert.ExportCertificatePem());
+        File.WriteAllBytes(pfxPath, leafWithKey.Export(X509ContentType.Pfx, "penguin"));
+
+        Log.Information("Generated persistent localhost development certificate at {PfxPath} and root CA at {CaPath}", pfxPath, caPath);
     }
 
     private static X509Certificate2 CreateSelfSignedHttpsCertificate()
