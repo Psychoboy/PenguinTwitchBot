@@ -90,6 +90,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "help.enter", Arg.Any<string>()).Returns("To enter tickets, please use !enter AMOUNT/MAX/ALL");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.max", Arg.Any<string>()).Returns("Max entries is (maxallowed), so entering (amount) instead to max you out.");
             gameSettingsService.GetStringSetting(Arg.Any<string>(), "enter.notvalid", Arg.Any<string>()).Returns("please use a number or max/all when entering.");
+
+            // Default pointsPerEntry = 1 (legacy 1:1 behaviour) so existing tests are unaffected
+            gameSettingsService.GetIntSetting(Arg.Any<string>(), "GiveawayPointsPerEntry", Arg.Any<int>()).Returns(1);
         }
 
 
@@ -448,6 +451,81 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Features
             await dbContext.Received(1).SaveChangesAsync();
             dbContext.GiveawayEntries.Received(1).Update(Arg.Is<GiveawayEntry>(x => x.Tickets == 20));
             await serviceBackbone.Received(1).SendChatMessage("user", $"you have bought 10 entries.");
+        }
+
+        [Fact]
+        public async Task Enter_SerializesConcurrentCallsForSameSender()
+        {
+            // Arrange
+            var sender = $"user-{Guid.NewGuid():N}";
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(emptyTestGiveawayEntriesQueryable);
+            pointsSystem.GetUserPointsByUsernameAndGame(sender, "GiveawayFeature").Returns(new UserPoints { Points = 100 });
+            viewerFeature.GetDisplayNameByUsername(sender).Returns(sender);
+
+            var concurrentCount = 0;
+            var maxObservedConcurrency = 0;
+            var gate = new object();
+
+            async Task<bool> SimulateSlowPointsRemoval(NSubstitute.Core.CallInfo _)
+            {
+                lock (gate)
+                {
+                    concurrentCount++;
+                    maxObservedConcurrency = Math.Max(maxObservedConcurrency, concurrentCount);
+                }
+                await Task.Delay(50);
+                lock (gate)
+                {
+                    concurrentCount--;
+                }
+                return true;
+            }
+
+            pointsSystem.RemovePointsFromUserByUsernameAndGame(sender, "GiveawayFeature", 5)
+                .Returns(SimulateSlowPointsRemoval);
+
+            // Act
+            await Task.WhenAll(
+                giveawayFeature.Enter(sender, "5", true),
+                giveawayFeature.Enter(sender, "5", true));
+
+            // Assert
+            Assert.Equal(1, maxObservedConcurrency);
+        }
+
+        [Fact]
+        public async Task Enter_DoesNotSerialize_ConcurrentCallsForDifferentSenders()
+        {
+            // Arrange
+            var senderA = $"user-{Guid.NewGuid():N}";
+            var senderB = $"user-{Guid.NewGuid():N}";
+            dbContext.GiveawayEntries.Find(x => true).ReturnsForAnyArgs(emptyTestGiveawayEntriesQueryable);
+            pointsSystem.GetUserPointsByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature").Returns(new UserPoints { Points = 100 });
+            viewerFeature.GetDisplayNameByUsername(Arg.Any<string>()).Returns(callInfo => callInfo.Arg<string>());
+
+            var bothEntered = new TaskCompletionSource();
+            var entryCount = 0;
+
+            async Task<bool> SimulateSlowPointsRemoval(NSubstitute.Core.CallInfo _)
+            {
+                if (Interlocked.Increment(ref entryCount) == 2)
+                {
+                    bothEntered.TrySetResult();
+                }
+                await bothEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                return true;
+            }
+
+            pointsSystem.RemovePointsFromUserByUsernameAndGame(Arg.Any<string>(), "GiveawayFeature", 5)
+                .Returns(SimulateSlowPointsRemoval);
+
+            // Act
+            await Task.WhenAll(
+                giveawayFeature.Enter(senderA, "5", true),
+                giveawayFeature.Enter(senderB, "5", true));
+
+            // Assert
+            Assert.Equal(2, entryCount);
         }
 
         [Theory]

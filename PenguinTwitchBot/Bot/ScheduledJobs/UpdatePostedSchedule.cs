@@ -1,13 +1,13 @@
-﻿using PenguinTwitchBot.Bot.StreamSchedule;
+using PenguinTwitchBot.Bot.StreamSchedule;
 using Quartz;
 
 namespace PenguinTwitchBot.Bot.ScheduledJobs
 {
     public class UpdatePostedSchedule(ISchedule schedule) : IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
-            return schedule.UpdatePostedSchedule();
+            await schedule.UpdatePostedSchedule();
         }
     }
 }

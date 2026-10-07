@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -10,9 +10,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     /// </summary>
     public class FishingShopItemGenerator
     {
-        public async Task<int> GenerateDefaultItems(ApplicationDbContext context, bool updateExisting = false)
+        public async Task<int> GenerateDefaultItems(IUnitOfWork db, bool updateExisting = false)
         {
-            var existingItems = await context.FishingShopItems.ToListAsync();
+            var existingItems = (await db.FishingShopItems.GetAllAsync()).ToList();
             var itemsToAdd = new List<FishingShopItem>();
 
             var existingNames = new HashSet<string>(
@@ -60,19 +60,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
                 if (addList.Any())
                 {
-                    context.FishingShopItems.AddRange(addList);
+                    db.FishingShopItems.AddRange(addList);
                     changedCount += addList.Count;
                 }
             }
             else if (itemsToAdd.Any())
             {
-                context.FishingShopItems.AddRange(itemsToAdd);
+                db.FishingShopItems.AddRange(itemsToAdd);
                 changedCount += itemsToAdd.Count;
             }
 
             if (changedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
 
             return changedCount;
@@ -91,6 +91,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             if (existing.BoostType3 != template.BoostType3) { existing.BoostType3 = template.BoostType3; changed = true; }
             if (existing.BoostAmount3 != template.BoostAmount3) { existing.BoostAmount3 = template.BoostAmount3; changed = true; }
             if (existing.TargetFishTypeId != template.TargetFishTypeId) { existing.TargetFishTypeId = template.TargetFishTypeId; changed = true; }
+            if (existing.TargetCategory != template.TargetCategory) { existing.TargetCategory = template.TargetCategory; changed = true; }
             if (existing.Enabled != template.Enabled) { existing.Enabled = template.Enabled; changed = true; }
             if (existing.EquipmentSlot != template.EquipmentSlot) { existing.EquipmentSlot = template.EquipmentSlot; changed = true; }
             if (existing.MaxUses != template.MaxUses) { existing.MaxUses = template.MaxUses; changed = true; }

@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         private readonly ILogger<RaidTracker> _logger;
         private readonly ITwitchService _twitchService;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly PenguinTwitchBot.Services.IRaidRewardService _raidReward;
         private readonly Timer _timer = new(60000);
 
         public RaidTracker(
@@ -20,13 +21,15 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             ITwitchService twitchService,
             IServiceBackbone serviceBackbone,
             Application.Notifications.IPenguinDispatcher dispatcher,
-            ICommandHandler commandHandler
+            ICommandHandler commandHandler,
+            PenguinTwitchBot.Services.IRaidRewardService raidReward
             ) : base(serviceBackbone, commandHandler, "RaidTraicker", dispatcher)
         {
             _scopeFactory = scopeFactory;
             ServiceBackbone.IncomingRaidEvent += OnIncomingRaid;
             _logger = logger;
             _twitchService = twitchService;
+            _raidReward = raidReward;
             _timer.Elapsed += UpdateOnlineStatus;
             _timer.Start();
         }
@@ -99,6 +102,25 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.RaidHistory.Remove(raidHistoryEntry);
             await db.SaveChangesAsync();
+        }
+
+        public async Task<int> PruneRaidHistory(DateTime olderThanUtc)
+        {
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                // A creator is pruned only if their most recent raid interaction (the latest of incoming or outgoing) is older than olderThanUtc
+                return await db.RaidHistory.Find(x =>
+                    (x.LastIncomingRaid == DateTime.MinValue || x.LastIncomingRaid < olderThanUtc) &&
+                    (x.LastOutgoingRaid == DateTime.MinValue || x.LastOutgoingRaid < olderThanUtc)
+                ).ExecuteDeleteAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error Pruning Raid History");
+                throw;
+            }
         }
 
         private async Task OnIncomingRaid(object? sender, RaidEventArgs e)
@@ -178,7 +200,15 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             }
             try
             {
-                await _twitchService.RaidStreamer(user.Id);
+                if (!await _twitchService.RaidStreamer(user.Id))
+                {
+                    // A failed start (e.g. 409 when a raid is already pending) must not announce.
+                    _logger.LogWarning("Raid to {DisplayName} did not start; skipping announcement.", user.DisplayName);
+                    return;
+                }
+
+                await _raidReward.AnnounceRaidInitiatedAsync(user.DisplayName);
+
                 await using (var scope = _scopeFactory.CreateAsyncScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();

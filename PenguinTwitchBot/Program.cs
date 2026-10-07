@@ -1,4 +1,4 @@
-﻿global using PenguinTwitchBot.Bot.Core.Database;
+global using PenguinTwitchBot.Bot.Core.Database;
 global using PenguinTwitchBot.Database.Bot.Core.Database;
 global using PenguinTwitchBot.Database.Bot.Models;
 global using PenguinTwitchBot.Bot.Models;
@@ -51,8 +51,6 @@ using System.Xml.Linq;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
-using Pyroscope.OpenTelemetry;
-using Pyroscope;
 internal class Program
 {
     private static ILogger<Program>? logger;
@@ -82,21 +80,6 @@ internal class Program
         var prometheusPort = builder.Configuration.GetValue<int>("Observability:Prometheus:Port", 4999);
         var otelEnabled = builder.Configuration.GetValue<bool>("Observability:OpenTelemetry:Enabled");
         var otelEndpoint = builder.Configuration.GetValue<string>("Observability:OpenTelemetry:Endpoint") ?? "http://localhost:4318";
-        var pyroscopeEnabled = builder.Configuration.GetValue<bool>("Observability:Pyroscope:Enabled");
-        var pyroscopeApplicationName = builder.Configuration.GetValue<string>("Observability:Pyroscope:ApplicationName") ?? "PenguinTwitchBot";
-        var pyroscopeServerAddress = builder.Configuration.GetValue<string>("Observability:Pyroscope:ServerAddress") ?? "http://pyroscope.lan:4040";
-        var pyroscopeAuthToken = builder.Configuration.GetValue<string>("Observability:Pyroscope:AuthToken");
-        var pyroscopeBasicAuthUsername = builder.Configuration.GetValue<string>("Observability:Pyroscope:BasicAuth:Username");
-        var pyroscopeBasicAuthPassword = builder.Configuration.GetValue<string>("Observability:Pyroscope:BasicAuth:Password");
-
-        ConfigurePyroscope(
-            pyroscopeEnabled,
-            pyroscopeApplicationName,
-            pyroscopeServerAddress,
-            pyroscopeAuthToken,
-            pyroscopeBasicAuthUsername,
-            pyroscopeBasicAuthPassword);
-
         IDisposable? metricsServer = null;
         if (prometheusEnabled)
         {
@@ -167,7 +150,7 @@ internal class Program
                     {
                         otlp.Endpoint = traceEndpoint;
                         otlp.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-                    }).AddProcessor(new PyroscopeSpanProcessor()))
+                    }))
                 .WithMetrics(metrics => metrics
                     .AddAspNetCoreInstrumentation()
                     .AddOtlpExporter(otlp =>
@@ -209,7 +192,7 @@ internal class Program
             config.SnackbarConfiguration.ShowTransitionDuration = 500;
             config.SnackbarConfiguration.SnackbarVariant = Variant.Filled;
         });
-        builder.Services.AddMudMarkdownServices();
+
 
         builder.Services.AddSingleton<IDatabaseTools, DatabaseTools>();
         builder.Services.AddSingleton<IFileSystem>(sp => new System.IO.Abstractions.FileSystem());
@@ -245,7 +228,7 @@ internal class Program
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.UpdatePostedSchedule>(opts => opts.WithIdentity(updatePostedSchedulekey).StoreDurably());
             q.AddJob<PenguinTwitchBot.Bot.ScheduledJobs.ValidationSanityCheckJob>(opts => opts.WithIdentity(validationSanityCheckKey).StoreDurably());
         });
-        builder.Services.AddQuartzServer(
+        builder.Services.AddQuartzHostedService(
             q => q.WaitForJobsToComplete = true
         );
 
@@ -275,23 +258,40 @@ internal class Program
         builder.Configuration.GetRequiredSection("Discord").Get<DiscordSettings>();
 
         var openAiConf = builder.Configuration.GetRequiredSection("OpenAI").Get<OpenAiSettings>();
-            if (openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
+        if (openAiConf != null && !string.IsNullOrEmpty(openAiConf.ApiKey))
+        {
+            builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
             {
-                builder.Services.AddSingleton<OpenAIClient>(serviceProvider =>
-                {
-                    return new OpenAIClient(openAiConf.ApiKey);
-                });
-                builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IStarCitizenAI, PenguinTwitchBot.Bot.Ai.StarCitizenAI>();
-                builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();
-            }
+                return new OpenAIClient(openAiConf.ApiKey);
+            });
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IStarCitizenAI, PenguinTwitchBot.Bot.Ai.StarCitizenAI>();
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();
+            builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
+            builder.Services.AddRuntimeFeatureRegistration<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService>(
+                PenguinTwitchBot.Bot.Features.FeatureKeys.OpenAI,
+                "OpenAI",
+                isCore: false,
+                description: "OpenAI integration for custom AI subactions and chat features.");
+        }
+        else
+        {
+            builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
+        }
 
             builder.Services.AddHealthChecks()
                 .AddCheck<TwitchBotHealthCheck>("TwitchChatBot")
                 .AddCheck<CommandServiceHealthCheck>("ServiceBackbone")
                 .AddCheck<DiscordServiceHealthCheck>("DiscordBot")
+                .AddQuartz()
                 .ForwardToPrometheus();
         builder.Services.AddScoped<BlazorAppContext>();
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<ICustomThemeService, CustomThemeService>();
+        builder.Services.AddSingleton<IUserThemePreferenceService, UserThemePreferenceService>();
+        builder.Services.AddSingleton<IThemeMetricsService, ThemeMetricsService>();
+        builder.Services.AddScoped<IUserThemeService, UserThemeService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.HomepageLayoutService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.LeaderboardsLayoutService>();
         builder.Services.AddScoped<IBackupSettingsService, BackupSettingsService>();
@@ -299,10 +299,15 @@ internal class Program
         builder.Services.AddSingleton<IChatHistoryRetentionSettingsService, ChatHistoryRetentionSettingsService>();
         builder.Services.AddSingleton<IIpLogRetentionSettingsService, IpLogRetentionSettingsService>();
         builder.Services.AddSingleton<IScheduledJobSettingsService, ScheduledJobSettingsService>();
+        builder.Services.AddSingleton<ITTSSettingsService, TTSSettingsService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Bot.Commands.TTS.IPiperService, PenguinTwitchBot.Bot.Commands.TTS.PiperService>();
         builder.Services.AddSingleton<ICooldownCleanupService, CooldownCleanupService>();
         builder.Services.AddSingleton<IFileCleanupService, FileCleanupService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.ImageProcessingService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.MediaUploadService>();
         builder.Services.AddScoped<PenguinTwitchBot.Services.DiscordLookupService>();
+        builder.Services.AddScoped<PenguinTwitchBot.Services.IIntegrationTestService, PenguinTwitchBot.Services.IntegrationTestService>();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService, PenguinTwitchBot.Services.HelpContentService>();
         builder.Services.AddHttpClient("GitHubRelease", c =>
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot");
@@ -311,6 +316,10 @@ internal class Program
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot/1.0");
         });
+        // IMemoryCache is also added transitively by AddServerSideBlazor, but EmoteService
+        // depends on it directly so register it explicitly rather than relying on that.
+        builder.Services.AddMemoryCache();
+        builder.Services.AddSingleton<PenguinTwitchBot.Services.IEmoteService, PenguinTwitchBot.Services.EmoteService>();
 
         builder.Services.AddSingleton<PenguinTwitchBot.Bot.Services.Chat.IChatColorService,
             PenguinTwitchBot.Bot.Services.Chat.ChatColorService>();
@@ -354,6 +363,7 @@ internal class Program
 
         await app.Services.GetRequiredService<IDatabaseTools>().Backup();
         await ConfigureQuartzTriggersAsync(app.Services);
+        PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ServiceBackbone = app.Services.GetService<PenguinTwitchBot.Bot.Core.IServiceBackbone>();
 
         app.UseMiddleware<PenguinTwitchBot.CustomMiddleware.ErrorHandlerMiddleware>();
 
@@ -439,7 +449,6 @@ internal class Program
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
         var websocketMessenger = app.Services.GetRequiredService<PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger>();
-        var wsEventHandler = app.Services.GetRequiredService<PenguinTwitchBot.Bot.WebSocketEvents.IWsEventHandler>();
         lifetime.ApplicationStopping.Register(() =>
             {
                 logger?.LogInformation("Application trying to stop.");
@@ -449,10 +458,7 @@ internal class Program
                 {
                     try
                     {
-                        var closeTask = Task.WhenAll(
-                            websocketMessenger.CloseAllSockets(),
-                            wsEventHandler.CloseAllSockets()
-                        );
+                        var closeTask = websocketMessenger.CloseAllSockets();
                         if (await Task.WhenAny(closeTask, Task.Delay(TimeSpan.FromSeconds(5))) != closeTask)
                         {
                             logger?.LogWarning("WebSocket close did not complete within 5 s during shutdown; proceeding anyway.");
@@ -794,8 +800,9 @@ try
         {
             var enabled = await settings.GetJobEnabledAsync(kvp.Key, true);
             var configuredCron = await settings.GetJobCronAsync(kvp.Key, kvp.Value);
-            var cronToUse = CronExpression.IsValidExpression(configuredCron) ? configuredCron : kvp.Value;
-            if (!CronExpression.IsValidExpression(configuredCron))
+            var isValidCron = CronExpression.TryParse(configuredCron, out _);
+            var cronToUse = isValidCron ? configuredCron : kvp.Value;
+            if (!isValidCron)
             {
                 scopedLogger.LogWarning("Invalid cron '{Cron}' for job {JobName}. Falling back to default '{DefaultCron}'.", configuredCron, kvp.Key, kvp.Value);
                 await settings.SetJobCronAsync(kvp.Key, kvp.Value);
@@ -876,42 +883,6 @@ try
         return true; // all inner exceptions are expected transient types
     }
 
-    private static void ConfigurePyroscope(
-        bool enabled,
-        string applicationName,
-        string? serverAddress,
-        string? authToken,
-        string? basicAuthUsername,
-        string? basicAuthPassword)
-    {
-        Environment.SetEnvironmentVariable("PYROSCOPE_PROFILING_ENABLED", enabled ? "true" : "false");
-
-        if (!enabled)
-        {
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(applicationName))
-        {
-            Environment.SetEnvironmentVariable("PYROSCOPE_APPLICATION_NAME", applicationName);
-        }
-
-        if (!string.IsNullOrWhiteSpace(serverAddress))
-        {
-            Environment.SetEnvironmentVariable("PYROSCOPE_SERVER_ADDRESS", serverAddress);
-        }
-
-        if (!string.IsNullOrWhiteSpace(authToken))
-        {
-            Profiler.Instance.SetAuthToken(authToken);
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(basicAuthUsername) && !string.IsNullOrWhiteSpace(basicAuthPassword))
-        {
-            Profiler.Instance.SetBasicAuth(basicAuthUsername, basicAuthPassword);
-        }
-    }
 
     private static string BuildSitemapXml(string origin)
     {

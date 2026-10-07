@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using PenguinTwitchBot.Setup.Models
 @inject SetupService SetupSvc
 @inject NavigationManager NavManager
@@ -18,9 +18,14 @@
                     Your settings have been written to <strong>@SetupSvc.SecretsFilePath</strong>.
                 </MudText>
                 <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
-                    Now start the bot. After it loads, navigate to <strong>/streamersignin</strong> and
-                    <strong>/botsignin</strong> to authorize your Twitch accounts.
+                    Now start the bot and open the dashboard. You can review connection status, test features, or re-authenticate anytime under <strong>Settings &rarr; Bot Authentication</strong>.
                 </MudText>
+                @if (!SetupSvc.StreamerAuthed || !SetupSvc.BotAuthed)
+                {
+                    <MudAlert Severity="Severity.Warning" Class="mt-2">
+                        If you skipped Twitch authorization, you can authorize anytime from the bot dashboard under <strong>Settings &rarr; Bot Authentication</strong>.
+                    </MudAlert>
+                }
                 <MudAlert Severity="Severity.Info" Class="mt-2">
                     This setup window is closing now. You can close this browser tab.
                 </MudAlert>
@@ -66,7 +71,7 @@ else
                         <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch account for the <strong>streamer</strong> (your channel)</MudListItem>
                         <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch account for the <strong>bot</strong> (can be the same as the streamer)</MudListItem>
                         <MudListItem Icon="@Icons.Material.Filled.Check">A Twitch developer application (we'll walk you through creating one)</MudListItem>
-                        <MudListItem Icon="@Icons.Material.Filled.Info">Optional: YouTube API key, Discord bot token, Weather API key, OpenAI API key</MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">Optional: YouTube API key, Discord bot token, WeatherAPI key, OpenAI API key</MudListItem>
                     </MudList>
                     <MudAlert Severity="Severity.Info">
                         The config will be written to: <strong>@Path.GetFullPath(SetupSvc.SecretsFilePath)</strong>
@@ -114,9 +119,12 @@ else
                             <li>Log in with your <strong>streamer</strong> account</li>
                             <li>Set the name to something like "MyBot Streamer"</li>
                             <li>Add the OAuth Redirect URL: <code>@RedirectUri</code></li>
-                            <li>Set Category to "Chat Bot" and click Create</li>
-                            <li>Click "Manage" -> "New Secret" to generate a client secret</li>
+                            <li>Set Category to "Chat Bot" and Client Type to "Confidential", then click Create</li>
+                            <li>Click "Manage" &rarr; "New Secret" to generate a client secret</li>
                         </ol>
+                        <MudText Typo="Typo.caption" Class="mt-2" Style="display: block;">
+                            <em>Tip: If accessing the bot remotely or via a LAN hostname/IP (e.g. <code>https://your-bot-host:5001</code>), add that redirect URL (e.g. <code>https://your-bot-host:5001/redirect</code>) to your Twitch application as well.</em>
+                        </MudText>
                     </MudAlert>
                     <MudTextField @bind-Value="_model.TwitchClientId"
                                   Label="Client ID"
@@ -272,7 +280,8 @@ else
                         <ol style="margin: 8px 0 0 16px; padding: 0;">
                             <li>Go to <MudLink Href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" Target="_blank">Google Cloud Console — YouTube Data API v3</MudLink></li>
                             <li>Enable the API for your project</li>
-                            <li>Go to Credentials -> Create Credentials -> API Key</li>
+                            <li>Go to Credentials &rarr; Create Credentials &rarr; API Key</li>
+                            <li><em>(Recommended)</em> Under API restrictions, restrict the key specifically to <strong>YouTube Data API v3</strong></li>
                         </ol>
                     </MudAlert>
                     <MudTextField @bind-Value="_model.YoutubeApiKey"
@@ -297,9 +306,10 @@ else
                             <ol style="margin: 8px 0 0 16px; padding: 0;">
                                 <li>Go to <MudLink Href="https://discord.com/developers/applications" Target="_blank">discord.com/developers/applications</MudLink></li>
                                 <li>Click "New Application", give it a name</li>
-                                <li>Go to the "Bot" tab &rarr; copy the token below</li>
+                                <li>Go to the "Bot" tab &rarr; copy the token below (click Reset Token if needed)</li>
                                 <li>Enable "Server Members Intent", "Message Content Intent", and "Presence Intent"</li>
-                                <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scope: bot)</li>
+                                <li>Invite the bot to your server via OAuth2 &rarr; URL Generator (scopes: <code>bot</code>, <code>applications.commands</code>)</li>
+                                <li>In Discord Server Settings &rarr; Roles, position the bot's role <strong>above</strong> any roles it manages or assigns</li>
                             </ol>
                         </MudAlert>
 
@@ -419,17 +429,18 @@ else
                     @if (_model.WeatherEnabled)
                     {
                         <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
-                            Get a free API key at <MudLink Href="https://openweathermap.org/api" Target="_blank">openweathermap.org/api</MudLink>
-                            (the free "Current Weather Data" plan is sufficient).
+                            Get a free API key at <MudLink Href="https://www.weatherapi.com/signup.aspx" Target="_blank">WeatherAPI.com</MudLink>
+                            (the free plan provides up to 1,000,000 requests/month).
                         </MudAlert>
                         <MudTextField @bind-Value="_model.WeatherApiKey"
-                                      Label="OpenWeatherMap API Key"
+                                      Label="WeatherAPI Key"
+                                      HelperText="API key from weatherapi.com"
                                       InputType="InputType.Password"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Cloud"
                                       Variant="Variant.Outlined" />
                         <MudTextField @bind-Value="_model.WeatherDefaultLocation"
                                       Label="Default Location"
-                                      HelperText="A ZIP code or city name (e.g. 85234)"
+                                      HelperText="A ZIP code, UK postal code, or city name (e.g. 85234, London, Austin, TX)"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.LocationOn"
                                       Variant="Variant.Outlined" />
                     }
@@ -448,7 +459,7 @@ else
                         <MudText>Used for AI chat responses and automated shoutouts in chat.</MudText>
                         <MudAlert Severity="Severity.Normal" Icon="@Icons.Material.Filled.OpenInNew">
                             Get an API key at <MudLink Href="https://platform.openai.com/api-keys" Target="_blank">platform.openai.com/api-keys</MudLink>.
-                            Usage is billed by token, so set spend limits in your OpenAI account.
+                            Usage is billed by token consumption; we recommend setting monthly spend limits in your OpenAI billing preferences.
                         </MudAlert>
                         <MudTextField @bind-Value="_model.OpenAiApiKey"
                                       Label="OpenAI API Key"

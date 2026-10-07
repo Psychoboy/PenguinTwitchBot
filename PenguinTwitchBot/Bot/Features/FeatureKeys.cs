@@ -41,5 +41,6 @@ namespace PenguinTwitchBot.Bot.Features
         public const string VersionCheck = "VersionCheck";
         public const string ViewerFeature = "ViewerFeature";
         public const string WheeledGame = "WheeledGame";
+        public const string OpenAI = "OpenAI";
     }
 }

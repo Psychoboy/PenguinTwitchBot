@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Application.ChatMessage.Notifications;
+using PenguinTwitchBot.Application.ChatMessage.Notifications;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events;
 using PenguinTwitchBot.Bot.Events.Chat;
@@ -7,6 +7,7 @@ using PenguinTwitchBot.Bot.Services.Chat;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using PenguinTwitchBot.Helpers;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
@@ -41,8 +42,18 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             if (messageIdTracker.IsSelfMessage(payload.Event.MessageId)) return;
             if (DidProcessMessage(payload.Metadata)) return;
 
+            // Ignore chat messages that are not for OUR channel. The shared websocket can
+            // temporarily carry a channel.chat.message subscription for a raided channel
+            // (Raid Reward feature); those must not be processed as our own chat.
+            var broadcasterId = await twitchService.GetBroadcasterUserId();
+            if (!string.IsNullOrEmpty(broadcasterId) &&
+                !string.Equals(payload.Event.BroadcasterUserId, broadcasterId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             var message = payload.Event.Message;
-            var messageText = MessageRegex().Replace(message.Text, string.Empty).Trim();
+            var messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(message.Text, string.Empty).Trim());
 
             if (string.IsNullOrEmpty(payload.Event.ChannelPointsCustomRewardId) == false)
             {
@@ -105,7 +116,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 IsAnonymous = e.ChatterIsAnonymous,
                 NoticeType = e.NoticeType,
                 SystemMessage = e.SystemMessage,
-                Message = e.Message?.Text,
+                Message = ViewerInputSanitizer.Sanitize(e.Message?.Text),
                 Sub = e.Sub == null ? null : new ChatNotificationSubInfo
                 {
                     SubTier = e.Sub.SubTier,
@@ -207,7 +218,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             logger.LogInformation("SUSPICIOUS CHAT: {name}: {message}", args.Event.UserName, args.Event.Message.Text);
             var e = args.Event;
             var messageText = args.Event.Message.Text;
-            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
             var chatMessage = new ChatMessageEventArgs
             {
                 Message = messageText,
@@ -225,7 +236,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         internal Task ProcessChatMessage(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelChatMessage e)
         {
             var messageText = e.Message.Text;
-            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
 
             var fragments = (e.Message.Fragments ?? [])
                 .Select(f => MapFragment(f))
@@ -285,7 +296,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             return new ChatOverlayFragment
             {
                 Type = f.Type ?? "text",
-                Text = f.Text,
+                Text = ViewerInputSanitizer.Sanitize(f.Text, trim: false),
             };
         }
 
@@ -293,7 +304,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         {
             if (e.Message.Text.StartsWith('!') == false) return;
             var messageText = e.Message.Text;
-            messageText = MessageRegex().Replace(messageText, string.Empty).Trim();
+            messageText = ViewerInputSanitizer.Sanitize(MessageRegex().Replace(messageText, string.Empty).Trim());
             var argsFull = messageText.Split(' ', 2);
             var command = argsFull[0];
             var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
@@ -416,6 +427,23 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             try
             {
                 if (DidProcessMessage(payload.Metadata)) return;
+
+                var broadcasterId = await twitchService.GetBroadcasterUserId();
+                var isOutgoing = !string.IsNullOrEmpty(broadcasterId) &&
+                    string.Equals(payload.Event.FromBroadcasterUserId, broadcasterId, StringComparison.OrdinalIgnoreCase);
+
+                if (isOutgoing)
+                {
+                    logger.LogInformation("OnChannelRaid OUTGOING to {TargetName}", payload.Event.ToBroadcasterUserName);
+                    await eventService.OnOutgoingRaid(new Events.OutgoingRaidEventArgs
+                    {
+                        TargetUserId = payload.Event.ToBroadcasterUserId,
+                        TargetUserName = payload.Event.ToBroadcasterUserLogin,
+                        TargetDisplayName = payload.Event.ToBroadcasterUserName,
+                        NumberOfViewers = payload.Event.Viewers
+                    });
+                    return;
+                }
 
                 logger.LogInformation("OnChannelRaid from {BroadcasterName}", payload.Event.FromBroadcasterUserName);
 
@@ -553,7 +581,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Streak = payload.Event.StreakMonths,
                     Tier = payload.Event.Tier,
                     IsRenewal = true,
-                    Message = payload.Event.Message?.Text,
+                    Message = ViewerInputSanitizer.Sanitize(payload.Event.Message?.Text),
                     HadPreviousSub = await CheckIfPreviousSub(payload.Event.UserLogin)
                 };
 
@@ -627,7 +655,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Name = payload.Event.UserLogin,
                     DisplayName = payload.Event.UserName,
                     Amount = payload.Event.Bits,
-                    Message = payload.Event.Message,
+                    Message = ViewerInputSanitizer.Sanitize(payload.Event.Message),
                     IsAnonymous = payload.Event.IsAnonymous
                 };
 
@@ -652,7 +680,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Name = payload.Event.UserLogin,
                     DisplayName = payload.Event.UserName,
                     Amount = payload.Event.Bits,
-                    Message = payload.Event.Message?.Text,
+                    Message = ViewerInputSanitizer.Sanitize(payload.Event.Message?.Text),
                     UserId = payload.Event.UserId,
                     Type = payload.Event.Type,
                     BroadcasterUserId = payload.Event.BroadcasterUserId,
@@ -673,10 +701,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     HasBitsMessage = payload.Event.Message != null,
                     BitsMessage = payload.Event.Message == null ? null : new BitsMessage
                     {
-                        Text = payload.Event.Message.Text,
+                        Text = ViewerInputSanitizer.Sanitize(payload.Event.Message.Text),
                         Emotes = payload.Event.Message.Fragments?.Select(emote => new BitsEmote
                         {
-                            Text = emote.Text,
+                            Text = ViewerInputSanitizer.Sanitize(emote.Text, trim: false),
                             Type = emote.Type,
                             EmoteId = emote.Emote?.Id,
                             EmoteSetId = emote.Emote?.EmoteSetId,
@@ -707,7 +735,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     Sender = payload.Event.UserName,
                     Username = payload.Event.UserLogin,
                     Title = payload.Event.Reward.Title,
-                    UserInput = payload.Event.UserInput ?? string.Empty
+                    UserInput = ViewerInputSanitizer.Sanitize(payload.Event.UserInput ?? string.Empty)
                 };
 
                 await eventService.OnChannelPointRedeem(

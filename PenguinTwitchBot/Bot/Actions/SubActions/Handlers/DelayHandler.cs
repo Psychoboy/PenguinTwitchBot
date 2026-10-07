@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
 
-    public class DelayHandler() : ISubActionHandler
+    public class DelayHandler(ILogger<DelayHandler> logger) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Delay;
 
@@ -36,6 +36,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             else
             {
                 context?.LogMessage(subActionIndex, $"Invalid duration value: {durationStr}");
+                logger.LogWarning("Invalid duration value for Delay sub-action: {DurationStr}", durationStr);
             }
         }
     }

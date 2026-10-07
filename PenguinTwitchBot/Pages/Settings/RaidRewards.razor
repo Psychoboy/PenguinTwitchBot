@@ -1,0 +1,196 @@
+@page "/settings/raidrewards"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using PenguinTwitchBot.Services
+@inject IRaidRewardSettingsService RaidRewardSettings
+@inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
+@inject IEmoteService EmoteService
+@inject ISnackbar Snackbar
+
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Raid Rewards</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h5">Raid Rewards</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                When you raid out to another channel, viewers who were in your chat before the raid can
+                post the configured message in the raided channel's chat within the time window to earn points.
+                Points are awarded once per raid. Subscribers may use the optional subscriber message instead.
+            </MudText>
+        </MudStack>
+        <HelpButton Topic="raid-rewards" />
+    </MudStack>
+
+    @if (_config == null)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else
+    {
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudStack Spacing="3">
+                <MudSwitch T="bool" @bind-Value="_enabled" Label="Enable Raid Rewards" Color="Color.Primary" />
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="PointType" @bind-Value="_selectedPointType"
+                                   Label="Point Type"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   HelperText="The type of points to award."
+                                   ToStringFunc="@(pt => pt?.Name ?? string.Empty)">
+                            @foreach (var pt in _pointTypes)
+                            {
+                                <MudSelectItem T="PointType" Value="pt">@pt.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="long" @bind-Value="_pointsToAward" Label="Points to Award" Min="1" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="int" @bind-Value="_timeWindowMinutes" Label="Time Window (minutes)" Min="1" Max="120" Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudTextField @bind-Value="_message" Label="Message viewers must send"
+                              Variant="Variant.Outlined" Required="true"
+                              HelperText="Awarded if a viewer's chat message contains this phrase (case-insensitive)." />
+
+                <MudTextField @bind-Value="_subscriberMessage" Label="Subscriber-only message (optional)"
+                              Variant="Variant.Outlined"
+                              HelperText="Alternative phrase only subscribers may use (e.g. contains sub-only emotes). Leave blank to disable." />
+
+                <MudSwitch T="bool" @bind-Value="_postAnnouncement" Label="Announce raid reward message" Color="Color.Primary" />
+
+                <MudSwitch T="bool" @bind-Value="_postReminders" Label="Send reminders after 30 and 60 seconds if the raid has not happened" Color="Color.Primary" Disabled="@(!_postAnnouncement)" />
+
+                <MudTextField @bind-Value="_announcementTemplate" Label="Announcement template"
+                              Variant="Variant.Outlined" Lines="3"
+                              HelperText="Placeholders: {target} {message} {submessage} {minutes} {points} {pointtype}" />
+
+                <MudTextField @bind-Value="_subscriberExtendedTemplate" Label="Subscriber extended message"
+                              Variant="Variant.Outlined" Lines="2"
+                              HelperText="Appended to the announcement when a subscriber message is set. Placeholder: {submessage}" />
+
+                <MudPaper Elevation="0" Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Preview</MudText>
+                    <MudText>@RenderPreview()</MudText>
+                </MudPaper>
+
+                <div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="SaveAsync" Disabled="_saving">
+                        Save
+                    </MudButton>
+                </div>
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private RaidRewardConfig? _config;
+    private List<PointType> _pointTypes = [];
+    private PointType? _selectedPointType;
+
+    private bool _enabled;
+    private long _pointsToAward;
+    private int _timeWindowMinutes;
+    private string _message = string.Empty;
+    private string _subscriberMessage = string.Empty;
+    private string _announcementTemplate = string.Empty;
+    private string _subscriberExtendedTemplate = string.Empty;
+    private bool _postAnnouncement;
+    private bool _postReminders;
+    private bool _saving;
+    private Dictionary<string, string> _emotes = new(StringComparer.Ordinal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pointTypes = (await PointsSystem.GetPointTypes()).ToList();
+        _config = await RaidRewardSettings.GetConfigAsync();
+        _emotes = await EmoteService.GetEmotesAsync();
+
+        _enabled = _config.Enabled;
+        _pointsToAward = _config.PointsToAward;
+        _timeWindowMinutes = _config.TimeWindowMinutes;
+        _message = _config.Message;
+        _subscriberMessage = _config.SubscriberMessage ?? string.Empty;
+        _announcementTemplate = _config.AnnouncementTemplate;
+        _subscriberExtendedTemplate = _config.SubscriberExtendedTemplate;
+        _postAnnouncement = _config.PostAnnouncement;
+        _postReminders = _config.PostReminders;
+        _selectedPointType = _pointTypes.FirstOrDefault(pt => pt.Id == _config.PointTypeId);
+    }
+
+    /// <summary>
+    /// Builds the announcement text using the current (unsaved) field values and replaces
+    /// any word that matches a known emote (native Twitch, BTTV, FFZ or 7TV) with its image,
+    /// same word-scan approach as the plain-text fallback in wwwroot/js/chat.js.
+    /// </summary>
+    private MarkupString RenderPreview()
+    {
+        var pointTypeName = _selectedPointType?.Name ?? "points";
+        var text = _announcementTemplate
+            .Replace("{target}", "SomeStreamer")
+            .Replace("{message}", _message)
+            .Replace("{submessage}", _subscriberMessage)
+            .Replace("{minutes}", _timeWindowMinutes.ToString())
+            .Replace("{points}", _pointsToAward.ToString())
+            .Replace("{pointtype}", pointTypeName);
+
+        if (!string.IsNullOrWhiteSpace(_subscriberMessage) && !string.IsNullOrWhiteSpace(_subscriberExtendedTemplate))
+            text += " " + _subscriberExtendedTemplate.Replace("{submessage}", _subscriberMessage);
+
+        // Same tokenizing as wwwroot/js/chat.js buildTextWithEmotes: split on whitespace
+        // runs (keeping them) so only whole words are matched against the emote map.
+        var sb = new System.Text.StringBuilder();
+        foreach (var token in System.Text.RegularExpressions.Regex.Split(text, @"(\s+)"))
+        {
+            if (_emotes.TryGetValue(token, out var url))
+                sb.Append($"<img src=\"{System.Net.WebUtility.HtmlEncode(url)}\" alt=\"{System.Net.WebUtility.HtmlEncode(token)}\" style=\"height:1.5em;vertical-align:middle;\" />");
+            else
+                sb.Append(System.Net.WebUtility.HtmlEncode(token));
+        }
+
+        return (MarkupString)sb.ToString();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_selectedPointType == null)
+        {
+            Snackbar.Add("Select a point type.", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var config = new RaidRewardConfig(
+                Enabled: _enabled,
+                PointTypeId: _selectedPointType.Id ?? 0,
+                PointsToAward: _pointsToAward,
+                TimeWindowMinutes: _timeWindowMinutes,
+                Message: _message,
+                SubscriberMessage: string.IsNullOrWhiteSpace(_subscriberMessage) ? null : _subscriberMessage,
+                AnnouncementTemplate: _announcementTemplate,
+                SubscriberExtendedTemplate: _subscriberExtendedTemplate,
+                PostAnnouncement: _postAnnouncement,
+                PostReminders: _postReminders);
+
+            await RaidRewardSettings.SaveConfigAsync(config);
+            Snackbar.Add("Raid Reward settings saved.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

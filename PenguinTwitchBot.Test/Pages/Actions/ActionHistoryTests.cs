@@ -33,6 +33,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
 
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
+            _ctx.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService>(new Mock<PenguinTwitchBot.Services.IHelpContentService>().Object);
         }
 
         private static List<ActionExecutionLog> CreateTestLogs()
@@ -125,7 +126,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
             {
-                Assert.Contains("Action Execution History", page.Markup);
+                Assert.Contains("Action History", page.Markup);
                 Assert.Contains("Execution Logs", page.Markup);
                 Assert.Contains("TestAction1", page.Markup);
                 Assert.Contains("TestAction2", page.Markup);
@@ -370,7 +371,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
             var page = RenderPage();
             await page.WaitForAssertionAsync(() =>
             {
-                Assert.Contains("Action Execution History", page.Markup);
+                Assert.Contains("Action History", page.Markup);
             });
         }
 
@@ -759,13 +760,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         public async Task SignalR_WhenNotPaused_ShouldInsertNewLogIntoUI()
         {
             // 1. Arrange: Context & Required page dependencies setup
-            _ctx = new BunitContext();
-            _ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-            _ctx.Services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
-            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            SetupContext();
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
-            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
+            _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
 
             // 2. Tell the QueueManager mock to return the logger mock instead of null
@@ -833,13 +830,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         [Fact]
         public async Task SignalR_WhenPaused_ShouldIncrementPendingCount()
         {
-            _ctx = new BunitContext();
-            _ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-            _ctx.Services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
-            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            SetupContext();
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
-            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
+            _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
@@ -884,13 +877,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         [Fact]
         public async Task SignalR_WhenPaused_ExistingLog_ShouldNotIncrementPendingCount()
         {
-            _ctx = new BunitContext();
-            _ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-            _ctx.Services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
-            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            SetupContext();
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
-            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
+            _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
@@ -936,13 +925,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         [Fact]
         public async Task SignalR_WhenNotPaused_ShouldUpdateExistingLog()
         {
-            _ctx = new BunitContext();
-            _ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-            _ctx.Services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
-            _ctx.Services.AddSingleton<ISnackbar>(new Mock<ISnackbar>().Object);
-            _ctx.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            SetupContext();
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
-            _ctx.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
+            _ctx!.Services.AddSingleton<IActionExecutionLogger>(mockExecutionLogger.Object);
             var mockQueueManager = new Mock<IQueueManager>();
             mockQueueManager.Setup(q => q.ExecutionLogger).Returns(mockExecutionLogger.Object);
             _ctx.Services.AddSingleton<IQueueManager>(mockQueueManager.Object);
@@ -983,12 +968,9 @@ namespace PenguinTwitchBot.Test.Pages.Actions
         [Fact]
         public async Task SignalR_StartFails_ShowsSnackbarWarning()
         {
-            _ctx = new BunitContext();
-            _ctx.JSInterop.Mode = JSRuntimeMode.Loose;
-            _ctx.Services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+            SetupContext();
             var mockSnackbar = new Mock<ISnackbar>();
-            _ctx.Services.AddSingleton<ISnackbar>(mockSnackbar.Object);
-            _ctx.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+            _ctx!.Services.AddSingleton<ISnackbar>(mockSnackbar.Object);
             var mockExecutionLogger = new Mock<IActionExecutionLogger>();
             mockExecutionLogger.Setup(l => l.GetRecentLogs(It.IsAny<int>())).Returns(new List<ActionExecutionLog>());
             mockExecutionLogger.Setup(l => l.GetLogCount()).Returns(0);

@@ -17,7 +17,10 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action History</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Action Execution History</MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.h4" GutterBottom="false">Action History</MudText>
+        <HelpButton Topic="action-history" />
+    </MudStack>
     <MudText Typo="Typo.body2" Class="mb-4">View history of executed actions and their results.</MudText>
 
     @if (_updatesPaused && _pendingUpdatesCount > 0)
@@ -70,6 +73,7 @@
                     <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Running">Running</MudSelectItem>
                     <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Completed">Completed</MudSelectItem>
                     <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Failed">Failed</MudSelectItem>
+                    <MudSelectItem T="ActionExecutionState?" Value="@ActionExecutionState.Cancelled">Cancelled</MudSelectItem>
                 </MudSelect>
                 <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="@LoadLogs" Class="ml-2 refresh-logs-btn" />
             </ToolBarContent>
@@ -354,6 +358,7 @@
             ActionExecutionState.Running => Color.Info,
             ActionExecutionState.Completed => Color.Success,
             ActionExecutionState.Failed => Color.Error,
+            ActionExecutionState.Cancelled => Color.Default,
             _ => Color.Default
         };
     }

@@ -152,6 +152,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public int Cost { get; set; }
         public string Boosts { get; set; } = string.Empty; // e.g., "+50% rarity, +1.2x weight"
         public string TargetFish { get; set; } = string.Empty; // if specific-fish boost
+        public string TargetCategory { get; set; } = string.Empty; // if specific-category boost
         public int MaxUses { get; set; } // 0 = unlimited/permanent
     }
 

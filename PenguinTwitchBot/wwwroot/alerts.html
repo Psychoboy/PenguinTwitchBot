@@ -25,6 +25,7 @@
             align-items: center;
             justify-content: center;
             min-height: 0;
+            width: 100%;
             max-width: 100%;
             overflow: hidden;
         }
@@ -65,14 +66,19 @@
             text-align: center;
             padding: 0 8px;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         #alert-text p {
-            margin: 0;
+            margin: 0 auto;
             max-width: 100%;
             line-height: 1.2;
             white-space: normal;
             overflow-wrap: anywhere;
+            text-align: center;
         }
 
         #main-emotes {
@@ -164,7 +170,13 @@
     </div>
     <script src="https://code.jquery.com/jquery-3.6.1.min.js" integrity="sha384-i61gTtaoovXtAbKjo903+O55Jkn2+RtzHtvNez+yI49HAASvznhe9sZyjaSHTau9" crossorigin="anonymous"></script>
     <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="js/ws-client.js"></script>
     <script src="js/ws-status.js"></script>
-    <script src="js/alert.js" asp-append-version="true"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = 'js/alert.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using MudBlazor;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
@@ -117,6 +117,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Required", field.Required);
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
+
+            if (field.Resizable)
+            {
+                builder.AddAttribute(sequence++, "Class", "resizable-textarea");
+            }
 
             builder.CloseComponent();
         }

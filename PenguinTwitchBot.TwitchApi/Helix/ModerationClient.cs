@@ -37,4 +37,15 @@ public sealed class ModerationClient(ILogger<ModerationClient> logger, IModerati
             () => transport.CreateEventSubSubscriptionAsync(clientId, accessToken, type, version, condition, transportMethod, transportSessionId),
             "create eventsub subscription");
     }
+
+    public async Task<CreateEventSubSubscriptionResult> CreateEventSubSubscriptionDetailedAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, Models.EventSub.EventSubTransportMethod transportMethod, string transportSessionId)
+    {
+        // Do not retry with backoff here; the caller needs the immediate, raw Twitch error for diagnosis.
+        return await transport.CreateEventSubSubscriptionDetailedAsync(clientId, accessToken, type, version, condition, transportMethod, transportSessionId);
+    }
+
+    public async Task DeleteEventSubSubscriptionAsync(string clientId, string? accessToken, string subscriptionId)
+    {
+        await ExecuteWithRetryAsync(() => transport.DeleteEventSubSubscriptionAsync(clientId, accessToken, subscriptionId), "delete eventsub subscription");
+    }
 }

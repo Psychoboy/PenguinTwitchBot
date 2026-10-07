@@ -1,6 +1,7 @@
 @page "/obs/connections"
 @using PenguinTwitchBot.Database.Bot.Models.Obs
 @using PenguinTwitchBot.Bot.ObsConnector
+@using PenguinTwitchBot.Shared.Help
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IOBSConnectionManager ConnectionManager
 @inject IDialogService DialogService
@@ -9,10 +10,13 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - OBS Connections</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">OBS WebSocket Connections</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">
-        Manage multiple OBS WebSocket connections. These connections are used by SubActions to control OBS.
-    </MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4" GutterBottom="true">OBS WebSocket Connections</MudText>
+            <MudText Typo="Typo.body2">Manage multiple OBS WebSocket connections. These connections are used by SubActions to control OBS.</MudText>
+        </div>
+        <HelpButton Topic="obs-connections" />
+    </MudStack>
 
     <MudPaper Class="pa-4">
         <MudStack Spacing="3">

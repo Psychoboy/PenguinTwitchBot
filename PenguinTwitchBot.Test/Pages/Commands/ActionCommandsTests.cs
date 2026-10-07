@@ -34,6 +34,7 @@ namespace PenguinTwitchBot.Test.Pages.Commands
 
             var configuration = new ConfigurationBuilder().Build();
             _ctx.Services.AddSingleton<IConfiguration>(configuration);
+            _ctx.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService>(new Mock<PenguinTwitchBot.Services.IHelpContentService>().Object);
         }
 
         private static List<ActionCommand> CreateTestCommands()

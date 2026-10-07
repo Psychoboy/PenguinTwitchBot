@@ -18,8 +18,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         private readonly IFishingGameplayService _fishingGameplayService;
         private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
-        private const string FishCatchTriggerName = "Fishing.FishCaught";
+        public const string FishingTournamentCatchTriggerName = "FishingTournament.EligibleCatch";
+        public const string FishCatchTriggerName = "Fishing.FishCaught";
+        public const string FishingItemBrokenTriggerName = "Fishing.ItemBroken";
+        public const string FishingAccidentTriggerName = "Fishing.Accident";
 
         public SubActionTypes SupportedType => SubActionTypes.Fishing;
 
@@ -75,11 +77,16 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 {
                     var attemptResult = await _fishingGameplayService.PerformFishingAttempt(userId, username);
 
-                    if (attemptResult.Outcome == FishingAttemptOutcome.LineSnapped ||
-                        attemptResult.Outcome == FishingAttemptOutcome.RodSnapped)
+                    if (attemptResult.Outcome != FishingAttemptOutcome.CaughtFish)
                     {
-                        var isRodSnap = attemptResult.Outcome == FishingAttemptOutcome.RodSnapped;
-                        var failText = isRodSnap ? "ROD SNAPPED" : "LINE SNAPPED";
+                        var (failText, isRodSnap, isLineSnap, isReelJam, isTackleBoxLost, isNetBreak, logItem) = attemptResult.Outcome switch
+                        {
+                            FishingAttemptOutcome.RodSnapped => ("ROD SNAPPED", true, false, false, false, false, "rod"),
+                            FishingAttemptOutcome.ReelJammed => ("REEL JAMMED", false, false, true, false, false, "reel"),
+                            FishingAttemptOutcome.TackleBoxLost => ("TACKLE BOX LOST", false, false, false, true, false, "tackle box"),
+                            FishingAttemptOutcome.NetBroken => ("NET BROKEN", false, false, false, false, true, "net"),
+                            _ => ("LINE SNAPPED", false, true, false, false, false, "line")
+                        };
 
                         var snappedMessage = new
                         {
@@ -92,26 +99,45 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                                 weight = 0.0,
                                 gold = 0,
                                 imageFileName = "",
-                                lineSnapped = true,
+                                lineSnapped = isLineSnap,
                                 rodSnapped = isRodSnap,
+                                reelJammed = isReelJam,
+                                tackleBoxLost = isTackleBoxLost,
+                                netBroken = isNetBreak,
+                                isAccident = true,
+                                accidentReason = failText,
                                 duration = settings.DisplayDurationMs
                             }
                         };
 
-                        await _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(snappedMessage));
+                        await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(snappedMessage));
 
                         if (attempts > 1 && i < attempts - 1)
                         {
                             await Task.Delay(settings.DisplayDurationMs + 500);
                         }
 
-                        _logger.LogInformation("User {Username} had a snapped {SnapType} and caught nothing", username, isRodSnap ? "rod" : "line");
+                        _logger.LogInformation("User {Username} had an accident ({Accident}) and caught nothing", username, logItem);
                         variables["fish_type"] = failText;
                         variables["fish_type_id"] = "0";
                         variables["fish_rarity"] = "Accident";
                         variables["fish_stars"] = "0";
                         variables["fish_weight"] = "0";
                         variables["fish_gold"] = "0";
+
+                        var accidentVariables = new ConcurrentDictionary<string, string>(variables);
+                        var lostItemNames = attemptResult.SnapEvent?.LostItemsJson != null
+                            ? DeserializeLostItemNames(attemptResult.SnapEvent.LostItemsJson)
+                            : string.Empty;
+
+                        accidentVariables["accident_type"] = attemptResult.Outcome.ToString();
+                        accidentVariables["accident_name"] = failText;
+                        accidentVariables["accident_reason"] = failText;
+                        accidentVariables["accident_items_lost"] = lostItemNames;
+                        accidentVariables["accident_gear"] = attemptResult.SnapEvent?.SnapType ?? string.Empty;
+                        accidentVariables["accident_gold_lost"] = (attemptResult.SnapEvent?.TotalGoldLost ?? 0).ToString();
+                        await TriggerFishingAccidentActionsAsync(accidentVariables, attemptResult.Outcome);
+
                         continue;
                     }
 
@@ -136,7 +162,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                         }
                     };
 
-                    await _webSocketMessenger.AddToQueue(JsonSerializer.Serialize(message));
+                    await _webSocketMessenger.AddToQueue(WsTopics.Fishing, JsonSerializer.Serialize(message));
 
                     if (attempts > 1 && i < attempts - 1)
                     {
@@ -157,6 +183,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     await TriggerFishingTournamentCatchActionsAsync(variables, fishCatch.FishTypeId, fishCategoryNames);
                     await TriggerFishCatchActionsAsync(variables, fishCatch, fishCategoryNames);
 
+                    if (attemptResult.BrokenItems.Count > 0)
+                    {
+                        await TriggerFishingItemBrokenActionsAsync(variables, attemptResult.BrokenItems);
+                    }
+
                 }
                 catch (Exception ex)
                 {
@@ -174,7 +205,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                     TriggerTypes.FishingTournamentCatch,
                     FishingTournamentCatchTriggerName);
 
@@ -354,7 +385,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                     TriggerTypes.FishCatch,
                     FishCatchTriggerName);
 
@@ -462,6 +493,204 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             catch
             {
                 return new FishCatchTriggerConfiguration();
+            }
+        }
+
+        private async Task TriggerFishingAccidentActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            FishingAttemptOutcome outcome)
+        {
+            try
+            {
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
+                    TriggerTypes.FishingAccident,
+                    FishingAccidentTriggerName);
+
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var action in actions)
+                {
+                    var triggers = action.Triggers
+                        .Where(t => t.Type == TriggerTypes.FishingAccident && t.Enabled && t.Name == FishingAccidentTriggerName)
+                        .ToList();
+
+                    if (triggers.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    bool shouldExecute = false;
+
+                    foreach (var trigger in triggers)
+                    {
+                        var config = DeserializeFishingAccidentConfiguration(trigger.Configuration);
+
+                        if (config.AccidentTypes.Count > 0 && !config.AccidentTypes.Contains(outcome))
+                        {
+                            continue;
+                        }
+
+                        shouldExecute = true;
+                        break;
+                    }
+
+                    if (!shouldExecute)
+                    {
+                        continue;
+                    }
+
+                    await actionService.EnqueueAction(new ConcurrentDictionary<string, string>(variables), action);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fishing accident actions");
+            }
+        }
+
+        private async Task TriggerFishingItemBrokenActionsAsync(
+            ConcurrentDictionary<string, string> variables,
+            IReadOnlyList<FishingBrokenItemInfo> brokenItems)
+        {
+            try
+            {
+                await using var scope = _serviceScopeFactory.CreateAsyncScope();
+                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
+                    TriggerTypes.FishingItemBroken,
+                    FishingItemBrokenTriggerName);
+
+                if (actions.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var action in actions)
+                {
+                    var triggers = action.Triggers
+                        .Where(t => t.Type == TriggerTypes.FishingItemBroken && t.Enabled && t.Name == FishingItemBrokenTriggerName)
+                        .ToList();
+
+                    if (triggers.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    foreach (var item in brokenItems)
+                    {
+                        var slotName = item.EquipmentSlot?.ToString() ?? string.Empty;
+                        bool shouldExecute = false;
+
+                        foreach (var trigger in triggers)
+                        {
+                            var config = DeserializeFishingItemBrokenConfiguration(trigger.Configuration);
+
+                            if (config.EquipmentSlots.Count > 0 &&
+                                !config.EquipmentSlots.Any(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                continue;
+                            }
+
+                            if (config.ShopItemIds.Count > 0 && !config.ShopItemIds.Contains(item.ShopItemId))
+                            {
+                                continue;
+                            }
+
+                            shouldExecute = true;
+                            break;
+                        }
+
+                        if (!shouldExecute)
+                        {
+                            continue;
+                        }
+
+                        var itemVariables = new ConcurrentDictionary<string, string>(variables)
+                        {
+                            ["broken_item_name"] = item.ItemName,
+                            ["broken_item_slot"] = slotName,
+                            ["broken_item_shop_id"] = item.ShopItemId.ToString(),
+                            ["broken_item_boost_id"] = item.UserBoostId.ToString(),
+                            ["broken_item_cost"] = item.ItemCost.ToString(),
+                            ["broken_item_replaced"] = item.WasReplaced ? "true" : "false",
+                            ["broken_items_count"] = brokenItems.Count.ToString()
+                        };
+
+                        await actionService.EnqueueAction(itemVariables, action);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error triggering fishing item broken actions");
+            }
+        }
+
+        private static FishingAccidentTriggerConfiguration DeserializeFishingAccidentConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new FishingAccidentTriggerConfiguration();
+            }
+
+            try
+            {
+                var config = JsonSerializer.Deserialize<FishingAccidentTriggerConfiguration>(configuration)
+                    ?? new FishingAccidentTriggerConfiguration();
+                config.AccidentTypes ??= [];
+                return config;
+            }
+            catch
+            {
+                return new FishingAccidentTriggerConfiguration();
+            }
+        }
+
+        private static FishingItemBrokenTriggerConfiguration DeserializeFishingItemBrokenConfiguration(string configuration)
+        {
+            if (string.IsNullOrWhiteSpace(configuration))
+            {
+                return new FishingItemBrokenTriggerConfiguration();
+            }
+
+            try
+            {
+                var config = JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(configuration)
+                    ?? new FishingItemBrokenTriggerConfiguration();
+                config.EquipmentSlots ??= [];
+                config.ShopItemIds ??= [];
+                return config;
+            }
+            catch
+            {
+                return new FishingItemBrokenTriggerConfiguration();
+            }
+        }
+
+        private static string DeserializeLostItemNames(string lostItemsJson)
+        {
+            try
+            {
+                var items = JsonSerializer.Deserialize<List<FishingSnapLostItem>>(lostItemsJson);
+                if (items == null || items.Count == 0)
+                {
+                    return string.Empty;
+                }
+
+                return string.Join(", ", items.Select(i => i.ItemName));
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
     }

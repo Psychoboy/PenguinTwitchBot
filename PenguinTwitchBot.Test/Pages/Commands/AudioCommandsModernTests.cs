@@ -103,10 +103,12 @@ namespace PenguinTwitchBot.Test.Pages.Commands
                 .Returns(Task.FromResult<bool?>(true));
 
             var mockSnackbar = new Mock<ISnackbar>();
+            var mockHelpService = new Mock<PenguinTwitchBot.Services.IHelpContentService>();
 
             _ctx!.Services.AddSingleton(_audioCommandService);
             _ctx.Services.AddSingleton<IDialogService>(mockDialogService.Object);
             _ctx.Services.AddSingleton<ISnackbar>(mockSnackbar.Object);
+            _ctx.Services.AddSingleton<PenguinTwitchBot.Services.IHelpContentService>(mockHelpService.Object);
         }
 
         [Fact]

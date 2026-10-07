@@ -5,12 +5,27 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Exclusions</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
-        @if (giveawayExclusions != null)
-        {
-            <MudItem xs="6">
-                <MudPaper Elevation="2" Class="pa-4">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Giveaway Exclusions</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Manage disqualified users, bots, and cooldown exclusions prevented from entering giveaways.
+                </MudText>
+            </MudStack>
+            <HelpButton Topic="giveaway-exclusions" />
+        </MudStack>
+
+        <MudGrid>
+            @if (giveawayExclusions != null)
+            {
+                <MudItem xs="12" md="7">
+                    <MudPaper Elevation="2" Class="pa-4">
                     <MudTable Items="@giveawayExclusions">
                         <HeaderContent>
                             <MudTh>Name</MudTh>
@@ -48,7 +63,7 @@
         }
         @if(giveawayExclusion != null)
         {
-            <MudItem xs="6">
+            <MudItem xs="12" md="5">
                 <MudPaper Elevation="2" Class="pa-4">
                     <EditForm Model="@giveawayExclusion" OnValidSubmit="OnSubmit">
                         <MudCardContent>
@@ -66,6 +81,7 @@
             </MudItem>
         }
     </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {

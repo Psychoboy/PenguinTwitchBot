@@ -34,7 +34,7 @@ namespace PenguinTwitchBot.Test.Application.TTS
             await handler.Handle(notification, CancellationToken.None);
 
             await ttsPlayerService.Received(1).CreateTTSFile(ttsRequest);
-            await webSocketMessenger.Received(1).AddToQueue(Arg.Any<string>());
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Alerts, Arg.Any<string>());
         }
 
         [Fact]

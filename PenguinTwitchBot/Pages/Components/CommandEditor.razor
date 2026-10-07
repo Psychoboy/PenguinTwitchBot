@@ -199,7 +199,9 @@
                     </MudStack>
                     <MudStack Row="true" Spacing="3">
                         <MudSwitch @bind-Value="Command.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
-                        <MudSwitch @bind-Value="Command.SourceOnly" Label="Source Only" Color="Color.Warning" />
+                        <MudTooltip Text="When streaming with other streamers (Stream Together / Shared Chat), only respond to commands from your own chat and ignore other streamers' chats.">
+                            <MudSwitch @bind-Value="Command.SourceOnly" Label="Source Only (Own Channel / Stream Together)" Color="Color.Warning" />
+                        </MudTooltip>
                     </MudStack>
                 </MudStack>
             </MudItem>

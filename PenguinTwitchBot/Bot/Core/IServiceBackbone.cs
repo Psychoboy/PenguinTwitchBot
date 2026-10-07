@@ -18,6 +18,7 @@ namespace PenguinTwitchBot.Bot.Core
         event AsyncEventHandler<CommandEventArgs>? CommandEvent;
         event AsyncEventHandler<FollowEventArgs>? FollowEvent;
         event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
+        event AsyncEventHandler<OutgoingRaidEventArgs>? OutgoingRaidEvent;
         event AsyncEventHandler? StreamEnded;
         event AsyncEventHandler? StreamStarted;
         event AsyncEventHandler<SubscriptionEndEventArgs>? SubscriptionEndEvent;
@@ -38,6 +39,7 @@ namespace PenguinTwitchBot.Bot.Core
         Task OnCommand(CommandEventArgs command);
         Task OnFollow(TwitchApi.EventSub.SubscriptionTypes.Channel.ChannelFollow ev);
         Task OnIncomingRaid(RaidEventArgs args);
+        Task OnOutgoingRaid(OutgoingRaidEventArgs args);
         Task OnStreamEnded();
         Task OnStreamStarted();
         Task OnSubscription(SubscriptionEventArgs eventArgs);

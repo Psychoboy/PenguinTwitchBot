@@ -1,5 +1,6 @@
-﻿@page "/validation-status"
+@page "/validation-status"
 @using PenguinTwitchBot.Bot.Validation
+@using PenguinTwitchBot.Shared.Help
 @inject IValidationService ValidationService
 @inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "Streamer, Editor")]
@@ -7,9 +8,15 @@
 <PageTitle>Validation Status</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.BugReport" /> Validation Status
-    </MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h4">
+                <MudIcon Icon="@Icons.Material.Filled.BugReport" Class="mr-2" />Validation Status
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Scan database actions, triggers, and audio assets to identify broken references and configuration issues.</MudText>
+        </div>
+        <HelpButton Topic="validation-status" />
+    </MudStack>
 
     <MudGrid>
         <MudItem xs="12" md="4">

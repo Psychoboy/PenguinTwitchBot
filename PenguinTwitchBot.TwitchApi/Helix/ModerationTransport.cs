@@ -104,6 +104,44 @@ public sealed class ModerationTransport : IModerationTransport
         return new EventSubSubscriptionResult(isEnabled);
     }
 
+    public async Task<CreateEventSubSubscriptionResult> CreateEventSubSubscriptionDetailedAsync(string clientId, string? accessToken, string type, string version, Dictionary<string, string> condition, EventSubTransportMethod transportMethod, string transportSessionId)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        var url = "eventsub/subscriptions";
+        var body = new CreateEventSubSubscriptionApiRequest(
+            Type: type,
+            Version: version,
+            Condition: condition,
+            Transport: new EventSubTransportApiRequest(
+                Method: transportMethod == EventSubTransportMethod.Websocket ? "websocket" : throw new ArgumentOutOfRangeException(nameof(transportMethod), transportMethod, null),
+                SessionId: transportSessionId));
+
+        using var response = await http.PostAsync(url, HelixJson.CreateJsonContent(body));
+        var raw = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+            return new CreateEventSubSubscriptionResult(false, null, $"HTTP {(int)response.StatusCode} {response.StatusCode}: {raw}");
+
+        using var doc = System.Text.Json.JsonDocument.Parse(raw);
+        var data = doc.RootElement.GetProperty("data");
+        if (data.GetArrayLength() == 0)
+            return new CreateEventSubSubscriptionResult(false, null, $"empty data: {raw}");
+
+        var first = data[0];
+        var id = first.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+        var status = first.TryGetProperty("status", out var statusEl) ? statusEl.GetString() : null;
+        var enabled = string.Equals(status, "enabled", StringComparison.OrdinalIgnoreCase);
+        return enabled
+            ? new CreateEventSubSubscriptionResult(true, id, null)
+            : new CreateEventSubSubscriptionResult(false, id, $"status={status}: {raw}");
+    }
+
+    public async Task DeleteEventSubSubscriptionAsync(string clientId, string? accessToken, string subscriptionId)
+    {
+        using var http = HelixHttp.CreateClient(_httpClientFactory, clientId, accessToken);
+        using var response = await http.DeleteAsync($"eventsub/subscriptions?id={Uri.EscapeDataString(subscriptionId)}");
+        response.EnsureSuccessStatusCode();
+    }
+
     private static string BuildBannedUsersUrl(string broadcasterId, string? after)
     {
         return HelixQuery.Build("moderation/banned", new (string Key, string? Value)[]

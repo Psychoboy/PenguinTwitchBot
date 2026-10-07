@@ -1,5 +1,6 @@
 @page "/backups"
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared.Help
 @using System.IO
 @inject PenguinTwitchBot.Bot.Commands.Moderation.Admin Admin
 @inject PenguinTwitchBot.Database.Bot.DatabaseTools.IBackupTools BackupTools
@@ -13,10 +14,16 @@
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudStack Spacing="4">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-            <MudText Typo="Typo.h4">Backup Management</MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Backup" OnClick="BackupDatabase">
-                Create Backup
-            </MudButton>
+            <div>
+                <MudText Typo="Typo.h4">Backup Management</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Create, download, and restore compressed database backups with automated retention.</MudText>
+            </div>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Backup" OnClick="BackupDatabase">
+                    Create Backup
+                </MudButton>
+                <HelpButton Topic="backups" />
+            </MudStack>
         </MudStack>
 
         <MudPaper Elevation="2" Class="pa-4">

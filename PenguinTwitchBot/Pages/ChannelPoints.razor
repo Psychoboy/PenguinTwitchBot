@@ -7,8 +7,13 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Channel Points</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Channel Points</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">Create and manage rewards available in your channel.</MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Channel Points</MudText>
+            <MudText Typo="Typo.body2">Create and manage rewards available in your channel.</MudText>
+        </MudStack>
+        <HelpButton Topic="channel-points" />
+    </MudStack>
 
     <MudGrid>
         <MudItem xs="12" md="4">

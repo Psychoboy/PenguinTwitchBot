@@ -1,9 +1,9 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 
@@ -34,19 +34,17 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishType>> GetAllFishTypes()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes
-                .Include(f => f.Categories)
-                .OrderBy(f => f.Name)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishTypes.GetAsync(orderBy: q => q.OrderBy(f => f.Name), includeProperties: "Categories");
         }
 
         public async Task<List<FishType>> GetFishTypesWithCatches()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes
-                .Where(f => f.Enabled && context.FishCatches.Any(c => c.FishTypeId == f.Id))
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var catchQuery = db.FishCatches.Query();
+            return await db.FishTypes
+                .Find(f => f.Enabled && catchQuery.Any(c => c.FishTypeId == f.Id))
                 .OrderBy(f => f.Name)
                 .ToListAsync();
         }
@@ -54,31 +52,34 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishType?> GetFishTypeById(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishTypes.FindAsync(id);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishTypes.GetByIdAsync(id);
         }
 
         public async Task AddFishType(FishType fishType)
         {
+            FishingValueRules.NormalizeAndValidate(fishType);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishTypes.Add(fishType);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishTypes.Add(fishType);
+            await db.SaveChangesAsync();
         }
 
         public async Task UpdateFishType(FishType fishType)
         {
+            FishingValueRules.NormalizeAndValidate(fishType);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var existing = await context.FishTypes
+            var existing = await db.FishTypes
+                .Find(f => f.Id == fishType.Id)
                 .Include(f => f.Categories)
-                .FirstOrDefaultAsync(f => f.Id == fishType.Id);
+                .FirstOrDefaultAsync();
 
             if (existing == null)
             {
-                context.FishTypes.Add(fishType);
-                await context.SaveChangesAsync();
+                db.FishTypes.Add(fishType);
+                await db.SaveChangesAsync();
                 return;
             }
 
@@ -89,23 +90,23 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             existing.ImageFileName = fishType.ImageFileName;
             existing.Enabled = fishType.Enabled;
 
-            context.FishCategories.RemoveRange(existing.Categories);
+            db.FishCategories.RemoveRange(existing.Categories);
             existing.Categories = fishType.Categories
                 .Select(category => new FishCategory { Category = category.Category })
                 .ToList();
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task DeleteFishType(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var fishType = await context.FishTypes.FindAsync(id);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var fishType = await db.FishTypes.GetByIdAsync(id);
             if (fishType != null)
             {
-                context.FishTypes.Remove(fishType);
-                await context.SaveChangesAsync();
+                db.FishTypes.Remove(fishType);
+                await db.SaveChangesAsync();
             }
         }
 
@@ -116,10 +117,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishCatch>> GetTopCatchesForFishType(int fishTypeId, int count = 10)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishCatches
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishCatches
+                .Find(c => c.FishTypeId == fishTypeId)
                 .Include(c => c.FishType)
-                .Where(c => c.FishTypeId == fishTypeId)
                 .OrderByDescending(c => c.Stars)
                 .ThenByDescending(c => c.Weight)
                 .Take(count)
@@ -129,10 +130,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishCatch>> GetUserCatches(string userId, int count = 50)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishCatches
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishCatches
+                .Find(c => c.UserId == userId)
                 .Include(c => c.FishType)
-                .Where(c => c.UserId == userId)
                 .OrderByDescending(c => c.CaughtAt)
                 .Take(count)
                 .ToListAsync();
@@ -141,10 +142,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishCatch?> GetUserBestCatchForFishType(string userId, int fishTypeId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishCatches
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishCatches
+                .Find(c => c.UserId == userId && c.FishTypeId == fishTypeId)
                 .Include(c => c.FishType)
-                .Where(c => c.UserId == userId && c.FishTypeId == fishTypeId)
                 .OrderByDescending(c => c.Stars)
                 .ThenByDescending(c => c.Weight)
                 .FirstOrDefaultAsync();
@@ -153,20 +154,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> GetUserCatchCountForFishType(string userId, int fishTypeId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishCatches
-                .Where(c => c.UserId == userId && c.FishTypeId == fishTypeId)
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishCatches
+                .Find(c => c.UserId == userId && c.FishTypeId == fishTypeId)
                 .CountAsync();
         }
 
         public async Task<Dictionary<int, FishCatch>> GetUserBestCatchesForAllFishTypes(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var bestCatches = await context.FishCatches
+            var bestCatches = await db.FishCatches
+                .Find(c => c.UserId == userId)
                 .Include(c => c.FishType)
-                .Where(c => c.UserId == userId)
                 .GroupBy(c => c.FishTypeId)
                 .Select(g => g.OrderByDescending(c => c.Stars)
                              .ThenByDescending(c => c.Weight)
@@ -181,10 +182,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<Dictionary<int, int>> GetUserCatchCountsForAllFishTypes(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var counts = await context.FishCatches
-                .Where(c => c.UserId == userId)
+            var counts = await db.FishCatches
+                .Find(c => c.UserId == userId)
                 .GroupBy(c => c.FishTypeId)
                 .Select(g => new { FishTypeId = g.Key, Count = g.Count() })
                 .ToListAsync();
@@ -197,9 +198,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 500));
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            return await context.FishingTournaments
+            return await db.FishingTournaments.Query()
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
@@ -219,9 +220,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishingTournament>> GetCurrentFishingTournaments()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            return await context.FishingTournaments
+            return await db.FishingTournaments.Query()
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
@@ -244,9 +245,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 100));
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            return await context.FishingTournaments
+            return await db.FishingTournaments.Query()
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
@@ -281,9 +282,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishingTournament?> GetFishingTournamentById(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            return await context.FishingTournaments
+            return await db.FishingTournaments
+                .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
@@ -294,7 +296,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.TargetFishType)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync();
         }
 
         public async Task<List<FishingTournamentStanding>> GetFishingTournamentStandings(int tournamentId, int count = 10)
@@ -302,23 +304,24 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             count = Math.Max(1, Math.Min(count, 100));
 
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var tournament = await context.FishingTournaments
+            var tournament = await db.FishingTournaments
+                .Find(t => t.Id == tournamentId)
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
                     .ThenInclude(e => e.FishType)
                         .ThenInclude(f => f.Categories)
                 .Include(t => t.EligibleCategories)
-                .FirstOrDefaultAsync(t => t.Id == tournamentId);
+                .FirstOrDefaultAsync();
 
             if (tournament == null)
             {
                 return [];
             }
 
-            var catches = await GetTournamentCatches(context, tournament, null, useLinkedCatchesOnly: true);
+            var catches = await GetTournamentCatches(db, tournament, null, useLinkedCatchesOnly: true);
             if (catches.Count == 0)
             {
                 return [];
@@ -342,12 +345,67 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 .ToList();
         }
 
+        public async Task<Dictionary<int, FishingTournamentRewardStanding>> GetFishingTournamentRewardStandings(int tournamentId)
+        {
+            var results = new Dictionary<int, FishingTournamentRewardStanding>();
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var tournament = await db.FishingTournaments
+                .Find(t => t.Id == tournamentId)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(t => t.EligibleFish)
+                    .ThenInclude(e => e.FishType)
+                        .ThenInclude(f => f.Categories)
+                .Include(t => t.EligibleCategories)
+                .Include(t => t.RewardRules)
+                .FirstOrDefaultAsync();
+
+            if (tournament == null || tournament.RewardRules.Count == 0)
+            {
+                return results;
+            }
+
+            // Mirrors settlement: a completed tournament has EndsAtUtc set, so the window matches what was awarded.
+            var catches = await GetTournamentCatches(db, tournament, null, useLinkedCatchesOnly: false);
+            if (catches.Count == 0)
+            {
+                return results;
+            }
+
+            foreach (var rewardRule in tournament.RewardRules.Where(rule => rule.Enabled))
+            {
+                var winner = CalculateStandings(catches, rewardRule)
+                    .Take(rewardRule.Placement)
+                    .LastOrDefault();
+
+                if (winner == null)
+                {
+                    continue;
+                }
+
+                results[rewardRule.Id] = new FishingTournamentRewardStanding
+                {
+                    RewardRuleId = rewardRule.Id,
+                    UserId = winner.UserId,
+                    Username = winner.Username,
+                    Score = winner.Score,
+                    CatchCount = winner.CatchCount
+                };
+            }
+
+            return results;
+        }
+
         public async Task<FishingTournament?> StartFishingTournament(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var tournament = await context.FishingTournaments
+            var tournament = await db.FishingTournaments
+                .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
@@ -356,7 +414,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.TargetFishType)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync();
 
             if (tournament == null)
             {
@@ -375,7 +433,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             tournament.StartsAtUtc = now;
             tournament.EndsAtUtc = now.AddMinutes(Math.Max(1, tournament.RunDurationMinutes));
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             if (!wasActive)
             {
@@ -388,15 +446,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishingTournament?> CloneAndStartFishingTournament(int templateTournamentId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var template = await context.FishingTournaments
+            var template = await db.FishingTournaments
+                .Find(t => t.Id == templateTournamentId)
                 .AsNoTracking()
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
                 .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
-                .FirstOrDefaultAsync(t => t.Id == templateTournamentId);
+                .FirstOrDefaultAsync();
 
             if (template == null)
             {
@@ -435,13 +494,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                         Points = rule.Points,
                         EntryFeePercentage = rule.EntryFeePercentage,
                         PointTypeId = rule.PointTypeId,
+                        GoldAmount = rule.GoldAmount,
                         Enabled = rule.Enabled
                     })
                     .ToList()
             };
 
-            context.FishingTournaments.Add(clonedTournament);
-            await context.SaveChangesAsync();
+            db.FishingTournaments.Add(clonedTournament);
+            await db.SaveChangesAsync();
 
             return await StartFishingTournament(clonedTournament.Id);
         }
@@ -449,9 +509,10 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishingTournament?> ReopenFishingTournament(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var tournament = await context.FishingTournaments
+            var tournament = await db.FishingTournaments
+                .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
@@ -460,7 +521,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.TargetFishType)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync();
 
             if (tournament == null)
             {
@@ -472,13 +533,11 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return tournament;
             }
 
-            var linkedCatches = await context.FishingTournamentCatches
-                .Where(link => link.FishingTournamentId == id)
-                .ToListAsync();
+            var linkedCatches = await db.FishingTournamentCatches.GetAsync(link => link.FishingTournamentId == id);
 
             if (linkedCatches.Count > 0)
             {
-                context.FishingTournamentCatches.RemoveRange(linkedCatches);
+                db.FishingTournamentCatches.RemoveRange(linkedCatches);
             }
 
             tournament.Enabled = true;
@@ -486,26 +545,27 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             tournament.StartsAtUtc = null;
             tournament.EndsAtUtc = null;
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return tournament;
         }
 
         public async Task<FishingTournament> SaveFishingTournament(FishingTournament tournament)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var persistedTournament = await context.FishingTournaments
+            var persistedTournament = await db.FishingTournaments
+                .Find(t => t.Id == tournament.Id)
                 .AsSplitQuery()
                 .Include(t => t.EligibleFish)
                 .Include(t => t.EligibleCategories)
                 .Include(t => t.RewardRules)
-                .FirstOrDefaultAsync(t => t.Id == tournament.Id);
+                .FirstOrDefaultAsync();
 
             if (persistedTournament == null)
             {
-                context.FishingTournaments.Add(tournament);
-                await context.SaveChangesAsync();
+                db.FishingTournaments.Add(tournament);
+                await db.SaveChangesAsync();
                 return tournament;
             }
 
@@ -522,9 +582,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             persistedTournament.EntryFeeAmount = tournament.EntryFeeAmount;
             persistedTournament.EntryFeePointTypeId = tournament.EntryFeePointTypeId;
 
-            context.FishingTournamentFishTypes.RemoveRange(persistedTournament.EligibleFish);
-            context.FishingTournamentRewardRules.RemoveRange(persistedTournament.RewardRules);
-            context.RemoveRange(persistedTournament.EligibleCategories);
+            db.FishingTournamentFishTypes.RemoveRange(persistedTournament.EligibleFish);
+            db.FishingTournamentRewardRules.RemoveRange(persistedTournament.RewardRules);
+            db.FishingTournamentEligibleCategories.RemoveRange(persistedTournament.EligibleCategories);
 
             persistedTournament.EligibleFish = tournament.EligibleFish
                 .Select(fish => new FishingTournamentFishType
@@ -550,20 +610,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     Points = rule.Points,
                     EntryFeePercentage = rule.EntryFeePercentage,
                     PointTypeId = rule.PointTypeId,
+                    GoldAmount = rule.GoldAmount,
                     Enabled = rule.Enabled
                 })
                 .ToList();
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
             return persistedTournament;
         }
 
         public async Task<FishingTournament?> EndFishingTournament(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var tournament = await context.FishingTournaments
+            var tournament = await db.FishingTournaments
+                .Find(t => t.Id == id)
                 .AsSplitQuery()
                 .Include(t => t.EntryFeePointType)
                 .Include(t => t.EligibleFish)
@@ -573,7 +635,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     .ThenInclude(r => r.PointType)
                 .Include(t => t.RewardRules)
                     .ThenInclude(r => r.TargetFishType)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync();
 
             if (tournament == null)
             {
@@ -586,13 +648,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return tournament;
             }
 
-            var rewardWinners = await SettleFishingTournamentRewards(tournament, DateTime.UtcNow);
+            // Gold credits and the completion flip share this db/SaveChangesAsync so a failed save can't leave gold
+            // credited against a tournament that a retry would settle again.
+            var rewardWinners = await SettleFishingTournamentRewards(db, tournament, DateTime.UtcNow);
 
             tournament.Status = FishingTournamentStatus.Completed;
             tournament.Enabled = false;
             tournament.EndsAtUtc = DateTime.UtcNow;
 
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
 
             await TriggerFishingTournamentLifecycleActionsAsync(
                 tournament,
@@ -603,7 +667,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             return tournament;
         }
 
-        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(FishingTournament tournament, DateTime settlementEndUtc)
+        private async Task<List<TournamentRewardWinner>> SettleFishingTournamentRewards(IUnitOfWork db, FishingTournament tournament, DateTime settlementEndUtc)
         {
             var winners = new List<TournamentRewardWinner>();
 
@@ -612,10 +676,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return winners;
             }
 
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            var catches = await GetTournamentCatches(context, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
+            var catches = await GetTournamentCatches(db, tournament, settlementEndUtc, useLinkedCatchesOnly: false);
 
             if (catches.Count == 0)
             {
@@ -638,12 +699,38 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     ? Math.Max(0L, (long)Math.Round((tournament.EntryFeeAmount ?? 0L) * ((rewardRule.EntryFeePercentage ?? 0) / 100.0), MidpointRounding.AwayFromZero))
                     : Math.Max(0L, rewardRule.Points);
 
-                if (rewardAmount <= 0)
+                var goldAmount = Math.Max(0L, rewardRule.GoldAmount ?? 0L);
+
+                if (rewardAmount <= 0 && goldAmount <= 0)
                 {
                     continue;
                 }
 
-                await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
+                if (rewardAmount > 0)
+                {
+                    await _pointsSystem.AddPointsByUserId(winner.UserId, rewardRule.PointTypeId, rewardAmount);
+                }
+
+                if (goldAmount > 0)
+                {
+                    var gold = await db.FishingGolds.Find(g => g.UserId == winner.UserId).FirstOrDefaultAsync();
+                    var existingTotal = gold?.TotalGold ?? 0;
+
+                    // TotalGold is a 32-bit column; clamp the sum (not just the reward) so the persisted
+                    // balance and the reported/logged amount never diverge or silently wrap.
+                    var clampedTotal = Math.Clamp(existingTotal + goldAmount, 0L, int.MaxValue);
+                    goldAmount = clampedTotal - existingTotal;
+
+                    if (gold == null)
+                    {
+                        db.FishingGolds.Add(new FishingGold { UserId = winner.UserId, Username = winner.Username, TotalGold = (int)clampedTotal });
+                    }
+                    else
+                    {
+                        gold.TotalGold = (int)clampedTotal;
+                        gold.Username = winner.Username;
+                    }
+                }
 
                 winners.Add(new TournamentRewardWinner
                 {
@@ -654,17 +741,19 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                     PointTypeName = rewardRule.PointType?.Name ?? string.Empty,
                     ScoreCategory = rewardRule.ScoreCategory,
                     RewardKind = rewardRule.RewardKind,
-                    RewardAmount = rewardAmount
+                    RewardAmount = rewardAmount,
+                    GoldAmount = goldAmount
                 });
 
                 _logger.LogInformation(
-                    "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}",
+                    "Settled tournament {TournamentId} reward for {Username}: placement {Placement}, category {Category}, amount {Amount} on point type {PointTypeId}, gold {Gold}",
                     tournament.Id,
                     winner.Username,
                     rewardRule.Placement,
                     rewardRule.ScoreCategory,
                     rewardAmount,
-                    rewardRule.PointTypeId);
+                    rewardRule.PointTypeId,
+                    goldAmount);
             }
 
             return winners;
@@ -682,7 +771,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(triggerType, triggerName);
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(triggerType, triggerName);
                 if (actions.Count == 0)
                 {
                     return;
@@ -745,17 +834,28 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             variables["fishing_tournament_reward_winner_names"] = string.Join(", ", rewardWinners.Select(winner => winner.Username).Distinct(StringComparer.OrdinalIgnoreCase));
             variables["fishing_tournament_reward_winner_ids"] = string.Join(",", rewardWinners.Select(winner => winner.UserId).Distinct(StringComparer.OrdinalIgnoreCase));
             variables["fishing_tournament_reward_summary"] = string.Join("; ", rewardWinners.Select(winner =>
-                $"#{winner.Placement} {winner.Username} won {winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}"));
+            {
+                var parts = new List<string>();
+                if (winner.RewardAmount > 0)
+                {
+                    parts.Add($"{winner.RewardAmount} {(string.IsNullOrWhiteSpace(winner.PointTypeName) ? $"PointType:{winner.PointTypeId}" : winner.PointTypeName)}");
+                }
+                if (winner.GoldAmount > 0)
+                {
+                    parts.Add($"{winner.GoldAmount} Gold");
+                }
+                return $"#{winner.Placement} {winner.Username} won {string.Join(" + ", parts)}";
+            }));
         }
 
-        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentRewardRule rewardRule)
+        private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentRewardRule rewardRule)
         {
             return CalculateStandings(catches, rewardRule.ScoreCategory, rewardRule.TargetFishTypeId);
         }
 
-        private static List<TournamentStanding> CalculateStandings(List<FishCatch> catches, FishingTournamentScoreCategory scoreCategory, int? targetFishTypeId = null)
+        private static List<TournamentStanding> CalculateStandings(List<TournamentCatchEntry> catches, FishingTournamentScoreCategory scoreCategory, int? targetFishTypeId = null)
         {
-            IEnumerable<FishCatch> scopedCatches = catches;
+            IEnumerable<TournamentCatchEntry> scopedCatches = catches;
 
             if (scoreCategory == FishingTournamentScoreCategory.SpecificFish && targetFishTypeId.HasValue)
             {
@@ -788,21 +888,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 : [.. grouped.OrderByDescending(x => x.Score).ThenBy(x => x.CatchCount).ThenBy(x => x.TotalStars)];
         }
 
-        private static async Task<List<FishCatch>> GetTournamentCatches(ApplicationDbContext context, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
+        private static async Task<List<TournamentCatchEntry>> GetTournamentCatches(IUnitOfWork db, FishingTournament tournament, DateTime? settlementEndUtc, bool useLinkedCatchesOnly)
         {
-            var linkedCatchIds = await context.FishingTournamentCatches
+            // Recorded tournament catches are self-contained snapshots, so they stay valid
+            // even after the source FishCatch rows are purged.
+            var recordedCatches = await db.FishingTournamentCatches
+                .Find(link => link.FishingTournamentId == tournament.Id)
                 .AsNoTracking()
-                .Where(link => link.FishingTournamentId == tournament.Id)
-                .Select(link => link.FishCatchId)
+                .Select(link => new TournamentCatchEntry(
+                    link.UserId,
+                    link.Username,
+                    link.FishTypeId,
+                    link.Stars,
+                    link.Weight,
+                    link.GoldEarned,
+                    link.CaughtAt))
                 .ToListAsync();
 
-            if (linkedCatchIds.Count > 0)
+            if (recordedCatches.Count > 0)
             {
-                return await context.FishCatches
-                    .AsNoTracking()
-                    .Include(c => c.FishType)
-                    .Where(c => linkedCatchIds.Contains(c.Id))
-                    .ToListAsync();
+                return recordedCatches;
             }
 
             if (useLinkedCatchesOnly)
@@ -816,10 +921,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             var hasEligibleFish = tournament.EligibleFish.Count > 0;
             var hasEligibleCategories = tournament.EligibleCategories.Count > 0;
 
-            var query = context.FishCatches
-                .AsNoTracking()
-                .Include(c => c.FishType)
-                .Where(c => c.CaughtAt >= startUtc && c.CaughtAt <= endUtc);
+            var query = db.FishCatches
+                .Find(c => c.CaughtAt >= startUtc && c.CaughtAt <= endUtc)
+                .AsNoTracking();
 
             // No fish and no categories selected means all fish are eligible (default behavior).
             if (hasEligibleFish || hasEligibleCategories)
@@ -832,20 +936,39 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 var eligibleByCategoryFishTypeIds = new HashSet<int>();
                 if (eligibleCategorySet.Count > 0)
                 {
-                    eligibleByCategoryFishTypeIds = await context.FishCategories
-                        .Where(fc => eligibleCategorySet.Contains(fc.Category))
+                    eligibleByCategoryFishTypeIds = await db.FishCategories
+                        .Find(fc => eligibleCategorySet.Contains(fc.Category))
                         .Select(fc => fc.FishTypeId)
                         .Distinct()
                         .ToHashSetAsync();
                 }
 
-                query = query.Where(c =>
-                    (hasEligibleFish && eligibleFishTypeIds.Contains(c.FishTypeId)) ||
-                    (hasEligibleCategories && eligibleByCategoryFishTypeIds.Contains(c.FishTypeId)));
+                query = query
+                    .Where(c =>
+                        (hasEligibleFish && eligibleFishTypeIds.Contains(c.FishTypeId)) ||
+                        (hasEligibleCategories && eligibleByCategoryFishTypeIds.Contains(c.FishTypeId)));
             }
 
-            return await query.ToListAsync();
+            return await query
+                .Select(c => new TournamentCatchEntry(
+                    c.UserId,
+                    c.Username,
+                    c.FishTypeId,
+                    c.Stars,
+                    c.Weight,
+                    c.GoldEarned,
+                    c.CaughtAt))
+                .ToListAsync();
         }
+
+        private sealed record TournamentCatchEntry(
+            string UserId,
+            string Username,
+            int FishTypeId,
+            int Stars,
+            double Weight,
+            int GoldEarned,
+            DateTime CaughtAt);
 
         private sealed class TournamentStanding
         {
@@ -867,21 +990,22 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
             public FishingTournamentScoreCategory ScoreCategory { get; set; }
             public FishingTournamentRewardKind RewardKind { get; set; }
             public long RewardAmount { get; set; }
+            public long GoldAmount { get; set; }
         }
 
         public async Task DeleteFishingTournament(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var tournament = await context.FishingTournaments.FindAsync(id);
+            var tournament = await db.FishingTournaments.GetByIdAsync(id);
             if (tournament == null)
             {
                 return;
             }
 
-            context.FishingTournaments.Remove(tournament);
-            await context.SaveChangesAsync();
+            db.FishingTournaments.Remove(tournament);
+            await db.SaveChangesAsync();
         }
 
         #endregion
@@ -891,65 +1015,63 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishingGold?> GetUserGold(string userId)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
         }
 
         public async Task AddGoldToUser(string userId, string username, int amount)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
             if (gold == null)
             {
                 gold = new FishingGold { UserId = userId, Username = username, TotalGold = amount };
-                context.FishingGolds.Add(gold);
+                db.FishingGolds.Add(gold);
             }
             else
             {
                 gold.TotalGold += amount;
                 gold.Username = username;
             }
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task RemoveGoldFromUser(string userId, int amount)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
             if (gold != null && gold.TotalGold >= amount)
             {
                 gold.TotalGold -= amount;
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
         }
 
         public async Task SetUserGold(string userId, string username, int amount)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var gold = await context.FishingGolds.FirstOrDefaultAsync(g => g.UserId == userId);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var gold = await db.FishingGolds.Find(g => g.UserId == userId).FirstOrDefaultAsync();
             if (gold == null)
             {
                 gold = new FishingGold { UserId = userId, Username = username, TotalGold = amount };
-                context.FishingGolds.Add(gold);
+                db.FishingGolds.Add(gold);
             }
             else
             {
                 gold.TotalGold = amount;
                 gold.Username = username;
             }
-            await context.SaveChangesAsync();
+            await db.SaveChangesAsync();
         }
 
         public async Task<List<FishingGold>> GetAllPlayersWithGold()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingGolds
-                .OrderBy(g => g.Username)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingGolds.GetAsync(orderBy: q => q.OrderBy(g => g.Username));
         }
 
         #endregion
@@ -959,23 +1081,28 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<FishingSettings?> GetSettings()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var settings = await context.FishingSettings.SingleOrDefaultAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var settings = await db.FishingSettings.Query().SingleOrDefaultAsync();
             if (settings == null)
             {
                 settings = new FishingSettings();
-                context.FishingSettings.Add(settings);
-                await context.SaveChangesAsync();
+                db.FishingSettings.Add(settings);
+                await db.SaveChangesAsync();
             }
             return settings;
         }
 
         public async Task UpdateSettings(FishingSettings settings)
         {
+            if (!FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var thresholdValidationMessage))
+            {
+                throw new InvalidOperationException(thresholdValidationMessage);
+            }
+
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishingSettings.Update(settings);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishingSettings.Update(settings);
+            await db.SaveChangesAsync();
         }
 
         #endregion
@@ -985,27 +1112,26 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task ResetAllUserData()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            // Remove all user catches
-            await context.FishCatches.ExecuteDeleteAsync();
+            // FishingTournamentCatches keep their own snapshot of the catch data, so tournament
+            // history survives this (the FK is set to null by the database).
+            await db.FishCatches.ExecuteDeleteAllAsync();
 
             // Remove all user gold records
-            await context.FishingGolds.ExecuteDeleteAsync();
+            await db.FishingGolds.ExecuteDeleteAllAsync();
 
             // Remove all user boosts (purchased items)
-            await context.UserFishingBoosts.ExecuteDeleteAsync();
+            await db.UserFishingBoosts.ExecuteDeleteAllAsync();
 
             // Remove all user snap history records
-            await context.FishingSnapEvents.ExecuteDeleteAsync();
-
-            await context.SaveChangesAsync();
+            await db.FishingSnapEvents.ExecuteDeleteAllAsync();
         }
 
         public async Task<int> SyncAllFishRarities()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var settings = await GetSettings();
             if (settings == null)
@@ -1013,13 +1139,13 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 throw new InvalidOperationException("Fishing settings not found");
             }
 
-            var allFish = await context.FishTypes.ToListAsync();
+            var allFish = (await db.FishTypes.GetAllAsync()).ToList();
             var updateCount = 0;
 
             foreach (var fish in allFish)
             {
                 var oldRarity = fish.Rarity;
-                var newRarity = CalculateRarityFromGold(fish.BaseGold, settings);
+                var newRarity = FishingRarityThresholdRules.CalculateRarityFromGold(fish.BaseGold, settings);
 
                 if (oldRarity != newRarity)
                 {
@@ -1030,7 +1156,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (updateCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
 
             return updateCount;
@@ -1039,16 +1165,17 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> CleanOrphanedTournamentCategories()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var orphaned = await context.Set<FishingTournamentEligibleCategory>()
-                .Where(ec => !context.FishCategories.Any(fc => fc.Category == ec.Category))
+            var categoryQuery = db.FishCategories.Query();
+            var orphaned = await db.FishingTournamentEligibleCategories
+                .Find(ec => !categoryQuery.Any(fc => fc.Category == ec.Category))
                 .ToListAsync();
 
             if (orphaned.Count > 0)
             {
-                context.Set<FishingTournamentEligibleCategory>().RemoveRange(orphaned);
-                await context.SaveChangesAsync();
+                db.FishingTournamentEligibleCategories.RemoveRange(orphaned);
+                await db.SaveChangesAsync();
             }
 
             return orphaned.Count;
@@ -1056,14 +1183,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         private FishRarity CalculateRarityFromGold(int baseGold, FishingSettings settings)
         {
-            return baseGold switch
-            {
-                var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
-                var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
-                var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,
-                var gold when gold >= settings.RarityUncommonThreshold => FishRarity.Uncommon,
-                _ => FishRarity.Common
-            };
+            return FishingRarityThresholdRules.CalculateRarityFromGold(baseGold, settings);
         }
 
         #endregion

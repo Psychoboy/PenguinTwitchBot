@@ -251,6 +251,59 @@ public class BackupToolsTests : IDisposable
     }
 
     [Fact]
+    public async Task RestoreDatabase_RestoresFishTypeCategories()
+    {
+        PenguinTwitchBot.Database.Repository.Repositories.FishingRepository.ResetDeletionFlag();
+
+        var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fishcategories-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var realZipMock = new Mock<IZipService>();
+            var realBackupTools = new BackupTools(new System.IO.Abstractions.FileSystem(), _logger, realZipMock.Object);
+
+            var fishTypes = new List<PenguinTwitchBot.Database.Bot.Models.Fishing.FishType>
+            {
+                new()
+                {
+                    Id = 1,
+                    Name = "Golden Carp",
+                    BaseWeight = 12.5,
+                    BaseGold = 250,
+                    ImageFileName = "golden-carp.png",
+                    Enabled = true,
+                    Categories =
+                    [
+                        new() { Id = 1, FishTypeId = 1, Category = "Freshwater" },
+                        new() { Id = 2, FishTypeId = 1, Category = "Boss" }
+                    ]
+                }
+            };
+
+            await File.WriteAllTextAsync(System.IO.Path.Combine(tempDir, "FishType.json"), JsonSerializer.Serialize(fishTypes, new JsonSerializerOptions { WriteIndented = true }));
+
+            await realBackupTools.RestoreDatabase(_context, tempDir, _logger);
+
+            var restoredFish = await _context.FishTypes
+                .Include(f => f.Categories)
+                .SingleAsync();
+
+            Assert.Equal("Golden Carp", restoredFish.Name);
+            Assert.Equal(2, restoredFish.Categories.Count);
+            Assert.Contains(restoredFish.Categories, c => c.Category == "Freshwater");
+            Assert.Contains(restoredFish.Categories, c => c.Category == "Boss");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RestoreDatabase_RestoresFishingTournamentTables()
     {
         var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"fishtourney-{Guid.NewGuid():N}");

@@ -1,4 +1,4 @@
-﻿@page "/audiocommands"
+@page "/audiocommands"
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject Bot.Commands.AudioCommand.AudioCommands AudioCommand
@@ -7,8 +7,23 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Audio Commands</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Audio Commands</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Assign sound effects and audio clips directly to chat commands.
+                </MudText>
+            </MudStack>
+            <HelpButton Topic="audio-commands" />
+        </MudStack>
+
+        <MudGrid>
 
         @if (audioCommands != null)
         {
@@ -116,6 +131,7 @@
             </MudItem>
         }
     </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {

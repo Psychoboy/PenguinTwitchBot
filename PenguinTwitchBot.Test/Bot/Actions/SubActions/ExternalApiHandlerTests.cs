@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
@@ -16,8 +17,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(new HttpClient());
+            var logger = new Mock<ILogger<ExternalApiHandler>>();
 
-            var handler = new ExternalApiHandler(mockHttpClientFactory.Object);
+            var handler = new ExternalApiHandler(mockHttpClientFactory.Object, logger.Object);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -35,8 +37,9 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var mockHttpClientFactory = new Mock<IHttpClientFactory>();
             mockHttpClientFactory.Setup(x => x.CreateClient(It.IsAny<string>()))
                 .Returns(new HttpClient());
+            var logger = new Mock<ILogger<ExternalApiHandler>>();
 
-            var handler = new ExternalApiHandler(mockHttpClientFactory.Object);
+            var handler = new ExternalApiHandler(mockHttpClientFactory.Object, logger.Object);
 
             var externalApiType = new ExternalApiType
             {

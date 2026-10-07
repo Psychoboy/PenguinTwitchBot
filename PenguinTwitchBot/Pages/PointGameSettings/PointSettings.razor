@@ -11,14 +11,17 @@
         @* -- Page header -- *@
         <MudItem xs="12">
             <MudPaper Class="pa-4" Elevation="2">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.h5">Point Settings</MudText>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        Manage your point types and configure which point type each game uses.
-                        You can create as many point types as you like (e.g. one for casual fun games, one for
-                        giveaway tickets) and assign them individually per game. The first point type cannot be
-                        deleted - rename or repurpose it as needed.
-                    </MudText>
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.h5">Point Settings</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Manage your point types and configure which point type each game uses.
+                            You can create as many point types as you like (e.g. one for casual fun games, one for
+                            giveaway tickets) and assign them individually per game. The first point type cannot be
+                            deleted - rename or repurpose it as needed.
+                        </MudText>
+                    </MudStack>
+                    <HelpButton Topic="point-settings" />
                 </MudStack>
             </MudPaper>
         </MudItem>

@@ -3,6 +3,16 @@
     const overlayCardEl = document.querySelector(".overlay-card");
     const REFRESH_MS = 10000;
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function setOverlayVisible(isVisible) {
         if (!overlayCardEl) {
             return;
@@ -28,22 +38,22 @@
 
     function renderEmpty(message) {
         setOverlayVisible(false);
-        contentEl.innerHTML = `<div class="empty">${message}</div>`;
+        contentEl.innerHTML = `<div class="empty">${escapeHtml(message)}</div>`;
     }
 
     function renderError(message) {
         setOverlayVisible(true);
-        contentEl.innerHTML = `<div class="error">${message}</div>`;
+        contentEl.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
     }
 
     function renderTournament(tournament) {
         const rows = tournament.standings.map((standing) => {
             return `
                 <tr>
-                    <td class="rank">#${standing.rank}</td>
-                    <td>${standing.username}</td>
+                    <td class="rank">#${escapeHtml(standing.rank)}</td>
+                    <td>${escapeHtml(standing.username)}</td>
                     <td class="score">${formatScore(standing.score)}</td>
-                    <td class="catches">${standing.catchCount}</td>
+                    <td class="catches">${escapeHtml(standing.catchCount)}</td>
                 </tr>`;
         }).join("");
 
@@ -52,8 +62,8 @@
         return `
             <section class="tournament">
                 <div class="tournament-title">
-                    <div class="tournament-name" title="${tournament.name}">${tournament.name}</div>
-                    <div class="tournament-category">${tournament.scoreCategory}</div>
+                    <div class="tournament-name" title="${escapeHtml(tournament.name)}">${escapeHtml(tournament.name)}</div>
+                    <div class="tournament-category">${escapeHtml(tournament.scoreCategory)}</div>
                 </div>
                 <table>
                     <thead>

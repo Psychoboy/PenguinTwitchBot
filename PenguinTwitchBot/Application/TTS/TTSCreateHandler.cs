@@ -25,7 +25,7 @@ namespace PenguinTwitchBot.Application.TTS
                 };
                 logger.LogInformation("Queueing TTS file for {voice} {type} with message: {message}", voice.Name, voice.Type, message);
                 var alert = new QueueAlert(audioAlert.Generate());
-                await webSocketMessenger.AddToQueue(alert.Alert);
+                await webSocketMessenger.AddToQueue(alert.Topic, alert.Alert);
             }
             catch (Exception ex)
             {

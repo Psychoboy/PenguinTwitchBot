@@ -15,9 +15,21 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         public const double SellRate = 0.15;
 
-        public static int GetSellPrice(FishingShopItem? shopItem)
+        public static int GetSellPrice(FishingShopItem? shopItem, UserFishingBoost? boost = null)
         {
-            return shopItem == null ? 0 : (int)(shopItem.Cost * SellRate);
+            if (shopItem == null)
+            {
+                return 0;
+            }
+
+            var basePrice = shopItem.Cost * SellRate;
+            if (boost?.CurrentDurability.HasValue == true && shopItem.MaxDurability.HasValue && shopItem.MaxDurability.Value > 0)
+            {
+                var durabilityRatio = Math.Clamp(boost.CurrentDurability.Value / shopItem.MaxDurability.Value, 0.0, 1.0);
+                return (int)Math.Floor(basePrice * durabilityRatio);
+            }
+
+            return (int)basePrice;
         }
 
         public static SellEligibilityReason GetSellEligibility(UserFishingBoost? boost, FishingShopItem? shopItem = null)
@@ -43,7 +55,7 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 return SellEligibilityReason.LimitedUses;
             }
 
-            if (resolvedShopItem.IsConsumable)
+            if (resolvedShopItem.MaxUses.HasValue)
             {
                 return SellEligibilityReason.Consumable;
             }

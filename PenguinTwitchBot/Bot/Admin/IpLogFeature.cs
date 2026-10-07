@@ -5,18 +5,18 @@ namespace PenguinTwitchBot.Bot.Admin
 {
     public class IpLogFeature(IServiceScopeFactory scopeFactory) : IIpLogFeature
     {
-        public async Task<List<IpLogEntry>> GetIpLogsForUser(string username)
+        public async Task<List<IpLogEntry>> GetIpLogsForUser(string username, string? userId = null)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetKnownIpsForUser(UsernameNormalizer.Normalize(username));
+            return await unitOfWork.IpLogs.GetKnownIpsForUser(UsernameNormalizer.Normalize(username), userId);
         }
 
-        public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username)
+        public async Task<List<IpLogEntry>> GetDuplicateIpsForUser(string username, string? userId = null)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            return await unitOfWork.IpLogs.GetDuplicateIpsForUser(UsernameNormalizer.Normalize(username));
+            return await unitOfWork.IpLogs.GetDuplicateIpsForUser(UsernameNormalizer.Normalize(username), userId);
         }
 
         public async Task<PagedDataResponse<IpLogUsersWithSameIp>> GetAllDuplicateIps()

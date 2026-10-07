@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -200,6 +200,45 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("AutoShoutouts");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.BannedSong", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("BannedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("BannedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("SongId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SongId")
+                        .IsUnique();
+
+                    b.ToTable("BannedSongs");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.BannedViewer", b =>
@@ -766,9 +805,37 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("DecrementRank")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<int>("IncrementRank")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InitialValue")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Max")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Min")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ResetRank")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SetRank")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Step")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CounterName");
+                    b.HasIndex("CounterName")
+                        .IsUnique();
 
                     b.ToTable("Counters");
                 });
@@ -849,10 +916,19 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CaughtAt")
+                        .HasDatabaseName("IX_FishCatches_CaughtAt");
+
                     b.HasIndex("FishTypeId");
+
+                    b.HasIndex("GoldEarned")
+                        .HasDatabaseName("IX_FishCatches_GoldEarned");
 
                     b.HasIndex("UserId", "CaughtAt")
                         .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
+
+                    b.HasIndex("UserId", "FishTypeId")
+                        .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
 
                     b.ToTable("FishCatches");
                 });
@@ -934,7 +1010,84 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_FishingGolds_UserId");
+
                     b.ToTable("FishingGolds");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingRepairEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("DurabilityAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DurabilityBefore")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("DurabilityRestored")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("EquipmentSlot")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<decimal>("GoldPaid")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<double>("MaxDurability")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("RepairCostMultiplier")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("RepairType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("RepairedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ShopItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserBoostId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_RepairedAt");
+
+                    b.HasIndex("EquipmentSlot", "RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_EquipmentSlot_RepairedAt");
+
+                    b.HasIndex("UserId", "RepairedAt")
+                        .HasDatabaseName("IX_FishingRepairEvents_UserId_RepairedAt");
+
+                    b.ToTable("FishingRepairEvents");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingSettings", b =>
@@ -960,10 +1113,16 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<double>("LineSnapChance")
                         .HasColumnType("double precision");
 
+                    b.Property<double>("NetBreakChance")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("RarityEpicThreshold")
                         .HasColumnType("integer");
 
                     b.Property<int>("RarityLegendaryThreshold")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RarityMythicalThreshold")
                         .HasColumnType("integer");
 
                     b.Property<int>("RarityRareThreshold")
@@ -972,7 +1131,16 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("RarityUncommonThreshold")
                         .HasColumnType("integer");
 
+                    b.Property<double>("ReelJamChance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("RepairCostMultiplier")
+                        .HasColumnType("double precision");
+
                     b.Property<double>("RodSnapChance")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TackleBoxLostChance")
                         .HasColumnType("double precision");
 
                     b.HasKey("Id");
@@ -1013,6 +1181,12 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("DisableBreaking")
+                        .HasColumnType("boolean");
+
+                    b.Property<double?>("DurabilityLossPerUse")
+                        .HasColumnType("double precision");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1025,12 +1199,19 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<bool>("IsConsumable")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("MaxDurability")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("MaxUses")
                         .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("TargetCategory")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<int?>("TargetFishTypeId")
                         .HasColumnType("integer");
@@ -1155,11 +1336,35 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("FishCatchId")
+                    b.Property<DateTime>("CaughtAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("FishCatchId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FishTypeId")
                         .HasColumnType("integer");
 
                     b.Property<int>("FishingTournamentId")
                         .HasColumnType("integer");
+
+                    b.Property<int>("GoldEarned")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("Weight")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
@@ -1168,6 +1373,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasIndex("FishingTournamentId", "FishCatchId")
                         .IsUnique()
                         .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
+
+                    b.HasIndex("FishingTournamentId", "UserId")
+                        .HasDatabaseName("IX_FishingTournamentCatches_Tournament_User");
 
                     b.ToTable("FishingTournamentCatches");
                 });
@@ -1237,6 +1445,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<int>("FishingTournamentId")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("GoldAmount")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("Placement")
                         .HasColumnType("integer");
 
@@ -1281,11 +1492,11 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<double?>("CurrentDurability")
+                        .HasColumnType("double precision");
+
                     b.Property<bool>("IsEquipped")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("PurchasedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1303,6 +1514,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopItemId");
+
+                    b.HasIndex("UserId", "IsEquipped")
+                        .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
 
                     b.ToTable("UserFishingBoosts");
                 });
@@ -1490,6 +1704,10 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "Ip");
+
                     b.ToTable("IpLogEntrys");
                 });
 
@@ -1621,6 +1839,26 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("obs_connections");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.OpenAiResponseCode", b =>
+                {
+                    b.Property<string>("SessionKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreviousResponseId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("SessionKey");
+
+                    b.HasIndex("SessionKey")
+                        .IsUnique();
+
+                    b.ToTable("OpenAiResponseCodes");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Overlay.OverlayLayout", b =>
@@ -1965,11 +2203,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(21)
-                        .HasColumnType("character varying(21)");
-
                     b.Property<string>("LanguageCode")
                         .HasColumnType("text");
 
@@ -1985,11 +2218,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("RegisteredVoices");
-
-                    b.HasDiscriminator<string>("Discriminator").HasValue("RegisteredVoice");
-
-                    b.UseTphMappingStrategy();
+                    b.ToTable("RegisteredVoices", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.ScAiResponseCodes", b =>
@@ -2078,6 +2307,43 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("Songs");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongCooldown", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AddedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CooldownExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SongId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SongId")
+                        .IsUnique();
+
+                    b.ToTable("SongCooldowns");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.SongRequestViewItem", b =>
                 {
                     b.Property<int>("Id")
@@ -2129,6 +2395,38 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("SubscriptionHistories");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Themes.UserThemePreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsDarkMode")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ThemeId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserThemePreferences");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Timers.TimerGroup", b =>
                 {
                     b.Property<int>("Id")
@@ -2171,6 +2469,36 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("TimerGroups");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("LanguageCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Sex")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserRegisteredVoices", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Viewer", b =>
@@ -2526,7 +2854,30 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("ElevatedCommand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RankToExecuteAs")
+                        .HasColumnType("text");
+
                     b.ToTable("subactions_executeaction", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ExecuteCommandType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ElevatedCommand")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RankToExecuteAs")
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_executecommand", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ExecuteDefaultCommandType", b =>
@@ -2582,6 +2933,91 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnName("PlayerUsername");
 
                     b.ToTable("subactions_fishinggiveitemtoplayer", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingModifyType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("AdminOnlyState")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EnabledState")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ManualRarity")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NewBoostAmount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostAmount2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostAmount3")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("NewBoostType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NewBoostType2")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewBoostType3")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewCost")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewEquipmentSlot")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewGold")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewMaxUses")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewTargetCategory")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewTargetFish")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RarityMode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TargetFish")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetShopItem")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer");
+
+                    b.ToTable("subactions_fishingmodify", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.FishingTournamentEligibleCatchType", b =>
@@ -2722,6 +3158,9 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
 
+                    b.Property<string>("DestinationVariable")
+                        .HasColumnType("text");
+
                     b.Property<int?>("Max")
                         .HasColumnType("integer");
 
@@ -2731,6 +3170,12 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("Operation")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Value")
+                        .HasColumnType("integer");
 
                     b.ToTable("subactions_multicounter", (string)null);
                 });
@@ -2971,6 +3416,99 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_obs_triggerhotkey", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OpenAiType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("AllowedDomains")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CleanOutput")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("EnableWebSearch")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("MaxOutputTokenCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResponseVariableName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("SavePreviousResponse")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ServiceTier")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SessionKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_openai", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerAddTimeType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Amount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_overlay_timer_addtime", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerRemoveTimeType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Amount")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_overlay_timer_removetime", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerStartType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ResetOnStart")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("StartTime")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_overlay_timer_start", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.OverlayTimerStopType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ResetOnStop")
+                        .HasColumnType("boolean");
+
+                    b.ToTable("subactions_overlay_timer_stop", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlaySoundType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3144,6 +3682,23 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_resetcooldowns", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SelectRandomViewersType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<bool>("ActiveOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ExcludedViewers")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ViewerCount")
+                        .HasColumnType("integer");
+
+                    b.ToTable("subactions_selectrandomviewers", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SendMessageType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3249,17 +3804,6 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_writefile", (string)null);
-                });
-
-            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.UserRegisteredVoice", b =>
-                {
-                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Models.RegisteredVoice");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasDiscriminator().HasValue("UserRegisteredVoice");
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType", b =>
@@ -3385,8 +3929,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishCatch", "FishCatch")
                         .WithMany()
                         .HasForeignKey("FishCatchId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("PenguinTwitchBot.Database.Bot.Models.Fishing.FishingTournament", "FishingTournament")
                         .WithMany()

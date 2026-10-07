@@ -30,7 +30,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> IsStreamOnline(string userId);
         Task<bool> IsUserMod(string user);
         Task<bool> IsUserSub(string user);
-        Task RaidStreamer(string userId);
+        Task<bool> RaidStreamer(string userId);
         Task<ShoutoutResponseEnum> ShoutoutStreamer(string userId);
         Task<DateTime> StreamStartedAt();
         Task<bool> SubscribeToAllTheStuffs(string sessionId);
@@ -38,6 +38,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         Task<bool> ValidateAndRefreshToken();
         Task<List<BannedUser>> GetAllBannedViewers();
         bool IsServiceUp();
+        TwitchServiceStatus GetStatus();
+        event EventHandler<TwitchServiceStatus>? ServiceStatusChanged;
         Task<IEnumerable<Chatter>> GetCurrentChatters();
         Task<IEnumerable<ChannelPointReward>> GetChannelPointRewards();
         Task UpdateChannelPointReward(string rewardId, UpdateCustomRewardRequest request);
@@ -64,6 +66,11 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         /// Combines global and channel-specific badges; channel badges override globals.
         /// </summary>
         Task<Dictionary<string, string>> GetChatBadgesAsync();
+        /// <summary>
+        /// Returns a flat dictionary mapping native Twitch emote name to its image URL (1x).
+        /// Combines global and channel-specific emotes; channel emotes override globals.
+        /// </summary>
+        Task<Dictionary<string, string>> GetChatEmotesAsync();
         Task<string?> GetBroadcasterProfileImageUrl();
     }
 }

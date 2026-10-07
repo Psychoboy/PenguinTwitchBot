@@ -20,7 +20,7 @@ namespace PenguinTwitchBot.Test.Application.Alert.Handlers
 
             await handler.Handle(notification, CancellationToken.None);
 
-            await webSocketMessenger.Received(1).AddToQueue(alert);
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Alerts, alert);
         }
 
         [Fact]
@@ -33,7 +33,7 @@ namespace PenguinTwitchBot.Test.Application.Alert.Handlers
 
             await handler.Handle(notification, CancellationToken.None);
 
-            await webSocketMessenger.Received(1).AddToQueue(customAlert);
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Alerts, customAlert);
         }
 
         [Fact]
@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Test.Application.Alert.Handlers
 
             await handler.Handle(notification, cts.Token);
 
-            await webSocketMessenger.Received(1).AddToQueue(alert);
+            await webSocketMessenger.Received(1).AddToQueue(WsTopics.Alerts, alert);
         }
 
         [Fact]

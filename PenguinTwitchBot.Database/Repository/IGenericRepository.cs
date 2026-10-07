@@ -11,6 +11,7 @@ namespace PenguinTwitchBot.Database.Repository
         Task<T?> GetByIdAsync(int id);
         IEnumerable<T> GetAll();
         Task<IEnumerable<T>> GetAllAsync();
+        IQueryable<T> Query();
         IQueryable<T> Find(Expression<Func<T, bool>> expression);
         void Add(T entity);
         ValueTask<EntityEntry<T>> AddAsync(T entity);

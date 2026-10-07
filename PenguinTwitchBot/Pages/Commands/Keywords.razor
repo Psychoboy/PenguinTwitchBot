@@ -14,11 +14,16 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Action Keywords</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Keywords</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Action Keywords</MudText>
-    <MudText Typo="Typo.body2" Class="mb-4">Manage action keywords for the bot.</MudText>
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h4">Keywords</MudText>
+            <MudText Typo="Typo.body2">Manage keywords for the bot.</MudText>
+        </MudStack>
+        <HelpButton Topic="action-keywords" />
+    </MudStack>
 
     <MudGrid>
         <!-- Left Panel - Keywords List -->

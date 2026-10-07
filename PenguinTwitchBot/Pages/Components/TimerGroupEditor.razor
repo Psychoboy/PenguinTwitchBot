@@ -22,7 +22,7 @@
     {
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h6">
-                @(IsNewTimerGroup ? "New Timer Group" : $"Edit Timer Group: {TimerGroup?.Name}")
+                @(IsNewTimerGroup ? "New Timer" : $"Edit Timer: {TimerGroup?.Name}")
             </MudText>
             <MudStack Row="true" Spacing="1">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" 

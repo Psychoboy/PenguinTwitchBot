@@ -82,18 +82,12 @@
                                  HelperText="Organize commands into categories" />
             </MudItem>
             <MudItem xs="12">
-                <MudSelect @bind-Value="@Command.AudioFile" 
-                           Required="true" 
-                           Label="Audio File"
-                           Variant="Variant.Outlined"
-                           HelperText="Select the audio file to play when command is triggered"
-                           Adornment="Adornment.Start"
-                           AdornmentIcon="@Icons.Material.Filled.VolumeUp">
-                    @foreach (string file in AudioFiles)
-                    {
-                        <MudSelectItem Value="@file">@file</MudSelectItem>
-                    }
-                </MudSelect>
+                <AudioFilePicker @bind-SelectedFile="Command.AudioFile"
+                                 AvailableFiles="AudioFiles"
+                                 OnFileUploaded="OnAudioUploaded"
+                                 Label="Audio File"
+                                 HelperText="Select the audio file to play when command is triggered or upload a new one"
+                                 Required="true" />
             </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="Command.Description" Label="Description" 
@@ -211,7 +205,9 @@
                     </MudStack>
                     <MudStack Row="true" Spacing="3">
                         <MudSwitch @bind-Value="Command.ExcludeFromUi" Label="Exclude from UI" Color="Color.Warning" />
-                        <MudSwitch @bind-Value="Command.SourceOnly" Label="Source Only" Color="Color.Warning" />
+                        <MudTooltip Text="When streaming with other streamers (Stream Together / Shared Chat), only respond to commands from your own chat and ignore other streamers' chats.">
+                            <MudSwitch @bind-Value="Command.SourceOnly" Label="Source Only (Own Channel / Stream Together)" Color="Color.Warning" />
+                        </MudTooltip>
                     </MudStack>
                 </MudStack>
             </MudItem>
@@ -343,5 +339,14 @@
     private void OnSelectedRanksChanged(IEnumerable<Rank> ranks)
     {
         _selectedRanks = ranks.ToList();
+    }
+
+    private void OnAudioUploaded(string baseName)
+    {
+        if (!AudioFiles.Contains(baseName, StringComparer.OrdinalIgnoreCase))
+        {
+            AudioFiles.Add(baseName);
+            AudioFiles.Sort();
+        }
     }
 }

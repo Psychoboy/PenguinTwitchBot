@@ -1,98 +1,54 @@
-using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Bot.Queues;
-using PenguinTwitchBot.Bot.Actions.Utilities;
 using System.Collections.Concurrent;
+using PenguinTwitchBot.Bot.Actions.Utilities;
+using PenguinTwitchBot.Bot.Queues;
+using PenguinTwitchBot.Bot.Services;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
-namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
+namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+
+public class MultiCounterHandler(ICounterService counterService) : ISubActionHandler
 {
-    public class MultiCounterHandler(IServiceScopeFactory scopeFactory) : ISubActionHandler
+    public SubActionTypes SupportedType => SubActionTypes.MultiCounter;
+
+    public async Task ExecuteAsync(
+        SubActionType subAction,
+        ConcurrentDictionary<string, string> variables,
+        ActionExecutionContext? context = null,
+        int subActionIndex = -1)
     {
-        public SubActionTypes SupportedType => SubActionTypes.MultiCounter;
-
-        public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
+        if (subAction is not MultiCounterType multiCounterSubAction)
         {
-            if(subAction is not MultiCounterType multiCounterSubAction)
-            {
-                throw new SubActionHandlerException(subAction, "Invalid sub action type. Expected MultiCounterSubAction.");
-            }
-
-            var counterName = multiCounterSubAction.Name;
-
-            int? minValue = multiCounterSubAction.Min;
-            int? maxValue = multiCounterSubAction.Max;
-
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var counter = await db.Counters.Find(x => x.CounterName.Equals(counterName)).FirstOrDefaultAsync();
-            counter ??= new Counter()
-            {
-                CounterName = counterName,
-                Amount = 0
-            };
-
-            var eventArgs = CommandEventArgsConverter.FromDictionary(variables);
-            if(eventArgs.Args.Count > 0 && (eventArgs.IsBroadcaster || eventArgs.IsMod))
-            {
-                var modifier = eventArgs.Args[0];
-                if (modifier.Equals("reset"))
-                {
-                    counter.Amount = 0;
-                }
-                else if (modifier.Equals("+"))
-                {
-                    if (maxValue.HasValue && counter.Amount + 1 > maxValue.Value)
-                    {
-                        counter.Amount = maxValue.Value;
-                    }
-                    else
-                    {
-                        counter.Amount++;
-                    }
-                }
-                else if (modifier.Equals("-"))
-                {
-                    if (minValue.HasValue && counter.Amount - 1 < minValue.Value)
-                    {
-                        counter.Amount = minValue.Value;
-                    }
-                    else
-                    {
-                        counter.Amount--;
-                    }
-                }
-                else if (modifier.Equals("set") &&
-                    eventArgs.Args.Count >= 2 &&
-                    int.TryParse(eventArgs.Args[1], out var newAmount))
-                {
-                    if (minValue.HasValue && newAmount < minValue.Value)
-                    {
-                        counter.Amount = minValue.Value;
-                    }
-                    else if (maxValue.HasValue && newAmount > maxValue.Value)
-                    {
-                        counter.Amount = maxValue.Value;
-                    }
-                    else
-                    {
-                        counter.Amount = newAmount;
-                    }
-
-                }
-                db.Counters.Update(counter);
-                await db.SaveChangesAsync();
-                await WriteCounterFile(counterName, counter.Amount);
-            }
-            variables[$"counter_{counterName}"] = counter.Amount.ToString();
+            throw new SubActionHandlerException(subAction, "Invalid sub action type. Expected MultiCounterType.");
         }
-        private static async Task WriteCounterFile(string counterName, int amount)
+
+        var counterName = multiCounterSubAction.Name;
+        if (string.IsNullOrWhiteSpace(counterName))
         {
-            if (!Directory.Exists("Data/counters"))
-            {
-                Directory.CreateDirectory("Data/counters");
-            }
-            await File.WriteAllTextAsync($"Data/counters/{counterName}.txt", amount.ToString());
-            await File.WriteAllTextAsync($"Data/counters/{counterName}-full.txt", counterName + ": " + amount.ToString());
+            return;
         }
+
+        var eventArgs = variables.ContainsKey("OriginalEventArgs") ? CommandEventArgsConverter.FromDictionary(variables) : null;
+        CounterResult result;
+
+        if (multiCounterSubAction.Operation == CounterOperation.CommandArgs)
+        {
+            result = await counterService.EvaluateCommandArgsAsync(
+                counterName,
+                eventArgs,
+                multiCounterSubAction.Min,
+                multiCounterSubAction.Max);
+        }
+        else
+        {
+            result = await counterService.AdjustCounterAsync(
+                counterName,
+                multiCounterSubAction.Operation,
+                multiCounterSubAction.Value,
+                multiCounterSubAction.Min,
+                multiCounterSubAction.Max,
+                eventArgs);
+        }
+
+        counterService.PopulateVariables(variables, result, multiCounterSubAction.DestinationVariable);
     }
 }
-

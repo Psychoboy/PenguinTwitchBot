@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Pages.Components
 {
@@ -18,18 +18,27 @@ namespace PenguinTwitchBot.Pages.Components
                 FollowAgeType => "Gets follow age",
                 UptimeType => "Gets stream uptime",
                 WatchTimeType => "Gets watch time",
-                MultiCounterType multi => $"{multi.Name} counter. Variable: %counter_{multi.Name}%",
+                MultiCounterType multi => $"{multi.Name} counter ({multi.Operation}). Variable: %counter_{multi.Name}%",
+                SelectRandomViewersType randomViewers => $"Select {randomViewers.ViewerCount} random {(randomViewers.ActiveOnly ? "active " : "")}viewer(s)",
                 ChannelPointSetEnabledStateType cp => $"Channel Point: {cp.Text} {(cp.EnablePoint ? "Enabled" : "Disabled")}",
                 ChannelPointSetPausedStateType cp => $"Channel Point: {cp.Text} {(cp.IsPaused ? "Paused" : "Unpaused")}",
                 TtsType tts => $"TTS: {(tts.Text?.Length > 50 ? tts.Text[..50] + "..." : tts.Text)}",
                 LogicIfElseType ifElse => $"If {ifElse.LeftValue} {ifElse.Operator} {ifElse.RightValue} (True: {ifElse.TrueSubActions.Count}, False: {ifElse.FalseSubActions.Count})",
-                ExecuteActionType exec => $"Execute Action: {exec.ActionName}",
+                ExecuteActionType exec => string.IsNullOrWhiteSpace(exec.Text) ? $"Execute Action: {exec.ActionName}" : $"Execute Action: {exec.ActionName} ({exec.Text})",
                 BreakType => "Breaks from current Action",
                 DelayType delay => $"Delay: {delay.Duration}ms",
-                ExecuteDefaultCommandType execCmd => $"Execute Command: {execCmd.CommandName}",
+                OverlayTimerStartType timerStart => $"Overlay Timer: start counting {timerStart.Direction}{(string.IsNullOrWhiteSpace(timerStart.StartTime) ? (timerStart.ResetOnStart ? " from zero" : "") : $" from {timerStart.StartTime}")}",
+                OverlayTimerStopType timerStop => $"Overlay Timer: stop{(timerStop.ResetOnStop ? " and reset" : "")}",
+                OverlayTimerAddTimeType timerAdd => $"Overlay Timer: add {timerAdd.Amount}",
+                OverlayTimerRemoveTimeType timerRemove => $"Overlay Timer: remove {timerRemove.Amount}",
+                ExecuteDefaultCommandType execCmd => $"Execute Default Command: {execCmd.CommandName}",
+                ExecuteCommandType execCmd => string.IsNullOrWhiteSpace(execCmd.Text) ? $"Execute Command: {execCmd.CommandName}" : $"Execute Command: {execCmd.CommandName} ({execCmd.Text})",
                 FishingTournamentStartType tournamentStart => $"Fishing Tournament Start: #{tournamentStart.TournamentId}",
                 FishingTournamentEndType tournamentEnd => $"Fishing Tournament End: #{tournamentEnd.TournamentId}",
                 FishingTournamentEligibleCatchType tournamentEligibleCatch => $"Fishing Tournament Eligible Catch {(tournamentEligibleCatch.Enabled ? "Enabled" : "Disabled")}",
+                FishingModifyType modify => modify.TargetType == FishingModifyTargetType.Fish
+                    ? $"Modify Fish: {(string.IsNullOrWhiteSpace(modify.TargetFish) ? "None" : modify.TargetFish)}"
+                    : $"Modify Shop Item: {(string.IsNullOrWhiteSpace(modify.TargetShopItem) ? "None" : modify.TargetShopItem)}",
                 ObsSetSceneFilterStateType obsFilter => $"OBS Filter: {obsFilter.SceneName} - {obsFilter.FilterName} {(obsFilter.FilterEnabled ? "Enabled" : "Disabled")}",
                 ObsSetSceneType obsScene => $"OBS Scene: {obsScene.SceneName}",
                 ObsSetSourceVisibilityType obsVis => $"OBS Visibility: {obsVis.SceneName}/{obsVis.SourceName} {(obsVis.Visible ? "Visible" : "Hidden")}",
@@ -47,6 +56,7 @@ namespace PenguinTwitchBot.Pages.Components
                 ToggleCommandDisabledType toggleCmd => $"Toggle Command: {toggleCmd.CommandName} {(toggleCmd.IsDisabled ? "Disabled" : "Enabled")}",
                 TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {timerGroup.TimerGroupName} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
                 CheckPointsType checkPoints => $"Gets {checkPoints.PointTypeName} points for {checkPoints.TargetUser} Variables: %TargetPoints% and %TargetPointsFormatted%",
+                OpenAiType ai => $"OpenAI: {(ai.Text?.Length > 50 ? ai.Text[..50] + "..." : ai.Text)} ({ai.Model})",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

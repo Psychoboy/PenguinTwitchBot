@@ -1,7 +1,11 @@
+@using PenguinTwitchBot.Services
 @inherits LayoutComponentBase
+@inject IUserThemeService UserThemeService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot")</PageTitle>
-<MudThemeProvider IsDarkMode=true />
+<MudThemeProvider Theme="@UserThemeService.CurrentTheme" IsDarkMode="@UserThemeService.IsDarkMode" />
 <MudPopoverProvider/>
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -10,3 +14,28 @@
         @Body
     </MudMainContent>
 </MudLayout>
+
+@code {
+    protected override void OnInitialized()
+    {
+        UserThemeService.OnThemeChanged += HandleThemeChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await UserThemeService.InitializeAsync(JSRuntime);
+        }
+    }
+
+    private void HandleThemeChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UserThemeService.OnThemeChanged -= HandleThemeChanged;
+    }
+}

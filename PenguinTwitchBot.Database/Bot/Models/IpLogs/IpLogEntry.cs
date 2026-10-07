@@ -1,5 +1,7 @@
 namespace PenguinTwitchBot.Database.Bot.Models.IpLogs
 {
+    [Index(nameof(UserId), nameof(Ip))]
+    [Index(nameof(UserId))]
     public class IpLogEntry
     {
         [Key]

@@ -13,6 +13,8 @@ namespace PenguinTwitchBot.Bot.Queues
 
         void UpdateActionFailed(Guid logId, string errorMessage);
 
+        void UpdateActionCancelled(Guid logId, string reason);
+
         IReadOnlyList<ActionExecutionLog> GetRecentLogs(int count = 100);
 
         IReadOnlyList<ActionExecutionLog> GetLogsByQueue(string queueName, int count = 100);

@@ -37,6 +37,7 @@ namespace PenguinTwitchBot.Bot.Core
         public event AsyncEventHandler<UserJoinedEventArgs>? UserJoinedEvent;
         public event AsyncEventHandler<UserLeftEventArgs>? UserLeftEvent;
         public event AsyncEventHandler<RaidEventArgs>? IncomingRaidEvent;
+        public event AsyncEventHandler<OutgoingRaidEventArgs>? OutgoingRaidEvent;
         public event AsyncEventHandler<BanEventArgs>? BanEvent;
         public event AsyncEventHandler? StreamStarted;
         public event AsyncEventHandler? StreamEnded;
@@ -234,6 +235,21 @@ namespace PenguinTwitchBot.Bot.Core
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error In OnIncomingRaid");
+                }
+            }
+        }
+
+        public async Task OnOutgoingRaid(OutgoingRaidEventArgs args)
+        {
+            if (OutgoingRaidEvent != null)
+            {
+                try
+                {
+                    await OutgoingRaidEvent(this, args);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error In OnOutgoingRaid");
                 }
             }
         }

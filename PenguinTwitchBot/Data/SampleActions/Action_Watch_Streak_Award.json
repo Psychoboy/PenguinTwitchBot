@@ -1,0 +1,59 @@
+{
+  "Version": "1.1",
+  "ExportedAt": "2026-08-07T02:48:55.5905872Z",
+  "Actions": [
+    {
+      "Name": "Watch Streak Award",
+      "Group": "Tickets",
+      "Enabled": true,
+      "RandomAction": false,
+      "ConcurrentAction": false,
+      "OnlineOnly": false,
+      "QueueName": "Default",
+      "SubActions": [
+        {
+          "$type": "SetVariable",
+          "Value": "$math(%WatchStreak.StreakCount% * 3)$",
+          "Index": 0,
+          "Text": "ticketsToAward",
+          "Enabled": true,
+          "SubActionTypes": 30
+        },
+        {
+          "$type": "PointCommand",
+          "Arguments": "%user% %ticketsToAward%",
+          "RespondToChat": false,
+          "ElevatedCommand": true,
+          "RankToExecuteAs": "Streamer",
+          "Index": 1,
+          "Text": "addtickets",
+          "Enabled": true,
+          "SubActionTypes": 34
+        },
+        {
+          "$type": "SendMessage",
+          "UseBot": true,
+          "FallBack": true,
+          "StreamOnly": true,
+          "Index": 2,
+          "Text": "%user% received %ticketsToAward% Tickets for your streak!",
+          "Enabled": true,
+          "SubActionTypes": 22
+        }
+      ],
+      "CatchSubActions": [],
+      "Triggers": [
+        {
+          "Name": "ChannelChatNotification",
+          "Type": 1,
+          "Configuration": "{\u0022EventName\u0022:\u0022ChannelChatNotification\u0022,\u0022MinAmount\u0022:null,\u0022MaxAmount\u0022:null,\u0022MinViewers\u0022:null,\u0022MaxViewers\u0022:null,\u0022RewardTitles\u0022:[],\u0022SubscriptionTiers\u0022:[],\u0022MinGiftAmount\u0022:null,\u0022MaxGiftAmount\u0022:null,\u0022IsAutomatic\u0022:null,\u0022MinAdDuration\u0022:null,\u0022MaxAdDuration\u0022:null,\u0022BitsTypes\u0022:[],\u0022PowerUpTypes\u0022:[],\u0022CustomPowerUpTitles\u0022:[],\u0022CustomPowerUpRewardIds\u0022:[],\u0022NoticeTypes\u0022:[\u0022watch_streak\u0022],\u0022MinWatchStreak\u0022:null,\u0022MaxWatchStreak\u0022:null,\u0022MinRaidViewers\u0022:null,\u0022MaxRaidViewers\u0022:null,\u0022SubTiers\u0022:[],\u0022MinCumulativeMonths\u0022:null,\u0022MaxCumulativeMonths\u0022:null,\u0022MinCommunityGiftCount\u0022:null,\u0022MaxCommunityGiftCount\u0022:null,\u0022MinCharityAmount\u0022:null,\u0022MaxCharityAmount\u0022:null,\u0022MinBitsBadgeTier\u0022:null,\u0022MaxBitsBadgeTier\u0022:null,\u0022AnnouncementColors\u0022:[]}",
+          "Enabled": true,
+          "CommandDefinition": null,
+          "KeywordDefinition": null,
+          "TimerGroupDefinition": null,
+          "DefaultCommandDefinition": null
+        }
+      ]
+    }
+  ]
+}

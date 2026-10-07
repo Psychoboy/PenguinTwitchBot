@@ -10,6 +10,7 @@ namespace PenguinTwitchBot.Bot.Actions
         Task<ActionType> UpdateActionAsync(ActionType action);
         Task DeleteActionAsync(int id);
         Task<List<ActionType>> GetActionsByTriggerTypeAndNameAsync(TriggerTypes triggerType, string triggerName);
+        Task<List<ActionType>> GetActionsByTriggerTypeAndNameEnabledAsync(TriggerTypes triggerType, string triggerName);
 
         // Trigger management (Triggers are now children of Actions)
         Task<List<TriggerType>> GetTriggersForActionAsync(int actionId);

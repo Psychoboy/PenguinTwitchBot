@@ -12,19 +12,22 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public string Icon { get; }
         public string Color { get; }
         public string TableName { get; }
+        public string Category { get; }
 
         public SubActionMetadataAttribute(
             string displayName, 
             string description, 
             string icon = "mdi-cog", 
             string color = "Primary",
-            string? tableName = null)
+            string? tableName = null,
+            string category = SubActionCategories.General)
         {
             DisplayName = displayName;
             Description = description;
             Icon = icon;
             Color = color;
             TableName = tableName ?? $"SubActions_{displayName.Replace(" ", "")}";
+            Category = category;
         }
     }
 }

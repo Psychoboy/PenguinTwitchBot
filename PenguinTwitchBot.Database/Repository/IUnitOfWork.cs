@@ -34,6 +34,8 @@ namespace PenguinTwitchBot.Database.Repository
         IPlaylistsRepository Playlists { get; }
         ISubscriptionHistoriesRepository SubscriptionHistories { get; }
         ISongsRepository Songs { get; }
+        IBannedSongsRepository BannedSongs { get; }
+        ISongCooldownsRepository SongCooldowns { get; }
         ISongRequestViewItemsRepository SongRequestViewItems { get; }
         IExternalCommandsRepository ExternalCommands { get; }
         IBannedViewersRepository BannedViewers { get; }
@@ -53,6 +55,7 @@ namespace PenguinTwitchBot.Database.Repository
         IUserPointsRepository UserPoints { get; }
         IPointCommandsRepository PointCommands { get; }
         IScAiResponsesRepository ScAiResponses { get; }
+        IOpenAiResponseCodesRepository OpenAiResponses { get; }
 
         IActionsRepository Actions { get; }
         ISubActionsRepository SubActions { get; }
@@ -67,9 +70,19 @@ namespace PenguinTwitchBot.Database.Repository
         IUserFishingBoostRepository UserFishingBoosts { get; }
         IFishingSettingsRepository FishingSettings { get; }
         IFishingSnapEventRepository FishingSnapEvents { get; }
+        IFishingRepairEventRepository FishingRepairEvents { get; }
+        IFishCategoryRepository FishCategories { get; }
+        IFishingTournamentRepository FishingTournaments { get; }
+        IFishingTournamentFishTypeRepository FishingTournamentFishTypes { get; }
+        IFishingTournamentRewardRuleRepository FishingTournamentRewardRules { get; }
+        IFishingTournamentCatchRepository FishingTournamentCatches { get; }
+        IFishingTournamentEligibleCategoryRepository FishingTournamentEligibleCategories { get; }
 
         // Overlay repositories
         IOverlayLayoutRepository OverlayLayouts { get; }
         IOverlayWidgetRepository OverlayWidgets { get; }
+
+        IOBSConnectionsRepository OBSConnections { get; }
+        IUserThemePreferencesRepository UserThemePreferences { get; }
     }
 }

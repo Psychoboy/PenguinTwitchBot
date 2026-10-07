@@ -176,6 +176,11 @@
         <div id="content" class="content"></div>
     </div>
 
-    <script src="/js/fishing-tournaments-overlay.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = '/js/fishing-tournaments-overlay.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>

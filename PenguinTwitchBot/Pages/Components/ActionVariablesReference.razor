@@ -1,0 +1,195 @@
+@using PenguinTwitchBot.Bot.Actions.Variables
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="2" Class="action-variables-reference">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+        <MudTextField @bind-Value="_searchString"
+                      Placeholder="Search variables (name, source, description)..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      Clearable="true"
+                      Margin="Margin.Dense"
+                      Variant="Variant.Outlined"
+                      Class="flex-grow-1"
+                      Style="max-width: 450px;" />
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Showing @FilteredVariables.Count of @Variables.Count variable@(Variables.Count == 1 ? "" : "s")
+        </MudText>
+    </MudStack>
+
+    @if (Categories.Count > 1)
+    {
+        <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+            <MudChip T="string"
+                     Size="Size.Small"
+                     Color="@(_selectedCategory == null ? Color.Primary : Color.Default)"
+                     Variant="@(_selectedCategory == null ? Variant.Filled : Variant.Outlined)"
+                     OnClick="@(() => _selectedCategory = null)">
+                All (@Variables.Count)
+            </MudChip>
+            @foreach (var cat in Categories)
+            {
+                var categoryName = cat;
+                var count = Variables.Count(v => v.Category.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Color="@(_selectedCategory == categoryName ? Color.Primary : Color.Default)"
+                         Variant="@(_selectedCategory == categoryName ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => _selectedCategory = categoryName)">
+                    @categoryName (@count)
+                </MudChip>
+            }
+        </MudStack>
+    }
+
+    @if (FilteredVariables.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+            No variables match the selected filter.
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="@FilteredVariables" Dense="@Dense" Hover="true" Elevation="0" Outlined="true" Striped="true">
+            <HeaderContent>
+                <MudTh Style="width: 220px;">Variable Token</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh Style="width: 240px;">Source</MudTh>
+                <MudTh Style="width: 140px;">Example</MudTh>
+                <MudTh Style="width: 60px; text-align: center;">Copy</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Variable">
+                    <span title="Click to copy token">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined"
+                                 OnClick="@(() => CopyToClipboardAsync(context.Name))"
+                                 Style="cursor: pointer; font-family: monospace; font-weight: bold;">
+                            @GetFormattedToken(context.Name)
+                        </MudChip>
+                    </span>
+                </MudTd>
+                <MudTd DataLabel="Description">
+                    <MudText Typo="Typo.body2">@context.Description</MudText>
+                </MudTd>
+                <MudTd DataLabel="Source">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @context.Source
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Example">
+                    @if (!string.IsNullOrWhiteSpace(context.ExampleValue))
+                    {
+                        <MudText Typo="Typo.caption" Style="font-family: monospace;">
+                            @context.ExampleValue
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Default">-</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Copy" Style="text-align: center;">
+                    <span title="Copy token to clipboard">
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="@(() => CopyToClipboardAsync(context.Name))"
+                                       aria-label="Copy token to clipboard" />
+                    </span>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudStack>
+
+@code {
+    [Parameter]
+    public List<ActionVariableInfo> Variables { get; set; } = [];
+
+    [Parameter]
+    public bool Dense { get; set; } = true;
+
+    [Parameter]
+    public string? SearchString { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnVariableSelected { get; set; }
+
+    private string? _searchString;
+    private string? _selectedCategory;
+
+    protected override void OnParametersSet()
+    {
+        if (SearchString != null && _searchString != SearchString)
+        {
+            _searchString = SearchString;
+        }
+    }
+
+    private List<string> Categories => Variables
+        .Select(v => v.Category)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private List<ActionVariableInfo> FilteredVariables
+    {
+        get
+        {
+            var query = Variables.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(_selectedCategory))
+            {
+                query = query.Where(v => v.Category.Equals(_selectedCategory, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_searchString))
+            {
+                var term = _searchString.Trim();
+                query = query.Where(v =>
+                    v.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    v.Description.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    v.Source.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (v.ExampleValue != null && v.ExampleValue.Contains(term, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return query.ToList();
+        }
+    }
+
+    private static string GetFormattedToken(string name)
+    {
+        if (name.StartsWith("$")) return name;
+        return $"%{name}%";
+    }
+
+    private async Task CopyToClipboardAsync(string name)
+    {
+        var token = GetFormattedToken(name);
+        try
+        {
+            await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", token);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add($"Failed to copy {token}", Severity.Warning);
+            return;
+        }
+
+        Snackbar.Add($"Copied {token} to clipboard", Severity.Info, config =>
+        {
+            config.VisibleStateDuration = 1500;
+            config.ShowCloseIcon = false;
+        });
+
+        if (OnVariableSelected.HasDelegate)
+        {
+            await OnVariableSelected.InvokeAsync(token);
+        }
+    }
+}

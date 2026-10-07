@@ -65,5 +65,70 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
         }
+
+        [Theory]
+        [InlineData("javascript:alert(1)")]
+        [InlineData("data:text/html;base64,PHNjcmlwdD4=")]
+        [InlineData("vbscript:msgbox(1)")]
+        [InlineData("file:///etc/passwd")]
+        [InlineData("about:blank")]
+        [InlineData("chrome://settings")]
+        [InlineData("not-a-valid-url")]
+        public async Task InvalidScheme_ThrowsException(string invalidUrl)
+        {
+            var connectionManager = Substitute.For<IOBSConnectionManager>();
+            var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
+            var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
+
+            var connection = CreateConnectedConnection(1, "Main");
+            connectionManager.GetManagedConnection(1).Returns(connection);
+
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = invalidUrl };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
+        }
+
+        [Theory]
+        [InlineData("java\tscript:alert(1)")]
+        [InlineData("java\nscript:alert(1)")]
+        [InlineData("java\rscript:alert(1)")]
+        [InlineData("http://example.com/\0test")]
+        [InlineData("http://example.com/\x7Ftest")]
+        [InlineData("https://example\t.com")]
+        public async Task ControlCharactersInUrl_ThrowsException(string urlWithControls)
+        {
+            var connectionManager = Substitute.For<IOBSConnectionManager>();
+            var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
+            var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
+
+            var connection = CreateConnectedConnection(1, "Main");
+            connectionManager.GetManagedConnection(1).Returns(connection);
+
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = urlWithControls };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await Assert.ThrowsAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
+        }
+
+        [Theory]
+        [InlineData("http://example.com")]
+        [InlineData("https://example.com/overlay?key=value")]
+        public async Task ValidHttpScheme_Succeeds(string validUrl)
+        {
+            var connectionManager = Substitute.For<IOBSConnectionManager>();
+            var logger = Substitute.For<ILogger<ObsSetBrowserSourceUrlHandler>>();
+            var handler = new ObsSetBrowserSourceUrlHandler(connectionManager, logger);
+
+            var connection = CreateConnectedConnection(1, "Main");
+            connectionManager.GetManagedConnection(1).Returns(connection);
+
+            var type = new ObsSetBrowserSourceUrlType { OBSConnectionId = 1, InputName = "Browser", Url = validUrl };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await handler.ExecuteAsync(type, variables);
+
+            connectionManager.Received(1).GetManagedConnection(1);
+        }
     }
 }

@@ -62,6 +62,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddTransient<IWebsocketClient, WebsocketClient>();
             services.AddSingleton<TwitchApi.EventSub.Websockets.IEventSubWebsocketClient>(x => new TwitchApi.EventSub.Websockets.EventSubWebsocketClient(x.GetRequiredService<ILogger<TwitchApi.EventSub.Websockets.EventSubWebsocketClient>>(), x.GetRequiredService<IServiceProvider>(), x.GetRequiredService<IWebsocketClient>()));
 
+
             
             services.AddSingleton<IServiceBackbone, ServiceBackbone>();
             services.AddSingleton<ITwitchService, TwitchService>();
@@ -119,7 +120,6 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddHostedService<OBSConnectionHostedService>();
 
             services.AddSingleton<Bot.Notifications.IWebSocketMessenger, Bot.Notifications.WebSocketMessenger>();
-            services.AddSingleton<Bot.WebSocketEvents.IWsEventHandler, Bot.WebSocketEvents.WsEventHandler>();
 
             services.AddRuntimeFeatureService<Bot.Commands.Moderation.IKnownBots, Bot.Commands.Moderation.KnownBots>(
                 FeatureKeys.KnownBots,
@@ -138,13 +138,27 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<ISubscriptionTracker, SubscriptionTracker>();
             // IpLog is registered in Program.cs (always) so it's available even in setup mode.
 
+            // Raid Reward feature
+            services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardSettingsService, PenguinTwitchBot.Services.RaidRewardSettingsService>();
+            services.AddSingleton<PenguinTwitchBot.Services.RaidRewardService>();
+            services.AddSingleton<PenguinTwitchBot.Services.IRaidRewardService>(x => x.GetRequiredService<PenguinTwitchBot.Services.RaidRewardService>());
+            services.AddHostedService(x => x.GetRequiredService<PenguinTwitchBot.Services.RaidRewardService>());
+
             services.AddScoped(typeof(PenguinTwitchBot.Database.Repository.IGenericRepository<>), typeof(PenguinTwitchBot.Database.Repository.Repositories.GenericRepository<>));
             services.AddScoped<PenguinTwitchBot.Database.Repository.IUnitOfWork, PenguinTwitchBot.Database.Repository.UnitOfWork>();
             services.AddScoped<Bot.Actions.IActionManagementService, Bot.Actions.ActionManagementService>();
             services.AddScoped<Bot.Actions.IRaffleSetupService, Bot.Actions.RaffleSetupService>();
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
+            services.AddScoped<Bot.Services.ICounterService, Bot.Services.CounterService>();
             services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.CommandTriggerVariableResolver>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.DefaultCommandTriggerVariableResolver>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.TwitchEventTriggerVariableResolver>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.FishingTriggerVariableResolver>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.TimerTriggerVariableResolver>();
+            services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.MiscellaneousTriggerVariableResolver>();
+            services.AddScoped<Bot.Actions.Variables.IActionVariableResolver, Bot.Actions.Variables.ActionVariableResolver>();
             services.AddScoped<IIpLogFeature, IpLogFeature>();
             //Add Features Here:
 
@@ -214,7 +228,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Tracks daily messages and subscriptions."
             );
-            services.AddRuntimeFeatureService<Bot.Commands.Misc.DeathCounters>(
+            services.AddRuntimeFeatureService<Bot.Commands.Misc.IDeathCounterService, Bot.Commands.Misc.DeathCounters>(
                 FeatureKeys.DeathCounter,
                 "Death Counter",
                 moduleName: "DeathCounter",
@@ -314,6 +328,9 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Passive tax timer that runs after stream end."
             );
+            services.AddHostedApiService<Bot.Overlay.IStreamTimerService, Bot.Overlay.StreamTimerService>();
+            services.AddSingleton<Bot.Commands.Music.IBannedSongService, Bot.Commands.Music.BannedSongService>();
+            services.AddSingleton<Bot.Commands.Music.ISongCooldownService, Bot.Commands.Music.SongCooldownService>();
             services.AddRuntimeFeatureService<Bot.Commands.Music.YtPlayer>(
                 FeatureKeys.MusicPlayer,
                 "Music Player",
@@ -442,7 +459,7 @@ namespace PenguinTwitchBot.CustomMiddleware
             // Register Action Execution Logger
             services.AddSingleton<Bot.Queues.IActionExecutionLogger, Bot.Queues.ActionExecutionLogger>();
 
-            // Global concurrency limiter � shared SemaphoreSlim across all non-blocking queues
+            // Global concurrency limiter - shared SemaphoreSlim across all non-blocking queues
             services.AddSingleton<Bot.Queues.GlobalConcurrencyLimiter>();
 
             // Register Queue Manager

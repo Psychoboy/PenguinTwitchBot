@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using Microsoft.AspNetCore.SignalR.Client
 @using PenguinTwitchBot.Database.Bot.Models.Giveaway
+@using PenguinTwitchBot.Database.Bot.Models.Points
 @inject PenguinTwitchBot.Bot.Commands.Features.IGiveawayFeature GiveawayFeature;
 @inject PenguinTwitchBot.Bot.Core.Database.IDatabaseTools DatabaseTools;
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointSystem;
@@ -12,6 +13,19 @@
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Giveaway Settings</PageTitle>
 
 <MudStack Spacing="4" Class="pa-4">
+    <!-- Header -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+        <MudStack Spacing="1">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CardGiftcard" Size="Size.Large" Color="Color.Primary" />
+                <MudText Typo="Typo.h4">Giveaway Settings</MudText>
+            </MudStack>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Configure current prize details, entry ticket costs, point currency, and viewer claim requirements.
+            </MudText>
+        </MudStack>
+        <HelpButton Topic="giveaway-settings" />
+    </MudStack>
 
     <MudCard Elevation="2">
         <MudCardHeader>
@@ -22,20 +36,49 @@
         <MudCardContent>
             <MudStack Spacing="3">
                 <MudTextField Label="Prize" Required="true" RequiredError="Prize is required" @bind-Value="@Prize" Variant="Variant.Outlined" />
-                <MudTextField Label="Image Url" @bind-Value="@Image" Variant="Variant.Outlined" />
+                <MediaUrlPicker Label="Prize Image URL"
+                                @bind-Value="@Image"
+                                HelperText="Direct image URL or upload prize artwork/photo. Generates relative URL (/media/...) automatically." />
                 <MudTextField Label="Prize Tier" @bind-Value="@PrizeTier" Variant="Variant.Outlined" />
-                <MudTextField Label="Additional Details (Markdown)" @bind-Value="@PrizeAdditionalDetails" Lines="4" Variant="Variant.Outlined" />
-                @if (!string.IsNullOrEmpty(PrizeAdditionalDetails))
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@PrizeAdditionalDetails" />
-                }
+                <GitHubMarkdownEditor Label="Additional Details"
+                                      @bind-Value="@PrizeAdditionalDetails"
+                                      Lines="4"
+                                      HelperText="Supports Markdown, SVG icons, and Alert banners. Shown on the viewer page." />
             </MudStack>
         </MudCardContent>
         <MudCardActions>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnPrizeSubmit" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Reset" StartIcon="@Icons.Material.Filled.RestartAlt">Reset Giveaway</MudButton>
+        </MudCardActions>
+    </MudCard>
+
+    <MudCard Elevation="2">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">Entry Settings</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the point type used for giveaway entries and how many points each entry costs.</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <MudSelect T="PointType" Label="Point Type" Value="SelectedPointType"
+                           ValueChanged="@((PointType pt) => SelectedPointType = pt)"
+                           ToStringFunc="@(pt => pt?.Name ?? "")"
+                           HelperText="Which point currency viewers spend to enter this giveaway."
+                           Variant="Variant.Outlined">
+                    @foreach (var pt in AvailablePointTypes)
+                    {
+                        <MudSelectItem Value="@pt" />
+                    }
+                </MudSelect>
+                <MudNumericField T="int" Label="Points Per Entry" @bind-Value="PointsPerEntry"
+                                 Min="1"
+                                 HelperText="@($"How many points equals 1 entry. E.g. with {PointsPerEntry} point(s) per entry, a viewer with 500 points can enter up to {500 / Math.Max(1, PointsPerEntry)} time(s). Partial entries are not allowed — always rounds down.")"
+                                 Variant="Variant.Outlined" />
+            </MudStack>
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveEntrySettings" StartIcon="@Icons.Material.Filled.Save">Save Entry Settings</MudButton>
         </MudCardActions>
     </MudCard>
 
@@ -48,13 +91,10 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
-                <MudTextField Label="Rules (Markdown)" @bind-Value="@Rules" Lines="6" Variant="Variant.Outlined" />
-                @if (!string.IsNullOrEmpty(Rules))
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Rules" />
-                }
+                <GitHubMarkdownEditor Label="Rules"
+                                      @bind-Value="@Rules"
+                                      Lines="6"
+                                      HelperText="Supports Markdown, SVG icons, and Alert banners. Shown on the viewer giveaway page." />
             </MudStack>
         </MudCardContent>
         <MudCardActions>
@@ -71,13 +111,10 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
-                <MudTextField Label="Cooldowns (Markdown)" @bind-Value="@Cooldowns" Lines="8" Variant="Variant.Outlined" />
-                @if (!string.IsNullOrEmpty(Cooldowns))
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Cooldowns" />
-                }
+                <GitHubMarkdownEditor Label="Cooldowns & Tiers"
+                                      @bind-Value="@Cooldowns"
+                                      Lines="8"
+                                      HelperText="Supports Markdown including tables, SVG icons, and Alert banners. Shown under Giveaway Rules on the viewer page." />
             </MudStack>
         </MudCardContent>
         <MudCardActions>
@@ -94,13 +131,10 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
-                <MudTextField Label="Terms (Markdown)" @bind-Value="@Terms" Lines="8" Variant="Variant.Outlined" />
-                @if (!string.IsNullOrEmpty(Terms))
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@Terms" />
-                }
+                <GitHubMarkdownEditor Label="Terms & Conditions"
+                                      @bind-Value="@Terms"
+                                      Lines="8"
+                                      HelperText="Supports Markdown, links, SVG icons, and Alert banners. Shown on the viewer giveaway page." />
             </MudStack>
         </MudCardContent>
         <MudCardActions>
@@ -117,13 +151,10 @@
         </MudCardHeader>
         <MudCardContent>
             <MudStack Spacing="3">
-                <MudTextField Label="Passive Earnings (Markdown)" @bind-Value="@PassiveEarnings" Lines="6" Variant="Variant.Outlined" />
-                @if (!string.IsNullOrEmpty(PassiveEarnings))
-                {
-                    <MudDivider />
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Preview</MudText>
-                    <MudMarkdown Value="@PassiveEarnings" />
-                }
+                <GitHubMarkdownEditor Label="Passive Earnings"
+                                      @bind-Value="@PassiveEarnings"
+                                      Lines="8"
+                                      HelperText="Supports Markdown, SVG icons, and Alert banners. Describes how viewers earn points passively. Leave empty to hide on viewer page." />
             </MudStack>
         </MudCardContent>
         <MudCardActions>
@@ -203,6 +234,9 @@
     private bool MonteCarloEnabled { get; set; }
     private int MonteCarloIterations { get; set; } = 100000;
     private List<PenguinTwitchBot.Bot.Commands.Features.GiveawayFairnessReport> MonteCarloReports { get; set; } = new();
+    private int PointsPerEntry { get; set; } = 1;
+    private IEnumerable<PointType> AvailablePointTypes { get; set; } = [];
+    private PointType? SelectedPointType { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -216,6 +250,9 @@
         PassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
         MonteCarloEnabled = await GiveawayFeature.GetMonteCarloFairnessEnabled();
         MonteCarloReports = (await GiveawayFeature.GetMonteCarloFairnessReports()).ToList();
+        PointsPerEntry = await GiveawayFeature.GetPointsPerEntry();
+        AvailablePointTypes = await PointSystem.GetPointTypes();
+        SelectedPointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
     }
 
     public async Task OnPrizeSubmit()
@@ -226,6 +263,14 @@
         await GiveawayFeature.SetPrizeTier(PrizeTier);
         await GiveawayFeature.SetPrizeAdditionalDetails(PrizeAdditionalDetails);
         Snackbar.Add("Giveaway saved.", Severity.Success);
+    }
+
+    public async Task SaveEntrySettings()
+    {
+        await GiveawayFeature.SetPointsPerEntry(PointsPerEntry);
+        if (SelectedPointType != null)
+            await PointSystem.SetPointTypeForGame("GiveawayFeature", SelectedPointType.GetId());
+        Snackbar.Add("Entry settings saved.", Severity.Success);
     }
 
     public async Task SaveRules()

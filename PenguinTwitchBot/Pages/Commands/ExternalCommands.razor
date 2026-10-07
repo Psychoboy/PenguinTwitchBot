@@ -5,97 +5,185 @@
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - External Commands</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
-        @if (commands != null)
-        {
-            <MudItem xs="9">
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Language" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">External Commands</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Register commands handled by external programs so they are listed on the public commands page.
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (commands != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.Language">
+                        @commands.Count Configured @(commands.Count == 1 ? "Command" : "Commands")
+                    </MudChip>
+                }
+                <HelpButton Topic="external-commands" />
+            </MudStack>
+        </MudStack>
+
+        <MudGrid Spacing="4">
+            <!-- Left: Commands Table -->
+            <MudItem xs="12" lg="7">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudTable Items="@commands">
+                    <MudTable Items="@FilteredCommands" Dense="true" Hover="true" Elevation="0">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="w-100 pa-1">
+                                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Registered External Commands</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchString"
+                                              Placeholder="Filter commands..."
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              IconSize="Size.Medium"
+                                              Clearable="true"
+                                              Immediate="true"
+                                              Style="max-width: 260px;" />
+                            </MudStack>
+                        </ToolBarContent>
                         <HeaderContent>
                             <MudTh>Command</MudTh>
                             <MudTh>Category</MudTh>
                             <MudTh>Description</MudTh>
-                            <MudTh>Disabled</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
+                            <MudTh>Rank</MudTh>
+                            <MudTh>Status</MudTh>
+                            <MudTh Style="text-align: right;">Actions</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Command">!@context.CommandName</MudTd>
-                            <MudTd DataLabel="Category">@context.Category</MudTd>
-                            <MudTd DataLabel="Description">@context.Description</MudTd>
-                            <MudTd DataLabel="Disabled">@context.Disabled</MudTd>
-                            <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                @onclick="() => Edit(context)">
-                                    Edit
-                                </MudButton>
+                            <MudTd DataLabel="Command">
+                                <MudText Typo="Typo.body2"><b>!@context.CommandName</b></MudText>
                             </MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => Delete(context)">
-                                    Delete
-                                </MudButton>
+                            <MudTd DataLabel="Category">
+                                @if (!string.IsNullOrWhiteSpace(context.Category))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.Category</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Description">
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@context.Description</MudText>
+                            </MudTd>
+                            <MudTd DataLabel="Rank">
+                                <MudChip T="string" Size="Size.Small" Color="@GetRankColor(context.MinimumRank)">
+                                    @context.MinimumRank
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Status">
+                                @if (context.Disabled)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Error">Disabled</MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success">Active</MudChip>
+                                }
+                            </MudTd>
+                            <MudTd Style="text-align: right;">
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudTooltip Text="Edit Command">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="() => Edit(context)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete Command">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="() => Delete(context)" />
+                                    </MudTooltip>
+                                </MudStack>
                             </MudTd>
                         </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No external commands found.</MudText>
+                        </NoRecordsContent>
                     </MudTable>
                 </MudPaper>
             </MudItem>
-        }
-        @if (externalCommand != null)
-        {
-            <MudItem xs="3">
+
+            <!-- Right: Command Editor -->
+            <MudItem xs="12" lg="5">
                 <MudPaper Elevation="2" Class="pa-4">
                     <EditForm Model="@externalCommand" OnValidSubmit="OnSubmit">
                         <DataAnnotationsValidator />
-                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
-                        @bind-Value="externalCommand.CommandName" />
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">
+                                        @(_isEditing ? $"Editing: !{externalCommand.CommandName}" : "Create External Command")
+                                    </MudText>
+                                </MudStack>
+                                @if (_isEditing)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"
+                                               OnClick="ResetEditor">
+                                        New Command
+                                    </MudButton>
+                                }
+                            </MudStack>
 
-                        <MudTextField Label="Category"
-                        @bind-Value="externalCommand.Category" />
+                            <MudTextField Label="Command Trigger" Required="true" RequiredError="Command is required"
+                                          @bind-Value="externalCommand.CommandName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="Chat trigger name (without prefix !)" />
 
-                        <MudTextField Label="Description"
-                        @bind-Value="externalCommand.Description" />
+                            <MudTextField Label="Category" @bind-Value="externalCommand.Category"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
 
-                        <MudStack Row="true" Spacing="2">
-                            <MudNumericField @bind-Value="@externalCommand.UserCooldown" Label="User Min (sec)"
-                                             Variant="Variant.Text" Style="max-width: 150px;">
-                            </MudNumericField>
-                            <MudNumericField @bind-Value="@externalCommand.UserCooldownMax" Label="User Max (sec)"
-                                             Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
-                            </MudNumericField>
+                            <MudTextField Label="Description" @bind-Value="externalCommand.Description"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" Lines="2" />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="@externalCommand.UserCooldown" Label="User Min (sec)"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="@externalCommand.UserCooldownMax" Label="User Max (sec)"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" HelperText="0 = use min only" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="@externalCommand.GlobalCooldown" Label="Global Min (sec)"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudNumericField @bind-Value="@externalCommand.GlobalCooldownMax" Label="Global Max (sec)"
+                                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" HelperText="0 = use min only" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudSelect @bind-Value="@externalCommand.MinimumRank" Label="Minimum Rank"
+                                       Variant="Variant.Outlined" Margin="Margin.Dense">
+                                @foreach (Rank item in Enum.GetValues(typeof(Rank)))
+                                {
+                                    <MudSelectItem Value="@item">@item</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudSwitch T="bool" @bind-Value="@externalCommand.Disabled" Label="Command Disabled" Color="Color.Error" />
+
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save" FullWidth="true" Class="mt-2">
+                                Save External Command
+                            </MudButton>
                         </MudStack>
-                        <MudStack Row="true" Spacing="2">
-                            <MudNumericField @bind-Value="@externalCommand.GlobalCooldown" Label="Global Min (sec)"
-                                             Variant="Variant.Text" Style="max-width: 150px;">
-                            </MudNumericField>
-                            <MudNumericField @bind-Value="@externalCommand.GlobalCooldownMax" Label="Global Max (sec)"
-                                             Variant="Variant.Text" HelperText="0 = use min only" Style="max-width: 150px;">
-                            </MudNumericField>
-                        </MudStack>
-
-                        <MudCheckBox @bind-Value="@externalCommand.Disabled" Label="Disabled?"></MudCheckBox>
-                        <MudSelect @bind-Value="@externalCommand.MinimumRank" Label="Minimum Rank">
-                            @foreach (Rank item in Enum.GetValues(typeof(Rank)))
-                            {
-                                <MudSelectItem Value="@item">@item</MudSelectItem>
-                            }
-                        </MudSelect>
-                        <MudDivider />
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                                   Class="ml-auto">
-                            Submit
-                        </MudButton>
                     </EditForm>
                 </MudPaper>
             </MudItem>
-        }
-    </MudGrid>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {
     private List<Database.Bot.Models.Commands.ExternalCommands>? commands;
     private Database.Bot.Models.Commands.ExternalCommands externalCommand { get; set; } = new();
+    private string _searchString = string.Empty;
     [Inject] private IDialogService DialogService { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
@@ -103,12 +191,28 @@
         commands = (await CommandHandler.GetExternalCommands()).ToList();
     }
 
+    private IEnumerable<Database.Bot.Models.Commands.ExternalCommands> FilteredCommands =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? commands ?? []
+            : (commands ?? []).Where(c =>
+                c.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                (c.Category?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (c.Description?.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private bool _isEditing = false;
+
     public async void OnSubmit()
     {
         if (externalCommand == null) return;
         await CommandHandler.AddOrUpdateExternalCommand(externalCommand);
-        externalCommand = new();
+        ResetEditor();
         await ReloadCommands();
+    }
+
+    private void ResetEditor()
+    {
+        externalCommand = new();
+        _isEditing = false;
     }
 
     private async Task ReloadCommands()
@@ -120,11 +224,15 @@
     private async Task Delete(Database.Bot.Models.Commands.ExternalCommands item)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
+            "Warning",
+            "Deleting can not be undone!",
+            yesText: "Delete!", cancelText: "Cancel");
         if (result != null)
         {
+            if (externalCommand?.Id == item.Id)
+            {
+                ResetEditor();
+            }
             await CommandHandler.DeleteExternalCommand(item);
             await ReloadCommands();
         }
@@ -133,5 +241,14 @@
     private void Edit(Database.Bot.Models.Commands.ExternalCommands item)
     {
         externalCommand = item;
+        _isEditing = true;
     }
+
+    private static Color GetRankColor(Rank rank) => rank switch
+    {
+        Rank.Streamer => Color.Primary,
+        Rank.Moderator => Color.Error,
+        Rank.Vip => Color.Warning,
+        _ => Color.Default
+    };
 }

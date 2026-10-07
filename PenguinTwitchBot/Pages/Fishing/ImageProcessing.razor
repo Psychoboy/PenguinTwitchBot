@@ -1,18 +1,21 @@
-﻿@page "/fishing/imageprocessing"
+@page "/fishing/imageprocessing"
 @using PenguinTwitchBot.Services
 @inject ImageProcessingService ImageProcessor
 @inject IWebHostEnvironment WebHostEnvironment
 @inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>Image Processing - Fishing Game</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Images</PageTitle>
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.Large">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Large" Class="mr-2" />
-            Fish Image Processing
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h3" Align="Align.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Large" Class="mr-2" />
+                Manage Images
+            </MudText>
+            <HelpButton Topic="image-processing" />
+        </MudStack>
 
         <MudPaper Elevation="3" Class="pa-4">
             <MudStack Spacing="3">

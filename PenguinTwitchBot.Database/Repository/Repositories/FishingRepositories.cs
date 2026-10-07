@@ -76,13 +76,11 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
                 var records = await JsonSerializer.DeserializeAsync<List<FishType>>(fishTypeStream, options);
                 if (records == null) throw new Exception($"{typeof(FishType).Name}.json was null");
 
-                // CRITICAL: Preserve IDs from backup by explicitly setting them
-                // This ensures foreign keys in other tables remain valid
-                foreach (var record in records)
-                {
-                    var entry = context.Entry(record);
-                    entry.State = EntityState.Added;
-                }
+                // CRITICAL: Preserve IDs from backup by explicitly setting them.
+                // Use AddRange (not Entry().State = Added) so the Categories navigation
+                // collection is walked and added too - setting .State directly only
+                // affects the single FishType entity, silently dropping its categories.
+                context.AddRange(records);
 
                 await context.SaveChangesAsync();
                 context.ChangeTracker.Clear();
@@ -107,9 +105,11 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             // Delete in reverse order: children before parents
             // This avoids foreign key constraint violations
 
-            // 0. Delete FishingSnapEvents (independent historical table)
+            // 0. Delete FishingSnapEvents and FishingRepairEvents (independent historical tables)
             logger?.LogDebug("Deleting FishingSnapEvents...");
             await context.Set<FishingSnapEvent>().ExecuteDeleteAsync();
+            logger?.LogDebug("Deleting FishingRepairEvents...");
+            await context.Set<FishingRepairEvent>().ExecuteDeleteAsync();
 
             // 1. Delete UserFishingBoosts (depends on FishingShopItems)
             logger?.LogDebug("Deleting UserFishingBoosts...");
@@ -477,6 +477,56 @@ namespace PenguinTwitchBot.Database.Repository.Repositories
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Failed to restore {Name}", typeof(FishingSnapEvent).Name);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// FishingRepairEvent repository - Depends on no foreign keys.
+    /// NOTE: Deletion happens in FishingRepository to maintain proper order.
+    /// </summary>
+    public class FishingRepairEventRepository : GenericRepository<FishingRepairEvent>, IFishingRepairEventRepository
+    {
+        public FishingRepairEventRepository(ApplicationDbContext context) : base(context)
+        {
+        }
+
+        public override async Task RestoreTable(DbContext context, string backupDirectory, ILogger? logger = null)
+        {
+            try
+            {
+                var fileName = $"{backupDirectory}/{typeof(FishingRepairEvent).Name}.json";
+                if (!File.Exists(fileName))
+                {
+                    logger?.LogDebug("No backup file found for {Name}", typeof(FishingRepairEvent).Name);
+                    return;
+                }
+
+                var options = new JsonSerializerOptions
+                {
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
+                };
+
+                await using var repairStream = new FileStream(fileName, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, bufferSize: 65536, useAsync: true);
+                var records = await JsonSerializer.DeserializeAsync<List<FishingRepairEvent>>(repairStream, options);
+                if (records == null) throw new Exception($"{typeof(FishingRepairEvent).Name}.json was null");
+
+                foreach (var record in records)
+                {
+                    var entry = context.Entry(record);
+                    entry.State = EntityState.Added;
+                }
+
+                await context.SaveChangesAsync();
+                context.ChangeTracker.Clear();
+
+                logger?.LogDebug("Restored {Count} FishingRepairEvent records", records.Count);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Failed to restore {Name}", typeof(FishingRepairEvent).Name);
                 throw;
             }
         }

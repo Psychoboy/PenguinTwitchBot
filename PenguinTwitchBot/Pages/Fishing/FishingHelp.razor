@@ -141,9 +141,9 @@
             <MudGrid>
                 @foreach (var kvp in helpData.RarityGuide.BaselinePercentages.OrderBy(k => (int)k.Key))
                 {
-                    var isLegendary = kvp.Key == FishRarity.Legendary;
+                    var isTopRarity = kvp.Key >= FishRarity.Legendary;
                     <MudItem xs="12" sm="6" md="4">
-                        <MudCard Elevation="@(isLegendary ? 3 : 1)" Class="pa-3">
+                        <MudCard Elevation="@(isTopRarity ? 3 : 1)" Class="pa-3">
                             <MudStack Spacing="1" AlignItems="AlignItems.Center">
                                 <MudChip T="string" Color="@GetRarityColor(kvp.Key)" Size="Size.Small" Icon="@Icons.Material.Filled.Diamond">
                                     @kvp.Key
@@ -348,6 +348,7 @@
         FishRarity.Rare => Color.Info,
         FishRarity.Epic => Color.Secondary,
         FishRarity.Legendary => Color.Warning,
+        FishRarity.Mythical => Color.Error,
         _ => Color.Default
     };
 }

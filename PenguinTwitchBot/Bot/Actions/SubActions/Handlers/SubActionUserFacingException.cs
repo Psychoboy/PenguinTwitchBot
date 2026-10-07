@@ -2,6 +2,7 @@ using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
+#pragma warning disable RCS1194 // Implement exception constructors
     public class SubActionUserFacingException : SubActionHandlerException
     {
         public SubActionUserFacingException()
@@ -24,4 +25,5 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         {
         }
     }
+    #pragma warning restore RCS1194 // Implement exception constructors
 }

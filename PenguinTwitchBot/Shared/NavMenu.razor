@@ -1,4 +1,4 @@
-﻿@inject NavigationManager Navigation
+@inject NavigationManager Navigation
 @inject IVersionCheckService VersionCheck
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject PenguinTwitchBot.Bot.Features.IFeatureRuntimeCoordinator FeatureRuntimeCoordinator
@@ -52,11 +52,14 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "overlay/editor")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.MusicOff" Href="/bannedsongs" Match="NavLinkMatch.Prefix">Banned Songs</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/songcooldowns" Match="NavLinkMatch.Prefix">Song Cooldowns</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
+                <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
             </MudNavGroup>
             <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "commands/default", "commands/aliases", "commands/cooldowns", "commands/external", "actions/commands", "actions/keywords", "actions/audiocommands")">
                 <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/commands/default" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
@@ -70,12 +73,13 @@
                 <MudNavLink Icon="@Icons.Material.Filled.AudioFile" Href="/actions/audiocommands" Match="NavLinkMatch.Prefix">Audio Commands</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Schedule" Href="/commands/cooldowns" Match="NavLinkMatch.Prefix">Command Cooldowns</MudNavLink>
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="@GetGroupExpanded("actions", "actions/timers", "actions/manage", "actions/globalvariables", "actions/history", "actions/queues")">
+            <MudNavGroup Icon="@Icons.Material.Filled.PlayArrow" Title="Actions" Expanded="@GetGroupExpanded("actions", "actions/timers", "actions/manage", "actions/counters", "actions/globalvariables", "actions/history", "actions/queues")">
                 <MudNavLink Icon="@Icons.Material.Filled.Tune" Href="/actions/manage" Match="NavLinkMatch.Prefix">Manage Actions</MudNavLink>
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))
                 {
-                    <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Action Timers</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/actions/timers" Match="NavLinkMatch.Prefix">Timers</MudNavLink>
                 }
+                <MudNavLink Icon="@Icons.Material.Filled.Numbers" Href="/actions/counters" Match="NavLinkMatch.Prefix">Counters</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Storage" Href="/actions/globalvariables" Match="NavLinkMatch.Prefix">Global Variables</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.ViewList" Href="/actions/queues" Match="NavLinkMatch.Prefix">Queues</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.History" Href="/actions/history" Match="NavLinkMatch.Prefix">History</MudNavLink>
@@ -101,26 +105,30 @@
                     <MudNavLink Icon="@Icons.Material.Filled.Casino" Href="/wheelspin" Match="NavLinkMatch.Prefix">Wheel Spin</MudNavLink>
                 }
             </MudNavGroup>
-            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "obs/connections", "settings/updates")">
-                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app")">
+            <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Configuration" Expanded="@GetGroupExpanded("configuration", "settings/bot-auth", "voices", "tools", "backups", "validation-status", "settings/channel-points", "settings/loyalty-bonuses", "settings/points", "settings/games", "settings/raidrewards", "obs/connections", "settings/updates", "settings/themes")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SettingsApplications" Title="Settings" Expanded="@GetGroupExpanded("settings", "settings/bot-auth", "voices", "settings/integrations", "settings/app", "settings/websockets", "settings/themes")">
                     <MudNavLink Icon="@Icons.Material.Filled.Security" Href="/settings/bot-auth" Match="NavLinkMatch.Prefix">Bot Authentication</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.SettingsSuggest" Href="/settings/app" Match="NavLinkMatch.Prefix">Bot Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/settings/themes" Match="NavLinkMatch.Prefix">Themes</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Cable" Href="/settings/websockets" Match="NavLinkMatch.Prefix">Websocket Queues</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Extension" Href="/settings/integrations" Match="NavLinkMatch.Prefix">Integrations</MudNavLink>
                     @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.TTS))
                     {
                         <MudNavLink Icon="@Icons.Material.Filled.RecordVoiceOver" Href="/voices" Match="NavLinkMatch.Prefix">Voices</MudNavLink>
                     }
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "settings/updates", "backups", "validation-status")">
+                <MudNavGroup Icon="@Icons.Material.Filled.Build" Title="Tools" Expanded="@GetGroupExpanded("tools", "tools/media", "settings/updates", "backups", "validation-status")">
+                    <MudNavLink Icon="@Icons.Material.Filled.PhotoLibrary" Href="/tools/media" Match="NavLinkMatch.Prefix">Media Library</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Update" Href="/settings/updates" Match="NavLinkMatch.Prefix">Updates & Logs</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Backup" Href="/backups" Match="NavLinkMatch.Prefix">Backups</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.BugReport" Href="/validation-status" Match="NavLinkMatch.Prefix">Validation Status</MudNavLink>
                 </MudNavGroup>
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/games", "settings/loyalty-bonuses", "settings/channel-points")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Points & Rewards" Expanded="@GetGroupExpanded("pointsRewards", "settings/points", "settings/games", "settings/loyalty-bonuses", "settings/channel-points", "settings/raidrewards")">
                     <MudNavLink Icon="@Icons.Material.Filled.Stars" Href="/settings/channel-points" Match="NavLinkMatch.Prefix">Channel Points</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Loyalty" Href="/settings/loyalty-bonuses" Match="NavLinkMatch.Prefix">Loyalty Bonuses</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Money" Href="/settings/points" Match="NavLinkMatch.Prefix">Point Settings</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Games" Href="/settings/games" Match="NavLinkMatch.Prefix">Game Settings</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.GroupAdd" Href="/settings/raidrewards" Match="NavLinkMatch.Prefix">Raid Rewards</MudNavLink>
                 </MudNavGroup>
                 <MudNavLink Icon="@Icons.Material.Filled.Videocam" Href="/obs/connections" Match="NavLinkMatch.Prefix">OBS Connections</MudNavLink>
             </MudNavGroup>
@@ -264,7 +272,10 @@
             CreateQuickLink("Raid History", "/raidhistory", Icons.Material.Filled.Groups, "Stream Tools"),
             CreateQuickLink("Music Player", "/musicplayer", Icons.Material.Filled.PlayCircle, "Stream Tools", "music"),
             CreateQuickLink("Playlists", "/playlists", Icons.Material.Filled.QueueMusic, "Stream Tools", "music", "playlist"),
+            CreateQuickLink("Banned Songs", "/bannedsongs", Icons.Material.Filled.MusicOff, "Stream Tools", "music", "banned", "song requests"),
+            CreateQuickLink("Song Cooldowns", "/songcooldowns", Icons.Material.Filled.Timer, "Stream Tools", "music", "cooldown", "song requests"),
             CreateQuickLink("Overlay Editor", "/overlay/editor", Icons.Material.Filled.Layers, "Stream Tools", "overlay"),
+            CreateQuickLink("Stream Timer", "/overlay/timer", Icons.Material.Filled.Timer, "Stream Tools", "overlay", "timer", "countdown"),
             CreateQuickLink("Default Commands", "/commands/default", Icons.Material.Filled.Code, "Commands", "chat commands"),
             CreateQuickLink("Command Cooldowns", "/commands/cooldowns", Icons.Material.Filled.Schedule, "Commands", "cooldown"),
             CreateQuickLink("External Commands", "/commands/external", Icons.Material.Filled.Extension, "Commands", "chat commands"),
@@ -272,6 +283,7 @@
             CreateQuickLink("Keywords", "/actions/keywords", Icons.Material.Filled.Key, "Commands", "chat interactions"),
             CreateQuickLink("Audio Commands", "/actions/audiocommands", Icons.Material.Filled.AudioFile, "Commands", "chat interactions"),
             CreateQuickLink("Manage Actions", "/actions/manage", Icons.Material.Filled.Tune, "Actions", "automation"),
+            CreateQuickLink("Counters", "/actions/counters", Icons.Material.Filled.Numbers, "Actions", "counter tally value"),
             CreateQuickLink("Global Variables", "/actions/globalvariables", Icons.Material.Filled.Storage, "Actions", "automation"),
             CreateQuickLink("Action History", "/actions/history", Icons.Material.Filled.History, "Actions", "automation"),
             CreateQuickLink("Queues", "/actions/queues", Icons.Material.Filled.ViewList, "Actions", "automation"),
@@ -282,7 +294,9 @@
             CreateQuickLink("Known Bots", "/community/known-bots", Icons.Material.Filled.FmdBad, "Community"),
             CreateQuickLink("Bot Authentication", "/settings/bot-auth", Icons.Material.Filled.Security, "Configuration", "auth signin"),
             CreateQuickLink("Bot Settings", "/settings/app", Icons.Material.Filled.SettingsSuggest, "Configuration", "app settings"),
+            CreateQuickLink("Themes", "/settings/themes", Icons.Material.Filled.Palette, "Configuration", "theme custom color dark light mode"),
             CreateQuickLink("Integrations", "/settings/integrations", Icons.Material.Filled.Extension, "Configuration"),
+            CreateQuickLink("Media Library", "/tools/media", Icons.Material.Filled.PhotoLibrary, "Configuration", "media images uploads files"),
             CreateQuickLink("Updates & Logs", "/settings/updates", Icons.Material.Filled.Update, "Configuration", "updates logs"),
             CreateQuickLink("Backups", "/backups", Icons.Material.Filled.Backup, "Configuration"),
             CreateQuickLink("Validation Status", "/validation-status", Icons.Material.Filled.BugReport, "Configuration", "validation"),

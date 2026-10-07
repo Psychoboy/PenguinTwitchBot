@@ -12,5 +12,8 @@
     "cSpell.words": [
         "cooldowns",
         "Shoutout"
-    ]
+    ],
+    "files.autoSave": "off",
+    "files.saveConflictResolution": "askUser",
+    "git.autorefresh": true
 }

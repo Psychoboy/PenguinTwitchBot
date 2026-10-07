@@ -10,51 +10,94 @@ namespace PenguinTwitchBot.Circuit
     {
         public async Task AddLogEntry(string username, string userId, string ipAddress)
         {
-            if (username.Equals("anonymous", StringComparison.OrdinalIgnoreCase)) return;
-            var normalizedUsername = Database.Bot.Core.UsernameNormalizer.Normalize(username);
-            await Task.WhenAll(
-                AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
-                CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)
-            );
+            if (string.IsNullOrWhiteSpace(userId) ||
+                userId.Equals("anonymous", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(username) ||
+                username.Equals("anonymous", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(ipAddress) ||
+                ipAddress.Equals("unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            try
+            {
+                var normalizedUsername = Database.Bot.Core.UsernameNormalizer.Normalize(username);
+                await Task.WhenAll(
+                    AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
+                    CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)
+                );
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to log IP entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
+            }
         }
 
         public async Task CleanupOldIpLogs()
         {
-            logger.LogInformation("Starting cleanup of old IP log entries.");
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var monthsToKeep = await ipLogRetentionSettingsService.GetIpLogMonthsToKeepAsync(6);
-            monthsToKeep = Math.Max(0, monthsToKeep);
-            var cutoffDate = DateTime.UtcNow.AddMonths(-monthsToKeep);
-            var removedLogs = await db.IpLogs.Find(x => x.ConnectedDate < cutoffDate).ExecuteDeleteAsync();
-            logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries using retention of {monthsToKeep} months.", removedLogs, monthsToKeep);
+            try
+            {
+                logger.LogInformation("Starting cleanup of old IP log entries.");
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var monthsToKeep = await ipLogRetentionSettingsService.GetIpLogMonthsToKeepAsync(6);
+                monthsToKeep = Math.Max(0, monthsToKeep);
+                var cutoffDate = DateTime.UtcNow.AddMonths(-monthsToKeep);
+                var removedLogs = await db.IpLogs.Find(x => x.ConnectedDate < cutoffDate).ExecuteDeleteAsync();
+                logger.LogInformation("Cleanup complete. Removed {removedLogs} old IP log entries using retention of {monthsToKeep} months.", removedLogs, monthsToKeep);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to cleanup old IP log entries.");
+            }
         }
 
         private async Task AddOrUpdateIpEntry(string username, string userId, string ipAddress)
         {
-            await using var scope = scopeFactory.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var existingEntry = await db.IpLogs.Find(x => x.Username.Equals(username) && x.Ip.Equals(ipAddress)).FirstOrDefaultAsync();
-            if (existingEntry != null)
+            try
             {
-                existingEntry.ConnectedDate = DateTime.UtcNow;
-                if(string.IsNullOrEmpty(existingEntry.UserId) && !string.IsNullOrEmpty(userId))
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var matchingEntries = await db.IpLogs.Find(x => x.UserId == userId && x.Ip == ipAddress).ToListAsync();
+                if (matchingEntries.Count > 0)
                 {
-                    existingEntry.UserId = userId;
+                    var existingEntry = matchingEntries[0];
+                    existingEntry.ConnectedDate = DateTime.UtcNow;
+                    existingEntry.Count++;
+                    if (!string.Equals(existingEntry.Username, username, StringComparison.Ordinal))
+                    {
+                        existingEntry.Username = username;
+                    }
+
+                    if (matchingEntries.Count > 1)
+                    {
+                        for (int i = 1; i < matchingEntries.Count; i++)
+                        {
+                            existingEntry.Count += matchingEntries[i].Count;
+                            db.IpLogs.Remove(matchingEntries[i]);
+                        }
+                    }
+
+                    db.IpLogs.Update(existingEntry);
                 }
-                existingEntry.Count++;
-                db.IpLogs.Update(existingEntry);
-            }
-            else
-            {
-                await db.IpLogs.AddAsync(new IpLogEntry
+                else
                 {
-                    Username = username,
-                    Ip = ipAddress,
-                    UserId = userId
-                });
+                    await db.IpLogs.AddAsync(new IpLogEntry
+                    {
+                        Username = username,
+                        Ip = ipAddress,
+                        UserId = userId,
+                        Count = 1,
+                        ConnectedDate = DateTime.UtcNow
+                    });
+                }
+                await db.SaveChangesAsync();
             }
-            await db.SaveChangesAsync();
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to add or update IP log entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
+            }
         }
 
         private async Task CheckForIPv6AndUpdateEntries(string username, string userId, string ipAddress)

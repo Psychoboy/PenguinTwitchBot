@@ -5,12 +5,14 @@
 @using System.Text.Json
 @using System.Globalization
 @using Microsoft.Extensions.DependencyInjection
+@using PenguinTwitchBot.Bot.Services
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @inject IServiceScopeFactory ScopeFactory
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
+@inject ICounterService CounterService
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -20,7 +22,10 @@
     <!-- ===================== LEFT: Layout list ===================== -->
     <div class="layouts-panel">
         <div class="panel-header">
-            <MudText Typo="Typo.subtitle1"><b>Layouts</b></MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                <MudText Typo="Typo.subtitle1"><b>Layouts</b></MudText>
+                <HelpButton Topic="overlay-editor" />
+            </MudStack>
             <MudTooltip Text="New layout">
                 <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
                                Size="Size.Small" OnClick="ShowNewLayoutDialog" />
@@ -149,6 +154,9 @@
                                    OnClick="PanRight"
                                    Class="ml-1" />
                 </MudTooltip>
+
+                <MudDivider Vertical="true" Class="mx-2" />
+                <HelpButton Topic="overlay-editor" />
             }
             else
             {
@@ -162,7 +170,7 @@
                  @onclick="() => _selected = null">
                 @foreach (var w in _widgets.OrderBy(x => x.ZIndex))
                 {
-                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType == "chat" ? "widget-tile--chat-preview" : "")"
+                    <div class="widget-tile @(w == _selected ? "widget-tile--selected" : "") @(!w.IsEnabled ? "widget-tile--disabled" : "") @(w.IsLocked ? "widget-tile--locked" : "") @(w.WidgetType is "chat" or "timer" ? "widget-tile--chat-preview" : "")"
                          data-widget-id="@w.TempId"
                          data-x="@((w.X * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
                          data-y="@((w.Y * Scale).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))"
@@ -212,6 +220,44 @@
                                         <span class="chat-preview-sep">:</span>
                                         <span class="chat-preview-text">Hydrate check</span>
                                     </div>
+                                }
+                            </div>
+                            <span class="widget-label widget-label--corner">@w.DisplayName</span>
+                        }
+                        else if (w.WidgetType == "timer")
+                        {
+                            var timerPreview = GetPreviewTimerSettings(w);
+                            <div class="timer-preview" style="@BuildTimerPreviewStyle(timerPreview)">
+                                @(timerPreview.Prefix)00:00@(timerPreview.Suffix)
+                            </div>
+                            <span class="widget-label widget-label--corner">@w.DisplayName</span>
+                        }
+                        else if (w.WidgetType == "counter")
+                        {
+                            var counterPreview = GetPreviewCounterSettings(w);
+                            <div class="counter-preview" style="@BuildCounterPreviewStyle(counterPreview)">
+                                @if (counterPreview.Counters.Count == 0)
+                                {
+                                    <div class="counter-preview-item" style="@BuildCounterItemPreviewStyle(counterPreview, null)">
+                                        <span class="counter-preview-label" style="color: @counterPreview.LabelColor;">Deaths:</span>
+                                        <span class="counter-preview-val" style="color: @counterPreview.Color;">0</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var c in counterPreview.Counters)
+                                    {
+                                        var labelText = !string.IsNullOrWhiteSpace(c.CustomLabel) ? c.CustomLabel : (c.CounterType == "death" ? "Deaths" : c.CounterName);
+                                        var lColor = !string.IsNullOrWhiteSpace(c.CustomLabelColor) ? c.CustomLabelColor : counterPreview.LabelColor;
+                                        var vColor = !string.IsNullOrWhiteSpace(c.CustomColor) ? c.CustomColor : counterPreview.Color;
+                                        <div class="counter-preview-item" style="@BuildCounterItemPreviewStyle(counterPreview, c)">
+                                            @if (!string.IsNullOrWhiteSpace(labelText))
+                                            {
+                                                <span class="counter-preview-label" style="color: @lColor;">@labelText:</span>
+                                            }
+                                            <span class="counter-preview-val" style="color: @vColor;">@(c.Prefix)0@(c.Suffix)</span>
+                                        </div>
+                                    }
                                 }
                             </div>
                             <span class="widget-label widget-label--corner">@w.DisplayName</span>
@@ -499,6 +545,325 @@
 
             }
 
+            @* ---- Timer widget configuration ---- *@
+            @if (_selected.WidgetType == "timer" && _timerSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Timer Settings</b></MudText>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    The timer never starts on its own. Use the Overlay Timer sub-actions to start, stop, add, or remove time.
+                </MudAlert>
+
+                <MudAutocomplete T="string" Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 SearchFunc="SearchFontFamilies" CoerceValue="true" ResetValueOnEmptyText="true"
+                                 HelperText="Any CSS font stack; the font must be installed on the streaming machine"
+                                 Value="_timerSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _timerSettings.FontFamily = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font size (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="8" Max="400"
+                                 Value="_timerSettings.FontSize"
+                                 ValueChanged="@(v => { _timerSettings.FontSize = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Font weight"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="100" Max="900" Step="100"
+                                 Value="_timerSettings.FontWeight"
+                                 ValueChanged="@(v => { _timerSettings.FontWeight = v; SaveTimerSettings(); })" />
+
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_timerSettings.Color"
+                           @oninput="@(e => { _timerSettings.Color = e.Value?.ToString() ?? "#000000"; SaveTimerSettings(); })"
+                           title="Pick font colour"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Font color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_timerSettings.Color"
+                                  ValueChanged="@((string v) => { _timerSettings.Color = v; SaveTimerSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudTextField Label="Background color"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="Any CSS color; use transparent for none"
+                              Value="_timerSettings.BgColor"
+                              ValueChanged="@((string v) => { _timerSettings.BgColor = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Text shadow"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="CSS text-shadow, e.g. 2px 2px 6px #000000"
+                              Value="_timerSettings.TextShadow"
+                              ValueChanged="@((string v) => { _timerSettings.TextShadow = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Letter spacing (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="-10" Max="40"
+                                 Value="_timerSettings.LetterSpacing"
+                                 ValueChanged="@(v => { _timerSettings.LetterSpacing = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Padding (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.Padding"
+                                 ValueChanged="@(v => { _timerSettings.Padding = v; SaveTimerSettings(); })" />
+
+                <MudNumericField T="int" Label="Corner radius (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="0" Max="200"
+                                 Value="_timerSettings.BorderRadius"
+                                 ValueChanged="@(v => { _timerSettings.BorderRadius = v; SaveTimerSettings(); })" />
+
+                <MudSelect T="string" Label="Format"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                           Value="_timerSettings.Format"
+                           ValueChanged="@(v => { _timerSettings.Format = v; SaveTimerSettings(); })">
+                    <MudSelectItem Value="@("auto")">Auto (adds hours when needed)</MudSelectItem>
+                    <MudSelectItem Value="@("mm:ss")">mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("hh:mm:ss")">hh:mm:ss</MudSelectItem>
+                    <MudSelectItem Value="@("ss")">Seconds only</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField Label="Prefix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Prefix"
+                              ValueChanged="@((string v) => { _timerSettings.Prefix = v; SaveTimerSettings(); })" />
+
+                <MudTextField Label="Suffix"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              Value="_timerSettings.Suffix"
+                              ValueChanged="@((string v) => { _timerSettings.Suffix = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.ShowTenths" Label="Show tenths of a second"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.ShowTenths = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenStopped" Label="Hide when stopped"
+                           Color="Color.Primary" Class="mb-1"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenStopped = v; SaveTimerSettings(); })" />
+
+                <MudSwitch Value="_timerSettings.HideWhenZero" Label="Hide when stopped at zero"
+                           Color="Color.Primary" Class="mb-2"
+                           ValueChanged="@((bool v) => { _timerSettings.HideWhenZero = v; SaveTimerSettings(); })" />
+            }
+
+            @* ---- Counter widget configuration ---- *@
+            @if (_selected.WidgetType == "counter" && _counterSettings != null)
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Counter Styling</b></MudText>
+
+                <MudAutocomplete T="string" Label="Font family"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 SearchFunc="SearchFontFamilies" CoerceValue="true" ResetValueOnEmptyText="true"
+                                 Value="_counterSettings.FontFamily"
+                                 ValueChanged="@((string v) => { _counterSettings.FontFamily = v; SaveCounterSettings(); })" />
+
+                <MudGrid Spacing="2" Class="mb-2">
+                    <MudItem xs="6">
+                        <MudNumericField T="int" Label="Font size (px)"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined"
+                                         Min="8" Max="400"
+                                         Value="_counterSettings.FontSize"
+                                         ValueChanged="@(v => { _counterSettings.FontSize = v; SaveCounterSettings(); })" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="int" Label="Font weight"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined"
+                                         Min="100" Max="900" Step="100"
+                                         Value="_counterSettings.FontWeight"
+                                         ValueChanged="@(v => { _counterSettings.FontWeight = v; SaveCounterSettings(); })" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudNumericField T="int" Label="Letter spacing (px)"
+                                 Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                                 Min="-10" Max="40"
+                                 Value="_counterSettings.LetterSpacing"
+                                 ValueChanged="@(v => { _counterSettings.LetterSpacing = v; SaveCounterSettings(); })" />
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Value Font Color</MudText>
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_counterSettings.Color"
+                           @oninput="@(e => { _counterSettings.Color = e.Value?.ToString() ?? "#ffffff"; SaveCounterSettings(); })"
+                           title="Pick value color"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Value Color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_counterSettings.Color"
+                                  ValueChanged="@((string v) => { _counterSettings.Color = v; SaveCounterSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Label Font Color</MudText>
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@_counterSettings.LabelColor"
+                           @oninput="@(e => { _counterSettings.LabelColor = e.Value?.ToString() ?? "#ffb74d"; SaveCounterSettings(); })"
+                           title="Pick label color"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Label Color"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  Value="_counterSettings.LabelColor"
+                                  ValueChanged="@((string v) => { _counterSettings.LabelColor = v; SaveCounterSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Badge / Pill Background</MudText>
+                <div class="d-flex align-center gap-2 mb-2">
+                    <input type="color"
+                           value="@(_counterSettings.ItemBgColor.StartsWith("#") ? _counterSettings.ItemBgColor : "#000000")"
+                           @oninput="@(e => { _counterSettings.ItemBgColor = e.Value?.ToString() ?? "rgba(0,0,0,0.6)"; SaveCounterSettings(); })"
+                           title="Pick badge color"
+                           style="width:36px; height:36px; padding:2px; border:1px solid rgba(255,255,255,0.23); border-radius:4px; cursor:pointer; background:none; flex-shrink:0;" />
+                    <MudTextField Label="Badge Background"
+                                  Margin="Margin.Dense" Variant="Variant.Outlined"
+                                  HelperText="Use 'transparent' for no pill background, or rgba(...)"
+                                  Value="_counterSettings.ItemBgColor"
+                                  ValueChanged="@((string v) => { _counterSettings.ItemBgColor = v; SaveCounterSettings(); })"
+                                  Style="flex:1; min-width:0;" />
+                </div>
+
+                <MudTextField Label="Container Background"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="CSS color for whole widget area; usually 'transparent'"
+                              Value="_counterSettings.BgColor"
+                              ValueChanged="@((string v) => { _counterSettings.BgColor = v; SaveCounterSettings(); })" />
+
+                <MudTextField Label="Text shadow"
+                              Margin="Margin.Dense" Variant="Variant.Outlined" Class="mb-2"
+                              HelperText="CSS text-shadow, e.g. 2px 2px 4px #000000 or none"
+                              Value="_counterSettings.TextShadow"
+                              ValueChanged="@((string v) => { _counterSettings.TextShadow = v; SaveCounterSettings(); })" />
+
+                <MudGrid Spacing="2" Class="mb-2">
+                    <MudItem xs="4">
+                        <MudNumericField T="int" Label="Padding"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined"
+                                         Min="0" Max="100"
+                                         Value="_counterSettings.Padding"
+                                         ValueChanged="@(v => { _counterSettings.Padding = v; SaveCounterSettings(); })" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField T="int" Label="Radius"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined"
+                                         Min="0" Max="100"
+                                         Value="_counterSettings.BorderRadius"
+                                         ValueChanged="@(v => { _counterSettings.BorderRadius = v; SaveCounterSettings(); })" />
+                    </MudItem>
+                    <MudItem xs="4">
+                        <MudNumericField T="int" Label="Gap"
+                                         Margin="Margin.Dense" Variant="Variant.Outlined"
+                                         Min="0" Max="100"
+                                         Value="_counterSettings.Gap"
+                                         ValueChanged="@(v => { _counterSettings.Gap = v; SaveCounterSettings(); })" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudGrid Spacing="2" Class="mb-3">
+                    <MudItem xs="6">
+                        <MudSelect T="string" Label="Layout"
+                                   Margin="Margin.Dense" Variant="Variant.Outlined"
+                                   Value="_counterSettings.Layout"
+                                   ValueChanged="@((string v) => { _counterSettings.Layout = v; SaveCounterSettings(); })">
+                            <MudSelectItem Value="@("vertical")">Vertical (Columns)</MudSelectItem>
+                            <MudSelectItem Value="@("horizontal")">Horizontal (Rows)</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudSelect T="string" Label="Alignment"
+                                   Margin="Margin.Dense" Variant="Variant.Outlined"
+                                   Value="_counterSettings.Align"
+                                   ValueChanged="@((string v) => { _counterSettings.Align = v; SaveCounterSettings(); })">
+                            <MudSelectItem Value="@("start")">Start / Top-Left</MudSelectItem>
+                            <MudSelectItem Value="@("center")">Center</MudSelectItem>
+                            <MudSelectItem Value="@("end")">End / Right</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-2" />
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-2">
+                    <MudText Typo="Typo.subtitle2"><b>Counters (@_counterSettings.Counters.Count)</b></MudText>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="AddCounterItemToSelected">
+                        Add Counter
+                    </MudButton>
+                </MudStack>
+
+                @for (var i = 0; i < _counterSettings.Counters.Count; i++)
+                {
+                    var idx = i;
+                    var item = _counterSettings.Counters[idx];
+                    <MudPaper Class="pa-3 mb-2" Outlined="true">
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudSelect T="string" Label="Type" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                           Value="@item.CounterType"
+                                           ValueChanged="@((string val) => { item.CounterType = val; SaveCounterSettings(); })"
+                                           Style="flex: 1; max-width: 180px;">
+                                    <MudSelectItem Value="@("generic")">Generic Counter</MudSelectItem>
+                                    <MudSelectItem Value="@("death")">Death Counter</MudSelectItem>
+                                </MudSelect>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => RemoveCounterItemFromSelected(idx))" />
+                            </MudStack>
+
+                            @if (item.CounterType == "generic")
+                            {
+                                <MudSelect T="string" Label="Select Counter" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                           Value="@item.CounterName"
+                                           ValueChanged="@((string val) => { item.CounterName = val; SaveCounterSettings(); })">
+                                    @foreach (var cName in _availableCounterNames)
+                                    {
+                                        <MudSelectItem Value="@cName">@cName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+
+                            <MudTextField Label="Custom Label" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                          HelperText="Label shown before count (e.g. 'Wins')"
+                                          Value="@item.CustomLabel"
+                                          ValueChanged="@((string? val) => { item.CustomLabel = val; SaveCounterSettings(); })" />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="6">
+                                    <MudTextField Label="Prefix (optional)" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                  Placeholder="$ or #"
+                                                  Value="@item.Prefix"
+                                                  ValueChanged="@((string? val) => { item.Prefix = val; SaveCounterSettings(); })" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField Label="Suffix (optional)" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                  Placeholder="pts or x"
+                                                  Value="@item.Suffix"
+                                                  ValueChanged="@((string? val) => { item.Suffix = val; SaveCounterSettings(); })" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="6">
+                                    <MudTextField Label="Value Color (opt)" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                  Placeholder="Default"
+                                                  Value="@item.CustomColor"
+                                                  ValueChanged="@((string? val) => { item.CustomColor = val; SaveCounterSettings(); })" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudTextField Label="Label Color (opt)" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                  Placeholder="Default"
+                                                  Value="@item.CustomLabelColor"
+                                                  ValueChanged="@((string? val) => { item.CustomLabelColor = val; SaveCounterSettings(); })" />
+                                </MudItem>
+                            </MudGrid>
+                        </MudStack>
+                    </MudPaper>
+                }
+            }
+
             <MudDivider Class="mb-3" />
             <MudButton FullWidth="true" Color="Color.Error" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Delete"
@@ -634,6 +999,15 @@
     protected override async Task OnInitializedAsync()
     {
         await RefreshLayouts();
+        try
+        {
+            var counters = await CounterService.GetAllCountersAsync();
+            _availableCounterNames = counters.Select(c => c.CounterName).ToList();
+        }
+        catch
+        {
+            _availableCounterNames = [];
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -819,8 +1193,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
             // Notify any overlay.html page showing this layout to reload
             var layoutName = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId.Value)?.Name ?? "";
             var reloadJson = System.Text.Json.JsonSerializer.Serialize(new { type = "overlay_reload", layout = layoutName });
-            await WebSocketMessenger.AddToQueue(reloadJson);
-
+        await WebSocketMessenger.AddToQueue(PenguinTwitchBot.Bot.Notifications.WsTopics.Overlay, reloadJson);
             Snackbar.Add("Layout saved!", Severity.Success);
         }
         catch (Exception ex)
@@ -951,6 +1324,8 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         LoadChatSettings();
         LoadAlertChannel();
         LoadFireworksSettings();
+        LoadTimerSettings();
+        LoadCounterSettings();
     }
 
     private void RemoveSelectedWidget()
@@ -1080,12 +1455,15 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "fishing_tournaments" => "#2E7D8A",
         "wheel"     => "#6A1B9A",
         "chat"      => "#00838F",
+        "timer"     => "#4527A0",
+        "counter"   => "#E65100",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----
 
     private ChatSettings? _chatSettings;
     private FireworksSettings? _fireworksSettings;
+    private TimerSettings? _timerSettings;
     private string _alertChannel = "";
 
     private static readonly string[] _fontFamilyOptions =
@@ -1263,6 +1641,58 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         if (_selected != null && _fireworksSettings != null)
             _selected.CustomSettings = JsonSerializer.Serialize(_fireworksSettings, _chatJsonOptions);
     }
+
+    private void LoadTimerSettings()
+    {
+        if (_selected?.WidgetType == "timer")
+        {
+            try
+            {
+                _timerSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new TimerSettings()
+                    : (JsonSerializer.Deserialize<TimerSettings>(_selected.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+            }
+            catch
+            {
+                _timerSettings = new TimerSettings();
+            }
+        }
+        else
+        {
+            _timerSettings = null;
+        }
+    }
+
+    private void SaveTimerSettings()
+    {
+        if (_selected != null && _timerSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_timerSettings, _chatJsonOptions);
+    }
+
+    private TimerSettings GetPreviewTimerSettings(WidgetModel widget)
+    {
+        if (widget.WidgetType != "timer") return new TimerSettings();
+
+        try
+        {
+            return string.IsNullOrWhiteSpace(widget.CustomSettings)
+                ? new TimerSettings()
+                : (JsonSerializer.Deserialize<TimerSettings>(widget.CustomSettings, _chatJsonOptions) ?? new TimerSettings());
+        }
+        catch
+        {
+            return new TimerSettings();
+        }
+    }
+
+    private string BuildTimerPreviewStyle(TimerSettings settings)
+    {
+        var fontFamily = string.IsNullOrWhiteSpace(settings.FontFamily) ? "inherit" : settings.FontFamily;
+        var fontSizePx = Math.Clamp((int)Math.Round(settings.FontSize * Scale), 8, 96);
+        return $"background:{settings.BgColor}; color:{settings.Color}; font-size:{fontSizePx}px; "
+             + $"font-weight:{settings.FontWeight}; font-family:{fontFamily}; letter-spacing:{settings.LetterSpacing}px; "
+             + $"border-radius:{settings.BorderRadius}px; text-shadow:{settings.TextShadow};";
+    }
     // ---- Inner types ----
 
     private record LayoutListItem(int Id, string Name, bool IsDefault);
@@ -1300,7 +1730,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     }
 
     private sealed class FireworksSettings
-    {
+    {        
         public string QualityMode { get; set; } = "auto";
         public string Shell { get; set; } = "Random";
         public int Size { get; set; } = 3;
@@ -1312,5 +1742,151 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         public int CriticalParticleCount { get; set; } = 2200;
         public bool ForceLowEnd { get; set; } = false;
         public int ClearCanvasDelayMs { get; set; } = 15000;
+    }
+
+    private sealed class TimerSettings
+    {
+        public string FontFamily { get; set; } = "";
+        public int FontSize { get; set; } = 72;
+        public int FontWeight { get; set; } = 700;
+        public string Color { get; set; } = "#000000";
+        public string BgColor { get; set; } = "transparent";
+        public string TextShadow { get; set; } = "none";
+        public int LetterSpacing { get; set; } = 0;
+        public int Padding { get; set; } = 0;
+        public int BorderRadius { get; set; } = 0;
+        public string Format { get; set; } = "auto";
+        public string Prefix { get; set; } = "";
+        public string Suffix { get; set; } = "";
+        public bool ShowTenths { get; set; } = false;
+        public bool HideWhenStopped { get; set; } = false;
+        public bool HideWhenZero { get; set; } = false;
+    }
+
+    public sealed class CounterOverlaySettings
+    {
+        public string FontFamily { get; set; } = "Roboto";
+        public int FontSize { get; set; } = 32;
+        public int FontWeight { get; set; } = 700;
+        public string Color { get; set; } = "#ffffff";
+        public string LabelColor { get; set; } = "#ffb74d";
+        public string BgColor { get; set; } = "transparent";
+        public string ItemBgColor { get; set; } = "rgba(0, 0, 0, 0.6)";
+        public string TextShadow { get; set; } = "2px 2px 4px #000000";
+        public int LetterSpacing { get; set; } = 0;
+        public int Padding { get; set; } = 8;
+        public int BorderRadius { get; set; } = 6;
+        public int Gap { get; set; } = 8;
+        public string Layout { get; set; } = "vertical";
+        public string Align { get; set; } = "start";
+        public List<CounterOverlayItemConfig> Counters { get; set; } = [];
+    }
+
+    public sealed class CounterOverlayItemConfig
+    {
+        public string CounterType { get; set; } = "generic"; // "generic" or "death"
+        public string CounterName { get; set; } = string.Empty;
+        public string? CustomLabel { get; set; }
+        public string? Prefix { get; set; }
+        public string? Suffix { get; set; }
+        public string? CustomColor { get; set; }
+        public string? CustomLabelColor { get; set; }
+        public string? CustomItemBgColor { get; set; }
+    }
+
+    private CounterOverlaySettings? _counterSettings;
+    private List<string> _availableCounterNames = [];
+
+    private void LoadCounterSettings()
+    {
+        if (_selected?.WidgetType == "counter")
+        {
+            try
+            {
+                _counterSettings = string.IsNullOrWhiteSpace(_selected.CustomSettings)
+                    ? new CounterOverlaySettings()
+                    : (JsonSerializer.Deserialize<CounterOverlaySettings>(_selected.CustomSettings, _chatJsonOptions) ?? new CounterOverlaySettings());
+            }
+            catch
+            {
+                _counterSettings = new CounterOverlaySettings();
+            }
+        }
+        else
+        {
+            _counterSettings = null;
+        }
+    }
+
+    private void SaveCounterSettings()
+    {
+        if (_selected != null && _counterSettings != null)
+            _selected.CustomSettings = JsonSerializer.Serialize(_counterSettings, _chatJsonOptions);
+    }
+
+    private void AddCounterItemToSelected()
+    {
+        if (_counterSettings == null) return;
+        _counterSettings.Counters.Add(new CounterOverlayItemConfig
+        {
+            CounterType = _availableCounterNames.Count > 0 ? "generic" : "death",
+            CounterName = _availableCounterNames.FirstOrDefault() ?? ""
+        });
+        SaveCounterSettings();
+    }
+
+    private void RemoveCounterItemFromSelected(int index)
+    {
+        if (_counterSettings == null || index < 0 || index >= _counterSettings.Counters.Count) return;
+        _counterSettings.Counters.RemoveAt(index);
+        SaveCounterSettings();
+    }
+
+    private CounterOverlaySettings GetPreviewCounterSettings(WidgetModel widget)
+    {
+        if (widget.WidgetType != "counter") return new CounterOverlaySettings();
+
+        try
+        {
+            return string.IsNullOrWhiteSpace(widget.CustomSettings)
+                ? new CounterOverlaySettings()
+                : (JsonSerializer.Deserialize<CounterOverlaySettings>(widget.CustomSettings, _chatJsonOptions) ?? new CounterOverlaySettings());
+        }
+        catch
+        {
+            return new CounterOverlaySettings();
+        }
+    }
+
+    private string BuildCounterPreviewStyle(CounterOverlaySettings settings)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"font-family: {settings.FontFamily}; ");
+        sb.Append($"font-size: {Math.Max(8, (int)(settings.FontSize * Scale))}px; ");
+        sb.Append($"font-weight: {settings.FontWeight}; ");
+        sb.Append($"background-color: {settings.BgColor}; ");
+        if (!string.IsNullOrWhiteSpace(settings.TextShadow))
+            sb.Append($"text-shadow: {settings.TextShadow}; ");
+        sb.Append($"flex-direction: {(settings.Layout == "horizontal" ? "row" : "column")}; ");
+        sb.Append($"gap: {Math.Max(2, (int)(settings.Gap * Scale))}px; ");
+        if (settings.LetterSpacing != 0)
+            sb.Append($"letter-spacing: {settings.LetterSpacing}px; ");
+        var justify = settings.Align == "center" ? "center" : (settings.Align == "end" ? "flex-end" : "flex-start");
+        sb.Append($"justify-content: {justify}; ");
+        sb.Append($"align-items: {justify}; ");
+        return sb.ToString();
+    }
+
+    private string BuildCounterItemPreviewStyle(CounterOverlaySettings settings, CounterOverlayItemConfig? item)
+    {
+        var sb = new System.Text.StringBuilder();
+        var bg = !string.IsNullOrWhiteSpace(item?.CustomItemBgColor) ? item.CustomItemBgColor : settings.ItemBgColor;
+        if (!string.IsNullOrWhiteSpace(bg))
+            sb.Append($"background-color: {bg}; ");
+        sb.Append($"border-radius: {settings.BorderRadius}px; ");
+        var py = Math.Max(2, (int)(settings.Padding * 0.75 * Scale));
+        var px = Math.Max(4, (int)(settings.Padding * 1.5 * Scale));
+        sb.Append($"padding: {py}px {px}px; ");
+        return sb.ToString();
     }
 }

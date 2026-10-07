@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Counters Overlay</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent;
+            overflow: hidden;
+        }
+
+        #counters-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: var(--counter-align-items, flex-start);
+            justify-content: var(--counter-justify, flex-start);
+            align-content: var(--counter-align-content, flex-start);
+            flex-direction: var(--counter-layout, row);
+            flex-wrap: var(--counter-wrap, wrap);
+            gap: var(--counter-gap, 8px);
+            background: var(--counter-bg, transparent);
+            border-radius: var(--counter-radius, 0px);
+            padding: var(--counter-padding, 8px);
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        #counters-container.hidden {
+            display: none;
+        }
+
+        #counter-status {
+            position: fixed;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-family: sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            background: #c0392b;
+            transition: opacity 0.6s ease;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        #counter-status.connected { background: #27ae60; }
+        #counter-status.hidden    { opacity: 0; }
+
+        .counter-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--item-custom-bg, var(--counter-item-bg, rgba(0, 0, 0, 0.6)));
+            border-radius: var(--counter-radius, 6px);
+            padding: var(--counter-item-padding, 6px 14px);
+            font-family: var(--counter-font-family, "Segoe UI", sans-serif);
+            font-size: var(--counter-font-size, 32px);
+            font-weight: var(--counter-font-weight, 700);
+            text-shadow: var(--counter-text-shadow, 1px 1px 3px #000000);
+            letter-spacing: var(--counter-letter-spacing, 0px);
+            white-space: nowrap;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .counter-label {
+            color: var(--item-custom-label-color, var(--counter-label-color, #ffb74d));
+        }
+
+        .counter-val-wrapper {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .counter-value {
+            color: var(--item-custom-color, var(--counter-color, #ffffff));
+            min-width: 1ch;
+            text-align: right;
+            transition: transform 0.15s ease-out;
+        }
+
+        .counter-prefix, .counter-suffix {
+            color: var(--item-custom-color, var(--counter-color, #ffffff));
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .counter-value.bump {
+            transform: scale(1.25);
+        }
+    </style>
+</head>
+<body>
+    <div id="counters-container">
+        <!-- Rendered dynamically -->
+    </div>
+    <div id="counter-status">Counters: connecting...</div>
+
+    <script src="/js/signalr/dist/browser/signalr.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = '/js/counter-overlay.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
+

@@ -101,15 +101,58 @@ public class HomeControllerTests
             PenguinTwitchBot.Controllers.HomeController.OAuthIntent.User, redirect));
     }
 
+    [Fact]
+    public async Task OAuthRedirect_StreamerIntent_ShouldUpdateTokensAndValidateService()
+    {
+        var (sut, authClient, _, _, twitchService, tempFile) = CreateSutWithTwitchService();
+
+        try
+        {
+            var state = "streamer-state";
+            var memoryCache = sut.HttpContext.RequestServices.GetRequiredService<IMemoryCache>();
+            memoryCache.Set(state, new HomeController.OAuthStateEntry(
+                HomeController.OAuthIntent.Streamer, "/settings/bot-auth"));
+
+            authClient.ExchangeCodeAsync("test-client", "test-secret", "test-code", "http://localhost/redirect")
+                .Returns(new TwitchAuthTokenResponse
+                {
+                    AccessToken = "new-streamer-token",
+                    RefreshToken = "new-refresh-token",
+                    ExpiresIn = 3600
+                });
+
+            var result = await sut.OAuthRedirect("test-code", state, null);
+
+            var redirect = Assert.IsType<RedirectResult>(result);
+            Assert.Equal("/settings/bot-auth", redirect.Url);
+            twitchService.Received(1).SetAccessToken("new-streamer-token");
+            await twitchService.Received(1).ValidateAndRefreshToken();
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
+
     private static (HomeController sut, IAuthClient authClient, IViewerFeature viewerFeature, FakeAuthenticationService fakeAuthService) CreateSut()
     {
+        var (sut, authClient, viewerFeature, fakeAuthService, _, _) = CreateSutWithTwitchService();
+        return (sut, authClient, viewerFeature, fakeAuthService);
+    }
+
+    private static (HomeController sut, IAuthClient authClient, IViewerFeature viewerFeature, FakeAuthenticationService fakeAuthService, ITwitchService twitchService, string tempFile) CreateSutWithTwitchService()
+    {
+        var tempFile = Path.GetTempFileName();
+        File.WriteAllText(tempFile, "{}");
+
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["twitchClientId"] = "test-client",
                 ["twitchClientSecret"] = "test-secret",
                 ["broadcaster"] = "streamer",
-                ["botName"] = "bot"
+                ["botName"] = "bot",
+                ["Secrets:SecretsConf"] = tempFile
             })
             .Build();
 
@@ -145,7 +188,7 @@ public class HomeControllerTests
         url.Setup(x => x.IsLocalUrl(It.IsAny<string>())).Returns<string>(s => !string.IsNullOrWhiteSpace(s) && s.StartsWith('/'));
         sut.Url = url.Object;
 
-        return (sut, authClient, viewerFeature, fakeAuthService);
+        return (sut, authClient, viewerFeature, fakeAuthService, twitchService, tempFile);
     }
 
     private sealed class FakeAuthenticationService : IAuthenticationService

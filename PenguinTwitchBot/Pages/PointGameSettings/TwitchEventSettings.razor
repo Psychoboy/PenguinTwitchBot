@@ -12,12 +12,15 @@
         <MudGrid>
             <MudItem xs="12">
                 <MudPaper Class="pa-4" Elevation="2">
-                    <MudStack Spacing="1">
-                        <MudText Typo="Typo.h5">Loyalty Bonuses</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Configure points awarded for Twitch events (subs, cheers) and the one-time per-stream bonus point claim.
-                            Dynamic variables like <code>{Name}</code> and <code>{Amount}</code> are replaced at runtime.
-                        </MudText>
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <MudStack Spacing="1">
+                            <MudText Typo="Typo.h5">Loyalty Bonuses</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                Configure points awarded for Twitch events (subs, cheers) and the one-time per-stream bonus point claim.
+                                Dynamic variables like <code>{Name}</code> and <code>{Amount}</code> are replaced at runtime.
+                            </MudText>
+                        </MudStack>
+                        <HelpButton Topic="loyalty-bonuses" />
                     </MudStack>
                 </MudPaper>
             </MudItem>

@@ -1,5 +1,5 @@
-using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
+using PenguinTwitchBot.Database.Repository;
 using Microsoft.EntityFrameworkCore;
 
 namespace PenguinTwitchBot.Bot.Commands.Fishing
@@ -8,6 +8,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<FishingShopService> _logger;
+
+        // Cached on this singleton service; invalidated whenever shop items are mutated.
+        private volatile Dictionary<int, EquipmentTier>? _tierMapCache;
 
         public FishingShopService(IServiceScopeFactory scopeFactory, ILogger<FishingShopService> logger)
         {
@@ -18,60 +21,62 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<List<FishingShopItem>> GetAllShopItems()
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingShopItems
-                .Include(s => s.TargetFishType)
-                .ToListAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingShopItems.GetAsync(includeProperties: "TargetFishType");
         }
 
         public async Task<FishingShopItem?> GetShopItemById(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            return await context.FishingShopItems
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            return await db.FishingShopItems
+                .Find(s => s.Id == id)
                 .Include(s => s.TargetFishType)
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .FirstOrDefaultAsync();
         }
 
         public async Task AddShopItem(FishingShopItem item)
         {
+            FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishingShopItems.Add(item);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishingShopItems.Add(item);
+            await db.SaveChangesAsync();
+            InvalidateTierCache();
         }
 
         public async Task UpdateShopItem(FishingShopItem item)
         {
+            FishingValueRules.NormalizeAndValidate(item);
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            context.FishingShopItems.Update(item);
-            await context.SaveChangesAsync();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            db.FishingShopItems.Update(item);
+            await db.SaveChangesAsync();
+            InvalidateTierCache();
         }
 
         public async Task DeleteShopItem(int id)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var item = await context.FishingShopItems.FindAsync(id);
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var item = await db.FishingShopItems.GetByIdAsync(id);
             if (item != null)
             {
-                context.FishingShopItems.Remove(item);
-                await context.SaveChangesAsync();
+                db.FishingShopItems.Remove(item);
+                await db.SaveChangesAsync();
+                InvalidateTierCache();
             }
         }
 
         public async Task<int> UpdateShopItemPrices(Dictionary<string, int> priceUpdates)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var itemNames = priceUpdates.Keys.ToList();
 
             // Single query to get all items at once (avoids N+1 problem)
-            var items = await context.FishingShopItems
-                .Where(i => itemNames.Contains(i.Name))
-                .ToListAsync();
+            var items = await db.FishingShopItems.GetAsync(i => itemNames.Contains(i.Name));
 
             var updatedCount = 0;
             foreach (var item in items)
@@ -85,7 +90,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (updatedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
+                InvalidateTierCache();
             }
 
             return updatedCount;
@@ -94,14 +100,14 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> ApplyPriceMultiplier(double multiplier, bool permanentOnly = false, EquipmentSlot? slot = null)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var query = context.FishingShopItems.AsQueryable();
+            var query = db.FishingShopItems.Query();
 
             // Filter by permanent items if specified
             if (permanentOnly)
             {
-                query = query.Where(i => !i.IsConsumable);
+                query = query.Where(i => !i.MaxUses.HasValue);
             }
 
             // Filter by equipment slot if specified
@@ -125,7 +131,8 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
             if (updatedCount > 0)
             {
-                await context.SaveChangesAsync();
+                await db.SaveChangesAsync();
+                InvalidateTierCache();
             }
 
             return updatedCount;
@@ -134,11 +141,37 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         public async Task<int> GenerateDefaultShopItems(bool updateExisting = false)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var generator = new FishingShopItemGenerator();
-            return await generator.GenerateDefaultItems(context, updateExisting);
+            var changedCount = await generator.GenerateDefaultItems(db, updateExisting);
+            if (changedCount > 0)
+            {
+                InvalidateTierCache();
+            }
+
+            return changedCount;
         }
+
+        /// <summary>
+        /// Returns the cached tier map, computing and caching it on first use or after invalidation.
+        /// Guaranteed to contain an entry for every non-deleted shop item, so callers never need a fallback.
+        /// </summary>
+        public async Task<Dictionary<int, EquipmentTier>> GetTierMap()
+        {
+            var cached = _tierMapCache;
+            if (cached != null)
+            {
+                return cached;
+            }
+
+            var allItems = await GetAllShopItems();
+            var computed = CalculateDynamicTiers(allItems);
+            _tierMapCache = computed;
+            return computed;
+        }
+
+        private void InvalidateTierCache() => _tierMapCache = null;
 
         /// <summary>
         /// Calculates dynamic tiers for all shop items based on price rankings within each equipment slot.
@@ -152,15 +185,16 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
 
         /// <summary>
         /// Calculates dynamic tiers from pre-fetched shop items (avoids extra DB query).
-        /// Pre-groups by slot to avoid O(n²) complexity.
+        /// Pre-groups by slot to avoid O(nï¿½) complexity.
+        /// Guarantees every item in <paramref name="allItems"/> gets a tier entry (no fallback needed).
         /// </summary>
         public Dictionary<int, EquipmentTier> CalculateDynamicTiers(List<FishingShopItem> allItems)
         {
             var tierMap = new Dictionary<int, EquipmentTier>();
 
-            // Pre-group by equipment slot to avoid O(n²) - each slot is sorted once
+            // Pre-group by equipment slot to avoid O(nï¿½) - each slot is sorted once
             var itemsBySlot = allItems
-                .Where(i => !i.IsConsumable && i.Enabled && i.EquipmentSlot.HasValue)
+                .Where(i => !i.MaxUses.HasValue && i.Enabled && i.EquipmentSlot.HasValue)
                 .GroupBy(i => i.EquipmentSlot!.Value)
                 .ToDictionary(
                     g => g.Key,
@@ -190,10 +224,20 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
                 }
             }
 
-            // Handle consumables
-            foreach (var item in allItems.Where(i => i.IsConsumable))
+            // Limited-use items always tier as Consumable
+            foreach (var item in allItems.Where(i => i.MaxUses.HasValue))
             {
                 tierMap[item.Id] = EquipmentTier.Consumable;
+            }
+
+            // Catch-all for anything not ranked above (no slot, or disabled/excluded from its slot's ranking)
+            // so every item is guaranteed a tier and callers never need a fallback.
+            foreach (var item in allItems)
+            {
+                if (!tierMap.ContainsKey(item.Id))
+                {
+                    tierMap[item.Id] = EquipmentTier.Entry;
+                }
             }
 
             return tierMap;
@@ -207,15 +251,15 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         /// </summary>
         public EquipmentTier GetDynamicTier(FishingShopItem item, List<FishingShopItem> allItems)
         {
-            // Consumables always get Consumable tier
-            if (item.IsConsumable) return EquipmentTier.Consumable;
+            // Limited-use items always get Consumable tier
+            if (item.MaxUses.HasValue) return EquipmentTier.Consumable;
 
             // Items without equipment slot get Entry tier by default
             if (!item.EquipmentSlot.HasValue) return EquipmentTier.Entry;
 
             // Get all permanent items in the same equipment slot, ordered by price (descending)
             var itemsInSlot = allItems
-                .Where(i => i.EquipmentSlot == item.EquipmentSlot && !i.IsConsumable && i.Enabled)
+                .Where(i => i.EquipmentSlot == item.EquipmentSlot && !i.MaxUses.HasValue && i.Enabled)
                 .OrderByDescending(i => i.Cost)
                 .ToList();
 

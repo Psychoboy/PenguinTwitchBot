@@ -11,10 +11,13 @@
 @inject ILogger<Queues> logger
 @implements IAsyncDisposable
 
-<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queue Management</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Queues</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" GutterBottom="true">Queue Management</MudText>
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.h4" GutterBottom="false">Queues</MudText>
+        <HelpButton Topic="action-queues" />
+    </MudStack>
     <MudText Typo="Typo.body2" Class="mb-4">Manage action execution queues.</MudText>
 
     <MudPaper Class="pa-4">
@@ -99,6 +102,9 @@
     private HubConnection? _hubConnection;
     private bool _disposed;
     private HashSet<string> _togglingQueues = new();
+    private bool _renderScheduled;
+    private readonly CancellationTokenSource _renderCancellation = new();
+    private static readonly TimeSpan StatsRenderInterval = TimeSpan.FromMilliseconds(100);
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,7 +135,7 @@
                     if (existingStatsIndex >= 0)
                     {
                         _queueStats[existingStatsIndex] = stats;
-                        StateHasChanged();
+                        ScheduleStatsRender();
                     }
                     else
                     {
@@ -153,7 +159,7 @@
                             }
                         }
                         _queueStats.Insert(insertIndex, stats);
-                        StateHasChanged();
+                        ScheduleStatsRender();
                     }
                 });
             });
@@ -181,6 +187,32 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private void ScheduleStatsRender()
+    {
+        if (_disposed || _renderScheduled)
+            return;
+
+        _renderScheduled = true;
+        _ = RenderStatsAfterIntervalAsync(_renderCancellation.Token);
+    }
+
+    private async Task RenderStatsAfterIntervalAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(StatsRenderInterval, cancellationToken);
+            if (!_disposed)
+                await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            _renderScheduled = false;
         }
     }
 
@@ -355,8 +387,16 @@
 
         if (result == true)
         {
-            Snackbar.Add($"Queue '{queueStats.QueueName}' would be cleared (feature not yet implemented)", Severity.Info);
-            // Note: Clear functionality would need to be added to IQueueManager
+            try
+            {
+                var clearedCount = await QueueManager.ClearQueueAsync(queueStats.QueueName);
+                Snackbar.Add($"Cleared {clearedCount} pending action(s) from queue '{queueStats.QueueName}'", Severity.Success);
+                await LoadQueues();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error clearing queue: {ex.Message}", Severity.Error);
+            }
         }
     }
 
@@ -365,6 +405,8 @@
         if (!_disposed)
         {
             _disposed = true;
+            _renderCancellation.Cancel();
+            _renderCancellation.Dispose();
 
             if (_hubConnection is not null)
             {

@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.SignalR;
+using PenguinTwitchBot.Bot.Hubs;
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Bot.Commands.Features;
@@ -16,8 +19,9 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
         IServiceScopeFactory scopeFactory,
         Application.Notifications.IPenguinDispatcher dispatcher,
         ICommandHandler commandHandler,
-        IDefaultCommandTriggerService defaultCommandTriggerService
-            ) : BaseCommandService(serviceBackbone, commandHandler, "DeathCounters", dispatcher), IHostedService
+        IDefaultCommandTriggerService defaultCommandTriggerService,
+        IHubContext<MainHub> hubContext
+            ) : BaseCommandService(serviceBackbone, commandHandler, "DeathCounters", dispatcher), IHostedService, IDeathCounterService
     {
         public override async Task Register()
         {
@@ -169,6 +173,74 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             db.DeathCounters.Update(counter);
             await db.SaveChangesAsync();
+
+            await WriteCounterFile(counter.Game, counter.Amount);
+            try
+            {
+                await hubContext.Clients.All.SendAsync("DeathCounterUpdated", new
+                {
+                    game = counter.Game,
+                    amount = counter.Amount
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to broadcast DeathCounterUpdated for {Game}", counter.Game);
+            }
+        }
+
+        public async Task<(string Game, int Amount)> GetCurrentDeathCountAsync()
+        {
+            var game = await twitchService.GetCurrentGame();
+            if (string.IsNullOrWhiteSpace(game)) game = "Unknown";
+            var counter = await GetCounter(game);
+            return (game, counter.Amount);
+        }
+
+        public async Task<(string Game, int Amount)> AdjustCurrentDeathCountAsync(CounterOperation operation, int? value = null)
+        {
+            var game = await twitchService.GetCurrentGame();
+            if (string.IsNullOrWhiteSpace(game)) game = "Unknown";
+            var counter = await GetCounter(game);
+            var oldAmount = counter.Amount;
+
+            switch (operation)
+            {
+                case CounterOperation.Increment:
+                    counter.Amount += (value ?? 1);
+                    break;
+                case CounterOperation.Decrement:
+                    counter.Amount -= (value ?? 1);
+                    if (counter.Amount < 0) counter.Amount = 0;
+                    break;
+                case CounterOperation.Reset:
+                    counter.Amount = 0;
+                    break;
+                case CounterOperation.Set:
+                    counter.Amount = Math.Max(0, value ?? 0);
+                    break;
+            }
+
+            await UpdateCounter(counter);
+            return (game, counter.Amount);
+        }
+
+        private static async Task WriteCounterFile(string game, int amount)
+        {
+            try
+            {
+                var dir = Path.Combine(Directory.GetCurrentDirectory(), "Data", "counters");
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                await File.WriteAllTextAsync(Path.Combine(dir, "death.txt"), amount.ToString());
+                await File.WriteAllTextAsync(Path.Combine(dir, "death-full.txt"), $"Deaths ({game}): {amount}");
+            }
+            catch
+            {
+                // Best effort
+            }
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

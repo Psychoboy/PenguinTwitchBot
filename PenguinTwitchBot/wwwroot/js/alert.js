@@ -200,7 +200,7 @@ async function handleGifAlert(json) {
     // p object to hold custom gif alert text and style
     textObj = $('<p/>', {
         'style': gifCss
-    }).html(gifText);
+    }).text(gifText);
 
     await sleep(500);
 
@@ -461,12 +461,7 @@ function handleBrowserInteraction() {
 }
 
 function getWebSocket() {
-    let socketUri = ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws'), // URI of the socket.
-        reconnectInterval = 5000; // How often in milliseconds we should try reconnecting.
-
-    return new ReconnectingWebSocket(socketUri, null, {
-        reconnectInterval: reconnectInterval
-    });
+    return createWsSocket('Alerts', [WS_TOPICS.alerts]);
 }
 
 // var connectionUrl = document.getElementById("connectionUrl");

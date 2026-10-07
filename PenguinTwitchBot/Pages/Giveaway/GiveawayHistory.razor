@@ -11,15 +11,29 @@
 </style>
 
 <MudContainer Class="pa-6" MaxWidth="MaxWidth.False">
-    @if (pastWinners == null)
-    {
-        <MudAlert Severity="Severity.Info">Loading...</MudAlert>
-    }
-    else
-    {
-        <MudPaper>
-            <MudText Typo="Typo.h3">Past Winners</MudText>
-            <MudTable Items="@pastWinners" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted" SortLabel="Sort By">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Giveaway History</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Review past giveaway winners, prizes, claiming status, and contact information.
+                </MudText>
+            </MudStack>
+            <HelpButton Topic="giveaway-history" />
+        </MudStack>
+
+        @if (pastWinners == null)
+        {
+            <MudAlert Severity="Severity.Info">Loading...</MudAlert>
+        }
+        else
+        {
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudTable Items="@pastWinners" CanCancelEdit="true" RowEditCommit="ItemHasBeenCommitted" SortLabel="Sort By">
                 <HeaderContent>
                     <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Username)">Name</MudTableSortLabel></MudTh>
                     <MudTh><MudTableSortLabel SortBy="new Func<GiveawayWinner, object>(x => x.Prize)">Prize</MudTableSortLabel></MudTh>
@@ -57,6 +71,7 @@
             </MudTable>
         </MudPaper>
     }
+    </MudStack>
 </MudContainer>
 
 @code {

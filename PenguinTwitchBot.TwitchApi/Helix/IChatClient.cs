@@ -10,4 +10,6 @@ public interface IChatClient
     Task SendChatAnnouncementAsync(string clientId, string? accessToken, string broadcasterId, string moderatorId, string message);
     Task<IReadOnlyList<ChatBadgeSet>> GetGlobalChatBadgesAsync(string clientId, string? accessToken);
     Task<IReadOnlyList<ChatBadgeSet>> GetChannelChatBadgesAsync(string clientId, string? accessToken, string broadcasterId);
+    Task<IReadOnlyList<ChatEmoteSetItem>> GetGlobalEmotesAsync(string clientId, string? accessToken);
+    Task<IReadOnlyList<ChatEmoteSetItem>> GetChannelEmotesAsync(string clientId, string? accessToken, string broadcasterId);
 }

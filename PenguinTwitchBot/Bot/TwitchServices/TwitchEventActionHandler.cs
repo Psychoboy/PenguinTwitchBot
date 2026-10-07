@@ -98,7 +98,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
                 var actionService = scope.ServiceProvider.GetRequiredService<IAction>();
 
-                var actions = await actionManagement.GetActionsByTriggerTypeAndNameAsync(
+                var actions = await actionManagement.GetActionsByTriggerTypeAndNameEnabledAsync(
                     TriggerTypes.TwitchEvent,
                     triggerName);
 

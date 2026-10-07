@@ -23,10 +23,11 @@ namespace PenguinTwitchBot.Bot.Commands
         {
             var normalizedCommandName = commandName.ToLower();
 
-            var result = await unitOfWork.ActionCommands.GetAsync(
-                filter: c => c.CommandName.ToLower() == normalizedCommandName,
-                includeProperties: "PointType");
-            return result.FirstOrDefault();
+            return await unitOfWork.ActionCommands.Query()
+                .Include("PointType")
+                .Where(c => c.CommandName.ToLower() == normalizedCommandName)
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
         }
 
         public async Task<ActionCommand> AddAsync(ActionCommand command)

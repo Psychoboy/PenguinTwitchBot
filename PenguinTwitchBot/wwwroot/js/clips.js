@@ -1,4 +1,4 @@
-﻿isDebug = true;
+isDebug = true;
 let audioFormats = {
     maybe: [],
     probably: []
@@ -190,7 +190,7 @@ async function handleClipAlert(json) {
     // p object to hold custom clip alert text and style
     textObj = $('<p/>', {
         'id': 'textObj'
-    }).html(clipText);
+    }).text(clipText);
 
     await sleep(500);
 
@@ -388,12 +388,7 @@ function handleBrowserInteraction() {
 }
 
 function getWebSocket() {
-    let socketUri = ((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws'), // URI of the socket.
-        reconnectInterval = 5000; // How often in milliseconds we should try reconnecting.
-
-    return new ReconnectingWebSocket(socketUri, null, {
-        reconnectInterval: reconnectInterval
-    });
+    return createWsSocket('Clips', [WS_TOPICS.clips]);
 }
 
 var socket;

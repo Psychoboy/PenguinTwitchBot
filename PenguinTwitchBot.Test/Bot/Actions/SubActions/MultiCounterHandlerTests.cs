@@ -1,11 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
-using MockQueryable.NSubstitute;
 using PenguinTwitchBot.Bot.Actions.SubActions.Handlers;
+using PenguinTwitchBot.Bot.Services;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
-using PenguinTwitchBot.Database.Repository;
 using NSubstitute;
 using System.Collections.Concurrent;
-using System.Linq;
 
 namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
@@ -14,8 +11,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [Fact]
         public async Task WrongType_ThrowsException()
         {
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-            var handler = new MultiCounterHandler(scopeFactory);
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
 
             var wrongType = new SendMessageType();
             var variables = new ConcurrentDictionary<string, string>();
@@ -24,65 +21,167 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task ValidType_ReturnsExistingCounter()
+        public async Task ValidType_AdjustsCounterAndPopulatesVariables()
         {
-            var services = new ServiceCollection();
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var repo = Substitute.For<ICountersRepository>();
-            unitOfWork.Counters.Returns(repo);
-            services.AddSingleton(unitOfWork);
-            var provider = services.BuildServiceProvider();
-            var realScopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-            var asyncScope = realScopeFactory.CreateAsyncScope();
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
 
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-#pragma warning disable NS1000
-            scopeFactory.CreateAsyncScope().Returns(asyncScope);
-#pragma warning restore NS1000
+            var result = new CounterResult
+            {
+                Success = true,
+                CounterName = "test",
+                DisplayName = "Test Counter",
+                OldValue = 4,
+                NewValue = 5,
+                Operation = CounterOperation.Increment
+            };
 
-            var handler = new MultiCounterHandler(scopeFactory);
+            counterService.AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs?>()).Returns(Task.FromResult(result));
 
-            var counter = new PenguinTwitchBot.Database.Bot.Models.Counter { CounterName = "test", Amount = 5 };
-            var queryable = new List<PenguinTwitchBot.Database.Bot.Models.Counter> { counter }.BuildMockDbSet().AsQueryable();
+            counterService.When(x => x.PopulateVariables(
+                Arg.Any<ConcurrentDictionary<string, string>>(),
+                Arg.Any<CounterResult>(),
+                Arg.Any<string?>())).Do(callInfo =>
+                {
+                    var dict = callInfo.Arg<ConcurrentDictionary<string, string>>();
+                    dict["counter_test"] = "5";
+                    dict["counter_value"] = "5";
+                });
 
-            repo.Find(Arg.Any<System.Linq.Expressions.Expression<System.Func<PenguinTwitchBot.Database.Bot.Models.Counter, bool>>>()).Returns(queryable);
-
-            var type = new MultiCounterType { Name = "test", Min = 0, Max = 100 };
+            var type = new MultiCounterType
+            {
+                Name = "test",
+                Operation = CounterOperation.Increment,
+                Min = 0,
+                Max = 100
+            };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
             Assert.Equal("5", variables["counter_test"]);
+            Assert.Equal("5", variables["counter_value"]);
         }
 
         [Fact]
-        public async Task CounterNotFound_CreatesNewCounter()
+        public async Task CommandArgs_EvaluatesCommandArgs()
         {
-            var services = new ServiceCollection();
-            var unitOfWork = Substitute.For<IUnitOfWork>();
-            var repo = Substitute.For<ICountersRepository>();
-            unitOfWork.Counters.Returns(repo);
-            services.AddSingleton(unitOfWork);
-            var provider = services.BuildServiceProvider();
-            var realScopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-            var asyncScope = realScopeFactory.CreateAsyncScope();
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
 
-            var scopeFactory = Substitute.For<IServiceScopeFactory>();
-#pragma warning disable NS1000
-            scopeFactory.CreateAsyncScope().Returns(asyncScope);
-#pragma warning restore NS1000
+            var result = new CounterResult
+            {
+                Success = true,
+                CounterName = "death",
+                DisplayName = "Deaths",
+                OldValue = 10,
+                NewValue = 11,
+                Operation = CounterOperation.Increment
+            };
 
-            var handler = new MultiCounterHandler(scopeFactory);
+            counterService.EvaluateCommandArgsAsync(
+                "death",
+                Arg.Any<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs?>(),
+                Arg.Any<int?>(),
+                Arg.Any<int?>()).Returns(Task.FromResult(result));
 
-            var queryable = new List<PenguinTwitchBot.Database.Bot.Models.Counter>().BuildMockDbSet().AsQueryable();
-            repo.Find(Arg.Any<System.Linq.Expressions.Expression<System.Func<PenguinTwitchBot.Database.Bot.Models.Counter, bool>>>()).Returns(queryable);
+            counterService.When(x => x.PopulateVariables(
+                Arg.Any<ConcurrentDictionary<string, string>>(),
+                Arg.Any<CounterResult>(),
+                Arg.Any<string?>())).Do(callInfo =>
+                {
+                    var dict = callInfo.Arg<ConcurrentDictionary<string, string>>();
+                    dict["custom_dest"] = "11";
+                });
 
-            var type = new MultiCounterType { Name = "newcounter", Min = 0, Max = 100 };
+            var type = new MultiCounterType
+            {
+                Name = "death",
+                Operation = CounterOperation.CommandArgs,
+                DestinationVariable = "custom_dest"
+            };
             var variables = new ConcurrentDictionary<string, string>();
 
             await handler.ExecuteAsync(type, variables);
 
-            Assert.Equal("0", variables["counter_newcounter"]);
+            Assert.Equal("11", variables["custom_dest"]);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithoutOriginalEventArgs_PassesNullEventArgs()
+        {
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
+
+            counterService.AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                null).Returns(Task.FromResult(new CounterResult { Success = true, CounterName = "test" }));
+
+            var type = new MultiCounterType
+            {
+                Name = "test",
+                Operation = CounterOperation.Increment
+            };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await handler.ExecuteAsync(type, variables);
+
+            await counterService.Received(1).AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                null);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WithOriginalEventArgs_PassesDeserializedEventArgs()
+        {
+            var counterService = Substitute.For<ICounterService>();
+            var handler = new MultiCounterHandler(counterService);
+
+            counterService.AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                Arg.Is<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(e => e.Name == "testuser")).Returns(Task.FromResult(new CounterResult { Success = true, CounterName = "test" }));
+
+            var type = new MultiCounterType
+            {
+                Name = "test",
+                Operation = CounterOperation.Increment
+            };
+            var variables = new ConcurrentDictionary<string, string>
+            {
+                ["OriginalEventArgs"] = System.Text.Json.JsonSerializer.Serialize(new PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs
+                {
+                    Name = "testuser",
+                    DisplayName = "TestUser"
+                })
+            };
+
+            await handler.ExecuteAsync(type, variables);
+
+            await counterService.Received(1).AdjustCounterAsync(
+                "test",
+                CounterOperation.Increment,
+                null,
+                0,
+                100,
+                Arg.Is<PenguinTwitchBot.Bot.Events.Chat.CommandEventArgs>(e => e.Name == "testuser"));
         }
     }
 }

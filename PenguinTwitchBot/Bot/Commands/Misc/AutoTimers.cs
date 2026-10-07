@@ -42,7 +42,8 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             MessageCounters.Clear();
             MessageCounter = 0;
             var groups = await GetTimerGroupsAsync();
-            groups.ForEach(async x => await UpdateNextRun(x));
+            groups = [.. groups.Where(g => g.OnlineOnly)];
+            await Task.WhenAll(groups.Select(async x => await UpdateNextRun(x)));
         }
 
         private Task CommandMessage(object? sender, CommandEventArgs e)
@@ -101,9 +102,33 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
 
         public virtual async Task UpdateTimerGroup(TimerGroup group)
         {
+            if(!group.Id.HasValue)
+            {
+                _logger.LogWarning("Cannot update timer group: Timer group ID is null");
+                return;
+            }
+
             await using var scope = _scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            db.TimerGroups.Update(group);
+            
+            var existing = await db.TimerGroups.GetByIdAsync(group.Id.Value);
+            if (existing == null)
+            {
+                _logger.LogWarning("Timer group {Id} not found for update", group.Id.Value);
+                return;
+            }
+            
+            existing.Name = group.Name;
+            existing.Active = group.Active;
+            existing.Repeat = group.Repeat;
+            existing.OnlineOnly = group.OnlineOnly;
+            existing.IntervalMinimumSeconds = group.IntervalMinimumSeconds;
+            existing.IntervalMaximumSeconds = group.IntervalMaximumSeconds;
+            existing.MinimumMessages = group.MinimumMessages;
+            existing.Shuffle = group.Shuffle;
+            existing.LastRun = group.LastRun;
+            existing.NextRun = group.NextRun;
+            
             await db.SaveChangesAsync();
         }
 
@@ -205,12 +230,25 @@ namespace PenguinTwitchBot.Bot.Commands.Misc
             try
             {
                 var randomNextSeconds = StaticTools.RandomRange(group.IntervalMinimumSeconds, group.IntervalMaximumSeconds);
-                group.NextRun = DateTime.UtcNow.AddSeconds(randomNextSeconds);
-                group.LastRun = DateTime.UtcNow;
+                var nextRun = DateTime.UtcNow.AddSeconds(randomNextSeconds);
+                var lastRun = DateTime.UtcNow;
+                
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                db.TimerGroups.Update(group);
-                await db.SaveChangesAsync();
+                
+                if (group.Id.HasValue)
+                {
+                    var existing = await db.TimerGroups.GetByIdAsync(group.Id.Value);
+                    if (existing != null)
+                    {
+                        existing.NextRun = nextRun;
+                        existing.LastRun = lastRun;
+                        db.TimerGroups.Update(existing);
+                        await db.SaveChangesAsync();
+                        group.NextRun = nextRun;
+                        group.LastRun = lastRun;
+                    }
+                }
             }
             catch (Exception ex)
             {

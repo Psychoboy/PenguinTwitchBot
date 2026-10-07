@@ -845,6 +845,84 @@ public class TwitchWebsocketHostedServiceTests
     }
 
     [Fact]
+    public void MapFragment_WhenTextHasWhitespace_PreservesWhitespace()
+    {
+        var fragment = new ChatMessageFragment
+        {
+            Type = "text",
+            Text = "  hello world  "
+        };
+        var result = TwitchWebsocketHostedService.MapFragment(fragment);
+        Assert.Equal("text", result.Type);
+        Assert.Equal("  hello world  ", result.Text);
+    }
+
+    [Fact]
+    public async Task ChannelSuspiciousUserMessage_SanitizesMessageText()
+    {
+        var args = new ChannelSuspiciousUserMessageEventArgs
+        {
+            Metadata = CreateMetadata("msg-sus-1"),
+            Event = new ChannelSuspiciousUserMessage
+            {
+                Message = new SuspiciousUserMessage { MessageId = "msg-sus-1", Text = "<script>alert('xss')</script>Hello safe text" },
+                UserId = "uid-1",
+                UserName = "TestUser",
+                UserLogin = "testuser"
+            }
+        };
+        _messageIdTracker.IsSelfMessage("msg-sus-1").Returns(false);
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
+
+        await _service.ChannelSuspiciousUserMessage(this, args);
+
+        await _dispatcher.Received(1).Publish(Arg.Is<ReceivedChatMessage>(m =>
+            m.EventArgs != null && m.EventArgs.Message == "Hello safe text"));
+    }
+
+    [Fact]
+    public async Task OnChannelBitsUse_SanitizesBitsMessageAndFragments()
+    {
+        var args = new ChannelBitsUseEventArgs
+        {
+            Metadata = CreateMetadata("msg-bits-1"),
+            Event = new ChannelBitsUse
+            {
+                UserId = "uid-1",
+                UserLogin = "testuser",
+                UserName = "TestUser",
+                Bits = 100,
+                Type = "cheer",
+                BroadcasterUserId = "uid-bc",
+                BroadcasterUserLogin = "broadcaster",
+                BroadcasterUserName = "Broadcaster",
+                Message = new PenguinTwitchBot.TwitchApi.EventSub.Models.Bits.BitsMessage
+                {
+                    Text = "<script>alert('msg')</script>Cheer 100",
+                    Fragments = new[]
+                    {
+                        new PenguinTwitchBot.TwitchApi.EventSub.Models.Bits.BitsMessageFragments
+                        {
+                            Type = "text",
+                            Text = " <script>alert('frag')</script>Cheer 100 "
+                        }
+                    }
+                }
+            }
+        };
+        _memoryCache.TryGetValue(Arg.Any<object>(), out Arg.Any<object>()!).Returns(false);
+
+        await _service.OnChannelBitsUse(this, args);
+
+        await _twitchEventActionHandler.Received(1).HandleBitsUseAsync(Arg.Is<BitsUseEventArgs>(e =>
+            e.Message == "Cheer 100" &&
+            e.BitsMessage != null &&
+            e.BitsMessage.Text == "Cheer 100" &&
+            e.BitsMessage.Emotes.Count == 1 &&
+            e.BitsMessage.Emotes[0].Text == " Cheer 100 "));
+    }
+
+    [Fact]
     public async Task MessageReceived_UpdatesLastMessageReceived()
     {
         var before = _timeProvider.GetLocalNow();

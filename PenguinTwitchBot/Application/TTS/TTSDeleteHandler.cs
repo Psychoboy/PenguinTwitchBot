@@ -1,4 +1,4 @@
-﻿
+
 namespace PenguinTwitchBot.Application.TTS
 {
 #pragma warning disable S101 // Types should be named in PascalCase
@@ -11,14 +11,38 @@ namespace PenguinTwitchBot.Application.TTS
             var fileParts = data.Split(":");
             if (fileParts.Length > 1)
             {
-                var fileName = fileParts[1];
-                if (File.Exists("wwwroot/tts/" + fileName.Trim() + ".mp3"))
-                {
-                    logger.LogInformation("Deleting TTS File {filename}", fileName);
-                    File.Delete("wwwroot/tts/" + fileName.Trim() + ".mp3");
-                }
+                var rawFileName = fileParts[1].Trim();
+                var safeBaseName = Path.GetFileNameWithoutExtension(rawFileName);
+                if (string.IsNullOrWhiteSpace(safeBaseName)) return Task.CompletedTask;
+
+                var baseDirectory = Path.GetFullPath("wwwroot/tts");
+                DeleteFileIfExists(Path.Combine(baseDirectory, safeBaseName + ".mp3"), baseDirectory);
+                DeleteFileIfExists(Path.Combine(baseDirectory, safeBaseName + ".wav"), baseDirectory);
             }
             return Task.CompletedTask;
+        }
+
+        private void DeleteFileIfExists(string path, string allowedDirectory)
+        {
+            var fullPath = Path.GetFullPath(path);
+            if (!fullPath.StartsWith(allowedDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning("Rejected out-of-directory TTS deletion attempt: {Path}", path);
+                return;
+            }
+
+            if (File.Exists(fullPath))
+            {
+                logger.LogInformation("Deleting TTS File {Path}", fullPath);
+                try
+                {
+                    File.Delete(fullPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete TTS file {Path}", fullPath);
+                }
+            }
         }
     }
 }

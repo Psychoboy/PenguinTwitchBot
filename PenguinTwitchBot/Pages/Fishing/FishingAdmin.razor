@@ -5,27 +5,43 @@
 @using Microsoft.AspNetCore.Components.Forms
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
-<PageTitle>Fishing Game</PageTitle>
+<PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Manage Fish & Shop</PageTitle>
 
 <MudContainer Class="pa-4" MaxWidth="MaxWidth.ExtraExtraLarge">
     <MudStack Spacing="3">
-        <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
-            <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Large" Class="mr-2" />
-            Fishing Game Manager
-        </MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h3" Align="Align.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Phishing" Size="Size.Large" Class="mr-2" />
+                Manage Fish & Shop
+            </MudText>
+            <HelpButton Topic="fishing-admin" />
+        </MudStack>
 
         <MudTabs Elevation="4" Rounded="true" Color="Color.Primary" Class="mt-4">
             <MudTabPanel Text="Fish Types" Icon="@Icons.Material.Filled.Phishing">
                 <MudPaper Elevation="3" Class="pa-4 ma-2">
                     <MudStack Spacing="3">
-                        <MudButton Variant="Variant.Filled" 
-                                   Color="Color.Primary" 
-                                   Size="Size.Large"
-                                   StartIcon="@Icons.Material.Filled.Add"
-                                   @onclick="AddNewFish">
-                            Add Fish Type
-                        </MudButton>
-                        <MudTable Items="@fishTypes" Hover="true" Striped="true" Dense="true" Elevation="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Justify="Justify.SpaceBetween" Class="flex-wrap">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Large"
+                                       StartIcon="@Icons.Material.Filled.Add"
+                                       @onclick="AddNewFish">
+                                Add Fish Type
+                            </MudButton>
+                            <MudTextField T="string"
+                                          @bind-Value="fishSearchText"
+                                          Placeholder="Search fish by name, rarity, category..."
+                                          Label="Search Fish"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Clearable="true"
+                                          Immediate="true"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Style="max-width: 350px;" />
+                        </MudStack>
+                        <MudTable Items="@FilteredFishTypes" Hover="true" Striped="true" Dense="true" Elevation="2">
                             <HeaderContent>
                                 <MudTh>Image</MudTh>
                                 <MudTh>Name</MudTh>
@@ -139,7 +155,73 @@
                         Update Item Prices
                     </MudButton>
                 </MudStack>
-                <MudTable Items="@shopItems" Hover="true" Striped="true" Dense="true" Elevation="2">
+                <MudPaper Elevation="1" Class="pa-3">
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect T="string" 
+                                       @bind-Value="shopFilterSlot" 
+                                       Label="Equipment Slot" 
+                                       Clearable="true"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       AdornmentIcon="@Icons.Material.Filled.Category">
+                                <MudSelectItem T="string" Value="@("All")">All Slots</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Permanent")">Permanent (No Slot)</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Rod.ToString())">Rod</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Reel.ToString())">Reel</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Line.ToString())">Line</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Lure.ToString())">Lure</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Bait.ToString())">Bait</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Hook.ToString())">Hook</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.TackleBox.ToString())">Tackle Box</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Net.ToString())">Net</MudSelectItem>
+                                <MudSelectItem T="string" Value="@(EquipmentSlot.Special.ToString())">Special</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect T="FishingBoostType?" 
+                                       @bind-Value="shopFilterBoostType" 
+                                       Label="Boost Type" 
+                                       Clearable="true"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       AdornmentIcon="@Icons.Material.Filled.TrendingUp">
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)null)">All Types</MudSelectItem>
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.GeneralRarityBoost)">Rarity Boost</MudSelectItem>
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.StarBoost)">Star Boost</MudSelectItem>
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.WeightBoost)">Weight Boost</MudSelectItem>
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.SpecificFishBoost)">Fish-Specific</MudSelectItem>
+                                <MudSelectItem T="FishingBoostType?" Value="@((FishingBoostType?)FishingBoostType.SpecificCategoryBoost)">Category-Specific</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudSelect T="bool?" 
+                                       @bind-Value="shopFilterConsumable" 
+                                       Label="Item Type" 
+                                       Clearable="true"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       AdornmentIcon="@Icons.Material.Filled.FilterList">
+                                <MudSelectItem T="bool?" Value="@((bool?)null)">All Items</MudSelectItem>
+                                <MudSelectItem T="bool?" Value="@((bool?)false)">Unlimited Uses</MudSelectItem>
+                                <MudSelectItem T="bool?" Value="@((bool?)true)">Limited Uses</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" md="3">
+                            <MudTextField T="string" 
+                                          @bind-Value="shopSearchText" 
+                                          Label="Search Shop Items" 
+                                          Placeholder="Search by name, description, target..."
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Clearable="true"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+                <MudTable Items="@FilteredShopItems" Hover="true" Striped="true" Dense="true" Elevation="2">
                     <HeaderContent>
                         <MudTh>Name</MudTh>
                         <MudTh>Description</MudTh>
@@ -148,6 +230,7 @@
                         <MudTh>Boost Amount</MudTh>
                         <MudTh>Equipment Slot</MudTh>
                         <MudTh>Uses</MudTh>
+                        <MudTh>Durability</MudTh>
                         <MudTh>Admin Only</MudTh>
                         <MudTh>Enabled</MudTh>
                         <MudTh>Actions</MudTh>
@@ -157,9 +240,9 @@
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                 <MudIcon Icon="@Icons.Material.Filled.LocalOffer" Size="Size.Small" Color="Color.Primary" />
                                 <MudText><strong>@context.Name</strong></MudText>
-                                @if (context.IsConsumable)
+                                @if (context.MaxUses.HasValue)
                                 {
-                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Consumable</MudChip>
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever">Limited Use</MudChip>
                                 }
                             </MudStack>
                         </MudTd>
@@ -171,9 +254,31 @@
                             </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Boost Type">
-                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                            <MudStack Spacing="0">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType)</MudChip>
+                                @if (context.BoostType2.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType2.Value)</MudChip>
+                                }
+                                @if (context.BoostType3.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(context.BoostType3.Value)</MudChip>
+                                }
+                            </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="Boost Amount">+@((context.BoostAmount * 100).ToString("F0"))%</MudTd>
+                        <MudTd DataLabel="Boost Amount">
+                            <MudStack Spacing="0">
+                                <MudText>@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount)</MudText>
+                                @if (context.BoostType2.HasValue && context.BoostAmount2.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount2.Value)</MudText>
+                                }
+                                @if (context.BoostType3.HasValue && context.BoostAmount3.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@FishingBoostDisplayHelper.FormatPercent(context.BoostAmount3.Value)</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
                         <MudTd DataLabel="Equipment Slot">
                             @if (context.EquipmentSlot.HasValue)
                             {
@@ -199,6 +304,22 @@
                                     Unlimited
                                 </MudChip>
                             }
+                        </MudTd>
+                        <MudTd DataLabel="Durability">
+                            <MudStack Spacing="0">
+                                @if (context.DisableBreaking)
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Shield">Unbreakable</MudChip>
+                                }
+                                @if (context.MaxDurability.HasValue)
+                                {
+                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Icon="@Icons.Material.Filled.Build">@context.MaxDurability.Value HP (-@context.DurabilityLossPerUse?.ToString("0.#"))</MudChip>
+                                }
+                                else if (!context.DisableBreaking)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Standard</MudText>
+                                }
+                            </MudStack>
                         </MudTd>
                         <MudTd DataLabel="Admin Only">
                             @if (context.IsAdminOnly)
@@ -267,11 +388,11 @@
 
                 <MudDivider />
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2">Snap Chances</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Set per-attempt probabilities. Values use decimal format (0.02 = 2%).</MudText>
+                    <MudText Typo="Typo.subtitle2">Equipment Failure & Accident Chances</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Set per-attempt probabilities. Values use decimal format (0.02 = 2%). Default for new failures is 0%.</MudText>
                 </MudStack>
                 <MudGrid>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="4">
                         <MudNumericField @bind-Value="settings.LineSnapChance"
                                          Label="Line Snap Chance"
                                          HelperText="Default: 0.02 (2%)"
@@ -281,7 +402,7 @@
                                          Adornment="Adornment.End"
                                          AdornmentText="prob" />
                     </MudItem>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="4">
                         <MudNumericField @bind-Value="settings.RodSnapChance"
                                          Label="Rod Snap Chance"
                                          HelperText="Default: 0.0005 (0.05%)"
@@ -290,6 +411,55 @@
                                          Step="0.0001"
                                          Adornment="Adornment.End"
                                          AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.ReelJamChance"
+                                         Label="Reel Jam Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.TackleBoxLostChance"
+                                         Label="Tackle Box Lost Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField @bind-Value="settings.NetBreakChance"
+                                         Label="Net Break Chance"
+                                         HelperText="Default: 0.0 (0%)"
+                                         Min="0.0"
+                                         Max="1.0"
+                                         Step="0.001"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="prob" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-3" />
+
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2">Item Repair System</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configure global repair cost multiplier. When 0, repairing is disabled and 0% durability items are lost permanently.</MudText>
+                </MudStack>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="settings.RepairCostMultiplier"
+                                         Label="Repair Cost Multiplier"
+                                         HelperText="Percentage of item cost to repair full durability (e.g. 0.25 = 25%). 0 = Disabled."
+                                         Min="0.0"
+                                         Max="10.0"
+                                         Step="0.01"
+                                         Adornment="Adornment.End"
+                                         AdornmentText="mult" />
                     </MudItem>
                 </MudGrid>
 
@@ -305,7 +475,7 @@
                     </MudText>
 
                     <MudGrid>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityUncommonThreshold" 
                                              Label="Uncommon (≥)" 
                                              Min="1"
@@ -314,7 +484,7 @@
                                 
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityRareThreshold" 
                                              Label="Rare (≥)" 
                                              Min="1"
@@ -322,7 +492,7 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="4" md="2">
                             <MudNumericField @bind-Value="settings.RarityEpicThreshold" 
                                              Label="Epic (≥)" 
                                              Min="1"
@@ -330,7 +500,7 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
-                        <MudItem xs="6" sm="3">
+                        <MudItem xs="6" sm="6" md="3">
                             <MudNumericField @bind-Value="settings.RarityLegendaryThreshold" 
                                              Label="Legendary (≥)" 
                                              Min="1"
@@ -338,7 +508,24 @@
                                              AdornmentIcon="@Icons.Material.Filled.AttachMoney">
                             </MudNumericField>
                         </MudItem>
+                        <MudItem xs="6" sm="6" md="3">
+                            <MudNumericField @bind-Value="settings.RarityMythicalThreshold" 
+                                             Label="Mythical (≥)" 
+                                             Min="1"
+                                             Error="@(!HasValidRarityThresholdOrder)"
+                                             ErrorText="@RarityThresholdValidationMessage"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.AttachMoney">
+                            </MudNumericField>
+                        </MudItem>
                     </MudGrid>
+
+                    @if (!HasValidRarityThresholdOrder)
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Icon="@Icons.Material.Filled.Warning" Class="mt-2">
+                            @RarityThresholdValidationMessage
+                        </MudAlert>
+                    }
 
                     <MudAlert Severity="Severity.Info" Icon="@Icons.Material.Filled.Info" Dense="true">
                         Common rarity applies to all fish with BaseGold below the Uncommon threshold (@settings.RarityUncommonThreshold)
@@ -364,6 +551,7 @@
                            Size="Size.Large"
                            StartIcon="@Icons.Material.Filled.Save"
                            OnClick="SaveSettings" 
+                           Disabled="@(!HasValidRarityThresholdOrder)"
                            Class="mt-4">
                     Save Settings
                 </MudButton>
@@ -435,7 +623,7 @@
                                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                                                     <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(item.BoostType)</MudChip>
                                                     <MudText>@item.Name</MudText>
-                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">(+@(item.BoostAmount * 100)%)</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">(@FishingBoostDisplayHelper.FormatPercent(item.BoostAmount))</MudText>
                                                 </MudStack>
                                             </MudSelectItem>
                                         }
@@ -881,9 +1069,10 @@
 
                 <MudNumericField @bind-Value="editingFish.BaseWeight" 
                                  Label="Base Weight (kg)" 
-                                 HelperText="Actual weight will vary between 0.8x and 1.13x of base, modified by stars"
-                                 Min="0.1" 
-                                 Step="0.1"
+                                 HelperText="Actual weight varies between 0.8x and 1.13x of base, modified by stars, with a 0.01 kg catch floor"
+                                 Min="0.0" 
+                                 Step="0.01"
+                                 Format="F2"
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.End"
                                  AdornmentText="kg" />
@@ -897,13 +1086,39 @@
                                  AdornmentIcon="@Icons.Material.Filled.AttachMoney"
                                   HelperText="Rarity will be set automatically based on gold value" />
 
-                <MudTextField @bind-Value="editingFishCategoriesText"
-                              Label="Categories"
-                              HelperText="Comma-separated list. A fish can belong to multiple categories (e.g. Freshwater, Rare, Boss)."
-                              Variant="Variant.Outlined"
-                              Lines="2"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Label" />
+                <MudStack Spacing="1">
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                        <MudAutocomplete T="string"
+                                         @bind-Value="categoryInputText"
+                                         Label="Categories"
+                                         Variant="Variant.Outlined"
+                                         SearchFunc="@SearchCategories"
+                                         Clearable="true"
+                                         CoerceText="false"
+                                         CoerceValue="true"
+                                         MaxItems="null"
+                                         Adornment="Adornment.Start"
+                                         AdornmentIcon="@Icons.Material.Filled.Label"
+                                         Class="flex-grow-1"
+                                         OnKeyDown="@OnCategoryInputKeyDown" />
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="AddEditingFishCategory">
+                            Add
+                        </MudButton>
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Pick an existing category or type a new one, then press Enter or click Add.</MudText>
+                    @if (editingFishCategoriesList.Any())
+                    {
+                        <MudStack Row="true" Spacing="1" Style="flex-wrap: wrap;">
+                            @foreach (var category in editingFishCategoriesList)
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small" OnClose="@(() => RemoveEditingFishCategory(category))">@category</MudChip>
+                            }
+                        </MudStack>
+                    }
+                </MudStack>
 
                 <MudStack Spacing="2">
                     <MudText Typo="Typo.subtitle2">Fish Image & Sound</MudText>
@@ -1029,15 +1244,70 @@
 
                 <MudNumericField @bind-Value="editingShopItem.BoostAmount" 
                                  Label="Boost Amount" 
-                                 HelperText="Enter as decimal (0.05 = 5%)"
-                                 Min="0.01" 
+                                 HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                 Min="-0.8" 
                                  Max="5.0" 
                                  Step="0.01"
+                                 Format="F2"
                                  Variant="Variant.Outlined"
                                  Adornment="Adornment.End"
                                  AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
 
-                @if (editingShopItem.BoostType == FishingBoostType.SpecificFishBoost)
+                <MudSelect @bind-Value="editingShopItem.BoostType2" 
+                           Label="Secondary Boost Type (Optional)" 
+                           Clearable="true"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((FishingBoostType?)null)">None</MudSelectItem>
+                    @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
+                    {
+                        <MudSelectItem Value="@((FishingBoostType?)type)">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (editingShopItem.BoostType2.HasValue)
+                {
+                    <MudNumericField @bind-Value="editingShopItem.BoostAmount2" 
+                                     Label="Secondary Boost Amount" 
+                                     HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                     Min="-0.8" 
+                                     Max="5.0" 
+                                     Step="0.01"
+                                     Format="F2"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
+                }
+
+                <MudSelect @bind-Value="editingShopItem.BoostType3" 
+                           Label="Tertiary Boost Type (Optional)" 
+                           Clearable="true"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((FishingBoostType?)null)">None</MudSelectItem>
+                    @foreach (FishingBoostType type in Enum.GetValues(typeof(FishingBoostType)))
+                    {
+                        <MudSelectItem Value="@((FishingBoostType?)type)">
+                            <MudChip T="string" Color="Color.Info" Size="Size.Small">@GetBoostTypeDisplay(type)</MudChip>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (editingShopItem.BoostType3.HasValue)
+                {
+                    <MudNumericField @bind-Value="editingShopItem.BoostAmount3" 
+                                     Label="Tertiary Boost Amount" 
+                                     HelperText="Enter as decimal (0.05 = 5%, negative reduces the stat e.g. -0.1 = -10%)"
+                                     Min="-0.8" 
+                                     Max="5.0" 
+                                     Step="0.01"
+                                     Format="F2"
+                                     Variant="Variant.Outlined"
+                                     Adornment="Adornment.End"
+                                     AdornmentIcon="@Icons.Material.Filled.TrendingUp" />
+                }
+
+                @if (FishingValueRules.UsesSpecificFishBoost(editingShopItem))
                 {
                     <MudSelect @bind-Value="editingShopItem.TargetFishTypeId" 
                                Label="Target Fish"
@@ -1053,6 +1323,21 @@
                             </MudSelectItem>
                         }
                     </MudSelect>
+                }
+
+                @if (FishingValueRules.UsesSpecificCategoryBoost(editingShopItem))
+                {
+                    <MudAutocomplete T="string"
+                                     Value="@editingShopItem.TargetCategory"
+                                     ValueChanged="@((string? value) => editingShopItem.TargetCategory = value)"
+                                     Label="Target Category"
+                                     HelperText="Boosts every fish that belongs to this category."
+                                     Variant="Variant.Outlined"
+                                     SearchFunc="@SearchCategories"
+                                     Clearable="true"
+                                     CoerceText="false"
+                                     CoerceValue="true"
+                                     MaxItems="null" />
                 }
 
                 <MudDivider />
@@ -1093,11 +1378,37 @@
                 </MudStack>
 
                 <MudStack Spacing="1">
-                    <MudSwitch @bind-Value="editingShopItem.IsConsumable" 
-                               Label="Consumable" 
-                               Color="Color.Error"
-                               ThumbIcon="@(editingShopItem.IsConsumable ? Icons.Material.Filled.DeleteForever : Icons.Material.Filled.Loop)" />
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, item is removed from inventory when uses run out</MudText>
+                    <MudSwitch @bind-Value="editingShopItem.DisableBreaking" 
+                               Label="Disable Breaking / Unbreakable" 
+                               Color="Color.Info"
+                               ThumbIcon="@(editingShopItem.DisableBreaking ? Icons.Material.Filled.Shield : Icons.Material.Outlined.Shield)" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">If enabled, this item will never break or jam in fishing accidents.</MudText>
+                </MudStack>
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudCheckBox @bind-Value="hasDurability" 
+                                 Label="Has Durability" 
+                                 Color="Color.Primary" />
+                    @if (hasDurability)
+                    {
+                        <MudNumericField @bind-Value="maxDurabilityValue" 
+                                         Label="Max Durability" 
+                                         Min="1" 
+                                         Variant="Variant.Outlined"
+                                         HelperText="Maximum durability points"
+                                         Style="flex: 1;" />
+                        <MudNumericField @bind-Value="durabilityLossValue" 
+                                         Label="Loss Per Use" 
+                                         Min="0.1" 
+                                         Step="0.5" 
+                                         Variant="Variant.Outlined"
+                                         HelperText="Durability lost per catch"
+                                         Style="flex: 1;" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">No durability (never degrades over time)</MudText>
+                    }
                 </MudStack>
 
                 <MudDivider />
@@ -1159,7 +1470,7 @@
             </MudList>
             <MudText Typo="Typo.body2" Color="Color.Success">
                 <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success" />
-                Fish types and shop items will be preserved.
+                Fish types, shop items, and past tournament results will be preserved.
             </MudText>
         </MudStack>
     </DialogContent>
@@ -1247,11 +1558,82 @@
     private List<FishingShopItem> shopItems = new();
     private FishingSettings settings = new();
 
+    private string fishSearchText = string.Empty;
+    private string shopFilterSlot = "All";
+    private FishingBoostType? shopFilterBoostType = null;
+    private bool? shopFilterConsumable = null;
+    private string shopSearchText = string.Empty;
+
+    private IEnumerable<FishType> FilteredFishTypes
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(fishSearchText))
+            {
+                return fishTypes;
+            }
+
+            var search = fishSearchText.Trim();
+            return fishTypes.Where(f =>
+                f.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                f.Rarity.ToString().Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                f.Categories.Any(c => c.Category.Contains(search, StringComparison.OrdinalIgnoreCase))
+            );
+        }
+    }
+
+    private IEnumerable<FishingShopItem> FilteredShopItems
+    {
+        get
+        {
+            var filtered = shopItems.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(shopFilterSlot) && shopFilterSlot != "All")
+            {
+                if (shopFilterSlot == "Permanent")
+                {
+                    filtered = filtered.Where(i => !i.EquipmentSlot.HasValue);
+                }
+                else if (Enum.TryParse<EquipmentSlot>(shopFilterSlot, out var slot))
+                {
+                    filtered = filtered.Where(i => i.EquipmentSlot == slot);
+                }
+            }
+
+            if (shopFilterBoostType.HasValue)
+            {
+                filtered = filtered.Where(i =>
+                    i.BoostType == shopFilterBoostType.Value ||
+                    i.BoostType2 == shopFilterBoostType.Value ||
+                    i.BoostType3 == shopFilterBoostType.Value);
+            }
+
+            if (shopFilterConsumable.HasValue)
+            {
+                filtered = filtered.Where(i => i.MaxUses.HasValue == shopFilterConsumable.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(shopSearchText))
+            {
+                var search = shopSearchText.Trim();
+                filtered = filtered.Where(i =>
+                    i.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (i.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) == true) ||
+                    (!string.IsNullOrWhiteSpace(i.TargetCategory) && i.TargetCategory.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
+                    (i.TargetFishTypeId.HasValue && fishTypes.Any(f => f.Id == i.TargetFishTypeId.Value && f.Name.Contains(search, StringComparison.OrdinalIgnoreCase)))
+                );
+            }
+
+            return filtered.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     private bool fishDialogVisible = false;
     private bool shopItemDialogVisible = false;
     private bool resetConfirmVisible = false;
     private FishType? editingFish;
-    private string editingFishCategoriesText = string.Empty;
+    private List<string> editingFishCategoriesList = new();
+    private string categoryInputText = string.Empty;
     private FishingShopItem? editingShopItem;
     private bool isResetting = false;
     private bool isSyncing = false;
@@ -1272,6 +1654,9 @@
     // Shop item dialog state
     private bool hasMaxUses = false;
     private int maxUsesValue = 10;
+    private bool hasDurability = false;
+    private int maxDurabilityValue = 100;
+    private double durabilityLossValue = 1.0;
 
     // Player management state
     private List<FishingGold> allPlayers = new();
@@ -1299,6 +1684,10 @@
             settings = loadedSettings;
             settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
             settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
+            settings.ReelJamChance = NormalizeProbability(settings.ReelJamChance, FishingSettings.DefaultReelJamChance);
+            settings.TackleBoxLostChance = NormalizeProbability(settings.TackleBoxLostChance, FishingSettings.DefaultTackleBoxLostChance);
+            settings.NetBreakChance = NormalizeProbability(settings.NetBreakChance, FishingSettings.DefaultNetBreakChance);
+            settings.RepairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
         }
     }
 
@@ -1309,6 +1698,7 @@
         FishRarity.Rare => Color.Info,
         FishRarity.Epic => Color.Secondary,
         FishRarity.Legendary => Color.Warning,
+        FishRarity.Mythical => Color.Error,
         _ => Color.Default
     };
 
@@ -1318,41 +1708,88 @@
 
         editingFish.BaseGold = newGoldValue;
 
-        // Auto-set rarity based on gold value using current settings
-        editingFish.Rarity = newGoldValue switch
-        {
-            var gold when gold >= settings.RarityLegendaryThreshold => FishRarity.Legendary,
-            var gold when gold >= settings.RarityEpicThreshold => FishRarity.Epic,
-            var gold when gold >= settings.RarityRareThreshold => FishRarity.Rare,
-            var gold when gold >= settings.RarityUncommonThreshold => FishRarity.Uncommon,
-            _ => FishRarity.Common
-        };
+        // Auto-set rarity based on gold value using current settings.
+        editingFish.Rarity = FishingRarityThresholdRules.CalculateRarityFromGold(newGoldValue, settings);
     }
 
     private void SyncEditingFishCategories()
     {
         if (editingFish == null) return;
 
-        var submittedNames = editingFishCategoriesText
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(category => !string.IsNullOrWhiteSpace(category))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
         var existingByName = editingFish.Categories
             .ToDictionary(c => c.Category, c => c, StringComparer.OrdinalIgnoreCase);
 
-        editingFish.Categories = submittedNames
+        editingFish.Categories = editingFishCategoriesList
             .Select(name => existingByName.TryGetValue(name, out var existing)
                 ? new FishCategory { Id = existing.Id, Category = name }
                 : new FishCategory { Id = 0, Category = name })
             .ToList();
     }
 
+    private List<string> GetAllCategoryNames()
+    {
+        return fishTypes
+            .SelectMany(f => f.Categories.Select(c => c.Category))
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c)
+            .ToList();
+    }
+
+    private Task<IEnumerable<string>> SearchCategories(string value, CancellationToken cancellationToken)
+    {
+        var allCategories = GetAllCategoryNames();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return Task.FromResult(allCategories.AsEnumerable());
+        }
+
+        value = value.Trim();
+
+        var filteredCategories = allCategories
+            .Where(c => c.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // If the typed value doesn't exist in the list, add it as the first option so it can be created.
+        if (!filteredCategories.Any(c => c.Equals(value, StringComparison.OrdinalIgnoreCase)))
+        {
+            filteredCategories.Insert(0, value);
+        }
+
+        return Task.FromResult(filteredCategories.AsEnumerable());
+    }
+
+    private void AddEditingFishCategory()
+    {
+        var category = categoryInputText?.Trim();
+        if (string.IsNullOrWhiteSpace(category)) return;
+
+        if (!editingFishCategoriesList.Any(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)))
+        {
+            editingFishCategoriesList.Add(category);
+        }
+
+        categoryInputText = string.Empty;
+    }
+
+    private void RemoveEditingFishCategory(string category)
+    {
+        editingFishCategoriesList.RemoveAll(c => c.Equals(category, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void OnCategoryInputKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            AddEditingFishCategory();
+        }
+    }
+
     private void AddNewFish()
     {
         editingFish = new FishType();
-        editingFishCategoriesText = string.Empty;
+        editingFishCategoriesList = new();
+        categoryInputText = string.Empty;
         uploadedImageFileName = string.Empty;
         uploadedSoundFileName = string.Empty;
         pendingImageFile = null;
@@ -1373,7 +1810,8 @@
                 Enabled = fish.Enabled,
                 Categories = fish.Categories.Select(c => new FishCategory { Id = c.Id, Category = c.Category }).ToList()
             };
-        editingFishCategoriesText = string.Join(", ", fish.Categories.Select(c => c.Category));
+        editingFishCategoriesList = fish.Categories.Select(c => c.Category).ToList();
+        categoryInputText = string.Empty;
         uploadedImageFileName = string.Empty;
         uploadedSoundFileName = string.Empty;
         pendingImageFile = null;
@@ -1525,6 +1963,9 @@
         editingShopItem = new FishingShopItem();
         hasMaxUses = false;
         maxUsesValue = 10;
+        hasDurability = false;
+        maxDurabilityValue = 100;
+        durabilityLossValue = 1.0;
         shopItemDialogVisible = true;
     }
 
@@ -1538,15 +1979,26 @@
                 Cost = item.Cost,
                 BoostType = item.BoostType,
                 BoostAmount = item.BoostAmount,
+                BoostType2 = item.BoostType2,
+                BoostAmount2 = item.BoostAmount2,
+                BoostType3 = item.BoostType3,
+                BoostAmount3 = item.BoostAmount3,
                 TargetFishTypeId = item.TargetFishTypeId,
+                TargetCategory = item.TargetCategory,
                 Enabled = item.Enabled,
                 EquipmentSlot = item.EquipmentSlot,
                 MaxUses = item.MaxUses,
                 IsConsumable = item.IsConsumable,
-                IsAdminOnly = item.IsAdminOnly
+                IsAdminOnly = item.IsAdminOnly,
+                DisableBreaking = item.DisableBreaking,
+                MaxDurability = item.MaxDurability,
+                DurabilityLossPerUse = item.DurabilityLossPerUse
             };
         hasMaxUses = item.MaxUses.HasValue;
         maxUsesValue = item.MaxUses ?? 10;
+        hasDurability = item.MaxDurability.HasValue;
+        maxDurabilityValue = item.MaxDurability ?? 100;
+        durabilityLossValue = item.DurabilityLossPerUse ?? 1.0;
         shopItemDialogVisible = true;
     }
 
@@ -1554,10 +2006,22 @@
     {
         if (editingShopItem == null) return;
 
+        FishingValueRules.ClearUnusedShopItemTargets(editingShopItem);
+
+        if (!FishingValueRules.ValidateShopItemTargets(editingShopItem, out var targetError))
+        {
+            Snackbar.Add(targetError, Severity.Error);
+            return;
+        }
+
+        FishingValueRules.NormalizeShopItem(editingShopItem);
+
         try
         {
             // Set MaxUses based on checkbox
             editingShopItem.MaxUses = hasMaxUses ? maxUsesValue : null;
+            editingShopItem.MaxDurability = hasDurability ? Math.Max(1, maxDurabilityValue) : null;
+            editingShopItem.DurabilityLossPerUse = hasDurability ? Math.Max(0.01, durabilityLossValue) : null;
 
             if (editingShopItem.Id == 0)
             {
@@ -1598,6 +2062,7 @@
     {
         FishingBoostType.GeneralRarityBoost => "Rarity Boost",
         FishingBoostType.SpecificFishBoost => "Specific Fish Boost",
+        FishingBoostType.SpecificCategoryBoost => "Specific Category Boost",
         FishingBoostType.WeightBoost => "Weight Boost",
         FishingBoostType.StarBoost => "Star Boost",
         _ => boostType.ToString()
@@ -1630,6 +2095,16 @@
         {
             settings.LineSnapChance = NormalizeProbability(settings.LineSnapChance, FishingSettings.DefaultLineSnapChance);
             settings.RodSnapChance = NormalizeProbability(settings.RodSnapChance, FishingSettings.DefaultRodSnapChance);
+            settings.ReelJamChance = NormalizeProbability(settings.ReelJamChance, FishingSettings.DefaultReelJamChance);
+            settings.TackleBoxLostChance = NormalizeProbability(settings.TackleBoxLostChance, FishingSettings.DefaultTackleBoxLostChance);
+            settings.NetBreakChance = NormalizeProbability(settings.NetBreakChance, FishingSettings.DefaultNetBreakChance);
+            settings.RepairCostMultiplier = Math.Max(0.0, settings.RepairCostMultiplier);
+
+            if (!FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var thresholdValidationMessage))
+            {
+                Snackbar.Add(thresholdValidationMessage, Severity.Error);
+                return;
+            }
 
             await fishingService.UpdateSettings(settings);
             helpDataService.InvalidateCache(); // Invalidate help data on settings changes
@@ -1650,6 +2125,14 @@
 
         return Math.Clamp(value, 0.0, 1.0);
     }
+
+    private bool HasValidRarityThresholdOrder =>
+        FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out _);
+
+    private string RarityThresholdValidationMessage =>
+        FishingRarityThresholdRules.TryValidateThresholdOrder(settings, out var message)
+            ? string.Empty
+            : message;
 
     private void ShowResetConfirmation()
     {
@@ -2143,12 +2626,12 @@
                                  AdornmentText="x"
                                  Variant="Variant.Outlined" />
 
-                <MudSwitch @bind-Value="updatePermanentOnly" Color="Color.Primary" Label="Permanent Equipment Only (Don't update consumables)" />
+                <MudSwitch @bind-Value="updatePermanentOnly" Color="Color.Primary" Label="Permanent Equipment Only (Don't update limited-use items)" />
 
                 @if (!updatePermanentOnly)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true">
-                        <strong>Note:</strong> Consumables are already well-balanced according to production data. Consider updating permanent items only.
+                        <strong>Note:</strong> Limited-use items are already well-balanced according to production data. Consider updating permanent items only.
                     </MudAlert>
                 }
 

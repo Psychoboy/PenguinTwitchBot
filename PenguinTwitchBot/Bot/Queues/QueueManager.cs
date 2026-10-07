@@ -1,6 +1,7 @@
 using PenguinTwitchBot.Bot.Hubs;
 using PenguinTwitchBot.Database.Bot.Models.Queues;
 using PenguinTwitchBot.Bot.WebSocketEvents;
+using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Repository;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
@@ -15,7 +16,7 @@ namespace PenguinTwitchBot.Bot.Queues
         private readonly ILoggerFactory _loggerFactory;
         private readonly IActionExecutionLogger _executionLogger;
         private readonly IHubContext<MainHub> _hubContext;
-        private readonly IWsEventHandler _wsEventHandler;
+        private readonly IWebSocketMessenger _webSocketMessenger;
         private readonly GlobalConcurrencyLimiter _globalLimiter;
         private CancellationTokenSource? _cancellationTokenSource;
 
@@ -32,7 +33,7 @@ namespace PenguinTwitchBot.Bot.Queues
             IServiceScopeFactory scopeFactory,
             ILoggerFactory loggerFactory,
             IActionExecutionLogger executionLogger,
-            IWsEventHandler wsEventHandler,
+            IWebSocketMessenger webSocketMessenger,
             IHubContext<MainHub> hubContext,
             GlobalConcurrencyLimiter globalLimiter)
         {
@@ -41,7 +42,7 @@ namespace PenguinTwitchBot.Bot.Queues
             _loggerFactory = loggerFactory;
             _executionLogger = executionLogger;
             _hubContext = hubContext;
-            _wsEventHandler = wsEventHandler;
+            _webSocketMessenger = webSocketMessenger;
             _globalLimiter = globalLimiter;
         }
 
@@ -57,7 +58,7 @@ namespace PenguinTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
-                _wsEventHandler,
+                _webSocketMessenger,
                 _hubContext,
                 _globalLimiter);
 
@@ -109,7 +110,7 @@ namespace PenguinTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
-                _wsEventHandler,
+                _webSocketMessenger,
                 _hubContext,
                 _globalLimiter);
 
@@ -162,7 +163,7 @@ namespace PenguinTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
-                _wsEventHandler,
+                _webSocketMessenger,
                 _hubContext,
                 _globalLimiter)
             {
@@ -220,7 +221,7 @@ namespace PenguinTwitchBot.Bot.Queues
                 _loggerFactory.CreateLogger<ActionQueue>(),
                 _scopeFactory,
                 _executionLogger,
-                _wsEventHandler,
+                _webSocketMessenger,
                 _hubContext,
                 _globalLimiter)
             {
@@ -315,6 +316,16 @@ namespace PenguinTwitchBot.Bot.Queues
             }
         }
 
+        public async Task<int> ClearQueueAsync(string queueName)
+        {
+            if (!_queues.TryGetValue(queueName, out var queue))
+            {
+                throw new InvalidOperationException($"Queue with name '{queueName}' not found");
+            }
+
+            return await queue.ClearPendingAsync();
+        }
+
         public async Task<List<QueueConfiguration>> GetAllQueuesAsync()
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
@@ -395,7 +406,7 @@ namespace PenguinTwitchBot.Bot.Queues
                         _loggerFactory.CreateLogger<ActionQueue>(),
                         _scopeFactory,
                         _executionLogger,
-                        _wsEventHandler,
+                        _webSocketMessenger,
                         _hubContext,
                         _globalLimiter)
                     {

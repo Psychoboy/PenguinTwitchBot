@@ -38,6 +38,8 @@ namespace PenguinTwitchBot.Database.Repository
             Playlists = new PlaylistsRepository(_context);
             SubscriptionHistories = new SubscriptionHistoriesRepository(_context);
             Songs = new SongsRepository(_context);
+            BannedSongs = new BannedSongsRepository(_context);
+            SongCooldowns = new SongCooldownsRepository(_context);
             SongRequestViewItems = new SongRequestViewItemsRepository(_context);
             ExternalCommands = new ExternalCommandsRepository(_context);
             BannedViewers = new BannedViewersRepository(_context);
@@ -55,6 +57,7 @@ namespace PenguinTwitchBot.Database.Repository
             UserPoints = new UserPointsRepository(_context);
             PointCommands = new PointCommandsRepository(_context);
             ScAiResponses = new ScAiResponsesRepository(_context);
+            OpenAiResponses = new OpenAiResponseCodesRepository(_context);
             Actions = new ActionsRepository(_context);
             SubActions = new SubActionsRepository(_context);
             Triggers = new TriggersRepository(_context);
@@ -68,10 +71,20 @@ namespace PenguinTwitchBot.Database.Repository
             UserFishingBoosts = new UserFishingBoostRepository(_context);
             FishingSettings = new FishingSettingsRepository(_context);
             FishingSnapEvents = new FishingSnapEventRepository(_context);
+            FishingRepairEvents = new FishingRepairEventRepository(_context);
+            FishCategories = new FishCategoryRepository(_context);
+            FishingTournaments = new FishingTournamentRepository(_context);
+            FishingTournamentFishTypes = new FishingTournamentFishTypeRepository(_context);
+            FishingTournamentRewardRules = new FishingTournamentRewardRuleRepository(_context);
+            FishingTournamentCatches = new FishingTournamentCatchRepository(_context);
+            FishingTournamentEligibleCategories = new FishingTournamentEligibleCategoryRepository(_context);
 
             // Initialize overlay repositories
             OverlayLayouts = new OverlayLayoutRepository(_context);
             OverlayWidgets = new OverlayWidgetRepository(_context);
+
+            OBSConnections = new OBSConnectionsRepository(_context);
+            UserThemePreferences = new UserThemePreferencesRepository(_context);
         }
 
         public IAudioCommandsRepository AudioCommands { get; private set; }
@@ -102,6 +115,8 @@ namespace PenguinTwitchBot.Database.Repository
         public IPlaylistsRepository Playlists { get; private set; }
         public ISubscriptionHistoriesRepository SubscriptionHistories { get; private set; }
         public ISongsRepository Songs { get; private set; }
+        public IBannedSongsRepository BannedSongs { get; private set; }
+        public ISongCooldownsRepository SongCooldowns { get; private set; }
         public ISongRequestViewItemsRepository SongRequestViewItems { get; private set; }
         public IExternalCommandsRepository ExternalCommands { get; private set; }
         public IBannedViewersRepository BannedViewers { get; private set; }
@@ -117,6 +132,7 @@ namespace PenguinTwitchBot.Database.Repository
         public IUserPointsRepository UserPoints { get; private set; }
         public IPointCommandsRepository PointCommands { get; private set; }
         public IScAiResponsesRepository ScAiResponses { get; private set; }
+        public IOpenAiResponseCodesRepository OpenAiResponses { get; private set; }
         public IActionsRepository Actions { get; private set; }
         public ISubActionsRepository SubActions { get; private set; }
         public ITriggersRepository Triggers { get; private set; }
@@ -130,10 +146,20 @@ namespace PenguinTwitchBot.Database.Repository
         public IUserFishingBoostRepository UserFishingBoosts { get; private set; }
         public IFishingSettingsRepository FishingSettings { get; private set; }
         public IFishingSnapEventRepository FishingSnapEvents { get; private set; }
+        public IFishingRepairEventRepository FishingRepairEvents { get; private set; }
+        public IFishCategoryRepository FishCategories { get; private set; }
+        public IFishingTournamentRepository FishingTournaments { get; private set; }
+        public IFishingTournamentFishTypeRepository FishingTournamentFishTypes { get; private set; }
+        public IFishingTournamentRewardRuleRepository FishingTournamentRewardRules { get; private set; }
+        public IFishingTournamentCatchRepository FishingTournamentCatches { get; private set; }
+        public IFishingTournamentEligibleCategoryRepository FishingTournamentEligibleCategories { get; private set; }
 
         // Overlay repository properties
         public IOverlayLayoutRepository OverlayLayouts { get; private set; }
         public IOverlayWidgetRepository OverlayWidgets { get; private set; }
+
+        public IOBSConnectionsRepository OBSConnections { get; private set; }
+        public IUserThemePreferencesRepository UserThemePreferences { get; private set; }
 
         public void Dispose()
         {

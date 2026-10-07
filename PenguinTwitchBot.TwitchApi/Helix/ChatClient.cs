@@ -34,4 +34,14 @@ public sealed class ChatClient(ILogger<ChatClient> logger, IChatTransport transp
     {
         return ExecuteWithRetryAsync(() => transport.GetChannelChatBadgesAsync(clientId, accessToken, broadcasterId), "fetch channel chat badges");
     }
+
+    public Task<IReadOnlyList<ChatEmoteSetItem>> GetGlobalEmotesAsync(string clientId, string? accessToken)
+    {
+        return ExecuteWithRetryAsync(() => transport.GetGlobalEmotesAsync(clientId, accessToken), "fetch global emotes");
+    }
+
+    public Task<IReadOnlyList<ChatEmoteSetItem>> GetChannelEmotesAsync(string clientId, string? accessToken, string broadcasterId)
+    {
+        return ExecuteWithRetryAsync(() => transport.GetChannelEmotesAsync(clientId, accessToken, broadcasterId), "fetch channel emotes");
+    }
 }

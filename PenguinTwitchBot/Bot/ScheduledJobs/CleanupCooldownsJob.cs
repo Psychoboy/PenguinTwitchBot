@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
     [DisallowConcurrentExecution]
     public class CleanupCooldownsJob(ICooldownCleanupService cooldownCleanupService, ILogger<CleanupCooldownsJob> logger) : IJob
     {
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             logger.LogDebug("Scheduled job to clean expired cooldowns started.");
             var removed = await cooldownCleanupService.CleanupExpiredCooldownsAsync();

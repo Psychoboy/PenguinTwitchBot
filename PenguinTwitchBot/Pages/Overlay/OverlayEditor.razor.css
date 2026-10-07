@@ -201,6 +201,17 @@
     overflow: hidden;
 }
 
+.timer-preview {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 .chat-preview--vertical {
     flex-direction: column;
 }
@@ -340,4 +351,27 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+}
+
+/* ── Counter widget preview ─────────────────────────────────────────────────── */
+.counter-preview {
+    display: flex;
+    gap: 6px;
+    height: 100%;
+    width: 100%;
+    align-items: flex-start;
+    align-content: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+.counter-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }

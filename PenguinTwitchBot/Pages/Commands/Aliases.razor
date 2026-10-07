@@ -5,65 +5,133 @@
 @inject PenguinTwitchBot.Bot.Commands.ICommandHelper CommandHelper
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Aliases</PageTitle>
-<MudContainer MaxWidth="MaxWidth.False">
-    <MudGrid>
-        @if (aliases != null)
-        {
-            <MudItem xs="8">
+
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.False">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.AltRoute" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Aliases</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Map shorthand triggers or alternate phrases directly to existing chat commands.
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                @if (aliases != null)
+                {
+                    <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.AltRoute">
+                        @aliases.Count Configured @(aliases.Count == 1 ? "Alias" : "Aliases")
+                    </MudChip>
+                }
+                <HelpButton Topic="aliases" />
+            </MudStack>
+        </MudStack>
+
+        <MudGrid Spacing="4">
+            <!-- Left: Aliases Table -->
+            <MudItem xs="12" lg="7">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudTable Items="@aliases">
+                    <MudTable Items="@FilteredAliases" Dense="true" Hover="true" Elevation="0">
+                        <ToolBarContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="w-100 pa-1">
+                                <MudIcon Icon="@Icons.Material.Filled.List" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Configured Aliases</MudText>
+                                <MudSpacer />
+                                <MudTextField @bind-Value="_searchString"
+                                              Placeholder="Filter aliases..."
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              IconSize="Size.Medium"
+                                              Clearable="true"
+                                              Immediate="true"
+                                              Style="max-width: 260px;" />
+                            </MudStack>
+                        </ToolBarContent>
                         <HeaderContent>
-                            <MudTh>Alias</MudTh>
-                            <MudTh>Command</MudTh>
-                            <MudTh></MudTh>
-                            <MudTh></MudTh>
+                            <MudTh>Alias Trigger</MudTh>
+                            <MudTh>Target Command</MudTh>
+                            <MudTh Style="text-align: right;">Actions</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="Alias">@context.AliasName</MudTd>
-                            <MudTd DataLabel="Command">@context.CommandName</MudTd>
-                            <MudTd DataLabel="Edit">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" @onclick="() => Edit(context)">
-                                    Edit</MudButton>
+                            <MudTd DataLabel="Alias Trigger">
+                                <MudText Typo="Typo.body2"><b>!@context.AliasName</b></MudText>
                             </MudTd>
-                            <MudTd DataLabel="Delete">
-                                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                @onclick="() => Delete(context)">Delete
-                                </MudButton>
+                            <MudTd DataLabel="Target Command">
+                                <code>!@context.CommandName</code>
+                            </MudTd>
+                            <MudTd Style="text-align: right;">
+                                <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd">
+                                    <MudTooltip Text="Edit Alias">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="() => Edit(context)" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Delete Alias">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                       OnClick="() => Delete(context)" />
+                                    </MudTooltip>
+                                </MudStack>
                             </MudTd>
                         </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No aliases found.</MudText>
+                        </NoRecordsContent>
                     </MudTable>
                 </MudPaper>
             </MudItem>
-        }
-        @if (theAlias != null)
-        {
-            <MudItem xs="4">
+
+            <!-- Right: Alias Creator -->
+            <MudItem xs="12" lg="5">
                 <MudPaper Elevation="2" Class="pa-4">
                     <EditForm Model="@theAlias" OnValidSubmit="OnSubmit">
-                        <MudTextField Label="Alias" Required="true" RequiredError="Alias is required"
-                        @bind-Value="theAlias.AliasName" />
-                        <MudTextField Label="Command" Required="true" RequiredError="Command is required"
-                        @bind-Value="theAlias.CommandName" />
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
-                            Class="ml-auto">
-                            Submit
-                        </MudButton>
+                        <DataAnnotationsValidator />
+                        <MudStack Spacing="3">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" />
+                                <MudText Typo="Typo.h6">Create Alias</MudText>
+                            </MudStack>
+
+                            <MudTextField Label="Alias Trigger" Required="true" RequiredError="Alias name is required"
+                                          @bind-Value="theAlias.AliasName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="New shorthand command viewers type (e.g. p)" />
+
+                            <MudTextField Label="Target Command" Required="true" RequiredError="Target command is required"
+                                          @bind-Value="theAlias.CommandName" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          HelperText="Existing command to invoke (e.g. points)" />
+
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add" FullWidth="true" Class="mt-2">
+                                Add Alias
+                            </MudButton>
+                        </MudStack>
                     </EditForm>
                 </MudPaper>
             </MudItem>
-        }
-
-    </MudGrid>
+        </MudGrid>
+    </MudStack>
 </MudContainer>
 
 @code {
     private List<PenguinTwitchBot.Database.Bot.Models.AliasModel>? aliases;
-    private PenguinTwitchBot.Database.Bot.Models.AliasModel? theAlias { get; set; } = new();
+    private PenguinTwitchBot.Database.Bot.Models.AliasModel theAlias { get; set; } = new();
+    private string _searchString = string.Empty;
     [Inject] private IDialogService DialogService { get; set; } = default!;
+
     protected override async Task OnInitializedAsync()
     {
         aliases = await AliasCommand.GetAliasesAsync();
     }
+
+    private IEnumerable<PenguinTwitchBot.Database.Bot.Models.AliasModel> FilteredAliases =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? aliases ?? []
+            : (aliases ?? []).Where(a =>
+                a.AliasName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                a.CommandName.Contains(_searchString, StringComparison.OrdinalIgnoreCase));
 
     public async void OnSubmit()
     {
@@ -93,9 +161,9 @@
     private async Task Delete(PenguinTwitchBot.Database.Bot.Models.AliasModel item)
     {
         bool? result = await DialogService.ShowMessageBoxAsync(
-        "Warning",
-        "Deleting can not be undone!",
-        yesText: "Delete!", cancelText: "Cancel");
+            "Warning",
+            "Deleting can not be undone!",
+            yesText: "Delete!", cancelText: "Cancel");
         if (result != null)
         {
             await AliasCommand.DeleteAliasAsync(item);

@@ -1,4 +1,4 @@
-﻿using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Models;
@@ -11,6 +11,7 @@ using PenguinTwitchBot.Database.Bot.Models.Wheel;
 using PenguinTwitchBot.Database.Bot.Models.Obs;
 using PenguinTwitchBot.Database.Bot.Models.Fishing;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
+using PenguinTwitchBot.Database.Bot.Models.Themes;
 using PenguinTwitchBot.Database.Bot.Core;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,12 +63,14 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
 
         public DbSet<Models.ScAiResponseCodes> ScAiResponseCodes { get; set; }
+        public DbSet<Models.OpenAiResponseCode> OpenAiResponseCodes { get; set; } = null!;
 
         // Fishing tables
         public DbSet<FishType> FishTypes { get; set; } = null!;
         public DbSet<FishCategory> FishCategories { get; set; } = null!;
         public DbSet<FishCatch> FishCatches { get; set; } = null!;
         public DbSet<FishingSnapEvent> FishingSnapEvents { get; set; } = null!;
+        public DbSet<FishingRepairEvent> FishingRepairEvents { get; set; } = null!;
         public DbSet<FishingGold> FishingGolds { get; set; } = null!;
         public DbSet<FishingShopItem> FishingShopItems { get; set; } = null!;
         public DbSet<UserFishingBoost> UserFishingBoosts { get; set; } = null!;
@@ -86,6 +89,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         // Overlay tables
         public DbSet<OverlayLayout> OverlayLayouts { get; set; } = null!;
         public DbSet<OverlayWidget> OverlayWidgets { get; set; } = null!;
+
+        public DbSet<BannedSong> BannedSongs { get; set; } = null!;
+        public DbSet<SongCooldown> SongCooldowns { get; set; } = null!;
+        public DbSet<UserThemePreference> UserThemePreferences { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -129,6 +136,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(q => q.Name)
                 .IsUnique();
 
+            modelBuilder.Entity<BannedSong>()
+                .HasIndex(b => b.SongId)
+                .IsUnique();
+
             modelBuilder.Entity<Viewer>()
                 .Property(v => v.Username)
                 .HasMaxLength(255)
@@ -150,6 +161,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasConversion(
                     v => UsernameNormalizer.Normalize(v),
                     v => UsernameNormalizer.Normalize(v));
+
+            // Voices: separate independent tables
+            modelBuilder.Entity<RegisteredVoice>().ToTable("RegisteredVoices");
+            modelBuilder.Entity<UserRegisteredVoice>().ToTable("UserRegisteredVoices");
 
             // TTS registered voice usernames — admin may enter mixed-case but lookup uses Twitch login (lowercase)
             modelBuilder.Entity<UserRegisteredVoice>()
@@ -189,6 +204,31 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasIndex(e => new { e.UserId, e.CaughtAt })
                 .HasDatabaseName("IX_FishCatches_UserId_CaughtAt");
 
+            // Covers per-user, per-fish lookups (personal best/catch count/dex) that the UserId+CaughtAt index doesn't serve well.
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => new { e.UserId, e.FishTypeId })
+                .HasDatabaseName("IX_FishCatches_UserId_FishTypeId");
+
+            // Speeds up the global "most valuable catches" and "recent catches" leaderboard queries (ORDER BY ... DESC LIMIT n with no WHERE clause).
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => e.GoldEarned)
+                .HasDatabaseName("IX_FishCatches_GoldEarned");
+
+            modelBuilder.Entity<FishCatch>()
+                .HasIndex(e => e.CaughtAt)
+                .HasDatabaseName("IX_FishCatches_CaughtAt");
+
+            // UserId has no relational FK here (external user id), so EF won't auto-index it like it does for ShopItemId.
+            // Both columns are filtered on nearly every fishing action (catch, purchase, equip/unequip).
+            modelBuilder.Entity<UserFishingBoost>()
+                .HasIndex(e => new { e.UserId, e.IsEquipped })
+                .HasDatabaseName("IX_UserFishingBoosts_UserId_IsEquipped");
+
+            // FishingGolds is looked up by UserId on nearly every catch/purchase and previously had no index at all (full table scan).
+            modelBuilder.Entity<FishingGold>()
+                .HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_FishingGolds_UserId");
+
             modelBuilder.Entity<FishingSnapEvent>()
                 .Property(e => e.UserId)
                 .HasMaxLength(255)
@@ -210,6 +250,27 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
             modelBuilder.Entity<FishingSnapEvent>()
                 .HasIndex(e => new { e.SnapType, e.SnappedAt })
                 .HasDatabaseName("IX_FishingSnapEvents_SnapType_SnappedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .Property(e => e.UserId)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .Property(e => e.GoldPaid)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => new { e.UserId, e.RepairedAt })
+                .HasDatabaseName("IX_FishingRepairEvents_UserId_RepairedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => new { e.EquipmentSlot, e.RepairedAt })
+                .HasDatabaseName("IX_FishingRepairEvents_EquipmentSlot_RepairedAt");
+
+            modelBuilder.Entity<FishingRepairEvent>()
+                .HasIndex(e => e.RepairedAt)
+                .HasDatabaseName("IX_FishingRepairEvents_RepairedAt");
 
             modelBuilder.Entity<FishingTournament>()
                 .HasMany(t => t.EligibleFish)
@@ -273,16 +334,21 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
                 .HasDatabaseName("IX_FishingTournamentCatches_Tournament_Catch");
 
             modelBuilder.Entity<FishingTournamentCatch>()
+                .HasIndex(e => new { e.FishingTournamentId, e.UserId })
+                .HasDatabaseName("IX_FishingTournamentCatches_Tournament_User");
+
+            modelBuilder.Entity<FishingTournamentCatch>()
                 .HasOne(e => e.FishingTournament)
                 .WithMany()
                 .HasForeignKey(e => e.FishingTournamentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Keep the tournament snapshot when the source catch is purged by a user data reset.
             modelBuilder.Entity<FishingTournamentCatch>()
                 .HasOne(e => e.FishCatch)
                 .WithMany()
                 .HasForeignKey(e => e.FishCatchId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<Models.Metrics.SongRequestHistory>()
                 .HasIndex(e => new { e.SongId, e.RequestDate })

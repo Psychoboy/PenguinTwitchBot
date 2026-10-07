@@ -10,6 +10,9 @@ namespace PenguinTwitchBot.Bot.Commands.Fishing
         Task<Dictionary<int, FishProbability>> CalculateCatchProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task<RarityProbability> CalculateRarityProbabilities(bool useBoostMode, double boostModeMultiplier, List<int> shopItemIds);
         Task<FishingBalanceReport> AnalyzeGameBalance(DateTime? startDate = null, DateTime? endDate = null);
+        Task<BalanceSimulationResult> SimulateScenario(BalanceSimulationScenario scenario);
+        Task<ProjectedEconomyModel> CalculateProjectedEconomy();
+        Task<List<ItemEconomyAnalysis>> CalculateItemEconomyAnalysis();
         Task<double> CalculateBaselineExpectedGold();
         Task<double> CalculateProgressiveBaselineGold(int targetWeeks = 26);
         Task<Dictionary<string, int>> CalculateRecommendedPricing(int targetWeeksForEndgame = 26);

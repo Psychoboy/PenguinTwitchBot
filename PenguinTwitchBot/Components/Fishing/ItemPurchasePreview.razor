@@ -1,5 +1,6 @@
 @using PenguinTwitchBot.Bot.Commands.Fishing
 @using PenguinTwitchBot.Database.Bot.Models.Fishing
+@using PenguinTwitchBot.Helpers
 @inject IFishingService FishingService
 @inject IFishingAnalyticsService AnalyticsService
 
@@ -14,23 +15,48 @@
 
             <MudDivider />
 
-            <MudStack Row="true" Spacing="2">
-                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning">
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudChip T="string" Icon="@Icons.Material.Filled.AttachMoney" Color="Color.Warning" Variant="Variant.Outlined">
                     @ShopItem.Cost Gold
                 </MudChip>
                 @if (ShopItem.EquipmentSlot.HasValue)
                 {
-                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info">
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Category" Color="Color.Info" Variant="Variant.Outlined">
                         @ShopItem.EquipmentSlot.Value Slot
                     </MudChip>
                 }
                 @if (ShopItem.IsConsumable && ShopItem.MaxUses.HasValue)
                 {
-                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary">
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Timer" Color="Color.Secondary" Variant="Variant.Outlined">
                         @ShopItem.MaxUses Uses
                     </MudChip>
                 }
+                @if (ShopItem.MaxDurability.HasValue)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Build" Color="Color.Info" Variant="Variant.Outlined">
+                        @ShopItem.MaxDurability.Value Max Durability (-@(ShopItem.DurabilityLossPerUse ?? 1.0)/use)
+                    </MudChip>
+                }
+                @if (ShopItem.DisableBreaking)
+                {
+                    <MudChip T="string" Icon="@Icons.Material.Filled.Shield" Color="Color.Success" Variant="Variant.Outlined">
+                        Unbreakable
+                    </MudChip>
+                }
             </MudStack>
+
+            @if (ShopItem.MaxDurability.HasValue)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="my-1">
+                    Durability equipment: Degrades by @(ShopItem.DurabilityLossPerUse ?? 1.0) per cast. Can be repaired in your inventory with gold.
+                </MudAlert>
+            }
+            else if (ShopItem.DisableBreaking)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true" Class="my-1">
+                    Unbreakable: Immune to snapping, jamming, breakage, and equipment accidents.
+                </MudAlert>
+            }
 
             <MudDivider />
 
@@ -42,18 +68,18 @@
             @* Show all boost types *@
             <MudStack Spacing="2">
                 @* Primary Boost *@
-                @RenderBoostAlert(ShopItem.BoostType, ShopItem.BoostAmount, ShopItem.TargetFishType)
+                @RenderBoostAlert(ShopItem.BoostType, ShopItem.BoostAmount, ShopItem.TargetFishType, ShopItem.TargetCategory)
 
                 @* Secondary Boost *@
                 @if (ShopItem.BoostType2.HasValue && ShopItem.BoostAmount2.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, null)
+                    @RenderBoostAlert(ShopItem.BoostType2.Value, ShopItem.BoostAmount2.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
 
                 @* Tertiary Boost *@
                 @if (ShopItem.BoostType3.HasValue && ShopItem.BoostAmount3.HasValue)
                 {
-                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, null)
+                    @RenderBoostAlert(ShopItem.BoostType3.Value, ShopItem.BoostAmount3.Value, ShopItem.TargetFishType, ShopItem.TargetCategory)
                 }
             </MudStack>
 
@@ -115,6 +141,7 @@
     private Dictionary<int, FishProbability>? currentFishPreview;
     private Dictionary<int, FishProbability>? newFishPreview;
     private bool isLoading = false;
+    private List<FishType> allFishTypes = new();
 
     private readonly List<MetricComparisonRow> comparisonRows = new();
     private readonly List<FishingShopItem> currentEquippedResolved = new();
@@ -144,7 +171,12 @@
         isLoading = true;
         try
         {
-            var settings = await FishingService.GetSettings();
+            var fishTypesTask = allFishTypes.Count == 0 ? FishingService.GetAllFishTypes() : Task.FromResult(allFishTypes);
+            var settingsTask = FishingService.GetSettings();
+            await Task.WhenAll(fishTypesTask, settingsTask);
+
+            allFishTypes = fishTypesTask.Result;
+            var settings = settingsTask.Result;
 
             ResolveCurrentItems();
             ResolveProjectedItems();
@@ -152,29 +184,21 @@
             var currentItemIds = currentEquippedResolved.Select(i => i.Id).Distinct().ToList();
             var projectedItemIds = projectedEquippedResolved.Select(i => i.Id).Distinct().ToList();
 
-            currentRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            var boostModeActive = settings?.BoostMode ?? false;
+            var boostModeMultiplier = settings?.BoostModeRarityMultiplier ?? 1.0;
 
-            newRarityPreview = await AnalyticsService.CalculateRarityProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            // These four calculations are independent of each other - run them concurrently.
+            var currentRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newRarityTask = AnalyticsService.CalculateRarityProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
+            var currentFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, currentItemIds);
+            var newFishTask = AnalyticsService.CalculateCatchProbabilities(boostModeActive, boostModeMultiplier, projectedItemIds);
 
-            currentFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                currentItemIds
-            );
+            await Task.WhenAll(currentRarityTask, newRarityTask, currentFishTask, newFishTask);
 
-            newFishPreview = await AnalyticsService.CalculateCatchProbabilities(
-                settings?.BoostMode ?? false,
-                settings?.BoostModeRarityMultiplier ?? 1.0,
-                projectedItemIds
-            );
+            currentRarityPreview = currentRarityTask.Result;
+            newRarityPreview = newRarityTask.Result;
+            currentFishPreview = currentFishTask.Result;
+            newFishPreview = newFishTask.Result;
 
             BuildComparisonRows();
         }
@@ -228,7 +252,11 @@
         if (ShopItem == null)
             return;
 
-        if (HasGeneralRarityBoost() || HasSpecificFishBoost())
+        var equippedItemInSlot = ShopItem.EquipmentSlot.HasValue
+            ? currentEquippedResolved.FirstOrDefault(i => i.EquipmentSlot == ShopItem.EquipmentSlot)
+            : null;
+
+        if (HasGeneralRarityBoost(ShopItem) || HasGeneralRarityBoost(equippedItemInSlot))
         {
             foreach (FishRarity rarity in Enum.GetValues(typeof(FishRarity)))
             {
@@ -266,6 +294,21 @@
                 newFishPreview.TryGetValue(targetId, out var newTarget))
             {
                 AddPercentRow($"{currentTarget.FishName} catch chance", currentTarget.OverallChance, newTarget.OverallChance);
+            }
+        }
+
+        if (HasSpecificCategoryBoost() && !string.IsNullOrWhiteSpace(ShopItem.TargetCategory))
+        {
+            var categoryFishIds = allFishTypes
+                .Where(f => f.Categories.Any(c => c.Category.Equals(ShopItem.TargetCategory, StringComparison.OrdinalIgnoreCase)))
+                .Select(f => f.Id)
+                .ToHashSet();
+
+            if (currentFishPreview != null && newFishPreview != null && categoryFishIds.Count > 0)
+            {
+                var currentChance = currentFishPreview.Values.Where(p => categoryFishIds.Contains(p.FishId)).Sum(p => p.OverallChance);
+                var newChance = newFishPreview.Values.Where(p => categoryFishIds.Contains(p.FishId)).Sum(p => p.OverallChance);
+                AddPercentRow($"{ShopItem.TargetCategory} catch chance", currentChance, newChance);
             }
         }
     }
@@ -317,6 +360,14 @@
                ShopItem.BoostType3 == FishingBoostType.SpecificFishBoost;
     }
 
+    private bool HasSpecificCategoryBoost()
+    {
+        if (ShopItem == null) return false;
+        return ShopItem.BoostType == FishingBoostType.SpecificCategoryBoost ||
+               ShopItem.BoostType2 == FishingBoostType.SpecificCategoryBoost ||
+               ShopItem.BoostType3 == FishingBoostType.SpecificCategoryBoost;
+    }
+
     private Color GetDiffColor(double diff)
     {
         if (diff > 0) return Color.Success;
@@ -326,14 +377,15 @@
 
     private string GetBoostDescription(FishingBoostType boostType, double boostAmount)
     {
-        var percentage = (boostAmount * 100).ToString("F0");
+        var percentage = FishingBoostDisplayHelper.FormatPercent(boostAmount);
         return boostType switch
         {
-            FishingBoostType.GeneralRarityBoost => $"+{percentage}% chance to catch rare fish (all rarities)",
-            FishingBoostType.WeightBoost => $"+{percentage}% to fish weight (catch bigger fish)",
-            FishingBoostType.StarBoost => $"+{percentage}% chance for higher star quality",
-            FishingBoostType.SpecificFishBoost => $"+{percentage}% chance to catch specific fish",
-            _ => $"+{percentage}% boost"
+            FishingBoostType.GeneralRarityBoost => $"{percentage} chance to catch rare fish (all rarities)",
+            FishingBoostType.WeightBoost => $"{percentage} to fish weight (catch bigger fish)",
+            FishingBoostType.StarBoost => $"{percentage} chance for higher star quality",
+            FishingBoostType.SpecificFishBoost => $"{percentage} chance to catch specific fish",
+            FishingBoostType.SpecificCategoryBoost => $"{percentage} chance to catch fish in a specific category",
+            _ => $"{percentage} boost"
         };
     }
 
@@ -359,13 +411,15 @@
                ShopItem.BoostType3 == FishingBoostType.StarBoost;
     }
 
-    private bool HasGeneralRarityBoost()
+    private bool HasGeneralRarityBoost(FishingShopItem? item)
     {
-        if (ShopItem == null) return false;
-        return ShopItem.BoostType == FishingBoostType.GeneralRarityBoost ||
-               ShopItem.BoostType2 == FishingBoostType.GeneralRarityBoost ||
-               ShopItem.BoostType3 == FishingBoostType.GeneralRarityBoost;
+        if (item == null) return false;
+        return item.BoostType == FishingBoostType.GeneralRarityBoost ||
+               item.BoostType2 == FishingBoostType.GeneralRarityBoost ||
+               item.BoostType3 == FishingBoostType.GeneralRarityBoost;
     }
+
+    private bool HasGeneralRarityBoost() => HasGeneralRarityBoost(ShopItem);
 
     private Color GetRarityColor(FishRarity rarity) => rarity switch
     {
@@ -374,15 +428,16 @@
         FishRarity.Rare => Color.Info,
         FishRarity.Epic => Color.Secondary,
         FishRarity.Legendary => Color.Warning,
+        FishRarity.Mythical => Color.Error,
         _ => Color.Default
     };
 }
 
 @code {
-    private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish) => builder =>
+    private RenderFragment RenderBoostAlert(FishingBoostType boostType, double boostAmount, FishType? targetFish, string? targetCategory) => builder =>
     {
         builder.OpenComponent<MudAlert>(0);
-        builder.AddAttribute(1, "Severity", Severity.Success);
+        builder.AddAttribute(1, "Severity", boostAmount < 0 ? Severity.Error : Severity.Success);
         builder.AddAttribute(2, "Dense", true);
 
         if (boostType == FishingBoostType.SpecificFishBoost && targetFish != null)
@@ -393,7 +448,18 @@
                 childBuilder.OpenElement(1, "strong");
                 childBuilder.AddContent(2, targetFish.Name);
                 childBuilder.CloseElement();
-                childBuilder.AddContent(3, $" (+{(boostAmount * 100):F0}% catch chance)");
+                childBuilder.AddContent(3, $" ({FishingBoostDisplayHelper.FormatPercent(boostAmount)} catch chance)");
+            }));
+        }
+        else if (boostType == FishingBoostType.SpecificCategoryBoost && !string.IsNullOrWhiteSpace(targetCategory))
+        {
+            builder.AddAttribute(3, "ChildContent", (RenderFragment)(childBuilder =>
+            {
+                childBuilder.AddContent(0, $"Targets category: ");
+                childBuilder.OpenElement(1, "strong");
+                childBuilder.AddContent(2, targetCategory);
+                childBuilder.CloseElement();
+                childBuilder.AddContent(3, $" ({FishingBoostDisplayHelper.FormatPercent(boostAmount)} catch chance)");
             }));
         }
         else

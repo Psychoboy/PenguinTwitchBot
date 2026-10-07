@@ -1,4 +1,4 @@
-﻿namespace PenguinTwitchBot.Test;
+namespace PenguinTwitchBot.Test;
 
 public class UnitTest1
 {

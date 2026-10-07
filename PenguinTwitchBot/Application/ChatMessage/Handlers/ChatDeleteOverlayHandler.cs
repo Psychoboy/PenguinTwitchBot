@@ -20,7 +20,7 @@ namespace PenguinTwitchBot.Application.ChatMessage.Handlers
             var messageId = request.EventArgs.Event.MessageId;
             var payload = new { type = "chat_delete", id = messageId };
             var json = JsonSerializer.Serialize(payload, JsonOptions);
-            await webSocketMessenger.AddToQueue(json);
+            await webSocketMessenger.AddToQueue(WsTopics.Chat, json);
         }
     }
 }

@@ -137,6 +137,12 @@ namespace PenguinTwitchBot.Bot.Actions
             }
         }
 
+        public async Task<List<ActionType>> GetActionsByTriggerTypeAndNameEnabledAsync(TriggerTypes triggerType, string triggerName)
+        {
+            var actions = await GetActionsByTriggerTypeAndNameAsync(triggerType, triggerName);
+            return actions.Where(a => a.Enabled).ToList();
+        }
+
         public async Task<List<TriggerType>> GetTriggersForActionAsync(int actionId)
         {
             using var scope = _serviceScopeFactory.CreateScope();

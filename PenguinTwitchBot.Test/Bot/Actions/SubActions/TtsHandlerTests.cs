@@ -50,5 +50,23 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             await Assert.ThrowsAnyAsync<SubActionHandlerException>(() => handler.ExecuteAsync(type, variables));
         }
+
+        [Fact]
+        public void GetUIFields_ReturnsExpectedFields_WithoutExternalApiResponseHint()
+        {
+            var type = new TtsType();
+            var fields = type.GetUIFields();
+
+            Assert.DoesNotContain(fields, f => f.PropertyName == "info_hint");
+            Assert.DoesNotContain(fields, f => f.Label != null && f.Label.Contains("ExternalApiResponse"));
+            Assert.DoesNotContain(fields, f => f.HelperText != null && f.HelperText.Contains("ExternalApiResponse"));
+
+            var textField = fields.FirstOrDefault(f => f.PropertyName == nameof(TtsType.Text));
+            Assert.NotNull(textField);
+            Assert.Equal("Message", textField.Label);
+            Assert.True(textField.Resizable);
+            Assert.Contains("%user%", textField.HelperText);
+            Assert.Contains("%message%", textField.HelperText);
+        }
     }
 }

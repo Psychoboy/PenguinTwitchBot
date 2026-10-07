@@ -1,46 +1,94 @@
-﻿@page "/commands/cooldowns"
+@page "/commands/cooldowns"
 @using PenguinTwitchBot.Bot.Commands
 @using PenguinTwitchBot.Database.Bot.Models.Commands
 @attribute [Authorize(Roles = "Streamer, Editor")]
 
 <PageTitle>@(AppConfiguration["ApplicationTitle"] ?? "Penguin Twitch Bot") - Command Cooldowns</PageTitle>
 
-<MudContainer>
-    <MudPaper Elevation="2" Class="pa-4">
-        <MudTable Items="@cooldowns">
-            <HeaderContent>
-                <MudTh>Command</MudTh>
-                <MudTh>Global/User</MudTh>
-                <MudTh>Cooldown Ends</MudTh>
-                <MudTh></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Command">@context.CommandName</MudTd>
-                <MudTd DataLabel="User">
-                    @(context.NextUserCooldownTime == DateTime.MinValue ?
-                        "<Global>" :
-                        context.UserName)
-                </MudTd>
-                <MudTd DataLabel="Cooldown">
-                    <ToLocal DateTime="context.NextUserCooldownTime == DateTime.MinValue ?
-                        context.NextGlobalCooldownTime :
-                        context.NextUserCooldownTime" Format="dddd, mmmm d h:MM:ss TT"></ToLocal>
-                </MudTd>
-                <MudTd DataLabel="Edit">
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
-                    @onclick="() => ResetCooldown(context)">
-                        Reset
-                    </MudButton>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    </MudPaper>
+<MudContainer Class="pa-4 pa-md-6" MaxWidth="MaxWidth.Large">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <MudStack Spacing="1">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.h4">Active Command Cooldowns</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Inspect active user and global command cooldown timers, with the ability to reset timers on demand.
+                </MudText>
+            </MudStack>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudChip T="string" Color="Color.Primary" Size="Size.Medium" Icon="@Icons.Material.Filled.Timelapse">
+                    @cooldowns.Count Active @(cooldowns.Count == 1 ? "Cooldown" : "Cooldowns")
+                </MudChip>
+                <HelpButton Topic="command-cooldowns" />
+            </MudStack>
+        </MudStack>
+
+        <MudPaper Elevation="2" Class="pa-4">
+            <MudTable Items="@cooldowns" Dense="true" Hover="true">
+                <ToolBarContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="w-100 pa-1">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">Active Timers</MudText>
+                        <MudSpacer />
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" Size="Size.Small"
+                                       OnClick="RefreshCooldowns" />
+                    </MudStack>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Command</MudTh>
+                    <MudTh>Scope / User</MudTh>
+                    <MudTh>Cooldown Expiration</MudTh>
+                    <MudTh Style="text-align: right;">Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Command">
+                        <MudText Typo="Typo.body2"><b>!@context.CommandName</b></MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Scope / User">
+                        @if (context.NextUserCooldownTime == DateTime.MinValue)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Global</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Default">@context.UserName</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Cooldown Expiration">
+                        <ToLocal DateTime="context.NextUserCooldownTime == DateTime.MinValue ?
+                            context.NextGlobalCooldownTime :
+                            context.NextUserCooldownTime" Format="dddd, mmmm d h:MM:ss TT"></ToLocal>
+                    </MudTd>
+                    <MudTd Style="text-align: right;">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="() => ResetCooldown(context)">
+                            Reset
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Align="Align.Center" Color="Color.Secondary" Class="pa-4">No commands are currently on cooldown.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
 </MudContainer>
+
 @code {
     private List<CurrentCooldowns> cooldowns = [];
     [Inject]
     public ICommandHandler CommandHandler { get; set; } = null!;
+
     protected override async Task OnInitializedAsync()
+    {
+        await RefreshCooldowns();
+    }
+
+    private async Task RefreshCooldowns()
     {
         cooldowns = await CommandHandler.GetCurrentCooldowns();
     }
@@ -48,6 +96,6 @@
     private async Task ResetCooldown(CurrentCooldowns cooldown)
     {
         await CommandHandler.ResetCooldown(cooldown);
-        cooldowns = await CommandHandler.GetCurrentCooldowns();
+        await RefreshCooldowns();
     }
 }

@@ -122,6 +122,45 @@
                         </MudListItem>
                         <MudDivider />
                     }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingItemBroken))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishingitembroken" OnClick="@(() => SelectType(TriggerTypes.FishingItemBroken))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.BrokenImage" Color="Color.Error" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fishing Item Broken</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when an equipped item runs out of durability</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingAccident))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-fishingaccident" OnClick="@(() => SelectType(TriggerTypes.FishingAccident))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Error" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Fishing Accident</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when an accident occurs while fishing (line snap, rod break, etc.)</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                    @if (IsTriggerTypeAvailable(TriggerTypes.BannedSongRequest))
+                    {
+                        <MudListItem T="string" class="trigger-item trigger-bannedsongrequest" OnClick="@(() => SelectType(TriggerTypes.BannedSongRequest))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.MusicOff" Color="Color.Error" />
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body1"><b>Banned Song Request</b></MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when someone requests a song that has been banned</MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudListItem>
+                        <MudDivider />
+                    }
                      <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                             <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
@@ -308,7 +347,6 @@
                 else if (_selectedType == TriggerTypes.FishCatch)
                 {
                     <MudText Typo="Typo.h6">Configure Fish Catch Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever a fish is successfully caught. All filters are optional — leave empty to match any catch.
                         Variables added: %fish_type%, %fish_type_id%, %fish_rarity%, %fish_stars%, %fish_weight%, %fish_gold%, %fish_categories%.
@@ -362,6 +400,62 @@
 
                     <MudSwitch T="bool" @bind-Value="_fishCatchRequireActiveTournament" Color="Color.Primary"
                                Label="Only fire when fish is eligible for an active tournament" />
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.FishingItemBroken)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Item Broken Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires whenever an equipped item's durability reaches 0% (breaks).
+                        Variables added: %user%, %userid%, %broken_item_name%, %broken_item_slot%, %broken_item_shop_id%, %broken_item_boost_id%, %broken_item_cost%, %broken_item_replaced%, %broken_items_count%.
+                    </MudAlert>
+
+                    <MudSelect T="string" @bind-SelectedValues="_fishingItemBrokenSlots"
+                               Label="Equipment Slot Filter" MultiSelection="true" Variant="Variant.Outlined"
+                               HelperText="Leave empty to trigger on any slot">
+                        @foreach (var slot in Enum.GetNames<EquipmentSlot>())
+                        {
+                            <MudSelectItem T="string" Value="@slot">@slot</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.FishingAccident)
+                {
+                    <MudText Typo="Typo.h6">Configure Fishing Accident Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires whenever a fishing accident occurs (line snap, rod break, reel jam, tackle box loss, net break).
+                        Variables added: %user%, %userid%, %accident_type%, %accident_name%, %accident_reason%, %accident_gear%, %accident_items_lost%, %accident_gold_lost%.
+                    </MudAlert>
+
+                    <MudSelect T="FishingAttemptOutcome" @bind-SelectedValues="_fishingAccidentOutcomes"
+                               Label="Accident Types Filter" MultiSelection="true" Variant="Variant.Outlined"
+                               HelperText="Leave empty to trigger on all accidents">
+                        <MudSelectItem T="FishingAttemptOutcome" Value="@FishingAttemptOutcome.LineSnapped">Line Snapped</MudSelectItem>
+                        <MudSelectItem T="FishingAttemptOutcome" Value="@FishingAttemptOutcome.RodSnapped">Rod Snapped</MudSelectItem>
+                        <MudSelectItem T="FishingAttemptOutcome" Value="@FishingAttemptOutcome.ReelJammed">Reel Jammed</MudSelectItem>
+                        <MudSelectItem T="FishingAttemptOutcome" Value="@FishingAttemptOutcome.TackleBoxLost">Tackle Box Lost</MudSelectItem>
+                        <MudSelectItem T="FishingAttemptOutcome" Value="@FishingAttemptOutcome.NetBroken">Net Broken</MudSelectItem>
+                    </MudSelect>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
+                                  Required="true" ReadOnly="true" />
+                }
+                else if (_selectedType == TriggerTypes.BannedSongRequest)
+                {
+                    <MudText Typo="Typo.h6">Configure Banned Song Request Trigger</MudText>
+
+                    <MudAlert Severity="Severity.Info" Dense="true">
+                        Fires whenever someone requests a song that is on the banned songs list.
+                        Variables added: %user%, %banned_song_id%, %banned_song_title%, %banned_song_reason%,
+                        %banned_song_banned_by%, %banned_song_url%, %banned_song_request%.
+                    </MudAlert>
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
@@ -447,6 +541,9 @@
     private double _fishCatchMinWeight = 0;
     private int _fishCatchMinGold = 0;
     private bool _fishCatchRequireActiveTournament = false;
+    private IReadOnlyCollection<string> _fishingItemBrokenSlots = new HashSet<string>();
+    private List<int> _fishingItemBrokenShopItemIds = new();
+    private IReadOnlyCollection<FishingAttemptOutcome> _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
     private List<FishType> _fishTypes = new();
     private bool IsEditMode => ExistingTrigger != null;
 
@@ -500,6 +597,10 @@
             {
                 _twitchEventConfig = config;
                 _selectedTwitchEvent = config.EventName;
+                if (!string.IsNullOrWhiteSpace(config.EventName))
+                {
+                    _triggerName = config.EventName;
+                }
             }
             else
             {
@@ -557,6 +658,34 @@
                 _fishCatchRequireActiveTournament = false;
             }
         }
+        else if (trigger.Type == TriggerTypes.FishingItemBroken)
+        {
+            try
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<FishingItemBrokenTriggerConfiguration>(trigger.Configuration)
+                    ?? new FishingItemBrokenTriggerConfiguration();
+                _fishingItemBrokenSlots = new HashSet<string>(config.EquipmentSlots ?? []);
+                _fishingItemBrokenShopItemIds = config.ShopItemIds ?? [];
+            }
+            catch
+            {
+                _fishingItemBrokenSlots = new HashSet<string>();
+                _fishingItemBrokenShopItemIds = new List<int>();
+            }
+        }
+        else if (trigger.Type == TriggerTypes.FishingAccident)
+        {
+            try
+            {
+                var config = System.Text.Json.JsonSerializer.Deserialize<FishingAccidentTriggerConfiguration>(trigger.Configuration)
+                    ?? new FishingAccidentTriggerConfiguration();
+                _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>(config.AccidentTypes);
+            }
+            catch
+            {
+                _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
+            }
+        }
     }
 
     private void SelectType(TriggerTypes type)
@@ -576,6 +705,9 @@
             TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
             TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
             TriggerTypes.FishCatch => "Fishing.FishCaught",
+            TriggerTypes.FishingItemBroken => "Fishing.ItemBroken",
+            TriggerTypes.FishingAccident => "Fishing.Accident",
+            TriggerTypes.BannedSongRequest => "Song.BannedRequest",
             _ => $"{type} Trigger"
         };
     }
@@ -876,6 +1008,7 @@
         else if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
         {
             _twitchEventConfig.EventName = _selectedTwitchEvent;
+            _triggerName = _selectedTwitchEvent;
             configuration = _twitchEventConfig.ToJson();
         }
         else if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null)
@@ -914,6 +1047,29 @@
             };
             configuration = System.Text.Json.JsonSerializer.Serialize(config);
             _triggerName = "Fishing.FishCaught";
+        }
+        else if (_selectedType == TriggerTypes.FishingItemBroken)
+        {
+            var config = new FishingItemBrokenTriggerConfiguration
+            {
+                EquipmentSlots = _fishingItemBrokenSlots.ToList(),
+                ShopItemIds = _fishingItemBrokenShopItemIds
+            };
+            configuration = System.Text.Json.JsonSerializer.Serialize(config);
+            _triggerName = "Fishing.ItemBroken";
+        }
+        else if (_selectedType == TriggerTypes.FishingAccident)
+        {
+            var config = new FishingAccidentTriggerConfiguration
+            {
+                AccidentTypes = _fishingAccidentOutcomes.ToList()
+            };
+            configuration = System.Text.Json.JsonSerializer.Serialize(config);
+            _triggerName = "Fishing.Accident";
+        }
+        else if (_selectedType == TriggerTypes.BannedSongRequest)
+        {
+            _triggerName = "Song.BannedRequest";
         }
 
         var result = new

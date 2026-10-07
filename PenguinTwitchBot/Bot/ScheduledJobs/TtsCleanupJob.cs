@@ -6,7 +6,7 @@ namespace PenguinTwitchBot.Bot.ScheduledJobs
     [DisallowConcurrentExecution]
     public class TtsCleanupJob(IFileCleanupService fileCleanupService, ILogger<TtsCleanupJob> logger) : IJob
     {
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             logger.LogDebug("Scheduled TTS cleanup job started.");
             await fileCleanupService.CleanupTtsAsync();

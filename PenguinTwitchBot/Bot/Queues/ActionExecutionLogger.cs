@@ -121,6 +121,21 @@ namespace PenguinTwitchBot.Bot.Queues
             }
         }
 
+        public void UpdateActionCancelled(Guid logId, string reason)
+        {
+            if (_logIndex.TryGetValue(logId, out var log))
+            {
+                log.State = ActionExecutionState.Cancelled;
+                log.CompletedAt = DateTime.UtcNow;
+                log.ErrorMessage = reason;
+
+                _logger.LogTrace("Updated action {ActionName} to Cancelled state: {Reason}", log.ActionName, reason);
+
+                // Notify clients about action cancellation (send snapshot to prevent concurrent modification during serialization)
+                _ = _hubContext.Clients.All.SendAsync("ActionLogUpdated", CreateLogSnapshot(log));
+            }
+        }
+
         public IReadOnlyList<ActionExecutionLog> GetRecentLogs(int count = 100)
         {
             return _logs.Reverse().Take(count).ToList();
