@@ -622,16 +622,6 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
 
     private string? GetClientIpAddress()
     {
-        var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
-        {
-            var ip = forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(ip))
-            {
-                return ip;
-            }
-        }
-
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 

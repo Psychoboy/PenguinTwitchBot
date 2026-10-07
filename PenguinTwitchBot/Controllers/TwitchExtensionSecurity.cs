@@ -68,11 +68,13 @@ public static class TwitchExtensionSecurity
 
     private static ClaimsPrincipal? ValidateOrReadToken(string token, string? secret, ILogger logger)
     {
-        if (!string.IsNullOrWhiteSpace(secret))
+        if (string.IsNullOrWhiteSpace(secret))
         {
-            return ValidateSignedToken(token, secret, logger);
+            logger.LogError("Twitch Extension secret is not configured; cannot validate JWT token");
+            return null;
         }
-        return ReadUnsignedToken(token, logger);
+
+        return ValidateSignedToken(token, secret, logger);
     }
 
     private static ClaimsPrincipal? ValidateSignedToken(string token, string secret, ILogger logger)
@@ -97,24 +99,6 @@ public static class TwitchExtensionSecurity
             logger.LogWarning(ex, "Failed to validate Twitch Extension JWT signature");
             return null;
         }
-    }
-
-    private static ClaimsPrincipal? ReadUnsignedToken(string token, ILogger logger)
-    {
-        try
-        {
-            if (TokenHandler.CanReadToken(token))
-            {
-                var jwtToken = TokenHandler.ReadJwtToken(token);
-                var identity = new ClaimsIdentity(jwtToken.Claims, "TwitchExtension");
-                return new ClaimsPrincipal(identity);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to read Twitch Extension JWT token payload");
-        }
-        return null;
     }
 
     private static TwitchExtensionClaims ExtractClaims(ClaimsPrincipal principal)

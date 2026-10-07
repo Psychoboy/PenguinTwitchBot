@@ -243,5 +243,18 @@ namespace PenguinTwitchBot.Test.Circuit
             var entries = await _context.IpLogEntrys.ToListAsync();
             Assert.Empty(entries);
         }
+
+        [Fact]
+        public async Task LogInteractionAsync_DoesNotCache_WhenAddLogEntryFails()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var faultyScopeFactory = Substitute.For<IServiceScopeFactory>();
+            faultyScopeFactory.CreateScope().Returns(_ => throw new InvalidOperationException("DB error"));
+            var ipLog = new IpLog(_logger, faultyScopeFactory, _retentionSettings, memoryCache);
+
+            await ipLog.LogInteractionAsync("CoolUser", "12345", "192.168.1.1");
+
+            Assert.False(ipLog.IsInteractionCached("12345", "192.168.1.1"));
+        }
     }
 }

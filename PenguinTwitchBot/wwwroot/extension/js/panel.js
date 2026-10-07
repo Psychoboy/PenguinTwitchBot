@@ -53,6 +53,17 @@
         }, durationMs || 4000);
     }
 
+    function isValidHttpsUrl(urlString) {
+        if (!urlString || typeof urlString !== 'string') return false;
+        var trimmed = urlString.trim();
+        try {
+            var parsed = new URL(trimmed);
+            return parsed.protocol === 'https:';
+        } catch (_) {
+            return false;
+        }
+    }
+
     function formatNumber(val) {
         if (!Number.isFinite(val)) return '0';
         return val.toLocaleString();
@@ -129,12 +140,31 @@
         // If active tab is not visible, select the first visible tab
         var isActiveVisible = visibleTabs.some(function (t) { return t.id === state.activeTab; });
         if (!isActiveVisible && visibleTabs.length > 0) {
-            switchTab(visibleTabs[0].id);
-        } else if (state.activeTab) {
-            switchTab(state.activeTab);
-        } else if (visibleTabs.length > 0) {
-            switchTab(visibleTabs[0].id);
+            state.activeTab = visibleTabs[0].id;
         }
+
+        // Synchronize tab buttons and panel visibility without re-triggering active tab content load
+        var buttons = container.querySelectorAll('.nav-tab-btn');
+        buttons.forEach(function (btn) {
+            if (btn.getAttribute('data-tab') === state.activeTab) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        ['giveaway', 'fishing', 'leaderboards', 'commands'].forEach(function (id) {
+            var panel = document.getElementById('panel-' + id);
+            if (panel) {
+                var isActive = (id === state.activeTab);
+                panel.style.display = isActive ? 'flex' : 'none';
+                if (isActive) {
+                    panel.classList.add('active');
+                } else {
+                    panel.classList.remove('active');
+                }
+            }
+        });
     }
 
     function switchTab(tabId) {
@@ -273,7 +303,7 @@
 
         var cfg = TwitchExtApi.getConfig();
         var baseUrl = cfg && cfg.botBaseUrl ? cfg.botBaseUrl.trim().replace(/\/+$/, '') : '';
-        if (baseUrl) {
+        if (baseUrl && isValidHttpsUrl(baseUrl)) {
             html += '<div style="margin-top: 10px;">' +
                 '<a href="' + escapeHtml(baseUrl + '/giveaway') + '" target="_blank" rel="noopener noreferrer" class="btn-giveaway-details">' +
                 '<span>📜 View Full Giveaway Details & Rules</span> <span class="external-icon">↗</span>' +
@@ -1050,7 +1080,7 @@
         var footerEl = document.getElementById('panel-footer');
         var footerLink = document.getElementById('web-portal-link');
 
-        if (baseUrl && baseUrl.trim().length > 0) {
+        if (baseUrl && isValidHttpsUrl(baseUrl)) {
             var url = baseUrl.trim();
             if (headerLink) {
                 headerLink.href = url;
@@ -1061,33 +1091,56 @@
                 footerEl.style.display = 'block';
             }
         } else {
-            if (headerLink) headerLink.style.display = 'none';
-            if (footerEl) footerEl.style.display = 'none';
+            if (headerLink) {
+                headerLink.removeAttribute('href');
+                headerLink.style.display = 'none';
+            }
+            if (footerEl && footerLink) {
+                footerLink.removeAttribute('href');
+                footerEl.style.display = 'none';
+            }
         }
     }
 
-    async function refreshExtensionData() {
-        var cfg = TwitchExtApi.getConfig();
-        state.config = cfg;
-        updatePortalLink(cfg && cfg.botBaseUrl);
+    var isRefreshing = false;
+    var refreshQueued = false;
 
-        if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim()) {
-            console.warn('[TwitchExt] Bot API Base URL is not configured in broadcaster settings!');
-            showAlert('error', '⚠️ Bot URL not configured. Broadcaster: Please set Bot API URL in Twitch Creator Dashboard.', 12000);
-            renderNavigationTabs();
+    async function refreshExtensionData() {
+        if (isRefreshing) {
+            refreshQueued = true;
             return;
         }
+        isRefreshing = true;
 
         try {
-            state.botFeatures = await TwitchExtApi.getFeatures();
-        } catch (e) {
-            console.error('[TwitchExt] Failed to query bot features from ' + cfg.botBaseUrl + ':', e);
-            showAlert('error', '⚠️ Failed to connect to bot: ' + (e.message || 'Network error'), 8000);
-            state.botFeatures = { fishing: true, giveaway: true, points: true, leaderboards: true, commands: true };
-        }
+            var cfg = TwitchExtApi.getConfig();
+            state.config = cfg;
+            updatePortalLink(cfg && cfg.botBaseUrl);
 
-        renderNavigationTabs();
-        loadActiveTabContent();
+            if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim()) {
+                console.warn('[TwitchExt] Bot API Base URL is not configured in broadcaster settings!');
+                showAlert('error', '⚠️ Bot URL not configured. Broadcaster: Please set Bot API URL in Twitch Creator Dashboard.', 12000);
+                renderNavigationTabs();
+                return;
+            }
+
+            try {
+                state.botFeatures = await TwitchExtApi.getFeatures();
+            } catch (e) {
+                console.error('[TwitchExt] Failed to query bot features from ' + cfg.botBaseUrl + ':', e);
+                showAlert('error', '⚠️ Failed to connect to bot: ' + (e.message || 'Network error'), 8000);
+                state.botFeatures = { fishing: true, giveaway: true, points: true, leaderboards: true, commands: true };
+            }
+
+            renderNavigationTabs();
+            await loadActiveTabContent();
+        } finally {
+            isRefreshing = false;
+            if (refreshQueued) {
+                refreshQueued = false;
+                refreshExtensionData();
+            }
+        }
     }
 
     function applyTheme(theme) {
@@ -1117,18 +1170,29 @@
         }
     });
 
+    var isInitialized = false;
+
+    async function startExtension() {
+        if (!isInitialized) {
+            isInitialized = true;
+            await init();
+        } else {
+            await refreshExtensionData();
+        }
+    }
+
     TwitchExtApi.onConfigLoaded(function (cfg) {
         state.config = cfg;
-        refreshExtensionData();
+        startExtension();
         resetRefreshTimer();
     });
 
     TwitchExtApi.onAuthorized(function () {
-        refreshExtensionData();
+        startExtension();
     });
 
     TwitchExtApi.onReady(function () {
-        init();
+        startExtension();
     });
 })();
 

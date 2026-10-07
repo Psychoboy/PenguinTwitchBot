@@ -354,8 +354,6 @@ internal class Program
         builder.WebHost.ConfigureKestrel((context, options) => ConfigureKestrelHttps(context, options));
 
         var app = builder.Build();
-        app.UseAuthentication();
-        app.UseAuthorization();
         app.UseForwardedHeaders();
 
         // Always migrate — for SQLite this creates the database file and schema on first run.
@@ -414,6 +412,8 @@ internal class Program
 
         app.UseRouting();
         app.UseCors("TwitchExtensionCors");
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments("/api/twitch-extension"))
@@ -581,7 +581,7 @@ try
             {
                 options.ConfigureHttpsDefaults(httpsOptions =>
                 {
-                    httpsOptions.ServerCertificate = new X509Certificate2(pfxPath, "penguin");
+                    httpsOptions.ServerCertificate = X509CertificateLoader.LoadPkcs12FromFile(pfxPath, "penguin");
                 });
                 Log.Information("Using persistent localhost certificate from {Path}", pfxPath);
                 return;

@@ -33,19 +33,23 @@ This guide walks you through registering, configuring, and running the **Penguin
 > **Highly Recommended**: Use a free Cloudflare Tunnel (`cloudflared`) or reverse proxy.
 > This completely bypasses local certificate installation, browser security flags, and router port-forwarding, while providing a globally trusted DigiCert/Let's Encrypt SSL certificate that works on every browser and mobile device.
 
-### Method A: Free Cloudflare Tunnel (Easiest & Fastest, Zero Cert Setup)
-1. Open a terminal or command prompt and run:
-   ```bash
-   npx cloudflared tunnel --url http://localhost:5000
-   ```
-   *(Or download the standalone `cloudflared` binary from Cloudflare).*
-2. Cloudflare will output an official public HTTPS URL, for example:
-   ```text
-   https://random-words-1234.trycloudflare.com
-   ```
-3. Use this URL as your **Bot API Base URL** in Twitch Extension settings. That's it! No router configuration or certificate installation required.
+### Method A: Cloudflare Named Tunnel or Custom Domain (Recommended for Viewers & Production)
+For a persistent extension installation, use a **Cloudflare Named Tunnel** (free with a Cloudflare account) or a custom domain pointing to your reverse proxy. Named tunnels provide a permanent, stable HTTPS domain (e.g. `https://penguin-bot.yourdomain.com`) that never changes when the bot restarts:
+1. In your Cloudflare dashboard, navigate to **Zero Trust > Networks > Tunnels**.
+2. Create a named tunnel and route your public hostname to `http://localhost:5000`.
+3. Set your **Bot API Base URL** in Twitch Extension settings to your stable domain.
 
-### Method B: Custom Domain or Reverse Proxy (Nginx, Caddy, Cloudflare DNS)
+### Method B: Temporary Quick Tunnel (Quick Testing Only)
+If you just want to test extension functionality for a single session without creating a Cloudflare account, run:
+```bash
+npx cloudflared tunnel --url http://localhost:5000
+```
+*(Or run `cloudflared tunnel --url http://localhost:5000`).*
+Cloudflare will assign an ephemeral public HTTPS URL (e.g., `https://random-words-1234.trycloudflare.com`).
+> [!WARNING]
+> Quick tunnel URLs are temporary and change each time the command restarts. Use a named tunnel or custom domain for production or viewer access.
+
+### Method C: Custom Domain or Reverse Proxy (Nginx, Caddy, Traefik)
 If you run Penguin Bot on a VPS or home server with a domain name (e.g. `https://bot.yourdomain.com`):
 1. Configure Nginx, Caddy, or Traefik with Let's Encrypt SSL reverse-proxying to port `5000`.
 2. Enter `https://bot.yourdomain.com` as your **Bot API Base URL**.
@@ -226,28 +230,20 @@ Use this checklist to ensure all required fields are satisfied:
 
 ---
 
-## (Optional) Part 6: Localhost Developer Testing with Self-Signed Certificates
+## (Optional) Part 6: Localhost Developer Testing with HTTPS Certificates
 
 > [!NOTE]
 > This section is strictly for offline local debugging where an internet tunnel is not desired. Remember that this setup will only work on your local machine.
 
-`PenguinTwitchBot` includes an internal CA generator and persistent certificate loader:
-- Root Certificate Authority: `Data/certs/ca.crt` (`CA:TRUE`)
-- Server Leaf Certificate: `Data/certs/localhost.pfx` (`CA:FALSE`, signed by `ca.crt`)
+When running locally with HTTPS enabled (`Kestrel:Endpoints:Https:Url`), Penguin Bot automatically provisions an in-memory self-signed certificate if no certificate is explicitly configured.
 
-### Installing `ca.crt` on Windows (Edge / Chrome)
-1. Open `PenguinTwitchBot\Data\certs\` in Windows Explorer.
-2. Double-click `ca.crt`.
-3. Click **Install Certificate...**.
-4. Select **Current User** ➔ **Next**.
-5. Select **"Place all certificates in the following store"** ➔ click **Browse...**.
-6. Select **Trusted Root Certification Authorities** ➔ **OK** ➔ **Next** ➔ **Finish**.
-7. Confirm **Yes** on the Windows security prompt.
+Alternatively, developers can provide their own persistent PKCS#12 certificate:
+1. Generate a developer certificate locally using .NET or OpenSSL:
+   ```bash
+   dotnet dev-certs https -ep ./Data/certs/localhost.pfx -p penguin --trust
+   ```
+2. Place `localhost.pfx` in `Data/certs/localhost.pfx` (or configure `Kestrel:Certificates:Default:Path` in `appsettings.json`).
+3. Penguin Bot will automatically detect and load `localhost.pfx` using password `"penguin"`.
 
-### Installing `ca.crt` in Firefox
-1. Open Firefox Settings (`about:preferences#privacy`).
-2. Scroll down to **Certificates** ➔ click **View Certificates...**.
-3. Under the **Authorities** tab, click **Import...**.
-4. Select `Data/certs/ca.crt`.
-5. Check **"Trust this CA to identify websites"** ➔ click **OK**.
-6. If Firefox still prompts on port 8080, open `https://localhost:8080/api/twitch-extension/features` in a new tab once and click *Advanced ➔ Accept Risk and Continue*.
+> [!IMPORTANT]
+> Never commit private keys (`*.key`, `*.pfx`) to source control. Local certificates should always be generated per-developer on each environment.

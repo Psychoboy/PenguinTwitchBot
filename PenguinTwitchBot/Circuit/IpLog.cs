@@ -45,7 +45,8 @@ namespace PenguinTwitchBot.Circuit
                 return;
             }
 
-            if (memoryCache != null)
+            var writeSucceeded = await AddLogEntry(username, userId, ipAddress);
+            if (writeSucceeded && memoryCache != null)
             {
                 var options = new MemoryCacheEntryOptions
                 {
@@ -53,11 +54,9 @@ namespace PenguinTwitchBot.Circuit
                 };
                 memoryCache.Set(GetCacheKey(userId, ipAddress), true, options);
             }
-
-            await AddLogEntry(username, userId, ipAddress);
         }
 
-        public async Task AddLogEntry(string username, string userId, string ipAddress)
+        public async Task<bool> AddLogEntry(string username, string userId, string ipAddress)
         {
             if (string.IsNullOrWhiteSpace(userId) ||
                 userId.Equals("anonymous", StringComparison.OrdinalIgnoreCase) ||
@@ -66,20 +65,21 @@ namespace PenguinTwitchBot.Circuit
                 string.IsNullOrWhiteSpace(ipAddress) ||
                 ipAddress.Equals("unknown", StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                return false;
             }
 
             try
             {
                 var normalizedUsername = Database.Bot.Core.UsernameNormalizer.Normalize(username);
-                await Task.WhenAll(
-                    AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress),
-                    CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress)
-                );
+                var mainEntryTask = AddOrUpdateIpEntry(normalizedUsername, userId, ipAddress);
+                var ipv6Task = CheckForIPv6AndUpdateEntries(normalizedUsername, userId, ipAddress);
+                await Task.WhenAll(mainEntryTask, ipv6Task);
+                return await mainEntryTask;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to log IP entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
+                return false;
             }
         }
 
@@ -102,7 +102,7 @@ namespace PenguinTwitchBot.Circuit
             }
         }
 
-        private async Task AddOrUpdateIpEntry(string username, string userId, string ipAddress)
+        private async Task<bool> AddOrUpdateIpEntry(string username, string userId, string ipAddress)
         {
             try
             {
@@ -142,10 +142,12 @@ namespace PenguinTwitchBot.Circuit
                     });
                 }
                 await db.SaveChangesAsync();
+                return true;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to add or update IP log entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
+                return false;
             }
         }
 

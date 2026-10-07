@@ -46,6 +46,16 @@ public class TwitchExtensionControllerTests
     private readonly IConfiguration _configuration = Substitute.For<IConfiguration>();
     private readonly ILogger<TwitchExtensionController> _logger = Substitute.For<ILogger<TwitchExtensionController>>();
 
+    private static readonly string TestSecretBase64 = Convert.ToBase64String(new byte[32] {
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32
+    });
+
+    public TwitchExtensionControllerTests()
+    {
+        _configuration["TwitchExtension:Secret"].Returns(TestSecretBase64);
+    }
+
     private TwitchExtensionController CreateController(string? authHeader = null)
     {
         var scopeFactory = Substitute.For<IServiceScopeFactory>();
@@ -84,7 +94,7 @@ public class TwitchExtensionControllerTests
         return controller;
     }
 
-    private static string GenerateTestJwt(string channelId, string userId, string? secretBase64 = null)
+    private static string GenerateTestJwt(string channelId, string userId, string? secretBase64 = null, DateTime? expires = null)
     {
         var handler = new JwtSecurityTokenHandler();
         var claims = new List<Claim>
@@ -96,16 +106,21 @@ public class TwitchExtensionControllerTests
         };
 
         SigningCredentials? credentials = null;
-        if (!string.IsNullOrWhiteSpace(secretBase64))
+        var keyToUse = secretBase64 ?? TestSecretBase64;
+        if (!string.IsNullOrWhiteSpace(keyToUse) && !string.Equals(keyToUse, "unsigned", StringComparison.OrdinalIgnoreCase))
         {
-            var keyBytes = Convert.FromBase64String(secretBase64);
+            var keyBytes = Convert.FromBase64String(keyToUse);
             credentials = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256);
         }
 
+        var exp = expires ?? DateTime.UtcNow.AddMinutes(30);
+        var notBefore = expires != null ? expires.Value.AddMinutes(-5) : DateTime.UtcNow.AddMinutes(-5);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(30),
+            NotBefore = notBefore,
+            IssuedAt = notBefore,
+            Expires = exp,
             SigningCredentials = credentials
         };
 
@@ -163,6 +178,43 @@ public class TwitchExtensionControllerTests
     public async Task GetGiveawayViewer_ReturnsUnauthorized_WhenAuthHeaderIsMissing()
     {
         var controller = CreateController(authHeader: null);
+        var result = await controller.GetGiveawayViewer();
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetGiveawayViewer_ReturnsUnauthorized_WhenTokenIsUnsigned()
+    {
+        var jwt = GenerateTestJwt("12345", "67890", secretBase64: "unsigned");
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+
+        var result = await controller.GetGiveawayViewer();
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetGiveawayViewer_ReturnsUnauthorized_WhenSignatureIsWrong()
+    {
+        var wrongSecret = Convert.ToBase64String(new byte[32] {
+            99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84,
+            83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68
+        });
+        var jwt = GenerateTestJwt("12345", "67890", secretBase64: wrongSecret);
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+
+        var result = await controller.GetGiveawayViewer();
+
+        Assert.IsType<UnauthorizedObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task GetGiveawayViewer_ReturnsUnauthorized_WhenTokenIsExpired()
+    {
+        var jwt = GenerateTestJwt("12345", "67890", expires: DateTime.UtcNow.AddMinutes(-10));
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+
         var result = await controller.GetGiveawayViewer();
 
         Assert.IsType<UnauthorizedObjectResult>(result);

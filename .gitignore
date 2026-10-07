@@ -241,8 +241,12 @@ ClientBin/
 *~
 *.dbmdl
 *.dbproj.schemaview
-*.jfm
 *.pfx
+*.key
+*.csr
+*.srl
+Data/certs/
+PenguinTwitchBot/Data/certs/
 *.publishsettings
 orleans.codegen.cs
 
