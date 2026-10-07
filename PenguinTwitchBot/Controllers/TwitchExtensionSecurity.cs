@@ -43,6 +43,7 @@ public static class TwitchExtensionSecurity
         }
 
         var secret = configuration["TwitchExtension:Secret"]
+                     ?? configuration["Twitch:Extension:Secret"]
                      ?? configuration["twitchExtensionSecret"]
                      ?? configuration["Twitch:ExtensionSecret"];
 

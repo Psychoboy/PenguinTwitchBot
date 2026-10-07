@@ -740,20 +740,36 @@
             });
         }
 
-        // Fetch bot features to perform feature gating
+        // Fetch bot features and load initial tab
+        await refreshExtensionData();
+    }
+
+    async function refreshExtensionData() {
+        var cfg = TwitchExtApi.getConfig();
+        state.config = cfg;
+
+        if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim()) {
+            console.warn('[TwitchExt] Bot API Base URL is not configured in broadcaster settings!');
+            showAlert('error', '⚠️ Bot URL not configured. Broadcaster: Please set Bot API URL in Twitch Creator Dashboard.', 12000);
+            renderNavigationTabs();
+            return;
+        }
+
         try {
             state.botFeatures = await TwitchExtApi.getFeatures();
         } catch (e) {
-            console.debug('Failed to query bot features, using default:', e);
+            console.error('[TwitchExt] Failed to query bot features from ' + cfg.botBaseUrl + ':', e);
+            showAlert('error', '⚠️ Failed to connect to bot: ' + (e.message || 'Network error'), 8000);
             state.botFeatures = { fishing: true, giveaway: true, points: true, leaderboards: true, commands: true };
         }
 
         renderNavigationTabs();
+        loadActiveTabContent();
     }
 
     TwitchExtApi.onConfigLoaded(function (cfg) {
         state.config = cfg;
-        renderNavigationTabs();
+        refreshExtensionData();
         resetRefreshTimer();
     });
 

@@ -340,6 +340,8 @@ internal class Program
             {
                 policy.SetIsOriginAllowed(origin =>
                     origin.EndsWith(".ext-twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.EndsWith(".twitch.tv", StringComparison.OrdinalIgnoreCase) ||
+                    origin.Equals("https://twitch.tv", StringComparison.OrdinalIgnoreCase) ||
                     origin.StartsWith("https://localhost:", StringComparison.OrdinalIgnoreCase) ||
                     origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase) ||
                     origin.Equals("null", StringComparison.OrdinalIgnoreCase))
@@ -411,9 +413,14 @@ internal class Program
 
         app.UseRouting();
         app.UseCors("TwitchExtensionCors");
-
-
-        app.UseAuthorization();
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api/twitch-extension"))
+            {
+                context.Response.Headers.Append("Access-Control-Allow-Private-Network", "true");
+            }
+            await next();
+        });
 
         var wsOptions = new WebSocketOptions
         {

@@ -36,30 +36,47 @@
         refreshIntervalSeconds: 30
     };
 
+    function getTwitchExt() {
+        if (typeof window !== 'undefined') {
+            if (window.twitch && window.twitch.ext) return window.twitch.ext;
+            if (window.Twitch && window.Twitch.ext) {
+                window.twitch = window.Twitch;
+                return window.Twitch.ext;
+            }
+        }
+        return null;
+    }
+
     function parseBroadcasterConfig() {
-        if (window.twitch && window.twitch.ext && window.twitch.ext.configuration && window.twitch.ext.configuration.broadcaster) {
+        var ext = getTwitchExt();
+        if (ext && ext.configuration && ext.configuration.broadcaster) {
             try {
-                var content = window.twitch.ext.configuration.broadcaster.content;
-                if (content) {
+                var content = ext.configuration.broadcaster.content;
+                if (content && content.trim().length > 0) {
                     var parsed = JSON.parse(content);
                     broadcasterConfig = Object.assign({}, DEFAULT_CONFIG, parsed);
                     return broadcasterConfig;
                 }
             } catch (err) {
-                console.warn('Failed to parse broadcaster configuration:', err);
+                console.warn('[TwitchExt] Failed to parse broadcaster configuration:', err);
             }
         }
 
-        // Fallback to localStorage for local development / testing outside Twitch iFrame
+        // Fallback to localStorage
         try {
             var local = localStorage.getItem('ptb_extension_config');
-            if (local) {
-                broadcasterConfig = Object.assign({}, DEFAULT_CONFIG, JSON.parse(local));
-                return broadcasterConfig;
+            if (local && local.trim().length > 0) {
+                var localParsed = JSON.parse(local);
+                if (localParsed && (localParsed.botBaseUrl || localParsed.tabOrder)) {
+                    broadcasterConfig = Object.assign({}, DEFAULT_CONFIG, localParsed);
+                    return broadcasterConfig;
+                }
             }
         } catch (_) {}
 
-        broadcasterConfig = Object.assign({}, DEFAULT_CONFIG);
+        if (!broadcasterConfig) {
+            broadcasterConfig = Object.assign({}, DEFAULT_CONFIG);
+        }
         return broadcasterConfig;
     }
 
@@ -68,13 +85,16 @@
         if (cfg && cfg.botBaseUrl && cfg.botBaseUrl.trim().length > 0) {
             return cfg.botBaseUrl.trim().replace(/\/+$/, '');
         }
-        // Fallback to current host
         return '';
     }
 
     function getConfig() {
-        if (!broadcasterConfig) {
-            parseBroadcasterConfig();
+        var ext = getTwitchExt();
+        if (ext && ext.configuration && ext.configuration.broadcaster && ext.configuration.broadcaster.content) {
+            return parseBroadcasterConfig();
+        }
+        if (!broadcasterConfig || !broadcasterConfig.botBaseUrl) {
+            return parseBroadcasterConfig();
         }
         return broadcasterConfig;
     }
@@ -84,19 +104,25 @@
             var payload = JSON.stringify(configObj);
             broadcasterConfig = Object.assign({}, DEFAULT_CONFIG, configObj);
 
-            // Also persist to localStorage for easy local dev testing
+            // Persist to localStorage immediately
             try {
                 localStorage.setItem('ptb_extension_config', payload);
-            } catch (_) {}
+            } catch (lsErr) {
+                console.warn('[TwitchExt] Failed to write localStorage:', lsErr);
+            }
 
-            if (window.twitch && window.twitch.ext && window.twitch.ext.configuration) {
+            var ext = getTwitchExt();
+            if (ext && ext.configuration) {
                 try {
-                    window.twitch.ext.configuration.set('broadcaster', '1.0', payload);
+                    var version = ext.version || '0.0.1';
+                    ext.configuration.set('broadcaster', version, payload);
                     resolve(broadcasterConfig);
                 } catch (err) {
+                    console.error('[TwitchExt] configuration.set failed:', err);
                     reject(err);
                 }
             } else {
+                console.warn('[TwitchExt] Twitch configuration service not available in ext; saved to localStorage.');
                 resolve(broadcasterConfig);
             }
         });
@@ -113,7 +139,7 @@
     function onConfigLoaded(cb) {
         configCallbacks.push(cb);
         if (broadcasterConfig) {
-            cb(broadcasterConfig);
+            try { cb(broadcasterConfig); } catch (e) { console.error('[TwitchExt] onConfigLoaded error:', e); }
         }
     }
 
@@ -121,45 +147,65 @@
         if (isReady) return;
         isReady = true;
         for (var i = 0; i < readyCallbacks.length; i++) {
-            try { readyCallbacks[i](); } catch (e) { console.error(e); }
+            try { readyCallbacks[i](); } catch (e) { console.error('[TwitchExt] Ready listener error:', e); }
         }
     }
 
     function triggerConfigChanged(cfg) {
         for (var i = 0; i < configCallbacks.length; i++) {
-            try { configCallbacks[i](cfg); } catch (e) { console.error(e); }
+            try { configCallbacks[i](cfg); } catch (e) { console.error('[TwitchExt] Config listener error:', e); }
         }
     }
 
-    // Initialize Twitch Extension helper hooks
-    if (typeof window !== 'undefined' && window.twitch && window.twitch.ext) {
-        window.twitch.ext.onAuthorized(function (auth) {
-            jwt = auth.token;
-            channelId = auth.channelId;
-            userId = auth.userId;
-            isIdentityShared = Boolean(userId && !userId.startsWith('A'));
-            triggerReady();
-        });
+    function initTwitchHooks() {
+        var ext = getTwitchExt();
+        if (ext) {
+            ext.onAuthorized(function (auth) {
+                jwt = auth.token;
+                channelId = auth.channelId;
+                userId = auth.userId;
+                isIdentityShared = Boolean(userId && !userId.startsWith('A'));
 
-        if (window.twitch.ext.configuration) {
-            window.twitch.ext.configuration.onChanged(function () {
                 var cfg = parseBroadcasterConfig();
-                triggerConfigChanged(cfg);
+                if (cfg && cfg.botBaseUrl) {
+                    triggerConfigChanged(cfg);
+                }
+                triggerReady();
             });
+
+            if (ext.configuration) {
+                ext.configuration.onChanged(function () {
+                    var cfg = parseBroadcasterConfig();
+                    triggerConfigChanged(cfg);
+                });
+            }
+            return true;
         }
+        return false;
     }
 
-    // Fallback timer for local development outside Twitch iFrame
-    setTimeout(function () {
-        if (!isReady) {
-            parseBroadcasterConfig();
-            triggerReady();
-        }
-    }, 1200);
+    // Attempt immediate binding, then poll if SDK is still loading asynchronously
+    if (!initTwitchHooks()) {
+        var pollAttempts = 0;
+        var maxPollAttempts = 40; // 40 * 100ms = 4 seconds
+        var pollInterval = setInterval(function () {
+            pollAttempts++;
+            if (initTwitchHooks()) {
+                clearInterval(pollInterval);
+            } else if (pollAttempts >= maxPollAttempts) {
+                clearInterval(pollInterval);
+                if (!isReady) {
+                    parseBroadcasterConfig();
+                    triggerReady();
+                }
+            }
+        }, 100);
+    }
 
     function requestIdentityShare() {
-        if (window.twitch && window.twitch.ext && window.twitch.ext.actions && window.twitch.ext.actions.requestIdShare) {
-            window.twitch.ext.actions.requestIdShare();
+        var ext = getTwitchExt();
+        if (ext && ext.actions && ext.actions.requestIdShare) {
+            ext.actions.requestIdShare();
         } else {
             alert('Identity share requested. In production Twitch, this opens a Twitch account sharing prompt.');
         }
@@ -179,10 +225,21 @@
             options.body = JSON.stringify(options.body);
         }
 
-        var fullUrl = getBaseUrl() + endpoint;
+        var baseUrl = getBaseUrl();
+        if (!baseUrl) {
+            console.warn('[TwitchExt] Warning: botBaseUrl is not configured! Attempting request to relative path:', endpoint);
+        }
+
+        var fullUrl = baseUrl + endpoint;
         var fetchOptions = Object.assign({}, options, { headers: headers });
 
-        var response = await fetch(fullUrl, fetchOptions);
+        var response;
+        try {
+            response = await fetch(fullUrl, fetchOptions);
+        } catch (fetchErr) {
+            console.error('[TwitchExt] Network/CORS Fetch Error for ' + fullUrl + ':', fetchErr);
+            throw fetchErr;
+        }
 
         if (!response.ok) {
             var errorBody = null;
@@ -193,6 +250,7 @@
             var err = new Error(errorBody && (errorBody.message || errorBody.error) ? (errorBody.message || errorBody.error) : 'HTTP ' + response.status);
             err.status = response.status;
             err.data = errorBody;
+            console.error('[TwitchExt] HTTP Error ' + response.status + ' from ' + fullUrl + ':', errorBody || err.message);
             throw err;
         }
 

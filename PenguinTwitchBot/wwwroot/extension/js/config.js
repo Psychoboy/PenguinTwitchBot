@@ -77,8 +77,10 @@
         if (!config) return;
 
         var urlInput = document.getElementById('botBaseUrl');
-        if (urlInput && config.botBaseUrl != null) {
-            urlInput.value = config.botBaseUrl;
+        if (urlInput) {
+            if (config.botBaseUrl) {
+                urlInput.value = config.botBaseUrl;
+            }
         }
 
         var enabled = config.enabledTabs || {};
@@ -151,9 +153,11 @@
         };
 
         try {
-            await TwitchExtApi.saveConfig(configToSave);
+            var saved = await TwitchExtApi.saveConfig(configToSave);
             showAlert('success', 'Extension settings saved successfully!');
+            loadFormValues();
         } catch (err) {
+            console.error('[TwitchExt] Config save failed:', err);
             showAlert('error', 'Failed to save settings: ' + (err.message || 'Unknown error'));
         } finally {
             if (saveBtn) {
