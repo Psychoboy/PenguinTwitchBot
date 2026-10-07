@@ -213,7 +213,26 @@
         }
     }
 
+    function showUnconfiguredState() {
+        var unconfiguredHtml = '<div class="empty-state" style="padding: 32px 16px; text-align: center;">' +
+            '<div style="font-size: 28px; margin-bottom: 10px;">⚙️</div>' +
+            '<div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--text-primary);">Extension Setup Required</div>' +
+            '<p style="color: var(--text-secondary); font-size: 11px; line-height: 1.5; margin: 0 auto; max-width: 240px;">Broadcaster: Please configure your Bot API Base URL (HTTPS) in the Twitch Extension Configuration settings to enable panel features.</p>' +
+            '</div>';
+        ['giveaway-content', 'fishing-sub-content', 'leaderboard-content', 'commands-list-content'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.innerHTML = unconfiguredHtml;
+        });
+        renderNavigationTabs();
+    }
+
     function loadActiveTabContent(isBackgroundRefresh) {
+        var cfg = TwitchExtApi.getConfig();
+        if (!cfg || !cfg.botBaseUrl || !isValidHttpsUrl(cfg.botBaseUrl)) {
+            showUnconfiguredState();
+            return;
+        }
+
         if (isBackgroundRefresh) {
             var activeEl = document.activeElement;
             if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA')) {
@@ -1117,10 +1136,10 @@
             state.config = cfg;
             updatePortalLink(cfg && cfg.botBaseUrl);
 
-            if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim()) {
-                console.warn('[TwitchExt] Bot API Base URL is not configured in broadcaster settings!');
+            if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim() || !isValidHttpsUrl(cfg.botBaseUrl)) {
+                console.warn('[TwitchExt] Bot API Base URL is not configured or invalid in broadcaster settings!');
                 showAlert('error', '⚠️ Bot URL not configured. Broadcaster: Please set Bot API URL in Twitch Creator Dashboard.', 12000);
-                renderNavigationTabs();
+                showUnconfiguredState();
                 return;
             }
 

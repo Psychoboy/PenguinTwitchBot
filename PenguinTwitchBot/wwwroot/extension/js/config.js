@@ -135,6 +135,26 @@
         }
 
         var botUrl = (getInputValue('botBaseUrl', '') || '').trim();
+        if (botUrl.length > 0) {
+            try {
+                var parsedUrl = new URL(botUrl);
+                if (parsedUrl.protocol !== 'https:') {
+                    showAlert('error', '⚠️ Bot API Base URL must use HTTPS (e.g. https://yourdomain.com). HTTP endpoints are blocked by Twitch security.');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Configuration';
+                    }
+                    return;
+                }
+            } catch (_) {
+                showAlert('error', '⚠️ Please enter a valid HTTPS URL (e.g. https://yourdomain.com).');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Configuration';
+                }
+                return;
+            }
+        }
         var topCount = parseInt(getInputValue('leaderboardTopCount', 10), 10) || 10;
         var catchesCount = parseInt(getInputValue('recentCatchesCount', 15), 10) || 15;
         var intervalSec = parseInt(getInputValue('refreshIntervalSeconds', 30), 10) || 30;

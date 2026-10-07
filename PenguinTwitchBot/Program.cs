@@ -588,11 +588,13 @@ try
         string defaultPfxPath = Path.Combine(certsDir, "localhost.pfx");
         string defaultCaPath = Path.Combine(certsDir, "ca.crt");
 
+        var pfxPassword = context.Configuration["Kestrel:Certificates:Default:Password"] ?? "penguin";
+
         if (!File.Exists(defaultPfxPath))
         {
             try
             {
-                EnsureLocalhostCertificates(certsDir, defaultPfxPath, defaultCaPath);
+                EnsureLocalhostCertificates(certsDir, defaultPfxPath, defaultCaPath, pfxPassword);
             }
             catch (Exception ex)
             {
@@ -611,7 +613,7 @@ try
             {
                 options.ConfigureHttpsDefaults(httpsOptions =>
                 {
-                    httpsOptions.ServerCertificate = X509CertificateLoader.LoadPkcs12FromFile(pfxPath, "penguin");
+                    httpsOptions.ServerCertificate = X509CertificateLoader.LoadPkcs12FromFile(pfxPath, pfxPassword);
                 });
                 Log.Information("Using persistent localhost certificate from {Path}", pfxPath);
                 return;
@@ -627,7 +629,7 @@ try
         Log.Information("No HTTPS certificate was configured for Kestrel. An application-generated self-signed certificate will be used for the HTTPS endpoint.");
     }
 
-    private static void EnsureLocalhostCertificates(string certsDir, string pfxPath, string caPath)
+    private static void EnsureLocalhostCertificates(string certsDir, string pfxPath, string caPath, string pfxPassword)
     {
         Directory.CreateDirectory(certsDir);
 
@@ -679,7 +681,19 @@ try
         using var leafWithKey = leafCert.CopyWithPrivateKey(leafRsa);
 
         File.WriteAllText(caPath, caCert.ExportCertificatePem());
-        File.WriteAllBytes(pfxPath, leafWithKey.Export(X509ContentType.Pfx, "penguin"));
+        File.WriteAllBytes(pfxPath, leafWithKey.Export(X509ContentType.Pfx, pfxPassword));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                File.SetUnixFileMode(pfxPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to set Unix owner-only file permissions on {PfxPath}", pfxPath);
+            }
+        }
 
         Log.Information("Generated persistent localhost development certificate at {PfxPath} and root CA at {CaPath}", pfxPath, caPath);
     }

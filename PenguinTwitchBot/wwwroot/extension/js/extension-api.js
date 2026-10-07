@@ -85,8 +85,16 @@
 
     function getBaseUrl() {
         var cfg = getConfig();
-        if (cfg && cfg.botBaseUrl && cfg.botBaseUrl.trim().length > 0) {
-            return cfg.botBaseUrl.trim().replace(/\/+$/, '');
+        if (cfg && cfg.botBaseUrl && typeof cfg.botBaseUrl === 'string') {
+            var trimmed = cfg.botBaseUrl.trim().replace(/\/+$/, '');
+            try {
+                var parsed = new URL(trimmed);
+                if (parsed.protocol === 'https:') {
+                    return trimmed;
+                }
+            } catch (_) {
+                // Invalid URL format
+            }
         }
         return '';
     }
