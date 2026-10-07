@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <title>Penguin Twitch Bot</title>
+    <title>Penguin Bot</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./css/extension.css" />
     <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
@@ -12,11 +12,16 @@
         <!-- Panel Header -->
         <header class="panel-header">
             <div class="brand-title">
-                🐧 <span>PenguinBot</span>
+                🐧 <span>Penguin Bot</span>
             </div>
-            <div id="user-status-chip" class="user-chip" style="display: none;">
-                <span id="user-display-name">Viewer</span>
-                <span class="gold" id="user-header-gold">0g</span>
+            <div class="header-actions">
+                <div id="user-status-chip" class="user-chip" style="display: none;">
+                    <span id="user-display-name">Viewer</span>
+                    <span class="gold" id="user-header-gold">0g</span>
+                </div>
+                <a id="header-portal-link" class="header-link-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open Full Bot Web Interface" style="display: none;">
+                    🌐
+                </a>
             </div>
         </header>
 
@@ -73,6 +78,14 @@
                 <div class="loading-spinner">Loading commands...</div>
             </div>
         </main>
+        
+        <!-- Panel Footer -->
+        <footer id="panel-footer" class="panel-footer" style="display: none;">
+            <a id="web-portal-link" class="footer-portal-link" href="#" target="_blank" rel="noopener noreferrer">
+                <span>🌐 Open Full Web Interface</span>
+                <span class="external-icon">↗</span>
+            </a>
+        </footer>
     </div>
 
     <!-- Scripts -->

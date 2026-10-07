@@ -438,8 +438,45 @@
                 return;
             }
 
+            var isAuth = TwitchExtApi.isIdentityShared();
+            var viewerData = null;
+
+            if (isAuth) {
+                try {
+                    viewerData = await TwitchExtApi.getFishingViewer();
+                    updateHeaderUser(viewerData.username, viewerData.totalGold);
+                } catch (_) {}
+            }
+
             var html = '';
+
+            if (!isAuth) {
+                html += '<div class="identity-box" style="margin-bottom: 12px;">' +
+                    '<p>Share your Twitch ID to purchase items from the shop.</p>' +
+                    '<button id="btn-shop-link" class="btn-identity">Link Twitch Account</button>' +
+                    '</div>';
+            } else if (viewerData) {
+                html += '<div class="inventory-summary" style="margin-bottom: 12px;">' +
+                    '<span><strong>' + escapeHtml(viewerData.username) + '</strong></span>' +
+                    '<span class="gold-badge">🪙 ' + formatNumber(viewerData.totalGold) + ' Gold</span>' +
+                    '</div>';
+            }
+
             items.forEach(function (item) {
+                var isDisabled = false;
+                var buttonTitle = '';
+
+                if (!isAuth) {
+                    isDisabled = true;
+                    buttonTitle = 'Please link your Twitch account to buy items';
+                } else if (viewerData && viewerData.totalGold < item.cost) {
+                    isDisabled = true;
+                    buttonTitle = 'Not enough gold (costs ' + formatNumber(item.cost) + ' Gold)';
+                }
+
+                var disabledAttr = isDisabled ? ' disabled' : '';
+                var titleAttr = buttonTitle ? ' title="' + escapeHtml(buttonTitle) + '"' : '';
+
                 html += '<div class="item-card">' +
                     '<div class="item-header">' +
                     '<div>' +
@@ -453,12 +490,19 @@
                     (item.maxUses ? '<span>Max Uses: ' + item.maxUses + '</span>' : '') +
                     '</div>' +
                     '<div class="item-actions">' +
-                    '<button class="btn-sm btn-buy btn-buy-store" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '">Buy (1)</button>' +
+                    '<button class="btn-sm btn-buy btn-buy-store" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '"' + disabledAttr + titleAttr + '>Buy (1)</button>' +
                     '</div>' +
                     '</div>';
             });
 
             container.innerHTML = html;
+
+            var linkBtn = document.getElementById('btn-shop-link');
+            if (linkBtn) {
+                linkBtn.addEventListener('click', function () {
+                    TwitchExtApi.requestIdentityShare();
+                });
+            }
 
             container.querySelectorAll('.btn-buy-store').forEach(function (btn) {
                 btn.addEventListener('click', async function () {
@@ -744,9 +788,31 @@
         await refreshExtensionData();
     }
 
+    function updatePortalLink(baseUrl) {
+        var headerLink = document.getElementById('header-portal-link');
+        var footerEl = document.getElementById('panel-footer');
+        var footerLink = document.getElementById('web-portal-link');
+
+        if (baseUrl && baseUrl.trim().length > 0) {
+            var url = baseUrl.trim();
+            if (headerLink) {
+                headerLink.href = url;
+                headerLink.style.display = 'inline-flex';
+            }
+            if (footerEl && footerLink) {
+                footerLink.href = url;
+                footerEl.style.display = 'block';
+            }
+        } else {
+            if (headerLink) headerLink.style.display = 'none';
+            if (footerEl) footerEl.style.display = 'none';
+        }
+    }
+
     async function refreshExtensionData() {
         var cfg = TwitchExtApi.getConfig();
         state.config = cfg;
+        updatePortalLink(cfg && cfg.botBaseUrl);
 
         if (!cfg || !cfg.botBaseUrl || !cfg.botBaseUrl.trim()) {
             console.warn('[TwitchExt] Bot API Base URL is not configured in broadcaster settings!');
@@ -771,6 +837,10 @@
         state.config = cfg;
         refreshExtensionData();
         resetRefreshTimer();
+    });
+
+    TwitchExtApi.onAuthorized(function () {
+        refreshExtensionData();
     });
 
     TwitchExtApi.onReady(function () {

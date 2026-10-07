@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using PenguinTwitchBot.Bot;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Alias;
 using PenguinTwitchBot.Bot.Commands.Features;
@@ -125,7 +126,7 @@ public class TwitchExtensionController : ControllerBase
                 Rank: x.Rank,
                 Username: x.Name,
                 Score: x.Amount,
-                FormattedScore: FormatTimeSpan(x.Amount))).ToList();
+                FormattedScore: StaticTools.ConvertToCompoundDuration(Math.Max(0, x.Amount)))).ToList();
 
             return Ok(new ExtensionLeaderboardResponse("Watch Time", "Time Watched", response));
         }
@@ -550,15 +551,6 @@ public class TwitchExtensionController : ControllerBase
         return TwitchExtensionSecurity.ParseAndValidateToken(authHeader, _configuration, _logger);
     }
 
-    private static string FormatTimeSpan(double minutes)
-    {
-        var ts = TimeSpan.FromMinutes(minutes);
-        if (ts.TotalHours >= 1)
-        {
-            return $"{(int)ts.TotalHours}h {ts.Minutes}m";
-        }
-        return $"{ts.Minutes}m";
-    }
 
     private static string FormatBoostSummary(FishingShopItem? item)
     {

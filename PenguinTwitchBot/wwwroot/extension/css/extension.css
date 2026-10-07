@@ -98,6 +98,30 @@ body {
     color: var(--warning);
     font-weight: 600;
 }
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.header-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-decoration: none;
+    line-height: 1.4;
+    transition: all 0.15s ease;
+}
+.header-link-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--primary);
+    background: var(--bg-input);
+}
 
 /* Main Nav Tabs */
 .nav-tabs {
@@ -524,8 +548,15 @@ body {
     color: #000;
     font-weight: 700;
 }
-.btn-buy:hover {
+.btn-buy:hover:not(:disabled) {
     background: #00ffaa;
+}
+.btn-buy:disabled {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* Recent Catches Feed */
@@ -639,6 +670,38 @@ body {
     text-align: center;
     padding: 20px 0;
     color: var(--primary-light);
+    font-size: 11px;
+}
+
+/* Panel Footer */
+.panel-footer {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+.footer-portal-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: all 0.15s ease;
+}
+.footer-portal-link:hover {
+    color: var(--primary-light);
+    border-color: var(--primary);
+    background: var(--bg-input);
+}
+.footer-portal-link .external-icon {
     font-size: 11px;
 }
 

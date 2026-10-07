@@ -19,6 +19,7 @@
     var broadcasterConfig = null;
     var readyCallbacks = [];
     var configCallbacks = [];
+    var authCallbacks = [];
     var isReady = false;
 
     // Default configuration if broadcaster has not set one
@@ -143,6 +144,17 @@
         }
     }
 
+    function onAuthorized(cb) {
+        authCallbacks.push(cb);
+        if (jwt) {
+            try {
+                cb({ token: jwt, channelId: channelId, userId: userId, isIdentityShared: isIdentityShared });
+            } catch (e) {
+                console.error('[TwitchExt] onAuthorized error:', e);
+            }
+        }
+    }
+
     function triggerReady() {
         if (isReady) return;
         isReady = true;
@@ -154,6 +166,12 @@
     function triggerConfigChanged(cfg) {
         for (var i = 0; i < configCallbacks.length; i++) {
             try { configCallbacks[i](cfg); } catch (e) { console.error('[TwitchExt] Config listener error:', e); }
+        }
+    }
+
+    function triggerAuthorized(auth) {
+        for (var i = 0; i < authCallbacks.length; i++) {
+            try { authCallbacks[i](auth); } catch (e) { console.error('[TwitchExt] Auth listener error:', e); }
         }
     }
 
@@ -170,6 +188,7 @@
                 if (cfg && cfg.botBaseUrl) {
                     triggerConfigChanged(cfg);
                 }
+                triggerAuthorized(auth);
                 triggerReady();
             });
 
@@ -260,6 +279,7 @@
     return {
         onReady: onReady,
         onConfigLoaded: onConfigLoaded,
+        onAuthorized: onAuthorized,
         getConfig: getConfig,
         saveConfig: saveConfig,
         requestIdentityShare: requestIdentityShare,
