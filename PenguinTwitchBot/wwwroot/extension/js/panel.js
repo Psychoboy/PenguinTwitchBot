@@ -74,19 +74,17 @@
         if (trimmed.indexOf('//') === 0) {
             return 'https:' + trimmed;
         }
-        var baseUrl = TwitchExtApi.getBaseUrl();
         if (/^http:\/\//i.test(trimmed)) {
-            if (baseUrl) {
-                try {
-                    var parsed = new URL(trimmed);
-                    return baseUrl + parsed.pathname + parsed.search;
-                } catch (err) {
-                    console.debug('[TwitchExt] Error parsing http image URL:', err);
-                    return trimmed.replace(/^http:\/\//i, 'https://');
-                }
+            try {
+                var parsed = new URL(trimmed);
+                parsed.protocol = 'https:';
+                return parsed.toString();
+            } catch (err) {
+                console.debug('[TwitchExt] Error parsing http image URL:', err);
+                return trimmed.replace(/^http:\/\//i, 'https://');
             }
-            return trimmed.replace(/^http:\/\//i, 'https://');
         }
+        var baseUrl = TwitchExtApi.getBaseUrl();
         if (baseUrl) {
             if (trimmed.charAt(0) !== '/') {
                 trimmed = '/' + trimmed;

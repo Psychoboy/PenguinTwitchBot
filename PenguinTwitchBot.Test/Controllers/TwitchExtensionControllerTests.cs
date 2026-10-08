@@ -196,6 +196,27 @@ public class TwitchExtensionControllerTests
     }
 
     [Fact]
+    public async Task GetGiveaway_LeavesProtocolRelativeImageUrl_Unchanged()
+    {
+        _giveawayFeature.IsClosed().Returns(false);
+        _giveawayFeature.GetPrize().Returns("Keyboard");
+        _giveawayFeature.GetImageUrl().Returns("//cdn.example.com/keyboard.png");
+        _giveawayFeature.GetPointsPerEntry().Returns(50);
+        _giveawayFeature.GetRules().Returns(string.Empty);
+        _giveawayFeature.GetPrizeAdditionalDetails().Returns(string.Empty);
+
+        var controller = CreateController();
+        controller.ControllerContext.HttpContext.Request.Scheme = "https";
+        controller.ControllerContext.HttpContext.Request.Host = new Microsoft.AspNetCore.Http.HostString("bot.example.com");
+
+        var result = await controller.GetGiveaway();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ExtensionGiveawayResponse>(ok.Value);
+        Assert.Equal("//cdn.example.com/keyboard.png", response.ImageUrl);
+    }
+
+    [Fact]
     public async Task GetGiveawayViewer_ReturnsUnauthorized_WhenAuthHeaderIsMissing()
     {
         var controller = CreateController(authHeader: null);

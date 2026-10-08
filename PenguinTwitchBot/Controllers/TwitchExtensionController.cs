@@ -183,6 +183,7 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         var prize = await _giveawayFeature.GetPrize();
         var imageUrl = await _giveawayFeature.GetImageUrl();
         if (!string.IsNullOrWhiteSpace(imageUrl) &&
+            !imageUrl.StartsWith("//") &&
             (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
         {
             var relative = imageUrl.StartsWith('/') ? imageUrl : "/" + imageUrl;
