@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace PenguinTwitchBot.Bot.TwitchServices
@@ -21,16 +21,28 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         public async Task AddOrUpdateAppSetting<T>(string sectionPathKey, T value)
         {
             var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
-            await AddOrUpdateSettingInFile(sectionPathKey, value, filePath);
+            await AddOrUpdateSettingsInFile([new KeyValuePair<string, object?>(sectionPathKey, value)], filePath, $"updating setting '{sectionPathKey}'");
+        }
+
+        public async Task AddOrUpdateAppSettings(IEnumerable<KeyValuePair<string, object?>> settings)
+        {
+            var filePath = _configuration["Secrets:SecretsConf"] ?? throw new Exception("Invalid file configuration");
+            await AddOrUpdateSettingsInFile(settings, filePath, "updating batch settings");
         }
 
         public async Task AddOrUpdateMainAppSetting<T>(string sectionPathKey, T value)
         {
             var filePath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
-            await AddOrUpdateSettingInFile(sectionPathKey, value, filePath);
+            await AddOrUpdateSettingsInFile([new KeyValuePair<string, object?>(sectionPathKey, value)], filePath, $"updating main setting '{sectionPathKey}'");
         }
 
-        private async Task AddOrUpdateSettingInFile<T>(string sectionPathKey, T value, string filePath)
+        public async Task AddOrUpdateMainAppSettings(IEnumerable<KeyValuePair<string, object?>> settings)
+        {
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+            await AddOrUpdateSettingsInFile(settings, filePath, "updating batch main settings");
+        }
+
+        private async Task AddOrUpdateSettingsInFile(IEnumerable<KeyValuePair<string, object?>> settings, string filePath, string operationDescription)
         {
             var lockTaken = false;
             try
@@ -43,11 +55,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     string json = await File.ReadAllTextAsync(filePath);
                     var jsonObj = JsonConvert.DeserializeObject<JObject>(json) ?? throw new InvalidOperationException();
 
-                    SetValueRecursively(sectionPathKey, jsonObj, value);
+                    foreach (var kvp in settings)
+                    {
+                        SetValueRecursively(kvp.Key, jsonObj, kvp.Value);
+                    }
 
                     string output = Newtonsoft.Json.JsonConvert.SerializeObject(jsonObj, Newtonsoft.Json.Formatting.Indented);
                     await WriteSettingsFileAtomically(filePath, output);
-                }, $"updating setting '{sectionPathKey}'", filePath);
+                }, operationDescription, filePath);
             }
             catch (Exception ex)
             {

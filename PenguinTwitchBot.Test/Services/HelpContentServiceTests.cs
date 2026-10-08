@@ -28,7 +28,7 @@ public class HelpContentServiceTests
     }
 
     [Fact]
-    public async Task GetTopicAsync_BotAuth_ReturnsTopicWithThreeTabs()
+    public async Task GetTopicAsync_BotAuth_ReturnsTopicWithFourTabs()
     {
         var service = new HelpContentService(_env);
 
@@ -37,10 +37,11 @@ public class HelpContentServiceTests
         Assert.NotNull(topic);
         Assert.Equal("bot-auth", topic.Id);
         Assert.Equal("Bot Authentication Guide", topic.Title);
-        Assert.Equal(3, topic.Tabs.Count);
+        Assert.Equal(4, topic.Tabs.Count);
         Assert.Contains(topic.Tabs, t => t.Title == "Account Roles");
         Assert.Contains(topic.Tabs, t => t.Title == "Tokens & Refresh");
         Assert.Contains(topic.Tabs, t => t.Title == "Troubleshooting");
+        Assert.Contains(topic.Tabs, t => t.Title == "Twitch App & Extension");
     }
 
     [Fact]

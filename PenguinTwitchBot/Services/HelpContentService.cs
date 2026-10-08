@@ -25,7 +25,8 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             [
                 ("Account Roles", Icons.Material.Filled.People, "bot-auth/roles.md"),
                 ("Tokens & Refresh", Icons.Material.Filled.Autorenew, "bot-auth/tokens.md"),
-                ("Troubleshooting", Icons.Material.Filled.Build, "bot-auth/troubleshooting.md")
+                ("Troubleshooting", Icons.Material.Filled.Build, "bot-auth/troubleshooting.md"),
+                ("Twitch App & Extension", Icons.Material.Filled.Extension, "bot-auth/app-and-extension.md")
             ]
         ),
         ["integrations"] = (

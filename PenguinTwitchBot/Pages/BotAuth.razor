@@ -3,6 +3,7 @@
 @using PenguinTwitchBot.Bot.TwitchServices
 @using PenguinTwitchBot.Shared.Help
 @inject IConfiguration Configuration
+@inject SettingsFileManager SettingsFileManager
 @inject ITwitchService twitchService
 @inject ITwitchChatBot twitchChatBot
 @inject ISnackbar Snackbar
@@ -14,18 +15,17 @@
     <MudStack Spacing="4">
         <!-- Header -->
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
-            <MudStack Spacing="0">
+            <MudStack Spacing="1">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.Security" Color="Color.Primary" Size="Size.Large" />
                     <MudText Typo="Typo.h5"><b>Bot &amp; Streamer Authentication</b></MudText>
                 </MudStack>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    Manage Twitch OAuth connections, view active status, and refresh access tokens for both Streamer and Bot accounts.
+                    Manage Twitch OAuth connections, view active status, configure developer credentials, and refresh access tokens.
                 </MudText>
             </MudStack>
 
-            <MudStack Row="true" Spacing="2">
-                <HelpButton Topic="bot-auth" Text="Auth Guide" AsButton="true" />
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Default"
                            StartIcon="@Icons.Material.Filled.Refresh"
@@ -33,6 +33,7 @@
                            Disabled="_isRefreshing">
                     Refresh Status
                 </MudButton>
+                <HelpButton Topic="bot-auth" />
             </MudStack>
         </MudStack>
 
@@ -225,54 +226,157 @@
                 </MudPaper>
             </MudItem>
 
-            <!-- Twitch Application Diagnostic Info Card -->
+            <!-- Twitch Application & Extension Configuration Card -->
             <MudItem xs="12">
-                <MudPaper Elevation="1" Class="pa-4">
-                    <MudStack Spacing="2">
-                        <MudText Typo="Typo.subtitle1"><b>Twitch Developer Application Configuration</b></MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Configuration values loaded from your local bot settings and environment:
-                        </MudText>
+                <MudPaper Elevation="2" Class="pa-4 pa-md-5">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudAvatar Color="Color.Tertiary" Variant="Variant.Filled">
+                                    <MudIcon Icon="@Icons.Material.Filled.AppRegistration" />
+                                </MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.h6"><b>Twitch Developer Application &amp; Extension</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        Configure API credentials, channel identities, and Twitch Extension secrets stored in <code>appsettings.secrets.json</code>.
+                                    </MudText>
+                                </div>
+                            </MudStack>
 
-                        <MudGrid Spacing="2" Class="mt-1">
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Outlined="true" Class="pa-3">
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Twitch Client ID</MudText>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        @if (!string.IsNullOrWhiteSpace(_clientId))
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
-                                            <MudText Typo="Typo.body2" Style="font-family: monospace;">@MaskString(_clientId)</MudText>
-                                        }
-                                        else
-                                        {
-                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" />
-                                            <MudText Typo="Typo.body2" Color="Color.Error">Missing in configuration</MudText>
-                                        }
-                                    </MudStack>
-                                </MudPaper>
+                            <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                @if (!string.IsNullOrWhiteSpace(_clientId))
+                                {
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                        Client ID Configured
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                                        Missing Client ID
+                                    </MudChip>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(_clientSecret))
+                                {
+                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                        Client Secret Configured
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Warning">
+                                        Missing Client Secret
+                                    </MudChip>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(_extensionSecret))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.Extension">
+                                        Extension Secret Active
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small" Icon="@Icons.Material.Filled.ExtensionOff">
+                                        Extension Secret Not Set
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudStack>
+
+                        <MudDivider />
+
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="my-1">
+                            Updating credentials writes directly to <code>appsettings.secrets.json</code>. Twitch Extension secrets take effect immediately via hot-reload. Modifying Client ID or Channel names may require re-authenticating above or restarting Penguin Bot.
+                        </MudAlert>
+
+                        <MudGrid Spacing="3">
+                            <!-- Broadcaster Channel -->
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_broadcasterNameInput"
+                                              Label="Broadcaster Channel Name"
+                                              HelperText="Your Twitch username / channel name (e.g. superpenguintv)"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.LiveTv"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true" />
                             </MudItem>
 
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Outlined="true" Class="pa-3">
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configured Broadcaster</MudText>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" Size="Size.Small" />
-                                        <MudText Typo="Typo.body2">@(_broadcasterName ?? "None configured")</MudText>
-                                    </MudStack>
-                                </MudPaper>
+                            <!-- Bot Username -->
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_botUsernameInput"
+                                              Label="Bot Account Username"
+                                              HelperText="The Twitch username of your bot account (e.g. super_waffle_bot)"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.SmartToy"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true" />
                             </MudItem>
 
-                            <MudItem xs="12" sm="4">
-                                <MudPaper Outlined="true" Class="pa-3">
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Configured Bot Name</MudText>
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                        <MudIcon Icon="@Icons.Material.Filled.SmartToy" Color="Color.Secondary" Size="Size.Small" />
-                                        <MudText Typo="Typo.body2">@(_botUsername ?? "None configured")</MudText>
-                                    </MudStack>
-                                </MudPaper>
+                            <!-- Twitch Client ID -->
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_clientIdInput"
+                                              Label="Twitch Application Client ID"
+                                              HelperText="From Twitch Developer Console -> Manage Application"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Key"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true" />
+                            </MudItem>
+
+                            <!-- Twitch Client Secret -->
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_clientSecretInput"
+                                              Label="Twitch Application Client Secret"
+                                              HelperText="Generated client secret for your Twitch Developer Application"
+                                              InputType="@(_showClientSecret ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(_showClientSecret ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                              OnAdornmentClick="@(() => _showClientSecret = !_showClientSecret)"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true" />
+                            </MudItem>
+
+                            <!-- Twitch Extension Secret -->
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_extensionSecretInput"
+                                              Label="Twitch Extension Shared Secret"
+                                              HelperText="Base64-encoded secret from Twitch Developer Console -> Extensions -> Extension Configuration. Used to verify extension JWT tokens."
+                                              InputType="@(_showExtensionSecret ? InputType.Text : InputType.Password)"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@(_showExtensionSecret ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                              OnAdornmentClick="@(() => _showExtensionSecret = !_showExtensionSecret)"
+                                              Validation="@(new Func<string, string?>(ValidateExtensionSecretInput))"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true" />
                             </MudItem>
                         </MudGrid>
+
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-2">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Default"
+                                       StartIcon="@Icons.Material.Filled.Undo"
+                                       OnClick="ResetSettingsInputs"
+                                       Disabled="_isSavingSettings">
+                                Reset
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="SaveTwitchAppSettingsAsync"
+                                       Disabled="_isSavingSettings">
+                                @if (_isSavingSettings)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <span>Save Configuration</span>
+                                }
+                            </MudButton>
+                        </MudStack>
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -285,6 +389,9 @@
     private bool _isValidatingStreamer;
     private bool _isRefreshingBot;
     private bool _isSendingPing;
+    private bool _isSavingSettings;
+    private bool _showClientSecret;
+    private bool _showExtensionSecret;
 
     private bool _isStreamerUp;
     private TwitchServiceStatus _streamerStatus = TwitchServiceStatus.Unknown;
@@ -292,18 +399,40 @@
     private string? _broadcasterUserId;
     private string? _botUsername;
     private string? _clientId;
+    private string? _clientSecret;
+    private string? _extensionSecret;
     private bool _isBotTokenValid;
+
+    private string? _broadcasterNameInput;
+    private string? _botUsernameInput;
+    private string? _clientIdInput;
+    private string? _clientSecretInput;
+    private string? _extensionSecretInput;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadStateAsync();
+        await LoadStateAsync(initializeInputs: true);
     }
 
-    private async Task LoadStateAsync()
+    private async Task LoadStateAsync(bool initializeInputs = false)
     {
         _broadcasterName = Configuration["broadcaster"];
         _botUsername = Configuration["botName"];
         _clientId = Configuration["twitchClientId"];
+        _clientSecret = Configuration["twitchClientSecret"];
+        _extensionSecret = Configuration["TwitchExtension:Secret"]
+            ?? Configuration["Twitch:Extension:Secret"]
+            ?? Configuration["Twitch:ExtensionSecret"]
+            ?? Configuration["twitchExtensionSecret"];
+
+        if (initializeInputs)
+        {
+            _broadcasterNameInput = _broadcasterName;
+            _botUsernameInput = _botUsername;
+            _clientIdInput = _clientId;
+            _clientSecretInput = _clientSecret;
+            _extensionSecretInput = _extensionSecret;
+        }
 
         try
         {
@@ -330,9 +459,85 @@
     private async Task RefreshStatusesAsync()
     {
         _isRefreshing = true;
-        await LoadStateAsync();
+        await LoadStateAsync(initializeInputs: false);
         _isRefreshing = false;
         Snackbar.Add("Authentication status updated.", Severity.Info);
+    }
+
+    private void ResetSettingsInputs()
+    {
+        _broadcasterNameInput = _broadcasterName;
+        _botUsernameInput = _botUsername;
+        _clientIdInput = _clientId;
+        _clientSecretInput = _clientSecret;
+        _extensionSecretInput = _extensionSecret;
+        Snackbar.Add("Form reset to currently loaded configuration.", Severity.Info);
+    }
+
+    private static string? ValidateExtensionSecretInput(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            var decoded = Convert.FromBase64String(value.Trim());
+            if (decoded.Length < 16)
+            {
+                return "Extension secret must decode to at least 16 bytes (128 bits).";
+            }
+            return null;
+        }
+        catch (FormatException)
+        {
+            return "Extension secret must be a valid Base64 string.";
+        }
+    }
+
+    private async Task SaveTwitchAppSettingsAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_extensionSecretInput) && ValidateExtensionSecretInput(_extensionSecretInput) != null)
+        {
+            Snackbar.Add("Extension secret must be a valid Base64 string of at least 16 bytes before saving.", Severity.Error);
+            return;
+        }
+
+        _isSavingSettings = true;
+        try
+        {
+            var trimmedBroadcaster = _broadcasterNameInput?.Trim() ?? string.Empty;
+            var trimmedBotName = _botUsernameInput?.Trim() ?? string.Empty;
+            var trimmedClientId = _clientIdInput?.Trim() ?? string.Empty;
+            var trimmedClientSecret = _clientSecretInput?.Trim() ?? string.Empty;
+            var trimmedExtensionSecret = _extensionSecretInput?.Trim() ?? string.Empty;
+
+            await SettingsFileManager.AddOrUpdateAppSettings(new KeyValuePair<string, object?>[]
+            {
+                new("broadcaster", trimmedBroadcaster),
+                new("botName", trimmedBotName),
+                new("twitchClientId", trimmedClientId),
+                new("twitchClientSecret", trimmedClientSecret),
+                new("TwitchExtension:Secret", trimmedExtensionSecret)
+            });
+
+            _broadcasterName = trimmedBroadcaster;
+            _botUsername = trimmedBotName;
+            _clientId = trimmedClientId;
+            _clientSecret = trimmedClientSecret;
+            _extensionSecret = trimmedExtensionSecret;
+
+            Snackbar.Add("Twitch application and extension settings saved to appsettings.secrets.json.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving settings: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSavingSettings = false;
+        }
     }
 
     private async Task ValidateStreamerTokenAsync()
@@ -341,7 +546,7 @@
         try
         {
             var valid = await twitchService.ValidateAndRefreshToken();
-            await LoadStateAsync();
+            await LoadStateAsync(initializeInputs: false);
             if (valid)
             {
                 Snackbar.Add("Streamer token validated and active.", Severity.Success);
@@ -367,7 +572,7 @@
         try
         {
             var result = await twitchChatBot.RefreshAccessToken();
-            await LoadStateAsync();
+            await LoadStateAsync(initializeInputs: false);
             if (result)
             {
                 Snackbar.Add("Bot access token refreshed successfully.", Severity.Success);
