@@ -64,6 +64,36 @@
         }
     }
 
+    function resolveImageUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        var trimmed = url.trim();
+        if (!trimmed) return '';
+        if (/^https:\/\//i.test(trimmed)) {
+            return trimmed;
+        }
+        if (trimmed.indexOf('//') === 0) {
+            return 'https:' + trimmed;
+        }
+        if (/^http:\/\//i.test(trimmed)) {
+            try {
+                var parsed = new URL(trimmed);
+                parsed.protocol = 'https:';
+                return parsed.toString();
+            } catch (err) {
+                console.debug('[TwitchExt] Error parsing http image URL:', err);
+                return trimmed.replace(/^http:\/\//i, 'https://');
+            }
+        }
+        var baseUrl = TwitchExtApi.getBaseUrl();
+        if (baseUrl) {
+            if (trimmed.charAt(0) !== '/') {
+                trimmed = '/' + trimmed;
+            }
+            return baseUrl + trimmed;
+        }
+        return trimmed;
+    }
+
     function formatNumber(val) {
         if (!Number.isFinite(val)) return '0';
         return val.toLocaleString();
@@ -304,8 +334,9 @@
     function buildGiveawayHtml(g, v) {
         var html = '<div class="card giveaway-card">';
 
-        if (g.imageUrl) {
-            html += '<div class="giveaway-image-wrapper"><img src="' + escapeHtml(g.imageUrl) + '" class="giveaway-image" alt="Prize" /></div>';
+        var resolvedImageUrl = resolveImageUrl(g.imageUrl);
+        if (resolvedImageUrl) {
+            html += '<div class="giveaway-image-wrapper"><img src="' + escapeHtml(resolvedImageUrl) + '" class="giveaway-image" alt="Prize" onerror="this.parentElement.style.display=\'none\';" /></div>';
         }
 
         html += '<div class="prize-title">' + escapeHtml(g.prize || 'No Active Giveaway') + '</div>';
