@@ -40,7 +40,7 @@ Enter the credentials in Penguin Bot under **Bot & Streamer Authentication**:
 If you use a custom Twitch Extension for overlays or interactive panels:
 
 1. Navigate to your extension in the [Twitch Developer Console](https://dev.twitch.tv/console/extensions).
-2. Go to **Extension Configuration** or **Extension Details** to find the **Shared Secret**.
+2. Go to **Settings → Secret Keys** or **Extension Client Configuration → Key** to find the **Shared Secret**.
 3. Copy the 256-bit **Base64-encoded secret** string.
 4. Paste it into the **Twitch Extension Secret** field and click **Save Configuration**.
 

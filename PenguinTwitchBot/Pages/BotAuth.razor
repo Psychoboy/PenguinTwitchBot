@@ -411,24 +411,28 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadStateAsync();
+        await LoadStateAsync(initializeInputs: true);
     }
 
-    private async Task LoadStateAsync()
+    private async Task LoadStateAsync(bool initializeInputs = false)
     {
         _broadcasterName = Configuration["broadcaster"];
         _botUsername = Configuration["botName"];
         _clientId = Configuration["twitchClientId"];
         _clientSecret = Configuration["twitchClientSecret"];
         _extensionSecret = Configuration["TwitchExtension:Secret"]
+            ?? Configuration["Twitch:Extension:Secret"]
             ?? Configuration["Twitch:ExtensionSecret"]
-            ?? Configuration["TwitchExtensionSecret"];
+            ?? Configuration["twitchExtensionSecret"];
 
-        _broadcasterNameInput = _broadcasterName;
-        _botUsernameInput = _botUsername;
-        _clientIdInput = _clientId;
-        _clientSecretInput = _clientSecret;
-        _extensionSecretInput = _extensionSecret;
+        if (initializeInputs)
+        {
+            _broadcasterNameInput = _broadcasterName;
+            _botUsernameInput = _botUsername;
+            _clientIdInput = _clientId;
+            _clientSecretInput = _clientSecret;
+            _extensionSecretInput = _extensionSecret;
+        }
 
         try
         {
@@ -455,7 +459,7 @@
     private async Task RefreshStatusesAsync()
     {
         _isRefreshing = true;
-        await LoadStateAsync();
+        await LoadStateAsync(initializeInputs: false);
         _isRefreshing = false;
         Snackbar.Add("Authentication status updated.", Severity.Info);
     }
@@ -479,7 +483,11 @@
 
         try
         {
-            _ = Convert.FromBase64String(value.Trim());
+            var decoded = Convert.FromBase64String(value.Trim());
+            if (decoded.Length < 16)
+            {
+                return "Extension secret must decode to at least 16 bytes (128 bits).";
+            }
             return null;
         }
         catch (FormatException)
@@ -492,7 +500,7 @@
     {
         if (!string.IsNullOrWhiteSpace(_extensionSecretInput) && ValidateExtensionSecretInput(_extensionSecretInput) != null)
         {
-            Snackbar.Add("Extension secret must be a valid Base64 string before saving.", Severity.Error);
+            Snackbar.Add("Extension secret must be a valid Base64 string of at least 16 bytes before saving.", Severity.Error);
             return;
         }
 
@@ -505,11 +513,14 @@
             var trimmedClientSecret = _clientSecretInput?.Trim() ?? string.Empty;
             var trimmedExtensionSecret = _extensionSecretInput?.Trim() ?? string.Empty;
 
-            await SettingsFileManager.AddOrUpdateAppSetting("broadcaster", trimmedBroadcaster);
-            await SettingsFileManager.AddOrUpdateAppSetting("botName", trimmedBotName);
-            await SettingsFileManager.AddOrUpdateAppSetting("twitchClientId", trimmedClientId);
-            await SettingsFileManager.AddOrUpdateAppSetting("twitchClientSecret", trimmedClientSecret);
-            await SettingsFileManager.AddOrUpdateAppSetting("TwitchExtension:Secret", trimmedExtensionSecret);
+            await SettingsFileManager.AddOrUpdateAppSettings(new KeyValuePair<string, object?>[]
+            {
+                new("broadcaster", trimmedBroadcaster),
+                new("botName", trimmedBotName),
+                new("twitchClientId", trimmedClientId),
+                new("twitchClientSecret", trimmedClientSecret),
+                new("TwitchExtension:Secret", trimmedExtensionSecret)
+            });
 
             _broadcasterName = trimmedBroadcaster;
             _botUsername = trimmedBotName;
@@ -535,7 +546,7 @@
         try
         {
             var valid = await twitchService.ValidateAndRefreshToken();
-            await LoadStateAsync();
+            await LoadStateAsync(initializeInputs: false);
             if (valid)
             {
                 Snackbar.Add("Streamer token validated and active.", Severity.Success);
@@ -561,7 +572,7 @@
         try
         {
             var result = await twitchChatBot.RefreshAccessToken();
-            await LoadStateAsync();
+            await LoadStateAsync(initializeInputs: false);
             if (result)
             {
                 Snackbar.Add("Bot access token refreshed successfully.", Severity.Success);
