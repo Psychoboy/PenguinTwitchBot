@@ -210,18 +210,32 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
     public async Task<IActionResult> GetGiveawayViewer()
     {
         var claims = GetClaims();
-        if (claims == null || !claims.HasUserId)
+        if (claims == null)
         {
-            return Unauthorized(new { error = "identity_required", message = "Please grant identity permission to view giveaway balance." });
+            return Unauthorized(new { error = "auth_required", message = "Missing or invalid authorization token." });
+        }
+
+        var pointsPerEntry = await _giveawayFeature.GetPointsPerEntry();
+        if (!claims.HasUserId)
+        {
+            return Ok(new ExtensionGiveawayViewerResponse(
+                Username: string.Empty,
+                UserTickets: 0,
+                UserEntries: 0,
+                PointsPerEntry: pointsPerEntry,
+                MaxAffordableEntries: 0));
         }
 
         var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(claims.UserId!, _viewerFeature, _twitchService, _logger);
         if (viewer == null)
         {
-            return NotFound(new { error = "viewer_not_found", message = "Viewer record not found." });
+            return Ok(new ExtensionGiveawayViewerResponse(
+                Username: string.Empty,
+                UserTickets: 0,
+                UserEntries: 0,
+                PointsPerEntry: pointsPerEntry,
+                MaxAffordableEntries: 0));
         }
-
-        var pointsPerEntry = await _giveawayFeature.GetPointsPerEntry();
         var userTickets = (await _pointsSystem.GetUserPointsByUsernameAndGame(viewer.Username, "GiveawayFeature")).Points;
         var userEntries = await _giveawayFeature.GetEntriesCount(viewer.Username);
         var maxAffordable = pointsPerEntry > 0 ? userTickets / pointsPerEntry : 0;
@@ -349,9 +363,17 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
     public async Task<IActionResult> GetFishingViewer()
     {
         var claims = GetClaims();
-        if (claims == null || !claims.HasUserId)
+        if (claims == null)
         {
-            return Unauthorized(new { error = "identity_required", message = "Please grant identity permission to view fishing inventory." });
+            return Unauthorized(new { error = "auth_required", message = "Missing or invalid authorization token." });
+        }
+
+        if (!claims.HasUserId)
+        {
+            return Ok(new ExtensionFishingViewerResponse(
+                Username: string.Empty,
+                TotalGold: 0,
+                Items: new List<ExtensionUserFishingBoostResponse>()));
         }
 
         var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(claims.UserId!, _viewerFeature, _twitchService, _logger);
