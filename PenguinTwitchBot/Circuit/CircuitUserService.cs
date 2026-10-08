@@ -37,16 +37,20 @@ namespace PenguinTwitchBot.Circuit
                 };
                 Circuits[CircuitId] = circuitUser;
             }
-            try
-            {
-                await ipLog.LogInteractionAsync(UserName, userId, userIp);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error logging IP for {UserName} ({UserId})", UserName, userId);
-            }
             logger.LogInformation("{userId} connected to web interface. Ip: {ip}", UserName, userIp);
             OnCircuitsChanged();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await ipLog.LogInteractionAsync(UserName, userId, userIp);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error logging IP for {UserName} ({UserId})", UserName, userId);
+                }
+            });
         }
 
         public void Disconnect(string CircuitId)

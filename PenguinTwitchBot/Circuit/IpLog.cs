@@ -1,7 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using PenguinTwitchBot.Database.Bot.Models.IpLogs;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
@@ -40,19 +42,27 @@ namespace PenguinTwitchBot.Circuit
                 return;
             }
 
+            var cacheKey = GetCacheKey(userId, ipAddress);
             if (IsInteractionCached(userId, ipAddress))
             {
                 return;
             }
 
-            var writeSucceeded = await AddLogEntry(username, userId, ipAddress);
-            if (writeSucceeded && memoryCache != null)
+            var options = new MemoryCacheEntryOptions
             {
-                var options = new MemoryCacheEntryOptions
-                {
-                    SlidingExpiration = cacheDuration ?? DefaultSlidingCacheDuration
-                };
-                memoryCache.Set(GetCacheKey(userId, ipAddress), true, options);
+                SlidingExpiration = cacheDuration ?? DefaultSlidingCacheDuration
+            };
+
+            // Set cache immediately to throttle concurrent requests within the same burst/page load
+            if (memoryCache != null)
+            {
+                memoryCache.Set(cacheKey, true, options);
+            }
+
+            var writeSucceeded = await AddLogEntry(username, userId, ipAddress);
+            if (!writeSucceeded && memoryCache != null)
+            {
+                memoryCache.Remove(cacheKey);
             }
         }
 
@@ -102,52 +112,82 @@ namespace PenguinTwitchBot.Circuit
             }
         }
 
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _userIpLocks = new(StringComparer.OrdinalIgnoreCase);
+
         private async Task<bool> AddOrUpdateIpEntry(string username, string userId, string ipAddress)
         {
+            var lockKey = $"{userId}:{ipAddress}";
+            var semaphore = _userIpLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
             try
             {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var matchingEntries = await db.IpLogs.Find(x => x.UserId == userId && x.Ip == ipAddress).ToListAsync();
-                if (matchingEntries.Count > 0)
+                for (int attempt = 1; attempt <= 2; attempt++)
                 {
-                    var existingEntry = matchingEntries[0];
-                    existingEntry.ConnectedDate = DateTime.UtcNow;
-                    existingEntry.Count++;
-                    if (!string.Equals(existingEntry.Username, username, StringComparison.Ordinal))
+                    try
                     {
-                        existingEntry.Username = username;
-                    }
-
-                    if (matchingEntries.Count > 1)
-                    {
-                        for (int i = 1; i < matchingEntries.Count; i++)
+                        await using var scope = scopeFactory.CreateAsyncScope();
+                        var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                        var matchingEntries = await db.IpLogs.Find(x => x.UserId == userId && x.Ip == ipAddress).ToListAsync();
+                        if (matchingEntries.Count > 0)
                         {
-                            existingEntry.Count += matchingEntries[i].Count;
-                            db.IpLogs.Remove(matchingEntries[i]);
-                        }
-                    }
+                            var existingEntry = matchingEntries[0];
+                            existingEntry.ConnectedDate = DateTime.UtcNow;
+                            existingEntry.Count++;
+                            if (!string.Equals(existingEntry.Username, username, StringComparison.Ordinal))
+                            {
+                                existingEntry.Username = username;
+                            }
 
-                    db.IpLogs.Update(existingEntry);
-                }
-                else
-                {
-                    await db.IpLogs.AddAsync(new IpLogEntry
+                            if (matchingEntries.Count > 1)
+                            {
+                                for (int i = 1; i < matchingEntries.Count; i++)
+                                {
+                                    existingEntry.Count += matchingEntries[i].Count;
+                                    db.IpLogs.Remove(matchingEntries[i]);
+                                }
+                            }
+
+                            db.IpLogs.Update(existingEntry);
+                        }
+                        else
+                        {
+                            await db.IpLogs.AddAsync(new IpLogEntry
+                            {
+                                Username = username,
+                                Ip = ipAddress,
+                                UserId = userId,
+                                Count = 1,
+                                ConnectedDate = DateTime.UtcNow
+                            });
+                        }
+                        await db.SaveChangesAsync();
+                        return true;
+                    }
+                    catch (DbUpdateConcurrencyException ex) when (attempt < 2)
                     {
-                        Username = username,
-                        Ip = ipAddress,
-                        UserId = userId,
-                        Count = 1,
-                        ConnectedDate = DateTime.UtcNow
-                    });
+                        logger.LogDebug(ex, "Concurrency conflict updating IP log entry for user {Username} ({UserId}) at IP {IpAddress}. Retrying...", username, userId, ipAddress);
+                        await Task.Delay(50);
+                    }
+                    catch (DbUpdateConcurrencyException ex)
+                    {
+                        logger.LogDebug(ex, "Concurrency conflict updating IP log entry for user {Username} ({UserId}) at IP {IpAddress} resolved by concurrent update", username, userId, ipAddress);
+                        return true;
+                    }
                 }
-                await db.SaveChangesAsync();
-                return true;
+                return false;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to add or update IP log entry for user {Username} ({UserId}) at IP {IpAddress}", username, userId, ipAddress);
                 return false;
+            }
+            finally
+            {
+                semaphore.Release();
+                if (semaphore.CurrentCount == 1)
+                {
+                    _userIpLocks.TryRemove(new KeyValuePair<string, SemaphoreSlim>(lockKey, semaphore));
+                }
             }
         }
 

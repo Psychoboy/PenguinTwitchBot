@@ -75,10 +75,29 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         _logger = logger;
     }
 
+    // Used for unit tests
+    internal Task? LastTrackingTask { get; private set; }
+
     [NonAction]
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        await TrackExtensionUserInteractionAsync();
+        try
+        {
+            var claims = GetClaims();
+            var clientIp = GetClientIpAddress();
+            if (claims != null && claims.HasUserId && !string.IsNullOrWhiteSpace(clientIp))
+            {
+                if (!_ipLog.IsInteractionCached(claims.UserId!, clientIp))
+                {
+                    LastTrackingTask = Task.Run(() => TrackExtensionUserInteractionAsync(claims.UserId!, clientIp));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to initiate IP interaction tracking for Twitch extension request");
+        }
+
         await next();
     }
 
@@ -613,35 +632,23 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         return parsed;
     }
 
-    private async Task TrackExtensionUserInteractionAsync()
+    private async Task TrackExtensionUserInteractionAsync(string userId, string clientIp)
     {
         try
         {
-            var claims = GetClaims();
-            if (claims == null || !claims.HasUserId)
-            {
-                return;
-            }
-
-            var clientIp = GetClientIpAddress();
-            if (string.IsNullOrWhiteSpace(clientIp))
-            {
-                return;
-            }
-
-            if (_ipLog.IsInteractionCached(claims.UserId!, clientIp))
+            if (_ipLog.IsInteractionCached(userId, clientIp))
             {
                 return;
             }
 
             var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(
-                claims.UserId!,
+                userId,
                 _viewerFeature,
                 _twitchService,
                 _logger);
 
-            var username = viewer?.Username ?? claims.UserId!;
-            await _ipLog.LogInteractionAsync(username, claims.UserId!, clientIp);
+            var username = viewer?.Username ?? userId;
+            await _ipLog.LogInteractionAsync(username, userId, clientIp);
         }
         catch (Exception ex)
         {
