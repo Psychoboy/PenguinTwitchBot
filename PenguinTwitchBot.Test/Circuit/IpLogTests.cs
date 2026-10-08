@@ -256,5 +256,25 @@ namespace PenguinTwitchBot.Test.Circuit
 
             Assert.False(ipLog.IsInteractionCached("12345", "192.168.1.1"));
         }
+
+        [Fact]
+        public async Task LogInteractionAsync_HandlesConcurrentRequests_SafelyWithoutConcurrencyExceptions()
+        {
+            using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+            var scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();
+            var cachedIpLog = new IpLog(_logger, scopeFactory, _retentionSettings, memoryCache);
+
+            // Fire 10 concurrent requests at the same instant for the same user and IPv6 address
+            var tasks = Enumerable.Range(0, 10).Select(_ =>
+                cachedIpLog.LogInteractionAsync("superpenguintv", "57135261", "2001:579:8160:2100:79ba:3390:649f:caa7")
+            );
+
+            await Task.WhenAll(tasks);
+
+            var entries = await _context.IpLogEntrys.Where(x => x.UserId == "57135261" && x.Ip == "2001:579:8160:2100:79ba:3390:649f:caa7").ToListAsync();
+            Assert.Single(entries);
+            Assert.Equal("superpenguintv", entries[0].Username);
+            Assert.True(cachedIpLog.IsInteractionCached("57135261", "2001:579:8160:2100:79ba:3390:649f:caa7"));
+        }
     }
 }

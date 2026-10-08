@@ -432,6 +432,11 @@ public class TwitchExtensionControllerTests
             return Task.FromResult(new ActionExecutedContext(controller.ControllerContext, new List<IFilterMetadata>(), controller));
         });
 
+        if (controller.LastTrackingTask != null)
+        {
+            await controller.LastTrackingTask;
+        }
+
         Assert.True(executed);
         await _ipLog.Received(1).LogInteractionAsync("cooluser", "67890", "192.168.1.100");
     }
