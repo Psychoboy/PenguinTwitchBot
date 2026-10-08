@@ -211,14 +211,37 @@
         });
     }
 
+    function parseJwtPayload(token) {
+        try {
+            if (!token || typeof token !== 'string') return null;
+            var parts = token.split('.');
+            if (parts.length !== 3) return null;
+            var base64Url = parts[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (_) {
+            return null;
+        }
+    }
+
     function initTwitchHooks() {
         var ext = getTwitchExt();
         if (ext) {
             ext.onAuthorized(function (auth) {
                 jwt = auth.token;
                 channelId = auth.channelId;
-                userId = auth.userId;
-                isIdentityShared = Boolean(userId && !userId.startsWith('A'));
+
+                var payload = parseJwtPayload(jwt);
+                var tokenUserId = (payload && payload.user_id) ? String(payload.user_id) : null;
+                var extViewerLinked = Boolean(ext.viewer && ext.viewer.isLinked);
+                var hasSharedUserId = Boolean((tokenUserId && !tokenUserId.startsWith('A') && !tokenUserId.startsWith('U')) ||
+                    (auth.userId && !auth.userId.startsWith('A') && !auth.userId.startsWith('U')));
+
+                isIdentityShared = Boolean(extViewerLinked || hasSharedUserId);
+                userId = (isIdentityShared && tokenUserId) ? tokenUserId : ((ext.viewer && ext.viewer.id) ? String(ext.viewer.id) : auth.userId);
 
                 var cfg = parseBroadcasterConfig();
                 if (cfg && cfg.botBaseUrl) {

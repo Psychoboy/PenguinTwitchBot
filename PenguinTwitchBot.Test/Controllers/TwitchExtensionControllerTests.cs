@@ -94,16 +94,19 @@ public class TwitchExtensionControllerTests
         return controller;
     }
 
-    private static string GenerateTestJwt(string channelId, string userId, string? secretBase64 = null, DateTime? expires = null)
+    private static string GenerateTestJwt(string channelId, string? userId = null, string? secretBase64 = null, DateTime? expires = null)
     {
         var handler = new JwtSecurityTokenHandler();
         var claims = new List<Claim>
         {
             new("channel_id", channelId),
-            new("user_id", userId),
-            new("opaque_user_id", "U" + userId),
+            new("opaque_user_id", "U" + (userId ?? "anon12345")),
             new("role", "viewer")
         };
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            claims.Add(new("user_id", userId));
+        }
 
         SigningCredentials? credentials = null;
         var keyToUse = secretBase64 ?? TestSecretBase64;
@@ -285,6 +288,41 @@ public class TwitchExtensionControllerTests
         Assert.Equal(2, response.UserEntries);
         Assert.Equal(50, response.PointsPerEntry);
         Assert.Equal(5, response.MaxAffordableEntries); // 250 / 50 = 5
+    }
+
+    [Fact]
+    public async Task GetGiveawayViewer_ReturnsZeroBalance_WhenViewerIdentityNotShared()
+    {
+        var jwt = GenerateTestJwt("12345", userId: null);
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+        _giveawayFeature.GetPointsPerEntry().Returns(50);
+
+        var result = await controller.GetGiveawayViewer();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ExtensionGiveawayViewerResponse>(ok.Value);
+
+        Assert.Equal(string.Empty, response.Username);
+        Assert.Equal(0, response.UserTickets);
+        Assert.Equal(0, response.UserEntries);
+        Assert.Equal(50, response.PointsPerEntry);
+        Assert.Equal(0, response.MaxAffordableEntries);
+    }
+
+    [Fact]
+    public async Task GetFishingViewer_ReturnsEmptyInventory_WhenViewerIdentityNotShared()
+    {
+        var jwt = GenerateTestJwt("12345", userId: null);
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+
+        var result = await controller.GetFishingViewer();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<ExtensionFishingViewerResponse>(ok.Value);
+
+        Assert.Equal(string.Empty, response.Username);
+        Assert.Equal(0, response.TotalGold);
+        Assert.Empty(response.Items);
     }
 
     [Fact]
