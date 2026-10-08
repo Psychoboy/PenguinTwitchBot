@@ -184,10 +184,6 @@ namespace PenguinTwitchBot.Circuit
             finally
             {
                 semaphore.Release();
-                if (semaphore.CurrentCount == 1)
-                {
-                    _userIpLocks.TryRemove(new KeyValuePair<string, SemaphoreSlim>(lockKey, semaphore));
-                }
             }
         }
 
