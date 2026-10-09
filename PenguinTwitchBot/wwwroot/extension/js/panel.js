@@ -580,13 +580,22 @@
                 }
                 html += '</div>';
 
-                // Action buttons: Equip / Unequip
-                if (item.equipmentSlot) {
+                // Action buttons: Equip / Unequip / Repair
+                var hasActions = item.equipmentSlot || item.canRepair;
+                if (hasActions) {
                     html += '<div class="item-actions">';
-                    if (isEquipped) {
-                        html += '<button class="btn-sm btn-unequip btn-item-action" data-action="unequip" data-id="' + item.id + '">Unequip</button>';
-                    } else {
-                        html += '<button class="btn-sm btn-equip btn-item-action" data-action="equip" data-id="' + item.id + '">Equip</button>';
+                    if (item.equipmentSlot) {
+                        if (isEquipped) {
+                            html += '<button class="btn-sm btn-unequip btn-item-action" data-action="unequip" data-id="' + item.id + '">Unequip</button>';
+                        } else {
+                            html += '<button class="btn-sm btn-equip btn-item-action" data-action="equip" data-id="' + item.id + '">Equip</button>';
+                        }
+                    }
+                    if (item.canRepair && item.repairCost != null) {
+                        var notEnoughGold = (viewer.totalGold < item.repairCost);
+                        html += '<button class="btn-sm btn-repair btn-item-action" data-action="repair" data-id="' + item.id + '"' +
+                            (notEnoughGold ? ' disabled title="Not enough gold to repair"' : '') +
+                            '>Repair (' + formatNumber(item.repairCost) + 'g)</button>';
                     }
                     html += '</div>';
                 }
@@ -608,13 +617,17 @@
                         if (action === 'equip') {
                             await TwitchExtApi.equipFishingItem(id);
                             showAlert('success', 'Equipment updated!');
-                        } else {
+                        } else if (action === 'unequip') {
                             await TwitchExtApi.unequipFishingItem(id);
                             showAlert('success', 'Item unequipped.');
+                        } else if (action === 'repair') {
+                            var repairRes = await TwitchExtApi.repairFishingItem(id);
+                            var paidMsg = (repairRes && repairRes.goldPaid != null) ? (' for ' + formatNumber(repairRes.goldPaid) + ' gold') : '';
+                            showAlert('success', 'Item repaired' + paidMsg + '!');
                         }
                         loadFishingInventory();
                     } catch (err) {
-                        showAlert('error', err.message || 'Failed to update equipment.');
+                        showAlert('error', err.message || 'Action failed.');
                         btn.disabled = false;
                     }
                 });
@@ -1015,6 +1028,7 @@
                     (c.description ? '<div class="cmd-desc">' + escapeHtml(c.description) + '</div>' : '') +
                     '<div class="cmd-meta">' +
                     '<span>Category: ' + escapeHtml(c.category) + '</span>' +
+                    (c.rank ? '<span class="cmd-rank">Rank: ' + escapeHtml(c.rank) + '</span>' : '') +
                     (c.userCooldown > 0 ? '<span>CD: ' + c.userCooldown + 's</span>' : '') +
                     (c.cost > 0 ? '<span style="color:var(--warning);">Cost: ' + c.cost + '</span>' : '') +
                     '</div>' +

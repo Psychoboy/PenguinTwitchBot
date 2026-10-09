@@ -1,27 +1,38 @@
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Bot.Commands.TTS;
+using PenguinTwitchBot.Bot.Commands.Moderation;
 using System.Collections.Concurrent;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class TtsHandler(    ITTSService ttsService) : ISubActionHandler
+    public class TtsHandler(
+        ITTSService ttsService,
+        IModeratorFilterService? moderatorFilterService = null,
+        ILogger<TtsHandler>? logger = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.Tts;
 
         public async Task ExecuteAsync(SubActionType subAction, ConcurrentDictionary<string, string> variables, ActionExecutionContext? context = null, int subActionIndex = -1)
         {
-            if(subAction is not TtsType ttsType)
+            if (subAction is not TtsType ttsType)
             {
                 throw new SubActionHandlerException(subAction, "Invalid sub action type for TTS handler");
             }
 
-            if(string.IsNullOrEmpty(ttsType.Text))
+            if (string.IsNullOrEmpty(ttsType.Text))
             {
                 throw new SubActionHandlerException(subAction, "TTS message is null or empty");
             }
 
             var message = VariableReplacer.ReplaceVariables(ttsType.Text, variables);
+
+            if (moderatorFilterService != null && !await moderatorFilterService.IsPermittedAsync(message))
+            {
+                context?.LogMessage(subActionIndex, "TTS message rejected by moderator filter.");
+                logger?.LogWarning("TTS message rejected by moderator filter: {Message}", message);
+                throw new SubActionUserFacingException(subAction, "TTS message was rejected by the moderator filter.");
+            }
 
             BaseVoice? voice;
             if (string.IsNullOrEmpty(ttsType.Name))

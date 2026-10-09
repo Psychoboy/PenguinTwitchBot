@@ -68,5 +68,43 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             Assert.Contains("%user%", textField.HelperText);
             Assert.Contains("%message%", textField.HelperText);
         }
+
+        [Fact]
+        public async Task ValidType_WhenRejectedByModeratorFilter_ThrowsSubActionUserFacingException()
+        {
+            var ttsService = Substitute.For<ITTSService>();
+            var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
+            moderatorFilter.IsPermittedAsync("bad message").Returns(false);
+
+            var handler = new TtsHandler(ttsService, moderatorFilter);
+
+            var type = new TtsType { Text = "bad message" };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() => handler.ExecuteAsync(type, variables));
+            Assert.Contains("moderator filter", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+            await ttsService.DidNotReceive().SayMessage(Arg.Any<BaseVoice?>(), Arg.Any<string>());
+        }
+
+        [Fact]
+        public async Task ValidType_WhenPermittedByModeratorFilter_SpeaksMessage()
+        {
+            var ttsService = Substitute.For<ITTSService>();
+            var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
+            moderatorFilter.IsPermittedAsync("clean message").Returns(true);
+
+            var voice = new RegisteredVoice { Id = 1, Name = "Test Voice" };
+            ttsService.GetRandomVoice().Returns(voice);
+
+            var handler = new TtsHandler(ttsService, moderatorFilter);
+
+            var type = new TtsType { Text = "clean message" };
+            var variables = new ConcurrentDictionary<string, string>();
+
+            await handler.ExecuteAsync(type, variables);
+
+            await ttsService.Received(1).SayMessage(voice, "clean message");
+        }
     }
 }

@@ -790,6 +790,22 @@ body {
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
 }
+.btn-repair {
+    background: var(--warning);
+    color: #000;
+}
+[data-theme="light"] .btn-repair {
+    color: #fff;
+}
+.btn-repair:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+.btn-repair:disabled {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    cursor: not-allowed;
+}
 .btn-buy {
     background: var(--success);
     color: var(--btn-buy-text);
@@ -907,9 +923,13 @@ body {
 }
 .cmd-meta {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     font-size: 9.5px;
     color: var(--text-muted);
+}
+.cmd-rank {
+    color: var(--primary-light);
 }
 
 /* Empty State / Loading */

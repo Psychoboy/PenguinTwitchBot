@@ -3,6 +3,7 @@ using PenguinTwitchBot.Application.TTS;
 using PenguinTwitchBot.Bot.Alerts;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Extensions;
 using PenguinTwitchBot.Database.Repository;
 using Google.Apis.Auth.OAuth2;
@@ -21,7 +22,9 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         IWebHostEnvironment environment,
         ITTSPlayerService ttsPlayerService,
         IPiperService piperService,
-        PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService
+        PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService,
+        ITwitchService twitchService,
+        PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService? moderatorFilterService = null
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         /// <summary>
@@ -63,6 +66,7 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             var command = CommandHandler.GetCommand(e.Command);
             if (command == null) return;
             if (!command.CommandProperties.CommandName.Equals("say")) return;
+            if (string.IsNullOrWhiteSpace(e.Arg)) return;
 
             var userVoices = await GetUserRegisteredVoices(e.Name);
             BaseVoice? voice = userVoices.Cast<BaseVoice>().ToList().RandomElementOrDefault();
@@ -77,6 +81,33 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
 
         public async Task SayMessage(BaseVoice? voice, string message)
         {
+            if (string.IsNullOrWhiteSpace(message)) return;
+
+            if (moderatorFilterService != null)
+            {
+                if (!await moderatorFilterService.IsPermittedAsync(message))
+                {
+                    logger.LogWarning("TTS message rejected by moderator filter: {Message}", message);
+                    return;
+                }
+            }
+            else
+            {
+                try
+                {
+                    if (!await twitchService.WillBePermittedByAutomod(message))
+                    {
+                        logger.LogWarning("TTS message rejected by Twitch AutoMod: {Message}", message);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error checking Twitch AutoMod fallback; rejecting TTS message as unsafe.");
+                    return;
+                }
+            }
+
             if (voice is null)
             {
                 var voices = await GetRegisteredVoices();

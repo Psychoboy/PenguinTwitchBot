@@ -338,6 +338,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 description: "YouTube music player, requests queue, and playback controls."
             );
             services.AddHostedApiService<Bot.Commands.Moderation.Blacklist>();
+            services.AddSingleton<Bot.Commands.Moderation.IModeratorFilterService, Bot.Commands.Moderation.ModeratorFilterService>();
             services.AddHostedApiService<Bot.Commands.Moderation.Admin>();
             services.AddHostedApiService<Bot.Commands.Metrics.SongRequests>();
             services.AddHostedApiService<Bot.Commands.Moderation.BannedUsers>();

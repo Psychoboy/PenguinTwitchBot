@@ -313,6 +313,55 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.Equal(1, maxConcurrent);
         }
+
+        [Fact]
+        public async Task ExecuteAsync_WhenPromptRejectedByModeratorFilter_DoesNotCallOpenAi()
+        {
+            var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
+            moderatorFilter.IsPermittedAsync("bad prompt").Returns(false);
+
+            var handler = new OpenAiHandler(_unitOfWork, _logger, _openAiResponseService, moderatorFilter);
+            var subAction = new OpenAiType
+            {
+                Text = "bad prompt",
+                ResponseVariableName = "AiResponse"
+            };
+
+            var variables = new ConcurrentDictionary<string, string>();
+            await handler.ExecuteAsync(subAction, variables);
+
+            await _openAiResponseService.DidNotReceive().GenerateResponseAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+            Assert.False(variables.ContainsKey("AiResponse"));
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_WhenResponseRejectedByModeratorFilter_DoesNotStoreResponse()
+        {
+            var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
+            moderatorFilter.IsPermittedAsync("clean prompt").Returns(true);
+            moderatorFilter.IsPermittedAsync("bad response").Returns(false);
+
+            _openAiResponseService.GenerateResponseAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(new OpenAiGenerationResult("bad response", "resp-999", true));
+
+            var handler = new OpenAiHandler(_unitOfWork, _logger, _openAiResponseService, moderatorFilter);
+            var subAction = new OpenAiType
+            {
+                Text = "clean prompt",
+                ResponseVariableName = "AiResponse"
+            };
+
+            var variables = new ConcurrentDictionary<string, string>();
+            await handler.ExecuteAsync(subAction, variables);
+
+            Assert.False(variables.ContainsKey("AiResponse"));
+        }
     }
 }
 
