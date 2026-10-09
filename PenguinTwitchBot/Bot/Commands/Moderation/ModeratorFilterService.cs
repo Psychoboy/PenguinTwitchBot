@@ -22,9 +22,17 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
                 return false;
             }
 
-            if (!await twitchService.WillBePermittedByAutomod(message))
+            try
             {
-                logger.LogWarning("Message rejected by Twitch AutoMod filter: {Message}", message);
+                if (!await twitchService.WillBePermittedByAutomod(message))
+                {
+                    logger.LogWarning("Message rejected by Twitch AutoMod filter: {Message}", message);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error checking Twitch AutoMod filter; rejecting message as unsafe.");
                 return false;
             }
 

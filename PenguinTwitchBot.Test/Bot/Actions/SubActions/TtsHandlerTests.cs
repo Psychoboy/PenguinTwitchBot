@@ -70,7 +70,7 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         }
 
         [Fact]
-        public async Task ValidType_WhenRejectedByModeratorFilter_DoesNotSpeakMessage()
+        public async Task ValidType_WhenRejectedByModeratorFilter_ThrowsSubActionUserFacingException()
         {
             var ttsService = Substitute.For<ITTSService>();
             var moderatorFilter = Substitute.For<PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService>();
@@ -81,7 +81,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
             var type = new TtsType { Text = "bad message" };
             var variables = new ConcurrentDictionary<string, string>();
 
-            await handler.ExecuteAsync(type, variables);
+            var ex = await Assert.ThrowsAsync<SubActionUserFacingException>(() => handler.ExecuteAsync(type, variables));
+            Assert.Contains("moderator filter", ex.Message, StringComparison.OrdinalIgnoreCase);
 
             await ttsService.DidNotReceive().SayMessage(Arg.Any<BaseVoice?>(), Arg.Any<string>());
         }

@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             {
                 context?.LogMessage(subActionIndex, "TTS message rejected by moderator filter.");
                 logger?.LogWarning("TTS message rejected by moderator filter: {Message}", message);
-                return;
+                throw new SubActionUserFacingException(subAction, "TTS message was rejected by the moderator filter.");
             }
 
             BaseVoice? voice;

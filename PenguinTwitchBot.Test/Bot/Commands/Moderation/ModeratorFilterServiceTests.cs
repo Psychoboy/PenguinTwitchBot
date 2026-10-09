@@ -10,6 +10,8 @@ using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
 
+using NSubstitute.ExceptionExtensions;
+
 namespace PenguinTwitchBot.Test.Bot.Commands.Moderation
 {
     public class ModeratorFilterServiceTests
@@ -133,6 +135,45 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Moderation
 
             Assert.True(result);
             await _twitchService.Received(1).WillBePermittedByAutomod("good message");
+        }
+
+        [Fact]
+        public async Task IsPermittedAsync_WhenAutoModThrowsException_FailsClosedAndReturnsFalse()
+        {
+            var blacklist = await CreateBlacklistAsync();
+            _twitchService.WillBePermittedByAutomod(Arg.Any<string>()).ThrowsAsync(new HttpRequestException("Twitch API down"));
+            var service = new ModeratorFilterService(blacklist, _twitchService, _filterLogger);
+
+            var result = await service.IsPermittedAsync("any message");
+
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task IsBlacklisted_WhenRegexTimesOut_RejectsMessageAsUnsafe()
+        {
+            // Catastrophic backtracking pattern that will timeout on a long non-matching input
+            _wordFilters.Add(new WordFilter { Phrase = @"^(a+)+$", IsRegex = true });
+            var blacklist = await CreateBlacklistAsync();
+
+            var maliciousInput = new string('a', 30) + "!";
+            var isBlocked = blacklist.IsBlacklisted(maliciousInput);
+
+            Assert.True(isBlocked);
+        }
+
+        [Fact]
+        public async Task IsBlacklisted_WhenStoredRegexIsInvalid_SkipsInvalidPatternAndEvaluatesRemainingFilters()
+        {
+            _wordFilters.Add(new WordFilter { Phrase = @"[unclosed bracket", IsRegex = true });
+            _wordFilters.Add(new WordFilter { Phrase = "badword", IsRegex = false });
+            var blacklist = await CreateBlacklistAsync();
+
+            var cleanResult = blacklist.IsBlacklisted("clean message");
+            var badResult = blacklist.IsBlacklisted("this has badword");
+
+            Assert.False(cleanResult);
+            Assert.True(badResult);
         }
     }
 }

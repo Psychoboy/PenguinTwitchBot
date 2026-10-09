@@ -415,12 +415,13 @@ public class TwitchExtensionControllerTests
     {
         var jwt = GenerateTestJwt("12345", "67890");
         var controller = CreateController(authHeader: $"Bearer {jwt}");
-        _fishingInventoryService.RepairItem("67890", 42, username: Arg.Any<string?>()).Returns(150);
+        _viewerFeature.GetViewerByUserId("67890").Returns(new Viewer { UserId = "67890", Username = "coolangler", DisplayName = "CoolAngler" });
+        _fishingInventoryService.RepairItem("67890", 42, username: "coolangler").Returns(150);
 
         var result = await controller.RepairFishingItem(new ExtensionRepairItemRequest(42));
 
         var ok = Assert.IsType<OkObjectResult>(result);
-        await _fishingInventoryService.Received(1).RepairItem("67890", 42, username: Arg.Any<string?>());
+        await _fishingInventoryService.Received(1).RepairItem("67890", 42, username: "coolangler");
     }
 
     [Fact]

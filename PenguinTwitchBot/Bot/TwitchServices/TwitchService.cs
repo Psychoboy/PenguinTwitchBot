@@ -267,16 +267,16 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 }, broadcasterId);
                 if (result == null)
                 {
-                    _logger.LogWarning("Failed to check automod message.");
-                    return true;
+                    _logger.LogWarning("Failed to check automod message: null response.");
+                    return false;
                 }
-                return result.Data.FirstOrDefault()?.IsPermitted ?? true;
+                return result.Data.FirstOrDefault()?.IsPermitted ?? false;
 
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking automod.");
-                return true;
+                return false;
             }
         }
 

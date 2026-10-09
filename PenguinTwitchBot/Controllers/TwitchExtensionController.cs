@@ -520,7 +520,7 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         try
         {
             var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(claims.UserId!, _viewerFeature, _twitchService, _logger);
-            var goldCharged = await _fishingInventoryService.RepairItem(claims.UserId!, request.UserBoostId, username: viewer?.DisplayName);
+            var goldCharged = await _fishingInventoryService.RepairItem(claims.UserId!, request.UserBoostId, username: viewer?.Username);
             return Ok(new { success = true, goldPaid = goldCharged, message = $"Item repaired successfully for {goldCharged} gold." });
         }
         catch (InvalidOperationException ex)

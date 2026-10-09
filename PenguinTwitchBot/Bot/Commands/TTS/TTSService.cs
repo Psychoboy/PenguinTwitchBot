@@ -93,9 +93,17 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
             }
             else
             {
-                if (!await twitchService.WillBePermittedByAutomod(message))
+                try
                 {
-                    logger.LogWarning("TTS message rejected by Twitch AutoMod: {Message}", message);
+                    if (!await twitchService.WillBePermittedByAutomod(message))
+                    {
+                        logger.LogWarning("TTS message rejected by Twitch AutoMod: {Message}", message);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error checking Twitch AutoMod fallback; rejecting TTS message as unsafe.");
                     return;
                 }
             }

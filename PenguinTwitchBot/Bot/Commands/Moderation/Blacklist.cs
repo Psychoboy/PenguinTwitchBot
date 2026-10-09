@@ -77,6 +77,15 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
                         var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
                         if (regex.IsMatch(message)) return true;
                     }
+                    catch (RegexMatchTimeoutException ex)
+                    {
+                        logger.LogWarning(ex, "Regex evaluation timed out for blacklist phrase {Phrase}; rejecting message as unsafe.", wordFilter.Phrase);
+                        return true;
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        logger.LogWarning(ex, "Invalid stored regex pattern {Phrase} in blacklist; skipping pattern.", wordFilter.Phrase);
+                    }
                     catch (Exception ex)
                     {
                         logger.LogWarning(ex, "Regex error evaluating blacklist phrase {Phrase}", wordFilter.Phrase);
@@ -98,8 +107,24 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             {
                 if (wordFilter.IsRegex)
                 {
-                    var regex = new Regex(wordFilter.Phrase);
-                    if (regex.IsMatch(e.Message)) match = true;
+                    try
+                    {
+                        var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
+                        if (regex.IsMatch(e.Message)) match = true;
+                    }
+                    catch (RegexMatchTimeoutException ex)
+                    {
+                        logger.LogWarning(ex, "Regex evaluation timed out in ChatMessage for blacklist phrase {Phrase}; treating as match.", wordFilter.Phrase);
+                        match = true;
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        logger.LogWarning(ex, "Invalid stored regex pattern {Phrase} in blacklist; skipping pattern.", wordFilter.Phrase);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Regex error in ChatMessage evaluating blacklist phrase {Phrase}", wordFilter.Phrase);
+                    }
                 }
                 else if (e.Message.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase))
                 {
