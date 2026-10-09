@@ -381,6 +381,7 @@ public class TwitchExtensionControllerTests
 
         Assert.Single(list);
         Assert.Equal("!fish", list[0].Command);
+        Assert.Equal("Viewer", list[0].Rank);
         Assert.DoesNotContain(list, c => c.Command == "!ban");
         Assert.DoesNotContain(list, c => c.Command == "!restart");
     }
@@ -407,6 +408,19 @@ public class TwitchExtensionControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result);
         await _fishingInventoryService.Received(1).UnequipItem("67890", 42);
+    }
+
+    [Fact]
+    public async Task RepairFishingItem_CallsInventoryService_WhenAuthorized()
+    {
+        var jwt = GenerateTestJwt("12345", "67890");
+        var controller = CreateController(authHeader: $"Bearer {jwt}");
+        _fishingInventoryService.RepairItem("67890", 42, username: Arg.Any<string?>()).Returns(150);
+
+        var result = await controller.RepairFishingItem(new ExtensionRepairItemRequest(42));
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        await _fishingInventoryService.Received(1).RepairItem("67890", 42, username: Arg.Any<string?>());
     }
 
     [Fact]

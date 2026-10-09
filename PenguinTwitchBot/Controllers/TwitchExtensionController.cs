@@ -398,19 +398,33 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(claims.UserId!, _viewerFeature, _twitchService, _logger);
         var gold = await _fishingService.GetUserGold(claims.UserId!);
         var boosts = await _fishingInventoryService.GetUserBoosts(claims.UserId!);
+        var settings = await _fishingService.GetSettings();
+        var repairMultiplier = settings?.RepairCostMultiplier ?? 0.0;
 
-        var items = boosts.Select(b => new ExtensionUserFishingBoostResponse(
-            Id: b.Id,
-            ShopItemId: b.ShopItemId,
-            Name: b.ShopItem?.Name ?? "Unknown Item",
-            Description: b.ShopItem?.Description ?? string.Empty,
-            EquipmentSlot: b.ShopItem?.EquipmentSlot?.ToString(),
-            IsEquipped: b.IsEquipped,
-            RemainingUses: b.RemainingUses,
-            CurrentDurability: b.CurrentDurability,
-            MaxDurability: b.ShopItem?.MaxDurability,
-            IsBroken: b.IsBroken,
-            BoostSummary: FormatBoostSummary(b.ShopItem))).ToList();
+        var items = boosts.Select(b =>
+        {
+            var canRepair = repairMultiplier > 0
+                && b.ShopItem?.MaxDurability.HasValue == true
+                && (b.CurrentDurability ?? b.ShopItem.MaxDurability.Value) < b.ShopItem.MaxDurability.Value;
+            int? repairCost = canRepair
+                ? _fishingInventoryService.CalculateRepairCost(b.ShopItem!, b.CurrentDurability ?? b.ShopItem!.MaxDurability!.Value, repairMultiplier)
+                : null;
+
+            return new ExtensionUserFishingBoostResponse(
+                Id: b.Id,
+                ShopItemId: b.ShopItemId,
+                Name: b.ShopItem?.Name ?? "Unknown Item",
+                Description: b.ShopItem?.Description ?? string.Empty,
+                EquipmentSlot: b.ShopItem?.EquipmentSlot?.ToString(),
+                IsEquipped: b.IsEquipped,
+                RemainingUses: b.RemainingUses,
+                CurrentDurability: b.CurrentDurability,
+                MaxDurability: b.ShopItem?.MaxDurability,
+                IsBroken: b.IsBroken,
+                BoostSummary: FormatBoostSummary(b.ShopItem),
+                CanRepair: canRepair,
+                RepairCost: repairCost);
+        }).ToList();
 
         return Ok(new ExtensionFishingViewerResponse(
             Username: viewer?.DisplayName ?? claims.UserId!,
@@ -494,6 +508,32 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
         }
     }
 
+    [HttpPost("fishing/inventory/repair")]
+    public async Task<IActionResult> RepairFishingItem([FromBody] ExtensionRepairItemRequest request)
+    {
+        var claims = GetClaims();
+        if (claims == null || !claims.HasUserId)
+        {
+            return Unauthorized(new { error = "identity_required", message = "Please grant identity permission to repair items." });
+        }
+
+        try
+        {
+            var viewer = await TwitchExtensionSecurity.ResolveViewerAsync(claims.UserId!, _viewerFeature, _twitchService, _logger);
+            var goldCharged = await _fishingInventoryService.RepairItem(claims.UserId!, request.UserBoostId, username: viewer?.DisplayName);
+            return Ok(new { success = true, goldPaid = goldCharged, message = $"Item repaired successfully for {goldCharged} gold." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error repairing item {BoostId} for user {UserId}", request.UserBoostId, claims.UserId);
+            return StatusCode(500, new { success = false, message = "Unexpected error repairing item." });
+        }
+    }
+
     #endregion
 
     #region Commands Lookup
@@ -520,7 +560,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
             distinct = distinct.Where(c =>
                 c.Command.Contains(s, StringComparison.OrdinalIgnoreCase) ||
                 c.Description.Contains(s, StringComparison.OrdinalIgnoreCase) ||
-                c.Category.Contains(s, StringComparison.OrdinalIgnoreCase));
+                c.Category.Contains(s, StringComparison.OrdinalIgnoreCase) ||
+                (c.Rank != null && c.Rank.Contains(s, StringComparison.OrdinalIgnoreCase)));
         }
 
         return Ok(distinct.OrderBy(c => c.Command).ToList());
@@ -537,7 +578,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
                 Description: cmd.Description ?? string.Empty,
                 Cost: cmd.Cost,
                 UserCooldown: cmd.UserCooldown,
-                GlobalCooldown: cmd.GlobalCooldown));
+                GlobalCooldown: cmd.GlobalCooldown,
+                Rank: cmd.MinimumRank.ToString()));
         }
     }
 
@@ -558,7 +600,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
                     Description: desc,
                     Cost: cmd.Cost,
                     UserCooldown: cmd.UserCooldown,
-                    GlobalCooldown: cmd.GlobalCooldown));
+                    GlobalCooldown: cmd.GlobalCooldown,
+                    Rank: cmd.MinimumRank.ToString()));
             }
         }
     }
@@ -574,7 +617,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
                 Description: cmd.Description ?? string.Empty,
                 Cost: cmd.Cost,
                 UserCooldown: cmd.UserCooldown,
-                GlobalCooldown: cmd.GlobalCooldown));
+                GlobalCooldown: cmd.GlobalCooldown,
+                Rank: cmd.MinimumRank.ToString()));
         }
     }
 
@@ -589,7 +633,8 @@ public class TwitchExtensionController : ControllerBase, IAsyncActionFilter
                 Description: cmd.Description ?? string.Empty,
                 Cost: cmd.Cost,
                 UserCooldown: cmd.UserCooldown,
-                GlobalCooldown: cmd.GlobalCooldown));
+                GlobalCooldown: cmd.GlobalCooldown,
+                Rank: cmd.MinimumRank.ToString()));
         }
     }
 
@@ -739,10 +784,13 @@ public record ExtensionUserFishingBoostResponse(
     double? CurrentDurability,
     double? MaxDurability,
     bool IsBroken,
-    string BoostSummary);
+    string BoostSummary,
+    bool CanRepair = false,
+    int? RepairCost = null);
 
 public record ExtensionBuyItemRequest(int ShopItemId, int Quantity);
 public record ExtensionEquipItemRequest(int UserBoostId);
+public record ExtensionRepairItemRequest(int UserBoostId);
 
 public record ExtensionCommandResponse(
     string Command,
@@ -750,6 +798,7 @@ public record ExtensionCommandResponse(
     string Description,
     int Cost,
     int UserCooldown,
-    int GlobalCooldown);
+    int GlobalCooldown,
+    string? Rank = null);
 
 #endregion

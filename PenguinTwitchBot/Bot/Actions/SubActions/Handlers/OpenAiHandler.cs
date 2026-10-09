@@ -8,12 +8,15 @@ using PenguinTwitchBot.Helpers;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
+using PenguinTwitchBot.Bot.Commands.Moderation;
+
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public partial class OpenAiHandler(
         IUnitOfWork unitOfWork,
         ILogger<OpenAiHandler> logger,
-        IOpenAiResponseService? openAiResponseService = null) : ISubActionHandler
+        IOpenAiResponseService? openAiResponseService = null,
+        IModeratorFilterService? moderatorFilterService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.OpenAi;
         private static readonly KeyedSemaphore SessionLocks = new();
@@ -47,6 +50,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (string.IsNullOrWhiteSpace(prompt))
             {
                 context?.LogMessage(subActionIndex, "Prompt is empty after variable replacement. Skipping OpenAI call.");
+                return;
+            }
+
+            if (moderatorFilterService != null && !await moderatorFilterService.IsPermittedAsync(prompt))
+            {
+                context?.LogMessage(subActionIndex, "OpenAI prompt rejected by moderator filter. Skipping OpenAI call.");
+                logger.LogWarning("OpenAI prompt rejected by moderator filter: {Prompt}", prompt);
                 return;
             }
 
@@ -114,6 +124,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     outputText = LinkPatternRegex().Replace(outputText, "").Trim();
                     outputText = outputText.ReplaceLineEndings(" ");
                     outputText = ConsecutiveSpacesRegex().Replace(outputText, " ").Trim();
+                }
+
+                if (moderatorFilterService != null && !await moderatorFilterService.IsPermittedAsync(outputText))
+                {
+                    context?.LogMessage(subActionIndex, "OpenAI response rejected by moderator filter.");
+                    logger.LogWarning("OpenAI response rejected by moderator filter.");
+                    return;
                 }
 
                 if (openAi.SavePreviousResponse && !string.IsNullOrWhiteSpace(storageKey) && !string.IsNullOrWhiteSpace(result.ResponseId))

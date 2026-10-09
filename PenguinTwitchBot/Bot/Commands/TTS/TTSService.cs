@@ -23,7 +23,8 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         ITTSPlayerService ttsPlayerService,
         IPiperService piperService,
         PenguinTwitchBot.Services.ITTSSettingsService ttsSettingsService,
-        ITwitchService twitchService
+        ITwitchService twitchService,
+        PenguinTwitchBot.Bot.Commands.Moderation.IModeratorFilterService? moderatorFilterService = null
         ) : BaseCommandService(serviceBackbone, commandHandler, "TTSService", dispatcher), IHostedService, ITTSService
     {
         /// <summary>
@@ -82,10 +83,21 @@ namespace PenguinTwitchBot.Bot.Commands.TTS
         {
             if (string.IsNullOrWhiteSpace(message)) return;
 
-            if (!await twitchService.WillBePermittedByAutomod(message))
+            if (moderatorFilterService != null)
             {
-                logger.LogWarning("TTS message rejected by Twitch AutoMod: {Message}", message);
-                return;
+                if (!await moderatorFilterService.IsPermittedAsync(message))
+                {
+                    logger.LogWarning("TTS message rejected by moderator filter: {Message}", message);
+                    return;
+                }
+            }
+            else
+            {
+                if (!await twitchService.WillBePermittedByAutomod(message))
+                {
+                    logger.LogWarning("TTS message rejected by Twitch AutoMod: {Message}", message);
+                    return;
+                }
             }
 
             if (voice is null)

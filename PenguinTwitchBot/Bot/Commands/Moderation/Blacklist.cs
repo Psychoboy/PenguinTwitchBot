@@ -63,6 +63,33 @@ namespace PenguinTwitchBot.Bot.Commands.Moderation
             return _blackList.ToList();
         }
 
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(500);
+
+        public bool IsBlacklisted(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            foreach (var wordFilter in _blackList)
+            {
+                if (wordFilter.IsRegex)
+                {
+                    try
+                    {
+                        var regex = new Regex(wordFilter.Phrase, RegexOptions.None, RegexTimeout);
+                        if (regex.IsMatch(message)) return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Regex error evaluating blacklist phrase {Phrase}", wordFilter.Phrase);
+                    }
+                }
+                else if (message.Contains(wordFilter.Phrase, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public async Task ChatMessage(ChatMessageEventArgs e)
         {
             bool match = false;

@@ -415,6 +415,12 @@
                 body: { userBoostId: userBoostId }
             });
         },
+        repairFishingItem: function (userBoostId) {
+            return request('/api/twitch-extension/fishing/inventory/repair', {
+                method: 'POST',
+                body: { userBoostId: userBoostId }
+            });
+        },
         getCommands: function (category, search) {
             var url = '/api/twitch-extension/commands?';
             if (category && category !== 'all') {
