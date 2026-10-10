@@ -25,6 +25,12 @@ namespace PenguinTwitchBot.Bot.Ai
         [GeneratedRegex(@"@(?<name>[a-zA-Z0-9_]{3,25})", RegexOptions.Compiled)]
         private static partial Regex MentionRegex();
 
+        [GeneratedRegex(@"%(?<tag>ViewersContext|ChannelContext|MentionedViewers|ActiveViewers)%|<(?<xml>viewers_context|channel_context|mentioned_viewers)>", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
+        private static partial Regex ViewerContextTagsRegex();
+
+        [GeneratedRegex(@"\b[a-zA-Z0-9_]{3,25}\b", RegexOptions.Compiled)]
+        private static partial Regex WordTokenRegex();
+
         private static readonly HashSet<string> StopWords = new(StringComparer.OrdinalIgnoreCase)
         {
             "the", "and", "for", "are", "but", "not", "you", "all", "any", "can", "had", "her", "was",
@@ -45,47 +51,59 @@ namespace PenguinTwitchBot.Bot.Ai
                 return template;
             }
 
-            var hasFullContextTag = template.Contains("%ViewersContext%", StringComparison.OrdinalIgnoreCase) ||
-                                   template.Contains("%ChannelContext%", StringComparison.OrdinalIgnoreCase) ||
-                                   template.Contains("<viewers_context>", StringComparison.OrdinalIgnoreCase) ||
-                                   template.Contains("<channel_context>", StringComparison.OrdinalIgnoreCase);
-
-            var hasMentionedViewersTag = template.Contains("%MentionedViewers%", StringComparison.OrdinalIgnoreCase) ||
-                                         template.Contains("<mentioned_viewers>", StringComparison.OrdinalIgnoreCase);
-
-            var hasActiveViewersTag = template.Contains("%ActiveViewers%", StringComparison.OrdinalIgnoreCase);
-
-            if (!hasFullContextTag && !hasMentionedViewersTag && !hasActiveViewersTag)
+            var matches = ViewerContextTagsRegex().Matches(template);
+            if (matches.Count == 0)
             {
                 return template;
             }
 
-            var result = template;
+            string? fullContext = null;
+            string? mentionedContext = null;
+            string? activeList = null;
 
-            if (hasFullContextTag)
+            foreach (Match match in matches)
             {
-                var fullContext = await BuildViewerContextAsync(promptText, instructionsText, variables);
-                result = ReplaceIgnoreCase(result, "%ViewersContext%", fullContext);
-                result = ReplaceIgnoreCase(result, "%ChannelContext%", fullContext);
-                result = ReplaceIgnoreCase(result, "<viewers_context>", fullContext);
-                result = ReplaceIgnoreCase(result, "<channel_context>", fullContext);
+                var tag = match.Groups["tag"].Success ? match.Groups["tag"].Value : match.Groups["xml"].Value;
+                if ((tag.Equals("ViewersContext", StringComparison.OrdinalIgnoreCase) ||
+                     tag.Equals("ChannelContext", StringComparison.OrdinalIgnoreCase) ||
+                     tag.Equals("viewers_context", StringComparison.OrdinalIgnoreCase) ||
+                     tag.Equals("channel_context", StringComparison.OrdinalIgnoreCase)) && fullContext == null)
+                {
+                    fullContext = await BuildViewerContextAsync(promptText, instructionsText, variables);
+                }
+                else if ((tag.Equals("MentionedViewers", StringComparison.OrdinalIgnoreCase) ||
+                          tag.Equals("mentioned_viewers", StringComparison.OrdinalIgnoreCase)) && mentionedContext == null)
+                {
+                    var combinedText = $"{promptText} {instructionsText}".Trim();
+                    mentionedContext = await BuildMentionedViewersContextAsync(combinedText, variables);
+                }
+                else if (tag.Equals("ActiveViewers", StringComparison.OrdinalIgnoreCase) && activeList == null)
+                {
+                    activeList = await GetActiveViewersListAsync();
+                }
             }
 
-            if (hasMentionedViewersTag)
+            return ViewerContextTagsRegex().Replace(template, match =>
             {
-                var combinedText = $"{promptText} {instructionsText}".Trim();
-                var mentionedContext = await BuildMentionedViewersContextAsync(combinedText, variables);
-                result = ReplaceIgnoreCase(result, "%MentionedViewers%", mentionedContext);
-                result = ReplaceIgnoreCase(result, "<mentioned_viewers>", mentionedContext);
-            }
-
-            if (hasActiveViewersTag)
-            {
-                var activeList = await GetActiveViewersListAsync();
-                result = ReplaceIgnoreCase(result, "%ActiveViewers%", activeList);
-            }
-
-            return result;
+                var tag = match.Groups["tag"].Success ? match.Groups["tag"].Value : match.Groups["xml"].Value;
+                if (tag.Equals("ViewersContext", StringComparison.OrdinalIgnoreCase) ||
+                    tag.Equals("ChannelContext", StringComparison.OrdinalIgnoreCase) ||
+                    tag.Equals("viewers_context", StringComparison.OrdinalIgnoreCase) ||
+                    tag.Equals("channel_context", StringComparison.OrdinalIgnoreCase))
+                {
+                    return fullContext ?? string.Empty;
+                }
+                if (tag.Equals("MentionedViewers", StringComparison.OrdinalIgnoreCase) ||
+                    tag.Equals("mentioned_viewers", StringComparison.OrdinalIgnoreCase))
+                {
+                    return mentionedContext ?? string.Empty;
+                }
+                if (tag.Equals("ActiveViewers", StringComparison.OrdinalIgnoreCase))
+                {
+                    return activeList ?? string.Empty;
+                }
+                return match.Value;
+            });
         }
 
         public async Task<string> BuildViewerContextAsync(
@@ -430,13 +448,24 @@ namespace PenguinTwitchBot.Bot.Ai
             if (!string.IsNullOrWhiteSpace(text))
             {
                 var active = viewerFeature.GetActiveViewers() ?? [];
+                var eligibleChatters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var chatter in active)
                 {
-                    if (chatter.Length >= 3 &&
-                        !StopWords.Contains(chatter) &&
-                        Regex.IsMatch(text, $@"\b{Regex.Escape(chatter)}\b", RegexOptions.IgnoreCase))
+                    if (chatter.Length is >= 3 and <= 25 && !StopWords.Contains(chatter))
                     {
-                        mentions.Add(UsernameNormalizer.Normalize(chatter));
+                        eligibleChatters.Add(chatter);
+                    }
+                }
+
+                if (eligibleChatters.Count > 0)
+                {
+                    var wordMatches = WordTokenRegex().Matches(text);
+                    foreach (Match m in wordMatches)
+                    {
+                        if (eligibleChatters.Contains(m.Value))
+                        {
+                            mentions.Add(UsernameNormalizer.Normalize(m.Value));
+                        }
                     }
                 }
             }
@@ -477,11 +506,6 @@ namespace PenguinTwitchBot.Bot.Ai
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;")
                 .Replace("'", "&apos;");
-        }
-
-        private static string ReplaceIgnoreCase(string input, string search, string replacement)
-        {
-            return input.Replace(search, replacement, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

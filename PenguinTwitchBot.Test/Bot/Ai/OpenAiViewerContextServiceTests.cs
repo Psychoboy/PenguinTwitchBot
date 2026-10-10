@@ -200,6 +200,47 @@ namespace PenguinTwitchBot.Test.Bot.Ai
             // Assert
             Assert.Equal(template, result);
         }
+
+        [Fact]
+        public async Task ProcessViewerTagsAsync_DoesNotReExpandTagsInsideGeneratedContext()
+        {
+            // Arrange
+            _viewerFeature.GetActiveViewers().Returns(["bob"]);
+            _viewerFeature.GetViewerByUserName("bob").Returns(new Viewer { Username = "bob", DisplayName = "Bob" });
+
+            var service = new OpenAiViewerContextService(_serviceBackbone, _viewerFeature, _unitOfWork, _logger, _pointsSystem);
+            // Template with both full context and mentioned viewers tags
+            var template = "%ViewersContext%\n%MentionedViewers%";
+            var variables = new Dictionary<string, string> { ["Args"] = "@bob" };
+
+            // Act
+            var result = await service.ProcessViewerTagsAsync(template, "Hello @bob", "Instructions", variables);
+
+            // Assert
+            // Contains <channel_context> with internal <mentioned_viewers> AND the separate <mentioned_viewers> block without corrupting the inner tag
+            Assert.Contains("<channel_context>", result);
+            Assert.Contains("</channel_context>", result);
+            Assert.Contains("username=\"bob\"", result);
+            Assert.DoesNotContain("%ViewersContext%", result);
+            Assert.DoesNotContain("%MentionedViewers%", result);
+        }
+
+        [Fact]
+        public async Task BuildMentionedViewersContextAsync_MatchesActiveChattersByNameInTextWithoutAtSymbol()
+        {
+            // Arrange
+            _viewerFeature.GetActiveViewers().Returns(["charlie"]);
+            _viewerFeature.GetViewerByUserName("charlie").Returns(new Viewer { Username = "charlie", DisplayName = "Charlie" });
+
+            var service = new OpenAiViewerContextService(_serviceBackbone, _viewerFeature, _unitOfWork, _logger, _pointsSystem);
+
+            // Act - mention charlie without '@' in the text
+            var result = await service.BuildMentionedViewersContextAsync("What does charlie think about this?", null);
+
+            // Assert
+            Assert.Contains("<mentioned_viewers>", result);
+            Assert.Contains("username=\"charlie\"", result);
+        }
     }
 }
 

@@ -52,8 +52,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (viewerContextService != null)
             {
-                prompt = await viewerContextService.ProcessViewerTagsAsync(prompt, prompt, instructions, variables);
-                instructions = await viewerContextService.ProcessViewerTagsAsync(instructions, prompt, instructions, variables);
+                var rawPrompt = prompt;
+                var rawInstructions = instructions;
+                prompt = await viewerContextService.ProcessViewerTagsAsync(rawPrompt, rawPrompt, rawInstructions, variables);
+                instructions = await viewerContextService.ProcessViewerTagsAsync(rawInstructions, rawPrompt, rawInstructions, variables);
             }
 
             if (string.IsNullOrWhiteSpace(prompt))
