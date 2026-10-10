@@ -362,6 +362,48 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 
             Assert.False(variables.ContainsKey("AiResponse"));
         }
+
+        [Fact]
+        public async Task ExecuteAsync_WhenViewerContextServiceProvided_ProcessesViewerTags()
+        {
+            var viewerContextService = Substitute.For<IOpenAiViewerContextService>();
+            viewerContextService.ProcessViewerTagsAsync("Ask about %ViewersContext%", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>>())
+                .Returns("Ask about <channel_context><broadcaster name=\"Boss\" /></channel_context>");
+            viewerContextService.ProcessViewerTagsAsync("Instructions with %MentionedViewers%", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>>())
+                .Returns("Instructions with <mentioned_viewers><viewer username=\"alice\" /></mentioned_viewers>");
+
+            _openAiResponseService.GenerateResponseAsync(
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                .Returns(new OpenAiGenerationResult("Hello Boss and Alice!", "resp-100", true));
+
+            var handler = new OpenAiHandler(
+                _unitOfWork,
+                _logger,
+                _openAiResponseService,
+                moderatorFilterService: null,
+                viewerContextService: viewerContextService);
+
+            var subAction = new OpenAiType
+            {
+                Text = "Ask about %ViewersContext%",
+                Instructions = "Instructions with %MentionedViewers%",
+                ResponseVariableName = "AiResponse"
+            };
+
+            var variables = new ConcurrentDictionary<string, string>();
+            await handler.ExecuteAsync(subAction, variables);
+
+            Assert.True(variables.ContainsKey("AiResponse"));
+            Assert.Equal("Hello Boss and Alice!", variables["AiResponse"]);
+
+            await _openAiResponseService.Received(1).GenerateResponseAsync(
+                prompt: "Ask about <channel_context><broadcaster name=\"Boss\" /></channel_context>",
+                instructions: "Instructions with <mentioned_viewers><viewer username=\"alice\" /></mentioned_viewers>",
+                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>(), Arg.Any<bool>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        }
     }
 }
 

@@ -68,6 +68,10 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("time", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
             Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("ticks", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
             Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("random", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("ViewersContext", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("ChannelContext", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("MentionedViewers", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
+            Assert.Contains(resultWithoutGetGlobal, v => v.Name.Equals("ActiveViewers", System.StringComparison.OrdinalIgnoreCase) && v.Category == "System");
 
             // 2. With GetGlobalVariable subaction: Global appears under Previous Steps
             var previousSteps = new List<SubActionType>

@@ -130,6 +130,10 @@ public class ActionVariableResolver(
         variables.SetVariable("time", "Current local time formatted for the local culture with seconds", "System Global", "System", DateTime.Now.ToLongTimeString());
         variables.SetVariable("ticks", "Current system timestamp ticks", "System Global", "System", DateTime.UtcNow.Ticks.ToString());
         variables.SetVariable("random", "Random integer between 1 and 100", "System Global", "System", "42");
+        variables.SetVariable("ViewersContext", "XML block containing broadcaster, bot, caller, active chatters by role, and rich profiles for mentioned viewers for AI context", "System Global", "System", "<channel_context>...</channel_context>");
+        variables.SetVariable("ChannelContext", "Alias for %ViewersContext% providing channel roles and viewer context for AI", "System Global", "System", "<channel_context>...</channel_context>");
+        variables.SetVariable("MentionedViewers", "XML block containing rich profiles (roles, title, points, ranks) for viewers mentioned in the prompt/arguments", "System Global", "System", "<mentioned_viewers>...</mentioned_viewers>");
+        variables.SetVariable("ActiveViewers", "Comma-separated list of currently active chatters", "System Global", "System", "mod_user, vip_user, regular_viewer");
     }
 
     private void ResolveCallerActions(
