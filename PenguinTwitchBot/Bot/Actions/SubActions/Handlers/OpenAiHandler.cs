@@ -16,7 +16,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         IUnitOfWork unitOfWork,
         ILogger<OpenAiHandler> logger,
         IOpenAiResponseService? openAiResponseService = null,
-        IModeratorFilterService? moderatorFilterService = null) : ISubActionHandler
+        IModeratorFilterService? moderatorFilterService = null,
+        IOpenAiViewerContextService? viewerContextService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.OpenAi;
         private static readonly KeyedSemaphore SessionLocks = new();
@@ -47,6 +48,16 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var prompt = VariableReplacer.ReplaceVariables(openAi.Text, variables);
+            var instructions = VariableReplacer.ReplaceVariables(openAi.Instructions, variables);
+
+            if (viewerContextService != null)
+            {
+                var rawPrompt = prompt;
+                var rawInstructions = instructions;
+                prompt = await viewerContextService.ProcessViewerTagsAsync(rawPrompt, rawPrompt, rawInstructions, variables);
+                instructions = await viewerContextService.ProcessViewerTagsAsync(rawInstructions, rawPrompt, rawInstructions, variables);
+            }
+
             if (string.IsNullOrWhiteSpace(prompt))
             {
                 context?.LogMessage(subActionIndex, "Prompt is empty after variable replacement. Skipping OpenAI call.");
@@ -59,8 +70,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 logger.LogWarning("OpenAI prompt rejected by moderator filter: {Prompt}", prompt);
                 return;
             }
-
-            var instructions = VariableReplacer.ReplaceVariables(openAi.Instructions, variables);
 
             string? storageKey = null;
 

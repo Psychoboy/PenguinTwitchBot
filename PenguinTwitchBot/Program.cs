@@ -269,6 +269,7 @@ internal class Program
             builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IShoutoutAi, PenguinTwitchBot.Bot.Ai.ShoutoutAi>();
             builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
             builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiViewerContextService, PenguinTwitchBot.Bot.Ai.OpenAiViewerContextService>();
             builder.Services.AddRuntimeFeatureRegistration<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService>(
                 PenguinTwitchBot.Bot.Features.FeatureKeys.OpenAI,
                 "OpenAI",
@@ -279,6 +280,7 @@ internal class Program
         {
             builder.Services.AddSingleton<PenguinTwitchBot.Bot.Ai.IOpenAiModelService, PenguinTwitchBot.Bot.Ai.OpenAiModelService>();
             builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiResponseService, PenguinTwitchBot.Bot.Ai.OpenAiResponseService>();
+            builder.Services.AddScoped<PenguinTwitchBot.Bot.Ai.IOpenAiViewerContextService, PenguinTwitchBot.Bot.Ai.OpenAiViewerContextService>();
         }
 
             builder.Services.AddHealthChecks()

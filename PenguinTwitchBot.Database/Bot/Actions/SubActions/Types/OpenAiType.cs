@@ -39,7 +39,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     Required = true,
                     Lines = 4,
                     Resizable = true,
-                    HelperText = "Prompt to send to OpenAI. Supports variables like %user%, %rawinput%, %message%."
+                    HelperText = "Prompt to send to OpenAI. Supports variables like %user%, %rawinput%, %message%, %ViewersContext%, %MentionedViewers%."
                 },
                 new()
                 {
@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     FieldType = UIFieldType.TextArea,
                     Lines = 5,
                     Resizable = true,
-                    HelperText = "System behavior instructions for the AI. Supports variables."
+                    HelperText = "System behavior instructions for the AI. Supports variables like %ViewersContext%, %MentionedViewers%, %streamer%."
                 },
                 new()
                 {
