@@ -1,9 +1,14 @@
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using System.Text.RegularExpressions;
 
 namespace PenguinTwitchBot.Bot.Core.Points
 {
     public static class PassivePointsTemplateReplacer
     {
+        private static readonly Regex TokenRegex = new(
+            @"\{(PointType|IntervalMinutes|Interval|AllViewersPerHour|AllViewers|EveryonePoints|ActiveViewers|ActivePoints|Subscribers|SubPoints|ActiveTotalPerHour|ActiveTotal|SubscriberTotalPerHour|SubscriberTotal|SubTotalPerHour|SubTotal|PointsPerEntry)\}",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         public static string ReplaceVariables(string? markdown, PointType? pointType, int pointsPerEntry = 1)
         {
             if (string.IsNullOrEmpty(markdown))
@@ -25,35 +30,29 @@ namespace PenguinTwitchBot.Bot.Core.Points
             var activeTotalPerHour = (long)Math.Round(activeTotal * intervalsPerHour);
             var subTotalPerHour = (long)Math.Round(subTotal * intervalsPerHour);
 
-            var replacements = new (string Key, string Value)[]
+            var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ("{PointType}", ptName),
-                ("{IntervalMinutes}", interval.ToString("N0")),
-                ("{Interval}", interval.ToString("N0")),
-                ("{AllViewersPerHour}", allViewersPerHour.ToString("N0")),
-                ("{AllViewers}", allViewers.ToString("N0")),
-                ("{EveryonePoints}", allViewers.ToString("N0")),
-                ("{ActiveViewers}", activeViewers.ToString("N0")),
-                ("{ActivePoints}", activeViewers.ToString("N0")),
-                ("{Subscribers}", subscribers.ToString("N0")),
-                ("{SubPoints}", subscribers.ToString("N0")),
-                ("{ActiveTotalPerHour}", activeTotalPerHour.ToString("N0")),
-                ("{ActiveTotal}", activeTotal.ToString("N0")),
-                ("{SubscriberTotalPerHour}", subTotalPerHour.ToString("N0")),
-                ("{SubscriberTotal}", subTotal.ToString("N0")),
-                ("{SubTotalPerHour}", subTotalPerHour.ToString("N0")),
-                ("{SubTotal}", subTotal.ToString("N0")),
-                ("{PointsPerEntry}", Math.Max(1, pointsPerEntry).ToString("N0")),
+                ["{PointType}"] = ptName,
+                ["{IntervalMinutes}"] = interval.ToString("N0"),
+                ["{Interval}"] = interval.ToString("N0"),
+                ["{AllViewersPerHour}"] = allViewersPerHour.ToString("N0"),
+                ["{AllViewers}"] = allViewers.ToString("N0"),
+                ["{EveryonePoints}"] = allViewers.ToString("N0"),
+                ["{ActiveViewers}"] = activeViewers.ToString("N0"),
+                ["{ActivePoints}"] = activeViewers.ToString("N0"),
+                ["{Subscribers}"] = subscribers.ToString("N0"),
+                ["{SubPoints}"] = subscribers.ToString("N0"),
+                ["{ActiveTotalPerHour}"] = activeTotalPerHour.ToString("N0"),
+                ["{ActiveTotal}"] = activeTotal.ToString("N0"),
+                ["{SubscriberTotalPerHour}"] = subTotalPerHour.ToString("N0"),
+                ["{SubscriberTotal}"] = subTotal.ToString("N0"),
+                ["{SubTotalPerHour}"] = subTotalPerHour.ToString("N0"),
+                ["{SubTotal}"] = subTotal.ToString("N0"),
+                ["{PointsPerEntry}"] = Math.Max(1, pointsPerEntry).ToString("N0"),
             };
 
-            var result = markdown;
-            foreach (var (key, value) in replacements)
-            {
-                result = result.Replace(key, value, StringComparison.OrdinalIgnoreCase);
-            }
-
-            return result;
+            return TokenRegex.Replace(markdown, match =>
+                replacements.TryGetValue(match.Value, out var value) ? value : match.Value);
         }
     }
 }
-

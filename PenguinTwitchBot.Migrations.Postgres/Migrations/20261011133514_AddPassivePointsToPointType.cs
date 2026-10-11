@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -36,7 +36,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                 table: "PointTypes",
                 type: "integer",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: 5);
 
             migrationBuilder.AddColumn<long>(
                 name: "PassivePointsSubscribers",

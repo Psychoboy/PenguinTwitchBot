@@ -198,6 +198,25 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
                 "Earn Tickets every 5 mins! Lurkers: 1 (12/hr), Active: 3 (36/hr, +2 bonus), Subs: 6 (72/hr, +3 bonus). Entry cost: 10.",
                 result);
         }
+
+        [Fact]
+        public void PassivePointsTemplateReplacer_DoesNotRescanReplacementValuesForOtherTokens()
+        {
+            var pointType = new PointType
+            {
+                Id = 2,
+                Name = "{Interval} {SubTotal}",
+                PassivePointsEnabled = true,
+                PassivePointsIntervalMinutes = 5,
+                PassivePointsAllViewers = 1,
+                PassivePointsActiveViewers = 2,
+                PassivePointsSubscribers = 3
+            };
+
+            var result = PassivePointsTemplateReplacer.ReplaceVariables("Currency: {pointtype}, Interval: {INTERVAL}", pointType);
+
+            Assert.Equal("Currency: {Interval} {SubTotal}, Interval: 5", result);
+        }
     }
 }
 

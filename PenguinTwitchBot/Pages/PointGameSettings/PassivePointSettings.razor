@@ -123,7 +123,7 @@
 
 @code {
     [Parameter] public IEnumerable<PointType> PointTypes { get; set; } = [];
-    [Parameter] public EventCallback OnPointTypesUpdated { get; set; }
+    [Parameter] public EventCallback<PointType> OnPointTypesUpdated { get; set; }
 
     private async Task SavePassiveSettings(PointType pointType)
     {
@@ -144,8 +144,18 @@
             pointType.PassivePointsSubscribers = 0;
         }
 
-        await PointSystem.UpdatePointType(pointType);
-        Snackbar.Add($"Saved passive points settings for {pointType.Name}.", Severity.Success);
-        await OnPointTypesUpdated.InvokeAsync();
+        var persisted = pointType.Id.HasValue
+            ? await PointSystem.GetPointTypeById(pointType.Id.Value) ?? pointType
+            : pointType;
+
+        persisted.PassivePointsEnabled = pointType.PassivePointsEnabled;
+        persisted.PassivePointsIntervalMinutes = pointType.PassivePointsIntervalMinutes;
+        persisted.PassivePointsAllViewers = pointType.PassivePointsAllViewers;
+        persisted.PassivePointsActiveViewers = pointType.PassivePointsActiveViewers;
+        persisted.PassivePointsSubscribers = pointType.PassivePointsSubscribers;
+
+        await PointSystem.UpdatePointType(persisted);
+        Snackbar.Add($"Saved passive points settings for {persisted.Name}.", Severity.Success);
+        await OnPointTypesUpdated.InvokeAsync(persisted);
     }
 }

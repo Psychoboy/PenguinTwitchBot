@@ -179,7 +179,7 @@
 
                 @* -- Tab 3: Passive Points -- *@
                 <MudTabPanel Text="Passive Points" Icon="@Icons.Material.Filled.Schedule">
-                    <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointTypes" />
+                    <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointType" />
                 </MudTabPanel>
 
             </MudTabs>
@@ -189,27 +189,58 @@
 </MudContainer>
 
 @code {
-    private IEnumerable<PointType> PointTypes { get; set; } = [];
+    private List<PointType> PointTypes { get; set; } = [];
     private PointType newPointType = CreateNewPointType();
     [Inject] IPointsSystem pointSystem { get; set; } = default!;
     [Inject] ISnackbar Snackbar { get; set; } = default!;
 
     protected override async Task OnInitializedAsync()
     {
-        PointTypes = await pointSystem.GetPointTypes();
+        PointTypes = (await pointSystem.GetPointTypes()).ToList();
         newPointType = CreateNewPointType();
     }
 
-    private async Task RefreshPointTypes()
+    private async Task RefreshPointType(PointType savedPointType)
     {
-        PointTypes = await pointSystem.GetPointTypes();
+        if (savedPointType.Id != null)
+        {
+            var latest = await pointSystem.GetPointTypeById(savedPointType.Id.Value);
+            if (latest != null)
+            {
+                var idx = PointTypes.FindIndex(p => p.Id == latest.Id);
+                if (idx >= 0)
+                {
+                    PointTypes[idx] = latest;
+                }
+                if (newPointType.Id == latest.Id)
+                {
+                    newPointType.PassivePointsEnabled = latest.PassivePointsEnabled;
+                    newPointType.PassivePointsIntervalMinutes = latest.PassivePointsIntervalMinutes;
+                    newPointType.PassivePointsAllViewers = latest.PassivePointsAllViewers;
+                    newPointType.PassivePointsActiveViewers = latest.PassivePointsActiveViewers;
+                    newPointType.PassivePointsSubscribers = latest.PassivePointsSubscribers;
+                }
+            }
+        }
     }
 
     private async Task SavePointType()
     {
+        if (newPointType.Id != null)
+        {
+            var existingInList = PointTypes.FirstOrDefault(p => p.Id == newPointType.Id);
+            if (existingInList != null)
+            {
+                newPointType.PassivePointsEnabled = existingInList.PassivePointsEnabled;
+                newPointType.PassivePointsIntervalMinutes = existingInList.PassivePointsIntervalMinutes;
+                newPointType.PassivePointsAllViewers = existingInList.PassivePointsAllViewers;
+                newPointType.PassivePointsActiveViewers = existingInList.PassivePointsActiveViewers;
+                newPointType.PassivePointsSubscribers = existingInList.PassivePointsSubscribers;
+            }
+        }
         await pointSystem.UpdatePointType(newPointType);
         newPointType = CreateNewPointType();
-        PointTypes = await pointSystem.GetPointTypes();
+        PointTypes = (await pointSystem.GetPointTypes()).ToList();
     }
 
     private static PointType CreateNewPointType()
@@ -229,13 +260,35 @@
 
     private void EditPointType(PointType pointType)
     {
+        var clone = new PointType
+        {
+            Id = pointType.Id,
+            Name = pointType.Name,
+            Description = pointType.Description,
+            PassivePointsEnabled = pointType.PassivePointsEnabled,
+            PassivePointsIntervalMinutes = pointType.PassivePointsIntervalMinutes,
+            PassivePointsAllViewers = pointType.PassivePointsAllViewers,
+            PassivePointsActiveViewers = pointType.PassivePointsActiveViewers,
+            PassivePointsSubscribers = pointType.PassivePointsSubscribers,
+            PointCommands = pointType.PointCommands
+                .Select(c => new PointCommand
+                {
+                    Id = c.Id,
+                    CommandName = c.CommandName,
+                    CommandType = c.CommandType,
+                    PointTypeId = c.PointTypeId,
+                    PointType = c.PointType
+                })
+                .ToList()
+        };
+
         var requiredTypes = new[] { PointCommandType.Add, PointCommandType.Remove, PointCommandType.Get, PointCommandType.Set, PointCommandType.AddActive };
         foreach (var type in requiredTypes)
         {
-            if (!pointType.PointCommands.Any(c => c.CommandType == type))
-                pointType.PointCommands.Add(new PointCommand { CommandType = type });
+            if (!clone.PointCommands.Any(c => c.CommandType == type))
+                clone.PointCommands.Add(new PointCommand { CommandType = type });
         }
-        newPointType = pointType;
+        newPointType = clone;
     }
 
     private void CancelEdit()
@@ -251,7 +304,7 @@
             return;
         }
         await pointSystem.DeletePointType(pointType.Id.GetValueOrDefault());
-        PointTypes = await pointSystem.GetPointTypes();
+        PointTypes = (await pointSystem.GetPointTypes()).ToList();
     }
 
     private void GenerateCommands()
