@@ -146,7 +146,7 @@
         <MudCardHeader>
             <CardHeaderContent>
                 <MudText Typo="Typo.h6">Passive Earnings</MudText>
-                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown. Describes how viewers earn points passively. Leave empty to hide the section on the viewer page.</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Supports Markdown &amp; Dynamic Variables. Describes how viewers earn points passively. Leave empty to hide the section on the viewer page.</MudText>
             </CardHeaderContent>
         </MudCardHeader>
         <MudCardContent>
@@ -154,7 +154,25 @@
                 <GitHubMarkdownEditor Label="Passive Earnings"
                                       @bind-Value="@PassiveEarnings"
                                       Lines="8"
-                                      HelperText="Supports Markdown, SVG icons, and Alert banners. Describes how viewers earn points passively. Leave empty to hide on viewer page." />
+                                      PreviewTransform="@(md => PenguinTwitchBot.Bot.Core.Points.PassivePointsTemplateReplacer.ReplaceVariables(md, SelectedPointType, PointsPerEntry))"
+                                      HelperText="Supports Markdown, SVG icons, Alert banners, and automatic Passive Point variables (click a chip below to insert)." />
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 600;">
+                            DYNAMIC VARIABLES (Pulls from @(SelectedPointType?.Name ?? "selected Point Type") &amp; auto-calculates totals/hourly math — click to insert):
+                        </MudText>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            @foreach (var variable in PassiveEarningsVariables)
+                            {
+                                <MudTooltip Text="@variable.Description">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" OnClick="@(() => InsertPassiveVariable(variable.Token))">
+                                        @variable.Token
+                                    </MudChip>
+                                </MudTooltip>
+                            }
+                        </div>
+                    </MudStack>
+                </MudPaper>
             </MudStack>
         </MudCardContent>
         <MudCardActions>
@@ -237,6 +255,28 @@
     private int PointsPerEntry { get; set; } = 1;
     private IEnumerable<PointType> AvailablePointTypes { get; set; } = [];
     private PointType? SelectedPointType { get; set; }
+
+    private sealed record PassiveVariableInfo(string Token, string Description);
+
+    private static readonly PassiveVariableInfo[] PassiveEarningsVariables =
+    [
+        new("{PointType}", "Name of the giveaway's point type (e.g., Tickets)"),
+        new("{Interval}", "Passive payout interval in minutes"),
+        new("{AllViewers}", "Base passive points awarded to all viewers in chat"),
+        new("{ActiveViewers}", "Extra passive points awarded to active chatters"),
+        new("{Subscribers}", "Extra passive points awarded to subscribers"),
+        new("{ActiveTotal}", "Auto-calculated total per interval for active chatters (AllViewers + ActiveViewers)"),
+        new("{SubTotal}", "Auto-calculated total per interval for subscribers (AllViewers + ActiveViewers + Subscribers)"),
+        new("{AllViewersPerHour}", "Auto-calculated hourly points for lurkers (AllViewers × 60 / Interval)"),
+        new("{ActiveTotalPerHour}", "Auto-calculated hourly points for active chatters (ActiveTotal × 60 / Interval)"),
+        new("{SubTotalPerHour}", "Auto-calculated hourly points for subscribers (SubTotal × 60 / Interval)"),
+        new("{PointsPerEntry}", "Points required per 1 giveaway entry"),
+    ];
+
+    private void InsertPassiveVariable(string token)
+    {
+        PassiveEarnings = (PassiveEarnings ?? string.Empty) + token;
+    }
 
     protected override async Task OnInitializedAsync()
     {

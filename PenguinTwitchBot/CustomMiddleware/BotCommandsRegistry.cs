@@ -392,6 +392,12 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Twitch events bonus points system for channel point redemptions and event tracking."
             );
+            services.AddRuntimeFeatureService<Bot.Core.Points.IPassivePointsService, Bot.Core.Points.PassivePointsService>(
+                FeatureKeys.PassivePoints,
+                "Passive Points",
+                isCore: false,
+                description: "Periodically awards passive points per point type to all viewers, active viewers, and subscribers while the stream is live."
+            );
 
             // Fishing services - core service and specialized services
             services.AddSingleton<IFishingService, FishingService>();

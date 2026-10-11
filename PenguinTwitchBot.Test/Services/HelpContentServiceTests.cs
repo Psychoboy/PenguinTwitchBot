@@ -115,7 +115,7 @@ public class HelpContentServiceTests
     [InlineData("voices", "Voices Guide", 3)]
     [InlineData("obs-connections", "OBS Connections Guide", 3)]
     [InlineData("channel-points", "Channel Points Guide", 2)]
-    [InlineData("point-settings", "Point Settings Guide", 3)]
+    [InlineData("point-settings", "Point Settings Guide", 4)]
     [InlineData("loyalty-bonuses", "Loyalty Bonuses Guide", 2)]
     [InlineData("game-settings", "Game Settings Guide", 3)]
     [InlineData("raid-rewards", "Raid Rewards Guide", 2)]

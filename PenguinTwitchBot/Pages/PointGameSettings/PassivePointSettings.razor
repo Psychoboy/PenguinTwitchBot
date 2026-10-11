@@ -1,0 +1,161 @@
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@inject IPointsSystem PointSystem
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="4">
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.h6">Passive Points Configuration</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Configure periodic passive point payouts independently for each Point Type while the stream is live.
+                Categories are <strong>additive (stacking)</strong>:
+                Lurkers receive <em>All Viewers</em>, Active Chatters receive <em>All Viewers + Active Viewers</em>,
+                and Subscribers in chat are always considered active and receive <em>All Viewers + Active Viewers + Subscribers</em>.
+            </MudText>
+        </MudStack>
+    </MudPaper>
+
+    <MudGrid Spacing="3">
+        @foreach (var pt in PointTypes)
+        {
+            var interval = Math.Max(1, pt.PassivePointsIntervalMinutes);
+            var lurkerPerInterval = pt.PassivePointsAllViewers;
+            var activePerInterval = pt.PassivePointsAllViewers + pt.PassivePointsActiveViewers;
+            var subPerInterval = pt.PassivePointsAllViewers + pt.PassivePointsActiveViewers + pt.PassivePointsSubscribers;
+            var intervalsPerHour = 60.0 / interval;
+            var lurkerPerHour = (long)Math.Round(lurkerPerInterval * intervalsPerHour);
+            var activePerHour = (long)Math.Round(activePerInterval * intervalsPerHour);
+            var subPerHour = (long)Math.Round(subPerInterval * intervalsPerHour);
+
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.h6">@pt.Name</MudText>
+                                    @if (!string.IsNullOrWhiteSpace(pt.Description))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@pt.Description</MudText>
+                                    }
+                                </MudStack>
+                                <MudSwitch T="bool"
+                                           @bind-Value="pt.PassivePointsEnabled"
+                                           Color="Color.Success"
+                                           Label="@(pt.PassivePointsEnabled ? "Enabled" : "Disabled")" />
+                            </MudStack>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Spacing="3">
+                            <MudNumericField T="int"
+                                             Label="Payout Interval (Minutes)"
+                                             @bind-Value="pt.PassivePointsIntervalMinutes"
+                                             Min="1"
+                                             Max="1440"
+                                             Variant="Variant.Outlined"
+                                             Adornment="Adornment.Start"
+                                             AdornmentIcon="@Icons.Material.Filled.Schedule"
+                                             HelperText="How often passive points are awarded for this point type while the stream is live (minimum 1 minute)." />
+
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="4">
+                                    <MudNumericField T="long"
+                                                     Label="All Viewers"
+                                                     @bind-Value="pt.PassivePointsAllViewers"
+                                                     Min="0"
+                                                     Variant="Variant.Outlined"
+                                                     HelperText="Base points for everyone in chat" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudNumericField T="long"
+                                                     Label="Active Viewers Bonus"
+                                                     @bind-Value="pt.PassivePointsActiveViewers"
+                                                     Min="0"
+                                                     Variant="Variant.Outlined"
+                                                     HelperText="Extra points for active chatters & subs" />
+                                </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <MudNumericField T="long"
+                                                     Label="Subscribers Bonus"
+                                                     @bind-Value="pt.PassivePointsSubscribers"
+                                                     Min="0"
+                                                     Variant="Variant.Outlined"
+                                                     HelperText="Extra points for subscribers" />
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudPaper Outlined="true" Class="pa-3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-weight: 700;">
+                                    EFFECTIVE PAYOUT SUMMARY (Every @interval min / Per Hour)
+                                </MudText>
+                                <MudStack Spacing="1" Class="mt-2">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2">Lurkers (All Viewers):</MudText>
+                                        <MudText Typo="Typo.body2"><strong>@lurkerPerInterval.ToString("N0")</strong> (@lurkerPerHour.ToString("N0") / hr)</MudText>
+                                    </MudStack>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2">Active Viewers (All + Active):</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Info"><strong>@activePerInterval.ToString("N0")</strong> (@activePerHour.ToString("N0") / hr)</MudText>
+                                    </MudStack>
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2">Subscribers (All + Active + Sub):</MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Success"><strong>@subPerInterval.ToString("N0")</strong> (@subPerHour.ToString("N0") / hr)</MudText>
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudStack>
+                    </MudCardContent>
+                    <MudCardActions Class="px-4 pb-4">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   OnClick="@(() => SavePassiveSettings(pt))">
+                            Save @pt.Name Passive Settings
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+</MudStack>
+
+@code {
+    [Parameter] public IEnumerable<PointType> PointTypes { get; set; } = [];
+    [Parameter] public EventCallback<PointType> OnPointTypesUpdated { get; set; }
+
+    private async Task SavePassiveSettings(PointType pointType)
+    {
+        if (pointType.PassivePointsIntervalMinutes < 1)
+        {
+            pointType.PassivePointsIntervalMinutes = 1;
+        }
+        if (pointType.PassivePointsAllViewers < 0)
+        {
+            pointType.PassivePointsAllViewers = 0;
+        }
+        if (pointType.PassivePointsActiveViewers < 0)
+        {
+            pointType.PassivePointsActiveViewers = 0;
+        }
+        if (pointType.PassivePointsSubscribers < 0)
+        {
+            pointType.PassivePointsSubscribers = 0;
+        }
+
+        var persisted = pointType.Id.HasValue
+            ? await PointSystem.GetPointTypeById(pointType.Id.Value) ?? pointType
+            : pointType;
+
+        persisted.PassivePointsEnabled = pointType.PassivePointsEnabled;
+        persisted.PassivePointsIntervalMinutes = pointType.PassivePointsIntervalMinutes;
+        persisted.PassivePointsAllViewers = pointType.PassivePointsAllViewers;
+        persisted.PassivePointsActiveViewers = pointType.PassivePointsActiveViewers;
+        persisted.PassivePointsSubscribers = pointType.PassivePointsSubscribers;
+
+        await PointSystem.UpdatePointType(persisted);
+        Snackbar.Add($"Saved passive points settings for {persisted.Name}.", Severity.Success);
+        await OnPointTypesUpdated.InvokeAsync(persisted);
+    }
+}

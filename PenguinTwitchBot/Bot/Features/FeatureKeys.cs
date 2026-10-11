@@ -15,6 +15,7 @@ namespace PenguinTwitchBot.Bot.Features
         public const string KnownBots = "KnownBots";
         public const string LoyaltyFeature = "LoyaltyFeature";
         public const string MusicPlayer = "MusicPlayer";
+        public const string PassivePoints = "PassivePoints";
         public const string PointsSystem = "PointsSystem";
         public const string QueueManager = "QueueManager";
         public const string QuoteSystem = "QuoteSystem";
