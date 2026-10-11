@@ -256,9 +256,7 @@
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
         BitsPerPoint = await twitchEventsBonus.GetBitsPerPoint();
         var rawPassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
-        passiveEarnings = pointType?.PassivePointsEnabled == true
-            ? PenguinTwitchBot.Bot.Core.Points.PassivePointsTemplateReplacer.ReplaceVariables(rawPassiveEarnings, pointType, pointsPerEntry)
-            : string.Empty;
+        passiveEarnings = PenguinTwitchBot.Bot.Core.Points.PassivePointsTemplateReplacer.ReplaceVariables(rawPassiveEarnings, pointType, pointsPerEntry);
         rules = await GiveawayFeature.GetRules();
         cooldowns = await GiveawayFeature.GetCooldowns();
         terms = await GiveawayFeature.GetTerms();
