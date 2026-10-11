@@ -23,6 +23,11 @@ namespace PenguinTwitchBot.Database.Bot.Models.Points
         //public PointCommand? SetCommand { get; set; }
         //public PointCommand? AddActiveCommand { get; set; }
         public ICollection<PointCommand> PointCommands { get; set; } = [];
+        public bool PassivePointsEnabled { get; set; } = false;
+        public int PassivePointsIntervalMinutes { get; set; } = 5;
+        public long PassivePointsAllViewers { get; set; } = 0;
+        public long PassivePointsActiveViewers { get; set; } = 0;
+        public long PassivePointsSubscribers { get; set; } = 0;
         public int GetId() { return Id ?? 0; }
     }
 }

@@ -230,7 +230,7 @@
                 }
                 else
                 {
-                    <GitHubMarkdownViewer Value="@Value" />
+                    <GitHubMarkdownViewer Value="@(PreviewTransform != null ? PreviewTransform(Value) : Value)" />
                 }
             }
         </div>
@@ -336,6 +336,7 @@
     [Parameter] public int? MaxHeight { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
+    [Parameter] public Func<string?, string?>? PreviewTransform { get; set; }
 
     private EditorTab _activeTab = EditorTab.Write;
     private readonly string _elementId = $"md-editor-{Guid.NewGuid():N}";

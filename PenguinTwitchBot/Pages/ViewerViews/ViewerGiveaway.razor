@@ -246,6 +246,7 @@
 
         var pointType = await PointSystem.GetPointTypeForGame("GiveawayFeature");
         pointTypeName = pointType?.Name ?? "Tickets";
+        var pointsPerEntry = await GiveawayFeature.GetPointsPerEntry();
 
         prize = await GiveawayFeature.GetPrize();
         imageUrl = await GiveawayFeature.GetImageUrl();
@@ -254,7 +255,8 @@
         entrants = await GiveawayFeature.GetEntrantsCount();
         TicketsPerSub = await twitchEventsBonus.GetPointsPerSub();
         BitsPerPoint = await twitchEventsBonus.GetBitsPerPoint();
-        passiveEarnings = await GiveawayFeature.GetPassiveEarnings();
+        var rawPassiveEarnings = await GiveawayFeature.GetPassiveEarnings();
+        passiveEarnings = PenguinTwitchBot.Bot.Core.Points.PassivePointsTemplateReplacer.ReplaceVariables(rawPassiveEarnings, pointType, pointsPerEntry);
         rules = await GiveawayFeature.GetRules();
         cooldowns = await GiveawayFeature.GetCooldowns();
         terms = await GiveawayFeature.GetTerms();

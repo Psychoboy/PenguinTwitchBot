@@ -2033,6 +2033,21 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<long>("PassivePointsActiveViewers")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PassivePointsAllViewers")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("PassivePointsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PassivePointsIntervalMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("PassivePointsSubscribers")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name");

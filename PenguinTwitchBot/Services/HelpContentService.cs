@@ -184,7 +184,8 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             [
                 ("Point Currencies", Icons.Material.Filled.AccountBalanceWallet, "point-settings/currencies.md"),
                 ("Chat Commands", Icons.Material.Filled.Chat, "point-settings/commands.md"),
-                ("Game Assignment & Sub-Actions", Icons.Material.Filled.SportsEsports, "point-settings/game-assignment.md")
+                ("Game Assignment & Sub-Actions", Icons.Material.Filled.SportsEsports, "point-settings/game-assignment.md"),
+                ("Passive Points", Icons.Material.Filled.Schedule, "point-settings/passive-points.md")
             ]
         ),
         ["loyalty-bonuses"] = (

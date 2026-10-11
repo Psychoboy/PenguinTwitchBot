@@ -1943,6 +1943,21 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<long>("PassivePointsActiveViewers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("PassivePointsAllViewers")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PassivePointsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PassivePointsIntervalMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("PassivePointsSubscribers")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name");

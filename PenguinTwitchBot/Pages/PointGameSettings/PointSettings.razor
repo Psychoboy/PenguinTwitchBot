@@ -177,6 +177,11 @@
                     </MudGrid>
                 </MudTabPanel>
 
+                @* -- Tab 3: Passive Points -- *@
+                <MudTabPanel Text="Passive Points" Icon="@Icons.Material.Filled.Schedule">
+                    <PassivePointSettings PointTypes="@PointTypes" OnPointTypesUpdated="RefreshPointTypes" />
+                </MudTabPanel>
+
             </MudTabs>
         </MudItem>
 
@@ -193,6 +198,11 @@
     {
         PointTypes = await pointSystem.GetPointTypes();
         newPointType = CreateNewPointType();
+    }
+
+    private async Task RefreshPointTypes()
+    {
+        PointTypes = await pointSystem.GetPointTypes();
     }
 
     private async Task SavePointType()
