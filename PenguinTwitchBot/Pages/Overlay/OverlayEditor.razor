@@ -864,6 +864,20 @@
                 }
             }
 
+            @if (_selected.WidgetType is "parachute" or "plinko")
+            {
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType == "parachute" ? "Parachute Drop" : "Plinko Bounce") Settings</b></MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="display:block;">
+                    Configure seasonal themes (Spring, Summer, Fall, Winter), interactive droplets, prize buckets, and win actions in the Parachute &amp; Plinko settings page.
+                </MudText>
+                <MudButton FullWidth="true" Color="Color.Primary" Variant="Variant.Outlined" Class="mb-3"
+                           StartIcon="@Icons.Material.Filled.Tune"
+                           Href="/dropgames">
+                    Open Parachute &amp; Plinko Settings
+                </MudButton>
+            }
+
             <MudDivider Class="mb-3" />
             <MudButton FullWidth="true" Color="Color.Error" Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Delete"
@@ -1457,6 +1471,8 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "chat"      => "#00838F",
         "timer"     => "#4527A0",
         "counter"   => "#E65100",
+        "parachute" => "#D81B60",
+        "plinko"    => "#00897B",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----

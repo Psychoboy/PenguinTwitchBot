@@ -47,5 +47,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 
         // Wheel events
         public const string WheelSpinResult = "WheelSpin.Result";
+
+        // Parachute Drop events
+        public const string ParachuteWin = "Parachute.Win";
+        public const string ParachuteBullseye = "Parachute.Bullseye";
+        public const string ParachuteLose = "Parachute.Lose";
+
+        // Plinko Bounce events
+        public const string PlinkoWin = "Plinko.Win";
+        public const string PlinkoLose = "Plinko.Lose";
     }
 }

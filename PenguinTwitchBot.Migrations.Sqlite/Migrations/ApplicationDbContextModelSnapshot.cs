@@ -3398,6 +3398,54 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                     b.ToTable("subactions_overlay_timer_stop", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteDropType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_parachute_drop", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteDropletsType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("KnockbackMultiplier")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("SizePreset")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpawnPattern")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpeedPreset")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_parachute_droplets", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlaySoundType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
@@ -3407,6 +3455,25 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_playsound", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlinkoDropType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_plinko_drop", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PointCommandType", b =>
@@ -3624,6 +3691,36 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_setvariable", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.StartDropGameSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GameType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_start_drop_game_session", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.StopDropGameSessionType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("GameType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_stop_drop_game_session", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.TimerGroupSetEnabledStateType", b =>

@@ -57,6 +57,11 @@ namespace PenguinTwitchBot.Pages.Components
                 TimerGroupSetEnabledStateType timerGroup => $"Timer Group: {timerGroup.TimerGroupName} {(timerGroup.IsEnabled ? "Enabled" : "Disabled")}",
                 CheckPointsType checkPoints => $"Gets {checkPoints.PointTypeName} points for {checkPoints.TargetUser} Variables: %TargetPoints% and %TargetPointsFormatted%",
                 OpenAiType ai => $"OpenAI: {(ai.Text?.Length > 50 ? ai.Text[..50] + "..." : ai.Text)} ({ai.Model})",
+                ParachuteDropType pDrop => $"Parachute Drop: {pDrop.Username}{(string.IsNullOrWhiteSpace(pDrop.EmoteOrImage) ? "" : $" ({pDrop.EmoteOrImage})")}",
+                ParachuteDropletsType droplets => $"Parachute Droplets: {droplets.Count}x {droplets.SizePreset} / {droplets.SpeedPreset} ({droplets.SpawnPattern})",
+                PlinkoDropType plinko => $"Plinko Bounce: {plinko.Username}{(string.IsNullOrWhiteSpace(plinko.EmoteOrImage) ? "" : $" ({plinko.EmoteOrImage})")}",
+                StartDropGameSessionType startSession => $"Start {startSession.GameType} Session ({startSession.DurationSeconds}s)",
+                StopDropGameSessionType stopSession => $"Stop {stopSession.GameType} Session",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

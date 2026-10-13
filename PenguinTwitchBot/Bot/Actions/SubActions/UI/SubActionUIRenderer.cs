@@ -143,9 +143,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
                 builder.AddAttribute(sequence++, "Clearable", true);
 
             if (field.Min != null)
-                builder.AddAttribute(sequence++, "Min", field.Min);
+                builder.AddAttribute(sequence++, "Min", (int?)Convert.ToInt32(field.Min));
             if (field.Max != null)
-                builder.AddAttribute(sequence++, "Max", field.Max);
+                builder.AddAttribute(sequence++, "Max", (int?)Convert.ToInt32(field.Max));
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
 
@@ -167,11 +167,11 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.UI
             builder.AddAttribute(sequence++, "Variant", Variant.Outlined);
 
             if (field.Min != null)
-                builder.AddAttribute(sequence++, "Min", field.Min);
+                builder.AddAttribute(sequence++, "Min", Convert.ToSingle(field.Min));
             if (field.Max != null)
-                builder.AddAttribute(sequence++, "Max", field.Max);
+                builder.AddAttribute(sequence++, "Max", Convert.ToSingle(field.Max));
             if (field.Step != null)
-                builder.AddAttribute(sequence++, "Step", field.Step);
+                builder.AddAttribute(sequence++, "Step", Convert.ToSingle(field.Step));
             if (!string.IsNullOrEmpty(field.HelperText))
                 builder.AddAttribute(sequence++, "HelperText", field.HelperText);
 

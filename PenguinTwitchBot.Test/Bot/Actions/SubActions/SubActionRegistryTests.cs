@@ -21,7 +21,8 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
                 SubActionCategories.Raffles,
                 SubActionCategories.TwitchAndViewers,
                 SubActionCategories.VariablesAndUtilities,
-                SubActionCategories.Ai
+                SubActionCategories.Ai,
+                SubActionCategories.Minigames
             };
 
             var allMetadata = SubActionRegistry.Metadata.Values.ToList();
@@ -51,6 +52,11 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
         [InlineData(SubActionTypes.Uptime, SubActionCategories.TwitchAndViewers)]
         [InlineData(SubActionTypes.SetVariable, SubActionCategories.VariablesAndUtilities)]
         [InlineData(SubActionTypes.OpenAi, SubActionCategories.Ai)]
+        [InlineData(SubActionTypes.ParachuteDrop, SubActionCategories.Minigames)]
+        [InlineData(SubActionTypes.ParachuteDroplets, SubActionCategories.Minigames)]
+        [InlineData(SubActionTypes.PlinkoDrop, SubActionCategories.Minigames)]
+        [InlineData(SubActionTypes.StartDropGameSession, SubActionCategories.Minigames)]
+        [InlineData(SubActionTypes.StopDropGameSession, SubActionCategories.Minigames)]
         public void SubActions_AreAssignedToExpectedCategories(SubActionTypes type, string expectedCategory)
         {
             var meta = SubActionRegistry.GetMetadata(type);

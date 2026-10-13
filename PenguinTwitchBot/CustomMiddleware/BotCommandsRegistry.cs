@@ -381,6 +381,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Wheeled game service for managing wheel game interactions and rewards."
             );
+            services.AddRuntimeFeatureService<IDropGamesService, DropGamesService>(
+                FeatureKeys.DropGames,
+                "Parachute & Plinko Games",
+                moduleName: "DropGames",
+                isCore: false,
+                description: "Parachute Drop (with interactive Droplets) and Plinko Bounce stream overlay minigames."
+            );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,
                 "Points",

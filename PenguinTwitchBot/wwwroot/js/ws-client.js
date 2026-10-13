@@ -9,7 +9,9 @@
         fishing: 'fishing',
         wheel: 'wheel',
         overlay: 'overlay',
-        events: 'events'
+        events: 'events',
+        parachute: 'parachute',
+        plinko: 'plinko'
     };
 
     function createWsSocket(clientName, topics, options) {

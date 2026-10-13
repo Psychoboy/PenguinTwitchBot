@@ -147,6 +147,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                 SubActionTypes.OpenAi
                     => SubActionCategories.Ai,
 
+                SubActionTypes.ParachuteDrop or SubActionTypes.ParachuteDroplets
+                    or SubActionTypes.PlinkoDrop or SubActionTypes.StartDropGameSession
+                    or SubActionTypes.StopDropGameSession
+                    => SubActionCategories.Minigames,
+
                 _ => SubActionCategories.General
             };
         }
