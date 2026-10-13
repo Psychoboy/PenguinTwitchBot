@@ -8,6 +8,7 @@
 @inject IDropGamesService DropGamesService
 @inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
+@inject ILogger<DropGames> Logger
 
 <PageTitle>Parachute Drop & Plinko Bounce</PageTitle>
 
@@ -471,7 +472,7 @@
                                                 <MudItem xs="4" sm="2">
                                                     <MudSwitch T="bool" Color="Color.Success"
                                                                Value="bucket.IsWin"
-                                                               ValueChanged="@(async (bool val) => await OnBucketWinToggledAsync(bucket, val))"
+                                                               ValueChanged="@((bool val) => OnBucketWinToggled(bucket, val))"
                                                                Label="Win" />
                                                 </MudItem>
                                                 <MudItem xs="2" sm="1">
@@ -763,13 +764,9 @@
         });
     }
 
-    private async Task OnBucketWinToggledAsync(PlinkoBucket bucket, bool isWin)
+    private void OnBucketWinToggled(PlinkoBucket bucket, bool isWin)
     {
         bucket.IsWin = isWin;
-        if (_settings != null)
-        {
-            await DropGamesService.SaveSettingsAsync(_settings);
-        }
     }
 
     private void ResetPlinkoBuckets()
@@ -790,7 +787,7 @@
     private async Task TestParachuteDropAsync()
     {
         if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput);
+        await DropGamesService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Parachute Drop! Watch your /parachute.html overlay.", Severity.Info);
     }
 
@@ -802,7 +799,8 @@
             BuildTestEventArgs(),
             _testEmoteInput,
             forcedStartX: _settings.Parachute.TargetCenterX,
-            forcedWindAccelX: 0.0);
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true);
         Snackbar.Add("Launched guaranteed Bullseye Parachute Drop!", Severity.Success);
     }
 
@@ -810,25 +808,38 @@
     {
         if (_settings == null) return;
         await DropGamesService.SaveSettingsAsync(_settings);
+
+        var capturedEmote = _testEmoteInput;
+        var capturedUser = _testUsername;
+
         await DropGamesService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
-            _testEmoteInput,
+            capturedEmote,
             forcedStartX: _settings.Parachute.TargetCenterX,
-            forcedWindAccelX: 0.0);
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true);
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(900);
-            await DropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+            try
             {
-                Count = 6,
-                SizePreset = "Large",
-                SpeedPreset = "Fast",
-                SpawnPattern = "Targeted",
-                KnockbackMultiplier = 1.4,
-                EmoteOrImage = _testEmoteInput,
-                TriggeredByUser = _testUsername
-            });
+                await Task.Delay(900);
+                await DropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+                {
+                    Count = 6,
+                    SizePreset = "Large",
+                    SpeedPreset = "Fast",
+                    SpawnPattern = "Targeted",
+                    KnockbackMultiplier = 1.4,
+                    EmoteOrImage = capturedEmote,
+                    AllowDirectUrlOrPath = true,
+                    TriggeredByUser = capturedUser
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to spawn test droplets collision barrage");
+            }
         });
 
         Snackbar.Add("Launched Parachute Drop + Targeted Droplet Collision barrage!", Severity.Info);
@@ -846,6 +857,7 @@
             SpawnPattern = _settings.Parachute.DefaultDropletPattern,
             KnockbackMultiplier = _settings.Parachute.DefaultKnockbackMultiplier,
             EmoteOrImage = _testEmoteInput,
+            AllowDirectUrlOrPath = true,
             TriggeredByUser = _testUsername
         });
         Snackbar.Add("Spawned interactive droplets on Parachute overlay!", Severity.Info);
@@ -861,6 +873,7 @@
             SpawnPattern = pattern,
             KnockbackMultiplier = 1.25,
             EmoteOrImage = _testEmoteInput,
+            AllowDirectUrlOrPath = true,
             TriggeredByUser = _testUsername
         });
         Snackbar.Add($"Spawned {count}x {size}/{speed} ({pattern}) droplets!", Severity.Info);
@@ -869,7 +882,7 @@
     private async Task TestPlinkoDropAsync()
     {
         if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput);
+        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Plinko token! Watch your /plinko.html overlay.", Severity.Info);
     }
 
@@ -884,7 +897,7 @@
             .Select(x => (int?)x.idx)
             .FirstOrDefault() ?? 0;
 
-        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx);
+        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched guaranteed Winning Bucket Plinko token!", Severity.Success);
     }
 

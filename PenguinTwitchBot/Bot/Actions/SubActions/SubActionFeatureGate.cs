@@ -15,7 +15,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.FishingTournamentEligibleCatch] = FeatureKeys.Fishing,
                 [SubActionTypes.FishingModify] = FeatureKeys.Fishing,
                 [SubActionTypes.Tts] = FeatureKeys.TTS,
-                [SubActionTypes.OpenAi] = FeatureKeys.OpenAI
+                [SubActionTypes.OpenAi] = FeatureKeys.OpenAI,
+                [SubActionTypes.ParachuteDrop] = FeatureKeys.DropGames,
+                [SubActionTypes.ParachuteDroplets] = FeatureKeys.DropGames,
+                [SubActionTypes.PlinkoDrop] = FeatureKeys.DropGames,
+                [SubActionTypes.StartDropGameSession] = FeatureKeys.DropGames,
+                [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames
             };
 
         public static bool IsAvailable(SubActionTypes subActionType, IFeatureRuntimeCoordinator featureRuntimeCoordinator)

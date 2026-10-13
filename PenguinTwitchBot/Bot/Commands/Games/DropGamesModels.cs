@@ -185,6 +185,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string? EmoteOrImage { get; set; }
         public string? NativeEmoteUrl { get; set; }
         public string? TriggeredByUser { get; set; }
+        public bool AllowDirectUrlOrPath { get; set; }
     }
 
     public class DropletInstanceDto

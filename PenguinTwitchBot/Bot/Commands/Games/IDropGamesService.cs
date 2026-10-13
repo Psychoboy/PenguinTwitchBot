@@ -13,7 +13,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             string? themeOverrideId = null,
             double? forcedStartX = null,
             double? forcedWindAccelX = null,
-            bool skipMinimumDurationCheck = false);
+            bool skipMinimumDurationCheck = false,
+            bool allowDirectUrlOrPath = false);
 
         Task<List<DropletInstanceDto>> SpawnDropletsAsync(DropletSpawnRequest request);
 
@@ -22,7 +23,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             string? emoteOrImage = null,
             string? themeOverrideId = null,
             int? forcedBucketIndex = null,
-            bool skipMinimumDurationCheck = false);
+            bool skipMinimumDurationCheck = false,
+            bool allowDirectUrlOrPath = false);
 
         Task<bool> CompleteDropAsync(string dropToken);
 

@@ -83,12 +83,41 @@
     const pegRipples = [];
     const bucketHighlights = [];
     const confettiParticles = [];
+    const pendingCompletions = [];
 
     const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko]);
+
+    function sendCompletion(token) {
+        if (!token) return;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            try {
+                socket.send(JSON.stringify({ dropToken: token }));
+                return;
+            } catch (_) {}
+        }
+        if (!pendingCompletions.includes(token)) {
+            pendingCompletions.push(token);
+        }
+    }
+
+    function flushPendingCompletions() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        while (pendingCompletions.length > 0) {
+            const token = pendingCompletions.shift();
+            try {
+                socket.send(JSON.stringify({ dropToken: token }));
+            } catch (_) {
+                pendingCompletions.unshift(token);
+                break;
+            }
+        }
+    }
+
     socket.addEventListener('open', function () {
         if (typeof window.wsStatusShow === 'function') {
             window.wsStatusShow(true);
         }
+        flushPendingCompletions();
     });
     socket.addEventListener('close', function () {
         if (typeof window.wsStatusShow === 'function') {
@@ -449,9 +478,7 @@
                         leaderDropToken = t.dropToken;
                     }
 
-                    if (socket && socket.readyState === WebSocket.OPEN) {
-                        socket.send(JSON.stringify({ dropToken: t.dropToken }));
-                    }
+                    sendCompletion(t.dropToken);
 
                     const landPxX = padX + t.x * boardW;
                     const landPxY = t.y * height;

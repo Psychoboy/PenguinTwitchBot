@@ -115,9 +115,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var resolvedEmote = await sut.ResolveCharacterOrEmoteUrlAsync(bttvEventArgs, null, "/fallback.png");
             Assert.Equal("https://cdn.7tv.app/emote/penguin_dance/3x.webp", resolvedEmote);
 
-            // 3. Direct custom URL is preserved
-            var resolvedDirect = await sut.ResolveCharacterOrEmoteUrlAsync(null, "/media/custom_chibi.png", "/fallback.png");
+            // 3. Direct custom URL is preserved when allowDirectUrlOrPath is true
+            var resolvedDirect = await sut.ResolveCharacterOrEmoteUrlAsync(null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: true);
             Assert.Equal("/media/custom_chibi.png", resolvedDirect);
+
+            // Chat-sourced direct path without explicit opt-in falls back safely
+            var resolvedUntrustedPath = await sut.ResolveCharacterOrEmoteUrlAsync(null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: false);
+            Assert.Equal("/fallback.png", resolvedUntrustedPath);
 
             // 4. Unknown word or empty input falls back to theme default character sprite
             var noEmoteArgs = new CommandEventArgs

@@ -240,12 +240,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 StartedBy = triggeredBy
             };
 
-            // Set up auto-expiration timer
+            // Set up auto-expiration timer bound specifically to this state instance
             state.ExpiryTimer = new Timer(async _ =>
             {
                 try
                 {
-                    await StopSessionAsync(gameType, triggeredBy: "timer_expired");
+                    await StopSessionAsync(gameType, state, triggeredBy: "timer_expired");
                 }
                 catch (Exception ex)
                 {
@@ -253,7 +253,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 }
             }, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
 
-            _sessions[gameType] = state;
+            // Atomically register session, ensuring we never blindly overwrite another session without stopping it
+            while (!_sessions.TryAdd(gameType, state))
+            {
+                if (_sessions.TryGetValue(gameType, out var existing))
+                {
+                    await StopSessionAsync(gameType, existing, triggeredBy: "restart");
+                }
+            }
 
             var theme = ResolveTheme(settings, themeOverrideId, gameType == DropGameType.Parachute ? settings.Parachute.ActiveThemeId : settings.Plinko.ActiveThemeId);
 
@@ -391,6 +398,83 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             return dto;
         }
 
+        private async Task<DropGameSessionDto?> StopSessionAsync(
+            DropGameType gameType,
+            DropGameSessionState expectedState,
+            string? triggeredBy = null)
+        {
+            ArgumentNullException.ThrowIfNull(expectedState);
+
+            var kvp = new KeyValuePair<DropGameType, DropGameSessionState>(gameType, expectedState);
+            var collection = (ICollection<KeyValuePair<DropGameType, DropGameSessionState>>)_sessions;
+            if (!collection.Remove(kvp))
+            {
+                return null;
+            }
+
+            try
+            {
+                expectedState.ExpiryTimer?.Dispose();
+                expectedState.Cts.Cancel();
+                expectedState.Cts.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Error disposing session timer/cts for {GameType}", gameType);
+            }
+
+            var totalDrops = Volatile.Read(ref expectedState.TotalDrops);
+            var settings = await GetSettingsAsync();
+            var theme = ResolveTheme(settings, expectedState.ThemeIdOverride, gameType == DropGameType.Parachute ? settings.Parachute.ActiveThemeId : settings.Plinko.ActiveThemeId);
+
+            var dto = new DropGameSessionDto
+            {
+                GameType = gameType.ToString().ToLowerInvariant(),
+                IsActive = false,
+                TotalDurationSeconds = expectedState.TotalDurationSeconds,
+                RemainingSeconds = 0,
+                StartedAtMs = new DateTimeOffset(expectedState.StartedAtUtc).ToUnixTimeMilliseconds(),
+                EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
+                TotalDrops = totalDrops,
+                Theme = theme,
+                TargetCenterX = expectedState.TargetCenterX,
+                TargetHalfWidth = expectedState.TargetHalfWidth,
+                BullseyeHalfWidth = expectedState.BullseyeHalfWidth
+            };
+
+            var topic = gameType == DropGameType.Parachute ? WsTopics.Parachute : WsTopics.Plinko;
+            var wsPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_end",
+                session = dto
+            }, _jsonOptions);
+            await QueueWsMessageAsync(topic, wsPayload, $"{gameType} session_end");
+
+            // Chat Announcement
+            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            {
+                var announce = gameType == DropGameType.Parachute
+                    ? settings.Parachute.AnnounceSessionStatusInChat
+                    : settings.Plinko.AnnounceSessionStatusInChat;
+                if (announce)
+                {
+                    var template = gameType == DropGameType.Parachute
+                        ? settings.Parachute.SessionEndChatMessageTemplate
+                        : settings.Plinko.SessionEndChatMessageTemplate;
+                    if (!string.IsNullOrWhiteSpace(template))
+                    {
+                        var msg = template
+                            .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                            .Replace("{duration}", expectedState.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                        await ServiceBackbone.SendChatMessage(msg);
+                    }
+                }
+            }
+
+            logger.LogInformation("Stopped {GameType} session with {Drops} total drops (Triggered by {User})", gameType, totalDrops, triggeredBy ?? "System");
+            return dto;
+        }
+
 
         private void CleanupExpiredDrops()
         {
@@ -404,7 +488,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             }
         }
 
-        public async Task<string?> ResolveCharacterOrEmoteUrlAsync(CommandEventArgs? eventArgs, string? emoteOrImageInput, string fallbackUrl)
+        public async Task<string?> ResolveCharacterOrEmoteUrlAsync(CommandEventArgs? eventArgs, string? emoteOrImageInput, string fallbackUrl, bool allowDirectUrlOrPath = false)
         {
             // 1. Native Twitch emote fragment attached to CommandEventArgs
             if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl))
@@ -418,10 +502,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
             if (!string.IsNullOrWhiteSpace(candidate))
             {
-                // Direct URL or local media path
-                if (candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                    candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                    candidate.StartsWith('/'))
+                // Direct URL or local media path (only allowed when explicitly trusted, e.g. subaction configuration or dashboard test)
+                if (allowDirectUrlOrPath &&
+                    (candidate.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                     candidate.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                     candidate.StartsWith('/')))
                 {
                     return candidate;
                 }
@@ -464,13 +549,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             string? themeOverrideId = null,
             double? forcedStartX = null,
             double? forcedWindAccelX = null,
-            bool skipMinimumDurationCheck = false)
+            bool skipMinimumDurationCheck = false,
+            bool allowDirectUrlOrPath = false)
         {
             CleanupExpiredDrops();
             var settings = await GetSettingsAsync();
             var pSettings = settings.Parachute;
             var theme = ResolveTheme(settings, themeOverrideId, pSettings.ActiveThemeId);
-            var characterImageUrl = await ResolveCharacterOrEmoteUrlAsync(eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl);
+            var characterImageUrl = await ResolveCharacterOrEmoteUrlAsync(eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
 
             var durationSeconds = Math.Clamp(pSettings.DescentDurationSeconds, 2.5, 15.0);
             var totalTicks = Math.Max(60, (int)Math.Round(durationSeconds * TickRateHz));
@@ -641,7 +727,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 Arg = request.EmoteOrImage ?? "",
                 EmoteUrl = request.NativeEmoteUrl
             };
-            var dropletImageUrl = await ResolveCharacterOrEmoteUrlAsync(fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl) ?? "";
+            var dropletImageUrl = await ResolveCharacterOrEmoteUrlAsync(fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl, request.AllowDirectUrlOrPath) ?? "";
 
             var droplets = new List<DropletInstanceDto>(count);
             var trajectoryUpdates = new List<ParachuteTrajectoryUpdateDto>();
@@ -795,6 +881,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 ? record.Collisions.Where(c => c.Tick < elapsedTicksAtDropletSpawn).ToList()
                 : [];
 
+            var startTick = 0;
             if (elapsedTicksAtDropletSpawn > 0 && record.Keyframes.Count > 0)
             {
                 var priorPoint = record.Keyframes
@@ -804,28 +891,35 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
                 if (priorPoint != null)
                 {
+                    startTick = priorPoint.Tick;
                     x = priorPoint.X;
                     y = priorPoint.Y;
                     vx = priorPoint.Vx;
                     vy = priorPoint.Vy;
                 }
+                else
+                {
+                    startTick = Math.Max(0, elapsedTicksAtDropletSpawn);
+                }
             }
 
-            var keyframes = elapsedTicksAtDropletSpawn > 0
-                ? record.Keyframes.Where(k => k.Tick < elapsedTicksAtDropletSpawn).ToList()
+            var keyframes = startTick > 0
+                ? record.Keyframes.Where(k => k.Tick < startTick).ToList()
                 : [];
 
             var hitDropletIds = new HashSet<string>(StringComparer.Ordinal);
-            var startTick = Math.Max(0, elapsedTicksAtDropletSpawn);
+            var maxAllowedTicks = Math.Max(record.TotalTicks, 60) + 180; // Bounded cap (~3 seconds extra if vertical speed was dampened)
+            var finalTick = startTick;
 
-            for (var tick = startTick; tick <= record.TotalTicks; tick++)
+            for (var tick = startTick; tick <= maxAllowedTicks; tick++)
             {
+                finalTick = tick;
                 var t = tick * Dt;
 
                 // Check collisions with any active droplets at this tick
                 if (droplets.Count > 0 && y < record.LandingY - 0.02)
                 {
-                    var localTick = tick - startTick;
+                    var localTick = tick - elapsedTicksAtDropletSpawn;
                     foreach (var droplet in droplets)
                     {
                         if (localTick < droplet.SpawnTickOffset || hitDropletIds.Contains(droplet.Id))
@@ -878,7 +972,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                     }
                 }
 
-                if (tick % 6 == 0 || tick == record.TotalTicks)
+                if (tick % 6 == 0 || tick >= record.TotalTicks)
                 {
                     keyframes.Add(new ParachuteTrajectoryPointDto
                     {
@@ -916,6 +1010,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 }
             }
 
+            record.TotalTicks = finalTick;
             record.LandingX = Math.Round(Math.Clamp(x, 0.05, 0.95), 4);
             record.Collisions = existingCollisions;
             record.DropletHitCount = existingCollisions.Count;
@@ -984,13 +1079,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             string? emoteOrImage = null,
             string? themeOverrideId = null,
             int? forcedBucketIndex = null,
-            bool skipMinimumDurationCheck = false)
+            bool skipMinimumDurationCheck = false,
+            bool allowDirectUrlOrPath = false)
         {
             CleanupExpiredDrops();
             var settings = await GetSettingsAsync();
             var plinkoSettings = settings.Plinko;
             var theme = ResolveTheme(settings, themeOverrideId, plinkoSettings.ActiveThemeId);
-            var characterImageUrl = await ResolveCharacterOrEmoteUrlAsync(eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl);
+            var characterImageUrl = await ResolveCharacterOrEmoteUrlAsync(eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
 
             var buckets = plinkoSettings.Buckets.Count > 0
                 ? plinkoSettings.Buckets

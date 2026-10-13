@@ -241,12 +241,41 @@
         return last;
     }
 
-    // WebSocket connection
+    // WebSocket connection & completions queue
+    const pendingCompletions = [];
     const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
+
+    function sendCompletion(token) {
+        if (!token) return;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            try {
+                socket.send(JSON.stringify({ dropToken: token }));
+                return;
+            } catch (_) {}
+        }
+        if (!pendingCompletions.includes(token)) {
+            pendingCompletions.push(token);
+        }
+    }
+
+    function flushPendingCompletions() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        while (pendingCompletions.length > 0) {
+            const token = pendingCompletions.shift();
+            try {
+                socket.send(JSON.stringify({ dropToken: token }));
+            } catch (_) {
+                pendingCompletions.unshift(token);
+                break;
+            }
+        }
+    }
+
     socket.addEventListener('open', function () {
         if (typeof window.wsStatusShow === 'function') {
             window.wsStatusShow(true);
         }
+        flushPendingCompletions();
     });
     socket.addEventListener('close', function () {
         if (typeof window.wsStatusShow === 'function') {
@@ -1030,10 +1059,8 @@
                         leaderDropToken = drop.dropToken;
                     }
 
-                    // Send completion token to server
-                    if (socket && socket.readyState === WebSocket.OPEN) {
-                        socket.send(JSON.stringify({ dropToken: drop.dropToken }));
-                    }
+                    // Send completion token to server (queued if reconnecting)
+                    sendCompletion(drop.dropToken);
 
                     // Celebration or miss popup
                     const popupText = drop.isBullseye

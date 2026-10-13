@@ -44,14 +44,18 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 FromOwnChannel = true
             };
 
+            var userChanged = !string.Equals(eventArgs.DisplayName, resolvedUser, StringComparison.OrdinalIgnoreCase) &&
+                              !string.Equals(eventArgs.Name, resolvedUser, StringComparison.OrdinalIgnoreCase);
+
             eventArgs.DisplayName = resolvedUser;
-            if (string.IsNullOrWhiteSpace(eventArgs.Name))
+            eventArgs.Name = resolvedUser.ToLowerInvariant();
+            if (userChanged)
             {
-                eventArgs.Name = resolvedUser.ToLowerInvariant();
+                eventArgs.UserId = string.Empty;
             }
 
             context?.LogMessage(subActionIndex, $"Triggering Plinko Bounce for {resolvedUser}");
-            await dropGamesService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme);
+            await dropGamesService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
         }
     }
 }

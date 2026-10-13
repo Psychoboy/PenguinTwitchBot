@@ -43,6 +43,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 KnockbackMultiplier = dropletsSubAction.KnockbackMultiplier,
                 EmoteOrImage = resolvedEmote,
                 NativeEmoteUrl = eventArgs?.EmoteUrl,
+                AllowDirectUrlOrPath = true,
                 TriggeredByUser = triggeredBy
             });
         }

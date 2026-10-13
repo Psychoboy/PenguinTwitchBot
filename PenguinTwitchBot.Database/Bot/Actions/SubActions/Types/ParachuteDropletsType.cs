@@ -144,7 +144,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
             { nameof(SizePreset), SizePreset },
             { nameof(SpeedPreset), SpeedPreset },
             { nameof(SpawnPattern), SpawnPattern },
-            { nameof(KnockbackMultiplier), KnockbackMultiplier },
+            { nameof(KnockbackMultiplier), (float)KnockbackMultiplier },
             { nameof(EmoteOrImage), EmoteOrImage },
             { nameof(Enabled), Enabled }
         };

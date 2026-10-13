@@ -310,9 +310,16 @@ namespace PenguinTwitchBot.Bot.Notifications
                         await _dispatcher.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
                 } else if (data.Length > 0 && data.StartsWith("{\"dropToken\":"))
                 {
-                    var dropComplete = JsonSerializer.Deserialize<DropGameCompleteMessage>(data, _serializerOptions);
-                    if (dropComplete != null && !string.IsNullOrWhiteSpace(dropComplete.DropToken))
-                        await _dispatcher.Publish(new DropGameCompleteNotification(dropComplete.DropToken));
+                    try
+                    {
+                        var dropComplete = JsonSerializer.Deserialize<DropGameCompleteMessage>(data, _serializerOptions);
+                        if (dropComplete != null && !string.IsNullOrWhiteSpace(dropComplete.DropToken))
+                            await _dispatcher.Publish(new DropGameCompleteNotification(dropComplete.DropToken));
+                    }
+                    catch (JsonException)
+                    {
+                        // Malformed completion JSON should not disconnect the socket
+                    }
                 } else if (data.Length > 0 && data.StartsWith('{'))
                 {
                     HandleSubscriptionRequest(connection, data);

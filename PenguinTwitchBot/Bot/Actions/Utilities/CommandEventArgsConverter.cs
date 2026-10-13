@@ -81,7 +81,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 DiscordMention = eventArgs.DiscordMention ?? string.Empty,
                 FromAlias = eventArgs.FromAlias,
                 SkipLock = eventArgs.SkipLock,
-                FromOwnChannel = eventArgs.FromOwnChannel
+                FromOwnChannel = eventArgs.FromOwnChannel,
+                EmoteUrl = eventArgs.EmoteUrl
             };
 
             dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs);
