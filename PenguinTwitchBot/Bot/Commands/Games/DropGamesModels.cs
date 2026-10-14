@@ -374,6 +374,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];
+
+        // Processing & completion state
+        public bool IsProcessing { get; set; }
+        public bool IsCompleted { get; set; }
+        public bool DefaultCommandTriggerExecuted { get; set; }
+        public bool WinActionExecuted { get; set; }
+        public bool WinChatAnnounced { get; set; }
     }
 
     public class DropGameSessionDto

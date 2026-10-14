@@ -735,5 +735,81 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.NotNull(parachuteSession);
             Assert.True(parachuteSession.IsActive);
         }
+
+        [Fact]
+        public void DropRegistry_TryBeginCompletion_And_AcknowledgeCompletion_WorkAsExpected()
+        {
+            var registry = CreateDropRegistry();
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "token-1",
+                GameType = DropGameType.Parachute,
+                Username = "user1",
+                DisplayName = "User1",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "user1", DisplayName = "User1", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-2),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddSeconds(30)
+            };
+            registry.RegisterDrop(record);
+
+            // First TryBeginCompletion succeeds
+            Assert.True(registry.TryBeginCompletion("token-1", out var beginRecord, out var reason));
+            Assert.NotNull(beginRecord);
+            Assert.True(beginRecord.IsProcessing);
+            Assert.Null(reason);
+
+            // Second concurrent TryBeginCompletion fails because it's in progress
+            Assert.False(registry.TryBeginCompletion("token-1", out _, out var reason2));
+            Assert.Equal("Drop token completion is already in progress", reason2);
+
+            // If an error happens and processing is reset
+            beginRecord.IsProcessing = false;
+            Assert.True(registry.TryBeginCompletion("token-1", out _, out _));
+
+            // Acknowledge completion removes the token
+            registry.AcknowledgeCompletion("token-1");
+            Assert.True(beginRecord.IsCompleted);
+
+            // Subsequent begin completion fails with not found
+            Assert.False(registry.TryBeginCompletion("token-1", out _, out var reason3));
+            Assert.Contains("Unknown or already-consumed drop token", reason3);
+        }
+
+        [Fact]
+        public async Task DropGamesSettingsService_DbFailure_ReturnsDefaultsWithoutPersistingOrCaching()
+        {
+            var failRepo = new Mock<ISettingsRepository>();
+            failRepo.Setup(x => x.GetAsync(
+                It.IsAny<Expression<Func<Setting, bool>>>(),
+                It.IsAny<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>()))
+                .ThrowsAsync(new InvalidOperationException("DB error"));
+
+            var failUow = new Mock<IUnitOfWork>();
+            failUow.Setup(x => x.Settings).Returns(failRepo.Object);
+
+            var failProvider = new Mock<IServiceProvider>();
+            failProvider.Setup(x => x.GetService(typeof(IUnitOfWork))).Returns(failUow.Object);
+
+            var failScope = new Mock<IServiceScope>();
+            failScope.Setup(x => x.ServiceProvider).Returns(failProvider.Object);
+
+            var failScopeFactory = new Mock<IServiceScopeFactory>();
+            failScopeFactory.Setup(x => x.CreateScope()).Returns(failScope.Object);
+
+            var service = new DropGamesSettingsService(failScopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance);
+            var settings = await service.GetSettingsAsync();
+
+            Assert.NotNull(settings);
+            Assert.NotNull(settings.Parachute);
+            Assert.NotEmpty(settings.Themes);
+            failUow.Verify(x => x.SaveChangesAsync(), Times.Never);
+        }
     }
 }

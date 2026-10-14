@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 .ToList();
         }
 
-        public bool TryConsumeDrop(string dropToken, out PendingDropRecord? record, out string? failureReason)
+        public bool TryBeginCompletion(string dropToken, out PendingDropRecord? record, out string? failureReason)
         {
             record = null;
             failureReason = null;
@@ -61,13 +61,49 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return false;
             }
 
-            if (!_pendingDrops.TryRemove(dropToken, out record))
+            lock (peekRecord)
             {
-                failureReason = "Drop token was already consumed concurrently";
-                return false;
+                if (peekRecord.IsCompleted)
+                {
+                    failureReason = "Drop token has already completed";
+                    return false;
+                }
+
+                if (peekRecord.IsProcessing)
+                {
+                    failureReason = "Drop token completion is already in progress";
+                    return false;
+                }
+
+                peekRecord.IsProcessing = true;
             }
 
+            record = peekRecord;
             return true;
+        }
+
+        public void AcknowledgeCompletion(string dropToken)
+        {
+            if (string.IsNullOrWhiteSpace(dropToken)) return;
+            if (_pendingDrops.TryGetValue(dropToken, out var record))
+            {
+                lock (record)
+                {
+                    record.IsCompleted = true;
+                    record.IsProcessing = false;
+                }
+                _pendingDrops.TryRemove(dropToken, out _);
+            }
+        }
+
+        public bool TryConsumeDrop(string dropToken, out PendingDropRecord? record, out string? failureReason)
+        {
+            if (TryBeginCompletion(dropToken, out record, out failureReason))
+            {
+                AcknowledgeCompletion(dropToken);
+                return true;
+            }
+            return false;
         }
 
         public void CleanupExpiredDrops()

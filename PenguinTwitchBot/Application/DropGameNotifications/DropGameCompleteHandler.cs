@@ -20,18 +20,33 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                 return;
             }
 
-            if (!dropRegistry.TryConsumeDrop(notification.DropToken, out var record, out _) || record == null)
+            if (!dropRegistry.TryBeginCompletion(notification.DropToken, out var record, out _) || record == null)
             {
                 return;
             }
 
-            if (record.GameType == DropGameType.Parachute)
+            try
             {
-                await parachuteDropService.ProcessCompletionAsync(record);
+                if (record.GameType == DropGameType.Parachute)
+                {
+                    await parachuteDropService.ProcessCompletionAsync(record);
+                }
+                else if (record.GameType == DropGameType.Plinko)
+                {
+                    await plinkoDropService.ProcessCompletionAsync(record);
+                }
+
+                dropRegistry.AcknowledgeCompletion(notification.DropToken);
             }
-            else if (record.GameType == DropGameType.Plinko)
+            finally
             {
-                await plinkoDropService.ProcessCompletionAsync(record);
+                lock (record)
+                {
+                    if (!record.IsCompleted)
+                    {
+                        record.IsProcessing = false;
+                    }
+                }
             }
         }
     }

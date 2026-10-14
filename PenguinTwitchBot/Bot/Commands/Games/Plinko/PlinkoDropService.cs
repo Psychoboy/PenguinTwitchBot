@@ -289,6 +289,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 return null;
             }
 
+            return await FinalizeStoppedSessionAsync(state, triggeredBy);
+        }
+
+        private async Task<DropGameSessionDto?> StopSessionAsync(DropGameSessionState expectedState, string? triggeredBy = null)
+        {
+            ArgumentNullException.ThrowIfNull(expectedState);
+            if (Interlocked.CompareExchange(ref _activeSession, null, expectedState) != expectedState)
+            {
+                return null;
+            }
+
+            return await FinalizeStoppedSessionAsync(expectedState, triggeredBy);
+        }
+
+        private async Task<DropGameSessionDto> FinalizeStoppedSessionAsync(DropGameSessionState state, string? triggeredBy = null)
+        {
             try
             {
                 state.ExpiryTimer?.Dispose();
@@ -329,69 +345,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                         var msg = template
                             .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
                             .Replace("{duration}", state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                        await ServiceBackbone.SendChatMessage(msg);
-                    }
-                }
-            }
-
-            logger.LogInformation("Stopped Plinko session with {Drops} total drops (Triggered by {User})", totalDrops, triggeredBy ?? "System");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
-            {
-                await ProcessNextQueuedSessionAsync();
-            }
-
-            return dto;
-        }
-
-        private async Task<DropGameSessionDto?> StopSessionAsync(DropGameSessionState expectedState, string? triggeredBy = null)
-        {
-            ArgumentNullException.ThrowIfNull(expectedState);
-            if (Interlocked.CompareExchange(ref _activeSession, null, expectedState) != expectedState)
-            {
-                return null;
-            }
-
-            try
-            {
-                expectedState.ExpiryTimer?.Dispose();
-                expectedState.Cts.Cancel();
-                expectedState.Cts.Dispose();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Error disposing session timer/cts for Plinko");
-            }
-
-            var totalDrops = Volatile.Read(ref expectedState.TotalDrops);
-            var settings = await settingsService.GetSettingsAsync();
-            var theme = DropGameMediaResolver.ResolveTheme(settings, expectedState.ThemeIdOverride, settings.Plinko.ActiveThemeId);
-
-            var dto = new DropGameSessionDto
-            {
-                GameType = "plinko",
-                IsActive = false,
-                TotalDurationSeconds = expectedState.TotalDurationSeconds,
-                RemainingSeconds = 0,
-                StartedAtMs = new DateTimeOffset(expectedState.StartedAtUtc).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
-                TotalDrops = totalDrops,
-                Theme = theme
-            };
-
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
-            {
-                if (settings.Plinko.AnnounceSessionStatusInChat)
-                {
-                    var template = settings.Plinko.SessionEndChatMessageTemplate;
-                    if (!string.IsNullOrWhiteSpace(template))
-                    {
-                        var msg = template
-                            .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                            .Replace("{duration}", expectedState.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
                         await ServiceBackbone.SendChatMessage(msg);
                     }
                 }
@@ -538,30 +491,37 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 ["Game"] = "PlinkoBounce"
             };
 
-            var eventType = record.IsWin
-                ? DefaultCommandEventTypes.PlinkoWin
-                : DefaultCommandEventTypes.PlinkoLose;
+            if (!record.DefaultCommandTriggerExecuted)
+            {
+                var eventType = record.IsWin
+                    ? DefaultCommandEventTypes.PlinkoWin
+                    : DefaultCommandEventTypes.PlinkoLose;
 
-            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                "plinko",
-                eventType,
-                record.EventArgs,
-                variables);
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "plinko",
+                    eventType,
+                    record.EventArgs,
+                    variables);
+
+                record.DefaultCommandTriggerExecuted = true;
+            }
 
             if (record.IsWin)
             {
-                if (!string.IsNullOrWhiteSpace(plinkoSettings.WinActionName))
+                if (!record.WinActionExecuted && !string.IsNullOrWhiteSpace(plinkoSettings.WinActionName))
                 {
                     await EnqueueConfiguredWinActionAsync(plinkoSettings.WinActionName, record.EventArgs, variables);
+                    record.WinActionExecuted = true;
                 }
 
-                if (plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
+                if (!record.WinChatAnnounced && plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
                 {
                     var msg = plinkoSettings.WinChatMessageTemplate
                         .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
                         .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
                         .Replace("{bucket}", record.BucketLabel, StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(msg);
+                    record.WinChatAnnounced = true;
                 }
             }
         }

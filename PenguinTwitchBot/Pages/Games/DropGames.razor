@@ -800,10 +800,11 @@
     {
         if (_settings == null) return;
         await SettingsService.SaveSettingsAsync(_settings);
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
         await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
             _testEmoteInput,
-            forcedStartX: _settings.Parachute.TargetCenterX,
+            forcedStartX: targetCenter,
             forcedWindAccelX: 0.0,
             allowDirectUrlOrPath: true);
         Snackbar.Add("Launched guaranteed Bullseye Parachute Drop!", Severity.Success);
@@ -816,11 +817,12 @@
 
         var capturedEmote = _testEmoteInput;
         var capturedUser = _testUsername;
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
 
         await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
             capturedEmote,
-            forcedStartX: _settings.Parachute.TargetCenterX,
+            forcedStartX: targetCenter,
             forcedWindAccelX: 0.0,
             allowDirectUrlOrPath: true);
 
@@ -900,9 +902,15 @@
             .Where(x => x.b.IsWin)
             .OrderByDescending(x => x.b.Score)
             .Select(x => (int?)x.idx)
-            .FirstOrDefault() ?? 0;
+            .FirstOrDefault();
 
-        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx, allowDirectUrlOrPath: true);
+        if (!bestWinIdx.HasValue)
+        {
+            Snackbar.Add("No winning buckets are currently configured in Plinko settings.", Severity.Warning);
+            return;
+        }
+
+        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx.Value, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched guaranteed Winning Bucket Plinko token!", Severity.Success);
     }
 

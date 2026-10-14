@@ -24,7 +24,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return _cachedSettings;
             }
 
-            DropGamesSettings? loaded = null;
             try
             {
                 using var scope = scopeFactory.CreateScope();
@@ -32,30 +31,37 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 if (unitOfWork != null)
                 {
                     var setting = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingsKey)).FirstOrDefault();
-                    if (setting != null && !string.IsNullOrWhiteSpace(setting.StringSetting))
+                    if (setting == null)
                     {
-                        loaded = JsonSerializer.Deserialize<DropGamesSettings>(setting.StringSetting, _jsonOptions);
+                        // Successful read finds no settings row: initialize and persist defaults
+                        var defaults = new DropGamesSettings();
+                        EnsureStockThemes(defaults);
+                        await PersistSettingsToDbAsync(defaults);
+                        _cachedSettings = defaults;
+                        return _cachedSettings;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(setting.StringSetting))
+                    {
+                        var loaded = JsonSerializer.Deserialize<DropGamesSettings>(setting.StringSetting, _jsonOptions);
+                        if (loaded != null)
+                        {
+                            EnsureStockThemes(loaded);
+                            _cachedSettings = loaded;
+                            return _cachedSettings;
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to load DropGamesSettings from database; using defaults.");
+                logger.LogWarning(ex, "Failed to load DropGamesSettings from database; using in-memory defaults.");
             }
 
-            if (loaded == null)
-            {
-                loaded = new DropGamesSettings();
-                EnsureStockThemes(loaded);
-                await PersistSettingsToDbAsync(loaded);
-            }
-            else
-            {
-                EnsureStockThemes(loaded);
-            }
-
-            _cachedSettings = loaded;
-            return _cachedSettings;
+            // Database read or deserialization failure: return in-memory defaults without caching or persisting
+            var fallback = new DropGamesSettings();
+            EnsureStockThemes(fallback);
+            return fallback;
         }
 
         public async Task SaveSettingsAsync(DropGamesSettings settings)

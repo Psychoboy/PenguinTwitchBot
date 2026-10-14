@@ -316,6 +316,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 return null;
             }
 
+            return await FinalizeStoppedSessionAsync(state, triggeredBy);
+        }
+
+        private async Task<DropGameSessionDto?> StopSessionAsync(DropGameSessionState expectedState, string? triggeredBy = null)
+        {
+            ArgumentNullException.ThrowIfNull(expectedState);
+            if (Interlocked.CompareExchange(ref _activeSession, null, expectedState) != expectedState)
+            {
+                return null;
+            }
+
+            return await FinalizeStoppedSessionAsync(expectedState, triggeredBy);
+        }
+
+        private async Task<DropGameSessionDto> FinalizeStoppedSessionAsync(DropGameSessionState state, string? triggeredBy = null)
+        {
             try
             {
                 state.ExpiryTimer?.Dispose();
@@ -359,72 +375,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         var msg = template
                             .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
                             .Replace("{duration}", state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                        await ServiceBackbone.SendChatMessage(msg);
-                    }
-                }
-            }
-
-            logger.LogInformation("Stopped Parachute session with {Drops} total drops (Triggered by {User})", totalDrops, triggeredBy ?? "System");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
-            {
-                await ProcessNextQueuedSessionAsync();
-            }
-
-            return dto;
-        }
-
-        private async Task<DropGameSessionDto?> StopSessionAsync(DropGameSessionState expectedState, string? triggeredBy = null)
-        {
-            ArgumentNullException.ThrowIfNull(expectedState);
-            if (Interlocked.CompareExchange(ref _activeSession, null, expectedState) != expectedState)
-            {
-                return null;
-            }
-
-            try
-            {
-                expectedState.ExpiryTimer?.Dispose();
-                expectedState.Cts.Cancel();
-                expectedState.Cts.Dispose();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Error disposing session timer/cts for Parachute");
-            }
-
-            var totalDrops = Volatile.Read(ref expectedState.TotalDrops);
-            var settings = await settingsService.GetSettingsAsync();
-            var theme = DropGameMediaResolver.ResolveTheme(settings, expectedState.ThemeIdOverride, settings.Parachute.ActiveThemeId);
-
-            var dto = new DropGameSessionDto
-            {
-                GameType = "parachute",
-                IsActive = false,
-                TotalDurationSeconds = expectedState.TotalDurationSeconds,
-                RemainingSeconds = 0,
-                StartedAtMs = new DateTimeOffset(expectedState.StartedAtUtc).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
-                TotalDrops = totalDrops,
-                Theme = theme,
-                TargetCenterX = expectedState.TargetCenterX,
-                TargetHalfWidth = expectedState.TargetHalfWidth,
-                BullseyeHalfWidth = expectedState.BullseyeHalfWidth
-            };
-
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_end");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
-            {
-                if (settings.Parachute.AnnounceSessionStatusInChat)
-                {
-                    var template = settings.Parachute.SessionEndChatMessageTemplate;
-                    if (!string.IsNullOrWhiteSpace(template))
-                    {
-                        var msg = template
-                            .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                            .Replace("{duration}", expectedState.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
                         await ServiceBackbone.SendChatMessage(msg);
                     }
                 }
@@ -714,24 +664,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ["Game"] = "ParachuteDrop"
             };
 
-            var eventType = record.IsBullseye
-                ? DefaultCommandEventTypes.ParachuteBullseye
-                : (record.IsWin ? DefaultCommandEventTypes.ParachuteWin : DefaultCommandEventTypes.ParachuteLose);
+            if (!record.DefaultCommandTriggerExecuted)
+            {
+                var eventType = record.IsBullseye
+                    ? DefaultCommandEventTypes.ParachuteBullseye
+                    : (record.IsWin ? DefaultCommandEventTypes.ParachuteWin : DefaultCommandEventTypes.ParachuteLose);
 
-            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                "drop",
-                eventType,
-                record.EventArgs,
-                variables);
+                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                    "drop",
+                    eventType,
+                    record.EventArgs,
+                    variables);
+
+                record.DefaultCommandTriggerExecuted = true;
+            }
 
             if (record.IsWin)
             {
-                if (!string.IsNullOrWhiteSpace(pSettings.WinActionName))
+                if (!record.WinActionExecuted && !string.IsNullOrWhiteSpace(pSettings.WinActionName))
                 {
                     await EnqueueConfiguredWinActionAsync(pSettings.WinActionName, record.EventArgs, variables);
+                    record.WinActionExecuted = true;
                 }
 
-                if (pSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(pSettings.WinChatMessageTemplate))
+                if (!record.WinChatAnnounced && pSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(pSettings.WinChatMessageTemplate))
                 {
                     var bullseyeTag = record.IsBullseye ? " 🎯 BULLSEYE!" : "";
                     var msg = pSettings.WinChatMessageTemplate
@@ -740,6 +696,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         .Replace("{bullseye}", bullseyeTag, StringComparison.OrdinalIgnoreCase)
                         .Replace("{droplethits}", record.DropletHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(msg);
+                    record.WinChatAnnounced = true;
                 }
             }
         }
