@@ -66,19 +66,13 @@
                                     </MudSelect>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="6">
                                             <MudNumericField T="double" Label="Target Width (%)" Variant="Variant.Outlined"
                                                              Min="5" Max="60" Step="1"
                                                              @bind-Value="_settings.Parachute.TargetWidthPercent"
-                                                             HelperText="Width of landing target (% of screen)" />
+                                                             HelperText="Width of landing platform (% of screen)" />
                                         </MudItem>
-                                        <MudItem xs="12" sm="4">
-                                            <MudNumericField T="double" Label="Bullseye Width (%)" Variant="Variant.Outlined"
-                                                             Min="1" Max="25" Step="0.5"
-                                                             @bind-Value="_settings.Parachute.BullseyeWidthPercent"
-                                                             HelperText="Center bullseye zone (% of screen)" />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="6">
                                             <MudNumericField T="double" Label="Target Position X (0.15 - 0.85)" Variant="Variant.Outlined"
                                                              Min="0.15" Max="0.85" Step="0.05"
                                                              @bind-Value="_settings.Parachute.TargetCenterX"
@@ -100,10 +94,6 @@
                                                              HelperText="Horizontal breeze affecting descent trajectory" />
                                         </MudItem>
                                     </MudGrid>
-
-                                    <MudSwitch T="bool" Color="Color.Warning"
-                                               @bind-Value="_settings.Parachute.WinOnBullseyeOnly"
-                                               Label="Require Bullseye Hit to Trigger Win Action (Otherwise any Target Hit wins)" />
                                 </MudStack>
                             </MudPaper>
 
@@ -212,7 +202,7 @@
                                     <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
                                                StartIcon="@Icons.Material.Filled.GpsFixed"
                                                OnClick="TestParachuteBullseyeAsync">
-                                        Launch Guaranteed Bullseye Drop
+                                        Launch Guaranteed Center (100 pts) Drop
                                     </MudButton>
 
                                     <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
@@ -807,7 +797,7 @@
             forcedStartX: targetCenter,
             forcedWindAccelX: 0.0,
             allowDirectUrlOrPath: true);
-        Snackbar.Add("Launched guaranteed Bullseye Parachute Drop!", Severity.Success);
+        Snackbar.Add("Launched guaranteed 100 pts center Parachute Drop!", Severity.Success);
     }
 
     private async Task TestComboDropAndDropletsAsync()

@@ -811,5 +811,50 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.NotEmpty(settings.Themes);
             failUow.Verify(x => x.SaveChangesAsync(), Times.Never);
         }
+
+        [Theory]
+        [InlineData(0.50, 100, true, true, true)]    // Dead center -> 100 pts, Bullseye, Win, Hit
+        [InlineData(0.59, 1, false, true, true)]     // Exact right edge (0.50 + 0.09) -> 1 pt, Win, Hit
+        [InlineData(0.41, 1, false, true, true)]     // Exact left edge (0.50 - 0.09) -> 1 pt, Win, Hit
+        [InlineData(0.545, 51, false, true, true)]   // Halfway to edge (0.045 / 0.09 = 0.5) -> 51 pts
+        [InlineData(0.60, 0, false, false, false)]   // Missed platform right -> 0 pts, No Win, No Hit
+        [InlineData(0.40, 0, false, false, false)]   // Missed platform left -> 0 pts, No Win, No Hit
+        public void ParachuteSimulation_ScoreCalculation_FollowsZeroToHundredRule(
+            double startX, int expectedScore, bool expectedBullseye, bool expectedWin, bool expectedHit)
+        {
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "test-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = startX,
+                StartY = 0.06,
+                LandingY = 0.88,
+                InitialVx = 0.0,
+                InitialVy = 0.10,
+                WindAccelX = 0.0,
+                SwayAmplitude = 0.0,
+                SwayFrequency = 2.0,
+                SwayPhase = 0.0,
+                TotalTicks = 60,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.09
+            };
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
+
+            Assert.Equal(expectedScore, record.Score);
+            Assert.Equal(expectedBullseye, record.IsBullseye);
+            Assert.Equal(expectedWin, record.IsWin);
+            Assert.Equal(expectedHit, record.IsHit);
+        }
     }
 }

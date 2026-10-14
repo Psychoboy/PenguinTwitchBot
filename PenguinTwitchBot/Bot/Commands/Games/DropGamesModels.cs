@@ -110,8 +110,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
         public double TargetWidthPercent { get; set; } = 18.0;
-        public double BullseyeWidthPercent { get; set; } = 5.0;
-        public bool WinOnBullseyeOnly { get; set; } = false;
         public double DescentDurationSeconds { get; set; } = 6.5;
         public double WindStrength { get; set; } = 0.25;
         public string WinActionName { get; set; } = "";
@@ -359,8 +357,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int TotalTicks { get; set; }
         public double TargetCenterX { get; init; }
         public double TargetHalfWidth { get; init; }
-        public double BullseyeHalfWidth { get; init; }
-        public bool WinOnBullseyeOnly { get; init; }
 
         // Authoritative outcome (updated by server 60Hz simulation if droplets collide)
         public double LandingX { get; set; }

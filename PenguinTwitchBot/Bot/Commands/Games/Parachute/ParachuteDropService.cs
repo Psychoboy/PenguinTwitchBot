@@ -247,7 +247,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Parachute.ActiveThemeId);
 
                 var targetHalfWidth = Math.Clamp(settings.Parachute.TargetWidthPercent / 200.0, 0.02, 0.35);
-                var bullseyeHalfWidth = Math.Min(targetHalfWidth, Math.Clamp(settings.Parachute.BullseyeWidthPercent / 200.0, 0.008, 0.15));
+                var bullseyeHalfWidth = targetHalfWidth * 0.25;
 
                 var minCenterX = Math.Max(0.12, targetHalfWidth + 0.03);
                 var maxCenterX = Math.Min(0.88, 1.0 - targetHalfWidth - 0.03);
@@ -424,7 +424,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var swayPhase = DropGameMath.RandomDouble(0, Math.PI * 2.0);
 
             var targetHalfWidth = Math.Clamp(pSettings.TargetWidthPercent / 200.0, 0.02, 0.35);
-            var bullseyeHalfWidth = Math.Min(targetHalfWidth, Math.Clamp(pSettings.BullseyeWidthPercent / 200.0, 0.008, 0.15));
+            var bullseyeHalfWidth = targetHalfWidth * 0.25;
 
             var minSafeX = Math.Max(0.12, targetHalfWidth + 0.03);
             var maxSafeX = Math.Min(0.88, 1.0 - targetHalfWidth - 0.03);
@@ -477,9 +477,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 SwayPhase = swayPhase,
                 TotalTicks = totalTicks,
                 TargetCenterX = targetCenterX,
-                TargetHalfWidth = targetHalfWidth,
-                BullseyeHalfWidth = bullseyeHalfWidth,
-                WinOnBullseyeOnly = pSettings.WinOnBullseyeOnly
+                TargetHalfWidth = targetHalfWidth
             };
 
             lock (_simulationLock)

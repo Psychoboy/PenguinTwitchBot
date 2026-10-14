@@ -175,26 +175,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             record.DropletHitCount = existingCollisions.Count;
             record.Keyframes = keyframes;
 
-            // Evaluate landing accuracy against Target & Bullseye
-            var distanceFromCenter = Math.Abs(record.LandingX - record.TargetCenterX);
-            record.IsBullseye = distanceFromCenter <= record.BullseyeHalfWidth;
+            // Evaluate landing accuracy against Target platform (0 - 100 score)
+            // 0 = missed the platform
+            // 1 = edge of the platform
+            // 100 = dead center of the platform
+            var distanceFromCenter = Math.Round(Math.Abs(record.LandingX - record.TargetCenterX), 4);
             record.IsHit = distanceFromCenter <= record.TargetHalfWidth;
 
-            if (record.IsBullseye)
+            if (record.IsHit)
             {
-                record.Score = 100;
-            }
-            else if (record.IsHit)
-            {
-                var normalizedDist = (distanceFromCenter - record.BullseyeHalfWidth) / Math.Max(0.001, record.TargetHalfWidth - record.BullseyeHalfWidth);
-                record.Score = Math.Clamp((int)Math.Round(90.0 - (normalizedDist * 65.0)), 25, 95);
+                var ratio = Math.Clamp(distanceFromCenter / Math.Max(0.0001, record.TargetHalfWidth), 0.0, 1.0);
+                record.Score = Math.Clamp((int)Math.Round(100.0 - (ratio * 99.0), MidpointRounding.AwayFromZero), 1, 100);
+                record.IsBullseye = record.Score == 100;
+                record.IsWin = true;
             }
             else
             {
                 record.Score = 0;
+                record.IsBullseye = false;
+                record.IsWin = false;
             }
-
-            record.IsWin = record.WinOnBullseyeOnly ? record.IsBullseye : record.IsHit;
         }
     }
 }
