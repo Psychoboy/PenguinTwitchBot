@@ -1,10 +1,15 @@
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Features;
 
 namespace PenguinTwitchBot.Application.DropGameNotifications
 {
     public class DropGameCompleteHandler(
-        IDropGamesService dropGamesService,
+        IDropRegistry dropRegistry,
+        IParachuteDropService parachuteDropService,
+        IPlinkoDropService plinkoDropService,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator)
         : Application.Notifications.INotificationHandler<DropGameCompleteNotification>
     {
@@ -15,8 +20,19 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                 return;
             }
 
-            await dropGamesService.CompleteDropAsync(notification.DropToken);
+            if (!dropRegistry.TryConsumeDrop(notification.DropToken, out var record, out _) || record == null)
+            {
+                return;
+            }
+
+            if (record.GameType == DropGameType.Parachute)
+            {
+                await parachuteDropService.ProcessCompletionAsync(record);
+            }
+            else if (record.GameType == DropGameType.Plinko)
+            {
+                await plinkoDropService.ProcessCompletionAsync(record);
+            }
         }
     }
 }
-

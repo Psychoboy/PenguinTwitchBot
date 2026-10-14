@@ -1,12 +1,16 @@
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class StopDropGameSessionHandler(IDropGamesService dropGamesService) : ISubActionHandler
+    public class StopDropGameSessionHandler(
+        IParachuteDropService parachuteDropService,
+        IPlinkoDropService plinkoDropService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StopDropGameSession;
 
@@ -27,9 +31,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (resolvedGame.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 context?.LogMessage(subActionIndex, "Stopping Parachute and Plinko sessions");
-                await dropGamesService.ClearSessionQueueAsync();
-                await dropGamesService.StopSessionAsync(DropGameType.Parachute, triggeredBy);
-                await dropGamesService.StopSessionAsync(DropGameType.Plinko, triggeredBy);
+                await parachuteDropService.ClearSessionQueueAsync();
+                await plinkoDropService.ClearSessionQueueAsync();
+                await parachuteDropService.StopSessionAsync(triggeredBy);
+                await plinkoDropService.StopSessionAsync(triggeredBy);
             }
             else
             {
@@ -38,9 +43,15 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                     : DropGameType.Parachute;
 
                 context?.LogMessage(subActionIndex, $"Stopping {gameType} session");
-                await dropGamesService.StopSessionAsync(gameType, triggeredBy);
+                if (gameType == DropGameType.Plinko)
+                {
+                    await plinkoDropService.StopSessionAsync(triggeredBy);
+                }
+                else
+                {
+                    await parachuteDropService.StopSessionAsync(triggeredBy);
+                }
             }
         }
     }
 }
-

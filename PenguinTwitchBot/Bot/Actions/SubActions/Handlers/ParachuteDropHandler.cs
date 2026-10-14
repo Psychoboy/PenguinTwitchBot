@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Utilities;
-using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ParachuteDropHandler(IDropGamesService dropGamesService) : ISubActionHandler
+    public class ParachuteDropHandler(IParachuteDropService parachuteDropService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ParachuteDrop;
 
@@ -55,8 +55,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             context?.LogMessage(subActionIndex, $"Triggering Parachute Drop for {resolvedUser}");
-            await dropGamesService.TriggerParachuteDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
+            await parachuteDropService.TriggerParachuteDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
         }
     }
 }
-

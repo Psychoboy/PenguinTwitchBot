@@ -6,6 +6,9 @@ using PenguinTwitchBot.Bot.Commands.Alias;
 using PenguinTwitchBot.Bot.Commands.AudioCommand;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.Shoutout;
@@ -381,12 +384,21 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Wheeled game service for managing wheel game interactions and rewards."
             );
-            services.AddRuntimeFeatureService<IDropGamesService, DropGamesService>(
+            services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
+            services.AddSingleton<IDropRegistry, DropRegistry>();
+            services.AddRuntimeFeatureService<IParachuteDropService, ParachuteDropService>(
                 FeatureKeys.DropGames,
-                "Parachute & Plinko Games",
-                moduleName: "DropGames",
+                "Parachute Drop",
+                moduleName: "ParachuteDrop",
                 isCore: false,
-                description: "Parachute Drop (with interactive Droplets) and Plinko Bounce stream overlay minigames."
+                description: "Parachute Drop stream overlay minigame with interactive Droplets."
+            );
+            services.AddRuntimeFeatureService<IPlinkoDropService, PlinkoDropService>(
+                FeatureKeys.DropGames,
+                "Plinko Bounce",
+                moduleName: "PlinkoDrop",
+                isCore: false,
+                description: "Plinko Bounce stream overlay minigame."
             );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,

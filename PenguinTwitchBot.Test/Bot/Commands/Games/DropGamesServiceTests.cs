@@ -7,16 +7,19 @@ using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Games;
-using PenguinTwitchBot.Bot.Models.Commands;
-using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models.Commands;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
 using PenguinTwitchBot.Services;
@@ -57,9 +60,21 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 .ReturnsAsync([]);
         }
 
-        private DropGamesService CreateService()
+        private IDropGamesSettingsService CreateSettingsService()
         {
-            return new DropGamesService(
+            return new DropGamesSettingsService(_scopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance);
+        }
+
+        private IDropRegistry CreateDropRegistry()
+        {
+            return new DropRegistry(NullLogger<DropRegistry>.Instance);
+        }
+
+        private ParachuteDropService CreateParachuteService(
+            IDropGamesSettingsService? settingsService = null,
+            IDropRegistry? dropRegistry = null)
+        {
+            return new ParachuteDropService(
                 _serviceBackbone.Object,
                 _commandHandler.Object,
                 _defaultCommandTriggerService.Object,
@@ -67,15 +82,34 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 _emoteService.Object,
                 _webSocketMessenger.Object,
                 _dispatcher.Object,
-                NullLogger<DropGamesService>.Instance);
+                settingsService ?? CreateSettingsService(),
+                dropRegistry ?? CreateDropRegistry(),
+                NullLogger<ParachuteDropService>.Instance);
+        }
+
+        private PlinkoDropService CreatePlinkoService(
+            IDropGamesSettingsService? settingsService = null,
+            IDropRegistry? dropRegistry = null)
+        {
+            return new PlinkoDropService(
+                _serviceBackbone.Object,
+                _commandHandler.Object,
+                _defaultCommandTriggerService.Object,
+                _scopeFactory.Object,
+                _emoteService.Object,
+                _webSocketMessenger.Object,
+                _dispatcher.Object,
+                settingsService ?? CreateSettingsService(),
+                dropRegistry ?? CreateDropRegistry(),
+                NullLogger<PlinkoDropService>.Instance);
         }
 
         [Fact]
         public async Task GetSettingsAsync_InitializesFourStockSeasonalThemesAndDefaultPlinkoBuckets()
         {
-            var sut = CreateService();
+            var settingsService = CreateSettingsService();
 
-            var settings = await sut.GetSettingsAsync();
+            var settings = await settingsService.GetSettingsAsync();
 
             Assert.NotNull(settings);
             Assert.Contains(settings.Themes, t => t.Id == "spring" && t.SeasonPreset == "spring" && t.IsStock);
@@ -88,7 +122,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task ResolveCharacterOrEmoteUrlAsync_PrioritizesNativeTwitchEmote_ThenEmoteService_ThenFallback()
         {
-            var sut = CreateService();
             _emoteService.Setup(x => x.GetEmotesAsync()).ReturnsAsync(new Dictionary<string, string>
             {
                 ["PenguinDance"] = "https://cdn.7tv.app/emote/penguin_dance/3x.webp"
@@ -102,7 +135,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 Arg = "PenguinDance",
                 EmoteUrl = "https://static-cdn.jtvnw.net/emoticons/v2/12345/default/dark/3.0"
             };
-            var resolvedNative = await sut.ResolveCharacterOrEmoteUrlAsync(nativeEventArgs, null, "/fallback.png");
+            var resolvedNative = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, nativeEventArgs, null, "/fallback.png");
             Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/12345/default/dark/3.0", resolvedNative);
 
             // 2. BTTV/FFZ/7TV/Channel emote code resolved via IEmoteService
@@ -112,15 +145,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 DisplayName = "Viewer1",
                 Arg = "penguindance extra text"
             };
-            var resolvedEmote = await sut.ResolveCharacterOrEmoteUrlAsync(bttvEventArgs, null, "/fallback.png");
+            var resolvedEmote = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, bttvEventArgs, null, "/fallback.png");
             Assert.Equal("https://cdn.7tv.app/emote/penguin_dance/3x.webp", resolvedEmote);
 
             // 3. Direct custom URL is preserved when allowDirectUrlOrPath is true
-            var resolvedDirect = await sut.ResolveCharacterOrEmoteUrlAsync(null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: true);
+            var resolvedDirect = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: true);
             Assert.Equal("/media/custom_chibi.png", resolvedDirect);
 
             // Chat-sourced direct path without explicit opt-in falls back safely
-            var resolvedUntrustedPath = await sut.ResolveCharacterOrEmoteUrlAsync(null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: false);
+            var resolvedUntrustedPath = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: false);
             Assert.Equal("/fallback.png", resolvedUntrustedPath);
 
             // 4. Unknown word or empty input falls back to theme default character sprite
@@ -130,14 +163,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 DisplayName = "Viewer1",
                 Arg = "NotAnEmote"
             };
-            var resolvedFallback = await sut.ResolveCharacterOrEmoteUrlAsync(noEmoteArgs, null, "/themes/spring_default.png");
+            var resolvedFallback = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, noEmoteArgs, null, "/themes/spring_default.png");
             Assert.Equal("/themes/spring_default.png", resolvedFallback);
         }
 
         [Fact]
         public async Task TriggerParachuteDropAsync_CreatesAuthoritativeDropAndQueuesOnParachuteTopic()
         {
-            var sut = CreateService();
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(dropRegistry: registry);
 
             var token = await sut.TriggerParachuteDropAsync(
                 new CommandEventArgs { Name = "testuser", DisplayName = "TestUser", UserId = "1001" },
@@ -149,7 +183,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.False(string.IsNullOrWhiteSpace(token));
             Assert.Equal(64, token.Length); // 256-bit hex token
 
-            var pending = sut.GetPendingDrop(token);
+            var pending = registry.GetPendingDrop(token);
             Assert.NotNull(pending);
             Assert.Equal(DropGameType.Parachute, pending.GameType);
             Assert.Equal("winter", pending.Theme.Id);
@@ -167,7 +201,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task SpawnDropletsAsync_TargetedGiantHyperDroplets_CollideAndAlterParachutistTrajectory()
         {
-            var sut = CreateService();
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(dropRegistry: registry);
 
             // Start a parachute drop aimed dead center (bullseye)
             var token = await sut.TriggerParachuteDropAsync(
@@ -177,7 +212,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 forcedStartX: 0.50,
                 forcedWindAccelX: 0.0);
 
-            var before = sut.GetPendingDrop(token)!;
+            var before = registry.GetPendingDrop(token)!;
             var initialLandingX = before.LandingX;
             Assert.Equal(0, before.DropletHitCount);
 
@@ -194,7 +229,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Equal(6, spawned.Count);
 
-            var after = sut.GetPendingDrop(token)!;
+            var after = registry.GetPendingDrop(token)!;
             Assert.True(after.DropletHitCount > 0, "Expected targeted droplets to collide with the active parachutist.");
             Assert.NotEmpty(after.Collisions);
             Assert.NotEqual(initialLandingX, after.LandingX);
@@ -213,17 +248,20 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task CompleteDropAsync_EnforcesTamperProofTokenSecurity_SingleUse_AndTriggersWinActions()
         {
-            var sut = CreateService();
-            var settings = await sut.GetSettingsAsync();
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(settingsService, registry);
+
+            var settings = await settingsService.GetSettingsAsync();
             settings.Parachute.WinActionName = "ParachuteWinnerReward";
             settings.Parachute.AnnounceWinsInChat = false;
-            await sut.SaveSettingsAsync(settings);
+            await settingsService.SaveSettingsAsync(settings);
 
             var rewardAction = new ActionType { Name = "ParachuteWinnerReward", Enabled = true };
             _actionManagementService.Setup(x => x.GetAllActionsAsync()).ReturnsAsync([rewardAction]);
 
             // 1. Unknown/forged token is rejected
-            var forgedResult = await sut.CompleteDropAsync("0000000000000000000000000000000000000000000000000000000000000000");
+            var forgedResult = registry.TryConsumeDrop("0000000000000000000000000000000000000000000000000000000000000000", out _, out _);
             Assert.False(forgedResult);
             _actionService.Verify(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()), Times.Never);
 
@@ -234,7 +272,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 forcedWindAccelX: 0.0,
                 skipMinimumDurationCheck: false);
 
-            var prematureResult = await sut.CompleteDropAsync(prematureToken);
+            var prematureResult = registry.TryConsumeDrop(prematureToken, out _, out _);
             Assert.False(prematureResult);
             _actionService.Verify(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()), Times.Never);
 
@@ -247,8 +285,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 forcedWindAccelX: 0.0,
                 skipMinimumDurationCheck: true);
 
-            var validResult = await sut.CompleteDropAsync(validToken);
+            var validResult = registry.TryConsumeDrop(validToken, out var validRecord, out _);
             Assert.True(validResult);
+            Assert.NotNull(validRecord);
+
+            await sut.ProcessCompletionAsync(validRecord);
 
             // Verify Default Command Trigger and Direct Win Action were both invoked
             _defaultCommandTriggerService.Verify(
@@ -269,7 +310,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 Times.Once);
 
             // 4. Replaying the same token a second time is rejected (atomic single-use)
-            var replayResult = await sut.CompleteDropAsync(validToken);
+            var replayResult = registry.TryConsumeDrop(validToken, out _, out _);
             Assert.False(replayResult);
             _actionService.Verify(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()), Times.Once);
         }
@@ -277,11 +318,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task TriggerPlinkoDropAsync_SelectsWinningBucket_AndCompletesSecurely()
         {
-            var sut = CreateService();
-            var settings = await sut.GetSettingsAsync();
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreatePlinkoService(settingsService, registry);
+
+            var settings = await settingsService.GetSettingsAsync();
             settings.Plinko.WinActionName = "PlinkoJackpotAction";
             settings.Plinko.AnnounceWinsInChat = false;
-            await sut.SaveSettingsAsync(settings);
+            await settingsService.SaveSettingsAsync(settings);
 
             var plinkoAction = new ActionType { Name = "PlinkoJackpotAction", Enabled = true };
             _actionManagementService.Setup(x => x.GetAllActionsAsync()).ReturnsAsync([plinkoAction]);
@@ -296,13 +340,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 forcedBucketIndex: winBucketIndex,
                 skipMinimumDurationCheck: true);
 
-            var pending = sut.GetPendingDrop(token);
+            var pending = registry.GetPendingDrop(token);
             Assert.NotNull(pending);
             Assert.Equal(DropGameType.Plinko, pending.GameType);
             Assert.True(pending.IsWin);
 
-            var completed = await sut.CompleteDropAsync(token);
+            var completed = registry.TryConsumeDrop(token, out var record, out _);
             Assert.True(completed);
+            Assert.NotNull(record);
+
+            await sut.ProcessCompletionAsync(record);
 
             _defaultCommandTriggerService.Verify(
                 x => x.TriggerDefaultCommandEventAsync(
@@ -328,15 +375,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             _settingsRepo.Setup(x => x.Update(It.IsAny<Setting>()))
                 .Callback<Setting>(s => savedSetting = s);
 
-            var sut1 = CreateService();
-            var settings = await sut1.GetSettingsAsync();
+            var settingsService1 = CreateSettingsService();
+            var settings = await settingsService1.GetSettingsAsync();
             foreach (var b in settings.Plinko.Buckets)
             {
                 b.IsWin = b.Label == "JACKPOT";
             }
             settings.Plinko.WinActionName = "PlinkoJackpotAction";
             settings.Plinko.AnnounceWinsInChat = true;
-            await sut1.SaveSettingsAsync(settings);
+            await settingsService1.SaveSettingsAsync(settings);
 
             Assert.NotNull(savedSetting);
 
@@ -349,8 +396,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 It.IsAny<string>()))
                 .ReturnsAsync(() => savedSetting != null ? [savedSetting] : []);
 
-            var sut2 = CreateService();
-            var reloaded = await sut2.GetSettingsAsync();
+            var settingsService2 = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut2 = CreatePlinkoService(settingsService2, registry);
+
+            var reloaded = await settingsService2.GetSettingsAsync();
             Assert.Equal(7, reloaded.Plinko.Buckets.Count);
             var singleWin = Assert.Single(reloaded.Plinko.Buckets, b => b.IsWin);
             Assert.Equal("JACKPOT", singleWin.Label);
@@ -361,13 +411,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 forcedBucketIndex: 1,
                 skipMinimumDurationCheck: true);
 
-            var pending = sut2.GetPendingDrop(token);
+            var pending = registry.GetPendingDrop(token);
             Assert.NotNull(pending);
             Assert.False(pending.IsWin);
             Assert.Equal(0, pending.Score);
 
-            var completed = await sut2.CompleteDropAsync(token);
+            var completed = registry.TryConsumeDrop(token, out var record, out _);
             Assert.True(completed);
+            Assert.NotNull(record);
+
+            await sut2.ProcessCompletionAsync(record);
 
             _defaultCommandTriggerService.Verify(
                 x => x.TriggerDefaultCommandEventAsync(
@@ -405,14 +458,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task StartAndStopSession_BroadcastsWebSocketEvents_AndSetsState()
         {
-            var sut = CreateService();
+            var sut = CreateParachuteService();
 
-            var startDto = await sut.StartSessionAsync(DropGameType.Parachute, 90, triggeredBy: "Streamer");
+            var startDto = await sut.StartSessionAsync(90, triggeredBy: "Streamer");
             Assert.True(startDto.IsActive);
             Assert.Equal(90, startDto.TotalDurationSeconds);
             Assert.Equal(0, startDto.TotalDrops);
 
-            var current = sut.GetCurrentSession(DropGameType.Parachute);
+            var current = sut.GetCurrentSession();
             Assert.NotNull(current);
             Assert.True(current.IsActive);
 
@@ -421,11 +474,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 It.Is<string>(json => json.Contains("session_start") && json.Contains("\"totalDurationSeconds\":90"))),
                 Times.Once);
 
-            var stopDto = await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            var stopDto = await sut.StopSessionAsync(triggeredBy: "Streamer");
             Assert.NotNull(stopDto);
             Assert.False(stopDto.IsActive);
 
-            var afterStop = sut.GetCurrentSession(DropGameType.Parachute);
+            var afterStop = sut.GetCurrentSession();
             Assert.Null(afterStop);
 
             _webSocketMessenger.Verify(x => x.AddToQueue(
@@ -437,13 +490,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task OnCommand_AutoStartsSession_WhenEnabled_AndEnforcesMaxDrops()
         {
-            var sut = CreateService();
-            var settings = await sut.GetSettingsAsync();
+            var settingsService = CreateSettingsService();
+            var sut = CreateParachuteService(settingsService);
+
+            var settings = await settingsService.GetSettingsAsync();
             settings.Parachute.SessionModeEnabled = true;
             settings.Parachute.AutoStartOnCommand = true;
             settings.Parachute.DefaultSessionDurationSeconds = 60;
             settings.Parachute.MaxDropsPerUserPerSession = 1;
-            await sut.SaveSettingsAsync(settings);
+            await settingsService.SaveSettingsAsync(settings);
 
             _commandHandler.Setup(x => x.GetCommand("drop")).Returns(new Command(
                 new BaseCommandProperties
@@ -461,14 +516,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             };
             await sut.OnCommand(this, e1);
 
-            var session = sut.GetCurrentSession(DropGameType.Parachute);
+            var session = sut.GetCurrentSession();
             Assert.NotNull(session);
             Assert.True(session.IsActive);
             Assert.Equal(1, session.TotalDrops);
 
             // Second drop by same user should be blocked by MaxDropsPerUserPerSession limit
             await sut.OnCommand(this, e1);
-            Assert.Equal(1, sut.GetCurrentSession(DropGameType.Parachute)!.TotalDrops);
+            Assert.Equal(1, sut.GetCurrentSession()!.TotalDrops);
 
             // Different user can drop
             var e2 = new CommandEventArgs
@@ -479,17 +534,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 UserId = "user-2"
             };
             await sut.OnCommand(this, e2);
-            Assert.Equal(2, sut.GetCurrentSession(DropGameType.Parachute)!.TotalDrops);
+            Assert.Equal(2, sut.GetCurrentSession()!.TotalDrops);
         }
 
         [Fact]
         public async Task OnCommand_DoesNotAutoStart_WhenAutoStartOnCommandIsFalse()
         {
-            var sut = CreateService();
-            var settings = await sut.GetSettingsAsync();
+            var settingsService = CreateSettingsService();
+            var sut = CreateParachuteService(settingsService);
+
+            var settings = await settingsService.GetSettingsAsync();
             settings.Parachute.SessionModeEnabled = true;
             settings.Parachute.AutoStartOnCommand = false;
-            await sut.SaveSettingsAsync(settings);
+            await settingsService.SaveSettingsAsync(settings);
 
             _commandHandler.Setup(x => x.GetCommand("drop")).Returns(new Command(
                 new BaseCommandProperties
@@ -507,7 +564,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             await sut.OnCommand(this, e);
 
-            var session = sut.GetCurrentSession(DropGameType.Parachute);
+            var session = sut.GetCurrentSession();
             Assert.Null(session);
             _webSocketMessenger.Verify(x => x.AddToQueue(WsTopics.Parachute, It.Is<string>(j => j.Contains("parachute_drop"))), Times.Never);
         }
@@ -515,146 +572,150 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [Fact]
         public async Task StartSessionAsync_AllowsConcurrentDifferentGames_AndQueuesSameGameSequentially()
         {
-            var sut = CreateService();
+            var parachuteService = CreateParachuteService();
+            var plinkoService = CreatePlinkoService();
 
             // 1. Start Parachute session (60s)
-            var parachute1 = await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+            var parachute1 = await parachuteService.StartSessionAsync(60, triggeredBy: "Streamer");
             Assert.True(parachute1.IsActive);
             Assert.False(parachute1.IsQueued);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(0, parachuteService.GetQueuedSessionCount());
 
             // 2. Start Plinko session (45s) while Parachute is active -> should ALSO start immediately (concurrent games!)
-            var plinko1 = await sut.StartSessionAsync(DropGameType.Plinko, 45, triggeredBy: "Streamer");
+            var plinko1 = await plinkoService.StartSessionAsync(45, triggeredBy: "Streamer");
             Assert.True(plinko1.IsActive);
             Assert.False(plinko1.IsQueued);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            Assert.Equal(0, plinkoService.GetQueuedSessionCount());
 
             // Both games are active simultaneously
-            Assert.NotNull(sut.GetCurrentSession(DropGameType.Parachute));
-            Assert.NotNull(sut.GetCurrentSession(DropGameType.Plinko));
+            Assert.NotNull(parachuteService.GetCurrentSession());
+            Assert.NotNull(plinkoService.GetCurrentSession());
 
             // 3. Start a second Parachute session -> should be queued behind active Parachute
-            var parachute2 = await sut.StartSessionAsync(DropGameType.Parachute, 30, triggeredBy: "Mod");
+            var parachute2 = await parachuteService.StartSessionAsync(30, triggeredBy: "Mod");
             Assert.False(parachute2.IsActive);
             Assert.True(parachute2.IsQueued);
             Assert.Equal(1, parachute2.QueuePosition);
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            Assert.Equal(1, parachuteService.GetQueuedSessionCount());
+            Assert.Equal(0, plinkoService.GetQueuedSessionCount());
 
             // 4. Start a second Plinko session -> should be queued behind active Plinko
-            var plinko2 = await sut.StartSessionAsync(DropGameType.Plinko, 25, triggeredBy: "Mod");
+            var plinko2 = await plinkoService.StartSessionAsync(25, triggeredBy: "Mod");
             Assert.False(plinko2.IsActive);
             Assert.True(plinko2.IsQueued);
             Assert.Equal(1, plinko2.QueuePosition);
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            Assert.Equal(1, plinkoService.GetQueuedSessionCount());
 
             // 5. Stop the active Parachute session -> second Parachute starts, while Plinko 1 is unaffected
-            var stoppedParachute1 = await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            var stoppedParachute1 = await parachuteService.StopSessionAsync(triggeredBy: "Streamer");
             Assert.NotNull(stoppedParachute1);
 
-            var activeParachute = sut.GetCurrentSession(DropGameType.Parachute);
+            var activeParachute = parachuteService.GetCurrentSession();
             Assert.NotNull(activeParachute);
             Assert.True(activeParachute.IsActive);
             Assert.Equal(30, activeParachute.TotalDurationSeconds);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(0, parachuteService.GetQueuedSessionCount());
 
             // Plinko 1 is still running undisturbed
-            var activePlinko = sut.GetCurrentSession(DropGameType.Plinko);
+            var activePlinko = plinkoService.GetCurrentSession();
             Assert.NotNull(activePlinko);
             Assert.Equal(45, activePlinko.TotalDurationSeconds);
 
             // 6. Stop active Plinko 1 -> second Plinko starts
-            var stoppedPlinko1 = await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
+            var stoppedPlinko1 = await plinkoService.StopSessionAsync(triggeredBy: "Streamer");
             Assert.NotNull(stoppedPlinko1);
 
-            var activePlinko2 = sut.GetCurrentSession(DropGameType.Plinko);
+            var activePlinko2 = plinkoService.GetCurrentSession();
             Assert.NotNull(activePlinko2);
             Assert.Equal(25, activePlinko2.TotalDurationSeconds);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            Assert.Equal(0, plinkoService.GetQueuedSessionCount());
 
             // 7. Stop remaining sessions
-            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
-            await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
-            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
-            Assert.Null(sut.GetCurrentSession(DropGameType.Plinko));
+            await parachuteService.StopSessionAsync(triggeredBy: "Streamer");
+            await plinkoService.StopSessionAsync(triggeredBy: "Streamer");
+            Assert.Null(parachuteService.GetCurrentSession());
+            Assert.Null(plinkoService.GetCurrentSession());
         }
 
         [Fact]
         public async Task StopSessionAsync_RemovesQueuedSession_WhenGameIsInQueue()
         {
-            var sut = CreateService();
+            var sut = CreateParachuteService();
 
             // Active Parachute session
-            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+            await sut.StartSessionAsync(60, triggeredBy: "Streamer");
 
             // Queued second Parachute session
-            var queuedParachute = await sut.StartSessionAsync(DropGameType.Parachute, 45, triggeredBy: "Mod");
+            var queuedParachute = await sut.StartSessionAsync(45, triggeredBy: "Mod");
             Assert.True(queuedParachute.IsQueued);
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(1, sut.GetQueuedSessionCount());
 
-            // Explicitly stop queued Parachute sessions
-            var countRemoved = await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Mod");
-            // Since Parachute was active, it stopped the active one and promoted the queued one
-            var promoted = sut.GetCurrentSession(DropGameType.Parachute);
+            // Explicitly stop active Parachute session
+            var stopped = await sut.StopSessionAsync(triggeredBy: "Mod");
+            // Since Parachute was active, stopping it promoted the queued one
+            var promoted = sut.GetCurrentSession();
             Assert.NotNull(promoted);
             Assert.Equal(45, promoted.TotalDurationSeconds);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(0, sut.GetQueuedSessionCount());
 
             // Stop the promoted session
-            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
-            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
+            await sut.StopSessionAsync(triggeredBy: "Streamer");
+            Assert.Null(sut.GetCurrentSession());
         }
 
         [Fact]
-        public async Task ClearSessionQueueAsync_EmptiesQueuedSessionsForSpecificGameOrAll()
+        public async Task ClearSessionQueueAsync_EmptiesQueuedSessions()
         {
-            var sut = CreateService();
+            var parachuteService = CreateParachuteService();
+            var plinkoService = CreatePlinkoService();
 
-            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
-            await sut.StartSessionAsync(DropGameType.Parachute, 30, triggeredBy: "Viewer");
-            await sut.StartSessionAsync(DropGameType.Plinko, 60, triggeredBy: "Streamer");
-            await sut.StartSessionAsync(DropGameType.Plinko, 40, triggeredBy: "Viewer");
+            await parachuteService.StartSessionAsync(60, triggeredBy: "Streamer");
+            await parachuteService.StartSessionAsync(30, triggeredBy: "Viewer");
+            await plinkoService.StartSessionAsync(60, triggeredBy: "Streamer");
+            await plinkoService.StartSessionAsync(40, triggeredBy: "Viewer");
 
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
-            Assert.Equal(2, sut.GetQueuedSessionCount());
+            Assert.Equal(1, parachuteService.GetQueuedSessionCount());
+            Assert.Equal(1, plinkoService.GetQueuedSessionCount());
 
-            // Clear only Parachute queue
-            await sut.ClearSessionQueueAsync(DropGameType.Parachute);
-            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
-            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            // Clear Parachute queue
+            await parachuteService.ClearSessionQueueAsync();
+            Assert.Equal(0, parachuteService.GetQueuedSessionCount());
+            Assert.Equal(1, plinkoService.GetQueuedSessionCount());
 
-            // Clear all queues
-            await sut.ClearSessionQueueAsync();
-            Assert.Equal(0, sut.GetQueuedSessionCount());
+            // Clear Plinko queue
+            await plinkoService.ClearSessionQueueAsync();
+            Assert.Equal(0, plinkoService.GetQueuedSessionCount());
 
-            // Stopping active Parachute should leave no remaining sessions
-            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
-            await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
-            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
-            Assert.Null(sut.GetCurrentSession(DropGameType.Plinko));
+            // Stopping active sessions leaves no remaining sessions
+            await parachuteService.StopSessionAsync(triggeredBy: "Streamer");
+            await plinkoService.StopSessionAsync(triggeredBy: "Streamer");
+            Assert.Null(parachuteService.GetCurrentSession());
+            Assert.Null(plinkoService.GetCurrentSession());
         }
 
         [Fact]
         public async Task DropAndPlinko_Commands_OperateIndependentlyDuringConcurrentSessions()
         {
-            var sut = CreateService();
-            var settings = await sut.GetSettingsAsync();
+            var settingsService = CreateSettingsService();
+            var parachuteService = CreateParachuteService(settingsService);
+            var plinkoService = CreatePlinkoService(settingsService);
+
+            var settings = await settingsService.GetSettingsAsync();
             settings.Parachute.SessionModeEnabled = true;
             settings.Parachute.AutoStartOnCommand = true;
             settings.Parachute.DefaultSessionDurationSeconds = 60;
             settings.Plinko.SessionModeEnabled = true;
             settings.Plinko.AutoStartOnCommand = true;
             settings.Plinko.DefaultSessionDurationSeconds = 60;
-            await sut.SaveSettingsAsync(settings);
+            await settingsService.SaveSettingsAsync(settings);
 
             _commandHandler.Setup(x => x.GetCommand("drop")).Returns(new Command(
-                new BaseCommandProperties { CommandName = "drop" }, sut));
+                new BaseCommandProperties { CommandName = "drop" }, parachuteService));
             _commandHandler.Setup(x => x.GetCommand("plinko")).Returns(new Command(
-                new BaseCommandProperties { CommandName = "plinko" }, sut));
+                new BaseCommandProperties { CommandName = "plinko" }, plinkoService));
 
             // Start Parachute session
-            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+            await parachuteService.StartSessionAsync(60, triggeredBy: "Streamer");
 
             // User triggers plinko while Parachute is running -> Plinko starts independently!
             var ePlinko = new CommandEventArgs
@@ -664,13 +725,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 DisplayName = "Viewer1",
                 UserId = "user-1"
             };
-            await sut.OnCommand(this, ePlinko);
+            await plinkoService.OnCommand(this, ePlinko);
 
-            var plinkoSession = sut.GetCurrentSession(DropGameType.Plinko);
+            var plinkoSession = plinkoService.GetCurrentSession();
             Assert.NotNull(plinkoSession);
             Assert.True(plinkoSession.IsActive);
 
-            var parachuteSession = sut.GetCurrentSession(DropGameType.Parachute);
+            var parachuteSession = parachuteService.GetCurrentSession();
             Assert.NotNull(parachuteSession);
             Assert.True(parachuteSession.IsActive);
         }

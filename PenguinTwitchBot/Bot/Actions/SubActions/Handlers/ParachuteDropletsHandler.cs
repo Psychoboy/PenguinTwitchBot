@@ -1,12 +1,13 @@
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class ParachuteDropletsHandler(IDropGamesService dropGamesService) : ISubActionHandler
+    public class ParachuteDropletsHandler(IParachuteDropService parachuteDropService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.ParachuteDroplets;
 
@@ -34,7 +35,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 subActionIndex,
                 $"Spawning {dropletsSubAction.Count} Parachute Droplets (Size={dropletsSubAction.SizePreset}, Speed={dropletsSubAction.SpeedPreset}, Pattern={dropletsSubAction.SpawnPattern})");
 
-            await dropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+            await parachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
             {
                 Count = dropletsSubAction.Count,
                 SizePreset = dropletsSubAction.SizePreset,
@@ -49,4 +50,3 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         }
     }
 }
-

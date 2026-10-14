@@ -2,10 +2,15 @@
 @attribute [Authorize(Roles = "Streamer, Editor")]
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Commands.Games.Parachute
+@using PenguinTwitchBot.Bot.Commands.Games.Plinko
 @using PenguinTwitchBot.Bot.Events.Chat
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.Components
-@inject IDropGamesService DropGamesService
+@inject IDropGamesSettingsService SettingsService
+@inject IParachuteDropService ParachuteDropService
+@inject IPlinkoDropService PlinkoDropService
 @inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject ILogger<DropGames> Logger
@@ -681,7 +686,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _settings = await DropGamesService.GetSettingsAsync();
+        _settings = await SettingsService.GetSettingsAsync();
         _selectedTheme = _settings.Themes.FirstOrDefault();
 
         var actions = await ActionManagementService.GetAllActionsAsync();
@@ -701,7 +706,7 @@
     private async Task SaveAllSettingsAsync()
     {
         if (_settings == null) return;
-        await DropGamesService.SaveSettingsAsync(_settings);
+        await SettingsService.SaveSettingsAsync(_settings);
         Snackbar.Add("Parachute Drop & Plinko Bounce settings saved!", Severity.Success);
     }
 
@@ -786,16 +791,16 @@
 
     private async Task TestParachuteDropAsync()
     {
-        if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Parachute Drop! Watch your /parachute.html overlay.", Severity.Info);
     }
 
     private async Task TestParachuteBullseyeAsync()
     {
         if (_settings == null) return;
-        await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.TriggerParachuteDropAsync(
+        await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
             _testEmoteInput,
             forcedStartX: _settings.Parachute.TargetCenterX,
@@ -807,12 +812,12 @@
     private async Task TestComboDropAndDropletsAsync()
     {
         if (_settings == null) return;
-        await DropGamesService.SaveSettingsAsync(_settings);
+        await SettingsService.SaveSettingsAsync(_settings);
 
         var capturedEmote = _testEmoteInput;
         var capturedUser = _testUsername;
 
-        await DropGamesService.TriggerParachuteDropAsync(
+        await ParachuteDropService.TriggerParachuteDropAsync(
             BuildTestEventArgs(),
             capturedEmote,
             forcedStartX: _settings.Parachute.TargetCenterX,
@@ -824,7 +829,7 @@
             try
             {
                 await Task.Delay(900);
-                await DropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+                await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
                 {
                     Count = 6,
                     SizePreset = "Large",
@@ -848,8 +853,8 @@
     private async Task TestDropletsNowAsync()
     {
         if (_settings == null) return;
-        await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+        await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
         {
             Count = _settings.Parachute.DefaultDropletCount,
             SizePreset = _settings.Parachute.DefaultDropletSize,
@@ -865,7 +870,7 @@
 
     private async Task TestCustomDropletsAsync(string size, string speed, string pattern, int count)
     {
-        await DropGamesService.SpawnDropletsAsync(new DropletSpawnRequest
+        await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
         {
             Count = count,
             SizePreset = size,
@@ -881,15 +886,15 @@
 
     private async Task TestPlinkoDropAsync()
     {
-        if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
-        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched test Plinko token! Watch your /plinko.html overlay.", Severity.Info);
     }
 
     private async Task TestPlinkoJackpotAsync()
     {
         if (_settings == null) return;
-        await DropGamesService.SaveSettingsAsync(_settings);
+        await SettingsService.SaveSettingsAsync(_settings);
         var bestWinIdx = _settings.Plinko.Buckets
             .Select((b, idx) => (b, idx))
             .Where(x => x.b.IsWin)
@@ -897,15 +902,15 @@
             .Select(x => (int?)x.idx)
             .FirstOrDefault() ?? 0;
 
-        await DropGamesService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx, allowDirectUrlOrPath: true);
+        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx, allowDirectUrlOrPath: true);
         Snackbar.Add("Launched guaranteed Winning Bucket Plinko token!", Severity.Success);
     }
 
     private async Task StartParachuteSessionLiveAsync()
     {
-        if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
         var duration = _settings?.Parachute.DefaultSessionDurationSeconds ?? 100;
-        var result = await DropGamesService.StartSessionAsync(DropGameType.Parachute, duration, triggeredBy: "Dashboard");
+        var result = await ParachuteDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)
         {
             Snackbar.Add($"Queued Parachute Drop session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
@@ -918,7 +923,7 @@
 
     private async Task StopParachuteSessionLiveAsync()
     {
-        var result = await DropGamesService.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Dashboard");
+        var result = await ParachuteDropService.StopSessionAsync(triggeredBy: "Dashboard");
         if (result != null)
         {
             Snackbar.Add("Stopped Parachute Drop session.", Severity.Warning);
@@ -931,9 +936,9 @@
 
     private async Task StartPlinkoSessionLiveAsync()
     {
-        if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
         var duration = _settings?.Plinko.DefaultSessionDurationSeconds ?? 100;
-        var result = await DropGamesService.StartSessionAsync(DropGameType.Plinko, duration, triggeredBy: "Dashboard");
+        var result = await PlinkoDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
         if (result.IsQueued)
         {
             Snackbar.Add($"Queued Plinko Bounce session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
@@ -946,7 +951,7 @@
 
     private async Task StopPlinkoSessionLiveAsync()
     {
-        var result = await DropGamesService.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Dashboard");
+        var result = await PlinkoDropService.StopSessionAsync(triggeredBy: "Dashboard");
         if (result != null)
         {
             Snackbar.Add("Stopped Plinko Bounce session.", Severity.Warning);

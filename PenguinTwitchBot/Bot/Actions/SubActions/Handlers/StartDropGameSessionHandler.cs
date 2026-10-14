@@ -2,12 +2,16 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Parachute;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class StartDropGameSessionHandler(IDropGamesService dropGamesService) : ISubActionHandler
+    public class StartDropGameSessionHandler(
+        IParachuteDropService parachuteDropService,
+        IPlinkoDropService plinkoDropService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StartDropGameSession;
 
@@ -38,8 +42,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             var triggeredBy = variables.TryGetValue("User", out var u) && !string.IsNullOrWhiteSpace(u) ? u : "SubAction";
 
             context?.LogMessage(subActionIndex, $"Starting {gameType} session for {durationSeconds?.ToString() ?? "default"}s");
-            await dropGamesService.StartSessionAsync(gameType, durationSeconds, resolvedTheme, triggeredBy);
+            if (gameType == DropGameType.Plinko)
+            {
+                await plinkoDropService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
+            else
+            {
+                await parachuteDropService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
         }
     }
 }
-

@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Utilities;
-using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Queues;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
 
 namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
-    public class PlinkoDropHandler(IDropGamesService dropGamesService) : ISubActionHandler
+    public class PlinkoDropHandler(IPlinkoDropService plinkoDropService) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.PlinkoDrop;
 
@@ -55,8 +55,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             context?.LogMessage(subActionIndex, $"Triggering Plinko Bounce for {resolvedUser}");
-            await dropGamesService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
+            await plinkoDropService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
         }
     }
 }
-
