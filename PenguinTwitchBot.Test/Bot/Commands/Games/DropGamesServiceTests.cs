@@ -511,5 +511,168 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Null(session);
             _webSocketMessenger.Verify(x => x.AddToQueue(WsTopics.Parachute, It.Is<string>(j => j.Contains("parachute_drop"))), Times.Never);
         }
+
+        [Fact]
+        public async Task StartSessionAsync_AllowsConcurrentDifferentGames_AndQueuesSameGameSequentially()
+        {
+            var sut = CreateService();
+
+            // 1. Start Parachute session (60s)
+            var parachute1 = await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+            Assert.True(parachute1.IsActive);
+            Assert.False(parachute1.IsQueued);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+
+            // 2. Start Plinko session (45s) while Parachute is active -> should ALSO start immediately (concurrent games!)
+            var plinko1 = await sut.StartSessionAsync(DropGameType.Plinko, 45, triggeredBy: "Streamer");
+            Assert.True(plinko1.IsActive);
+            Assert.False(plinko1.IsQueued);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+
+            // Both games are active simultaneously
+            Assert.NotNull(sut.GetCurrentSession(DropGameType.Parachute));
+            Assert.NotNull(sut.GetCurrentSession(DropGameType.Plinko));
+
+            // 3. Start a second Parachute session -> should be queued behind active Parachute
+            var parachute2 = await sut.StartSessionAsync(DropGameType.Parachute, 30, triggeredBy: "Mod");
+            Assert.False(parachute2.IsActive);
+            Assert.True(parachute2.IsQueued);
+            Assert.Equal(1, parachute2.QueuePosition);
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+
+            // 4. Start a second Plinko session -> should be queued behind active Plinko
+            var plinko2 = await sut.StartSessionAsync(DropGameType.Plinko, 25, triggeredBy: "Mod");
+            Assert.False(plinko2.IsActive);
+            Assert.True(plinko2.IsQueued);
+            Assert.Equal(1, plinko2.QueuePosition);
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
+
+            // 5. Stop the active Parachute session -> second Parachute starts, while Plinko 1 is unaffected
+            var stoppedParachute1 = await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            Assert.NotNull(stoppedParachute1);
+
+            var activeParachute = sut.GetCurrentSession(DropGameType.Parachute);
+            Assert.NotNull(activeParachute);
+            Assert.True(activeParachute.IsActive);
+            Assert.Equal(30, activeParachute.TotalDurationSeconds);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+
+            // Plinko 1 is still running undisturbed
+            var activePlinko = sut.GetCurrentSession(DropGameType.Plinko);
+            Assert.NotNull(activePlinko);
+            Assert.Equal(45, activePlinko.TotalDurationSeconds);
+
+            // 6. Stop active Plinko 1 -> second Plinko starts
+            var stoppedPlinko1 = await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
+            Assert.NotNull(stoppedPlinko1);
+
+            var activePlinko2 = sut.GetCurrentSession(DropGameType.Plinko);
+            Assert.NotNull(activePlinko2);
+            Assert.Equal(25, activePlinko2.TotalDurationSeconds);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Plinko));
+
+            // 7. Stop remaining sessions
+            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
+            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
+            Assert.Null(sut.GetCurrentSession(DropGameType.Plinko));
+        }
+
+        [Fact]
+        public async Task StopSessionAsync_RemovesQueuedSession_WhenGameIsInQueue()
+        {
+            var sut = CreateService();
+
+            // Active Parachute session
+            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+
+            // Queued second Parachute session
+            var queuedParachute = await sut.StartSessionAsync(DropGameType.Parachute, 45, triggeredBy: "Mod");
+            Assert.True(queuedParachute.IsQueued);
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
+
+            // Explicitly stop queued Parachute sessions
+            var countRemoved = await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Mod");
+            // Since Parachute was active, it stopped the active one and promoted the queued one
+            var promoted = sut.GetCurrentSession(DropGameType.Parachute);
+            Assert.NotNull(promoted);
+            Assert.Equal(45, promoted.TotalDurationSeconds);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+
+            // Stop the promoted session
+            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
+        }
+
+        [Fact]
+        public async Task ClearSessionQueueAsync_EmptiesQueuedSessionsForSpecificGameOrAll()
+        {
+            var sut = CreateService();
+
+            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+            await sut.StartSessionAsync(DropGameType.Parachute, 30, triggeredBy: "Viewer");
+            await sut.StartSessionAsync(DropGameType.Plinko, 60, triggeredBy: "Streamer");
+            await sut.StartSessionAsync(DropGameType.Plinko, 40, triggeredBy: "Viewer");
+
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
+            Assert.Equal(2, sut.GetQueuedSessionCount());
+
+            // Clear only Parachute queue
+            await sut.ClearSessionQueueAsync(DropGameType.Parachute);
+            Assert.Equal(0, sut.GetQueuedSessionCount(DropGameType.Parachute));
+            Assert.Equal(1, sut.GetQueuedSessionCount(DropGameType.Plinko));
+
+            // Clear all queues
+            await sut.ClearSessionQueueAsync();
+            Assert.Equal(0, sut.GetQueuedSessionCount());
+
+            // Stopping active Parachute should leave no remaining sessions
+            await sut.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Streamer");
+            await sut.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Streamer");
+            Assert.Null(sut.GetCurrentSession(DropGameType.Parachute));
+            Assert.Null(sut.GetCurrentSession(DropGameType.Plinko));
+        }
+
+        [Fact]
+        public async Task DropAndPlinko_Commands_OperateIndependentlyDuringConcurrentSessions()
+        {
+            var sut = CreateService();
+            var settings = await sut.GetSettingsAsync();
+            settings.Parachute.SessionModeEnabled = true;
+            settings.Parachute.AutoStartOnCommand = true;
+            settings.Parachute.DefaultSessionDurationSeconds = 60;
+            settings.Plinko.SessionModeEnabled = true;
+            settings.Plinko.AutoStartOnCommand = true;
+            settings.Plinko.DefaultSessionDurationSeconds = 60;
+            await sut.SaveSettingsAsync(settings);
+
+            _commandHandler.Setup(x => x.GetCommand("drop")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "drop" }, sut));
+            _commandHandler.Setup(x => x.GetCommand("plinko")).Returns(new Command(
+                new BaseCommandProperties { CommandName = "plinko" }, sut));
+
+            // Start Parachute session
+            await sut.StartSessionAsync(DropGameType.Parachute, 60, triggeredBy: "Streamer");
+
+            // User triggers plinko while Parachute is running -> Plinko starts independently!
+            var ePlinko = new CommandEventArgs
+            {
+                Command = "plinko",
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                UserId = "user-1"
+            };
+            await sut.OnCommand(this, ePlinko);
+
+            var plinkoSession = sut.GetCurrentSession(DropGameType.Plinko);
+            Assert.NotNull(plinkoSession);
+            Assert.True(plinkoSession.IsActive);
+
+            var parachuteSession = sut.GetCurrentSession(DropGameType.Parachute);
+            Assert.NotNull(parachuteSession);
+            Assert.True(parachuteSession.IsActive);
+        }
     }
 }

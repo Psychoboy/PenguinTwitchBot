@@ -384,6 +384,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
 
+        [JsonPropertyName("isQueued")]
+        public bool IsQueued { get; set; }
+
+        [JsonPropertyName("queuePosition")]
+        public int QueuePosition { get; set; }
+
         [JsonPropertyName("totalDurationSeconds")]
         public int TotalDurationSeconds { get; set; }
 

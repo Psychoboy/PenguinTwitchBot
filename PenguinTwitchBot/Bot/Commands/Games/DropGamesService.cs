@@ -37,8 +37,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         };
         private readonly ConcurrentDictionary<string, PendingDropRecord> _pendingDrops = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<DropGameType, DropGameSessionState> _sessions = new();
+        private readonly ConcurrentDictionary<DropGameType, ConcurrentQueue<QueuedSessionRequest>> _sessionQueues = new();
+        private readonly SemaphoreSlim _sessionLock = new(1, 1);
         private readonly object _simulationLock = new();
         private DropGamesSettings? _cachedSettings;
+
+        private sealed class QueuedSessionRequest
+        {
+            public DropGameType GameType { get; init; }
+            public int? DurationSeconds { get; init; }
+            public string? ThemeOverrideId { get; init; }
+            public string? TriggeredBy { get; init; }
+            public DateTime EnqueuedAtUtc { get; init; } = DateTime.UtcNow;
+        }
 
         private sealed class DropGameSessionState
         {
@@ -209,6 +220,111 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             };
         }
 
+        private ConcurrentQueue<QueuedSessionRequest> GetQueue(DropGameType gameType)
+            => _sessionQueues.GetOrAdd(gameType, _ => new ConcurrentQueue<QueuedSessionRequest>());
+
+        public int GetQueuedSessionCount(DropGameType? gameType = null)
+        {
+            if (gameType.HasValue)
+            {
+                return _sessionQueues.TryGetValue(gameType.Value, out var q) ? q.Count : 0;
+            }
+            var total = 0;
+            foreach (var q in _sessionQueues.Values)
+            {
+                total += q.Count;
+            }
+            return total;
+        }
+
+        public async Task ClearSessionQueueAsync(DropGameType? gameType = null)
+        {
+            await _sessionLock.WaitAsync();
+            try
+            {
+                if (gameType.HasValue)
+                {
+                    if (_sessionQueues.TryGetValue(gameType.Value, out var q))
+                    {
+                        while (q.TryDequeue(out _)) { }
+                    }
+                }
+                else
+                {
+                    foreach (var q in _sessionQueues.Values)
+                    {
+                        while (q.TryDequeue(out _)) { }
+                    }
+                }
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+
+        private bool HasActiveTimedSession(DropGameType gameType)
+        {
+            var now = DateTime.UtcNow;
+            return _sessions.TryGetValue(gameType, out var state) && state.EndsAtUtc > now;
+        }
+
+        private int RemoveQueuedSessions(DropGameType gameType)
+        {
+            _sessionLock.Wait();
+            try
+            {
+                var q = GetQueue(gameType);
+                var countRemoved = 0;
+                while (q.TryDequeue(out _))
+                {
+                    countRemoved++;
+                }
+                return countRemoved;
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+
+        private async Task ProcessNextQueuedSessionAsync(DropGameType gameType)
+        {
+            QueuedSessionRequest? next = null;
+            await _sessionLock.WaitAsync();
+            try
+            {
+                if (HasActiveTimedSession(gameType))
+                {
+                    return;
+                }
+
+                var q = GetQueue(gameType);
+                if (q.TryDequeue(out var req))
+                {
+                    next = req;
+                }
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+
+            if (next != null)
+            {
+                try
+                {
+                    logger.LogInformation("Starting queued {GameType} session ({Duration}s, triggered by {User})",
+                        next.GameType, next.DurationSeconds, next.TriggeredBy ?? "Queue");
+                    await StartSessionAsync(next.GameType, next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to start queued {GameType} session", next.GameType);
+                }
+            }
+        }
+
         public async Task<DropGameSessionDto> StartSessionAsync(
             DropGameType gameType,
             int? durationSeconds = null,
@@ -224,106 +340,170 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
             duration = Math.Clamp(duration, 5, 3600);
 
-            // If an active session exists, stop it first cleanly
-            await StopSessionAsync(gameType, triggeredBy: "restart");
-
-            var now = DateTime.UtcNow;
-            var endsAt = now.AddSeconds(duration);
-
-            var state = new DropGameSessionState
+            await _sessionLock.WaitAsync();
+            try
             {
-                GameType = gameType,
-                StartedAtUtc = now,
-                EndsAtUtc = endsAt,
-                TotalDurationSeconds = duration,
-                ThemeIdOverride = themeOverrideId,
-                StartedBy = triggeredBy
-            };
+                if (HasActiveTimedSession(gameType))
+                {
+                    var q = GetQueue(gameType);
+                    var queuedItem = new QueuedSessionRequest
+                    {
+                        GameType = gameType,
+                        DurationSeconds = duration,
+                        ThemeOverrideId = themeOverrideId,
+                        TriggeredBy = triggeredBy,
+                        EnqueuedAtUtc = DateTime.UtcNow
+                    };
+                    q.Enqueue(queuedItem);
+                    var queuePosition = q.Count;
 
-            // Set up auto-expiration timer bound specifically to this state instance
-            state.ExpiryTimer = new Timer(async _ =>
-            {
-                try
-                {
-                    await StopSessionAsync(gameType, state, triggeredBy: "timer_expired");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Error expiring session for {GameType}", gameType);
-                }
-            }, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
+                    logger.LogInformation("Enqueued {GameType} session for {Duration}s (Triggered by {User}) behind active round. Queue position: {Position}",
+                        gameType, duration, triggeredBy ?? "System", queuePosition);
 
-            // Atomically register session, ensuring we never blindly overwrite another session without stopping it
-            while (!_sessions.TryAdd(gameType, state))
-            {
-                if (_sessions.TryGetValue(gameType, out var existing))
-                {
-                    await StopSessionAsync(gameType, existing, triggeredBy: "restart");
+                    var announceQueue = gameType == DropGameType.Parachute
+                        ? settings.Parachute.AnnounceSessionStatusInChat
+                        : settings.Plinko.AnnounceSessionStatusInChat;
+                    if (announceQueue)
+                    {
+                        var gameDisplayName = gameType == DropGameType.Parachute ? "Parachute Drop" : "Plinko Bounce";
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await ServiceBackbone.SendChatMessage($"⏳ {gameDisplayName} session has been queued behind active round (Queue position: #{queuePosition})!");
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogDebug(ex, "Failed to send chat announcement for queued session");
+                            }
+                        });
+                    }
+
+                    return new DropGameSessionDto
+                    {
+                        GameType = gameType.ToString().ToLowerInvariant(),
+                        IsActive = false,
+                        IsQueued = true,
+                        QueuePosition = queuePosition,
+                        TotalDurationSeconds = duration,
+                        RemainingSeconds = duration,
+                        TotalDrops = 0
+                    };
                 }
+
+                // If an expired session exists, clean it up cleanly
+                if (_sessions.TryRemove(gameType, out var existingState))
+                {
+                    existingState.ExpiryTimer?.Dispose();
+                    existingState.Cts.Cancel();
+                    existingState.Cts.Dispose();
+                }
+
+                var now = DateTime.UtcNow;
+                var endsAt = now.AddSeconds(duration);
+
+                var state = new DropGameSessionState
+                {
+                    GameType = gameType,
+                    StartedAtUtc = now,
+                    EndsAtUtc = endsAt,
+                    TotalDurationSeconds = duration,
+                    ThemeIdOverride = themeOverrideId,
+                    StartedBy = triggeredBy
+                };
+
+                // Set up auto-expiration timer bound specifically to this state instance
+                state.ExpiryTimer = new Timer(async _ =>
+                {
+                    try
+                    {
+                        await StopSessionAsync(gameType, state, triggeredBy: "timer_expired");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error expiring session for {GameType}", gameType);
+                    }
+                }, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
+
+                while (!_sessions.TryAdd(gameType, state))
+                {
+                    if (_sessions.TryRemove(gameType, out var oldState))
+                    {
+                        oldState.ExpiryTimer?.Dispose();
+                        oldState.Cts.Cancel();
+                        oldState.Cts.Dispose();
+                    }
+                }
+
+                var theme = ResolveTheme(settings, themeOverrideId, gameType == DropGameType.Parachute ? settings.Parachute.ActiveThemeId : settings.Plinko.ActiveThemeId);
+
+                if (gameType == DropGameType.Parachute)
+                {
+                    var targetHalfWidth = Math.Clamp(settings.Parachute.TargetWidthPercent / 200.0, 0.02, 0.35);
+                    var bullseyeHalfWidth = Math.Min(targetHalfWidth, Math.Clamp(settings.Parachute.BullseyeWidthPercent / 200.0, 0.008, 0.15));
+
+                    // Safe margin so platform with padding and flags is 100% visible on screen
+                    var minCenterX = Math.Max(0.12, targetHalfWidth + 0.03);
+                    var maxCenterX = Math.Min(0.88, 1.0 - targetHalfWidth - 0.03);
+                    if (minCenterX >= maxCenterX)
+                    {
+                        minCenterX = 0.20;
+                        maxCenterX = 0.80;
+                    }
+
+                    state.TargetCenterX = Math.Round(RandomDouble(minCenterX, maxCenterX), 4);
+                    state.TargetHalfWidth = targetHalfWidth;
+                    state.BullseyeHalfWidth = bullseyeHalfWidth;
+                }
+
+                var dto = new DropGameSessionDto
+                {
+                    GameType = gameType.ToString().ToLowerInvariant(),
+                    IsActive = true,
+                    IsQueued = false,
+                    QueuePosition = 0,
+                    TotalDurationSeconds = duration,
+                    RemainingSeconds = duration,
+                    StartedAtMs = new DateTimeOffset(now).ToUnixTimeMilliseconds(),
+                    EndsAtMs = new DateTimeOffset(endsAt).ToUnixTimeMilliseconds(),
+                    TotalDrops = 0,
+                    Theme = theme,
+                    TargetCenterX = state.TargetCenterX,
+                    TargetHalfWidth = state.TargetHalfWidth,
+                    BullseyeHalfWidth = state.BullseyeHalfWidth
+                };
+
+                var topic = gameType == DropGameType.Parachute ? WsTopics.Parachute : WsTopics.Plinko;
+                var wsPayload = JsonSerializer.Serialize(new
+                {
+                    type = "session_start",
+                    session = dto
+                }, _jsonOptions);
+                await QueueWsMessageAsync(topic, wsPayload, $"{gameType} session_start");
+
+                // Chat Announcement
+                var announce = gameType == DropGameType.Parachute
+                    ? settings.Parachute.AnnounceSessionStatusInChat
+                    : settings.Plinko.AnnounceSessionStatusInChat;
+                if (announce)
+                {
+                    var template = gameType == DropGameType.Parachute
+                        ? settings.Parachute.SessionStartChatMessageTemplate
+                        : settings.Plinko.SessionStartChatMessageTemplate;
+                    if (!string.IsNullOrWhiteSpace(template))
+                    {
+                        var msg = template.Replace("{duration}", duration.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                        await ServiceBackbone.SendChatMessage(msg);
+                    }
+                }
+
+                logger.LogInformation("Started {GameType} session for {Duration}s (Triggered by {User})", gameType, duration, triggeredBy ?? "System");
+                return dto;
             }
-
-            var theme = ResolveTheme(settings, themeOverrideId, gameType == DropGameType.Parachute ? settings.Parachute.ActiveThemeId : settings.Plinko.ActiveThemeId);
-
-            if (gameType == DropGameType.Parachute)
+            finally
             {
-                var targetHalfWidth = Math.Clamp(settings.Parachute.TargetWidthPercent / 200.0, 0.02, 0.35);
-                var bullseyeHalfWidth = Math.Min(targetHalfWidth, Math.Clamp(settings.Parachute.BullseyeWidthPercent / 200.0, 0.008, 0.15));
-
-                // Safe margin so platform with padding and flags is 100% visible on screen
-                var minCenterX = Math.Max(0.12, targetHalfWidth + 0.03);
-                var maxCenterX = Math.Min(0.88, 1.0 - targetHalfWidth - 0.03);
-                if (minCenterX >= maxCenterX)
-                {
-                    minCenterX = 0.20;
-                    maxCenterX = 0.80;
-                }
-
-                state.TargetCenterX = Math.Round(RandomDouble(minCenterX, maxCenterX), 4);
-                state.TargetHalfWidth = targetHalfWidth;
-                state.BullseyeHalfWidth = bullseyeHalfWidth;
+                _sessionLock.Release();
             }
-
-            var dto = new DropGameSessionDto
-            {
-                GameType = gameType.ToString().ToLowerInvariant(),
-                IsActive = true,
-                TotalDurationSeconds = duration,
-                RemainingSeconds = duration,
-                StartedAtMs = new DateTimeOffset(now).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(endsAt).ToUnixTimeMilliseconds(),
-                TotalDrops = 0,
-                Theme = theme,
-                TargetCenterX = state.TargetCenterX,
-                TargetHalfWidth = state.TargetHalfWidth,
-                BullseyeHalfWidth = state.BullseyeHalfWidth
-            };
-
-            var topic = gameType == DropGameType.Parachute ? WsTopics.Parachute : WsTopics.Plinko;
-            var wsPayload = JsonSerializer.Serialize(new
-            {
-                type = "session_start",
-                session = dto
-            }, _jsonOptions);
-            await QueueWsMessageAsync(topic, wsPayload, $"{gameType} session_start");
-
-            // Chat Announcement
-            var announce = gameType == DropGameType.Parachute
-                ? settings.Parachute.AnnounceSessionStatusInChat
-                : settings.Plinko.AnnounceSessionStatusInChat;
-            if (announce)
-            {
-                var template = gameType == DropGameType.Parachute
-                    ? settings.Parachute.SessionStartChatMessageTemplate
-                    : settings.Plinko.SessionStartChatMessageTemplate;
-                if (!string.IsNullOrWhiteSpace(template))
-                {
-                    var msg = template.Replace("{duration}", duration.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(msg);
-                }
-            }
-
-            logger.LogInformation("Started {GameType} session for {Duration}s (Triggered by {User})", gameType, duration, triggeredBy ?? "System");
-            return dto;
         }
 
         public async Task<DropGameSessionDto?> StopSessionAsync(
@@ -332,6 +512,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         {
             if (!_sessions.TryRemove(gameType, out var state))
             {
+                var removedCount = RemoveQueuedSessions(gameType);
+                if (removedCount > 0)
+                {
+                    logger.LogInformation("Removed {Count} queued {GameType} session(s) (Triggered by {User})", removedCount, gameType, triggeredBy ?? "System");
+                    return new DropGameSessionDto
+                    {
+                        GameType = gameType.ToString().ToLowerInvariant(),
+                        IsActive = false,
+                        RemainingSeconds = 0
+                    };
+                }
                 return null;
             }
 
@@ -395,6 +586,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             }
 
             logger.LogInformation("Stopped {GameType} session with {Drops} total drops (Triggered by {User})", gameType, totalDrops, triggeredBy ?? "System");
+
+            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            {
+                await ProcessNextQueuedSessionAsync(gameType);
+            }
+
             return dto;
         }
 
@@ -472,6 +669,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             }
 
             logger.LogInformation("Stopped {GameType} session with {Drops} total drops (Triggered by {User})", gameType, totalDrops, triggeredBy ?? "System");
+
+            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            {
+                await ProcessNextQueuedSessionAsync(gameType);
+            }
+
             return dto;
         }
 
@@ -1480,7 +1683,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                             {
                                 if (pSettings.AutoStartOnCommand)
                                 {
-                                    await StartSessionAsync(DropGameType.Parachute, pSettings.DefaultSessionDurationSeconds, triggeredBy: e.DisplayName);
+                                    var started = await StartSessionAsync(DropGameType.Parachute, pSettings.DefaultSessionDurationSeconds, triggeredBy: e.DisplayName);
+                                    if (started.IsQueued)
+                                    {
+                                        return;
+                                    }
                                 }
                                 else
                                 {
@@ -1555,7 +1762,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                             {
                                 if (plinkoSettings.AutoStartOnCommand)
                                 {
-                                    await StartSessionAsync(DropGameType.Plinko, plinkoSettings.DefaultSessionDurationSeconds, triggeredBy: e.DisplayName);
+                                    var started = await StartSessionAsync(DropGameType.Plinko, plinkoSettings.DefaultSessionDurationSeconds, triggeredBy: e.DisplayName);
+                                    if (started.IsQueued)
+                                    {
+                                        return;
+                                    }
                                 }
                                 else
                                 {

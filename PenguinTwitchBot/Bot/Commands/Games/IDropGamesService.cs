@@ -41,6 +41,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             string? triggeredBy = null);
 
         DropGameSessionDto? GetCurrentSession(DropGameType gameType);
+        int GetQueuedSessionCount(DropGameType? gameType = null);
+        Task ClearSessionQueueAsync(DropGameType? gameType = null);
     }
 }
 

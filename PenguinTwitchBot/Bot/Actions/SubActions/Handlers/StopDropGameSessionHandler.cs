@@ -27,6 +27,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (resolvedGame.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 context?.LogMessage(subActionIndex, "Stopping Parachute and Plinko sessions");
+                await dropGamesService.ClearSessionQueueAsync();
                 await dropGamesService.StopSessionAsync(DropGameType.Parachute, triggeredBy);
                 await dropGamesService.StopSessionAsync(DropGameType.Plinko, triggeredBy);
             }

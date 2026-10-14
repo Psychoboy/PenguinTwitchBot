@@ -905,28 +905,56 @@
     {
         if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
         var duration = _settings?.Parachute.DefaultSessionDurationSeconds ?? 100;
-        await DropGamesService.StartSessionAsync(DropGameType.Parachute, duration, triggeredBy: "Dashboard");
-        Snackbar.Add($"Started Parachute Drop session for {duration} seconds!", Severity.Success);
+        var result = await DropGamesService.StartSessionAsync(DropGameType.Parachute, duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Parachute Drop session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Parachute Drop session for {duration} seconds!", Severity.Success);
+        }
     }
 
     private async Task StopParachuteSessionLiveAsync()
     {
-        await DropGamesService.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Dashboard");
-        Snackbar.Add("Stopped Parachute Drop session.", Severity.Warning);
+        var result = await DropGamesService.StopSessionAsync(DropGameType.Parachute, triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Parachute Drop session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Parachute Drop session to stop.", Severity.Info);
+        }
     }
 
     private async Task StartPlinkoSessionLiveAsync()
     {
         if (_settings != null) await DropGamesService.SaveSettingsAsync(_settings);
         var duration = _settings?.Plinko.DefaultSessionDurationSeconds ?? 100;
-        await DropGamesService.StartSessionAsync(DropGameType.Plinko, duration, triggeredBy: "Dashboard");
-        Snackbar.Add($"Started Plinko Bounce session for {duration} seconds!", Severity.Success);
+        var result = await DropGamesService.StartSessionAsync(DropGameType.Plinko, duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Plinko Bounce session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Plinko Bounce session for {duration} seconds!", Severity.Success);
+        }
     }
 
     private async Task StopPlinkoSessionLiveAsync()
     {
-        await DropGamesService.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Dashboard");
-        Snackbar.Add("Stopped Plinko Bounce session.", Severity.Warning);
+        var result = await DropGamesService.StopSessionAsync(DropGameType.Plinko, triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Plinko Bounce session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Plinko Bounce session to stop.", Severity.Info);
+        }
     }
 }
 
