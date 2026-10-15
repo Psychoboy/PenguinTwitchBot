@@ -82,7 +82,8 @@ namespace PenguinTwitchBot.Controllers
                     using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                     if (!response.IsSuccessStatusCode)
                     {
-                        logger.LogWarning("Upstream image fetch returned {StatusCode} for URL: {Url}", response.StatusCode, url);
+                        var safeUrl = SanitizeForLog(url);
+                        logger.LogWarning("Upstream image fetch returned {StatusCode} for URL: {Url}", response.StatusCode, safeUrl);
                         return StatusCode((int)response.StatusCode);
                     }
 
@@ -101,12 +102,20 @@ namespace PenguinTwitchBot.Controllers
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Failed to proxy image: {Url}", url);
+                    var safeUrl = SanitizeForLog(url);
+                    logger.LogWarning(ex, "Failed to proxy image: {Url}", safeUrl);
                     return StatusCode(502);
                 }
             }
 
             return File(cached.bytes, cached.contentType);
+        }
+
+        private static string SanitizeForLog(string? input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            var sanitized = input.Replace("\r", string.Empty).Replace("\n", string.Empty);
+            return sanitized.Length > 256 ? sanitized[..256] : sanitized;
         }
     }
 }

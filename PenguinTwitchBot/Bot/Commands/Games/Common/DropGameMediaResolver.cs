@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Services;
 
@@ -110,7 +111,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath);
             if (urls.Count == 0) return "";
             if (urls.Count == 1) return urls[0];
-            return urls[Random.Shared.Next(urls.Count)];
+            return urls[RandomNumberGenerator.GetInt32(urls.Count)];
         }
 
         private static async Task<string?> ResolveSingleTokenAsync(

@@ -616,7 +616,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         pattern, i, speedScale, targetDrop, now, spawnTickOffset);
 
                     var dropletImageUrl = dropletUrls.Count > 0
-                        ? dropletUrls[Random.Shared.Next(dropletUrls.Count)]
+                        ? dropletUrls[RandomNumberGenerator.GetInt32(dropletUrls.Count)]
                         : "";
 
                     droplets.Add(new DropletInstanceDto
