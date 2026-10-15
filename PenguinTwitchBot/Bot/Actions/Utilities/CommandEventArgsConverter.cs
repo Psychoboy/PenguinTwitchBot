@@ -47,6 +47,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             dictionary["FromAlias"] = eventArgs.FromAlias.ToString();
             dictionary["SkipLock"] = eventArgs.SkipLock.ToString();
             dictionary["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString();
+            dictionary["Color"] = eventArgs.Color ?? string.Empty;
 
             if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
@@ -71,6 +72,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 DisplayName = eventArgs.DisplayName ?? string.Empty,
                 Name = eventArgs.Name ?? string.Empty,
                 UserId = eventArgs.UserId ?? string.Empty,
+                Color = eventArgs.Color ?? string.Empty,
                 MessageId = eventArgs.MessageId ?? string.Empty,
                 Command = eventArgs.Command ?? string.Empty,
                 Arg = ViewerInputSanitizer.Sanitize(eventArgs.Arg),

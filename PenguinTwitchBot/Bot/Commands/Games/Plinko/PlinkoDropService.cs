@@ -8,6 +8,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Bot.Services.Chat;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Services;
 
@@ -23,9 +24,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
         Application.Notifications.IPenguinDispatcher dispatcher,
         IDropGamesSettingsService settingsService,
         IDropRegistry dropRegistry,
-        ILogger<PlinkoDropService> logger)
+        ILogger<PlinkoDropService> logger,
+        IChatColorService? chatColorService = null)
         : BaseCommandService(serviceBackbone, commandHandler, "PlinkoDrop", dispatcher), IHostedService, IPlinkoDropService
     {
+        private readonly IChatColorService _chatColorService = chatColorService ?? new ChatColorService();
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -440,6 +443,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var dropToken = RandomNumberGenerator.GetHexString(64);
             var now = DateTime.UtcNow;
 
+            var userColor = !string.IsNullOrWhiteSpace(eventArgs.Color) && eventArgs.Color.StartsWith('#')
+                ? eventArgs.Color
+                : _chatColorService.GetOrAssignColor(
+                    !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : (string.IsNullOrWhiteSpace(eventArgs.Name) ? "viewer" : eventArgs.Name),
+                    eventArgs.Color);
+
             var record = new PendingDropRecord
             {
                 DropToken = dropToken,
@@ -447,6 +456,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 Username = string.IsNullOrWhiteSpace(eventArgs.Name) ? "viewer" : eventArgs.Name,
                 DisplayName = string.IsNullOrWhiteSpace(eventArgs.DisplayName) ? (string.IsNullOrWhiteSpace(eventArgs.Name) ? "Viewer" : eventArgs.Name) : eventArgs.DisplayName,
                 UserId = eventArgs.UserId ?? "",
+                UserColor = userColor,
                 EventArgs = eventArgs,
                 Theme = theme,
                 CreatedAtUtc = now,
@@ -508,6 +518,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 dropToken,
                 username = record.Username,
                 displayName = record.DisplayName,
+                userColor = record.UserColor,
+                color = record.UserColor,
                 characterImageUrl = characterImageUrl ?? "",
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,

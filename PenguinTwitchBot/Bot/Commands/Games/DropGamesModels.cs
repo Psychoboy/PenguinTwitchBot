@@ -431,6 +431,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public required string Username { get; init; }
         public required string DisplayName { get; init; }
         public required string UserId { get; init; }
+        public string UserColor { get; init; } = "#FFFFFF";
         public required CommandEventArgs EventArgs { get; init; }
         public required DropGameTheme Theme { get; init; }
         public required DateTime CreatedAtUtc { get; init; }

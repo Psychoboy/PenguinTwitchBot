@@ -1578,5 +1578,63 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.NotNull(plinkoDropPayload);
             Assert.Contains("\"headerConfig\"", plinkoDropPayload);
         }
+
+        [Fact]
+        public async Task DropServices_TriggerDrops_IncludeUserColorInPayload()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(settingsService, registry);
+            var plinkoSut = CreatePlinkoService(settingsService, registry);
+
+            string? parachuteDropPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Parachute, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => parachuteDropPayload = p)
+                .Returns(Task.CompletedTask);
+
+            // Test explicit twitch color on CommandEventArgs
+            await parachuteSut.TriggerParachuteDropAsync(new CommandEventArgs
+            {
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                UserId = "12345",
+                Color = "#1E90FF"
+            });
+            Assert.NotNull(parachuteDropPayload);
+            Assert.Contains("\"userColor\":\"#1E90FF\"", parachuteDropPayload);
+            Assert.Contains("\"color\":\"#1E90FF\"", parachuteDropPayload);
+
+            string? plinkoDropPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Plinko, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => plinkoDropPayload = p)
+                .Returns(Task.CompletedTask);
+
+            await plinkoSut.TriggerPlinkoDropAsync(new CommandEventArgs
+            {
+                Name = "viewer2",
+                DisplayName = "Viewer2",
+                UserId = "67890",
+                Color = "#FF69B4"
+            });
+            Assert.NotNull(plinkoDropPayload);
+            Assert.Contains("\"userColor\":\"#FF69B4\"", plinkoDropPayload);
+            Assert.Contains("\"color\":\"#FF69B4\"", plinkoDropPayload);
+
+            // Test fallback/assigned color when chatter has no explicit Twitch color
+            parachuteDropPayload = null;
+            await parachuteSut.TriggerParachuteDropAsync(new CommandEventArgs
+            {
+                Name = "viewer3",
+                DisplayName = "Viewer3",
+                UserId = "99999",
+                Color = ""
+            });
+            Assert.NotNull(parachuteDropPayload);
+            using var doc = System.Text.Json.JsonDocument.Parse(parachuteDropPayload);
+            var userColor = doc.RootElement.GetProperty("userColor").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(userColor));
+            Assert.StartsWith("#", userColor);
+        }
     }
 }
+

@@ -654,6 +654,7 @@
                 dropToken: msg.dropToken,
                 username: msg.username || 'viewer',
                 displayName: msg.displayName || msg.username || 'Viewer',
+                userColor: msg.userColor || msg.color || null,
                 characterImageUrl: msg.characterImageUrl || '',
                 theme: msg.theme || currentTheme,
                 startTimeMs: performance.now(),
@@ -1766,26 +1767,40 @@
             ctx.restore();
 
             // DisplayName tag above token with crown for leader
+            const label = isLeader && t.completed
+                ? `${t.displayName} (${t.score} pts)`
+                : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
+
+            const userColor = t.userColor || null;
+            ctx.font = '700 13px Fredoka, Rubik, sans-serif';
+            const textWidth = ctx.measureText(label).width;
+            const pillW = textWidth + 14;
+            const pillH = 20;
+            const pillY = -tokenRadius - 22;
+
             if (isLeader && t.completed) {
                 ctx.save();
                 ctx.font = '700 18px "Segoe UI Emoji", Fredoka, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.shadowColor = '#FFD700';
                 ctx.shadowBlur = 10;
-                ctx.fillText('👑', 0, -tokenRadius - 24);
+                ctx.fillText('👑', 0, pillY - 6);
                 ctx.restore();
             }
 
-            const label = isLeader && t.completed
-                ? `${t.displayName} (${t.score} pts)`
-                : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
+            ctx.fillStyle = isLeader ? 'rgba(30, 27, 75, 0.92)' : 'rgba(15, 23, 42, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 10);
+            ctx.fill();
 
-            ctx.font = '700 13px Fredoka, Rubik, sans-serif';
-            ctx.fillStyle = isLeader ? '#FFD700' : '#FFFFFF';
+            ctx.strokeStyle = isLeader ? '#FFD700' : (userColor || theme.primaryColor || '#FF8FA3');
+            ctx.lineWidth = isLeader ? 2 : 1.2;
+            ctx.stroke();
+
+            ctx.fillStyle = isLeader ? '#FFD700' : (userColor || theme.textColor || '#FFFFFF');
             ctx.textAlign = 'center';
-            ctx.shadowColor = isLeader ? 'rgba(0,0,0,0.95)' : 'rgba(0,0,0,0.9)';
-            ctx.shadowBlur = 6;
-            ctx.fillText(label, 0, -tokenRadius - 8);
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, 0, pillY + pillH / 2 + 1);
 
             ctx.restore();
 

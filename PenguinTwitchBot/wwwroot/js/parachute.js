@@ -848,6 +848,7 @@
                 dropToken: msg.dropToken,
                 username: msg.username || 'viewer',
                 displayName: msg.displayName || msg.username || 'Viewer',
+                userColor: msg.userColor || msg.color || null,
                 characterImageUrl: msg.characterImageUrl || '',
                 theme: msg.theme || currentTheme,
                 startTimeMs: performance.now(),
@@ -1640,11 +1641,12 @@
         ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 12);
         ctx.fill();
 
-        ctx.strokeStyle = isSessionLeader ? '#FFD700' : (theme.primaryColor || '#FF8FA3');
+        const userColor = drop.userColor || null;
+        ctx.strokeStyle = isSessionLeader ? '#FFD700' : (userColor || theme.primaryColor || '#FF8FA3');
         ctx.lineWidth = isSessionLeader ? 2.5 : 1.5;
         ctx.stroke();
 
-        ctx.fillStyle = isSessionLeader ? '#FFD700' : (theme.textColor || '#FFFFFF');
+        ctx.fillStyle = isSessionLeader ? '#FFD700' : (userColor || theme.textColor || '#FFFFFF');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(label, 0, pillY + pillH / 2 + 1);

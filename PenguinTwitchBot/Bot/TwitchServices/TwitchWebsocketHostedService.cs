@@ -341,6 +341,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin,
                 DisplayName = e.ChatterUserName,
+                Color = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color),
                 IsSub = e.IsSubscriber,
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
