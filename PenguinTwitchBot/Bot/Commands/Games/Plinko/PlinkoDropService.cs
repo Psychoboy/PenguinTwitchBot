@@ -374,6 +374,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, plinkoSettings.ActiveThemeId);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
                 emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
+            dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.DefaultCharacterImageUrl);
 
             var buckets = plinkoSettings.Buckets.Count > 0
                 ? plinkoSettings.Buckets

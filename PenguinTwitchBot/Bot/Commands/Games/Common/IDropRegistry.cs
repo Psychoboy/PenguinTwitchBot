@@ -9,5 +9,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         void AcknowledgeCompletion(string dropToken);
         bool TryConsumeDrop(string dropToken, out PendingDropRecord? record, out string? failureReason);
         void CleanupExpiredDrops();
+        void RegisterAllowedProxyUrl(string? url, TimeSpan? lifetime = null);
+        bool IsProxyUrlAllowed(string url);
     }
 }

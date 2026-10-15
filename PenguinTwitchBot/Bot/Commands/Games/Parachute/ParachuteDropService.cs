@@ -404,6 +404,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var pSettings = settings.Parachute;
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, pSettings.ActiveThemeId);
             var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
+            dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.ParachuteCanopyImageUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.DefaultCharacterImageUrl);
 
             var durationSeconds = Math.Clamp(pSettings.DescentDurationSeconds, 2.5, 15.0);
             var totalTicks = Math.Max(60, (int)Math.Round(durationSeconds * ParachuteSimulationEngine.TickRateHz));
@@ -593,6 +596,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             };
             var dropletUrls = await DropGameMediaResolver.ResolveMediaUrlsAsync(
                 emoteService, fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl, request.AllowDirectUrlOrPath);
+            foreach (var url in dropletUrls)
+            {
+                dropRegistry.RegisterAllowedProxyUrl(url);
+            }
 
             var droplets = new List<DropletInstanceDto>(count);
             var trajectoryUpdates = new List<ParachuteTrajectoryUpdateDto>();

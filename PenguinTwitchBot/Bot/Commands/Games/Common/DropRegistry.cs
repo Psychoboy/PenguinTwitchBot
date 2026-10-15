@@ -106,6 +106,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return false;
         }
 
+        private readonly ConcurrentDictionary<string, DateTime> _allowedProxyUrls = new(StringComparer.OrdinalIgnoreCase);
+
+        public void RegisterAllowedProxyUrl(string? url, TimeSpan? lifetime = null)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return;
+            var expiry = DateTime.UtcNow.Add(lifetime ?? TimeSpan.FromMinutes(30));
+            _allowedProxyUrls[url] = expiry;
+        }
+
+        public bool IsProxyUrlAllowed(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            if (_allowedProxyUrls.TryGetValue(url, out var expiry))
+            {
+                if (DateTime.UtcNow <= expiry) return true;
+                _allowedProxyUrls.TryRemove(url, out _);
+            }
+            return false;
+        }
+
         public void CleanupExpiredDrops()
         {
             var now = DateTime.UtcNow;
@@ -114,6 +134,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 if (kvp.Value.ExpiresAtUtc <= now)
                 {
                     _pendingDrops.TryRemove(kvp.Key, out _);
+                }
+            }
+
+            foreach (var kvp in _allowedProxyUrls)
+            {
+                if (kvp.Value <= now)
+                {
+                    _allowedProxyUrls.TryRemove(kvp.Key, out _);
                 }
             }
         }

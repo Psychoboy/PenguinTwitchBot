@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Services;
 using System.Text.Json;
@@ -16,10 +18,13 @@ namespace PenguinTwitchBot.Controllers
         IMemoryCache memoryCache,
         IEmoteService emoteService,
         IHttpClientFactory httpClientFactory,
-        ILogger<ChatController> logger) : ControllerBase
+        ILogger<ChatController> logger,
+        IDropRegistry? dropRegistry = null,
+        IDropGamesSettingsService? settingsService = null) : ControllerBase
     {
         private const string BadgeCacheKey = "chat_badges_v1";
         private static readonly TimeSpan BadgeCacheDuration = TimeSpan.FromMinutes(30);
+        private static readonly SemaphoreSlim UpstreamThrottle = new(10, 10);
 
         /// <summary>
         /// Returns a flat map of "setId/versionId" → image URL (1x) for all badges.
@@ -69,6 +74,11 @@ namespace PenguinTwitchBot.Controllers
                 return BadRequest("Invalid host");
             }
 
+            if (!await IsAllowedGameAssetUrlAsync(url))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, "URL is not associated with an active drop or game asset.");
+            }
+
             var cacheKey = $"proxy_img_{url}";
             if (!memoryCache.TryGetValue(cacheKey, out (byte[] bytes, string contentType) cached))
             {
@@ -80,7 +90,18 @@ namespace PenguinTwitchBot.Controllers
                     request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
                     request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
 
-                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    await UpstreamThrottle.WaitAsync(cancellationToken);
+                    HttpResponseMessage response;
+                    try
+                    {
+                        response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    }
+                    finally
+                    {
+                        UpstreamThrottle.Release();
+                    }
+                    using (response)
+                    {
                     if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
                     {
                         return BadRequest("Redirects are not allowed");
@@ -127,6 +148,7 @@ namespace PenguinTwitchBot.Controllers
                         .SetAbsoluteExpiration(TimeSpan.FromHours(1))
                         .SetSize(bytes.Length);
                     memoryCache.Set(cacheKey, cached, entryOptions);
+                    }
                 }
                 catch (OperationCanceledException) when (HttpContext?.RequestAborted.IsCancellationRequested == true)
                 {
@@ -141,6 +163,60 @@ namespace PenguinTwitchBot.Controllers
             }
 
             return File(cached.bytes, cached.contentType);
+        }
+
+        private async Task<bool> IsAllowedGameAssetUrlAsync(string url)
+        {
+            if (dropRegistry != null && dropRegistry.IsProxyUrlAllowed(url))
+            {
+                return true;
+            }
+
+            if (settingsService != null)
+            {
+                try
+                {
+                    var settings = await settingsService.GetSettingsAsync();
+                    if (IsConfiguredInSettings(url, settings))
+                    {
+                        dropRegistry?.RegisterAllowedProxyUrl(url, TimeSpan.FromHours(1));
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogDebug(ex, "Failed to check drop games settings for allowed proxy URL: {Url}", SanitizeForLog(url));
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsConfiguredInSettings(string url, DropGamesSettings settings)
+        {
+            if (settings.Themes == null) return false;
+
+            foreach (var theme in settings.Themes)
+            {
+                if (string.Equals(theme.ParachuteCanopyImageUrl, url, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(theme.TargetPlatformImageUrl, url, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(theme.PlinkoBoardBackgroundImageUrl, url, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(theme.PlinkoPegImageUrl, url, StringComparison.OrdinalIgnoreCase) ||
+                    ContainsTokenOrUrl(theme.DefaultCharacterImageUrl, url) ||
+                    ContainsTokenOrUrl(theme.DefaultDropletImageUrl, url))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsTokenOrUrl(string? configuredList, string url)
+        {
+            if (string.IsNullOrWhiteSpace(configuredList)) return false;
+            var tokens = DropGameMediaResolver.ParseMediaTokens(configuredList);
+            return tokens.Any(t => string.Equals(t, url, StringComparison.OrdinalIgnoreCase));
         }
 
         private static readonly HashSet<string> AllowedEmoteDomains = new(StringComparer.OrdinalIgnoreCase)

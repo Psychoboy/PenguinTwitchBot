@@ -4,6 +4,8 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.TwitchServices;
 using PenguinTwitchBot.Controllers;
 using PenguinTwitchBot.Services;
@@ -18,6 +20,14 @@ namespace PenguinTwitchBot.Test.Controllers
         private readonly Mock<IEmoteService> _emoteServiceMock = new();
         private readonly Mock<IHttpClientFactory> _httpClientFactoryMock = new();
         private readonly Mock<ILogger<ChatController>> _loggerMock = new();
+        private readonly Mock<IDropRegistry> _dropRegistryMock = new();
+        private readonly Mock<IDropGamesSettingsService> _settingsServiceMock = new();
+
+        public ChatControllerTests()
+        {
+            _dropRegistryMock.Setup(r => r.IsProxyUrlAllowed(It.IsAny<string>())).Returns(true);
+            _settingsServiceMock.Setup(s => s.GetSettingsAsync()).ReturnsAsync(new DropGamesSettings());
+        }
 
         private ChatController CreateController()
         {
@@ -26,7 +36,9 @@ namespace PenguinTwitchBot.Test.Controllers
                 _memoryCache,
                 _emoteServiceMock.Object,
                 _httpClientFactoryMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _dropRegistryMock.Object,
+                _settingsServiceMock.Object);
         }
 
         [Theory]
@@ -194,6 +206,19 @@ namespace PenguinTwitchBot.Test.Controllers
             var controller = CreateController();
             var result = await controller.ProxyImage(testUrl);
             Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task ProxyImage_UnregisteredGameAssetUrl_ReturnsForbidden()
+        {
+            _dropRegistryMock.Setup(r => r.IsProxyUrlAllowed(It.IsAny<string>())).Returns(false);
+            _settingsServiceMock.Setup(s => s.GetSettingsAsync()).ReturnsAsync(new DropGamesSettings());
+
+            var controller = CreateController();
+            var result = await controller.ProxyImage("https://static-cdn.jtvnw.net/emoticons/v2/unregistered_token/default/dark/2.0");
+
+            var statusResult = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(403, statusResult.StatusCode);
         }
     }
 }
