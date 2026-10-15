@@ -392,7 +392,7 @@ namespace PenguinTwitchBot.Test.Pages.Actions
                 var markup = dialogProvider.Markup;
                 Assert.Contains("Configure Gamble - Win", markup);
                 Assert.Contains("Update Trigger", markup);
-                Assert.DoesNotContain("button:contains('Back')", markup);
+                Assert.Empty(dialogProvider.FindAll(".btn-back"));
             });
         }
 
