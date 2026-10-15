@@ -1138,29 +1138,19 @@
             ctx.globalAlpha = Math.max(0, Math.min(1.0, tokenAlpha));
             ctx.translate(tx, ty);
 
-            // Outer glowing coin ring
-            ctx.shadowColor = isLeader ? 'rgba(255, 215, 0, 0.75)' : 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = isLeader ? 16 : 10;
-            ctx.fillStyle = isLeader ? '#FFD700' : ((t.theme && t.theme.primaryColor) || '#FF8FA3');
-            ctx.beginPath();
-            ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.lineWidth = isLeader ? 3.5 : 3;
-            ctx.strokeStyle = isLeader ? '#FFF' : '#FFFFFF';
-            ctx.stroke();
-
+            // Character or emote sprite (no solid circular background or border)
             ctx.save();
-            ctx.beginPath();
-            ctx.arc(0, 0, tokenRadius - 3, 0, Math.PI * 2);
-            ctx.clip();
             ctx.rotate(t.rotation * 0.35);
 
             const charImg = getLoadedImage(t.characterImageUrl);
             if (charImg) {
-                ctx.drawImage(charImg, -tokenRadius + 3, -tokenRadius + 3, (tokenRadius - 3) * 2, (tokenRadius - 3) * 2);
+                ctx.save();
+                ctx.shadowColor = isLeader ? 'rgba(255, 215, 0, 0.75)' : 'rgba(0, 0, 0, 0.45)';
+                ctx.shadowBlur = isLeader ? 16 : 8;
+                ctx.drawImage(charImg, -tokenRadius, -tokenRadius, tokenRadius * 2, tokenRadius * 2);
+                ctx.restore();
             } else {
-                drawSeasonalDefaultPenguin(ctx, tokenRadius * 0.78, ((t.theme && t.theme.seasonPreset) || 'spring').toLowerCase());
+                drawSeasonalDefaultPenguin(ctx, tokenRadius * 0.85, ((t.theme && t.theme.seasonPreset) || 'spring').toLowerCase());
             }
             ctx.restore();
 
