@@ -63,7 +63,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 Row = rows,
                 Col = targetBucketIndex,
                 X = Math.Round(targetX, 4),
-                Y = 0.88
+                Y = 0.96
             });
 
             return waypoints;

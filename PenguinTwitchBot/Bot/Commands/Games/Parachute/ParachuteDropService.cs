@@ -446,7 +446,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 : DropGameMath.RandomDouble(0.10, 0.90);
 
             var startY = 0.04;
-            var landingY = 0.88;
+            var landingY = 0.94;
             var baseVy = (landingY - startY) / durationSeconds;
 
             var windScale = Math.Clamp(pSettings.WindStrength, 0.0, 1.0);

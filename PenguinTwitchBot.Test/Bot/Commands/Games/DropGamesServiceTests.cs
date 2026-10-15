@@ -1360,7 +1360,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 var finalWaypoint = waypoints.Last();
                 Assert.Equal(rows, finalWaypoint.Row);
                 Assert.Equal(targetBucketIndex, finalWaypoint.Col);
-                Assert.Equal(0.88, finalWaypoint.Y);
+                Assert.Equal(0.96, finalWaypoint.Y);
 
                 // Must be safely within the target bucket slot bounds [0.40, 0.60]
                 Assert.InRange(finalWaypoint.X, 0.40, 0.60);

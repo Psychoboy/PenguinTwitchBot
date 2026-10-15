@@ -860,8 +860,8 @@
         // Bottom Prize Buckets
         const buckets = boardConfig.buckets || [];
         if (buckets.length > 0) {
-            const bucketY = 0.84 * height;
-            const bucketH = 0.095 * height;
+            const bucketH = Math.max(84, Math.round(0.09 * height));
+            const bucketY = height - bucketH;
             const slotW = boardW / buckets.length;
             const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
 
@@ -872,7 +872,7 @@
                 const bw = slotW;
 
                 if (isWinSlot) {
-                    drawWinningSlotDecor(ctx, bx + bw / 2, bucketY + bucketH * 0.50, bw, bucketH, season, alpha);
+                    drawWinningSlotDecor(ctx, bx + bw / 2, height, bw, bucketH, season, alpha);
                 }
             }
 
@@ -882,13 +882,13 @@
         ctx.restore();
     }
 
-    function drawWinningSlotDecor(ctx, cx, cy, slotW, slotH, season, alpha) {
+    function drawWinningSlotDecor(ctx, cx, groundY, slotW, slotH, season, alpha) {
         ctx.save();
         const customDecorImg = getLoadedImage(currentTheme && currentTheme.plinkoWinningSlotImageUrl);
         if (customDecorImg) {
             const maxW = Math.min(slotW * 0.70, 84);
             const maxH = Math.min(slotH * 0.90, 84);
-            ctx.drawImage(customDecorImg, cx - maxW / 2, cy - maxH / 2, maxW, maxH);
+            ctx.drawImage(customDecorImg, cx - maxW / 2, groundY - maxH - 4, maxW, maxH);
             ctx.restore();
             return;
         }
@@ -896,15 +896,19 @@
         const size = Math.min(slotW * 0.40, slotH * 0.75, 52);
         const pulse = 1.0 + 0.05 * Math.sin(Date.now() * 0.005);
 
-        // Soft ground beacon glow under target
+        // Position target so its base sits directly on the bottom floor of the view
+        const targetBaseOffsetY = size * 0.52;
+        const decorCenterY = groundY - 4 - targetBaseOffsetY;
+
+        // Soft ground beacon glow under target resting on the bottom
         ctx.save();
         ctx.fillStyle = 'rgba(255, 215, 0, 0.16)';
         ctx.beginPath();
-        ctx.ellipse(cx, cy + size * 0.40, size * 0.85, size * 0.20, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, groundY - 4, size * 0.85, size * 0.18, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        ctx.translate(cx, cy);
+        ctx.translate(cx, decorCenterY);
         ctx.scale(pulse, pulse);
 
         if (season === 'halloween') {
@@ -1219,8 +1223,8 @@
         if (bucketCount <= 1) return;
         const slotW = boardW / bucketCount;
         const customDivImg = getLoadedImage(currentTheme && currentTheme.plinkoDividerImageUrl);
-        const divH = bucketH + 18;
-        const topY = bucketY - 12;
+        const topY = bucketY - 14;
+        const divH = height - topY;
         const now = Date.now();
 
         for (let i = 1; i < bucketCount; i++) {
@@ -1620,10 +1624,13 @@
         for (let i = activeTokens.length - 1; i >= 0; i--) {
             const t = activeTokens[i];
 
-            if (!t.completed && ((t.progress || 0) >= 1.0 || t.y >= 0.88)) {
+            const tokenLandingY = height - tokenRadius - 4;
+            const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
+
+            if (!t.completed && ((t.progress || 0) >= 1.0 || t.y >= tokenLandingYNorm)) {
                 t.completed = true;
                 t.completedAtMs = now;
-                t.y = 0.88;
+                t.y = tokenLandingYNorm;
 
                 const buckets = boardConfig.buckets || [];
                 let landedBucketIdx;

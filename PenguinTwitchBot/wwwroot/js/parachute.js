@@ -855,7 +855,7 @@
                 totalTicks: p.totalTicks || 390,
                 startX: p.startX,
                 startY: p.startY,
-                landingY: p.landingY || 0.88,
+                landingY: p.landingY || 0.94,
                 x: p.startX,
                 y: p.startY,
                 vx: p.initialVx || 0,
@@ -1086,7 +1086,7 @@
         const maxPadX = width - (targetW / 2) - 24;
         const rawCx = (targetState.centerX || 0.5) * width;
         const cx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, rawCx)) : width / 2;
-        const y = 0.895 * height;
+        const y = height - 34;
         const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
         return { targetW, bullseyeW, cx, y, season };
     }
@@ -1427,7 +1427,7 @@
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.85)';
         ctx.shadowBlur = 6;
-        ctx.fillText('TARGET', cx, y + 34);
+        ctx.fillText('TARGET', cx, y + 26);
 
         ctx.restore();
     }
@@ -1785,10 +1785,9 @@
                 const minPadX = (targetWNorm * 0.5) + 24 / width;
                 const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
                 const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
-                const targetHalfW = targetState.targetHalfWidth || 0.09;
-                const targetTopY = 0.88;
+                const targetTopY = (height - 58) / height;
 
-                if (d.vy > 0 && d.y + r >= targetTopY && d.y - r <= 0.91) {
+                if (d.vy > 0 && d.y + r >= targetTopY && d.y - r <= targetTopY + 0.03) {
                     if (Math.abs(d.x - targetCx) <= targetHalfW + r * 0.5) {
                         d.y = targetTopY - r;
                         if (Math.abs(d.vy) > 0.05) {
@@ -1808,7 +1807,7 @@
                 }
 
                 // 3. Floor bounce
-                const floorY = 0.935;
+                const floorY = 0.995;
                 if (d.y + r >= floorY) {
                     d.y = floorY - r;
                     if (Math.abs(d.vy) > 0.05) {
