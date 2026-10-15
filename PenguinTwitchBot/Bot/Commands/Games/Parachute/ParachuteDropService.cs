@@ -301,6 +301,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_start");
 
+                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "parachute" }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is active");
+
                 if (settings.Parachute.AnnounceSessionStatusInChat)
                 {
                     var template = settings.Parachute.SessionStartChatMessageTemplate;
@@ -398,6 +401,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_end");
 
+            var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "parachute" }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is inactive");
+
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
             {
                 if (settings.Parachute.AnnounceSessionStatusInChat)
@@ -417,6 +423,38 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
             {
+                var endVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["total_drops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
+                    ["Theme"] = theme.Name,
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "ParachuteDrop"
+                };
+
+                var endEventArgs = new CommandEventArgs
+                {
+                    Command = "drop",
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "drop",
+                        DefaultCommandEventTypes.ParachuteEnd,
+                        endEventArgs,
+                        endVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire ParachuteEnd trigger");
+                }
+
                 await ProcessNextQueuedSessionAsync();
             }
 
@@ -628,6 +666,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute drop");
+
+            var dropNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = durationSeconds + 6.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, dropNotice, "Parachute drop active notice to Plinko");
+
             return dropToken;
         }
 
@@ -735,6 +777,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute droplets");
+
+            var dropletsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, dropletsNotice, "Parachute droplets active notice to Plinko");
+
             return droplets;
         }
 

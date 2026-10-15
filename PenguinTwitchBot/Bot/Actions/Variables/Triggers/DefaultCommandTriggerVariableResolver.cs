@@ -79,11 +79,11 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
             case "drop":
             case "parachute":
-                ResolveParachuteVariables(variables, source, category);
+                ResolveParachuteVariables(variables, source, category, eventType);
                 break;
 
             case "plinko":
-                ResolvePlinkoVariables(variables, source, category);
+                ResolvePlinkoVariables(variables, source, category, eventType);
                 break;
         }
     }
@@ -176,6 +176,26 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
                 eventType = DefaultCommandEventTypes.DeathReset;
             else if (nameLower.Contains("set"))
                 eventType = DefaultCommandEventTypes.DeathSet;
+            else if (nameLower.Contains("parachute") || nameLower.Contains("drop"))
+            {
+                if (nameLower.Contains("bullseye"))
+                    eventType = DefaultCommandEventTypes.ParachuteBullseye;
+                else if (nameLower.Contains("win"))
+                    eventType = DefaultCommandEventTypes.ParachuteWin;
+                else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
+                    eventType = DefaultCommandEventTypes.ParachuteLose;
+                else if (nameLower.Contains("end"))
+                    eventType = DefaultCommandEventTypes.ParachuteEnd;
+            }
+            else if (nameLower.Contains("plinko"))
+            {
+                if (nameLower.Contains("win"))
+                    eventType = DefaultCommandEventTypes.PlinkoWin;
+                else if (nameLower.Contains("lose"))
+                    eventType = DefaultCommandEventTypes.PlinkoLose;
+                else if (nameLower.Contains("end"))
+                    eventType = DefaultCommandEventTypes.PlinkoEnd;
+            }
         }
 
         return (commandName, eventType);
@@ -326,23 +346,48 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         }
     }
 
-    private static void ResolveParachuteVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category)
+    private static void ResolveParachuteVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
     {
-        variables.SetVariable("Score", "Landing accuracy score achieved (0 - 100)", source, category, "100");
-        variables.SetVariable("IsWin", "True if the parachute drop landed in a winning target zone", source, category, "true");
-        variables.SetVariable("IsBullseye", "True if the parachute drop landed dead-center on the bullseye", source, category, "true");
-        variables.SetVariable("DropletHits", "Number of interactive droplets that collided with the parachutist mid-air", source, category, "2");
-        variables.SetVariable("DistanceFromCenter", "Distance from the target center in percentage points", source, category, "1.2");
-        variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.ParachuteEnd, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.ParachuteEnded, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("TotalDrops", "Total number of parachutists who dropped during the round", source, category, "42");
+            variables.SetVariable("Duration", "Total duration of the parachute session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the parachute session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "ParachuteDrop");
+        }
+        else
+        {
+            variables.SetVariable("Score", "Landing accuracy score achieved (0 - 100)", source, category, "100");
+            variables.SetVariable("IsWin", "True if the parachute drop landed in a winning target zone", source, category, "true");
+            variables.SetVariable("IsBullseye", "True if the parachute drop landed dead-center on the bullseye", source, category, "true");
+            variables.SetVariable("DropletHits", "Number of interactive droplets that collided with the parachutist mid-air", source, category, "2");
+            variables.SetVariable("DistanceFromCenter", "Distance from the target center in percentage points", source, category, "1.2");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
     }
 
-    private static void ResolvePlinkoVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category)
+    private static void ResolvePlinkoVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
     {
-        variables.SetVariable("Score", "Points/multiplier value of the Plinko bucket landed in (0 for winner-only mode)", source, category, "0");
-        variables.SetVariable("BucketLabel", "Display label of the Plinko bucket landed in", source, category, "WINNER");
-        variables.SetVariable("BucketIndex", "Zero-based index of the Plinko bucket landed in", source, category, "2");
-        variables.SetVariable("IsWin", "True if the Plinko bucket is marked as a winning bucket", source, category, "true");
-        variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.PlinkoEnd, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.PlinkoEnded, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("TotalDrops", "Total number of plinko tokens dropped during the round", source, category, "35");
+            variables.SetVariable("TotalTokens", "Total number of plinko tokens dropped during the round", source, category, "35");
+            variables.SetVariable("Duration", "Total duration of the plinko session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the plinko session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "PlinkoBounce");
+        }
+        else
+        {
+            variables.SetVariable("Score", "Points/multiplier value of the Plinko bucket landed in (0 for winner-only mode)", source, category, "0");
+            variables.SetVariable("BucketLabel", "Display label of the Plinko bucket landed in", source, category, "WINNER");
+            variables.SetVariable("BucketIndex", "Zero-based index of the Plinko bucket landed in", source, category, "2");
+            variables.SetVariable("IsWin", "True if the Plinko bucket is marked as a winning bucket", source, category, "true");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
     }
 }
 
