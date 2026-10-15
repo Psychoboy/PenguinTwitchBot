@@ -4,11 +4,13 @@ The **Themes & Seasons** tab gives full visual control over how Parachute Drop a
 
 ## Built-In Seasonal Presets
 
-The bot ships with four curated seasonal presets:
-- **Spring**: Pastel pink cherry blossom canopies, gentle floral tones, and meadow green targets.
-- **Summer**: Sunny golden sands, sky blue ocean canopies, and tropical accents.
-- **Fall**: Autumn amber and maple leaves, harvest orange chutes, and acorn/pinecone droplets.
-- **Winter**: Crisp festive red and snowy white winter canopies with ice blue platforms.
+The bot ships with six curated seasonal & holiday presets:
+- **Spring**: Pastel pink cherry blossom canopies, gentle floral tones, sakura petal puffs, and meadow green targets.
+- **Summer**: Sunny golden sands, sky blue ocean canopies, refreshing swimming pool target basin, and water droplets.
+- **Fall**: Autumn amber and maple leaves, harvest orange chutes, deep multi-tier crunch leaf piles, and acorn droplets.
+- **Winter**: Crisp snowdrifts, snowy winter canopies with ice blue platforms, and soft blizzard puffs.
+- **Halloween**: Spooky pumpkin orange & witch purple tones, flapping bats, bubbling toxic green cauldron, candy corn bursts, and witch hats.
+- **Christmas**: Festive Santa red, evergreen pine garland, star sparkles, holiday gift box target with red ribbon bows, and Santa hats.
 
 ## Custom Themes
 

@@ -21,9 +21,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string Id { get; set; } = "spring";
         public string Name { get; set; } = "Spring (Cherry Blossoms)";
         public bool IsStock { get; set; } = true;
-        public string SeasonPreset { get; set; } = "spring"; // spring, summer, fall, winter, custom
-        public string ParticleType { get; set; } = "petals"; // petals, bubbles, leaves, snow, stars, none
+        public string SeasonPreset { get; set; } = "spring"; // spring, summer, fall, winter, halloween, christmas, custom
+        
+        // Background Ambient Particles
+        public bool EnableBackgroundParticles { get; set; } = true;
+        public string ParticleType { get; set; } = "petals"; // petals, bubbles, leaves, snow, stars, bats, none
         public int ParticleDensity { get; set; } = 35;
+
+        // Landing Pad Particles & Bursts
+        public bool EnableLandingParticles { get; set; } = true;
+        public string LandingParticleType { get; set; } = "leaves"; // leaves, petals, snow, splash, candies, confetti, none
+        public int LandingParticleDensity { get; set; } = 36;
 
         public string PrimaryColor { get; set; } = "#FF8FA3";
         public string SecondaryColor { get; set; } = "#FFB7C5";
@@ -52,8 +60,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 Name = "Spring (Cherry Blossoms)",
                 IsStock = true,
                 SeasonPreset = "spring",
+                EnableBackgroundParticles = true,
                 ParticleType = "petals",
                 ParticleDensity = 40,
+                EnableLandingParticles = true,
+                LandingParticleType = "petals",
+                LandingParticleDensity = 36,
                 PrimaryColor = "#FF8FA3",
                 SecondaryColor = "#FFB7C5",
                 AccentColor = "#FFE066",
@@ -63,11 +75,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             new DropGameTheme
             {
                 Id = "summer",
-                Name = "Summer (Tropical Beach)",
+                Name = "Summer (Tropical Pool Party)",
                 IsStock = true,
                 SeasonPreset = "summer",
+                EnableBackgroundParticles = true,
                 ParticleType = "bubbles",
                 ParticleDensity = 35,
+                EnableLandingParticles = true,
+                LandingParticleType = "splash",
+                LandingParticleDensity = 40,
                 PrimaryColor = "#00B4D8",
                 SecondaryColor = "#FFD166",
                 AccentColor = "#FF6B6B",
@@ -77,11 +93,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             new DropGameTheme
             {
                 Id = "fall",
-                Name = "Fall (Autumn Harvest)",
+                Name = "Fall (Autumn Leaf Pile)",
                 IsStock = true,
                 SeasonPreset = "fall",
+                EnableBackgroundParticles = true,
                 ParticleType = "leaves",
                 ParticleDensity = 38,
+                EnableLandingParticles = true,
+                LandingParticleType = "leaves",
+                LandingParticleDensity = 45,
                 PrimaryColor = "#E76F51",
                 SecondaryColor = "#F4A261",
                 AccentColor = "#E9C46A",
@@ -94,12 +114,52 @@ namespace PenguinTwitchBot.Bot.Commands.Games
                 Name = "Winter (Snowy Frost)",
                 IsStock = true,
                 SeasonPreset = "winter",
+                EnableBackgroundParticles = true,
                 ParticleType = "snow",
                 ParticleDensity = 45,
+                EnableLandingParticles = true,
+                LandingParticleType = "snow",
+                LandingParticleDensity = 40,
                 PrimaryColor = "#48CAE4",
                 SecondaryColor = "#CAF0F8",
                 AccentColor = "#FFD166",
                 TargetColor = "#90E0EF",
+                TextColor = "#FFFFFF"
+            },
+            new DropGameTheme
+            {
+                Id = "halloween",
+                Name = "Halloween (Spooky Cauldron)",
+                IsStock = true,
+                SeasonPreset = "halloween",
+                EnableBackgroundParticles = true,
+                ParticleType = "bats",
+                ParticleDensity = 32,
+                EnableLandingParticles = true,
+                LandingParticleType = "candies",
+                LandingParticleDensity = 42,
+                PrimaryColor = "#FF7518",
+                SecondaryColor = "#7B2CBF",
+                AccentColor = "#39FF14",
+                TargetColor = "#240046",
+                TextColor = "#FFFFFF"
+            },
+            new DropGameTheme
+            {
+                Id = "christmas",
+                Name = "Christmas (Holiday Celebration)",
+                IsStock = true,
+                SeasonPreset = "christmas",
+                EnableBackgroundParticles = true,
+                ParticleType = "snow",
+                ParticleDensity = 45,
+                EnableLandingParticles = true,
+                LandingParticleType = "confetti",
+                LandingParticleDensity = 45,
+                PrimaryColor = "#D90429",
+                SecondaryColor = "#2B9348",
+                AccentColor = "#FFD166",
+                TargetColor = "#007F5F",
                 TextColor = "#FFFFFF"
             }
         ];

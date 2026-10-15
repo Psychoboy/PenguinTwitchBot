@@ -72,6 +72,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var hitDropletIds = new HashSet<string>(StringComparer.Ordinal);
             var maxAllowedTicks = Math.Max(record.TotalTicks, 60) + 180; // Bounded cap (~3 seconds extra if vertical speed was dampened)
             var finalTick = startTick;
+            var bouncedOffTargetRim = false;
 
             for (var tick = startTick; tick <= maxAllowedTicks; tick++)
             {
@@ -157,6 +158,36 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 x += vx * Dt;
                 y += vy * Dt;
+
+                // Interactive Target Rim / Wall Bounce (Pool / Cauldron / Leaf Pile side lip)
+                if (!bouncedOffTargetRim && y >= record.LandingY - 0.038 && y < record.LandingY)
+                {
+                    var dx = x - record.TargetCenterX;
+                    var dist = Math.Abs(dx);
+                    if (dist >= record.TargetHalfWidth * 0.93 && dist <= record.TargetHalfWidth * 1.07)
+                    {
+                        bouncedOffTargetRim = true;
+                        // Outer rim bounce: deflects outward or bounces over the lip into the basin
+                        if (Math.Sign(vx) == Math.Sign(dx) && Math.Abs(vx) > 0.01)
+                        {
+                            vx = -vx * 0.85; // Bounced off outer wall!
+                        }
+                        else
+                        {
+                            vx = (dx > 0 ? -1 : 1) * Math.Max(0.04, Math.Abs(vx) * 0.8); // Bounced over lip into the pool!
+                        }
+                        vy = Math.Max(MinVy, vy * 0.65); // Springy cushion pop
+
+                        keyframes.Add(new ParachuteTrajectoryPointDto
+                        {
+                            Tick = tick,
+                            X = Math.Round(x, 4),
+                            Y = Math.Round(y, 4),
+                            Vx = Math.Round(vx, 4),
+                            Vy = Math.Round(vy, 4)
+                        });
+                    }
+                }
 
                 // Clean bounce off left/right screen margins
                 if (x < 0.05)

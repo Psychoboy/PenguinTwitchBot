@@ -544,7 +544,7 @@
                 </MudTabPanel>
 
                 <!-- ================= TAB 4: SEASONAL & CUSTOM THEMES ================= -->
-                <MudTabPanel Text="Themes & Seasons (4 Stock + Custom)" Icon="@Icons.Material.Filled.Palette">
+                <MudTabPanel Text="Themes & Seasons (6 Stock + Custom)" Icon="@Icons.Material.Filled.Palette">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="4">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -577,7 +577,7 @@
                                 <MudDivider Class="my-3" />
                                 <MudButton Size="Size.Small" Variant="Variant.Outlined" FullWidth="true"
                                            OnClick="ResetStockSeasonalThemes">
-                                    Restore Default 4 Seasonal Themes
+                                    Restore Default Stock Themes
                                 </MudButton>
                             </MudPaper>
                         </MudItem>
@@ -603,25 +603,93 @@
                                             <MudTextField T="string" Label="Theme Display Name" Variant="Variant.Outlined"
                                                           @bind-Value="_selectedTheme.Name" />
                                         </MudItem>
-                                        <MudItem xs="6" sm="3">
+                                        <MudItem xs="12" sm="6">
                                             <MudSelect T="string" Label="Seasonal Style" Variant="Variant.Outlined"
                                                        @bind-Value="_selectedTheme.SeasonPreset">
-                                                <MudSelectItem Value="@("spring")">Spring</MudSelectItem>
-                                                <MudSelectItem Value="@("summer")">Summer</MudSelectItem>
-                                                <MudSelectItem Value="@("fall")">Fall</MudSelectItem>
-                                                <MudSelectItem Value="@("winter")">Winter</MudSelectItem>
+                                                <MudSelectItem Value="@("spring")">Spring (Cherry Blossoms)</MudSelectItem>
+                                                <MudSelectItem Value="@("summer")">Summer (Tropical Pool Party)</MudSelectItem>
+                                                <MudSelectItem Value="@("fall")">Fall (Autumn Leaf Pile)</MudSelectItem>
+                                                <MudSelectItem Value="@("winter")">Winter (Snowy Frost)</MudSelectItem>
+                                                <MudSelectItem Value="@("halloween")">Halloween (Spooky Cauldron)</MudSelectItem>
+                                                <MudSelectItem Value="@("christmas")">Christmas (Holiday Celebration)</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
-                                        <MudItem xs="6" sm="3">
-                                            <MudSelect T="string" Label="Ambient Particles" Variant="Variant.Outlined"
-                                                       @bind-Value="_selectedTheme.ParticleType">
-                                                <MudSelectItem Value="@("petals")">Blossom Petals</MudSelectItem>
-                                                <MudSelectItem Value="@("bubbles")">Beach Bubbles</MudSelectItem>
-                                                <MudSelectItem Value="@("leaves")">Autumn Leaves</MudSelectItem>
-                                                <MudSelectItem Value="@("snow")">Snowflakes</MudSelectItem>
-                                                <MudSelectItem Value="@("stars")">Sparkle Stars</MudSelectItem>
-                                                <MudSelectItem Value="@("none")">None</MudSelectItem>
-                                            </MudSelect>
+
+                                        <MudItem xs="12">
+                                            <MudPaper Outlined="true" Class="pa-3">
+                                                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Seasonal Particle Systems</b></MudText>
+                                                <MudGrid Spacing="2">
+                                                    <MudItem xs="12" sm="6">
+                                                        <MudCard Outlined="true" Class="pa-3">
+                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                                <MudText Typo="Typo.body2"><b>Background Ambient Particles</b></MudText>
+                                                                <MudSwitch T="bool" @bind-Value="_selectedTheme.EnableBackgroundParticles" Color="Color.Primary" />
+                                                            </MudStack>
+                                                            @if (_selectedTheme.EnableBackgroundParticles)
+                                                            {
+                                                                <MudGrid Spacing="2" Class="mt-1">
+                                                                    <MudItem xs="7">
+                                                                        <MudSelect T="string" Label="Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                   @bind-Value="_selectedTheme.ParticleType">
+                                                                            <MudSelectItem Value="@("petals")">Blossom Petals</MudSelectItem>
+                                                                            <MudSelectItem Value="@("bubbles")">Beach Bubbles</MudSelectItem>
+                                                                            <MudSelectItem Value="@("leaves")">Autumn Leaves</MudSelectItem>
+                                                                            <MudSelectItem Value="@("snow")">Snowflakes</MudSelectItem>
+                                                                            <MudSelectItem Value="@("stars")">Sparkle Stars</MudSelectItem>
+                                                                            <MudSelectItem Value="@("bats")">Spooky Bats</MudSelectItem>
+                                                                            <MudSelectItem Value="@("none")">None</MudSelectItem>
+                                                                        </MudSelect>
+                                                                    </MudItem>
+                                                                    <MudItem xs="5">
+                                                                        <MudNumericField T="int" Label="Density (5-80)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                         Min="5" Max="80"
+                                                                                         @bind-Value="_selectedTheme.ParticleDensity" />
+                                                                    </MudItem>
+                                                                </MudGrid>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Background is clear (ambient particles turned off).</MudText>
+                                                            }
+                                                        </MudCard>
+                                                    </MudItem>
+
+                                                    <MudItem xs="12" sm="6">
+                                                        <MudCard Outlined="true" Class="pa-3">
+                                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                                <MudText Typo="Typo.body2"><b>Landing Pad Impact Particles</b></MudText>
+                                                                <MudSwitch T="bool" @bind-Value="_selectedTheme.EnableLandingParticles" Color="Color.Success" />
+                                                            </MudStack>
+                                                            @if (_selectedTheme.EnableLandingParticles)
+                                                            {
+                                                                <MudGrid Spacing="2" Class="mt-1">
+                                                                    <MudItem xs="7">
+                                                                        <MudSelect T="string" Label="Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                   @bind-Value="_selectedTheme.LandingParticleType">
+                                                                            <MudSelectItem Value="@("leaves")">Autumn Leaves Burst</MudSelectItem>
+                                                                            <MudSelectItem Value="@("petals")">Cherry Petals Poof</MudSelectItem>
+                                                                            <MudSelectItem Value="@("snow")">Snow Powder Puff</MudSelectItem>
+                                                                            <MudSelectItem Value="@("splash")">Water Splash</MudSelectItem>
+                                                                            <MudSelectItem Value="@("candies")">Halloween Treats / Candies</MudSelectItem>
+                                                                            <MudSelectItem Value="@("confetti")">Holiday Sparkles & Confetti</MudSelectItem>
+                                                                            <MudSelectItem Value="@("none")">None</MudSelectItem>
+                                                                        </MudSelect>
+                                                                    </MudItem>
+                                                                    <MudItem xs="5">
+                                                                        <MudNumericField T="int" Label="Amount (10-70)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                         Min="10" Max="70"
+                                                                                         @bind-Value="_selectedTheme.LandingParticleDensity" />
+                                                                    </MudItem>
+                                                                </MudGrid>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Landing impact puff is turned off.</MudText>
+                                                            }
+                                                        </MudCard>
+                                                    </MudItem>
+                                                </MudGrid>
+                                            </MudPaper>
                                         </MudItem>
 
                                         <MudItem xs="6" sm="3">
@@ -799,7 +867,7 @@
                 _settings.Themes.Insert(0, def);
         }
         _selectedTheme = _settings.Themes.FirstOrDefault();
-        Snackbar.Add("Restored stock Spring, Summer, Fall, and Winter themes.", Severity.Info);
+        Snackbar.Add("Restored stock seasonal and holiday themes (Spring, Summer, Fall, Winter, Halloween, Christmas).", Severity.Info);
     }
 
     private void AddPlinkoBucket()

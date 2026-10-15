@@ -656,6 +656,38 @@
             ctx.beginPath();
             ctx.arc(0, -r * 0.5, r * 0.7, Math.PI, 0);
             ctx.fill();
+        } else if (season === 'halloween') {
+            // Spooky Witch Hat
+            ctx.fillStyle = '#212529';
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.72, -r * 0.65);
+            ctx.lineTo(r * 0.72, -r * 0.65);
+            ctx.lineTo(r * 0.22, -r * 1.55);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 0.65, r * 0.88, r * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#7B2CBF';
+            ctx.fillRect(-r * 0.45, -r * 0.85, r * 0.9, r * 0.22);
+            ctx.fillStyle = '#FFD166';
+            ctx.fillRect(-r * 0.16, -r * 0.88, r * 0.32, r * 0.28);
+        } else if (season === 'christmas') {
+            // Festive Santa Hat
+            ctx.fillStyle = '#D90429';
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.68, -r * 0.65);
+            ctx.lineTo(r * 0.68, -r * 0.65);
+            ctx.quadraticCurveTo(r * 0.85, -r * 1.35, r * 0.45, -r * 1.45);
+            ctx.quadraticCurveTo(r * 0.1, -r * 1.15, -r * 0.68, -r * 0.65);
+            ctx.fill();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.roundRect(-r * 0.74, -r * 0.75, r * 1.48, r * 0.26, 6);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(r * 0.52, -r * 1.46, r * 0.24, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
@@ -759,8 +791,24 @@
     }
 
     function spawnConfetti(xPx, yPx) {
-        const colors = ['#FFD166', '#FF8FA3', '#00B4D8', '#6BCB77', '#FFFFFF'];
-        for (let i = 0; i < 30; i++) {
+        if (currentTheme && (currentTheme.enableLandingParticles === false || currentTheme.landingParticleType === 'none')) {
+            return;
+        }
+
+        const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
+        let colors = ['#FFD166', '#FF8FA3', '#00B4D8', '#6BCB77', '#FFFFFF'];
+        if (season === 'halloween') {
+            colors = ['#FF7518', '#FFE066', '#39FF14', '#8338EC', '#FFFFFF'];
+        } else if (season === 'christmas') {
+            colors = ['#D90429', '#2B9348', '#FFD166', '#FFFFFF', '#007F5F'];
+        } else if (season === 'fall') {
+            colors = ['#E76F51', '#F4A261', '#E9C46A', '#D9480F', '#9B2226'];
+        } else if (season === 'winter') {
+            colors = ['#BAE6FD', '#E0F2FE', '#38BDF8', '#FFFFFF', '#FFD166'];
+        }
+
+        const count = (currentTheme && currentTheme.landingParticleDensity) ? Math.min(60, Math.round(currentTheme.landingParticleDensity * 0.85)) : 30;
+        for (let i = 0; i < count; i++) {
             const angle = -Math.PI * 0.15 - Math.random() * Math.PI * 0.7;
             const speed = 110 + Math.random() * 190;
             confettiParticles.push({
@@ -768,7 +816,7 @@
                 y: yPx,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                size: 5 + Math.random() * 5,
+                size: 4 + Math.random() * 5,
                 color: colors[i % colors.length],
                 life: 0,
                 maxLife: 0.9 + Math.random() * 0.4

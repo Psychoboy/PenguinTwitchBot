@@ -143,6 +143,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 settings.Plinko.Buckets = settings.Plinko.Buckets.Skip(settings.Plinko.Buckets.Count - 7).ToList();
             }
 
+            foreach (var theme in settings.Themes)
+            {
+                if (string.IsNullOrWhiteSpace(theme.LandingParticleType))
+                {
+                    theme.LandingParticleType = theme.SeasonPreset.ToLowerInvariant() switch
+                    {
+                        "summer" => "splash",
+                        "fall" => "leaves",
+                        "winter" => "snow",
+                        "halloween" => "candies",
+                        "christmas" => "confetti",
+                        _ => "petals"
+                    };
+                    theme.EnableLandingParticles = true;
+                    theme.LandingParticleDensity = 36;
+                }
+            }
+
             if (settings.Parachute.DefaultDropletRandomSizes == null || settings.Parachute.DefaultDropletRandomSizes.Count == 0)
             {
                 settings.Parachute.DefaultDropletRandomSizes = ["Small", "Medium", "Large", "Giant"];

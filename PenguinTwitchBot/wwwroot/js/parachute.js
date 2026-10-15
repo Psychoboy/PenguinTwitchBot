@@ -463,19 +463,23 @@
 
 
     function syncAmbientParticles() {
-        const desired = currentTheme && currentTheme.particleType !== 'none'
+        const isEnabled = currentTheme && currentTheme.enableBackgroundParticles !== false && currentTheme.particleType !== 'none';
+        const desired = isEnabled
             ? Math.min(80, Math.max(0, currentTheme.particleDensity || 35))
             : 0;
 
+        const pType = (currentTheme && currentTheme.particleType) || 'petals';
+
         while (ambientParticles.length < desired) {
+            const isBat = pType === 'bats';
             ambientParticles.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                vx: (Math.random() - 0.5) * 35,
-                vy: 25 + Math.random() * 45,
-                size: 5 + Math.random() * 8,
+                vx: isBat ? (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55) : (Math.random() - 0.5) * 35,
+                vy: isBat ? (Math.random() - 0.5) * 20 : (pType === 'bubbles' ? -(25 + Math.random() * 45) : (25 + Math.random() * 45)),
+                size: isBat ? (10 + Math.random() * 8) : (5 + Math.random() * 8),
                 angle: Math.random() * Math.PI * 2,
-                spin: (Math.random() - 0.5) * 2.2,
+                spin: isBat ? 0 : (Math.random() - 0.5) * 2.2,
                 alpha: 0.45 + Math.random() * 0.45
             });
         }
@@ -506,71 +510,119 @@
     }
 
     function spawnLandingPuff(xPx, yPx, seasonPreset, isBullseye = false) {
-        const season = (seasonPreset || 'spring').toLowerCase();
-        const count = isBullseye ? 36 : 24;
+        if (currentTheme && (currentTheme.enableLandingParticles === false || currentTheme.landingParticleType === 'none')) {
+            return;
+        }
+
+        const season = (seasonPreset || (currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
+        const pType = ((currentTheme && currentTheme.landingParticleType) || season).toLowerCase();
+        const density = (currentTheme && currentTheme.landingParticleDensity) || 36;
+        const count = isBullseye ? Math.round(density * 1.4) : density;
         const scale = isBullseye ? 1.45 : 1.1;
 
-        if (season === 'fall') {
-            // Autumn leaf puff
-            const leafColors = ['#E76F51', '#F4A261', '#E9C46A', '#D9480F', '#8C3714'];
+        if (pType === 'candies' || season === 'halloween') {
+            // Halloween candy corn & green potion drops
+            const candyColors = ['#FF7518', '#FFE066', '#FFFFFF', '#8338EC', '#39FF14'];
             for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.7); // Fountains up and outward
-                const speed = (90 + Math.random() * 160) * scale;
+                const angle = -Math.PI * 0.12 - (Math.random() * Math.PI * 0.76);
+                const speed = (90 + Math.random() * 170) * scale;
                 splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 36,
+                    x: xPx + (Math.random() - 0.5) * 40,
                     y: yPx + (Math.random() - 0.5) * 12,
                     vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 60,
-                    size: (6 + Math.random() * 6) * scale,
+                    vy: Math.sin(angle) * speed - 65,
+                    size: (5 + Math.random() * 6) * scale,
+                    color: candyColors[Math.floor(Math.random() * candyColors.length)],
+                    shape: i % 2 === 0 ? 'candies' : 'circle',
+                    rotation: Math.random() * Math.PI * 2,
+                    spin: (Math.random() - 0.5) * 8,
+                    alpha: 1.0,
+                    life: 0,
+                    maxLife: 0.8 + Math.random() * 0.45
+                });
+            }
+        } else if (pType === 'confetti' || season === 'christmas') {
+            // Holiday star sparkles & red/green/gold confetti
+            const holidayColors = ['#D90429', '#2B9348', '#FFD166', '#FFFFFF', '#007F5F'];
+            for (let i = 0; i < count; i++) {
+                const angle = -Math.PI * 0.1 - (Math.random() * Math.PI * 0.8);
+                const speed = (100 + Math.random() * 180) * scale;
+                splashBursts.push({
+                    x: xPx + (Math.random() - 0.5) * 38,
+                    y: yPx + (Math.random() - 0.5) * 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 70,
+                    size: (5 + Math.random() * 5) * scale,
+                    color: holidayColors[Math.floor(Math.random() * holidayColors.length)],
+                    shape: 'confetti',
+                    rotation: Math.random() * Math.PI * 2,
+                    spin: (Math.random() - 0.5) * 9,
+                    alpha: 1.0,
+                    life: 0,
+                    maxLife: 0.85 + Math.random() * 0.4
+                });
+            }
+        } else if (pType === 'fall' || pType === 'leaves' || season === 'fall') {
+            // Autumn leaf puff
+            const leafColors = ['#E76F51', '#F4A261', '#E9C46A', '#D9480F', '#8C3714', '#9B2226'];
+            for (let i = 0; i < count; i++) {
+                const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.7); // Fountains up and outward
+                const speed = (95 + Math.random() * 175) * scale;
+                splashBursts.push({
+                    x: xPx + (Math.random() - 0.5) * 44,
+                    y: yPx + (Math.random() - 0.5) * 14,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 65,
+                    size: (6 + Math.random() * 7) * scale,
                     color: leafColors[Math.floor(Math.random() * leafColors.length)],
                     shape: 'leaf',
                     rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 6,
+                    spin: (Math.random() - 0.5) * 7,
                     alpha: 1.0,
                     life: 0,
-                    maxLife: 0.75 + Math.random() * 0.45
+                    maxLife: 0.8 + Math.random() * 0.45
                 });
             }
-        } else if (season === 'spring') {
+        } else if (pType === 'spring' || pType === 'petals' || season === 'spring') {
             // Cherry blossom petal burst
             const petalColors = ['#FF8FA3', '#FFB7C5', '#FFF0F3', '#FF4D6D', '#FFCCD5'];
             for (let i = 0; i < count; i++) {
                 const angle = -Math.PI * 0.12 - (Math.random() * Math.PI * 0.76);
-                const speed = (80 + Math.random() * 150) * scale;
+                const speed = (85 + Math.random() * 160) * scale;
                 splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 32,
+                    x: xPx + (Math.random() - 0.5) * 36,
                     y: yPx + (Math.random() - 0.5) * 10,
                     vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 50,
-                    size: (5 + Math.random() * 5) * scale,
+                    vy: Math.sin(angle) * speed - 55,
+                    size: (5 + Math.random() * 6) * scale,
                     color: petalColors[Math.floor(Math.random() * petalColors.length)],
                     shape: 'petal',
                     rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 5,
+                    spin: (Math.random() - 0.5) * 6,
                     alpha: 1.0,
                     life: 0,
                     maxLife: 0.75 + Math.random() * 0.4
                 });
             }
-        } else if (season === 'winter') {
+        } else if (pType === 'winter' || pType === 'snow' || season === 'winter') {
             // Snow powder poof
             const snowColors = ['#FFFFFF', '#E0F2FE', '#BAE6FD', '#F0F9FF'];
             for (let i = 0; i < count; i++) {
                 const angle = -Math.PI * 0.1 - (Math.random() * Math.PI * 0.8);
-                const speed = (65 + Math.random() * 140) * scale;
+                const speed = (70 + Math.random() * 150) * scale;
                 splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 36,
-                    y: yPx + (Math.random() - 0.5) * 10,
+                    x: xPx + (Math.random() - 0.5) * 40,
+                    y: yPx + (Math.random() - 0.5) * 12,
                     vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 50,
-                    size: (4 + Math.random() * 6) * scale,
+                    vy: Math.sin(angle) * speed - 55,
+                    size: (4 + Math.random() * 7) * scale,
                     color: snowColors[Math.floor(Math.random() * snowColors.length)],
                     shape: 'snow',
                     rotation: 0,
                     spin: 0,
                     alpha: 1.0,
                     life: 0,
-                    maxLife: 0.65 + Math.random() * 0.4
+                    maxLife: 0.7 + Math.random() * 0.4
                 });
             }
         } else {
@@ -578,20 +630,20 @@
             const waterColors = ['#00B4D8', '#48CAE4', '#90E0EF', '#CAF0F8', '#FFFFFF'];
             for (let i = 0; i < count; i++) {
                 const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.7);
-                const speed = (90 + Math.random() * 180) * scale;
+                const speed = (95 + Math.random() * 190) * scale;
                 splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 34,
-                    y: yPx + (Math.random() - 0.5) * 8,
+                    x: xPx + (Math.random() - 0.5) * 38,
+                    y: yPx + (Math.random() - 0.5) * 10,
                     vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 70,
-                    size: (4 + Math.random() * 5) * scale,
+                    vy: Math.sin(angle) * speed - 75,
+                    size: (4 + Math.random() * 6) * scale,
                     color: waterColors[Math.floor(Math.random() * waterColors.length)],
                     shape: 'water',
                     rotation: 0,
                     spin: 0,
                     alpha: 1.0,
                     life: 0,
-                    maxLife: 0.6 + Math.random() * 0.35
+                    maxLife: 0.65 + Math.random() * 0.35
                 });
             }
         }
@@ -856,7 +908,7 @@
     });
 
     function drawAmbientParticles(dtSec) {
-        if (!ambientParticles.length || !currentTheme || currentTheme.particleType === 'none') return;
+        if (!ambientParticles.length || !currentTheme || currentTheme.enableBackgroundParticles === false || currentTheme.particleType === 'none') return;
         const pType = currentTheme.particleType || 'petals';
 
         ctx.save();
@@ -866,12 +918,21 @@
             p.y += p.vy * dtSec;
             p.angle += p.spin * dtSec;
 
-            if (p.y > height + 20) {
-                p.y = -15;
-                p.x = Math.random() * width;
+            if (pType === 'bats') {
+                // Wave flight path for bats
+                p.y += Math.sin(p.x * 0.05) * 0.8;
+                if (p.x < -30) p.x = width + 25;
+                if (p.x > width + 30) p.x = -25;
+                if (p.y < 20) p.y = height * 0.6;
+                if (p.y > height * 0.75) p.y = 40;
+            } else {
+                if (p.y > height + 20) {
+                    p.y = -15;
+                    p.x = Math.random() * width;
+                }
+                if (p.x < -20) p.x = width + 15;
+                if (p.x > width + 20) p.x = -15;
             }
-            if (p.x < -20) p.x = width + 15;
-            if (p.x > width + 20) p.x = -15;
 
             ctx.save();
             ctx.translate(p.x, p.y);
@@ -896,8 +957,42 @@
                 ctx.quadraticCurveTo(p.size, 0, 0, p.size);
                 ctx.quadraticCurveTo(-p.size, 0, 0, -p.size);
                 ctx.fill();
+            } else if (pType === 'bats') {
+                // Spooky bat silhouette with flapping wings
+                ctx.fillStyle = currentTheme.secondaryColor || '#7B2CBF';
+                const flap = Math.sin((p.x + performance.now() * 0.02) * 0.4) * (p.size * 0.35);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size * 0.35, p.size * 0.22, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Left wing
+                ctx.beginPath();
+                ctx.moveTo(-p.size * 0.2, 0);
+                ctx.quadraticCurveTo(-p.size * 0.7, -p.size * 0.7 - flap, -p.size * 1.2, -p.size * 0.2 - flap);
+                ctx.quadraticCurveTo(-p.size * 0.7, p.size * 0.2, -p.size * 0.2, 0);
+                ctx.fill();
+                // Right wing
+                ctx.beginPath();
+                ctx.moveTo(p.size * 0.2, 0);
+                ctx.quadraticCurveTo(p.size * 0.7, -p.size * 0.7 - flap, p.size * 1.2, -p.size * 0.2 - flap);
+                ctx.quadraticCurveTo(p.size * 0.7, p.size * 0.2, p.size * 0.2, 0);
+                ctx.fill();
+            } else if (pType === 'stars') {
+                // Golden star sparkle
+                ctx.fillStyle = currentTheme.accentColor || '#FFD166';
+                const s = p.size * 0.65;
+                ctx.beginPath();
+                ctx.moveTo(0, -s);
+                ctx.lineTo(s * 0.25, -s * 0.25);
+                ctx.lineTo(s, 0);
+                ctx.lineTo(s * 0.25, s * 0.25);
+                ctx.lineTo(0, s);
+                ctx.lineTo(-s * 0.25, s * 0.25);
+                ctx.lineTo(-s, 0);
+                ctx.lineTo(-s * 0.25, -s * 0.25);
+                ctx.closePath();
+                ctx.fill();
             } else {
-                // snow / stars
+                // snow
                 ctx.fillStyle = '#FFFFFF';
                 ctx.beginPath();
                 ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
@@ -908,206 +1003,356 @@
         ctx.restore();
     }
 
-    function drawTargetPlatform() {
+    function getPlatformMetrics() {
         const targetW = targetState.targetHalfWidth * 2 * width;
         const bullseyeW = targetState.bullseyeHalfWidth * 2 * width;
-        // Clamp platform center so the entire pad (including margins and edge borders) is fully visible
         const minPadX = (targetW / 2) + 24;
         const maxPadX = width - (targetW / 2) - 24;
         const rawCx = (targetState.centerX || 0.5) * width;
         const cx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, rawCx)) : width / 2;
         const y = 0.895 * height;
         const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
+        return { targetW, bullseyeW, cx, y, season };
+    }
 
+    function drawTargetPlatformBack() {
+        const { targetW, bullseyeW, cx, y, season } = getPlatformMetrics();
         ctx.save();
 
         const customTargetImg = getLoadedImage(currentTheme.targetPlatformImageUrl);
         if (customTargetImg) {
             ctx.drawImage(customTargetImg, cx - targetW / 2, y - 28, targetW, 56);
-        } else if (season === 'fall') {
-            // === AUTUMN: Pile of autumn foliage & leaves ===
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-            ctx.shadowBlur = 14;
-            ctx.shadowOffsetY = 6;
+            ctx.restore();
+            return;
+        }
 
-            // Earthy leaf pile base
-            ctx.fillStyle = '#6F4E37';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 6;
+
+        if (season === 'fall') {
+            // === AUTUMN: Deep earthy basin & back leaf mound ===
+            ctx.fillStyle = '#4A2810';
             ctx.beginPath();
-            ctx.roundRect(cx - targetW / 2, y - 14, targetW, 30, 15);
+            ctx.roundRect(cx - targetW / 2 - 8, y - 24, targetW + 16, 48, 20);
             ctx.fill();
 
-            // Layered crunchy leaves texture around outer pad
-            const leafColors = ['#D9480F', '#E76F51', '#F4A261', '#E9C46A', '#9B2226'];
-            const stepX = targetW / 18;
-            for (let i = 0; i <= 18; i++) {
-                const lx = (cx - targetW / 2) + i * stepX + (i % 2 === 0 ? -3 : 3);
-                const ly = y - 10 + (i % 3 === 0 ? -4 : (i % 2 === 0 ? 2 : -1));
-                const col = leafColors[i % leafColors.length];
-                ctx.save();
-                ctx.translate(lx, ly);
-                ctx.rotate((i * 0.45) - 0.9);
-                ctx.fillStyle = col;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, stepX * 0.9, 6.5, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
+            // Layered deep back autumn leaves
+            const backLeafColors = ['#8C3714', '#9B2226', '#B23A22', '#D9480F', '#6F4E37'];
+            const leafCols = 22;
+            const leafStep = (targetW + 20) / leafCols;
+            for (let r = 0; r < 2; r++) {
+                for (let i = 0; i <= leafCols; i++) {
+                    const lx = (cx - targetW / 2 - 10) + i * leafStep;
+                    const elevation = Math.sin((i / leafCols) * Math.PI) * 12 + (r * 7);
+                    const ly = y - 22 + (i % 2 === 0 ? -4 : 3) - elevation;
+                    ctx.save();
+                    ctx.translate(lx, ly);
+                    ctx.rotate((i * 0.4) - 0.8);
+                    ctx.fillStyle = backLeafColors[(i + r * 3) % backLeafColors.length];
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, leafStep * 0.95, 8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
             }
 
-            // Inner leaf ring
-            const midW = (targetW + bullseyeW) * 0.5;
-            ctx.fillStyle = '#E76F51';
-            ctx.beginPath();
-            ctx.roundRect(cx - midW / 2, y - 10, midW, 22, 11);
-            ctx.fill();
-
-            // Bullseye center golden pile
-            ctx.fillStyle = '#E9C46A';
-            ctx.beginPath();
-            ctx.roundRect(cx - bullseyeW / 2, y - 13, bullseyeW, 26, 9);
-            ctx.fill();
-
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.stroke();
-        } else if (season === 'spring') {
-            // === SPRING: Lush grassy mound with cherry blossoms ===
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-            ctx.shadowBlur = 14;
-            ctx.shadowOffsetY = 6;
-
-            // Fresh green spring grass mound
-            ctx.fillStyle = '#55A630';
-            ctx.beginPath();
-            ctx.roundRect(cx - targetW / 2, y - 14, targetW, 28, 14);
-            ctx.fill();
-
+            // Bullseye golden target ring on leaf basin bed
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)';
             ctx.lineWidth = 3;
-            ctx.strokeStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.ellipse(cx, y - 6, bullseyeW * 0.5, 9, 0, 0, Math.PI * 2);
             ctx.stroke();
+        } else if (season === 'summer') {
+            // === SUMMER: Swimming Pool deep water basin & back deck ===
+            ctx.fillStyle = '#CBD5E1';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 12, y - 28, targetW + 24, 54, 18);
+            ctx.fill();
 
-            // Scattered sakura cherry blossom petals around the mound
-            const sakuraColors = ['#FF8FA3', '#FFCCD5', '#FFF0F3', '#FF4D6D'];
-            const petalStep = targetW / 14;
-            for (let i = 0; i <= 14; i++) {
-                const px = (cx - targetW / 2) + i * petalStep;
-                const py = y - 8 + (i % 2 === 0 ? -3 : 2);
-                ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(i * 0.7);
-                ctx.fillStyle = sakuraColors[i % sakuraColors.length];
+            // Pool interior deep turquoise water gradient
+            const poolGrad = ctx.createLinearGradient(cx, y - 20, cx, y + 20);
+            poolGrad.addColorStop(0, '#0077B6');
+            poolGrad.addColorStop(1, '#03045E');
+            ctx.fillStyle = poolGrad;
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 2, y - 20, targetW + 4, 40, 12);
+            ctx.fill();
+
+            // Pool bottom swimming lane markings & center bullseye float ring
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(cx - targetW * 0.35, y - 14, targetW * 0.7, 26);
+
+            ctx.fillStyle = 'rgba(255, 209, 102, 0.85)';
+            ctx.beginPath();
+            ctx.ellipse(cx, y - 2, bullseyeW * 0.5, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Stainless steel ladder rails on left rim
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 3;
+            const lX = cx - targetW * 0.42;
+            ctx.beginPath();
+            ctx.moveTo(lX - 6, y - 28);
+            ctx.lineTo(lX - 6, y - 4);
+            ctx.moveTo(lX + 6, y - 28);
+            ctx.lineTo(lX + 6, y - 4);
+            ctx.moveTo(lX - 6, y - 20); ctx.lineTo(lX + 6, y - 20);
+            ctx.moveTo(lX - 6, y - 12); ctx.lineTo(lX + 6, y - 12);
+            ctx.stroke();
+        } else if (season === 'halloween') {
+            // === HALLOWEEN: Spooky Witch's Cauldron interior & boiling brew ===
+            ctx.shadowColor = '#8338EC';
+            ctx.shadowBlur = 24;
+
+            // Cauldron heavy cast-iron interior wall
+            ctx.fillStyle = '#181824';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 14, y - 28, targetW + 28, 56, 24);
+            ctx.fill();
+
+            // Glowing toxic potion brew
+            const brewGrad = ctx.createRadialGradient(cx, y - 8, 4, cx, y - 8, targetW * 0.5);
+            brewGrad.addColorStop(0, '#CCFF33');
+            brewGrad.addColorStop(0.5, '#39FF14');
+            brewGrad.addColorStop(1, '#0D5C1E');
+            ctx.fillStyle = brewGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, y - 8, targetW * 0.48, 18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Swirling cauldron bullseye rune
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, y - 8, bullseyeW * 0.5, 9, 0, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (season === 'christmas') {
+            // === CHRISTMAS: Holiday Celebration Gift Box & Evergreen boughs ===
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 10, y - 24, targetW + 20, 50, 16);
+            ctx.fill();
+
+            // Pine needle boughs with twinkling holiday lights
+            const pineColors = ['#1B4332', '#2D6A4F', '#40916C', '#52B788'];
+            const pCols = 18;
+            const pStep = (targetW + 16) / pCols;
+            for (let i = 0; i <= pCols; i++) {
+                const px = (cx - targetW / 2 - 8) + i * pStep;
+                const py = y - 24 + (i % 2 === 0 ? -5 : 2);
+                ctx.fillStyle = pineColors[i % pineColors.length];
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 7, 4, 0, 0, Math.PI * 2);
+                ctx.moveTo(px, py - 10);
+                ctx.lineTo(px + pStep * 0.6, py + 8);
+                ctx.lineTo(px - pStep * 0.6, py + 8);
+                ctx.closePath();
                 ctx.fill();
-                ctx.restore();
+
+                const lightCols = ['#FFD166', '#FF4D6D', '#00B4D8', '#FFE066'];
+                ctx.fillStyle = lightCols[i % lightCols.length];
+                ctx.beginPath();
+                ctx.arc(px, py - 6, 3, 0, Math.PI * 2);
+                ctx.fill();
             }
 
-            // Inner sakura pink ring
-            const midW = (targetW + bullseyeW) * 0.5;
-            ctx.fillStyle = '#FF8FA3';
+            // Gold star bullseye ring
+            ctx.strokeStyle = '#FFD166';
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.roundRect(cx - midW / 2, y - 10, midW, 20, 10);
-            ctx.fill();
-
-            // Center blossom bullseye
-            ctx.fillStyle = '#FFE066';
-            ctx.beginPath();
-            ctx.roundRect(cx - bullseyeW / 2, y - 12, bullseyeW, 24, 8);
-            ctx.fill();
+            ctx.ellipse(cx, y - 6, bullseyeW * 0.5, 9, 0, 0, Math.PI * 2);
+            ctx.stroke();
         } else if (season === 'winter') {
-            // === WINTER: Fluffy snowdrift mound with frosted ice center ===
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-            ctx.shadowBlur = 16;
-            ctx.shadowOffsetY = 6;
-
-            // Soft white snow drift mound
-            ctx.fillStyle = '#F8FAFC';
+            // === WINTER: Glacial snowdrift shelf ===
+            ctx.fillStyle = '#0077B6';
             ctx.beginPath();
-            ctx.roundRect(cx - targetW / 2, y - 15, targetW, 30, 15);
+            ctx.roundRect(cx - targetW / 2 - 8, y - 24, targetW + 16, 48, 18);
             ctx.fill();
 
+            ctx.strokeStyle = '#90E0EF';
             ctx.lineWidth = 3;
-            ctx.strokeStyle = '#BAE6FD';
-            ctx.stroke();
-
-            // Snow puff bumps along top
-            ctx.fillStyle = '#FFFFFF';
-            const snowBumps = 10;
-            const bumpStep = targetW / snowBumps;
-            for (let i = 0; i <= snowBumps; i++) {
-                ctx.beginPath();
-                ctx.arc((cx - targetW / 2) + i * bumpStep, y - 14, 9, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            // Frosted ice inner ring
-            const midW = (targetW + bullseyeW) * 0.5;
-            ctx.fillStyle = '#90E0EF';
             ctx.beginPath();
-            ctx.roundRect(cx - midW / 2, y - 11, midW, 22, 11);
-            ctx.fill();
-
-            // Bullseye center golden star / glow
-            ctx.fillStyle = '#FFD166';
-            ctx.beginPath();
-            ctx.roundRect(cx - bullseyeW / 2, y - 13, bullseyeW, 26, 9);
-            ctx.fill();
-
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = '#FFFFFF';
+            ctx.ellipse(cx, y - 6, bullseyeW * 0.5, 9, 0, 0, Math.PI * 2);
             ctx.stroke();
         } else {
-            // === SUMMER: Refreshing swimming pool & inflatable ring ===
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-            ctx.shadowBlur = 16;
-            ctx.shadowOffsetY = 6;
-
-            // Pool deck border (tiles/stone)
-            ctx.fillStyle = '#E2E8F0';
+            // === SPRING: Lush grassy meadow mound ===
+            ctx.fillStyle = '#386641';
             ctx.beginPath();
-            ctx.roundRect(cx - targetW / 2, y - 16, targetW, 32, 16);
+            ctx.roundRect(cx - targetW / 2 - 8, y - 24, targetW + 16, 48, 18);
             ctx.fill();
 
-            // Pool turquoise water basin
-            ctx.fillStyle = '#00B4D8';
+            ctx.strokeStyle = '#FF8FA3';
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.roundRect(cx - targetW / 2 + 5, y - 13, targetW - 10, 26, 13);
-            ctx.fill();
-
-            // Gentle pool water ripples
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(cx - targetW * 0.35, y);
-            ctx.bezierCurveTo(cx - targetW * 0.2, y - 4, cx - targetW * 0.1, y + 4, cx, y);
-            ctx.bezierCurveTo(cx + targetW * 0.1, y - 4, cx + targetW * 0.2, y + 4, cx + targetW * 0.35, y);
-            ctx.stroke();
-
-            // Inner inflatable ring floatie
-            const midW = (targetW + bullseyeW) * 0.5;
-            ctx.fillStyle = '#FFB703';
-            ctx.beginPath();
-            ctx.roundRect(cx - midW / 2, y - 10, midW, 20, 10);
-            ctx.fill();
-
-            // Center pool bullseye float
-            ctx.fillStyle = '#FF006E';
-            ctx.beginPath();
-            ctx.roundRect(cx - bullseyeW / 2, y - 12, bullseyeW, 24, 8);
-            ctx.fill();
-
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = '#FFFFFF';
+            ctx.ellipse(cx, y - 6, bullseyeW * 0.5, 9, 0, 0, Math.PI * 2);
             ctx.stroke();
         }
 
-        // Target label with seasonal emoji
-        const targetEmoji = season === 'fall' ? '🍂' : (season === 'winter' ? '❄️' : (season === 'summer' ? '🏊' : '🌸'));
+        ctx.restore();
+    }
+
+    function drawTargetPlatformFront() {
+        const { targetW, bullseyeW, cx, y, season } = getPlatformMetrics();
+        ctx.save();
+
+        const customTargetImg = getLoadedImage(currentTheme.targetPlatformImageUrl);
+        if (customTargetImg) {
+            ctx.restore();
+            return;
+        }
+
+        if (season === 'fall') {
+            // === AUTUMN FRONT: Massive multi-layered crunchy leaf pile overlapping characters ===
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 12;
+
+            // Raised leaf drifts on left and right side rims
+            ctx.fillStyle = '#9B2226';
+            ctx.beginPath();
+            ctx.ellipse(cx - targetW / 2, y - 10, 18, 14, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(cx + targetW / 2, y - 10, 18, 14, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3 dense rows of vibrant front leaves overlapping characters' lower bodies
+            const frontLeafColors = ['#D9480F', '#E76F51', '#F4A261', '#E9C46A', '#9B2226', '#B23A22'];
+            const leafCols = 24;
+            const leafStep = (targetW + 24) / leafCols;
+            for (let tier = 0; tier < 3; tier++) {
+                const tierOffsetY = -8 + tier * 7;
+                for (let i = 0; i <= leafCols; i++) {
+                    const lx = (cx - targetW / 2 - 12) + i * leafStep + ((tier % 2) * (leafStep * 0.5));
+                    const ly = y + tierOffsetY + (i % 2 === 0 ? -3 : 3);
+                    const col = frontLeafColors[(i + tier * 2) % frontLeafColors.length];
+                    ctx.save();
+                    ctx.translate(lx, ly);
+                    ctx.rotate((i * 0.5) - 1.2 + (tier * 0.3));
+                    ctx.fillStyle = col;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, leafStep * 0.95, 7.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        } else if (season === 'summer') {
+            // === SUMMER FRONT: Raised pool side rims & translucent animated water line ===
+            // Shimmering translucent water covering landed characters' lower halves
+            const waveTime = performance.now() * 0.003;
+            ctx.fillStyle = 'rgba(0, 180, 216, 0.55)';
+            ctx.beginPath();
+            ctx.moveTo(cx - targetW / 2 + 2, y + 16);
+            for (let xOffset = -targetW / 2 + 2; xOffset <= targetW / 2 - 2; xOffset += 8) {
+                const waveY = y - 4 + Math.sin(waveTime + xOffset * 0.05) * 3;
+                ctx.lineTo(cx + xOffset, waveY);
+            }
+            ctx.lineTo(cx + targetW / 2 - 2, y + 16);
+            ctx.closePath();
+            ctx.fill();
+
+            // Raised pool side-walls on left and right (rims to bounce off or over)
+            ctx.fillStyle = '#F8FAFC';
+            ctx.strokeStyle = '#94A3B8';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 14, y - 24, 16, 44, 8);
+            ctx.roundRect(cx + targetW / 2 - 2, y - 24, 16, 44, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Front pool coping curb
+            ctx.fillStyle = '#E2E8F0';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 10, y + 8, targetW + 20, 16, 8);
+            ctx.fill();
+            ctx.stroke();
+        } else if (season === 'halloween') {
+            // === HALLOWEEN FRONT: Heavy cast-iron cauldron belly, handles & bubbling froth ===
+            // Side ring handles
+            ctx.strokeStyle = '#343A40';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(cx - targetW / 2 - 12, y - 8, 12, 0, Math.PI * 2);
+            ctx.arc(cx + targetW / 2 + 12, y - 8, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Front cauldron wall
+            ctx.fillStyle = '#212529';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 12, y - 2, targetW + 24, 28, 12);
+            ctx.fill();
+
+            // Glowing toxic potion froth overlapping players
+            const frothTime = performance.now() * 0.004;
+            ctx.fillStyle = '#39FF14';
+            for (let fx = -targetW / 2; fx <= targetW / 2; fx += 16) {
+                const fy = y - 4 + Math.sin(frothTime + fx * 0.1) * 3;
+                ctx.beginPath();
+                ctx.arc(cx + fx, fy, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        } else if (season === 'christmas') {
+            // === CHRISTMAS FRONT: Deep fluffy snowbank, pine garland & ribbon bow ===
+            ctx.fillStyle = '#F8FAFC';
+            const snowCols = 16;
+            const sStep = (targetW + 20) / snowCols;
+            for (let i = 0; i <= snowCols; i++) {
+                ctx.beginPath();
+                ctx.arc((cx - targetW / 2 - 8) + i * sStep, y + 2, 11, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Pine garland along front rim
+            ctx.strokeStyle = '#2D6A4F';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(cx - targetW / 2 - 6, y + 4);
+            ctx.quadraticCurveTo(cx, y + 16, cx + targetW / 2 + 6, y + 4);
+            ctx.stroke();
+
+            // Big red velvet ribbon bow in center
+            ctx.fillStyle = '#D90429';
+            ctx.beginPath();
+            ctx.ellipse(cx - 14, y + 10, 12, 6, -0.4, 0, Math.PI * 2);
+            ctx.ellipse(cx + 14, y + 10, 12, 6, 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#FFD166';
+            ctx.beginPath();
+            ctx.arc(cx, y + 10, 6, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (season === 'winter') {
+            // === WINTER FRONT: Deep snowdrift puffs ===
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 8, y + 2, targetW + 16, 24, 12);
+            ctx.fill();
+            ctx.strokeStyle = '#BAE6FD';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else {
+            // === SPRING FRONT: Fresh green clover & cherry blossom petals ===
+            ctx.fillStyle = '#55A630';
+            ctx.beginPath();
+            ctx.roundRect(cx - targetW / 2 - 6, y + 2, targetW + 12, 22, 10);
+            ctx.fill();
+
+            const sakuraColors = ['#FF8FA3', '#FFCCD5', '#FFF0F3', '#FF4D6D'];
+            const pStep = targetW / 12;
+            for (let i = 0; i <= 12; i++) {
+                ctx.fillStyle = sakuraColors[i % sakuraColors.length];
+                ctx.beginPath();
+                ctx.ellipse((cx - targetW / 2) + i * pStep, y + 6 + (i % 2 === 0 ? -2 : 3), 7, 4, i * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Target badge with seasonal icon
+        const targetEmoji = season === 'fall' ? '🍂' : (season === 'winter' ? '❄️' : (season === 'summer' ? '🏊' : (season === 'halloween' ? '🎃' : (season === 'christmas' ? '🎄' : '🌸'))));
         ctx.font = '700 14px Fredoka, Rubik, sans-serif';
         ctx.fillStyle = '#FFFFFF';
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.85)';
         ctx.shadowBlur = 6;
-        ctx.fillText(`${targetEmoji} TARGET`, cx, y + 32);
+        ctx.fillText(`${targetEmoji} TARGET`, cx, y + 34);
 
         ctx.restore();
     }
@@ -1177,6 +1422,48 @@
             ctx.beginPath();
             ctx.arc(0, -r * 1.25, r * 0.22, 0, Math.PI * 2);
             ctx.fill();
+        } else if (season === 'halloween') {
+            // Spooky Witch Hat
+            ctx.save();
+            ctx.fillStyle = '#212529';
+            // Pointed cone
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.72, -r * 0.65);
+            ctx.lineTo(r * 0.72, -r * 0.65);
+            ctx.lineTo(r * 0.22, -r * 1.55);
+            ctx.closePath();
+            ctx.fill();
+            // Wide brim
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 0.65, r * 0.88, r * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Purple band
+            ctx.fillStyle = '#7B2CBF';
+            ctx.fillRect(-r * 0.45, -r * 0.85, r * 0.9, r * 0.22);
+            // Gold buckle
+            ctx.fillStyle = '#FFD166';
+            ctx.fillRect(-r * 0.16, -r * 0.88, r * 0.32, r * 0.28);
+            ctx.restore();
+        } else if (season === 'christmas') {
+            // Festive Santa Hat
+            ctx.save();
+            ctx.fillStyle = '#D90429';
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.68, -r * 0.65);
+            ctx.lineTo(r * 0.68, -r * 0.65);
+            ctx.quadraticCurveTo(r * 0.85, -r * 1.35, r * 0.45, -r * 1.45);
+            ctx.quadraticCurveTo(r * 0.1, -r * 1.15, -r * 0.68, -r * 0.65);
+            ctx.fill();
+            // White fur trim
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.roundRect(-r * 0.74, -r * 0.75, r * 1.48, r * 0.26, 6);
+            ctx.fill();
+            // White pom-pom
+            ctx.beginPath();
+            ctx.arc(r * 0.52, -r * 1.46, r * 0.24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
         }
     }
 
@@ -1372,7 +1659,7 @@
 
         if (showArena) {
             drawAmbientParticles(dtSec);
-            drawTargetPlatform();
+            drawTargetPlatformBack();
         }
 
         // Update & draw interactive droplets with bouncy physics & settling
@@ -1653,6 +1940,30 @@
                 }
             }
 
+            // Interactive Target Rim / Wall Bounce (Pool / Cauldron / Leaf Pile side lip)
+            if (!drop.bouncedOffTargetRim && drop.y >= (drop.landingY - 0.038) && drop.y < drop.landingY) {
+                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
+                const minPadX = (targetWNorm * 0.5) + 24 / width;
+                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
+                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const dx = drop.x - targetCx;
+                const dist = Math.abs(dx);
+                const halfW = targetState.targetHalfWidth || 0.09;
+                if (dist >= halfW * 0.93 && dist <= halfW * 1.07) {
+                    drop.bouncedOffTargetRim = true;
+                    if (Math.sign(drop.vx) === Math.sign(dx) && Math.abs(drop.vx) > 0.01) {
+                        drop.vx = -drop.vx * 0.85; // Bounced off outer wall!
+                    } else {
+                        drop.vx = (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.8); // Bounced over lip into the pool!
+                    }
+                    drop.vy = Math.max(0.08, drop.vy * 0.65);
+                    if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
+                        playSound(currentTheme.dropletHitSoundUrl, 0.4);
+                        drop.lastWallSfx = now;
+                    }
+                }
+            }
+
             // Tilt corresponds directly to lateral flight speed
             const targetTilt = Math.max(-0.65, Math.min(0.65, (drop.vx || 0) * 2.2));
             drop.tiltAngle = (drop.tiltAngle || 0) * 0.88 + targetTilt * 0.12;
@@ -1717,27 +2028,6 @@
                         dropA.tiltAngle = Math.max(-0.65, Math.min(0.65, dropA.vx * 2.2));
                         dropB.tiltAngle = Math.max(-0.65, Math.min(0.65, dropB.vx * 2.2));
                     }
-                }
-            }
-
-            // Deflect falling parachuter off already landed players
-            for (let j = 0; j < activeDrops.length; j++) {
-                if (i === j) continue;
-                const dropB = activeDrops[j];
-                if (!dropB.completed) continue;
-
-                const dx = dropA.x - dropB.x;
-                const dy = dropA.y - dropB.y;
-                const distSq = dx * dx + dy * dy;
-                const minDist = colRadius * 1.6;
-
-                if (distSq < minDist * minDist && distSq > 0.00001) {
-                    const dist = Math.sqrt(distSq);
-                    const nx = dx / dist;
-                    const MAX_DROP_VX = 0.55;
-                    dropA.x += nx * (minDist - dist);
-                    dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * 0.15));
-                    dropA.tiltAngle = Math.max(-0.65, Math.min(0.65, (dropA.vx || 0) * 2.2));
                 }
             }
         }
@@ -1865,6 +2155,10 @@
             }
         }
 
+        if (showArena) {
+            drawTargetPlatformFront();
+        }
+
         // Update & draw splash/confetti bursts
         for (let i = splashBursts.length - 1; i >= 0; i--) {
             const b = splashBursts[i];
@@ -1891,6 +2185,43 @@
                 ctx.quadraticCurveTo(b.size * 1.1, 0, 0, b.size);
                 ctx.quadraticCurveTo(-b.size * 1.1, 0, 0, -b.size);
                 ctx.fill();
+            } else if (b.shape === 'candies') {
+                // Halloween Candy Corn
+                ctx.rotate(b.rotation || 0);
+                b.rotation += (b.spin || 3) * dtSec;
+                const s = b.size;
+                // Yellow base
+                ctx.fillStyle = '#FFE066';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.7, s);
+                ctx.lineTo(s * 0.7, s);
+                ctx.lineTo(s * 0.45, s * 0.25);
+                ctx.lineTo(-s * 0.45, s * 0.25);
+                ctx.closePath();
+                ctx.fill();
+                // Orange center
+                ctx.fillStyle = '#FF7518';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.45, s * 0.25);
+                ctx.lineTo(s * 0.45, s * 0.25);
+                ctx.lineTo(s * 0.22, -s * 0.45);
+                ctx.lineTo(-s * 0.22, -s * 0.45);
+                ctx.closePath();
+                ctx.fill();
+                // White tip
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.22, -s * 0.45);
+                ctx.lineTo(s * 0.22, -s * 0.45);
+                ctx.lineTo(0, -s);
+                ctx.closePath();
+                ctx.fill();
+            } else if (b.shape === 'confetti') {
+                // Holiday star sparkle or confetti ribbon
+                ctx.rotate(b.rotation || 0);
+                b.rotation += (b.spin || 3) * dtSec;
+                ctx.fillStyle = b.color;
+                ctx.fillRect(-b.size * 0.7, -b.size * 0.35, b.size * 1.4, b.size * 0.7);
             } else if (b.shape === 'petal') {
                 ctx.rotate(b.rotation || 0);
                 b.rotation += (b.spin || 2) * dtSec;
