@@ -118,7 +118,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Contains(settings.Themes, t => t.Id == "summer" && t.SeasonPreset == "summer" && t.IsStock);
             Assert.Contains(settings.Themes, t => t.Id == "fall" && t.SeasonPreset == "fall" && t.IsStock);
             Assert.Contains(settings.Themes, t => t.Id == "winter" && t.SeasonPreset == "winter" && t.IsStock);
-            Assert.NotEmpty(settings.Plinko.Buckets);
+            Assert.Equal(5, settings.Plinko.Buckets.Count);
+            Assert.True(settings.Plinko.Buckets[2].IsWin);
+            Assert.Equal("WINNER", settings.Plinko.Buckets[2].Label);
+            Assert.Equal(0, settings.Plinko.Buckets[2].Score);
             Assert.Equal(15, settings.Plinko.PegTransparency);
         }
 
@@ -445,7 +448,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var plinkoAction = new ActionType { Name = "PlinkoJackpotAction", Enabled = true };
             _actionManagementService.Setup(x => x.GetAllActionsAsync()).ReturnsAsync([plinkoAction]);
 
-            var winBucketIndex = settings.Plinko.Buckets.FindIndex(b => b.IsWin && b.Score >= 500);
+            var winBucketIndex = settings.Plinko.Buckets.FindIndex(b => b.IsWin);
             Assert.True(winBucketIndex >= 0);
 
             var token = await sut.TriggerPlinkoDropAsync(
@@ -494,7 +497,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var settings = await settingsService1.GetSettingsAsync();
             foreach (var b in settings.Plinko.Buckets)
             {
-                b.IsWin = b.Label == "JACKPOT";
+                b.IsWin = b.Label == "WINNER";
             }
             settings.Plinko.WinActionName = "PlinkoJackpotAction";
             settings.Plinko.AnnounceWinsInChat = true;
@@ -516,11 +519,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var sut2 = CreatePlinkoService(settingsService2, registry);
 
             var reloaded = await settingsService2.GetSettingsAsync();
-            Assert.Equal(7, reloaded.Plinko.Buckets.Count);
+            Assert.Equal(5, reloaded.Plinko.Buckets.Count);
             var singleWin = Assert.Single(reloaded.Plinko.Buckets, b => b.IsWin);
-            Assert.Equal("JACKPOT", singleWin.Label);
+            Assert.Equal("WINNER", singleWin.Label);
 
-            // Force landing in index 1 ("50 PTS", where IsWin == false)
+            // Force landing in index 1 ("MISS", where IsWin == false)
             var token = await sut2.TriggerPlinkoDropAsync(
                 new CommandEventArgs { Name = "viewer2", DisplayName = "Viewer2", UserId = "5005" },
                 forcedBucketIndex: 1,
@@ -1199,7 +1202,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
                 r.DropToken == "plinko-complete-token" &&
                 r.BucketIndex == 2 &&
-                r.Score == 100 &&
+                r.BucketLabel == "WINNER" &&
+                r.Score == 0 &&
                 r.IsWin)), Times.Once);
         }
 
@@ -1310,6 +1314,61 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(
                 picked == "https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0" ||
                 picked == "https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0");
+        }
+
+        [Fact]
+        public void PlinkoGameSettings_DefaultBuckets_HasFiveSlotsWithCenterWinner()
+        {
+            var buckets = PlinkoGameSettings.CreateDefaultBuckets();
+            Assert.Equal(5, buckets.Count);
+
+            Assert.False(buckets[0].IsWin);
+            Assert.Equal(0, buckets[0].Score);
+            Assert.Equal("MISS", buckets[0].Label);
+
+            Assert.False(buckets[1].IsWin);
+            Assert.Equal(0, buckets[1].Score);
+            Assert.Equal("MISS", buckets[1].Label);
+
+            Assert.True(buckets[2].IsWin);
+            Assert.Equal(0, buckets[2].Score);
+            Assert.Equal("WINNER", buckets[2].Label);
+
+            Assert.False(buckets[3].IsWin);
+            Assert.Equal(0, buckets[3].Score);
+            Assert.Equal("MISS", buckets[3].Label);
+
+            Assert.False(buckets[4].IsWin);
+            Assert.Equal(0, buckets[4].Score);
+            Assert.Equal("MISS", buckets[4].Label);
+        }
+
+        [Fact]
+        public void BuildPlinkoWaypoints_ProducesOrganicLandingSpreadWithinTargetBucketSlot()
+        {
+            const int rows = 8;
+            const int bucketCount = 5;
+            const int targetBucketIndex = 2; // Center slot: bounds are [2/5, 3/5] = [0.40, 0.60]
+
+            var landedPositions = new HashSet<double>();
+            for (var i = 0; i < 20; i++)
+            {
+                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucketIndex);
+                Assert.NotNull(waypoints);
+                Assert.Equal(rows + 2, waypoints.Count);
+
+                var finalWaypoint = waypoints.Last();
+                Assert.Equal(rows, finalWaypoint.Row);
+                Assert.Equal(targetBucketIndex, finalWaypoint.Col);
+                Assert.Equal(0.88, finalWaypoint.Y);
+
+                // Must be safely within the target bucket slot bounds [0.40, 0.60]
+                Assert.InRange(finalWaypoint.X, 0.40, 0.60);
+                landedPositions.Add(finalWaypoint.X);
+            }
+
+            // Verify the landings are naturally distributed rather than all snapped to identical center (0.50)
+            Assert.True(landedPositions.Count > 1, "Landings should spread naturally across the bucket width instead of snapping to a single static center");
         }
     }
 }

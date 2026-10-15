@@ -338,9 +338,9 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
     private static void ResolvePlinkoVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category)
     {
-        variables.SetVariable("Score", "Points/multiplier value of the Plinko bucket landed in", source, category, "500");
-        variables.SetVariable("BucketLabel", "Display label of the Plinko bucket landed in", source, category, "JACKPOT");
-        variables.SetVariable("BucketIndex", "Zero-based index of the Plinko bucket landed in", source, category, "3");
+        variables.SetVariable("Score", "Points/multiplier value of the Plinko bucket landed in (0 for winner-only mode)", source, category, "0");
+        variables.SetVariable("BucketLabel", "Display label of the Plinko bucket landed in", source, category, "WINNER");
+        variables.SetVariable("BucketIndex", "Zero-based index of the Plinko bucket landed in", source, category, "2");
         variables.SetVariable("IsWin", "True if the Plinko bucket is marked as a winning bucket", source, category, "true");
         variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
     }

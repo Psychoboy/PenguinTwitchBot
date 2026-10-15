@@ -25,7 +25,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
         public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex)
         {
             var waypoints = new List<PlinkoWaypointDto>(rows + 2);
-            var targetX = (targetBucketIndex + 0.5) / bucketCount;
+            var slotJitter = DropGameMath.RandomDouble(0.25, 0.75);
+            var targetX = (targetBucketIndex + slotJitter) / bucketCount;
             // Widen starting drop point across the top board width (matching PixelPlush's randomized entry)
             var currentX = Math.Clamp(DropGameMath.RandomDouble(0.12, 0.88), 0.10, 0.90);
 

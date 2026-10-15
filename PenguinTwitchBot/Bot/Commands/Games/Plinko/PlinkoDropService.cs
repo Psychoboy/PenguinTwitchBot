@@ -529,7 +529,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 if (!record.WinChatAnnounced && plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
                 {
-                    var msg = plinkoSettings.WinChatMessageTemplate
+                    var template = plinkoSettings.WinChatMessageTemplate;
+                    if (record.Score <= 0 && template.Contains("({score} pts)", StringComparison.OrdinalIgnoreCase))
+                    {
+                        template = template.Replace("({score} pts)", "", StringComparison.OrdinalIgnoreCase).Replace("  ", " ").Trim();
+                    }
+                    var msg = template
                         .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
                         .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
                         .Replace("{bucket}", record.BucketLabel, StringComparison.OrdinalIgnoreCase);

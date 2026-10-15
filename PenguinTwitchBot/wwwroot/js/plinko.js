@@ -441,11 +441,9 @@
         pegTransparency: 15,
         buckets: [
             { label: 'MISS', score: 0, isWin: false, color: '#64748B' },
-            { label: '50 PTS', score: 50, isWin: true, color: '#3B82F6' },
-            { label: '100 PTS', score: 100, isWin: true, color: '#10B981' },
-            { label: 'JACKPOT', score: 500, isWin: true, color: '#F59E0B' },
-            { label: '100 PTS', score: 100, isWin: true, color: '#10B981' },
-            { label: '50 PTS', score: 50, isWin: true, color: '#3B82F6' },
+            { label: 'MISS', score: 0, isWin: false, color: '#64748B' },
+            { label: 'WINNER', score: 0, isWin: true, color: '#F59E0B' },
+            { label: 'MISS', score: 0, isWin: false, color: '#64748B' },
             { label: 'MISS', score: 0, isWin: false, color: '#64748B' }
         ],
         visibleUntil: 0
@@ -789,6 +787,7 @@
             const bucketY = 0.84 * height;
             const bucketH = 0.095 * height;
             const slotW = boardW / buckets.length;
+            const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
 
             for (let i = 0; i < buckets.length; i++) {
                 const b = buckets[i];
@@ -797,7 +796,7 @@
                 const bw = slotW - 8;
 
                 ctx.save();
-                ctx.globalAlpha = alpha * (isWinSlot ? 1.0 : 0.6);
+                ctx.globalAlpha = alpha * (isWinSlot ? 1.0 : 0.65);
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
                 ctx.shadowBlur = 6;
                 ctx.fillStyle = isWinSlot ? (b.color || '#10B981') : '#475569';
@@ -809,19 +808,458 @@
                 ctx.strokeStyle = isWinSlot ? '#FFFFFF' : 'rgba(255,255,255,0.3)';
                 ctx.stroke();
 
+                if (isWinSlot) {
+                    drawWinningSlotDecor(ctx, bx + bw / 2, bucketY + bucketH * 0.58, bw, bucketH, season, alpha);
+                }
+
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font = '700 13px Fredoka, Rubik, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(b.label || '', bx + bw / 2, bucketY + bucketH * 0.45);
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(b.label || '', bx + bw / 2, isWinSlot ? (bucketY + bucketH * 0.24) : (bucketY + bucketH * 0.52));
 
-                ctx.font = '500 11px Fredoka, Rubik, sans-serif';
-                ctx.fillStyle = isWinSlot ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.65)';
-                ctx.fillText(isWinSlot ? ((b.score || 0) + ' pts') : 'NO WIN', bx + bw / 2, bucketY + bucketH * 0.76);
+                if (b.score > 0) {
+                    ctx.font = '500 11px Fredoka, Rubik, sans-serif';
+                    ctx.fillStyle = isWinSlot ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.65)';
+                    ctx.fillText(b.score + ' pts', bx + bw / 2, bucketY + bucketH * 0.88);
+                }
                 ctx.restore();
             }
+
+            drawSlotDividers(ctx, padX, boardW, buckets.length, bucketY, bucketH, season, alpha);
         }
 
         ctx.restore();
+    }
+
+    function drawWinningSlotDecor(ctx, cx, cy, slotW, slotH, season, alpha) {
+        ctx.save();
+        const customDecorImg = getLoadedImage(currentTheme && currentTheme.plinkoWinningSlotImageUrl);
+        if (customDecorImg) {
+            const maxW = Math.min(slotW * 0.75, 56);
+            const maxH = Math.min(slotH * 0.58, 44);
+            ctx.drawImage(customDecorImg, cx - maxW / 2, cy - maxH / 2, maxW, maxH);
+            ctx.restore();
+            return;
+        }
+
+        const size = Math.min(slotW * 0.38, slotH * 0.48, 28);
+        const pulse = 1.0 + 0.04 * Math.sin(Date.now() * 0.005);
+
+        ctx.translate(cx, cy);
+        ctx.scale(pulse, pulse);
+
+        if (season === 'halloween') {
+            // Jack-o'-Lantern / Glowing Carved Pumpkin
+            ctx.save();
+            ctx.shadowColor = '#FF7518';
+            ctx.shadowBlur = 10;
+
+            // Pumpkin lobes
+            ctx.fillStyle = '#E85D04';
+            ctx.beginPath();
+            ctx.ellipse(-size * 0.42, 0, size * 0.35, size * 0.48, 0, 0, Math.PI * 2);
+            ctx.ellipse(size * 0.42, 0, size * 0.35, size * 0.48, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#F48C06';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, size * 0.42, size * 0.52, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Green Stem
+            ctx.fillStyle = '#2D6A4F';
+            ctx.beginPath();
+            ctx.rect(-size * 0.08, -size * 0.68, size * 0.16, size * 0.22);
+            ctx.fill();
+
+            // Glowing eyes
+            ctx.fillStyle = '#FFE066';
+            ctx.shadowColor = '#FFE066';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.32, -size * 0.14);
+            ctx.lineTo(-size * 0.12, -size * 0.14);
+            ctx.lineTo(-size * 0.22, -size * 0.32);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(size * 0.12, -size * 0.14);
+            ctx.lineTo(size * 0.32, -size * 0.14);
+            ctx.lineTo(size * 0.22, -size * 0.32);
+            ctx.closePath();
+            ctx.fill();
+
+            // Nose
+            ctx.beginPath();
+            ctx.moveTo(0, -size * 0.14);
+            ctx.lineTo(-size * 0.07, -size * 0.02);
+            ctx.lineTo(size * 0.07, -size * 0.02);
+            ctx.closePath();
+            ctx.fill();
+
+            // Jagged smile
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.36, size * 0.06);
+            ctx.lineTo(-size * 0.24, size * 0.18);
+            ctx.lineTo(-size * 0.16, size * 0.10);
+            ctx.lineTo(-size * 0.08, size * 0.20);
+            ctx.lineTo(0, size * 0.10);
+            ctx.lineTo(size * 0.08, size * 0.20);
+            ctx.lineTo(size * 0.16, size * 0.10);
+            ctx.lineTo(size * 0.24, size * 0.18);
+            ctx.lineTo(size * 0.36, size * 0.06);
+            ctx.lineTo(size * 0.24, size * 0.26);
+            ctx.lineTo(size * 0.14, size * 0.18);
+            ctx.lineTo(0, size * 0.28);
+            ctx.lineTo(-size * 0.14, size * 0.18);
+            ctx.lineTo(-size * 0.24, size * 0.26);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        } else if (season === 'christmas') {
+            // Golden Jingle Bell with Ribbon
+            ctx.save();
+            ctx.shadowColor = '#FFD166';
+            ctx.shadowBlur = 10;
+
+            // Bell body
+            ctx.fillStyle = '#F59E0B';
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.46, Math.PI, 0, false);
+            ctx.lineTo(size * 0.54, size * 0.26);
+            ctx.lineTo(-size * 0.54, size * 0.26);
+            ctx.closePath();
+            ctx.fill();
+
+            // Gleam
+            ctx.fillStyle = '#FFF3B0';
+            ctx.beginPath();
+            ctx.ellipse(-size * 0.16, -size * 0.16, size * 0.1, size * 0.18, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Lower rim
+            ctx.fillStyle = '#D97706';
+            ctx.beginPath();
+            ctx.roundRect(-size * 0.58, size * 0.24, size * 1.16, size * 0.12, 3);
+            ctx.fill();
+
+            // Clapper hole
+            ctx.fillStyle = '#78350F';
+            ctx.beginPath();
+            ctx.arc(0, size * 0.28, size * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ribbon bow
+            ctx.fillStyle = '#D90429';
+            ctx.beginPath();
+            ctx.ellipse(-size * 0.2, -size * 0.48, size * 0.18, size * 0.1, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(size * 0.2, -size * 0.48, size * 0.18, size * 0.1, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#9B2226';
+            ctx.beginPath();
+            ctx.arc(0, -size * 0.48, size * 0.08, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        } else if (season === 'summer') {
+            // Radiant Golden Sun
+            ctx.save();
+            ctx.shadowColor = '#FFD166';
+            ctx.shadowBlur = 10;
+
+            ctx.fillStyle = '#F59E0B';
+            for (let a = 0; a < 8; a++) {
+                const ang = (a * Math.PI) / 4;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(ang - 0.2) * size * 0.38, Math.sin(ang - 0.2) * size * 0.38);
+                ctx.lineTo(Math.cos(ang) * size * 0.62, Math.sin(ang) * size * 0.62);
+                ctx.lineTo(Math.cos(ang + 0.2) * size * 0.38, Math.sin(ang + 0.2) * size * 0.38);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#FFD166';
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.36, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1E293B';
+            ctx.beginPath();
+            ctx.roundRect(-size * 0.28, -size * 0.07, size * 0.24, size * 0.15, 3);
+            ctx.roundRect(size * 0.04, -size * 0.07, size * 0.24, size * 0.15, 3);
+            ctx.rect(-size * 0.05, -size * 0.04, size * 0.1, size * 0.05);
+            ctx.fill();
+
+            ctx.restore();
+        } else if (season === 'fall') {
+            // Golden Harvest Acorn
+            ctx.save();
+            ctx.shadowColor = '#E9C46A';
+            ctx.shadowBlur = 8;
+
+            ctx.fillStyle = '#E9C46A';
+            ctx.beginPath();
+            ctx.ellipse(0, size * 0.12, size * 0.34, size * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#8D5B4C';
+            ctx.beginPath();
+            ctx.arc(0, -size * 0.06, size * 0.4, Math.PI, 0, false);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#5A3828';
+            ctx.beginPath();
+            ctx.rect(-size * 0.05, -size * 0.52, size * 0.1, size * 0.2);
+            ctx.fill();
+
+            ctx.restore();
+        } else if (season === 'winter') {
+            // Crystal Ice Snowflake
+            ctx.save();
+            ctx.shadowColor = '#38BDF8';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = '#E0F2FE';
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+
+            for (let a = 0; a < 6; a++) {
+                const ang = (a * Math.PI) / 3;
+                const cos = Math.cos(ang);
+                const sin = Math.sin(ang);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(cos * size * 0.52, sin * size * 0.52);
+                ctx.moveTo(cos * size * 0.32, sin * size * 0.32);
+                ctx.lineTo(cos * size * 0.32 + Math.cos(ang + 0.6) * size * 0.18, sin * size * 0.32 + Math.sin(ang + 0.6) * size * 0.18);
+                ctx.moveTo(cos * size * 0.32, sin * size * 0.32);
+                ctx.lineTo(cos * size * 0.32 + Math.cos(ang - 0.6) * size * 0.18, sin * size * 0.32 + Math.sin(ang - 0.6) * size * 0.18);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.1, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        } else {
+            // Spring: Golden Lotus / Blossom
+            ctx.save();
+            ctx.shadowColor = '#FFE066';
+            ctx.shadowBlur = 8;
+
+            ctx.fillStyle = '#FF8FA3';
+            for (let a = 0; a < 5; a++) {
+                const ang = (a * 2 * Math.PI) / 5 - Math.PI / 2;
+                ctx.beginPath();
+                ctx.ellipse(Math.cos(ang) * size * 0.28, Math.sin(ang) * size * 0.28, size * 0.2, size * 0.32, ang, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = '#FFE066';
+            ctx.beginPath();
+            ctx.arc(0, 0, size * 0.16, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    function drawSlotDividers(ctx, padX, boardW, bucketCount, bucketY, bucketH, season, alpha) {
+        if (bucketCount <= 1) return;
+        const slotW = boardW / bucketCount;
+        const customDivImg = getLoadedImage(currentTheme && currentTheme.plinkoDividerImageUrl);
+        const divH = bucketH + 18;
+        const topY = bucketY - 12;
+        const now = Date.now();
+
+        for (let i = 1; i < bucketCount; i++) {
+            const divX = padX + i * slotW;
+
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            if (customDivImg) {
+                const w = 16;
+                ctx.drawImage(customDivImg, divX - w / 2, topY, w, divH);
+                ctx.restore();
+                continue;
+            }
+
+            if (season === 'halloween') {
+                // Lit Flickering Wax Candle
+                const candleW = 9;
+                const candleTop = topY + 8;
+                const candleH = divH - 8;
+
+                ctx.fillStyle = '#FDF8EE';
+                ctx.shadowColor = 'rgba(0,0,0,0.45)';
+                ctx.shadowBlur = 4;
+                ctx.beginPath();
+                ctx.roundRect(divX - candleW / 2, candleTop, candleW, candleH, [2, 2, 0, 0]);
+                ctx.fill();
+
+                // Wax drip
+                ctx.fillStyle = '#F0E6D2';
+                ctx.beginPath();
+                ctx.ellipse(divX - candleW * 0.2, candleTop + candleH * 0.25, candleW * 0.25, candleW * 0.45, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Wick
+                ctx.strokeStyle = '#2B2D42';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.moveTo(divX, candleTop);
+                ctx.lineTo(divX, candleTop - 4);
+                ctx.stroke();
+
+                // Flickering Teardrop Flame
+                const flickerX = Math.sin(now * 0.009 + i * 1.8) * 1.0;
+                const flickerScale = 1.0 + Math.sin(now * 0.013 + i * 2.1) * 0.15;
+                const flameY = candleTop - 7;
+
+                ctx.save();
+                ctx.shadowColor = '#FF9E00';
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = 'rgba(255, 158, 0, 0.4)';
+                ctx.beginPath();
+                ctx.arc(divX + flickerX, flameY, 8 * flickerScale, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#FFD166';
+                ctx.beginPath();
+                ctx.moveTo(divX - 3, flameY + 3);
+                ctx.quadraticCurveTo(divX - 4, flameY - 2, divX + flickerX, flameY - 8 * flickerScale);
+                ctx.quadraticCurveTo(divX + 4, flameY - 2, divX + 3, flameY + 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            } else if (season === 'christmas') {
+                // Peppermint Candy Cane Divider
+                const caneW = 9;
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.45)';
+                ctx.shadowBlur = 4;
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.roundRect(divX - caneW / 2, topY, caneW, divH, 4);
+                ctx.fill();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(divX - caneW / 2, topY, caneW, divH, 4);
+                ctx.clip();
+
+                ctx.fillStyle = '#D90429';
+                for (let y = topY - caneW; y < topY + divH + caneW; y += 14) {
+                    ctx.beginPath();
+                    ctx.moveTo(divX - caneW, y);
+                    ctx.lineTo(divX + caneW, y + 10);
+                    ctx.lineTo(divX + caneW, y + 16);
+                    ctx.lineTo(divX - caneW, y + 6);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                ctx.restore();
+
+                ctx.fillStyle = 'rgba(255,255,255,0.45)';
+                ctx.beginPath();
+                ctx.rect(divX - caneW / 2 + 1, topY + 2, 1.5, divH - 4);
+                ctx.fill();
+                ctx.restore();
+            } else if (season === 'winter') {
+                // Crystal Icicle Pillar
+                const icicleW = 7;
+                ctx.save();
+                ctx.shadowColor = '#38BDF8';
+                ctx.shadowBlur = 5;
+                ctx.fillStyle = '#BAE6FD';
+                ctx.beginPath();
+                ctx.moveTo(divX - icicleW / 2, topY);
+                ctx.lineTo(divX + icicleW / 2, topY);
+                ctx.lineTo(divX + 0.8, topY + divH);
+                ctx.lineTo(divX - 0.8, topY + divH);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.moveTo(divX - icicleW / 2 + 1, topY);
+                ctx.lineTo(divX, topY + divH * 0.7);
+                ctx.lineTo(divX - 1, topY);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            } else if (season === 'fall') {
+                // Rustic Wooden Fence Post
+                const postW = 8;
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.45)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#8D5B4C';
+                ctx.beginPath();
+                ctx.roundRect(divX - postW / 2, topY + 3, postW, divH - 3, [2, 2, 0, 0]);
+                ctx.fill();
+
+                ctx.strokeStyle = '#5A3828';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(divX - 1, topY + 5);
+                ctx.lineTo(divX - 1, topY + divH);
+                ctx.stroke();
+                ctx.restore();
+            } else if (season === 'summer') {
+                // Tiki Torch Pillar
+                const torchW = 7;
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#D4A373';
+                ctx.beginPath();
+                ctx.rect(divX - torchW / 2, topY + 6, torchW, divH - 6);
+                ctx.fill();
+
+                ctx.fillStyle = '#8D5B4C';
+                ctx.fillRect(divX - torchW / 2 - 1, topY + 16, torchW + 2, 2.5);
+                ctx.fillRect(divX - torchW / 2 - 1, topY + 38, torchW + 2, 2.5);
+
+                ctx.fillStyle = '#FF7518';
+                ctx.beginPath();
+                ctx.arc(divX, topY + 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else {
+                // Spring: Bamboo Stalk
+                const stalkW = 7;
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.4)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#52B788';
+                ctx.beginPath();
+                ctx.roundRect(divX - stalkW / 2, topY, stalkW, divH, 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#2D6A4F';
+                ctx.fillRect(divX - stalkW / 2 - 1, topY + divH * 0.3, stalkW + 2, 2);
+                ctx.fillRect(divX - stalkW / 2 - 1, topY + divH * 0.65, stalkW + 2, 2);
+
+                ctx.fillStyle = '#74C69D';
+                ctx.beginPath();
+                ctx.ellipse(divX + stalkW * 0.65, topY + divH * 0.3 - 2, 3.5, 1.8, -0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
     }
 
     function spawnConfetti(xPx, yPx) {
@@ -1000,6 +1438,18 @@
                     tA.x = Math.max(minTokenX, Math.min(maxTokenX, tA.x + nx * overlap));
                     tB.x = Math.max(minTokenX, Math.min(maxTokenX, tB.x - nx * overlap));
 
+                    // Constrain completed tokens inside their landed slot margins
+                    if (tA.completed && typeof tA.winningBucketIndex === 'number') {
+                        const slotW = 1.0 / bucketCount;
+                        const margin = Math.min(0.035, slotW * 0.22);
+                        tA.x = Math.max(tA.winningBucketIndex * slotW + margin, Math.min((tA.winningBucketIndex + 1) * slotW - margin, tA.x));
+                    }
+                    if (tB.completed && typeof tB.winningBucketIndex === 'number') {
+                        const slotW = 1.0 / bucketCount;
+                        const margin = Math.min(0.035, slotW * 0.22);
+                        tB.x = Math.max(tB.winningBucketIndex * slotW + margin, Math.min((tB.winningBucketIndex + 1) * slotW - margin, tB.x));
+                    }
+
                     // Elastic bounce impulse
                     const rvx = (tA.vx || 0) - (tB.vx || 0);
                     const rvy = (tA.vy || 0) - (tB.vy || 0);
@@ -1050,7 +1500,18 @@
                     t.winningBucketLabel = landedBucket.label;
                     t.score = landedBucket.score;
                     t.isWin = !!landedBucket.isWin;
-                    t.x = (landedBucketIdx + 0.5) * slotW; // Center inside the landed bucket slot!
+
+                    // Natural landing spread across slot width
+                    const margin = Math.min(0.035, slotW * 0.22);
+                    const minSlotX = landedBucketIdx * slotW + margin;
+                    const maxSlotX = (landedBucketIdx + 1) * slotW - margin;
+
+                    if (typeof t.x === 'number' && t.x >= (landedBucketIdx * slotW) && t.x <= ((landedBucketIdx + 1) * slotW)) {
+                        t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
+                    } else {
+                        const jitter = (Math.random() - 0.5) * (slotW - 2 * margin) * 0.65;
+                        t.x = (landedBucketIdx + 0.5) * slotW + jitter;
+                    }
                     sendCompletion(t.dropToken, landedBucketIdx);
                 } else {
                     t.x = t.waypoints[t.waypoints.length - 1].x;

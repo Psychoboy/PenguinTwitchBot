@@ -718,42 +718,79 @@
 
                                         <MudItem xs="12">
                                             <MudDivider Class="my-2" />
-                                            <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Custom Sprites & Media (Leave blank to use built-in Seasonal Art)</b></MudText>
+                                            <MudText Typo="Typo.subtitle1" Class="mb-1"><b>Custom Sprites & Media Overrides</b></MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Leave blank to use built-in seasonal vector and canvas art automatically.</MudText>
                                         </MudItem>
 
-                                        <MudItem xs="12" lg="6">
-                                            <MediaUrlPicker Label="Character Emotes / Images"
-                                                            @bind-Value="_selectedTheme.DefaultCharacterImageUrl"
-                                                            AllowMultiple="true"
-                                                            Placeholder="Type emote name (e.g. sptvShots) or image URL..."
-                                                            HelperText="Used when a viewer runs !drop or !plinko without specifying an emote. Multiple items can be added to randomly pick one per drop." />
+                                        <!-- Group 1: Shared Sprites -->
+                                        <MudItem xs="12">
+                                            <MudPaper Class="pa-3" Outlined="true">
+                                                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>🌐 Shared Sprites & Emotes</b></MudText>
+                                                <MudGrid Spacing="2">
+                                                    <MudItem xs="12" md="6">
+                                                        <MediaUrlPicker Label="Character Emotes / Images"
+                                                                        @bind-Value="_selectedTheme.DefaultCharacterImageUrl"
+                                                                        AllowMultiple="true"
+                                                                        Placeholder="Type emote name (e.g. sptvShots) or image URL..."
+                                                                        HelperText="Used when a viewer runs !drop or !plinko without specifying an emote. Multiple items can be added to randomly pick one per drop." />
+                                                    </MudItem>
+                                                    <MudItem xs="12" md="6">
+                                                        <MediaUrlPicker Label="Droplet Emotes / Images"
+                                                                        @bind-Value="_selectedTheme.DefaultDropletImageUrl"
+                                                                        AllowMultiple="true"
+                                                                        Placeholder="Type emote name (e.g. sptv30k) or image URL..."
+                                                                        HelperText="Used for interactive droplets when no custom emote is provided. Multiple items can be added to randomly pick one per droplet." />
+                                                    </MudItem>
+                                                </MudGrid>
+                                            </MudPaper>
                                         </MudItem>
-                                        <MudItem xs="12" lg="6">
-                                            <MediaUrlPicker Label="Droplet Emotes / Images"
-                                                            @bind-Value="_selectedTheme.DefaultDropletImageUrl"
-                                                            AllowMultiple="true"
-                                                            Placeholder="Type emote name (e.g. sptv30k) or image URL..."
-                                                            HelperText="Used for interactive droplets when no custom emote is provided. Multiple items can be added to randomly pick one per droplet." />
+
+                                        <!-- Group 2: Parachute Drop Visuals -->
+                                        <MudItem xs="12">
+                                            <MudPaper Class="pa-3" Outlined="true">
+                                                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>🪂 Parachute Drop Visuals</b></MudText>
+                                                <MudGrid Spacing="2">
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Parachute Canopy Image"
+                                                                        @bind-Value="_selectedTheme.ParachuteCanopyImageUrl"
+                                                                        HelperText="Optional custom parachute canopy sprite (overrides default seasonal canopy/chute)." />
+                                                    </MudItem>
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Parachute Target Platform Image"
+                                                                        @bind-Value="_selectedTheme.TargetPlatformImageUrl"
+                                                                        HelperText="Optional custom landing platform image (overrides seasonal landing zone/cauldron/wreath)." />
+                                                    </MudItem>
+                                                </MudGrid>
+                                            </MudPaper>
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Parachute Canopy Image"
-                                                            @bind-Value="_selectedTheme.ParachuteCanopyImageUrl"
-                                                            HelperText="Optional custom parachute canopy sprite." />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Parachute Target Platform Image"
-                                                            @bind-Value="_selectedTheme.TargetPlatformImageUrl"
-                                                            HelperText="Optional custom landing platform image." />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Plinko Board Background Image"
-                                                            @bind-Value="_selectedTheme.PlinkoBoardBackgroundImageUrl"
-                                                            HelperText="Optional custom Plinko board background." />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Plinko Peg Image"
-                                                            @bind-Value="_selectedTheme.PlinkoPegImageUrl"
-                                                            HelperText="Optional custom peg sprite." />
+
+                                        <!-- Group 3: Plinko Bounce Visuals -->
+                                        <MudItem xs="12">
+                                            <MudPaper Class="pa-3" Outlined="true">
+                                                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>🪙 Plinko Bounce Visuals</b></MudText>
+                                                <MudGrid Spacing="2">
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Plinko Board Background Image"
+                                                                        @bind-Value="_selectedTheme.PlinkoBoardBackgroundImageUrl"
+                                                                        HelperText="Optional custom Plinko board background." />
+                                                    </MudItem>
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Plinko Peg Image"
+                                                                        @bind-Value="_selectedTheme.PlinkoPegImageUrl"
+                                                                        HelperText="Optional custom peg sprite (overrides seasonal round peg)." />
+                                                    </MudItem>
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Plinko Winning Slot Trophy Image"
+                                                                        @bind-Value="_selectedTheme.PlinkoWinningSlotImageUrl"
+                                                                        HelperText="Optional custom winning bucket decoration (overrides seasonal pumpkin, jingle bell, lotus, etc.)." />
+                                                    </MudItem>
+                                                    <MudItem xs="12" sm="6">
+                                                        <MediaUrlPicker Label="Plinko Slot Divider Image"
+                                                                        @bind-Value="_selectedTheme.PlinkoDividerImageUrl"
+                                                                        HelperText="Optional custom slot divider pillar (overrides seasonal candle, candy cane, bamboo, icicle)." />
+                                                    </MudItem>
+                                                </MudGrid>
+                                            </MudPaper>
                                         </MudItem>
                                     </MudGrid>
                                 </MudPaper>

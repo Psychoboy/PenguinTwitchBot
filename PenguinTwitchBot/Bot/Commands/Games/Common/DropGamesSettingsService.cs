@@ -133,14 +133,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
             }
-            else if (settings.Plinko.Buckets.Count >= 14 &&
-                     settings.Plinko.Buckets.Count % 7 == 0 &&
+            else if ((settings.Plinko.Buckets.Count == 7 || (settings.Plinko.Buckets.Count >= 14 && settings.Plinko.Buckets.Count % 7 == 0)) &&
                      settings.Plinko.Buckets[0].Label == "MISS" &&
                      settings.Plinko.Buckets[1].Label == "50 PTS" &&
-                     settings.Plinko.Buckets[1].IsWin &&
                      settings.Plinko.Buckets[3].Label == "JACKPOT")
             {
-                settings.Plinko.Buckets = settings.Plinko.Buckets.Skip(settings.Plinko.Buckets.Count - 7).ToList();
+                settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
+            }
+
+            if (settings.Plinko.WinChatMessageTemplate == "🪙 {user}'s Plinko token landed in [{bucket}] ({score} pts)!")
+            {
+                settings.Plinko.WinChatMessageTemplate = "🪙 {user}'s Plinko token landed in [{bucket}]!";
             }
 
             foreach (var theme in settings.Themes)

@@ -46,6 +46,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string TargetPlatformImageUrl { get; set; } = "";
         public string PlinkoBoardBackgroundImageUrl { get; set; } = "";
         public string PlinkoPegImageUrl { get; set; } = "";
+        public string PlinkoWinningSlotImageUrl { get; set; } = "";
+        public string PlinkoDividerImageUrl { get; set; } = "";
 
         public string DropSoundUrl { get; set; } = "";
         public string DropletHitSoundUrl { get; set; } = "";
@@ -208,7 +210,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         }
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "🪙 {user}'s Plinko token landed in [{bucket}] ({score} pts)!";
+        public string WinChatMessageTemplate { get; set; } = "🪙 {user}'s Plinko token landed in [{bucket}]!";
         public List<PlinkoBucket> Buckets { get; set; } = [];
 
         // Timed Session / Round settings
@@ -223,11 +225,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public static List<PlinkoBucket> CreateDefaultBuckets() =>
         [
             new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 },
-            new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
-            new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
-            new PlinkoBucket { Label = "JACKPOT", Score = 500, IsWin = true, Color = "#F59E0B", Weight = 6 },
-            new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
-            new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
+            new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 },
+            new PlinkoBucket { Label = "WINNER", Score = 0, IsWin = true, Color = "#F59E0B", Weight = 15 },
+            new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 },
             new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 }
         ];
     }
