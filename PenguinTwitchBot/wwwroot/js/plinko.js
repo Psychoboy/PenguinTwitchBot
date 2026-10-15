@@ -1459,20 +1459,20 @@
     let lastFrameTime = performance.now();
 
     function animate(now) {
-        const dtSec = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
-        lastFrameTime = now;
+        try {
+            const dtSec = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+            lastFrameTime = now;
 
-        ctx.clearRect(0, 0, width, height);
+            ctx.clearRect(0, 0, width, height);
 
-        const isVisible = activeTokens.length > 0
-            || sessionState.isActive
-            || (sessionState.endedAtMs && (now - sessionState.endedAtMs) < 6000)
-            || now < boardConfig.visibleUntil;
+            const isVisible = activeTokens.length > 0
+                || sessionState.isActive
+                || (sessionState.endedAtMs && (now - sessionState.endedAtMs) < 6000)
+                || now < boardConfig.visibleUntil;
 
-        if (!isVisible) {
-            requestAnimationFrame(animate);
-            return;
-        }
+            if (!isVisible) {
+                return;
+            }
 
         const fadeAlpha = (activeTokens.length > 0 || sessionState.isActive || (sessionState.endedAtMs && (now - sessionState.endedAtMs) < 6000))
             ? 1.0
@@ -1862,9 +1862,12 @@
             ctx.restore();
         }
 
-        drawSessionBanner(now);
-
-        requestAnimationFrame(animate);
+            drawSessionBanner(now);
+        } catch (err) {
+            console.error('[Plinko] Render error:', err);
+        } finally {
+            requestAnimationFrame(animate);
+        }
     }
 
     function getBannerX(bannerW) {

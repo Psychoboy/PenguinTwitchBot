@@ -1729,8 +1729,9 @@
     let lastFrameTime = performance.now();
 
     function animate(now) {
-        const dtSec = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
-        lastFrameTime = now;
+        try {
+            const dtSec = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+            lastFrameTime = now;
 
         ctx.clearRect(0, 0, width, height);
 
@@ -1789,7 +1790,8 @@
                 }
 
                 // 2. Target Platform bounce
-                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
+                const targetHalfW = targetState.targetHalfWidth || 0.09;
+                const targetWNorm = targetHalfW * 2;
                 const minPadX = (targetWNorm * 0.5) + 24 / width;
                 const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
                 const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
@@ -2355,9 +2357,12 @@
             ctx.restore();
         }
 
-        drawSessionBanner(now);
-
-        requestAnimationFrame(animate);
+            drawSessionBanner(now);
+        } catch (err) {
+            console.error('[Parachute] Render error:', err);
+        } finally {
+            requestAnimationFrame(animate);
+        }
     }
 
     function getBannerX(bannerW) {
