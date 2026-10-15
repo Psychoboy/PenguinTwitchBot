@@ -13,172 +13,92 @@
 <MudDialog>
     <DialogContent>
         <MudStack Spacing="3">
-            @if (_showTypeSelection)
+            @if (_currentStep == WizardStep.SelectCategory)
             {
                 <MudText Typo="Typo.h6">Select Trigger Type</MudText>
-                <MudList T="string">
-                    <MudListItem T="string" class="trigger-item trigger-command" OnClick="@(() => SelectType(TriggerTypes.Command))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Terminal" Color="Color.Primary" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Command</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a chat command is used</MudText>
-                            </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                     <MudListItem T="string" class="trigger-item trigger-twitchevent" OnClick="@(() => SelectType(TriggerTypes.TwitchEvent))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Event" Color="Color.Secondary" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Twitch Event</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on Twitch events (follows, subs, etc.)</MudText>
-                            </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                    @if (IsTriggerTypeAvailable(TriggerTypes.Timer))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-timer" OnClick="@(() => SelectType(TriggerTypes.Timer))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Timer" Color="Color.Info" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Timer</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on a schedule or interval</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                     <MudListItem T="string" class="trigger-item trigger-keyword" OnClick="@(() => SelectType(TriggerTypes.Keyword))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Color="Color.Warning" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Keyword</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a keyword/pattern is detected in chat</MudText>
-                            </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                     <MudListItem T="string" class="trigger-item trigger-defaultcommand" OnClick="@(() => SelectType(TriggerTypes.DefaultCommand))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.Functions" Color="Color.Success" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Default Command</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger on default command events (gamble win, defuse, etc.)</MudText>
-                            </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                    <MudDivider />
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentCatch))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentcatch" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentCatch))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Success" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fishing Tournament Catch</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a caught fish matches active tournament eligibility</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentStart))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentstart" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentStart))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Color="Color.Success" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fishing Tournament Start</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is started</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingTournamentEnd))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishingtournamentend" OnClick="@(() => SelectType(TriggerTypes.FishingTournamentEnd))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.FlagCircle" Color="Color.Warning" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fishing Tournament End</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when a tournament is ended and rewards are settled</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishCatch))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishcatch" OnClick="@(() => SelectType(TriggerTypes.FishCatch))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.Phishing" Color="Color.Primary" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fish Catch</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger whenever a fish is caught, with optional filters for type, category, rarity, and more</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingItemBroken))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishingitembroken" OnClick="@(() => SelectType(TriggerTypes.FishingItemBroken))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.BrokenImage" Color="Color.Error" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fishing Item Broken</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when an equipped item runs out of durability</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.FishingAccident))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-fishingaccident" OnClick="@(() => SelectType(TriggerTypes.FishingAccident))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Error" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Fishing Accident</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when an accident occurs while fishing (line snap, rod break, etc.)</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                    @if (IsTriggerTypeAvailable(TriggerTypes.BannedSongRequest))
-                    {
-                        <MudListItem T="string" class="trigger-item trigger-bannedsongrequest" OnClick="@(() => SelectType(TriggerTypes.BannedSongRequest))">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudIcon Icon="@Icons.Material.Filled.MusicOff" Color="Color.Error" />
-                                <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body1"><b>Banned Song Request</b></MudText>
-                                    <MudText Typo="Typo.body2" Color="Color.Secondary">Trigger when someone requests a song that has been banned</MudText>
-                                </MudStack>
-                            </MudStack>
-                        </MudListItem>
-                        <MudDivider />
-                    }
-                     <MudListItem T="string" class="trigger-item trigger-manual" OnClick="@(() => SelectType(TriggerTypes.Manual))">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudIcon Icon="@Icons.Material.Filled.TouchApp" Color="Color.Default" />
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body1"><b>Manual</b></MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">Manually triggered from UI or API</MudText>
-                            </MudStack>
-                        </MudStack>
-                    </MudListItem>
-                </MudList>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Choose a category or search for a trigger</MudText>
+
+                <MudTextField @bind-Value="_searchText" Placeholder="Search triggers..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              Clearable="true" Immediate="true" Margin="Margin.Dense" Class="trigger-search" />
+
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <MudList T="string">
+                        @if (string.IsNullOrWhiteSpace(_searchText))
+                        {
+                            @foreach (var cat in GetAvailableCategories())
+                            {
+                                <MudListItem T="string" class="@($"trigger-item trigger-category trigger-category-{cat.Id} trigger-{cat.Id}-category")" OnClick="@(() => SelectCategory(cat))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@cat.Icon" Color="@cat.Color" />
+                                        <MudStack Spacing="0">
+                                            <MudText Typo="Typo.body1"><b>@cat.Name</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@cat.Description</MudText>
+                                        </MudStack>
+                                        <MudSpacer />
+                                        <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" />
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        }
+                        else
+                        {
+                            @foreach (var item in GetSearchResults())
+                            {
+                                <MudListItem T="string" class="@($"trigger-item trigger-{item.Id}")" OnClick="@(() => SelectTrigger(item))">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudIcon Icon="@item.Icon" Color="@item.Color" />
+                                        <MudStack Spacing="0">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudText Typo="Typo.body1"><b>@item.DisplayName</b></MudText>
+                                                <MudChip T="string" Size="Size.Small" Color="@item.Color" Variant="Variant.Outlined" Class="ml-1 px-1 py-0" Style="font-size: 0.7rem; height: 18px;">@item.CategoryName</MudChip>
+                                            </MudStack>
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">@item.Description</MudText>
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        }
+                    </MudList>
+                </div>
             }
-            else
+            else if (_currentStep == WizardStep.SelectTrigger && _selectedCategory != null)
             {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-1">
+                    <MudIcon Icon="@_selectedCategory.Icon" Color="@_selectedCategory.Color" />
+                    <MudText Typo="Typo.h6">@_selectedCategory.Name Triggers</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Select a trigger from @_selectedCategory.Name</MudText>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <MudList T="string">
+                        @foreach (var item in GetCategoryTriggers(_selectedCategory))
+                        {
+                            <MudListItem T="string" class="@($"trigger-item trigger-{item.Id}")" OnClick="@(() => SelectTrigger(item))">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@item.Icon" Color="@item.Color" />
+                                    <MudStack Spacing="0">
+                                        <MudText Typo="Typo.body1"><b>@item.DisplayName</b></MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">@item.Description</MudText>
+                                    </MudStack>
+                                </MudStack>
+                            </MudListItem>
+                            <MudDivider />
+                        }
+                    </MudList>
+                </div>
+            }
+            else if (_currentStep == WizardStep.Configure)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3 configure-step">
+                    <MudIcon Icon="@GetConfigureIcon()" Color="@GetConfigureColor()" />
+                    <MudText Typo="Typo.h6">Configure @GetConfigureTitle()</MudText>
+                </MudStack>
+
                 <!-- Trigger Configuration based on type -->
                 @if (_selectedType == TriggerTypes.Command)
                 {
-                    <MudText Typo="Typo.h6">Configure Command Trigger</MudText>
-
                     <CommandSelector SelectedCommandId="_selectedCommandId" 
                                      SelectedCommandIdChanged="OnCommandSelected"
                                      OnCommandCreated="OnCommandCreated"
@@ -192,8 +112,6 @@
                 }
                 else if (_selectedType == TriggerTypes.Timer)
                 {
-                    <MudText Typo="Typo.h6">Configure Timer Trigger</MudText>
-
                     <MudAutocomplete T="TimerGroup" 
                                      Value="_selectedTimerGroup" 
                                      ValueChanged="OnTimerGroupChanged"
@@ -211,8 +129,6 @@
                 }
                 else if (_selectedType == TriggerTypes.Keyword)
                 {
-                    <MudText Typo="Typo.h6">Configure Keyword Trigger</MudText>
-
                     <KeywordSelector SelectedKeywordId="_selectedKeywordId" 
                                      SelectedKeywordIdChanged="OnKeywordSelected"
                                      OnKeywordCreated="OnKeywordCreated"
@@ -227,16 +143,12 @@
                 else if (_selectedType == TriggerTypes.TwitchEvent)
                 {
                     <TwitchEventTriggerConfigComponent SelectedEventName="@_selectedTwitchEvent"
-                                              SelectedEventNameChanged="OnTwitchEventSelected"
-                                              Config="@_twitchEventConfig"
-                                              ConfigChanged="@OnTwitchEventConfigChanged" />
-
-                    @* Trigger name is auto-set to the event name and hidden from user *@
+                                                       SelectedEventNameChanged="OnTwitchEventSelected"
+                                                       Config="@_twitchEventConfig"
+                                                       ConfigChanged="@OnTwitchEventConfigChanged" />
                 }
                 else if (_selectedType == TriggerTypes.DefaultCommand)
                 {
-                    <MudText Typo="Typo.h6">Configure Default Command Trigger</MudText>
-
                     <MudAutocomplete T="DefaultCommand" 
                                      Value="_selectedDefaultCommand" 
                                      ValueChanged="OnDefaultCommandChanged"
@@ -266,11 +178,20 @@
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., Gamble Jackpot Win" ReadOnly="true" />
+
+                    @if (!string.IsNullOrEmpty(_selectedEventType))
+                    {
+                        var vars = GetDefaultCommandVariablesSummary(_selectedEventType);
+                        if (!string.IsNullOrEmpty(vars))
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                Variables added: @vars
+                            </MudAlert>
+                        }
+                    }
                 }
                 else if (_selectedType == TriggerTypes.FishingTournamentCatch)
                 {
-                    <MudText Typo="Typo.h6">Configure Fishing Tournament Catch Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Variables added: %fishing_tournament_eligible%, %fishing_tournament_match_count%, %fishing_tournament_ids%,
                         %fishing_tournament_names%, %fishing_tournament_primary_score_categories%, %fishing_tournament_id%,
@@ -304,8 +225,6 @@
                 }
                 else if (_selectedType == TriggerTypes.FishingTournamentStart)
                 {
-                    <MudText Typo="Typo.h6">Configure Fishing Tournament Start Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info">
                         Fires when any fishing tournament starts.
                     </MudAlert>
@@ -325,8 +244,6 @@
                 }
                 else if (_selectedType == TriggerTypes.FishingTournamentEnd)
                 {
-                    <MudText Typo="Typo.h6">Configure Fishing Tournament End Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info">
                         Fires when a fishing tournament ends and reward winners are computed.
                     </MudAlert>
@@ -346,7 +263,6 @@
                 }
                 else if (_selectedType == TriggerTypes.FishCatch)
                 {
-                    <MudText Typo="Typo.h6">Configure Fish Catch Trigger</MudText>
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever a fish is successfully caught. All filters are optional — leave empty to match any catch.
                         Variables added: %fish_type%, %fish_type_id%, %fish_rarity%, %fish_stars%, %fish_weight%, %fish_gold%, %fish_categories%.
@@ -406,8 +322,6 @@
                 }
                 else if (_selectedType == TriggerTypes.FishingItemBroken)
                 {
-                    <MudText Typo="Typo.h6">Configure Fishing Item Broken Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever an equipped item's durability reaches 0% (breaks).
                         Variables added: %user%, %userid%, %broken_item_name%, %broken_item_slot%, %broken_item_shop_id%, %broken_item_boost_id%, %broken_item_cost%, %broken_item_replaced%, %broken_items_count%.
@@ -427,8 +341,6 @@
                 }
                 else if (_selectedType == TriggerTypes.FishingAccident)
                 {
-                    <MudText Typo="Typo.h6">Configure Fishing Accident Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever a fishing accident occurs (line snap, rod break, reel jam, tackle box loss, net break).
                         Variables added: %user%, %userid%, %accident_type%, %accident_name%, %accident_reason%, %accident_gear%, %accident_items_lost%, %accident_gold_lost%.
@@ -449,8 +361,6 @@
                 }
                 else if (_selectedType == TriggerTypes.BannedSongRequest)
                 {
-                    <MudText Typo="Typo.h6">Configure Banned Song Request Trigger</MudText>
-
                     <MudAlert Severity="Severity.Info" Dense="true">
                         Fires whenever someone requests a song that is on the banned songs list.
                         Variables added: %user%, %banned_song_id%, %banned_song_title%, %banned_song_reason%,
@@ -460,48 +370,40 @@
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined"
                                   Required="true" ReadOnly="true" />
                 }
+                else if (_selectedType == TriggerTypes.Manual)
+                {
+                    <MudAlert Severity="Severity.Info">
+                        Fires manually when triggered from the dashboard or via an API call.
+                    </MudAlert>
+
+                    <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
+                                  Required="true" Placeholder="e.g., Manual Trigger" />
+                }
                 else
                 {
-                    <MudText Typo="Typo.h6">Configure @_selectedType Trigger</MudText>
                     <MudAlert Severity="Severity.Info">
-                        Configuration for @_selectedType triggers will be implemented soon.
+                        Configure @_selectedType trigger settings.
                     </MudAlert>
 
                     <MudTextField @bind-Value="_triggerName" Label="Trigger Name" Variant="Variant.Outlined" 
                                   Required="true" Placeholder="e.g., My Trigger" />
-
-                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Or create a new trigger
-                        </MudText>
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
-                                   StartIcon="@Icons.Material.Filled.Add" Disabled="true">
-                            Create New
-                        </MudButton>
-                    </MudStack>
-                }
-
-                <MudDivider Class="my-2" />
-
-                @if (!IsEditMode)
-                {
-                    <MudStack Row="true" Spacing="2">
-                        <MudButton class="btn-back" Variant="Variant.Text" Color="Color.Default"
-                                   OnClick="@(() => _showTypeSelection = true)">
-                            <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />
-                            Back
-                        </MudButton>
-                    </MudStack>
                 }
             }
         </MudStack>
     </DialogContent>
     <DialogActions>
+        @if (_currentStep != WizardStep.SelectCategory && !IsEditMode)
+        {
+            <MudButton class="btn-back" OnClick="GoBack" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
+        }
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
-                   Disabled="@(!CanSubmit())">
-            @(IsEditMode ? "Update Trigger" : "Add Trigger")
-        </MudButton>
+        @if (_currentStep == WizardStep.Configure)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" 
+                       Disabled="@(!CanSubmit())">
+                @(IsEditMode ? "Update Trigger" : "Add Trigger")
+            </MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
@@ -518,7 +420,19 @@
     [Inject] private IFeatureRuntimeCoordinator FeatureRuntimeCoordinator { get; set; } = null!;
     [Inject] private IFishingService FishingService { get; set; } = null!;
 
-    private bool _showTypeSelection = true;
+    private enum WizardStep
+    {
+        SelectCategory,
+        SelectTrigger,
+        Configure
+    }
+
+    private WizardStep _currentStep = WizardStep.SelectCategory;
+    private WizardStep _previousStep = WizardStep.SelectCategory;
+    private TriggerCategoryInfo? _selectedCategory;
+    private TriggerItemInfo? _selectedItem;
+    private string _searchText = "";
+
     private TriggerTypes? _selectedType;
     private List<ActionCommand> _commands = new();
     private List<ActionKeyword> _keywords = new();
@@ -574,16 +488,16 @@
             _fishTypes = await FishingService.GetAllFishTypes();
         }
 
-        if (IsEditMode)
+        if (IsEditMode && ExistingTrigger != null)
         {
-            LoadFromExistingTrigger(ExistingTrigger!);
+            LoadFromExistingTrigger(ExistingTrigger);
         }
     }
 
     private void LoadFromExistingTrigger(TriggerType trigger)
     {
         _selectedType = trigger.Type;
-        _showTypeSelection = false;
+        _currentStep = WizardStep.Configure;
         _triggerName = trigger.Name;
 
         _selectedCommandId = trigger.CommandId;
@@ -606,6 +520,7 @@
             {
                 _selectedTwitchEvent = trigger.Name;
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type, twitchEventName: _selectedTwitchEvent);
         }
         else if (trigger.Type == TriggerTypes.DefaultCommand)
         {
@@ -617,6 +532,7 @@
                     _selectedEventType = config.EventType;
                     _selectedDefaultCommand ??= _defaultCommands.FirstOrDefault(c =>
                         string.Equals(c.CommandName, config.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
+                    _selectedItem = TriggerCatalog.FindItem(trigger.Type, config.DefaultCommandName, config.EventType);
                 }
             }
             catch { }
@@ -632,6 +548,7 @@
             {
                 _fishingTournamentCatchConfig = new FishingTournamentCatchTriggerConfiguration();
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
         else if (trigger.Type == TriggerTypes.FishCatch)
         {
@@ -657,6 +574,7 @@
                 _fishCatchMinGold = 0;
                 _fishCatchRequireActiveTournament = false;
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
         else if (trigger.Type == TriggerTypes.FishingItemBroken)
         {
@@ -672,6 +590,7 @@
                 _fishingItemBrokenSlots = new HashSet<string>();
                 _fishingItemBrokenShopItemIds = new List<int>();
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
         else if (trigger.Type == TriggerTypes.FishingAccident)
         {
@@ -685,30 +604,139 @@
             {
                 _fishingAccidentOutcomes = new HashSet<FishingAttemptOutcome>();
             }
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
+        }
+        else
+        {
+            _selectedItem = TriggerCatalog.FindItem(trigger.Type);
         }
     }
 
-    private void SelectType(TriggerTypes type)
+    private List<TriggerCategoryInfo> GetAvailableCategories()
     {
-        if (!IsTriggerTypeAvailable(type))
+        return TriggerCatalog.GetAvailableCategories(FeatureRuntimeCoordinator);
+    }
+
+    private List<TriggerItemInfo> GetCategoryTriggers(TriggerCategoryInfo category)
+    {
+        return TriggerCatalog.GetTriggersForCategory(category.Id, FeatureRuntimeCoordinator);
+    }
+
+    private List<TriggerItemInfo> GetSearchResults()
+    {
+        return TriggerCatalog.SearchTriggers(_searchText, FeatureRuntimeCoordinator);
+    }
+
+    private void SelectCategory(TriggerCategoryInfo category)
+    {
+        _selectedCategory = category;
+        _previousStep = _currentStep;
+        _currentStep = WizardStep.SelectTrigger;
+    }
+
+    private void SelectTrigger(TriggerItemInfo item)
+    {
+        _selectedItem = item;
+        _selectedType = item.Type;
+        _previousStep = _currentStep;
+        _currentStep = WizardStep.Configure;
+
+        // Pre-populate fields based on selected catalog item
+        if (item.Type == TriggerTypes.DefaultCommand && !string.IsNullOrEmpty(item.DefaultCommandName) && !string.IsNullOrEmpty(item.DefaultCommandEventType))
         {
-            return;
+            _selectedDefaultCommand = _defaultCommands.FirstOrDefault(c => string.Equals(c.CommandName, item.DefaultCommandName, StringComparison.OrdinalIgnoreCase));
+            _selectedEventType = item.DefaultCommandEventType;
+            UpdateDefaultCommandTriggerName();
+        }
+        else if (item.Type == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(item.TwitchEventName))
+        {
+            _selectedTwitchEvent = item.TwitchEventName;
+            _twitchEventConfig = new Bot.Actions.Triggers.TwitchEventTriggerConfig { EventName = item.TwitchEventName };
+            _triggerName = item.TwitchEventName;
+        }
+        else
+        {
+            _triggerName = item.Type switch
+            {
+                TriggerTypes.FishingTournamentCatch => "FishingTournament.EligibleCatch",
+                TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
+                TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
+                TriggerTypes.FishCatch => "Fishing.FishCaught",
+                TriggerTypes.FishingItemBroken => "Fishing.ItemBroken",
+                TriggerTypes.FishingAccident => "Fishing.Accident",
+                TriggerTypes.BannedSongRequest => "Song.BannedRequest",
+                TriggerTypes.Manual => "Manual",
+                _ => $"{item.DisplayName}"
+            };
+        }
+    }
+
+    private void GoBack()
+    {
+        if (_currentStep == WizardStep.Configure)
+        {
+            _currentStep = _previousStep;
+        }
+        else if (_currentStep == WizardStep.SelectTrigger)
+        {
+            _currentStep = WizardStep.SelectCategory;
+        }
+    }
+
+    private string GetConfigureTitle()
+    {
+        if (_selectedItem != null)
+        {
+            return _selectedItem.DisplayName;
         }
 
-        _selectedType = type;
-        _showTypeSelection = false;
-
-        // Set default trigger name based on type
-        _triggerName = type switch
+        if (_selectedType == TriggerTypes.DefaultCommand && _selectedDefaultCommand != null && !string.IsNullOrEmpty(_selectedEventType))
         {
-            TriggerTypes.FishingTournamentCatch => "FishingTournament.EligibleCatch",
-            TriggerTypes.FishingTournamentStart => "FishingTournament.Start",
-            TriggerTypes.FishingTournamentEnd => "FishingTournament.End",
-            TriggerTypes.FishCatch => "Fishing.FishCaught",
-            TriggerTypes.FishingItemBroken => "Fishing.ItemBroken",
-            TriggerTypes.FishingAccident => "Fishing.Accident",
-            TriggerTypes.BannedSongRequest => "Song.BannedRequest",
-            _ => $"{type} Trigger"
+            return $"{_selectedDefaultCommand.CommandName} - {GetEventTypeDisplayName(_selectedEventType)}";
+        }
+
+        if (_selectedType == TriggerTypes.TwitchEvent && !string.IsNullOrEmpty(_selectedTwitchEvent))
+        {
+            var eventInfo = TwitchEventTypeInfo.GetEventInfo(_selectedTwitchEvent);
+            return eventInfo?.DisplayName ?? _selectedTwitchEvent;
+        }
+
+        return _selectedType?.ToString() ?? "Trigger";
+    }
+
+    private string GetConfigureIcon()
+    {
+        return _selectedItem?.Icon ?? _selectedType switch
+        {
+            TriggerTypes.Command => Icons.Material.Filled.Terminal,
+            TriggerTypes.Keyword => Icons.Material.Filled.SearchOff,
+            TriggerTypes.Timer => Icons.Material.Filled.Timer,
+            TriggerTypes.TwitchEvent => Icons.Material.Filled.LiveTv,
+            TriggerTypes.DefaultCommand => Icons.Material.Filled.Functions,
+            TriggerTypes.FishCatch => Icons.Material.Filled.Phishing,
+            TriggerTypes.FishingTournamentCatch => Icons.Material.Filled.EmojiEvents,
+            TriggerTypes.FishingTournamentStart => Icons.Material.Filled.PlayCircle,
+            TriggerTypes.FishingTournamentEnd => Icons.Material.Filled.FlagCircle,
+            TriggerTypes.FishingItemBroken => Icons.Material.Filled.BrokenImage,
+            TriggerTypes.FishingAccident => Icons.Material.Filled.WarningAmber,
+            TriggerTypes.BannedSongRequest => Icons.Material.Filled.MusicOff,
+            TriggerTypes.Manual => Icons.Material.Filled.TouchApp,
+            _ => Icons.Material.Filled.Tune
+        };
+    }
+
+    private Color GetConfigureColor()
+    {
+        return _selectedItem?.Color ?? _selectedType switch
+        {
+            TriggerTypes.Command => Color.Primary,
+            TriggerTypes.Keyword => Color.Primary,
+            TriggerTypes.Timer => Color.Info,
+            TriggerTypes.TwitchEvent => Color.Secondary,
+            TriggerTypes.DefaultCommand => Color.Success,
+            TriggerTypes.FishCatch or TriggerTypes.FishingTournamentCatch or TriggerTypes.FishingTournamentStart or TriggerTypes.FishingTournamentEnd or TriggerTypes.FishingItemBroken or TriggerTypes.FishingAccident => Color.Info,
+            TriggerTypes.BannedSongRequest => Color.Error,
+            _ => Color.Default
         };
     }
 
@@ -785,9 +813,6 @@
     private void OnTwitchEventSelected(string eventName)
     {
         _selectedTwitchEvent = eventName;
-
-        // Set trigger name to the internal event name (not display name)
-        // This is what the handler will search for
         _triggerName = eventName;
     }
 
@@ -798,7 +823,6 @@
 
     private Task<IEnumerable<DefaultCommand>> SearchDefaultCommands(string value, CancellationToken token)
     {
-        // Filter to only supported commands with configured events
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko"
@@ -821,9 +845,8 @@
     private void OnDefaultCommandChanged(DefaultCommand? defaultCommand)
     {
         _selectedDefaultCommand = defaultCommand;
-        _selectedEventType = ""; // Reset event type when command changes
+        _selectedEventType = "";
 
-        // Auto-populate trigger name when both command and event are selected
         UpdateDefaultCommandTriggerName();
     }
 
@@ -895,8 +918,8 @@
             },
             "drop" or "parachute" => new List<string>
             {
-                DefaultCommandEventTypes.ParachuteWin,
                 DefaultCommandEventTypes.ParachuteBullseye,
+                DefaultCommandEventTypes.ParachuteWin,
                 DefaultCommandEventTypes.ParachuteLose
             },
             "plinko" => new List<string>
@@ -945,9 +968,37 @@
         };
     }
 
+    private string GetDefaultCommandVariablesSummary(string eventType)
+    {
+        return eventType switch
+        {
+            DefaultCommandEventTypes.GambleJackpotWin or DefaultCommandEventTypes.GambleWin or DefaultCommandEventTypes.GambleLose =>
+                "%user%, %userid%, %points_won%, %jackpot_amount%, %roll%, %multiplier%",
+            DefaultCommandEventTypes.DefuseSuccess or DefaultCommandEventTypes.DefuseFailure =>
+                "%user%, %userid%, %wire_cut%, %bomb_exploded%, %points_awarded%",
+            DefaultCommandEventTypes.RollDoubles or DefaultCommandEventTypes.RollSnakeEyes or DefaultCommandEventTypes.RollBoxcars or DefaultCommandEventTypes.RollLose =>
+                "%user%, %userid%, %die1%, %die2%, %total%, %points_won%",
+            DefaultCommandEventTypes.SlotsThreeOfAKind or DefaultCommandEventTypes.SlotsTwoOfAKind or DefaultCommandEventTypes.SlotsLose =>
+                "%user%, %userid%, %slot1%, %slot2%, %slot3%, %points_won%",
+            DefaultCommandEventTypes.StealSuccess or DefaultCommandEventTypes.StealFailed or DefaultCommandEventTypes.StealToPoor =>
+                "%user%, %userid%, %target_user%, %points_stolen%, %fine_amount%",
+            DefaultCommandEventTypes.HeistStarted or DefaultCommandEventTypes.HeistUserSurvived or DefaultCommandEventTypes.HeistUserCaught or DefaultCommandEventTypes.HeistEnded =>
+                "%user%, %userid%, %heist_name%, %heist_level%, %survivor_count%, %total_loot%, %payout%",
+            DefaultCommandEventTypes.DeathIncremented or DefaultCommandEventTypes.DeathDecremented or DefaultCommandEventTypes.DeathReset or DefaultCommandEventTypes.DeathSet =>
+                "%user%, %userid%, %game%, %newcount%, %oldcount%",
+            DefaultCommandEventTypes.WheelSpinResult =>
+                "%user%, %userid%, %segment_label%, %prize_amount%, %spin_outcome%",
+            DefaultCommandEventTypes.ParachuteBullseye or DefaultCommandEventTypes.ParachuteWin or DefaultCommandEventTypes.ParachuteLose =>
+                "%user%, %userid%, %score%, %is_bullseye%, %multiplier%, %points_awarded%",
+            DefaultCommandEventTypes.PlinkoWin or DefaultCommandEventTypes.PlinkoLose =>
+                "%user%, %userid%, %bucket_index%, %multiplier%, %points_awarded%",
+            _ => ""
+        };
+    }
+
     private bool CanSubmit()
     {
-        if (_showTypeSelection) return false;
+        if (_currentStep != WizardStep.Configure) return false;
         if (string.IsNullOrWhiteSpace(_triggerName)) return false;
         if (_selectedType.HasValue && !IsTriggerTypeAvailable(_selectedType.Value)) return false;
 
