@@ -187,6 +187,54 @@
                                     }
                                 </MudStack>
                             </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Configure the appearance, position, and visibility of the round timer, drop counters, and free-play pills.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Parachute.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner (Master display toggle for round banner)" />
+
+                                    <MudSwitch T="bool" Color="Color.Secondary"
+                                               @bind-Value="_settings.Parachute.AutoAvoidOverlap"
+                                               Label="Auto-Avoid Overlap with Plinko (Automatically stacks headers vertically when both games run simultaneously)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.HeaderPosition">
+                                                <MudSelectItem Value="@("TopCenter")">Top Center (Default)</MudSelectItem>
+                                                <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Vertical Y Offset (Pixels)" Variant="Variant.Outlined"
+                                                             Min="0" Max="500" Step="2"
+                                                             @bind-Value="_settings.Parachute.HeaderCustomYOffset"
+                                                             HelperText="Default: 18 px" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Component Visibility</MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Parachute.ShowTimer"
+                                               Label="Show Round Countdown Timer (⏳ Round Ends: mm:ss)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Parachute.ShowDropCount"
+                                               Label="Show Drops Counter (🪂 Drops: N)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Parachute.ShowFreePlayCounter"
+                                               Label="Show Free-Play Counter Pill (during non-session drops)" />
+                                </MudStack>
+                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" md="5">
@@ -446,6 +494,54 @@
                                                           HelperText="Placeholders: {count}, {duration}" />
                                         }
                                     }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Configure the appearance, position, and visibility of the round timer, token counters, and free-play pills.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Plinko.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner (Master display toggle for round banner)" />
+
+                                    <MudSwitch T="bool" Color="Color.Secondary"
+                                               @bind-Value="_settings.Plinko.AutoAvoidOverlap"
+                                               Label="Auto-Avoid Overlap with Parachute (Automatically stacks headers vertically when both games run simultaneously)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Plinko.HeaderPosition">
+                                                <MudSelectItem Value="@("TopCenter")">Top Center (Default)</MudSelectItem>
+                                                <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Vertical Y Offset (Pixels)" Variant="Variant.Outlined"
+                                                             Min="0" Max="500" Step="2"
+                                                             @bind-Value="_settings.Plinko.HeaderCustomYOffset"
+                                                             HelperText="Default: 18 px" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Component Visibility</MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowTimer"
+                                               Label="Show Round Countdown Timer (⏳ Round Ends: mm:ss)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowTokenCount"
+                                               Label="Show Tokens Counter (🪙 Tokens: N)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowFreePlayCounter"
+                                               Label="Show Free-Play Counter Pill (during non-session drops)" />
                                 </MudStack>
                             </MudPaper>
 

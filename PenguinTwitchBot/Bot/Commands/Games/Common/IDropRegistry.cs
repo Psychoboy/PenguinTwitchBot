@@ -11,5 +11,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         void CleanupExpiredDrops();
         void RegisterAllowedProxyUrl(string? url, TimeSpan? lifetime = null);
         bool IsProxyUrlAllowed(string url);
+        void SetSessionActive(DropGameType gameType, bool isActive);
+        bool IsSessionActive(DropGameType gameType);
     }
 }

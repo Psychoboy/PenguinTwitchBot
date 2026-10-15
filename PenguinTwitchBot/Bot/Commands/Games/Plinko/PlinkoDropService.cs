@@ -238,6 +238,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Plinko.ActiveThemeId);
                 _activeSession = state;
+                dropRegistry.SetSessionActive(DropGameType.Plinko, true);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute);
+
+                var headerConfig = new DropGameHeaderConfigDto
+                {
+                    AutoAvoidOverlap = settings.Plinko.AutoAvoidOverlap,
+                    ShowBanner = settings.Plinko.ShowHeaderBanner,
+                    ShowTimer = settings.Plinko.ShowTimer,
+                    ShowCount = settings.Plinko.ShowTokenCount,
+                    ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
+                    Position = settings.Plinko.HeaderPosition,
+                    YOffset = settings.Plinko.HeaderCustomYOffset
+                };
 
                 var dto = new DropGameSessionDto
                 {
@@ -250,7 +263,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     StartedAtMs = new DateTimeOffset(now).ToUnixTimeMilliseconds(),
                     EndsAtMs = new DateTimeOffset(endsAt).ToUnixTimeMilliseconds(),
                     TotalDrops = 0,
-                    Theme = theme
+                    Theme = theme,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
                 };
 
                 var board = new
@@ -261,7 +276,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     buckets = (settings.Plinko.Buckets.Count > 0 ? settings.Plinko.Buckets : PlinkoGameSettings.CreateDefaultBuckets())
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_start");
 
                 if (settings.Plinko.AnnounceSessionStatusInChat)
@@ -324,9 +339,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 logger.LogDebug(ex, "Error disposing session timer/cts for Plinko");
             }
 
+            dropRegistry.SetSessionActive(DropGameType.Plinko, false);
             var totalDrops = Volatile.Read(ref state.TotalDrops);
             var settings = await settingsService.GetSettingsAsync();
             var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Plinko.ActiveThemeId);
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute);
+
+            var headerConfig = new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = settings.Plinko.AutoAvoidOverlap,
+                ShowBanner = settings.Plinko.ShowHeaderBanner,
+                ShowTimer = settings.Plinko.ShowTimer,
+                ShowCount = settings.Plinko.ShowTokenCount,
+                ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
+                Position = settings.Plinko.HeaderPosition,
+                YOffset = settings.Plinko.HeaderCustomYOffset
+            };
 
             var dto = new DropGameSessionDto
             {
@@ -337,10 +365,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
                 EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
                 TotalDrops = totalDrops,
-                Theme = theme
+                Theme = theme,
+                IsOtherGameActive = isOtherGameActive,
+                HeaderConfig = headerConfig
             };
 
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto }, _jsonOptions);
+            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
 
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
@@ -437,6 +467,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             dropRegistry.RegisterDrop(record);
 
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute);
+            var headerConfig = new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = plinkoSettings.AutoAvoidOverlap,
+                ShowBanner = plinkoSettings.ShowHeaderBanner,
+                ShowTimer = plinkoSettings.ShowTimer,
+                ShowCount = plinkoSettings.ShowTokenCount,
+                ShowFreePlayCounter = plinkoSettings.ShowFreePlayCounter,
+                Position = plinkoSettings.HeaderPosition,
+                YOffset = plinkoSettings.HeaderCustomYOffset
+            };
+
             DropGameSessionDto? activeSessionDto = null;
             var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
             var state = _activeSession;
@@ -454,7 +496,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
                     EndsAtMs = new DateTimeOffset(state.EndsAtUtc).ToUnixTimeMilliseconds(),
                     TotalDrops = Volatile.Read(ref state.TotalDrops),
-                    Theme = theme
+                    Theme = theme,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
                 };
             }
 
@@ -468,6 +512,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
                 session = activeSessionDto,
+                isOtherGameActive,
+                headerConfig,
                 board = new
                 {
                     rowCount = rows,

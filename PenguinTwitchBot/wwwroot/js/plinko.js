@@ -449,6 +449,20 @@
         visibleUntil: 0
     };
 
+    let headerConfig = {
+        autoAvoidOverlap: true,
+        showBanner: true,
+        showTimer: true,
+        showCount: true,
+        showFreePlayCounter: true,
+        position: 'top-center',
+        yOffset: 18
+    };
+
+    let isOtherGameActive = false;
+    let otherDropsActiveUntilMs = 0;
+    let currentBannerY = 18;
+
     try {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('pegTransparency')) {
@@ -457,7 +471,41 @@
                 boardConfig.pegTransparency = Math.max(0, Math.min(100, parsed));
             }
         }
+        if (urlParams.has('headerPos')) {
+            headerConfig.position = urlParams.get('headerPos');
+        }
+        if (urlParams.has('yOffset')) {
+            const parsed = parseInt(urlParams.get('yOffset'), 10);
+            if (!isNaN(parsed)) headerConfig.yOffset = parsed;
+        }
+        if (urlParams.has('autoAvoid')) {
+            headerConfig.autoAvoidOverlap = urlParams.get('autoAvoid') !== 'false' && urlParams.get('autoAvoid') !== '0';
+        }
+        if (urlParams.has('showBanner')) {
+            headerConfig.showBanner = urlParams.get('showBanner') !== 'false' && urlParams.get('showBanner') !== '0';
+        }
+        if (urlParams.has('showTimer')) {
+            headerConfig.showTimer = urlParams.get('showTimer') !== 'false' && urlParams.get('showTimer') !== '0';
+        }
+        if (urlParams.has('showCount')) {
+            headerConfig.showCount = urlParams.get('showCount') !== 'false' && urlParams.get('showCount') !== '0';
+        }
+        if (urlParams.has('showFreePlay')) {
+            headerConfig.showFreePlayCounter = urlParams.get('showFreePlay') !== 'false' && urlParams.get('showFreePlay') !== '0';
+        }
+        currentBannerY = headerConfig.yOffset;
     } catch (_) {}
+
+    function applyHeaderConfig(cfg) {
+        if (!cfg) return;
+        if (typeof cfg.autoAvoidOverlap === 'boolean') headerConfig.autoAvoidOverlap = cfg.autoAvoidOverlap;
+        if (typeof cfg.showBanner === 'boolean') headerConfig.showBanner = cfg.showBanner;
+        if (typeof cfg.showTimer === 'boolean') headerConfig.showTimer = cfg.showTimer;
+        if (typeof cfg.showCount === 'boolean') headerConfig.showCount = cfg.showCount;
+        if (typeof cfg.showFreePlayCounter === 'boolean') headerConfig.showFreePlayCounter = cfg.showFreePlayCounter;
+        if (typeof cfg.position === 'string' && cfg.position) headerConfig.position = cfg.position;
+        if (typeof cfg.yOffset === 'number' && !isNaN(cfg.yOffset)) headerConfig.yOffset = cfg.yOffset;
+    }
 
     let sessionState = {
         isActive: false,
@@ -474,7 +522,7 @@
     const confettiParticles = [];
     const pendingCompletions = [];
 
-    const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko]);
+    const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko, window.WS_TOPICS.parachute]);
 
     function sendCompletion(token, winningBucketIndex) {
         if (!token) return;
@@ -534,6 +582,43 @@
         try {
             msg = JSON.parse(event.data);
         } catch (_) {
+            return;
+        }
+
+        if (msg.headerConfig) {
+            applyHeaderConfig(msg.headerConfig);
+        }
+        if (msg.session) {
+            if (typeof msg.session.isOtherGameActive === 'boolean') {
+                isOtherGameActive = msg.session.isOtherGameActive;
+            }
+            if (msg.session.headerConfig) {
+                applyHeaderConfig(msg.session.headerConfig);
+            }
+        }
+        if (typeof msg.isOtherGameActive === 'boolean') {
+            isOtherGameActive = msg.isOtherGameActive;
+        }
+
+        // Cross-game session detection (Parachute started/ended)
+        if (msg.type === 'session_start' && msg.session && msg.session.gameType === 'parachute') {
+            isOtherGameActive = true;
+            return;
+        }
+        if (msg.type === 'session_end' && msg.session && msg.session.gameType === 'parachute') {
+            isOtherGameActive = false;
+            return;
+        }
+
+        // Cross-game free play detection (Parachute drops active on stream)
+        if (msg.type === 'parachute_drop') {
+            const p = msg.trajectory || msg.physics;
+            const durSec = (p && p.durationSeconds) ? p.durationSeconds : 6.5;
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + (durSec + 6.0) * 1000);
+            return;
+        }
+        if (msg.type === 'parachute_droplets') {
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + 8000);
             return;
         }
 
@@ -1680,16 +1765,35 @@
         requestAnimationFrame(animate);
     }
 
+    function getBannerX(bannerW) {
+        const pos = (headerConfig.position || 'top-center').toLowerCase().replace(/[-_]/g, '');
+        if (pos === 'topleft') return 24;
+        if (pos === 'topright') return width - bannerW - 24;
+        return (width - bannerW) / 2;
+    }
+
     function drawSessionBanner(now) {
+        // Auto-Avoid Overlap: When other game (Parachute) is active and autoAvoidOverlap is true,
+        // stack Plinko underneath (Row 2, +54px)
+        let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
+        if (headerConfig.autoAvoidOverlap !== false && (isOtherGameActive || now < otherDropsActiveUntilMs)) {
+            targetY += 54;
+        }
+        currentBannerY += (targetY - currentBannerY) * 0.15;
+        const bannerY = Math.round(currentBannerY);
+
         if (!sessionState.isActive) {
             if (sessionState.endedAtMs) {
                 const ageSec = (now - sessionState.endedAtMs) / 1000;
                 if (ageSec <= 6.0) {
+                    if (headerConfig.showBanner === false) return;
+
                     // Flash completed round banner
                     const bannerW = Math.min(width * 0.72, 480);
                     const bannerH = 46;
-                    const bannerX = (width - bannerW) / 2;
-                    const bannerY = 18;
+                    const bannerX = getBannerX(bannerW);
+                    const bannerCenterX = bannerX + bannerW / 2;
+
                     ctx.save();
                     const alpha = Math.max(0, 1.0 - (ageSec / 6.0));
                     ctx.globalAlpha = alpha;
@@ -1708,7 +1812,7 @@
                     ctx.fillStyle = '#34D399';
                     ctx.shadowColor = 'rgba(0,0,0,0.85)';
                     ctx.shadowBlur = 6;
-                    ctx.fillText(`🎉 Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, width / 2, bannerY + bannerH / 2);
+                    ctx.fillText(`🎉 Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, bannerCenterX, bannerY + bannerH / 2);
                     ctx.restore();
                     return;
                 } else {
@@ -1721,18 +1825,17 @@
 
             // Free Play mode: only show while tokens are actively on screen!
             const hasActiveToken = activeTokens.some(t => !t.completed || (now - t.completedAtMs) < 6000);
-            if (hasActiveToken && sessionState.totalDrops > 0) {
+            if (hasActiveToken && sessionState.totalDrops > 0 && headerConfig.showFreePlayCounter !== false) {
                 ctx.save();
                 const pillW = 210;
                 const pillH = 38;
-                const pillX = (width - pillW) / 2;
-                const pillY = 16;
+                const pillX = getBannerX(pillW);
 
                 ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
                 ctx.strokeStyle = currentTheme.primaryColor || '#FF8FA3';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.roundRect(pillX, pillY, pillW, pillH, 19);
+                ctx.roundRect(pillX, bannerY, pillW, pillH, 19);
                 ctx.fill();
                 ctx.stroke();
 
@@ -1742,7 +1845,7 @@
                 ctx.fillStyle = '#FFFFFF';
                 ctx.shadowColor = 'rgba(0,0,0,0.85)';
                 ctx.shadowBlur = 6;
-                ctx.fillText(`🪙 Tokens: ${sessionState.totalDrops}`, width / 2, pillY + pillH / 2);
+                ctx.fillText(`🪙 Tokens: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
                 ctx.restore();
             } else if (!hasActiveToken && activeTokens.length === 0) {
                 sessionState.totalDrops = 0;
@@ -1750,66 +1853,70 @@
             return;
         }
 
-        ctx.save();
-        const bannerW = Math.min(width * 0.72, 480);
+        if (headerConfig.showBanner === false) return;
+
+        const showTimer = headerConfig.showTimer !== false;
+        const showCount = headerConfig.showCount !== false;
+
+        // Dynamic banner width based on visible items
+        let bannerW;
+        if (showTimer && showCount) {
+            bannerW = Math.min(width * 0.72, 480);
+        } else if (showTimer) {
+            bannerW = Math.min(width * 0.45, 270);
+        } else if (showCount) {
+            bannerW = Math.min(width * 0.40, 230);
+        } else {
+            bannerW = Math.min(width * 0.35, 180);
+        }
+
         const bannerH = 46;
-        const bannerX = (width - bannerW) / 2;
-        const bannerY = 18;
+        const bannerX = getBannerX(bannerW);
+        const bannerCenterX = bannerX + bannerW / 2;
 
-        if (sessionState.isActive) {
-            const remainingSec = Math.max(0, Math.ceil((sessionState.endsAtMs - now) / 1000));
-            const totalSec = Math.max(1, sessionState.totalDurationSeconds || 100);
-            const progress = Math.max(0, Math.min(1, remainingSec / totalSec));
+        ctx.save();
+        const remainingSec = Math.max(0, Math.ceil((sessionState.endsAtMs - now) / 1000));
+        const totalSec = Math.max(1, sessionState.totalDurationSeconds || 100);
+        const progress = Math.max(0, Math.min(1, remainingSec / totalSec));
 
-            const mins = Math.floor(remainingSec / 60);
-            const secs = remainingSec % 60;
-            const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
-            // Semi-transparent pill backdrop
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
-            ctx.strokeStyle = currentTheme.primaryColor || '#FF8FA3';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 23);
-            ctx.fill();
-            ctx.stroke();
+        // Semi-transparent pill backdrop
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        ctx.strokeStyle = currentTheme.primaryColor || '#FF8FA3';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 23);
+        ctx.fill();
+        ctx.stroke();
 
-            // Progress bar at bottom of pill
-            const barW = (bannerW - 32) * progress;
-            ctx.fillStyle = currentTheme.accentColor || '#FFE066';
-            ctx.beginPath();
-            ctx.roundRect(bannerX + 16, bannerY + bannerH - 8, barW, 4, 2);
-            ctx.fill();
+        // Progress bar at bottom of pill
+        const barW = (bannerW - 32) * progress;
+        ctx.fillStyle = currentTheme.accentColor || '#FFE066';
+        ctx.beginPath();
+        ctx.roundRect(bannerX + 16, bannerY + bannerH - 8, barW, 4, 2);
+        ctx.fill();
 
-            // Banner text
+        // Banner text
+        let bannerText = '';
+        if (showTimer && showCount) {
+            bannerText = `⏳ Round Ends: ${timeStr}  |  🪙 Tokens: ${sessionState.totalDrops}`;
+        } else if (showTimer) {
+            bannerText = `⏳ Round Ends: ${timeStr}`;
+        } else if (showCount) {
+            bannerText = `🪙 Tokens: ${sessionState.totalDrops}`;
+        }
+
+        if (bannerText) {
             ctx.font = '700 17px Fredoka, Rubik, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#FFFFFF';
             ctx.shadowColor = 'rgba(0,0,0,0.85)';
             ctx.shadowBlur = 6;
-            ctx.fillText(`⏳ Round Ends: ${timeStr}  |  🪙 Tokens: ${sessionState.totalDrops}`, width / 2, bannerY + bannerH / 2 - 2);
-        } else {
-            // Flash completed banner
-            const ageSec = (now - sessionState.endedAtMs) / 1000;
-            const alpha = Math.max(0, 1.0 - (ageSec / 6.0));
-            ctx.globalAlpha = alpha;
-
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-            ctx.strokeStyle = '#10B981';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 23);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.font = '700 17px Fredoka, Rubik, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#34D399';
-            ctx.shadowColor = 'rgba(0,0,0,0.85)';
-            ctx.shadowBlur = 6;
-            ctx.fillText(`🎉 Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, width / 2, bannerY + bannerH / 2);
+            ctx.fillText(bannerText, bannerCenterX, bannerY + bannerH / 2 - 2);
         }
         ctx.restore();
     }

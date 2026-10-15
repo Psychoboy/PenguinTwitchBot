@@ -262,6 +262,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 state.BullseyeHalfWidth = bullseyeHalfWidth;
 
                 _activeSession = state;
+                dropRegistry.SetSessionActive(DropGameType.Parachute, true);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+
+                var headerConfig = new DropGameHeaderConfigDto
+                {
+                    AutoAvoidOverlap = settings.Parachute.AutoAvoidOverlap,
+                    ShowBanner = settings.Parachute.ShowHeaderBanner,
+                    ShowTimer = settings.Parachute.ShowTimer,
+                    ShowCount = settings.Parachute.ShowDropCount,
+                    ShowFreePlayCounter = settings.Parachute.ShowFreePlayCounter,
+                    Position = settings.Parachute.HeaderPosition,
+                    YOffset = settings.Parachute.HeaderCustomYOffset
+                };
 
                 var dto = new DropGameSessionDto
                 {
@@ -277,10 +290,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     Theme = theme,
                     TargetCenterX = state.TargetCenterX,
                     TargetHalfWidth = state.TargetHalfWidth,
-                    BullseyeHalfWidth = state.BullseyeHalfWidth
+                    BullseyeHalfWidth = state.BullseyeHalfWidth,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_start");
 
                 if (settings.Parachute.AnnounceSessionStatusInChat)
@@ -343,9 +358,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 logger.LogDebug(ex, "Error disposing session timer/cts for Parachute");
             }
 
+            dropRegistry.SetSessionActive(DropGameType.Parachute, false);
             var totalDrops = Volatile.Read(ref state.TotalDrops);
             var settings = await settingsService.GetSettingsAsync();
             var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Parachute.ActiveThemeId);
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+
+            var headerConfig = new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = settings.Parachute.AutoAvoidOverlap,
+                ShowBanner = settings.Parachute.ShowHeaderBanner,
+                ShowTimer = settings.Parachute.ShowTimer,
+                ShowCount = settings.Parachute.ShowDropCount,
+                ShowFreePlayCounter = settings.Parachute.ShowFreePlayCounter,
+                Position = settings.Parachute.HeaderPosition,
+                YOffset = settings.Parachute.HeaderCustomYOffset
+            };
 
             var dto = new DropGameSessionDto
             {
@@ -359,10 +387,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 Theme = theme,
                 TargetCenterX = state.TargetCenterX,
                 TargetHalfWidth = state.TargetHalfWidth,
-                BullseyeHalfWidth = state.BullseyeHalfWidth
+                BullseyeHalfWidth = state.BullseyeHalfWidth,
+                IsOtherGameActive = isOtherGameActive,
+                HeaderConfig = headerConfig
             };
 
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto }, _jsonOptions);
+            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_end");
 
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
@@ -506,6 +536,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             dropRegistry.RegisterDrop(record);
 
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+            var headerConfig = new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = pSettings.AutoAvoidOverlap,
+                ShowBanner = pSettings.ShowHeaderBanner,
+                ShowTimer = pSettings.ShowTimer,
+                ShowCount = pSettings.ShowDropCount,
+                ShowFreePlayCounter = pSettings.ShowFreePlayCounter,
+                Position = pSettings.HeaderPosition,
+                YOffset = pSettings.HeaderCustomYOffset
+            };
+
             DropGameSessionDto? activeSessionDto = null;
             var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
             if (currentSessionState != null && currentSessionState.EndsAtUtc > now)
@@ -525,7 +567,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     Theme = theme,
                     TargetCenterX = currentSessionState.TargetCenterX,
                     TargetHalfWidth = currentSessionState.TargetHalfWidth,
-                    BullseyeHalfWidth = currentSessionState.BullseyeHalfWidth
+                    BullseyeHalfWidth = currentSessionState.BullseyeHalfWidth,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
                 };
             }
 
@@ -564,6 +608,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
                 session = activeSessionDto,
+                isOtherGameActive,
+                headerConfig,
                 trajectory = trajectoryObj,
                 physics = trajectoryObj
             };

@@ -145,5 +145,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 }
             }
         }
+
+        private readonly ConcurrentDictionary<DropGameType, bool> _activeSessions = new();
+
+        public void SetSessionActive(DropGameType gameType, bool isActive)
+        {
+            _activeSessions[gameType] = isActive;
+        }
+
+        public bool IsSessionActive(DropGameType gameType)
+        {
+            return _activeSessions.TryGetValue(gameType, out var active) && active;
+        }
     }
 }

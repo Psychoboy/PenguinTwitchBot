@@ -1444,5 +1444,139 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(record.WinChatAnnounced);
             _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Once);
         }
+
+        [Fact]
+        public void DropRegistry_SetSessionActive_TracksStateCorrectly()
+        {
+            var registry = CreateDropRegistry();
+
+            Assert.False(registry.IsSessionActive(DropGameType.Parachute));
+            Assert.False(registry.IsSessionActive(DropGameType.Plinko));
+
+            registry.SetSessionActive(DropGameType.Parachute, true);
+            Assert.True(registry.IsSessionActive(DropGameType.Parachute));
+            Assert.False(registry.IsSessionActive(DropGameType.Plinko));
+
+            registry.SetSessionActive(DropGameType.Plinko, true);
+            Assert.True(registry.IsSessionActive(DropGameType.Parachute));
+            Assert.True(registry.IsSessionActive(DropGameType.Plinko));
+
+            registry.SetSessionActive(DropGameType.Parachute, false);
+            Assert.False(registry.IsSessionActive(DropGameType.Parachute));
+            Assert.True(registry.IsSessionActive(DropGameType.Plinko));
+        }
+
+        [Fact]
+        public void ParachuteAndPlinkoSettings_HeaderDefaults_AreConfiguredCorrectly()
+        {
+            var parachute = new ParachuteGameSettings();
+            Assert.True(parachute.AutoAvoidOverlap);
+            Assert.True(parachute.ShowHeaderBanner);
+            Assert.True(parachute.ShowTimer);
+            Assert.True(parachute.ShowDropCount);
+            Assert.True(parachute.ShowFreePlayCounter);
+            Assert.Equal("TopCenter", parachute.HeaderPosition);
+            Assert.Equal(18, parachute.HeaderCustomYOffset);
+
+            var plinko = new PlinkoGameSettings();
+            Assert.True(plinko.AutoAvoidOverlap);
+            Assert.True(plinko.ShowHeaderBanner);
+            Assert.True(plinko.ShowTimer);
+            Assert.True(plinko.ShowTokenCount);
+            Assert.True(plinko.ShowFreePlayCounter);
+            Assert.Equal("TopCenter", plinko.HeaderPosition);
+            Assert.Equal(18, plinko.HeaderCustomYOffset);
+        }
+
+        [Fact]
+        public async Task ParachuteDropService_StartSessionAsync_IncludesHeaderConfigAndOtherGameStatus()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(settingsService, registry);
+
+            // Simulate Plinko session active
+            registry.SetSessionActive(DropGameType.Plinko, true);
+
+            string? broadcastPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Parachute, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => broadcastPayload = p)
+                .Returns(Task.CompletedTask);
+
+            var session = await sut.StartSessionAsync(durationSeconds: 60);
+
+            Assert.True(session.IsActive);
+            Assert.True(session.IsOtherGameActive);
+            Assert.NotNull(session.HeaderConfig);
+            Assert.True(session.HeaderConfig.AutoAvoidOverlap);
+            Assert.True(session.HeaderConfig.ShowBanner);
+            Assert.True(session.HeaderConfig.ShowTimer);
+            Assert.True(session.HeaderConfig.ShowCount);
+            Assert.Equal("TopCenter", session.HeaderConfig.Position);
+            Assert.Equal(18, session.HeaderConfig.YOffset);
+
+            Assert.NotNull(broadcastPayload);
+            Assert.Contains("\"headerConfig\"", broadcastPayload);
+            Assert.Contains("\"isOtherGameActive\":true", broadcastPayload);
+        }
+
+        [Fact]
+        public async Task PlinkoDropService_StartSessionAsync_IncludesHeaderConfigAndOtherGameStatus()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreatePlinkoService(settingsService, registry);
+
+            // Simulate Parachute session active
+            registry.SetSessionActive(DropGameType.Parachute, true);
+
+            string? broadcastPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Plinko, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => broadcastPayload = p)
+                .Returns(Task.CompletedTask);
+
+            var session = await sut.StartSessionAsync(durationSeconds: 60);
+
+            Assert.True(session.IsActive);
+            Assert.True(session.IsOtherGameActive);
+            Assert.NotNull(session.HeaderConfig);
+            Assert.True(session.HeaderConfig.AutoAvoidOverlap);
+            Assert.True(session.HeaderConfig.ShowBanner);
+            Assert.True(session.HeaderConfig.ShowTimer);
+            Assert.True(session.HeaderConfig.ShowCount);
+            Assert.Equal("TopCenter", session.HeaderConfig.Position);
+            Assert.Equal(18, session.HeaderConfig.YOffset);
+
+            Assert.NotNull(broadcastPayload);
+            Assert.Contains("\"headerConfig\"", broadcastPayload);
+            Assert.Contains("\"isOtherGameActive\":true", broadcastPayload);
+        }
+
+        [Fact]
+        public async Task DropServices_TriggerDrops_TransmitHeaderConfig()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(settingsService, registry);
+            var plinkoSut = CreatePlinkoService(settingsService, registry);
+
+            string? parachuteDropPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Parachute, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => parachuteDropPayload = p)
+                .Returns(Task.CompletedTask);
+
+            await parachuteSut.TriggerParachuteDropAsync(new CommandEventArgs { Name = "viewer1", DisplayName = "Viewer1" });
+            Assert.NotNull(parachuteDropPayload);
+            Assert.Contains("\"headerConfig\"", parachuteDropPayload);
+
+            string? plinkoDropPayload = null;
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Plinko, It.IsAny<string>()))
+                .Callback<string, string>((_, p) => plinkoDropPayload = p)
+                .Returns(Task.CompletedTask);
+
+            await plinkoSut.TriggerPlinkoDropAsync(new CommandEventArgs { Name = "viewer2", DisplayName = "Viewer2" });
+            Assert.NotNull(plinkoDropPayload);
+            Assert.Contains("\"headerConfig\"", plinkoDropPayload);
+        }
     }
 }

@@ -194,6 +194,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "🪂 Parachute Drop is now OPEN for {duration}s! Type !drop [emote] to join!";
         public string SessionEndChatMessageTemplate { get; set; } = "🪂 Parachute Drop round is now CLOSED! {count} total parachutists dropped!";
+
+        // Overlay Header & Display settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowDropCount { get; set; } = true;
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
+        public int HeaderCustomYOffset { get; set; } = 18;
     }
 
     public class PlinkoGameSettings
@@ -221,6 +230,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "🪙 Plinko Bounce is now OPEN for {duration}s! Type !plinko [emote] to join!";
         public string SessionEndChatMessageTemplate { get; set; } = "🪙 Plinko Bounce round is now CLOSED! {count} total tokens dropped!";
+
+        // Overlay Header & Display settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowTokenCount { get; set; } = true;
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
+        public int HeaderCustomYOffset { get; set; } = 18;
 
         public static List<PlinkoBucket> CreateDefaultBuckets() =>
         [
@@ -495,6 +513,36 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("bullseyeHalfWidth")]
         public double? BullseyeHalfWidth { get; set; }
+
+        [JsonPropertyName("isOtherGameActive")]
+        public bool IsOtherGameActive { get; set; }
+
+        [JsonPropertyName("headerConfig")]
+        public DropGameHeaderConfigDto? HeaderConfig { get; set; }
+    }
+
+    public class DropGameHeaderConfigDto
+    {
+        [JsonPropertyName("autoAvoidOverlap")]
+        public bool AutoAvoidOverlap { get; set; } = true;
+
+        [JsonPropertyName("showBanner")]
+        public bool ShowBanner { get; set; } = true;
+
+        [JsonPropertyName("showTimer")]
+        public bool ShowTimer { get; set; } = true;
+
+        [JsonPropertyName("showCount")]
+        public bool ShowCount { get; set; } = true;
+
+        [JsonPropertyName("showFreePlayCounter")]
+        public bool ShowFreePlayCounter { get; set; } = true;
+
+        [JsonPropertyName("position")]
+        public string Position { get; set; } = "TopCenter";
+
+        [JsonPropertyName("yOffset")]
+        public int YOffset { get; set; } = 18;
     }
 }
 
