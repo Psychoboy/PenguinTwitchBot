@@ -262,7 +262,7 @@
                                     </MudGrid>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
                                             <MudSelect T="string" Label="Default Droplet Size" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Parachute.DefaultDropletSize">
                                                 <MudSelectItem Value="@("Small")">Small (Light nudge)</MudSelectItem>
@@ -272,7 +272,22 @@
                                                 <MudSelectItem Value="@("Random")">Random Mix</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
-                                        <MudItem xs="12" sm="4">
+                                        @if (_settings.Parachute.DefaultDropletSize == "Random")
+                                        {
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Random Sizes Pool" MultiSelection="true"
+                                                           SelectedValues="_selectedRandomDropletSizes"
+                                                           SelectedValuesChanged="OnSelectedRandomDropletSizesChanged"
+                                                           Variant="Variant.Outlined"
+                                                           HelperText="Choose which sizes can be rolled when Random is selected">
+                                                    <MudSelectItem T="string" Value="@("Small")">Small (Light nudge)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Medium")">Medium (Standard)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Large")">Large (Heavy bump)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Giant")">Giant (Massive knockback)</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                        }
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
                                             <MudSelect T="string" Label="Default Droplet Speed" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Parachute.DefaultDropletSpeed">
                                                 <MudSelectItem Value="@("Slow")">Slow (0.6x)</MudSelectItem>
@@ -282,7 +297,7 @@
                                                 <MudSelectItem Value="@("Random")">Random Mix</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
                                             <MudSelect T="string" Label="Default Spawn Pattern" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Parachute.DefaultDropletPattern">
                                                 <MudSelectItem Value="@("Targeted")">Targeted (Intercepts active parachutists)</MudSelectItem>
@@ -682,11 +697,18 @@
     private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
+    private IReadOnlyCollection<string> _selectedRandomDropletSizes = new HashSet<string>(["Small", "Medium", "Large", "Giant"]);
 
     protected override async Task OnInitializedAsync()
     {
         _settings = await SettingsService.GetSettingsAsync();
         _selectedTheme = _settings.Themes.FirstOrDefault();
+
+        if (_settings.Parachute.DefaultDropletRandomSizes == null || _settings.Parachute.DefaultDropletRandomSizes.Count == 0)
+        {
+            _settings.Parachute.DefaultDropletRandomSizes = ["Small", "Medium", "Large", "Giant"];
+        }
+        _selectedRandomDropletSizes = new HashSet<string>(_settings.Parachute.DefaultDropletRandomSizes, StringComparer.OrdinalIgnoreCase);
 
         var actions = await ActionManagementService.GetAllActionsAsync();
         _actionNames = actions
@@ -695,6 +717,20 @@
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private void OnSelectedRandomDropletSizesChanged(IReadOnlyCollection<string> values)
+    {
+        var list = values?.ToList() ?? [];
+        if (list.Count == 0)
+        {
+            list = ["Small", "Medium", "Large", "Giant"];
+        }
+        _selectedRandomDropletSizes = new HashSet<string>(list, StringComparer.OrdinalIgnoreCase);
+        if (_settings != null)
+        {
+            _settings.Parachute.DefaultDropletRandomSizes = list;
+        }
     }
 
     private void OnSelectedThemeChanged(DropGameTheme? theme)
@@ -714,6 +750,7 @@
         _settings = new DropGamesSettings();
         DropGamesSettingsService.EnsureStockThemes(_settings);
         _selectedTheme = _settings.Themes.FirstOrDefault();
+        _selectedRandomDropletSizes = new HashSet<string>(_settings.Parachute.DefaultDropletRandomSizes, StringComparer.OrdinalIgnoreCase);
         await SettingsService.SaveSettingsAsync(_settings);
         Snackbar.Add("All game settings have been reset to default baseline values!", Severity.Warning);
     }
@@ -868,6 +905,7 @@
         {
             Count = _settings.Parachute.DefaultDropletCount,
             SizePreset = _settings.Parachute.DefaultDropletSize,
+            AllowedRandomSizes = _settings.Parachute.DefaultDropletRandomSizes,
             SpeedPreset = _settings.Parachute.DefaultDropletSpeed,
             SpawnPattern = _settings.Parachute.DefaultDropletPattern,
             KnockbackMultiplier = _settings.Parachute.DefaultKnockbackMultiplier,

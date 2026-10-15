@@ -77,7 +77,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                         new SelectOption { Value = "Medium", Name = "Medium (Standard)" },
                         new SelectOption { Value = "Large", Name = "Large (Heavy bump)" },
                         new SelectOption { Value = "Giant", Name = "Giant (Massive knockback)" },
-                        new SelectOption { Value = "Random", Name = "Random Mix" }
+                        new SelectOption { Value = "Random", Name = "Random (Default Channel Pool)" },
+                        new SelectOption { Value = "Random:Small,Medium", Name = "Random: Small & Medium" },
+                        new SelectOption { Value = "Random:Medium,Large", Name = "Random: Medium & Large" },
+                        new SelectOption { Value = "Random:Large,Giant", Name = "Random: Large & Giant" },
+                        new SelectOption { Value = "Random:Small,Medium,Large,Giant", Name = "Random: All Sizes" }
                     ]
                 },
                 new()

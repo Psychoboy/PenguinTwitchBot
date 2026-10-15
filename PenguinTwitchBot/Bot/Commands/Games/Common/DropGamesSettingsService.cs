@@ -142,6 +142,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 settings.Plinko.Buckets = settings.Plinko.Buckets.Skip(settings.Plinko.Buckets.Count - 7).ToList();
             }
+
+            if (settings.Parachute.DefaultDropletRandomSizes == null || settings.Parachute.DefaultDropletRandomSizes.Count == 0)
+            {
+                settings.Parachute.DefaultDropletRandomSizes = ["Small", "Medium", "Large", "Giant"];
+            }
         }
     }
 }

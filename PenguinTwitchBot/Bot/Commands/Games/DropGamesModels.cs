@@ -119,6 +119,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Default Droplets settings
         public int DefaultDropletCount { get; set; } = 5;
         public string DefaultDropletSize { get; set; } = "Medium"; // Small, Medium, Large, Giant, Random
+        public List<string> DefaultDropletRandomSizes { get; set; } = ["Small", "Medium", "Large", "Giant"];
         public string DefaultDropletSpeed { get; set; } = "Normal"; // Slow, Normal, Fast, Hyper, Random
         public string DefaultDropletPattern { get; set; } = "TopRain"; // TopRain, Targeted, SideWind, Fountain
         public double DefaultKnockbackMultiplier { get; set; } = 1.0;
@@ -177,6 +178,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     {
         public int Count { get; set; } = 5;
         public string SizePreset { get; set; } = "Medium";
+        public List<string>? AllowedRandomSizes { get; set; }
         public string SpeedPreset { get; set; } = "Normal";
         public string SpawnPattern { get; set; } = "Targeted";
         public double KnockbackMultiplier { get; set; } = 1.0;

@@ -248,6 +248,67 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public void DropletPatternGenerator_ResolveDropletSize_RespectsAllowedRandomSizesPool()
+        {
+            // 1. Single allowed size in pool
+            for (int i = 0; i < 20; i++)
+            {
+                var (label, scale, radius, mass) = DropletPatternGenerator.ResolveDropletSize("Random", ["Giant"]);
+                Assert.Equal("Giant", label);
+                Assert.Equal(2.0, scale);
+            }
+
+            // 2. Specific subset pool: Small and Medium only
+            var allowedSmallMedium = new List<string> { "Small", "Medium" };
+            for (int i = 0; i < 50; i++)
+            {
+                var (label, _, _, _) = DropletPatternGenerator.ResolveDropletSize("Random", allowedSmallMedium);
+                Assert.True(label == "Small" || label == "Medium", $"Expected Small or Medium, got {label}");
+            }
+
+            // 3. String preset with colon notation: "Random:Large,Giant"
+            for (int i = 0; i < 50; i++)
+            {
+                var (label, _, _, _) = DropletPatternGenerator.ResolveDropletSize("Random:Large,Giant");
+                Assert.True(label == "Large" || label == "Giant", $"Expected Large or Giant, got {label}");
+            }
+
+            // 4. Fallback to all sizes when pool is empty or null
+            var allObserved = new HashSet<string>();
+            for (int i = 0; i < 100; i++)
+            {
+                var (label, _, _, _) = DropletPatternGenerator.ResolveDropletSize("Random", []);
+                allObserved.Add(label);
+            }
+            Assert.Contains("Small", allObserved);
+            Assert.Contains("Medium", allObserved);
+        }
+
+        [Fact]
+        public async Task SpawnDropletsAsync_WithAllowedRandomSizes_SpawnsOnlyAllowedSizes()
+        {
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(dropRegistry: registry);
+
+            var spawned = await sut.SpawnDropletsAsync(new DropletSpawnRequest
+            {
+                Count = 15,
+                SizePreset = "Random",
+                AllowedRandomSizes = ["Small", "Large"],
+                SpeedPreset = "Normal",
+                SpawnPattern = "TopRain"
+            });
+
+            Assert.Equal(15, spawned.Count);
+            foreach (var droplet in spawned)
+            {
+                Assert.True(droplet.SizeLabel == "Small" || droplet.SizeLabel == "Large",
+                    $"Expected droplet size to be Small or Large, but was {droplet.SizeLabel}");
+                Assert.True(droplet.SizeScale == 0.60 || droplet.SizeScale == 1.50);
+            }
+        }
+
+        [Fact]
         public async Task CompleteDropAsync_EnforcesTamperProofTokenSecurity_SingleUse_AndTriggersWinActions()
         {
             var settingsService = CreateSettingsService();

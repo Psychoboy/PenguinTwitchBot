@@ -8,21 +8,25 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         public const double TickRateHz = 60.0;
         public const double Dt = 1.0 / TickRateHz;
 
-        public static (string Label, double Scale, double Radius, double Mass) ResolveDropletSize(string preset)
+        public static (string Label, double Scale, double Radius, double Mass) ResolveDropletSize(
+            string preset,
+            IEnumerable<string>? allowedRandomSizes = null)
         {
             var normalized = preset?.Trim() ?? "Medium";
-            if (normalized.Equals("Random", StringComparison.OrdinalIgnoreCase))
+
+            if (normalized.StartsWith("Random:", StringComparison.OrdinalIgnoreCase))
             {
-                // Weighted selection matching PixelPlush's [1, .5, .5, .5, .5, .5] distribution
-                // ~17% Large/Giant, ~83% Small/Medium
-                var roll = RandomNumberGenerator.GetInt32(0, 100);
-                normalized = roll switch
-                {
-                    < 25 => "Small",
-                    < 75 => "Medium",
-                    < 92 => "Large",
-                    _ => "Giant"
-                };
+                var rawPool = normalized["Random:".Length..].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                normalized = PickFromAllowedSizes(rawPool);
+            }
+            else if (normalized.Equals("Random", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = PickFromAllowedSizes(allowedRandomSizes);
+            }
+            else if (normalized.Contains(','))
+            {
+                var rawPool = normalized.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                normalized = PickFromAllowedSizes(rawPool);
             }
 
             return normalized.ToLowerInvariant() switch
@@ -32,6 +36,58 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 "giant" => ("Giant", 2.00, 0.058, 2.80),
                 _ => ("Medium", 1.00, 0.028, 1.00)
             };
+        }
+
+        private static string PickFromAllowedSizes(IEnumerable<string>? candidateSizes)
+        {
+            var validSizes = (candidateSizes ?? [])
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Where(s => s.Equals("Small", StringComparison.OrdinalIgnoreCase) ||
+                            s.Equals("Medium", StringComparison.OrdinalIgnoreCase) ||
+                            s.Equals("Large", StringComparison.OrdinalIgnoreCase) ||
+                            s.Equals("Giant", StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (validSizes.Count == 0)
+            {
+                validSizes = ["Small", "Medium", "Large", "Giant"];
+            }
+
+            if (validSizes.Count == 1)
+            {
+                return validSizes[0];
+            }
+
+            // Weighted selection matching PixelPlush distribution:
+            // Small (~25%), Medium (~50%), Large (~17%), Giant (~8%)
+            var weights = validSizes.ToDictionary(
+                s => s,
+                s => s.ToLowerInvariant() switch
+                {
+                    "small" => 25,
+                    "medium" => 50,
+                    "large" => 17,
+                    "giant" => 8,
+                    _ => 25
+                },
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            var totalWeight = weights.Values.Sum();
+            var roll = RandomNumberGenerator.GetInt32(0, totalWeight);
+            var accum = 0;
+            foreach (var (size, weight) in weights)
+            {
+                accum += weight;
+                if (roll < accum)
+                {
+                    return size;
+                }
+            }
+
+            return validSizes[0];
         }
 
         public static (string Label, double Scale) ResolveDropletSpeed(string preset)

@@ -579,6 +579,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var count = Math.Clamp(request.Count > 0 ? request.Count : pSettings.DefaultDropletCount, 1, 30);
             var sizePreset = !string.IsNullOrWhiteSpace(request.SizePreset) ? request.SizePreset : pSettings.DefaultDropletSize;
+            var allowedSizes = (request.AllowedRandomSizes != null && request.AllowedRandomSizes.Count > 0)
+                ? request.AllowedRandomSizes
+                : pSettings.DefaultDropletRandomSizes;
             var speedPreset = !string.IsNullOrWhiteSpace(request.SpeedPreset) ? request.SpeedPreset : pSettings.DefaultDropletSpeed;
             var pattern = !string.IsNullOrWhiteSpace(request.SpawnPattern) ? request.SpawnPattern : pSettings.DefaultDropletPattern;
             var knockbackMultiplier = request.KnockbackMultiplier > 0 ? Math.Clamp(request.KnockbackMultiplier, 0.1, 5.0) : pSettings.DefaultKnockbackMultiplier;
@@ -601,7 +604,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 for (var i = 0; i < count; i++)
                 {
-                    var (sizeLabel, sizeScale, radius, mass) = DropletPatternGenerator.ResolveDropletSize(sizePreset);
+                    var (sizeLabel, sizeScale, radius, mass) = DropletPatternGenerator.ResolveDropletSize(sizePreset, allowedSizes);
                     var (speedLabel, speedScale) = DropletPatternGenerator.ResolveDropletSpeed(speedPreset);
                     var spawnTickOffset = i * 4;
 
@@ -846,6 +849,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         {
                             Count = pSettings.DefaultDropletCount,
                             SizePreset = pSettings.DefaultDropletSize,
+                            AllowedRandomSizes = pSettings.DefaultDropletRandomSizes,
                             SpeedPreset = pSettings.DefaultDropletSpeed,
                             SpawnPattern = pSettings.DefaultDropletPattern,
                             KnockbackMultiplier = pSettings.DefaultKnockbackMultiplier,
