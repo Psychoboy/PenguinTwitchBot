@@ -727,15 +727,6 @@
             ctx.drawImage(bgImg, padX, padY, boardW, boardH);
         }
 
-        // Header banner with shadow for legibility over transparent stream background
-        ctx.save();
-        ctx.font = '700 20px Fredoka, Rubik, sans-serif';
-        ctx.fillStyle = currentTheme.accentColor || '#FFE066';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-        ctx.shadowBlur = 8;
-        ctx.fillText('✨ PLINKO BOUNCE ✨', width * 0.5, padY + 34);
-        ctx.restore();
 
         // Peg Grid
         const rows = boardConfig.rowCount || 8;

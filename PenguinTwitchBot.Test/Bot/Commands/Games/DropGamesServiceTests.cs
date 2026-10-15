@@ -1370,5 +1370,79 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             // Verify the landings are naturally distributed rather than all snapped to identical center (0.50)
             Assert.True(landedPositions.Count > 1, "Landings should spread naturally across the bucket width instead of snapping to a single static center");
         }
+
+        [Fact]
+        public async Task ProcessCompletionAsync_Parachute_WinActionThrows_DoesNotAbortCompletion()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreateParachuteService(settingsService, registry);
+
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Parachute.WinActionName = "FailedAction";
+            settings.Parachute.AnnounceWinsInChat = true;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var rewardAction = new ActionType { Name = "FailedAction", Enabled = true };
+            _actionManagementService.Setup(x => x.GetAllActionsAsync()).ReturnsAsync([rewardAction]);
+            _actionService.Setup(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()))
+                .ThrowsAsync(new InvalidOperationException("Queue is full"));
+
+            var token = await sut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "dropwinner", DisplayName = "DropWinner", UserId = "6001" },
+                forcedStartX: 0.50,
+                forcedWindAccelX: 0.0,
+                skipMinimumDurationCheck: true);
+
+            var consumed = registry.TryConsumeDrop(token, out var record, out _);
+            Assert.True(consumed);
+            Assert.NotNull(record);
+            Assert.True(record.IsWin);
+
+            // Should not throw even when EnqueueAction throws
+            var ex = await Record.ExceptionAsync(() => sut.ProcessCompletionAsync(record));
+            Assert.Null(ex);
+
+            // Win chat announcement should still execute
+            Assert.True(record.WinChatAnnounced);
+            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProcessCompletionAsync_Plinko_WinActionThrows_DoesNotAbortCompletion()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreatePlinkoService(settingsService, registry);
+
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Plinko.WinActionName = "FailedPlinkoAction";
+            settings.Plinko.AnnounceWinsInChat = true;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var plinkoAction = new ActionType { Name = "FailedPlinkoAction", Enabled = true };
+            _actionManagementService.Setup(x => x.GetAllActionsAsync()).ReturnsAsync([plinkoAction]);
+            _actionService.Setup(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()))
+                .ThrowsAsync(new InvalidOperationException("Queue is full"));
+
+            var winIndex = settings.Plinko.Buckets.FindIndex(b => b.IsWin);
+            var token = await sut.TriggerPlinkoDropAsync(
+                new CommandEventArgs { Name = "plinkowinner", DisplayName = "PlinkoWinner", UserId = "6002" },
+                forcedBucketIndex: winIndex,
+                skipMinimumDurationCheck: true);
+
+            var consumed = registry.TryConsumeDrop(token, out var record, out _);
+            Assert.True(consumed);
+            Assert.NotNull(record);
+            Assert.True(record.IsWin);
+
+            // Should not throw even when EnqueueAction throws
+            var ex = await Record.ExceptionAsync(() => sut.ProcessCompletionAsync(record));
+            Assert.Null(ex);
+
+            // Win chat announcement should still execute
+            Assert.True(record.WinChatAnnounced);
+            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Once);
+        }
     }
 }

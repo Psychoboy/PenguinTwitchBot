@@ -766,7 +766,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to enqueue win action '{ActionName}' for user {User}", actionName, eventArgs.DisplayName);
-                throw;
             }
         }
 
