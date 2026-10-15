@@ -1,101 +1,277 @@
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using MudBlazor
 @inject MediaUploadService MediaUploadService
+@inject IEmoteService EmoteService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
 
 <MudStack Spacing="1" Class="@Class" Style="@Style">
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-        <div style="flex: 1 1 auto; min-width: 0;">
-            <MudTextField T="string"
-                          Value="@Value"
-                          ValueChanged="OnValueChanged"
-                          Label="@Label"
-                          Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Enter URL (e.g. /media/prize.png or https://...)" : Placeholder)"
-                          Required="@Required"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Clearable="true"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Image" />
-        </div>
+    @if (AllowMultiple)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <div style="flex: 1 1 auto; min-width: 0;">
+                <MudAutocomplete T="string"
+                                 @bind-Value="_newItemInput"
+                                 SearchFunc="@SearchEmotes"
+                                 Label="@Label"
+                                 Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Enter emote name (e.g. sptvShots) or image URL..." : Placeholder)"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 Clearable="true"
+                                 ResetValueOnEmptyText="false"
+                                 CoerceText="true"
+                                 CoerceValue="true"
+                                 MaxItems="50"
+                                 OnKeyDown="HandleKeyDown">
+                    <ItemTemplate Context="emoteName">
+                        <div class="d-flex align-center gap-2">
+                            @if (_emoteMap.TryGetValue(emoteName, out var url))
+                            {
+                                <img src="@url" style="height: 24px; width: 24px; object-fit: contain;" alt="" />
+                            }
+                            <span>@emoteName</span>
+                        </div>
+                    </ItemTemplate>
+                </MudAutocomplete>
+            </div>
 
-        @if (AllowBrowse)
-        {
-            <MudTooltip Text="Browse Media Library">
-                <MudIconButton Icon="@Icons.Material.Filled.PhotoLibrary"
-                               Color="Color.Default"
-                               Variant="Variant.Outlined"
+            <MudTooltip Text="Add to list (or press Enter)">
+                <MudIconButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Icon="@Icons.Material.Filled.Add"
+                               OnClick="AddItemAsync"
+                               Disabled="@(string.IsNullOrWhiteSpace(_newItemInput))"
                                Size="Size.Medium"
-                               OnClick="OpenMediaLibraryAsync"
-                               Disabled="@_isUploading"
-                               Style="height: 40px; width: 40px;" />
+                               Style="height: 40px; width: 40px; flex-shrink: 0;" />
             </MudTooltip>
-        }
 
-        <MudFileUpload T="IBrowserFile"
-                       FilesChanged="UploadMediaFile"
-                       Accept="@Accept"
-                       Disabled="@_isUploading"
-                       Class="d-inline-flex">
-            <CustomContent>
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Primary"
-                           StartIcon="@(_isUploading ? null : Icons.Material.Filled.CloudUpload)"
-                           OnClick="@context.OpenFilePickerAsync"
+            @if (AllowBrowse)
+            {
+                <MudTooltip Text="Browse Media Library">
+                    <MudIconButton Icon="@Icons.Material.Filled.PhotoLibrary"
+                                   Color="Color.Default"
+                                   Variant="Variant.Outlined"
+                                   Size="Size.Medium"
+                                   OnClick="OpenMediaLibraryAsync"
+                                   Disabled="@_isUploading"
+                                   Style="height: 40px; width: 40px; flex-shrink: 0;" />
+                </MudTooltip>
+            }
+
+            <MudFileUpload T="IBrowserFile"
+                           FilesChanged="UploadMediaFile"
+                           Accept="@Accept"
                            Disabled="@_isUploading"
-                           Size="Size.Medium"
-                           Style="height: 40px; white-space: nowrap;">
+                           Class="d-inline-flex"
+                           Style="flex-shrink: 0;">
+                <CustomContent>
                     @if (_isUploading)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                        <text>Uploading...</text>
+                        <div style="height: 40px; width: 40px;" class="d-flex align-center justify-center">
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        </div>
                     }
                     else
                     {
-                        <text>Upload Image</text>
+                        <MudTooltip Text="Upload Image File">
+                            <MudIconButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Icon="@Icons.Material.Filled.CloudUpload"
+                                           OnClick="@context.OpenFilePickerAsync"
+                                           Disabled="@_isUploading"
+                                           Size="Size.Medium"
+                                           Style="height: 40px; width: 40px;" />
+                        </MudTooltip>
                     }
-                </MudButton>
-            </CustomContent>
-            <SelectedTemplate Context="_"></SelectedTemplate>
-        </MudFileUpload>
-    </MudStack>
+                </CustomContent>
+                <SelectedTemplate Context="_"></SelectedTemplate>
+            </MudFileUpload>
+        </MudStack>
 
-    @if (!string.IsNullOrWhiteSpace(HelperText))
-    {
-        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
-            @HelperText
-        </MudText>
+        @if (!string.IsNullOrWhiteSpace(HelperText))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+                @HelperText
+            </MudText>
+        }
+
+        @if (_items.Count > 0)
+        {
+            <MudStack Spacing="1" Class="mt-1">
+                @foreach (var item in _items)
+                {
+                    <MudPaper Outlined="true" Class="pa-2 d-flex align-center gap-3" Style="background: var(--mud-palette-background-grey);">
+                        @if (item.IsLoading)
+                        {
+                            <div style="height: 52px; width: 64px;" class="d-flex align-center justify-center">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(item.PreviewUrl))
+                        {
+                            <img src="@item.PreviewUrl"
+                                 alt="@item.Token"
+                                 style="height: 52px; max-width: 80px; object-fit: contain; border-radius: 4px;"
+                                 onerror="this.style.display='none'"
+                                 onload="this.style.display='block'" />
+                        }
+                        else
+                        {
+                            <div style="height: 52px; width: 64px;" class="d-flex align-center justify-center">
+                                <MudIcon Icon="@Icons.Material.Filled.BrokenImage" Color="Color.Default" Size="Size.Medium" />
+                            </div>
+                        }
+
+                        <div style="flex: 1 1 auto; min-width: 0;">
+                            <MudText Typo="Typo.caption" Class="text-truncate" Style="display: block; font-weight: 500;">
+                                @item.Token
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @(item.IsEmote ? "Twitch / Channel Emote" : (!string.IsNullOrWhiteSpace(item.PreviewUrl) ? "Image preview" : "Could not resolve emote or image URL"))
+                            </MudText>
+                        </div>
+
+                        <MudTooltip Text="Copy Emote or URL">
+                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                           Size="Size.Small"
+                                           OnClick="@(() => CopyTextAsync(item.Token))" />
+                        </MudTooltip>
+
+                        <MudTooltip Text="Remove from list">
+                            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                           Size="Size.Small"
+                                           Color="Color.Error"
+                                           OnClick="@(() => RemoveItemAsync(item))" />
+                        </MudTooltip>
+                    </MudPaper>
+                }
+            </MudStack>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-2 mt-1 font-italic">
+                No custom images or emotes added (using built-in Seasonal Art).
+            </MudText>
+        }
     }
-
-    @if (ShowPreview && !string.IsNullOrWhiteSpace(Value))
+    else
     {
-        <MudPaper Outlined="true" Class="pa-2 mt-1 d-flex align-center gap-3" Style="background: var(--mud-palette-background-grey);">
-            <img src="@Value"
-                 alt="Preview"
-                 style="height: 56px; max-width: 100px; object-fit: contain; border-radius: 4px;"
-                 onerror="this.style.display='none'"
-                 onload="this.style.display='block'" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
             <div style="flex: 1 1 auto; min-width: 0;">
-                <MudText Typo="Typo.caption" Class="text-truncate" Style="display: block; font-weight: 500;">
-                    @Value
-                </MudText>
-                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                    Image preview
-                </MudText>
+                <MudAutocomplete T="string"
+                                 Value="@Value"
+                                 ValueChanged="OnSingleValueChanged"
+                                 SearchFunc="@SearchEmotes"
+                                 Label="@Label"
+                                 Placeholder="@(string.IsNullOrWhiteSpace(Placeholder) ? "Enter URL (e.g. /media/prize.png or https://...) or emote..." : Placeholder)"
+                                 Required="@Required"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 Clearable="true"
+                                 ResetValueOnEmptyText="false"
+                                 CoerceText="true"
+                                 CoerceValue="true"
+                                 MaxItems="50">
+                    <ItemTemplate Context="emoteName">
+                        <div class="d-flex align-center gap-2">
+                            @if (_emoteMap.TryGetValue(emoteName, out var url))
+                            {
+                                <img src="@url" style="height: 24px; width: 24px; object-fit: contain;" alt="" />
+                            }
+                            <span>@emoteName</span>
+                        </div>
+                    </ItemTemplate>
+                </MudAutocomplete>
             </div>
-            <MudTooltip Text="Copy URL to Clipboard">
-                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                               Size="Size.Small"
-                               OnClick="CopyUrlAsync" />
-            </MudTooltip>
-            <MudTooltip Text="Clear Image">
-                <MudIconButton Icon="@Icons.Material.Filled.Close"
-                               Size="Size.Small"
-                               Color="Color.Error"
-                               OnClick="ClearUrlAsync" />
-            </MudTooltip>
-        </MudPaper>
+
+            @if (AllowBrowse)
+            {
+                <MudTooltip Text="Browse Media Library">
+                    <MudIconButton Icon="@Icons.Material.Filled.PhotoLibrary"
+                                   Color="Color.Default"
+                                   Variant="Variant.Outlined"
+                                   Size="Size.Medium"
+                                   OnClick="OpenMediaLibraryAsync"
+                                   Disabled="@_isUploading"
+                                   Style="height: 40px; width: 40px; flex-shrink: 0;" />
+                </MudTooltip>
+            }
+
+            <MudFileUpload T="IBrowserFile"
+                           FilesChanged="UploadMediaFile"
+                           Accept="@Accept"
+                           Disabled="@_isUploading"
+                           Class="d-inline-flex"
+                           Style="flex-shrink: 0;">
+                <CustomContent>
+                    @if (_isUploading)
+                    {
+                        <div style="height: 40px; width: 40px;" class="d-flex align-center justify-center">
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="Upload Image File">
+                            <MudIconButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Icon="@Icons.Material.Filled.CloudUpload"
+                                           OnClick="@context.OpenFilePickerAsync"
+                                           Disabled="@_isUploading"
+                                           Size="Size.Medium"
+                                           Style="height: 40px; width: 40px;" />
+                        </MudTooltip>
+                    }
+                </CustomContent>
+                <SelectedTemplate Context="_"></SelectedTemplate>
+            </MudFileUpload>
+        </MudStack>
+
+        @if (!string.IsNullOrWhiteSpace(HelperText))
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-3" Style="margin-top: -2px;">
+                @HelperText
+            </MudText>
+        }
+
+        @if (ShowPreview && !string.IsNullOrWhiteSpace(Value))
+        {
+            <MudPaper Outlined="true" Class="pa-2 mt-1 d-flex align-center gap-3" Style="background: var(--mud-palette-background-grey);">
+                @if (!string.IsNullOrWhiteSpace(_singleResolvedUrl))
+                {
+                    <img src="@_singleResolvedUrl"
+                         alt="@Value"
+                         style="height: 56px; max-width: 100px; object-fit: contain; border-radius: 4px;"
+                         onerror="this.style.display='none'"
+                         onload="this.style.display='block'" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.BrokenImage" Color="Color.Default" Size="Size.Medium" />
+                }
+                <div style="flex: 1 1 auto; min-width: 0;">
+                    <MudText Typo="Typo.caption" Class="text-truncate" Style="display: block; font-weight: 500;">
+                        @Value
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @(_singleIsEmote ? "Twitch / Channel Emote" : (!string.IsNullOrWhiteSpace(_singleResolvedUrl) ? "Image preview" : "Could not resolve emote or image URL"))
+                    </MudText>
+                </div>
+                <MudTooltip Text="Copy URL to Clipboard">
+                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                   Size="Size.Small"
+                                   OnClick="CopyUrlAsync" />
+                </MudTooltip>
+                <MudTooltip Text="Clear Image">
+                    <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   OnClick="ClearUrlAsync" />
+                </MudTooltip>
+            </MudPaper>
+        }
     }
 </MudStack>
 
@@ -109,15 +285,232 @@
     [Parameter] public string Accept { get; set; } = ".png,.jpg,.jpeg,.gif,.webp";
     [Parameter] public bool AllowBrowse { get; set; } = true;
     [Parameter] public bool ShowPreview { get; set; } = true;
+    [Parameter] public bool AllowMultiple { get; set; } = false;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
 
-    private bool _isUploading = false;
+    private class MediaItem
+    {
+        public string Token { get; set; } = string.Empty;
+        public string? PreviewUrl { get; set; }
+        public bool IsEmote { get; set; }
+        public bool IsLoading { get; set; }
+    }
 
-    private async Task OnValueChanged(string? val)
+    private readonly List<MediaItem> _items = [];
+    private string _newItemInput = string.Empty;
+    private string? _lastParsedValue;
+    private string? _singleResolvedUrl;
+    private bool _singleIsEmote;
+    private bool _isUploading = false;
+    private Dictionary<string, string> _emoteMap = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AllowMultiple)
+        {
+            var currentVal = Value ?? string.Empty;
+            if (!string.Equals(currentVal, _lastParsedValue ?? string.Empty, StringComparison.Ordinal))
+            {
+                _lastParsedValue = currentVal;
+                _items.Clear();
+                if (!string.IsNullOrWhiteSpace(currentVal))
+                {
+                    var subTokens = DropGameMediaResolver.ParseMediaTokens(currentVal);
+
+                    foreach (var token in subTokens)
+                    {
+                        if (!_items.Any(i => string.Equals(i.Token, token, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            var item = new MediaItem { Token = token, IsLoading = true };
+                            _items.Add(item);
+                            _ = ResolveItemPreviewAsync(item);
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(Value))
+            {
+                _singleResolvedUrl = await ResolvePreviewUrlAsync(Value);
+                _singleIsEmote = !string.IsNullOrWhiteSpace(_singleResolvedUrl) && !_singleResolvedUrl.Equals(Value, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                _singleResolvedUrl = null;
+                _singleIsEmote = false;
+            }
+        }
+    }
+
+    private async Task<IEnumerable<string>> SearchEmotes(string value, CancellationToken token)
+    {
+        if (_emoteMap.Count == 0)
+        {
+            try
+            {
+                _emoteMap = await EmoteService.GetEmotesAsync();
+            }
+            catch { }
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return _emoteMap.Keys.Take(25);
+        }
+
+        return _emoteMap.Keys
+            .Where(k => k.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Take(50);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await AddItemAsync();
+        }
+    }
+
+    private async Task AddItemAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newItemInput)) return;
+
+        var rawInput = _newItemInput;
+        _newItemInput = string.Empty;
+
+        var subTokens = DropGameMediaResolver.ParseMediaTokens(rawInput);
+
+        bool addedAny = false;
+        foreach (var rawToken in subTokens)
+        {
+            var token = NormalizeTwitchUrl(rawToken);
+            if (!_items.Any(i => string.Equals(i.Token, token, StringComparison.OrdinalIgnoreCase)))
+            {
+                var item = new MediaItem { Token = token, IsLoading = true };
+                _items.Add(item);
+                addedAny = true;
+                _ = ResolveItemPreviewAsync(item);
+            }
+        }
+
+        if (addedAny)
+        {
+            await SyncValueFromItemsAsync();
+        }
+    }
+
+    private async Task RemoveItemAsync(MediaItem item)
+    {
+        _items.Remove(item);
+        await SyncValueFromItemsAsync();
+    }
+
+    private async Task SyncValueFromItemsAsync()
+    {
+        var newValue = _items.Count > 0 ? string.Join(", ", _items.Select(i => i.Token)) : string.Empty;
+        _lastParsedValue = newValue;
+        Value = newValue;
+        await ValueChanged.InvokeAsync(newValue);
+        StateHasChanged();
+    }
+
+    private async Task OnSingleValueChanged(string? val)
     {
         Value = val;
         await ValueChanged.InvokeAsync(val);
+        if (!string.IsNullOrWhiteSpace(val))
+        {
+            _singleResolvedUrl = await ResolvePreviewUrlAsync(val);
+            _singleIsEmote = !string.IsNullOrWhiteSpace(_singleResolvedUrl) && !_singleResolvedUrl.Equals(val, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            _singleResolvedUrl = null;
+            _singleIsEmote = false;
+        }
+        StateHasChanged();
+    }
+
+    private static string NormalizeTwitchUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+        if (url.Contains("static-cdn.jtvnw.net/emoticons/v2/", StringComparison.OrdinalIgnoreCase))
+        {
+            return url.Replace("/static/", "/default/", StringComparison.OrdinalIgnoreCase);
+        }
+        return url;
+    }
+
+    private async Task<string?> ResolvePreviewUrlAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+
+        var clean = NormalizeTwitchUrl(token.Trim());
+        if (clean.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            clean.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+            clean.StartsWith("/"))
+        {
+            return clean;
+        }
+
+        if (clean.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+            clean.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+            clean.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+            clean.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+            clean.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+            clean.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            return clean.StartsWith('/') ? clean : $"/{clean}";
+        }
+
+        try
+        {
+            var emoteUrl = await EmoteService.ResolveEmoteUrlAsync(clean);
+            if (!string.IsNullOrWhiteSpace(emoteUrl))
+            {
+                return emoteUrl;
+            }
+
+            var emotes = await EmoteService.GetEmotesAsync();
+            if (emotes != null)
+            {
+                if (emotes.TryGetValue(clean, out var url) && !string.IsNullOrWhiteSpace(url))
+                {
+                    return url;
+                }
+
+                var match = emotes.FirstOrDefault(kvp => kvp.Key.Equals(clean, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(match.Value))
+                {
+                    return match.Value;
+                }
+            }
+        }
+        catch { }
+
+        return null;
+    }
+
+    private async Task ResolveItemPreviewAsync(MediaItem item)
+    {
+        try
+        {
+            var resolved = await ResolvePreviewUrlAsync(item.Token);
+            item.PreviewUrl = resolved;
+            item.IsEmote = !string.IsNullOrWhiteSpace(resolved) && !resolved.Equals(item.Token, StringComparison.OrdinalIgnoreCase) && !item.Token.StartsWith('/') && !item.Token.StartsWith("http", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            item.PreviewUrl = null;
+        }
+        finally
+        {
+            item.IsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task UploadMediaFile(IBrowserFile file)
@@ -132,9 +525,30 @@
             var result = await MediaUploadService.UploadMediaAsync(stream, file.Name);
             if (result.Success && !string.IsNullOrEmpty(result.RelativeUrl))
             {
-                Value = result.RelativeUrl;
-                await ValueChanged.InvokeAsync(Value);
-                Snackbar.Add($"Uploaded and set URL to '{Value}'", Severity.Success);
+                if (AllowMultiple)
+                {
+                    if (!_items.Any(i => string.Equals(i.Token, result.RelativeUrl, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var item = new MediaItem
+                        {
+                            Token = result.RelativeUrl,
+                            PreviewUrl = result.RelativeUrl,
+                            IsEmote = false,
+                            IsLoading = false
+                        };
+                        _items.Add(item);
+                        await SyncValueFromItemsAsync();
+                        Snackbar.Add($"Uploaded and added '{file.Name}' to list", Severity.Success);
+                    }
+                }
+                else
+                {
+                    Value = result.RelativeUrl;
+                    await ValueChanged.InvokeAsync(Value);
+                    _singleResolvedUrl = result.RelativeUrl;
+                    _singleIsEmote = false;
+                    Snackbar.Add($"Uploaded and set URL to '{Value}'", Severity.Success);
+                }
             }
             else
             {
@@ -170,32 +584,63 @@
         var result = await dialog.Result;
         if (result != null && !result.Canceled && result.Data is MediaFileInfo selectedFile)
         {
-            Value = selectedFile.RelativeUrl;
-            await ValueChanged.InvokeAsync(Value);
-            Snackbar.Add($"Selected '{selectedFile.FileName}'", Severity.Info);
+            if (AllowMultiple)
+            {
+                if (!_items.Any(i => string.Equals(i.Token, selectedFile.RelativeUrl, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var item = new MediaItem
+                    {
+                        Token = selectedFile.RelativeUrl,
+                        PreviewUrl = selectedFile.RelativeUrl,
+                        IsEmote = false,
+                        IsLoading = false
+                    };
+                    _items.Add(item);
+                    await SyncValueFromItemsAsync();
+                    Snackbar.Add($"Added '{selectedFile.FileName}' to list", Severity.Info);
+                }
+            }
+            else
+            {
+                Value = selectedFile.RelativeUrl;
+                await ValueChanged.InvokeAsync(Value);
+                _singleResolvedUrl = selectedFile.RelativeUrl;
+                _singleIsEmote = false;
+                Snackbar.Add($"Selected '{selectedFile.FileName}'", Severity.Info);
+            }
         }
+    }
+
+    private async Task CopyTextAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", text);
+            if (success)
+            {
+                Snackbar.Add($"Copied '{text}' to clipboard!", Severity.Info);
+                return;
+            }
+        }
+        catch { }
+
+        Snackbar.Add($"Item: {text}", Severity.Info);
     }
 
     private async Task CopyUrlAsync()
     {
-        if (string.IsNullOrWhiteSpace(Value)) return;
-        try
+        if (!string.IsNullOrWhiteSpace(Value))
         {
-            var success = await JSRuntime.InvokeAsync<bool>("window.copyToClipboard", Value);
-            if (success)
-            {
-                Snackbar.Add($"Copied '{Value}' to clipboard!", Severity.Info);
-                return;
-            }
+            await CopyTextAsync(Value);
         }
-        catch { /* Fallback */ }
-
-        Snackbar.Add($"URL: {Value}", Severity.Info);
     }
 
     private async Task ClearUrlAsync()
     {
         Value = null;
+        _singleResolvedUrl = null;
+        _singleIsEmote = false;
         await ValueChanged.InvokeAsync(null);
     }
 }

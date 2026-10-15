@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
         public const string TwitchAndViewers = "Twitch & Viewers";
         public const string VariablesAndUtilities = "Variables & Utilities";
         public const string Ai = "AI";
+        public const string Minigames = "Minigames";
         public const string General = "General";
     }
 }

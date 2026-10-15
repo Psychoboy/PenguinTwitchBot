@@ -11,6 +11,12 @@ public interface IEmoteService
     /// channel-specific) plus BTTV, FFZ and 7TV emotes. Result is cached for 30 minutes.
     /// </summary>
     Task<Dictionary<string, string>> GetEmotesAsync();
+
+    /// <summary>
+    /// Looks up an emote image URL by name (case-insensitive).
+    /// If not found in cache and channel emotes may not have loaded yet, forces a refresh.
+    /// </summary>
+    Task<string?> ResolveEmoteUrlAsync(string emoteName);
 }
 
 /// <summary>
@@ -26,7 +32,10 @@ public class EmoteService(
     private const string EmoteCacheKey = "chat_emotes_v1";
     private static readonly TimeSpan EmoteCacheDuration = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan EmptyEmoteCacheDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ForcedRefreshCooldown = TimeSpan.FromMinutes(2);
     private readonly SemaphoreSlim _fetchLock = new(1, 1);
+    private string? _cachedChannelId;
+    private DateTime _lastForcedRefreshUtc = DateTime.MinValue;
 
     public async Task<Dictionary<string, string>> GetEmotesAsync()
     {
@@ -41,11 +50,13 @@ public class EmoteService(
             if (memoryCache.TryGetValue(EmoteCacheKey, out emotes) && emotes != null)
                 return emotes;
 
-            emotes = await FetchAllEmotesAsync();
-            // Don't let a transient upstream failure pin an empty result for the full duration.
-            var ttl = emotes.Count == 0 ? EmptyEmoteCacheDuration : EmoteCacheDuration;
+            var channelId = await twitchService.GetBroadcasterUserId();
+            emotes = await FetchAllEmotesAsync(channelId);
+            _cachedChannelId = channelId;
+            // Don't let a transient upstream failure or missing channel ID pin an incomplete result for 30 minutes.
+            var ttl = (emotes.Count == 0 || string.IsNullOrEmpty(channelId)) ? EmptyEmoteCacheDuration : EmoteCacheDuration;
             memoryCache.Set(EmoteCacheKey, emotes, ttl);
-            logger.LogInformation("Fetched {Count} emotes (native + third-party) and cached result", emotes.Count);
+            logger.LogInformation("Fetched {Count} emotes (native + third-party) and cached result (ChannelId={ChannelId})", emotes.Count, channelId ?? "null");
             return emotes;
         }
         finally
@@ -54,11 +65,66 @@ public class EmoteService(
         }
     }
 
-    private async Task<Dictionary<string, string>> FetchAllEmotesAsync()
+    public async Task<string?> ResolveEmoteUrlAsync(string emoteName)
     {
-        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (string.IsNullOrWhiteSpace(emoteName)) return null;
+        var cleanName = emoteName.Trim();
+
+        var emotes = await GetEmotesAsync();
+        if (emotes.TryGetValue(cleanName, out var url) && !string.IsNullOrWhiteSpace(url))
+        {
+            return url;
+        }
+
+        // Cache miss: Only force a refresh if the cached emotes were fetched without a channel ID
+        // and a channel ID is now available, or if cooldown has elapsed.
+        try
+        {
+            var channelId = await twitchService.GetBroadcasterUserId();
+            var hadMissingChannelId = string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId);
+            var cooldownElapsed = DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown;
+
+            var shouldRefresh = false;
+            if (hadMissingChannelId || (cooldownElapsed && !string.IsNullOrEmpty(channelId)))
+            {
+                await _fetchLock.WaitAsync();
+                try
+                {
+                    if ((string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId)) ||
+                        DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown)
+                    {
+                        _lastForcedRefreshUtc = DateTime.UtcNow;
+                        memoryCache.Remove(EmoteCacheKey);
+                        shouldRefresh = true;
+                    }
+                }
+                finally
+                {
+                    _fetchLock.Release();
+                }
+            }
+
+            if (shouldRefresh)
+            {
+                emotes = await GetEmotesAsync();
+                if (emotes.TryGetValue(cleanName, out url) && !string.IsNullOrWhiteSpace(url))
+                {
+                    return url;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to refresh emote cache while resolving '{EmoteName}'", cleanName);
+        }
+
+        return null;
+    }
+
+    private async Task<Dictionary<string, string>> FetchAllEmotesAsync(string? channelId)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var http = httpClientFactory.CreateClient("Emotes");
-        var channelId = await twitchService.GetBroadcasterUserId();
 
         await FetchBttvGlobalAsync(http, result);
         await FetchBttvChannelAsync(http, result, channelId);

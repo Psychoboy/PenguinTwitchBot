@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 namespace PenguinTwitchBot.Bot.Events.Chat
 {
@@ -15,5 +15,6 @@ namespace PenguinTwitchBot.Bot.Events.Chat
         public bool FromAlias { get; set; } = false;
         public bool SkipLock { get; set; } = false;
         public bool FromOwnChannel {  get; set; } = true;
+        public string? EmoteUrl { get; set; }
     }
 }

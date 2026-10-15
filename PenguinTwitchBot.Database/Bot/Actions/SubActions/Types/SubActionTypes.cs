@@ -68,6 +68,11 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         OverlayTimerRemoveTime,
         SelectRandomViewers,
         FishingModify,
-        OpenAi
+        OpenAi,
+        ParachuteDrop,
+        ParachuteDroplets,
+        PlinkoDrop,
+        StartDropGameSession,
+        StopDropGameSession
     }
 }

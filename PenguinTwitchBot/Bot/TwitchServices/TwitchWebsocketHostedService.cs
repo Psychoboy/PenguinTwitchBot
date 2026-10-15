@@ -309,6 +309,29 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var command = argsFull[0];
             var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
             var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
+            string? firstEmoteUrl = null;
+            if (e.Message.Fragments != null)
+            {
+                var candidateEmoteText = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0] : null;
+                var isExplicitPath = !string.IsNullOrWhiteSpace(candidateEmoteText) &&
+                    (candidateEmoteText.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                     candidateEmoteText.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                     candidateEmoteText.StartsWith('/'));
+
+                if (!isExplicitPath)
+                {
+                    var emoteFragment = !string.IsNullOrWhiteSpace(candidateEmoteText)
+                        ? e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
+                        : e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id));
+
+                    if (emoteFragment?.Emote != null)
+                    {
+                        var format = (emoteFragment.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
+                        firstEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{emoteFragment.Emote.Id}/{format}/dark/3.0";
+                    }
+                }
+            }
+
             var eventArgs = new CommandEventArgs
             {
                 Command = command[1..].ToLower(),
@@ -318,13 +341,15 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin,
                 DisplayName = e.ChatterUserName,
+                Color = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color),
                 IsSub = e.IsSubscriber,
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
                 IsBroadcaster = e.IsBroadcaster,
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim() : "",
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
-                MessageId = e.MessageId
+                MessageId = e.MessageId,
+                EmoteUrl = firstEmoteUrl
             };
             await eventService.OnCommand(eventArgs);
         }

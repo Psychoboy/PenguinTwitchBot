@@ -1,10 +1,12 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using PenguinTwitchBot.Application.DropGameNotifications;
 using PenguinTwitchBot.Application.TTS;
 using PenguinTwitchBot.Application.WheelSpinNotifications;
+using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.WebSocketEvents;
 using PenguinTwitchBot.Extensions;
 
@@ -306,6 +308,21 @@ namespace PenguinTwitchBot.Bot.Notifications
                     var wheelSpinComplete = JsonSerializer.Deserialize<WheelSpinComplete>(data);
                     if (wheelSpinComplete != null)
                         await _dispatcher.Publish(new WheelSpinCompleteNotification(wheelSpinComplete));
+                } else if (data.Length > 0 && data.StartsWith("{\"dropToken\":"))
+                {
+                    try
+                    {
+                        var dropComplete = JsonSerializer.Deserialize<DropGameCompleteMessage>(data, _serializerOptions);
+                        if (dropComplete != null && !string.IsNullOrWhiteSpace(dropComplete.DropToken))
+                            await _dispatcher.Publish(new DropGameCompleteNotification(
+                                dropComplete.DropToken,
+                                dropComplete.LandingX,
+                                dropComplete.WinningBucketIndex));
+                    }
+                    catch (JsonException)
+                    {
+                        // Malformed completion JSON should not disconnect the socket
+                    }
                 } else if (data.Length > 0 && data.StartsWith('{'))
                 {
                     HandleSubscriptionRequest(connection, data);

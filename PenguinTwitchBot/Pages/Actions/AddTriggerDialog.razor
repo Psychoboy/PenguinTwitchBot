@@ -801,7 +801,7 @@
         // Filter to only supported commands with configured events
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel"
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko"
         };
 
         var supportedCommands = _defaultCommands
@@ -893,6 +893,17 @@
             {
                 DefaultCommandEventTypes.WheelSpinResult
             },
+            "drop" or "parachute" => new List<string>
+            {
+                DefaultCommandEventTypes.ParachuteWin,
+                DefaultCommandEventTypes.ParachuteBullseye,
+                DefaultCommandEventTypes.ParachuteLose
+            },
+            "plinko" => new List<string>
+            {
+                DefaultCommandEventTypes.PlinkoWin,
+                DefaultCommandEventTypes.PlinkoLose
+            },
             _ => new List<string>()
         };
     }
@@ -925,6 +936,11 @@
             DefaultCommandEventTypes.DeathReset => "Death Reset",
             DefaultCommandEventTypes.DeathSet => "Death Set",
             DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
+            DefaultCommandEventTypes.ParachuteWin => "Win (Target Hit)",
+            DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",
+            DefaultCommandEventTypes.ParachuteLose => "Missed Target (Lose)",
+            DefaultCommandEventTypes.PlinkoWin => "Winning Bucket",
+            DefaultCommandEventTypes.PlinkoLose => "Losing Bucket",
             _ => eventType
         };
     }

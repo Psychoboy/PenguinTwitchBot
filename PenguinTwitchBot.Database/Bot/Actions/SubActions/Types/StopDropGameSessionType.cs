@@ -1,0 +1,73 @@
+using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
+
+namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+{
+    [SubActionMetadata(
+        displayName: "Stop Drop Game Session",
+        description: "Stops an active timed round/session for Parachute Drop or Plinko Bounce immediately",
+        icon: "mdi-timer-stop",
+        color: "Warning",
+        category: SubActionCategories.Minigames,
+        tableName: "subactions_stop_drop_game_session")]
+    public class StopDropGameSessionType : SubActionType, ISubActionUIProvider
+    {
+        public StopDropGameSessionType()
+        {
+            SubActionTypes = SubActionTypes.StopDropGameSession;
+        }
+
+        /// <summary>
+        /// Minigame to stop: "Parachute", "Plinko", or "All".
+        /// </summary>
+        public string GameType { get; set; } = "Parachute";
+
+        public List<SubActionUIField> GetUIFields(IServiceProvider? serviceProvider = null)
+        {
+            return
+            [
+                new()
+                {
+                    PropertyName = nameof(GameType),
+                    Label = "Minigame",
+                    FieldType = UIFieldType.Select,
+                    Required = true,
+                    SelectOptions =
+                    [
+                        new SelectOption { Value = "Parachute", Name = "Parachute Drop (!drop)" },
+                        new SelectOption { Value = "Plinko", Name = "Plinko Bounce (!plinko)" },
+                        new SelectOption { Value = "All", Name = "Both Games" }
+                    ]
+                },
+                new()
+                {
+                    PropertyName = nameof(Enabled),
+                    Label = "Enabled",
+                    FieldType = UIFieldType.Switch,
+                    SwitchColor = "Success"
+                }
+            ];
+        }
+
+        public Dictionary<string, object?> GetValues() => new()
+        {
+            { nameof(GameType), GameType },
+            { nameof(Enabled), Enabled }
+        };
+
+        public void SetValues(Dictionary<string, object?> values)
+        {
+            if (values.TryGetValue(nameof(GameType), out var gameType)) GameType = gameType as string ?? "Parachute";
+            if (values.TryGetValue(nameof(Enabled), out var enabled)) Enabled = enabled as bool? ?? true;
+        }
+
+        public string? Validate(Dictionary<string, object?> values)
+        {
+            if (values.TryGetValue(nameof(GameType), out var gameType) && string.IsNullOrWhiteSpace(gameType as string))
+            {
+                return "Minigame selection is required.";
+            }
+            return null;
+        }
+    }
+}
+
