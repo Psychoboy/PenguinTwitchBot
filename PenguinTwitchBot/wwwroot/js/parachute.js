@@ -1752,9 +1752,12 @@
                 }
 
                 // 4. Elastic collision with falling parachutists and landed parachutists
-                const charRadius = Math.max(24, Math.min(width, height) * 0.032) / height;
-                const canopyRadius = charRadius * 1.65;
-                const canopyOffsetY = -charRadius * 2.1;
+                const rPx = Math.max(12, (d.radius || 0.028) * Math.min(width, height));
+                const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                const canopyRadiusPx = charRadiusPx * 1.65;
+                const canopyOffsetYPx = -charRadiusPx * 2.1;
+                const dPxX = d.x * width;
+                const dPxY = d.y * height;
 
                 for (let j = 0; j < activeDrops.length; j++) {
                     const drop = activeDrops[j];
@@ -1762,18 +1765,18 @@
 
                     // Test against canopy (only if falling)
                     if (!drop.completed) {
-                        const canX = drop.x;
-                        const canY = drop.y + canopyOffsetY;
-                        const canMinDist = canopyRadius + r;
-                        const canDx = d.x - canX;
-                        const canDy = d.y - canY;
+                        const canPxX = drop.x * width;
+                        const canPxY = drop.y * height + canopyOffsetYPx;
+                        const canMinDist = canopyRadiusPx + rPx;
+                        const canDx = dPxX - canPxX;
+                        const canDy = dPxY - canPxY;
                         const canDistSq = canDx * canDx + canDy * canDy;
-                        if (canDistSq < canMinDist * canMinDist && canDistSq > 0.00001) {
+                        if (canDistSq < canMinDist * canMinDist && canDistSq > 0.0001) {
                             const dist = Math.sqrt(canDistSq);
                             const nx = canDx / dist;
                             const ny = canDy / dist;
-                            d.x = canX + nx * canMinDist;
-                            d.y = canY + ny * canMinDist;
+                            d.x = (canPxX + nx * canMinDist) / width;
+                            d.y = (canPxY + ny * canMinDist) / height;
 
                             const MAX_DROP_VX = 0.55;
                             const relVx = d.vx - (drop.vx || 0);
@@ -1804,18 +1807,18 @@
                     }
 
                     // Test against player character body (both falling and landed)
-                    const bodyX = drop.x;
-                    const bodyY = drop.y;
-                    const bodyMinDist = charRadius + r;
-                    const bDx = d.x - bodyX;
-                    const bDy = d.y - bodyY;
+                    const bodyPxX = drop.x * width;
+                    const bodyPxY = drop.y * height;
+                    const bodyMinDist = charRadiusPx + rPx;
+                    const bDx = dPxX - bodyPxX;
+                    const bDy = dPxY - bodyPxY;
                     const bDistSq = bDx * bDx + bDy * bDy;
-                    if (bDistSq < bodyMinDist * bodyMinDist && bDistSq > 0.00001) {
+                    if (bDistSq < bodyMinDist * bodyMinDist && bDistSq > 0.0001) {
                         const dist = Math.sqrt(bDistSq);
                         const nx = bDx / dist;
                         const ny = bDy / dist;
-                        d.x = bodyX + nx * bodyMinDist;
-                        d.y = bodyY + ny * bodyMinDist;
+                        d.x = (bodyPxX + nx * bodyMinDist) / width;
+                        d.y = (bodyPxY + ny * bodyMinDist) / height;
 
                         const MAX_DROP_VX = 0.55;
                         const relVx = d.vx - (drop.vx || 0);
@@ -1851,20 +1854,20 @@
                 for (let k = i - 1; k >= 0; k--) {
                     const other = activeDroplets[k];
                     if (now < other.spawnTimeMs || other.isSettled) continue;
-                    const oR = other.radius || 0.028;
-                    const oDx = other.x - d.x;
-                    const oDy = other.y - d.y;
-                    const oMinDist = r + oR;
+                    const oRPx = Math.max(12, (other.radius || 0.028) * Math.min(width, height));
+                    const oDx = (other.x - d.x) * width;
+                    const oDy = (other.y - d.y) * height;
+                    const oMinDist = rPx + oRPx;
                     const oDistSq = oDx * oDx + oDy * oDy;
-                    if (oDistSq < oMinDist * oMinDist && oDistSq > 0.000001) {
+                    if (oDistSq < oMinDist * oMinDist && oDistSq > 0.0001) {
                         const oDist = Math.sqrt(oDistSq);
                         const nx = oDx / oDist;
                         const ny = oDy / oDist;
-                        const overlap = 0.5 * (oMinDist - oDist);
-                        d.x -= nx * overlap;
-                        d.y -= ny * overlap;
-                        other.x += nx * overlap;
-                        other.y += ny * overlap;
+                        const overlapPx = 0.5 * (oMinDist - oDist);
+                        d.x -= (nx * overlapPx) / width;
+                        d.y -= (ny * overlapPx) / height;
+                        other.x += (nx * overlapPx) / width;
+                        other.y += (ny * overlapPx) / height;
 
                         const dvx = d.vx - other.vx;
                         const dvy = d.vy - other.vy;
@@ -1904,9 +1907,6 @@
         }
 
         // Step active parachutists physics (directional descent, wall bounce, tilt)
-        const charRadiusNorm = Math.max(24, Math.min(width, height) * 0.032) / height;
-        const colRadius = charRadiusNorm * 1.45;
-
         for (let i = 0; i < activeDrops.length; i++) {
             const drop = activeDrops[i];
             if (drop.completed) continue;
@@ -1982,6 +1982,10 @@
         }
 
         // Active Parachuter-to-Parachuter Mid-Air 2D Elastic Bouncing
+        // Parachute canopies do not collide with each other; only figurines/emotes bounce when they make physical contact
+        const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+        const minDistPx = charRadiusPx * 1.85;
+
         for (let i = 0; i < activeDrops.length; i++) {
             const dropA = activeDrops[i];
             if (dropA.completed) continue;
@@ -1990,31 +1994,31 @@
                 const dropB = activeDrops[j];
                 if (dropB.completed) continue;
 
-                const dx = dropA.x - dropB.x;
-                const dy = dropA.y - dropB.y;
-                const distSq = dx * dx + dy * dy;
-                const minDist = colRadius * 2.0;
+                // True pixel distance between figurine centers
+                const dxPx = (dropA.x - dropB.x) * width;
+                const dyPx = (dropA.y - dropB.y) * height;
+                const distSqPx = dxPx * dxPx + dyPx * dyPx;
 
-                if (distSq < minDist * minDist && distSq > 0.000001) {
-                    const dist = Math.sqrt(distSq);
-                    const nx = dx / dist;
-                    const ny = dy / dist;
+                if (distSqPx < minDistPx * minDistPx && distSqPx > 0.0001) {
+                    const distPx = Math.sqrt(distSqPx);
+                    const nx = dxPx / distPx;
+                    const ny = dyPx / distPx;
 
-                    // Positional separation
-                    const overlap = 0.5 * (minDist - dist);
-                    dropA.x += nx * overlap;
-                    dropA.y += ny * overlap;
-                    dropB.x -= nx * overlap;
-                    dropB.y -= ny * overlap;
+                    // Positional separation in pixel space, normalized back to canvas coordinates
+                    const overlapPx = 0.5 * (minDistPx - distPx);
+                    dropA.x += (nx * overlapPx) / width;
+                    dropA.y += (ny * overlapPx) / height;
+                    dropB.x -= (nx * overlapPx) / width;
+                    dropB.y -= (ny * overlapPx) / height;
 
-                    // Elastic bounce impulse
+                    // Elastic bounce impulse (in normalized speed per second)
                     const rvx = (dropA.vx || 0) - (dropB.vx || 0);
                     const rvy = (dropA.vy || 0) - (dropB.vy || 0);
                     const vDot = rvx * nx + rvy * ny;
 
                     if (vDot < 0) {
                         const MAX_DROP_VX = 0.55;
-                        const impulse = -(1 + 0.85) * vDot * 0.5 + 0.04;
+                        const impulse = Math.max(0.01, -(1 + 0.85) * vDot * 0.5);
                         dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse));
                         dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * 0.4));
                         dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse));
