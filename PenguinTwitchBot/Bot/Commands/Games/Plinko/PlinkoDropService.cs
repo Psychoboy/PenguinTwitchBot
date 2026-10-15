@@ -406,6 +406,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     ["User"] = triggeredBy ?? "System",
                     ["Target"] = triggeredBy ?? "System",
                     ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["total_drops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
                     ["TotalTokens"] = totalDrops.ToString(CultureInfo.InvariantCulture),
                     ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
                     ["Theme"] = theme.Name,
@@ -415,6 +416,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 var endEventArgs = new CommandEventArgs
                 {
+                    Command = "plinko",
                     Name = triggeredBy ?? "System",
                     DisplayName = triggeredBy ?? "System"
                 };

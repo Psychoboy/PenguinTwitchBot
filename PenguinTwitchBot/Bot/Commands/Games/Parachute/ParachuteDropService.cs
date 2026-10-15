@@ -428,6 +428,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     ["User"] = triggeredBy ?? "System",
                     ["Target"] = triggeredBy ?? "System",
                     ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["total_drops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
                     ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
                     ["Theme"] = theme.Name,
                     ["TriggeredBy"] = triggeredBy ?? "System",
@@ -436,6 +437,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 var endEventArgs = new CommandEventArgs
                 {
+                    Command = "drop",
                     Name = triggeredBy ?? "System",
                     DisplayName = triggeredBy ?? "System"
                 };
@@ -664,6 +666,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute drop");
+
+            var dropNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = durationSeconds + 6.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, dropNotice, "Parachute drop active notice to Plinko");
+
             return dropToken;
         }
 
@@ -771,6 +777,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute droplets");
+
+            var dropletsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, dropletsNotice, "Parachute droplets active notice to Plinko");
+
             return droplets;
         }
 

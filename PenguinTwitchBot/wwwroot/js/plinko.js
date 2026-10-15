@@ -596,6 +596,24 @@
             return;
         }
 
+        if (msg.type === 'other_drop_active') {
+            const durSec = typeof msg.durationSeconds === 'number' ? msg.durationSeconds : 12.5;
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + durSec * 1000);
+            return;
+        }
+
+        // Cross-game free play detection if parachute messages are received
+        if (msg.type === 'parachute_drop') {
+            const p = msg.trajectory || msg.physics;
+            const durSec = (p && p.durationSeconds) ? p.durationSeconds : 6.5;
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + (durSec + 6.0) * 1000);
+            return;
+        }
+        if (msg.type === 'parachute_droplets') {
+            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + 8000);
+            return;
+        }
+
         // Ignore messages belonging to other games
         if (msg.session && msg.session.gameType && msg.session.gameType !== 'plinko') {
             return;

@@ -1597,6 +1597,28 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task ParachuteDropService_TriggerDropAndDroplets_NotifiesPlinkoTopicOfDropActivity()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(settingsService, registry);
+
+            var capturedPlinkoActivityNotices = new List<string>();
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Plinko, It.Is<string>(p => p.Contains("other_drop_active"))))
+                .Callback<string, string>((_, p) => capturedPlinkoActivityNotices.Add(p))
+                .Returns(Task.CompletedTask);
+
+            await parachuteSut.TriggerParachuteDropAsync(new CommandEventArgs { Name = "viewer1", DisplayName = "Viewer1" });
+            Assert.Single(capturedPlinkoActivityNotices);
+            Assert.Contains("\"type\":\"other_drop_active\"", capturedPlinkoActivityNotices[0]);
+            Assert.Contains("\"durationSeconds\"", capturedPlinkoActivityNotices[0]);
+
+            await parachuteSut.SpawnDropletsAsync(new DropletSpawnRequest { Count = 5 });
+            Assert.Equal(2, capturedPlinkoActivityNotices.Count);
+            Assert.Contains("\"type\":\"other_drop_active\"", capturedPlinkoActivityNotices[1]);
+        }
+
+        [Fact]
         public async Task DropServices_TriggerDrops_TransmitHeaderConfig()
         {
             var settingsService = CreateSettingsService();
@@ -1773,17 +1795,19 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             string? firedParachuteEvent = null;
             Dictionary<string, string>? firedParachuteVars = null;
 
+            CommandEventArgs? firedParachuteArgs = null;
             _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CommandEventArgs>(),
                 It.IsAny<Dictionary<string, string>>()))
-                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, _, vars) =>
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
                 {
                     if (cmd == "drop")
                     {
                         firedParachuteCommand = cmd;
                         firedParachuteEvent = evt;
+                        firedParachuteArgs = args;
                         firedParachuteVars = vars;
                     }
                 })
@@ -1794,6 +1818,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Equal("drop", firedParachuteCommand);
             Assert.Equal(DefaultCommandEventTypes.ParachuteEnd, firedParachuteEvent);
+            Assert.NotNull(firedParachuteArgs);
+            Assert.Equal("drop", firedParachuteArgs.Command);
             Assert.NotNull(firedParachuteVars);
             Assert.Equal("ModeratorUser", firedParachuteVars["User"]);
             Assert.Equal("ParachuteDrop", firedParachuteVars["Game"]);
@@ -1802,6 +1828,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             string? firedPlinkoCommand = null;
             string? firedPlinkoEvent = null;
+            CommandEventArgs? firedPlinkoArgs = null;
             Dictionary<string, string>? firedPlinkoVars = null;
 
             _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
@@ -1809,12 +1836,13 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 It.IsAny<string>(),
                 It.IsAny<CommandEventArgs>(),
                 It.IsAny<Dictionary<string, string>>()))
-                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, _, vars) =>
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
                 {
                     if (cmd == "plinko")
                     {
                         firedPlinkoCommand = cmd;
                         firedPlinkoEvent = evt;
+                        firedPlinkoArgs = args;
                         firedPlinkoVars = vars;
                     }
                 })
@@ -1825,6 +1853,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Equal("plinko", firedPlinkoCommand);
             Assert.Equal(DefaultCommandEventTypes.PlinkoEnd, firedPlinkoEvent);
+            Assert.NotNull(firedPlinkoArgs);
+            Assert.Equal("plinko", firedPlinkoArgs.Command);
             Assert.NotNull(firedPlinkoVars);
             Assert.Equal("BroadcasterUser", firedPlinkoVars["User"]);
             Assert.Equal("PlinkoBounce", firedPlinkoVars["Game"]);
