@@ -84,6 +84,7 @@ public class EmoteService(
             var hadMissingChannelId = string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId);
             var cooldownElapsed = DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown;
 
+            var shouldRefresh = false;
             if (hadMissingChannelId || (cooldownElapsed && !string.IsNullOrEmpty(channelId)))
             {
                 await _fetchLock.WaitAsync();
@@ -94,16 +95,21 @@ public class EmoteService(
                     {
                         _lastForcedRefreshUtc = DateTime.UtcNow;
                         memoryCache.Remove(EmoteCacheKey);
-                        emotes = await GetEmotesAsync();
-                        if (emotes.TryGetValue(cleanName, out url) && !string.IsNullOrWhiteSpace(url))
-                        {
-                            return url;
-                        }
+                        shouldRefresh = true;
                     }
                 }
                 finally
                 {
                     _fetchLock.Release();
+                }
+            }
+
+            if (shouldRefresh)
+            {
+                emotes = await GetEmotesAsync();
+                if (emotes.TryGetValue(cleanName, out url) && !string.IsNullOrWhiteSpace(url))
+                {
+                    return url;
                 }
             }
         }

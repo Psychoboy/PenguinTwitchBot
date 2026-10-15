@@ -129,11 +129,15 @@ namespace PenguinTwitchBot.Test.Controllers
             Assert.Equal(404, statusResult.StatusCode);
         }
 
-        [Fact]
-        public async Task ProxyImage_DisallowedHost_ReturnsBadRequest()
+        [Theory]
+        [InlineData("https://evil.example.com/exploit.png")]
+        [InlineData("https://unallowed.jtvnw.net/exploit.png")]
+        [InlineData("https://api.betterttv.net/3/exploit.png")]
+        [InlineData("https://betterttv.net/exploit.png")]
+        public async Task ProxyImage_DisallowedHost_ReturnsBadRequest(string url)
         {
             var controller = CreateController();
-            var result = await controller.ProxyImage("https://evil.example.com/exploit.png");
+            var result = await controller.ProxyImage(url);
             Assert.IsType<BadRequestObjectResult>(result);
         }
 

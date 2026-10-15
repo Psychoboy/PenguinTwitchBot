@@ -145,24 +145,15 @@ namespace PenguinTwitchBot.Controllers
 
         private static readonly HashSet<string> AllowedEmoteDomains = new(StringComparer.OrdinalIgnoreCase)
         {
-            "jtvnw.net",
-            "betterttv.net",
-            "7tv.app",
-            "frankerfacez.com"
+            "static-cdn.jtvnw.net",
+            "cdn.betterttv.net",
+            "cdn.7tv.app",
+            "cdn.frankerfacez.com"
         };
 
         private static bool IsAllowedEmoteHost(string host)
         {
-            if (string.IsNullOrWhiteSpace(host)) return false;
-            foreach (var domain in AllowedEmoteDomains)
-            {
-                if (host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
-                    host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return !string.IsNullOrWhiteSpace(host) && AllowedEmoteDomains.Contains(host);
         }
 
         private static string SanitizeForLog(string? input)
