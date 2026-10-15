@@ -920,12 +920,14 @@
             {
                 DefaultCommandEventTypes.ParachuteBullseye,
                 DefaultCommandEventTypes.ParachuteWin,
-                DefaultCommandEventTypes.ParachuteLose
+                DefaultCommandEventTypes.ParachuteLose,
+                DefaultCommandEventTypes.ParachuteEnd
             },
             "plinko" => new List<string>
             {
                 DefaultCommandEventTypes.PlinkoWin,
-                DefaultCommandEventTypes.PlinkoLose
+                DefaultCommandEventTypes.PlinkoLose,
+                DefaultCommandEventTypes.PlinkoEnd
             },
             _ => new List<string>()
         };
@@ -962,8 +964,10 @@
             DefaultCommandEventTypes.ParachuteWin => "Win (Target Hit)",
             DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",
             DefaultCommandEventTypes.ParachuteLose => "Missed Target (Lose)",
+            DefaultCommandEventTypes.ParachuteEnd => "Round Ended (Session Closed)",
             DefaultCommandEventTypes.PlinkoWin => "Winning Bucket",
             DefaultCommandEventTypes.PlinkoLose => "Losing Bucket",
+            DefaultCommandEventTypes.PlinkoEnd => "Round Ended (Session Closed)",
             _ => eventType
         };
     }
@@ -990,8 +994,12 @@
                 "%user%, %userid%, %segment_label%, %prize_amount%, %spin_outcome%",
             DefaultCommandEventTypes.ParachuteBullseye or DefaultCommandEventTypes.ParachuteWin or DefaultCommandEventTypes.ParachuteLose =>
                 "%user%, %userid%, %score%, %is_bullseye%, %multiplier%, %points_awarded%",
+            DefaultCommandEventTypes.ParachuteEnd =>
+                "%user%, %total_drops%, %duration%, %theme%, %game%",
             DefaultCommandEventTypes.PlinkoWin or DefaultCommandEventTypes.PlinkoLose =>
                 "%user%, %userid%, %bucket_index%, %multiplier%, %points_awarded%",
+            DefaultCommandEventTypes.PlinkoEnd =>
+                "%user%, %total_drops%, %duration%, %theme%, %game%",
             _ => ""
         };
     }

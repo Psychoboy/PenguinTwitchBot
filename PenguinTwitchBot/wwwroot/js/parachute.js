@@ -730,7 +730,7 @@
 
     // WebSocket connection & completions queue
     const pendingCompletions = [];
-    const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute, window.WS_TOPICS.plinko]);
+    const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
 
     function sendCompletion(token, landingX) {
         if (!token) return;
@@ -793,6 +793,18 @@
             return;
         }
 
+        if (msg.type === 'other_game_status') {
+            if (typeof msg.isOtherGameActive === 'boolean') {
+                isOtherGameActive = msg.isOtherGameActive;
+            }
+            return;
+        }
+
+        // Ignore messages belonging to other games
+        if (msg.session && msg.session.gameType && msg.session.gameType !== 'parachute') {
+            return;
+        }
+
         if (msg.headerConfig) {
             applyHeaderConfig(msg.headerConfig);
         }
@@ -806,16 +818,6 @@
         }
         if (typeof msg.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.isOtherGameActive;
-        }
-
-        // Cross-game session detection (Plinko started/ended)
-        if (msg.type === 'session_start' && msg.session && msg.session.gameType === 'plinko') {
-            isOtherGameActive = true;
-            return;
-        }
-        if (msg.type === 'session_end' && msg.session && msg.session.gameType === 'plinko') {
-            isOtherGameActive = false;
-            return;
         }
 
         const p = msg.trajectory || msg.physics;
@@ -970,7 +972,7 @@
             }
         }
 
-        if (msg.session && sessionState) {
+        if (msg.session && sessionState && (!msg.session.gameType || msg.session.gameType === 'parachute')) {
             if (typeof msg.session.totalDrops === 'number') {
                 sessionState.totalDrops = msg.session.totalDrops;
             }

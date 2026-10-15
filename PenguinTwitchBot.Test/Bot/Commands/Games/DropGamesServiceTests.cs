@@ -6,6 +6,7 @@ using Moq;
 using PenguinTwitchBot.Application.DropGameNotifications;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
@@ -1553,6 +1554,49 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task DropServices_StartAndStopSessionAsync_NotifiesCrossGameTopicOfOtherGameStatus()
+        {
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(settingsService, registry);
+            var plinkoSut = CreatePlinkoService(settingsService, registry);
+
+            var capturedPlinkoNotices = new List<string>();
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Plinko, It.Is<string>(p => p.Contains("other_game_status"))))
+                .Callback<string, string>((_, p) => capturedPlinkoNotices.Add(p))
+                .Returns(Task.CompletedTask);
+
+            var capturedParachuteNotices = new List<string>();
+            _webSocketMessenger.Setup(x => x.AddToQueue(WsTopics.Parachute, It.Is<string>(p => p.Contains("other_game_status"))))
+                .Callback<string, string>((_, p) => capturedParachuteNotices.Add(p))
+                .Returns(Task.CompletedTask);
+
+            // Starting Parachute notifies Plinko topic
+            await parachuteSut.StartSessionAsync(durationSeconds: 30);
+            Assert.Single(capturedPlinkoNotices);
+            Assert.Contains("\"isOtherGameActive\":true", capturedPlinkoNotices[0]);
+            Assert.Contains("\"otherGame\":\"parachute\"", capturedPlinkoNotices[0]);
+
+            // Stopping Parachute notifies Plinko topic
+            await parachuteSut.StopSessionAsync(triggeredBy: "moderator");
+            Assert.Equal(2, capturedPlinkoNotices.Count);
+            Assert.Contains("\"isOtherGameActive\":false", capturedPlinkoNotices[1]);
+            Assert.Contains("\"otherGame\":\"parachute\"", capturedPlinkoNotices[1]);
+
+            // Starting Plinko notifies Parachute topic
+            await plinkoSut.StartSessionAsync(durationSeconds: 30);
+            Assert.Single(capturedParachuteNotices);
+            Assert.Contains("\"isOtherGameActive\":true", capturedParachuteNotices[0]);
+            Assert.Contains("\"otherGame\":\"plinko\"", capturedParachuteNotices[0]);
+
+            // Stopping Plinko notifies Parachute topic
+            await plinkoSut.StopSessionAsync(triggeredBy: "moderator");
+            Assert.Equal(2, capturedParachuteNotices.Count);
+            Assert.Contains("\"isOtherGameActive\":false", capturedParachuteNotices[1]);
+            Assert.Contains("\"otherGame\":\"plinko\"", capturedParachuteNotices[1]);
+        }
+
+        [Fact]
         public async Task DropServices_TriggerDrops_TransmitHeaderConfig()
         {
             var settingsService = CreateSettingsService();
@@ -1716,6 +1760,92 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(registry.IsSessionActive(DropGameType.Plinko));
             await plinkoSut.StopAsync(CancellationToken.None);
             Assert.False(registry.IsSessionActive(DropGameType.Plinko));
+        }
+
+        [Fact]
+        public async Task DropServices_StopSessionAsync_TriggersEndEvents()
+        {
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+            var plinkoSut = CreatePlinkoService(dropRegistry: registry);
+
+            string? firedParachuteCommand = null;
+            string? firedParachuteEvent = null;
+            Dictionary<string, string>? firedParachuteVars = null;
+
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, _, vars) =>
+                {
+                    if (cmd == "drop")
+                    {
+                        firedParachuteCommand = cmd;
+                        firedParachuteEvent = evt;
+                        firedParachuteVars = vars;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            await parachuteSut.StartSessionAsync(60, triggeredBy: "ModeratorUser");
+            await parachuteSut.StopSessionAsync("ModeratorUser");
+
+            Assert.Equal("drop", firedParachuteCommand);
+            Assert.Equal(DefaultCommandEventTypes.ParachuteEnd, firedParachuteEvent);
+            Assert.NotNull(firedParachuteVars);
+            Assert.Equal("ModeratorUser", firedParachuteVars["User"]);
+            Assert.Equal("ParachuteDrop", firedParachuteVars["Game"]);
+            Assert.Equal("60", firedParachuteVars["Duration"]);
+            Assert.True(firedParachuteVars.ContainsKey("TotalDrops"));
+
+            string? firedPlinkoCommand = null;
+            string? firedPlinkoEvent = null;
+            Dictionary<string, string>? firedPlinkoVars = null;
+
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, _, vars) =>
+                {
+                    if (cmd == "plinko")
+                    {
+                        firedPlinkoCommand = cmd;
+                        firedPlinkoEvent = evt;
+                        firedPlinkoVars = vars;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            await plinkoSut.StartSessionAsync(45, triggeredBy: "BroadcasterUser");
+            await plinkoSut.StopSessionAsync("BroadcasterUser");
+
+            Assert.Equal("plinko", firedPlinkoCommand);
+            Assert.Equal(DefaultCommandEventTypes.PlinkoEnd, firedPlinkoEvent);
+            Assert.NotNull(firedPlinkoVars);
+            Assert.Equal("BroadcasterUser", firedPlinkoVars["User"]);
+            Assert.Equal("PlinkoBounce", firedPlinkoVars["Game"]);
+            Assert.Equal("45", firedPlinkoVars["Duration"]);
+            Assert.True(firedPlinkoVars.ContainsKey("TotalDrops"));
+        }
+
+        [Fact]
+        public void TriggerCatalog_ContainsParachuteAndPlinkoEndTriggers()
+        {
+            var parachuteEnd = TriggerCatalog.AllTriggers.FirstOrDefault(t => t.Id == "parachute-end");
+            Assert.NotNull(parachuteEnd);
+            Assert.Equal("minigames", parachuteEnd.CategoryId);
+            Assert.Equal("drop", parachuteEnd.DefaultCommandName);
+            Assert.Equal(DefaultCommandEventTypes.ParachuteEnd, parachuteEnd.DefaultCommandEventType);
+
+            var plinkoEnd = TriggerCatalog.AllTriggers.FirstOrDefault(t => t.Id == "plinko-end");
+            Assert.NotNull(plinkoEnd);
+            Assert.Equal("minigames", plinkoEnd.CategoryId);
+            Assert.Equal("plinko", plinkoEnd.DefaultCommandName);
+            Assert.Equal(DefaultCommandEventTypes.PlinkoEnd, plinkoEnd.DefaultCommandEventType);
         }
     }
 }

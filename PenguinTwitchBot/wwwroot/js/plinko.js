@@ -526,7 +526,7 @@
     const confettiParticles = [];
     const pendingCompletions = [];
 
-    const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko, window.WS_TOPICS.parachute]);
+    const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko]);
 
     function sendCompletion(token, winningBucketIndex) {
         if (!token) return;
@@ -589,6 +589,18 @@
             return;
         }
 
+        if (msg.type === 'other_game_status') {
+            if (typeof msg.isOtherGameActive === 'boolean') {
+                isOtherGameActive = msg.isOtherGameActive;
+            }
+            return;
+        }
+
+        // Ignore messages belonging to other games
+        if (msg.session && msg.session.gameType && msg.session.gameType !== 'plinko') {
+            return;
+        }
+
         if (msg.headerConfig) {
             applyHeaderConfig(msg.headerConfig);
         }
@@ -602,28 +614,6 @@
         }
         if (typeof msg.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.isOtherGameActive;
-        }
-
-        // Cross-game session detection (Parachute started/ended)
-        if (msg.type === 'session_start' && msg.session && msg.session.gameType === 'parachute') {
-            isOtherGameActive = true;
-            return;
-        }
-        if (msg.type === 'session_end' && msg.session && msg.session.gameType === 'parachute') {
-            isOtherGameActive = false;
-            return;
-        }
-
-        // Cross-game free play detection (Parachute drops active on stream)
-        if (msg.type === 'parachute_drop') {
-            const p = msg.trajectory || msg.physics;
-            const durSec = (p && p.durationSeconds) ? p.durationSeconds : 6.5;
-            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + (durSec + 6.0) * 1000);
-            return;
-        }
-        if (msg.type === 'parachute_droplets') {
-            otherDropsActiveUntilMs = Math.max(otherDropsActiveUntilMs, performance.now() + 8000);
-            return;
         }
 
         if (msg.type === 'plinko_drop' && msg.board) {
@@ -712,7 +702,7 @@
             sessionState.endedAtMs = performance.now();
         }
 
-        if (msg.session && sessionState) {
+        if (msg.session && sessionState && (!msg.session.gameType || msg.session.gameType === 'plinko')) {
             if (typeof msg.session.totalDrops === 'number') {
                 sessionState.totalDrops = msg.session.totalDrops;
             }

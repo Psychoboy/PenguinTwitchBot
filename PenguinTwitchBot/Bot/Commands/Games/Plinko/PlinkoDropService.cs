@@ -282,6 +282,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_start");
 
+                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "plinko" }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Plinko is active");
+
                 if (settings.Plinko.AnnounceSessionStatusInChat)
                 {
                     var template = settings.Plinko.SessionStartChatMessageTemplate;
@@ -376,6 +379,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
 
+            var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "plinko" }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Plinko is inactive");
+
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
             {
                 if (settings.Plinko.AnnounceSessionStatusInChat)
@@ -395,6 +401,37 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
             {
+                var endVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["TotalTokens"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
+                    ["Theme"] = theme.Name,
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "PlinkoBounce"
+                };
+
+                var endEventArgs = new CommandEventArgs
+                {
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "plinko",
+                        DefaultCommandEventTypes.PlinkoEnd,
+                        endEventArgs,
+                        endVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire PlinkoEnd trigger");
+                }
+
                 await ProcessNextQueuedSessionAsync();
             }
 
