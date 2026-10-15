@@ -64,7 +64,7 @@ namespace PenguinTwitchBot.Controllers
                 return BadRequest("Invalid image URL");
             }
 
-            if (uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            if (uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || !IsAllowedEmoteHost(uri.Host))
             {
                 return BadRequest("Invalid host");
             }
@@ -74,12 +74,18 @@ namespace PenguinTwitchBot.Controllers
             {
                 try
                 {
+                    var cancellationToken = HttpContext?.RequestAborted ?? CancellationToken.None;
                     var client = httpClientFactory.CreateClient("Emotes");
                     using var request = new HttpRequestMessage(HttpMethod.Get, uri);
                     request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
                     request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
 
-                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
+                    {
+                        return BadRequest("Redirects are not allowed");
+                    }
+
                     if (!response.IsSuccessStatusCode)
                     {
                         var safeUrl = SanitizeForLog(url);
@@ -87,18 +93,44 @@ namespace PenguinTwitchBot.Controllers
                         return StatusCode((int)response.StatusCode);
                     }
 
-                    var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/png";
-                    var bytes = await response.Content.ReadAsByteArrayAsync();
+                    var contentType = response.Content.Headers.ContentType?.MediaType;
+                    if (string.IsNullOrEmpty(contentType) || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest("Response is not an image");
+                    }
 
-                    if (bytes.Length <= 10 * 1024 * 1024)
+                    const long maxBytes = 10 * 1024 * 1024; // 10 MiB
+                    if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value > maxBytes)
                     {
-                        cached = (bytes, contentType);
-                        memoryCache.Set(cacheKey, cached, TimeSpan.FromHours(1));
+                        return BadRequest("Image exceeds maximum allowed size");
                     }
-                    else
+
+                    using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    using var ms = new MemoryStream();
+                    var buffer = new byte[81920];
+                    int bytesRead;
+                    long totalBytesRead = 0;
+
+                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
                     {
-                        return File(bytes, contentType);
+                        totalBytesRead += bytesRead;
+                        if (totalBytesRead > maxBytes)
+                        {
+                            return BadRequest("Image exceeds maximum allowed size");
+                        }
+                        ms.Write(buffer, 0, bytesRead);
                     }
+
+                    var bytes = ms.ToArray();
+                    cached = (bytes, contentType);
+                    var entryOptions = new MemoryCacheEntryOptions()
+                        .SetAbsoluteExpiration(TimeSpan.FromHours(1))
+                        .SetSize(bytes.Length);
+                    memoryCache.Set(cacheKey, cached, entryOptions);
+                }
+                catch (OperationCanceledException) when (HttpContext?.RequestAborted.IsCancellationRequested == true)
+                {
+                    return StatusCode(499);
                 }
                 catch (Exception ex)
                 {
@@ -109,6 +141,28 @@ namespace PenguinTwitchBot.Controllers
             }
 
             return File(cached.bytes, cached.contentType);
+        }
+
+        private static readonly HashSet<string> AllowedEmoteDomains = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "jtvnw.net",
+            "betterttv.net",
+            "7tv.app",
+            "frankerfacez.com"
+        };
+
+        private static bool IsAllowedEmoteHost(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host)) return false;
+            foreach (var domain in AllowedEmoteDomains)
+            {
+                if (host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+                    host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static string SanitizeForLog(string? input)

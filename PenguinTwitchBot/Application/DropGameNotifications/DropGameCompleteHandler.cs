@@ -30,43 +30,46 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
             {
                 if (record.GameType == DropGameType.Parachute)
                 {
-                    if (notification.LandingX.HasValue && notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
+                    if (notification.LandingX.HasValue &&
+                        Math.Abs(notification.LandingX.Value - record.LandingX) <= 0.15 &&
+                        notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
                     {
                         record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
-                        var distFromCenter = Math.Round(Math.Abs(record.LandingX - record.TargetCenterX), 4);
-                        record.IsHit = distFromCenter <= record.TargetHalfWidth;
-                        if (record.IsHit)
-                        {
-                            var ratio = Math.Clamp(distFromCenter / Math.Max(0.0001, record.TargetHalfWidth), 0.0, 1.0);
-                            record.Score = Math.Clamp((int)Math.Round(100.0 - (ratio * 99.0), MidpointRounding.AwayFromZero), 1, 100);
-                            record.IsBullseye = record.Score == 100;
-                            record.IsWin = true;
-                        }
-                        else
-                        {
-                            record.Score = 0;
-                            record.IsBullseye = false;
-                            record.IsWin = false;
-                        }
+                        (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
+                            ParachuteSimulationEngine.CalculateLandingScore(record.LandingX, record.TargetCenterX, record.TargetHalfWidth);
                     }
 
                     await parachuteDropService.ProcessCompletionAsync(record);
                 }
                 else if (record.GameType == DropGameType.Plinko)
                 {
-                    if (notification.WinningBucketIndex.HasValue)
+                    var buckets = record.Buckets;
+                    if (buckets == null || buckets.Count == 0)
                     {
                         var settings = await settingsService.GetSettingsAsync();
-                        var buckets = settings.Plinko.Buckets;
-                        var idx = notification.WinningBucketIndex.Value;
-                        if (idx >= 0 && idx < buckets.Count)
+                        buckets = settings.Plinko.Buckets;
+                    }
+
+                    if (buckets != null && buckets.Count > 0)
+                    {
+                        if (notification.WinningBucketIndex.HasValue)
                         {
-                            var b = buckets[idx];
-                            record.BucketIndex = idx;
-                            record.BucketLabel = b.Label;
-                            record.Score = b.Score;
-                            record.IsWin = b.IsWin;
+                            var idx = notification.WinningBucketIndex.Value;
+                            if (Math.Abs(idx - record.BucketIndex) <= 1 && idx >= 0 && idx < buckets.Count)
+                            {
+                                record.BucketIndex = idx;
+                            }
                         }
+
+                        var selectedIdx = Math.Clamp(record.BucketIndex, 0, buckets.Count - 1);
+                        var b = buckets[selectedIdx];
+                        record.BucketIndex = selectedIdx;
+                        record.BucketLabel = b.Label;
+                        record.Score = b.IsWin ? b.Score : 0;
+                        record.IsWin = b.IsWin;
+                        record.IsHit = b.IsWin;
+                        var maxWinScore = buckets.Where(x => x.IsWin).Select(x => x.Score).DefaultIfEmpty(0).Max();
+                        record.IsBullseye = b.IsWin && b.Score >= maxWinScore;
                     }
 
                     await plinkoDropService.ProcessCompletionAsync(record);

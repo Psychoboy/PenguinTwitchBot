@@ -20,7 +20,7 @@ To keep chat engaged without collisions between different games:
 ## Tamper-Proof Security
 
 All scores, landings, and win distributions are verified by the server:
-- Every drop receives a single-use cryptographically signed `dropToken`.
+- Every drop receives a single-use random `dropToken`.
 - When an entity lands on stream, the browser overlay sends the completion token back to the server for authoritative validation.
 - Unregistered tokens, duplicated tokens, and modified landing coordinates are rejected, ensuring that points and win triggers cannot be forged.
 

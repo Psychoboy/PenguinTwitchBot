@@ -914,7 +914,12 @@
             t.vx = (t.vx || 0) * 0.94;
             t.vy = (t.vy || 0) * 0.94;
 
-            t.x = Math.max(0.06, Math.min(0.94, baseX + (t.offsetX || 0)));
+            const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+            const halfBucketW = 0.5 / bucketCount;
+            const minTokenX = halfBucketW;
+            const maxTokenX = 1.0 - halfBucketW;
+
+            t.x = Math.max(minTokenX, Math.min(maxTokenX, baseX + (t.offsetX || 0)));
             t.y = baseY + (t.offsetY || 0);
 
             t.rotation += ((wpB.x >= wpA.x ? 1 : -1) * (t.spinSpeed || 5.0) + (t.vx || 0) * 15) * dtSec;
@@ -949,12 +954,17 @@
                     const nx = dx / dist;
                     const ny = dy / dist;
 
+                    const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+                    const halfBucketW = 0.5 / bucketCount;
+                    const minTokenX = halfBucketW;
+                    const maxTokenX = 1.0 - halfBucketW;
+
                     // Positional separation
                     const overlap = 0.5 * (minDist - dist);
                     tA.offsetX = (tA.offsetX || 0) + nx * overlap;
                     tB.offsetX = (tB.offsetX || 0) - nx * overlap;
-                    tA.x = Math.max(0.06, Math.min(0.94, tA.x + nx * overlap));
-                    tB.x = Math.max(0.06, Math.min(0.94, tB.x - nx * overlap));
+                    tA.x = Math.max(minTokenX, Math.min(maxTokenX, tA.x + nx * overlap));
+                    tB.x = Math.max(minTokenX, Math.min(maxTokenX, tB.x - nx * overlap));
 
                     // Elastic bounce impulse
                     const rvx = (tA.vx || 0) - (tB.vx || 0);
@@ -989,10 +999,18 @@
                 t.y = 0.88;
 
                 const buckets = boardConfig.buckets || [];
-                let landedBucketIdx = t.winningBucketIndex;
-                if (buckets.length > 0) {
+                let landedBucketIdx;
+                if (typeof t.winningBucketIndex === 'number' && buckets.length > 0) {
+                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, t.winningBucketIndex));
+                } else if (buckets.length > 0) {
                     const slotW = 1.0 / buckets.length;
                     landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
+                } else {
+                    landedBucketIdx = 0;
+                }
+
+                if (buckets.length > 0) {
+                    const slotW = 1.0 / buckets.length;
                     const landedBucket = buckets[landedBucketIdx];
                     t.winningBucketIndex = landedBucketIdx;
                     t.winningBucketLabel = landedBucket.label;

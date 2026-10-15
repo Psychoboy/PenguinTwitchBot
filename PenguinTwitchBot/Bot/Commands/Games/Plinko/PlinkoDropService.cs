@@ -420,7 +420,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 IsBullseye = winningBucket.IsWin && winningBucket.Score >= buckets.Where(b => b.IsWin).Select(b => b.Score).DefaultIfEmpty(0).Max(),
                 IsWin = winningBucket.IsWin,
                 BucketIndex = winningBucketIndex,
-                BucketLabel = winningBucket.Label
+                BucketLabel = winningBucket.Label,
+                Buckets = buckets.Select(b => new PlinkoBucket { Label = b.Label, Score = b.Score, IsWin = b.IsWin, Color = b.Color, Weight = b.Weight }).ToList()
             };
 
             dropRegistry.RegisterDrop(record);

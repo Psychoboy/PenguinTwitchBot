@@ -25,6 +25,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             foreach (var token in rawTokens)
             {
                 if (token.Contains(' ') &&
+                    !token.StartsWith('/') &&
                     !token.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                     !token.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
@@ -41,6 +42,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
             return result;
         }
+
+        private const int MaxMediaTokens = 10;
 
         /// <summary>
         /// Resolves one or more media tokens (Twitch/BTTV/FFZ/7TV emote codes or image URLs/paths) into valid CDN URLs.
@@ -65,13 +68,32 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 primaryTokens = ParseMediaTokens(eventArgs?.Arg);
             }
 
+            if (primaryTokens.Count > MaxMediaTokens)
+            {
+                primaryTokens = primaryTokens.Take(MaxMediaTokens).ToList();
+            }
+
             var resolved = new List<string>();
+            Dictionary<string, string>? cachedEmotes = null;
+            if (emoteService != null)
+            {
+                try
+                {
+                    cachedEmotes = await emoteService.GetEmotesAsync();
+                }
+                catch
+                {
+                    // Ignore transient error fetching cached dictionary
+                }
+            }
+
+            var context = new ResolutionContext { CachedEmotes = cachedEmotes };
 
             if (primaryTokens.Count > 0)
             {
                 foreach (var token in primaryTokens)
                 {
-                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath);
+                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath, context);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
                         resolved.Add(url);
@@ -83,10 +105,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             if (resolved.Count == 0 && !string.IsNullOrWhiteSpace(fallbackInput))
             {
                 var fallbackTokens = ParseMediaTokens(fallbackInput);
+                if (fallbackTokens.Count > MaxMediaTokens)
+                {
+                    fallbackTokens = fallbackTokens.Take(MaxMediaTokens).ToList();
+                }
+
                 foreach (var token in fallbackTokens)
                 {
                     // Fallback tokens come from saved theme settings and are trusted to allow local paths/URLs
-                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath: true);
+                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath: true, context);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
                         resolved.Add(url);
@@ -95,6 +122,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             return resolved;
+        }
+
+        private sealed class ResolutionContext
+        {
+            public Dictionary<string, string>? CachedEmotes { get; set; }
+            public bool HasRefreshedLookup { get; set; }
         }
 
         /// <summary>
@@ -117,7 +150,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         private static async Task<string?> ResolveSingleTokenAsync(
             IEmoteService? emoteService,
             string token,
-            bool allowDirectUrlOrPath)
+            bool allowDirectUrlOrPath,
+            ResolutionContext context)
         {
             if (string.IsNullOrWhiteSpace(token)) return null;
 
@@ -134,13 +168,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 try
                 {
-                    var emoteUrl = await emoteService.ResolveEmoteUrlAsync(token);
-                    if (!string.IsNullOrWhiteSpace(emoteUrl))
-                    {
-                        return NormalizeTwitchEmoteUrl(emoteUrl);
-                    }
-
-                    var emotes = await emoteService.GetEmotesAsync();
+                    // 1. Check cached dictionary first for exact or case-insensitive match
+                    var emotes = context.CachedEmotes;
                     if (emotes != null)
                     {
                         if (emotes.TryGetValue(token, out var dictUrl) && !string.IsNullOrWhiteSpace(dictUrl))
@@ -152,6 +181,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                         if (!string.IsNullOrWhiteSpace(match.Value))
                         {
                             return NormalizeTwitchEmoteUrl(match.Value);
+                        }
+                    }
+
+                    // 2. Fall back to refreshing lookup at most once per ResolveMediaUrlsAsync call
+                    if (!context.HasRefreshedLookup)
+                    {
+                        context.HasRefreshedLookup = true;
+                        var emoteUrl = await emoteService.ResolveEmoteUrlAsync(token);
+                        try
+                        {
+                            context.CachedEmotes = await emoteService.GetEmotesAsync();
+                        }
+                        catch
+                        {
+                            // Ignore error refreshing dictionary
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(emoteUrl))
+                        {
+                            return NormalizeTwitchEmoteUrl(emoteUrl);
                         }
                     }
                 }

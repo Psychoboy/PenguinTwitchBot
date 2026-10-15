@@ -1791,7 +1791,7 @@
                                     drop.lastDropletHitTime = now;
                                     const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.08, Math.min(0.22, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
 
@@ -1834,7 +1834,7 @@
                                     drop.lastDropletHitTime = now;
                                     const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.08, Math.min(0.22, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
                             }
@@ -1917,7 +1917,7 @@
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
             drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, drop.vx || 0));
-            drop.vy = Math.max(0.08, Math.min(0.22, drop.vy || 0.12));
+            drop.vy = Math.max(0.04, Math.min(0.45, drop.vy || 0.12));
 
             // Move along current velocity vector (no sinusoidal sway)
             drop.x += drop.vx * dtSec;
@@ -1956,7 +1956,7 @@
                     } else {
                         drop.vx = (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.8); // Bounced over lip into the pool!
                     }
-                    drop.vy = Math.max(0.08, drop.vy * 0.65);
+                    drop.vy = Math.max(0.04, drop.vy * 0.65);
                     if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                         playSound(currentTheme.dropletHitSoundUrl, 0.4);
                         drop.lastWallSfx = now;
@@ -2016,9 +2016,9 @@
                         const MAX_DROP_VX = 0.55;
                         const impulse = -(1 + 0.85) * vDot * 0.5 + 0.04;
                         dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse));
-                        dropA.vy = Math.max(0.08, Math.min(0.22, (dropA.vy || 0.12) + ny * impulse * 0.4));
+                        dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * 0.4));
                         dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse));
-                        dropB.vy = Math.max(0.08, Math.min(0.22, (dropB.vy || 0.12) - ny * impulse * 0.4));
+                        dropB.vy = Math.max(0.04, Math.min(0.45, (dropB.vy || 0.12) - ny * impulse * 0.4));
 
                         if (currentTheme.dropletHitSoundUrl && (!dropA.lastBounceSfx || (now - dropA.lastBounceSfx) > 150)) {
                             playSound(currentTheme.dropletHitSoundUrl, 0.45);

@@ -32,7 +32,10 @@ public class EmoteService(
     private const string EmoteCacheKey = "chat_emotes_v1";
     private static readonly TimeSpan EmoteCacheDuration = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan EmptyEmoteCacheDuration = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ForcedRefreshCooldown = TimeSpan.FromMinutes(2);
     private readonly SemaphoreSlim _fetchLock = new(1, 1);
+    private string? _cachedChannelId;
+    private DateTime _lastForcedRefreshUtc = DateTime.MinValue;
 
     public async Task<Dictionary<string, string>> GetEmotesAsync()
     {
@@ -49,6 +52,7 @@ public class EmoteService(
 
             var channelId = await twitchService.GetBroadcasterUserId();
             emotes = await FetchAllEmotesAsync(channelId);
+            _cachedChannelId = channelId;
             // Don't let a transient upstream failure or missing channel ID pin an incomplete result for 30 minutes.
             var ttl = (emotes.Count == 0 || string.IsNullOrEmpty(channelId)) ? EmptyEmoteCacheDuration : EmoteCacheDuration;
             memoryCache.Set(EmoteCacheKey, emotes, ttl);
@@ -72,17 +76,34 @@ public class EmoteService(
             return url;
         }
 
-        // Cache miss: If channelId was missing or newly available, invalidate and retry once
+        // Cache miss: Only force a refresh if the cached emotes were fetched without a channel ID
+        // and a channel ID is now available, or if cooldown has elapsed.
         try
         {
             var channelId = await twitchService.GetBroadcasterUserId();
-            if (!string.IsNullOrEmpty(channelId))
+            var hadMissingChannelId = string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId);
+            var cooldownElapsed = DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown;
+
+            if (hadMissingChannelId || (cooldownElapsed && !string.IsNullOrEmpty(channelId)))
             {
-                memoryCache.Remove(EmoteCacheKey);
-                emotes = await GetEmotesAsync();
-                if (emotes.TryGetValue(cleanName, out url) && !string.IsNullOrWhiteSpace(url))
+                await _fetchLock.WaitAsync();
+                try
                 {
-                    return url;
+                    if ((string.IsNullOrEmpty(_cachedChannelId) && !string.IsNullOrEmpty(channelId)) ||
+                        DateTime.UtcNow - _lastForcedRefreshUtc > ForcedRefreshCooldown)
+                    {
+                        _lastForcedRefreshUtc = DateTime.UtcNow;
+                        memoryCache.Remove(EmoteCacheKey);
+                        emotes = await GetEmotesAsync();
+                        if (emotes.TryGetValue(cleanName, out url) && !string.IsNullOrWhiteSpace(url))
+                        {
+                            return url;
+                        }
+                    }
+                }
+                finally
+                {
+                    _fetchLock.Release();
                 }
             }
         }

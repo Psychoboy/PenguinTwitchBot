@@ -8,8 +8,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         public const double Dt = 1.0 / TickRateHz;
         public const double ParachuteRadius = 0.036;
         public const double MaxVx = 0.55;
-        public const double MinVy = 0.08;
-        public const double MaxVy = 0.22;
+        public const double MinVy = 0.04;
+        public const double MaxVy = 0.45;
 
         public static ParachuteTrajectoryPointDto GetParachutePositionAtTick(PendingDropRecord record, int tick)
         {
@@ -208,26 +208,33 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             record.DropletHitCount = existingCollisions.Count;
             record.Keyframes = keyframes;
 
-            // Evaluate landing accuracy against Target platform (0 - 100 score)
-            // 0 = missed the platform
-            // 1 = edge of the platform
-            // 100 = dead center of the platform
-            var distanceFromCenter = Math.Round(Math.Abs(record.LandingX - record.TargetCenterX), 4);
-            record.IsHit = distanceFromCenter <= record.TargetHalfWidth;
+            (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
+                CalculateLandingScore(record.LandingX, record.TargetCenterX, record.TargetHalfWidth);
+        }
 
-            if (record.IsHit)
+        /// <summary>
+        /// Evaluates landing accuracy against the target platform on a 0 - 100 scale.
+        /// 0 = missed the platform
+        /// 1 = outer edge of the platform
+        /// 100 = dead center of the platform (bullseye)
+        /// </summary>
+        public static (int Score, bool IsBullseye, bool IsWin, bool IsHit) CalculateLandingScore(
+            double landingX,
+            double targetCenterX,
+            double targetHalfWidth)
+        {
+            var distanceFromCenter = Math.Round(Math.Abs(landingX - targetCenterX), 4);
+            var isHit = distanceFromCenter <= targetHalfWidth;
+
+            if (isHit)
             {
-                var ratio = Math.Clamp(distanceFromCenter / Math.Max(0.0001, record.TargetHalfWidth), 0.0, 1.0);
-                record.Score = Math.Clamp((int)Math.Round(100.0 - (ratio * 99.0), MidpointRounding.AwayFromZero), 1, 100);
-                record.IsBullseye = record.Score == 100;
-                record.IsWin = true;
+                var ratio = Math.Clamp(distanceFromCenter / Math.Max(0.0001, targetHalfWidth), 0.0, 1.0);
+                var score = Math.Clamp((int)Math.Round(100.0 - (ratio * 99.0), MidpointRounding.AwayFromZero), 1, 100);
+                var isBullseye = score == 100;
+                return (score, isBullseye, true, true);
             }
-            else
-            {
-                record.Score = 0;
-                record.IsBullseye = false;
-                record.IsWin = false;
-            }
+
+            return (0, false, false, false);
         }
     }
 }

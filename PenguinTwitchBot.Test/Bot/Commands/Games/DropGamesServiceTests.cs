@@ -883,12 +883,24 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         [InlineData(0.60, 0, false, false, false)]   // Missed platform right -> 0 pts, No Win, No Hit
         [InlineData(0.40, 0, false, false, false)]   // Missed platform left -> 0 pts, No Win, No Hit
         public void ParachuteSimulation_ScoreCalculation_FollowsZeroToHundredRule(
-            double startX, int expectedScore, bool expectedBullseye, bool expectedWin, bool expectedHit)
+            double landingX, int expectedScore, bool expectedBullseye, bool expectedWin, bool expectedHit)
+        {
+            var (score, isBullseye, isWin, isHit) =
+                ParachuteSimulationEngine.CalculateLandingScore(landingX, 0.50, 0.09);
+
+            Assert.Equal(expectedScore, score);
+            Assert.Equal(expectedBullseye, isBullseye);
+            Assert.Equal(expectedWin, isWin);
+            Assert.Equal(expectedHit, isHit);
+        }
+
+        [Fact]
+        public void ParachuteSimulation_ReachesLandingY_WithSufficientTickBudget()
         {
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord
             {
-                DropToken = "test-token",
+                DropToken = "landing-test-token",
                 GameType = DropGameType.Parachute,
                 Username = "testuser",
                 DisplayName = "TestUser",
@@ -898,26 +910,26 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = now,
                 ExpiresAtUtc = now.AddMinutes(1),
-                StartX = startX,
-                StartY = 0.06,
+                StartX = 0.50,
+                StartY = 0.04,
                 LandingY = 0.88,
                 InitialVx = 0.0,
-                InitialVy = 0.10,
+                InitialVy = 0.20,
                 WindAccelX = 0.0,
-                SwayAmplitude = 0.0,
-                SwayFrequency = 2.0,
-                SwayPhase = 0.0,
-                TotalTicks = 60,
+                TotalTicks = 300,
                 TargetCenterX = 0.50,
                 TargetHalfWidth = 0.09
             };
 
             ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
 
-            Assert.Equal(expectedScore, record.Score);
-            Assert.Equal(expectedBullseye, record.IsBullseye);
-            Assert.Equal(expectedWin, record.IsWin);
-            Assert.Equal(expectedHit, record.IsHit);
+            Assert.True(record.Keyframes.Count > 0);
+            var lastKeyframe = record.Keyframes[^1];
+            Assert.True(lastKeyframe.Y >= record.LandingY);
+            Assert.Equal(100, record.Score);
+            Assert.True(record.IsBullseye);
+            Assert.True(record.IsWin);
+            Assert.True(record.IsHit);
         }
 
         [Fact]
@@ -994,6 +1006,63 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 TotalTicks = 60,
                 TargetCenterX = 0.50,
                 TargetHalfWidth = 0.10,
+                LandingX = 0.42,
+                Score = 20,
+                IsHit = true,
+                IsBullseye = false,
+                IsWin = true
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Viewer bounced within tolerance (0.50 vs 0.42 = 0.08 <= 0.15) and landed dead center!
+            var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50);
+            await handler.Handle(notification, CancellationToken.None);
+
+            parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "para-complete-token" &&
+                r.LandingX == 0.50 &&
+                r.Score == 100 &&
+                r.IsBullseye &&
+                r.IsWin &&
+                r.IsHit)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Parachute_OutOfToleranceLandingX_PreservesServerOutcome()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "para-out-of-bounds-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.20,
+                StartY = 0.06,
+                LandingY = 0.88,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
                 LandingX = 0.20,
                 Score = 0,
                 IsHit = false,
@@ -1010,17 +1079,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
-            // Viewer bounced off another player and landed dead center at 0.50!
-            var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50);
+            // Client reports 0.50 but server computed 0.20 (diff 0.30 > 0.15 tolerance) -> server values preserved
+            var notification = new DropGameCompleteNotification("para-out-of-bounds-token", landingX: 0.50);
             await handler.Handle(notification, CancellationToken.None);
 
             parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "para-complete-token" &&
-                r.LandingX == 0.50 &&
-                r.Score == 100 &&
-                r.IsBullseye &&
-                r.IsWin &&
-                r.IsHit)), Times.Once);
+                r.DropToken == "para-out-of-bounds-token" &&
+                r.LandingX == 0.20 &&
+                r.Score == 0 &&
+                !r.IsWin)), Times.Once);
         }
 
         [Fact]
@@ -1058,6 +1125,60 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 TotalTicks = 60,
                 TargetCenterX = 0.50,
                 TargetHalfWidth = 0.10,
+                BucketIndex = 1,
+                BucketLabel = "Low Win",
+                Score = 10,
+                IsWin = true
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Viewer bumped into bucket 2 within tolerance (Math.Abs(2 - 1) == 1 <= 1)
+            var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2);
+            await handler.Handle(notification, CancellationToken.None);
+
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "plinko-complete-token" &&
+                r.BucketIndex == 2 &&
+                r.Score == 100 &&
+                r.IsWin)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Plinko_OutOfToleranceBucketIndex_PreservesServerOutcome()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "plinko-out-of-bounds-token",
+                GameType = DropGameType.Plinko,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "plinko", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                StartY = 0.04,
+                LandingY = 0.88,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
                 BucketIndex = 0,
                 BucketLabel = "Loss",
                 Score = 0,
@@ -1073,21 +1194,27 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
-            // Viewer bumped another token into bucket 2 (100 pts Win)
-            var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2);
+            // Client reports 2 but server was 0 (diff = 2 > 1 tolerance) -> server outcome preserved
+            var notification = new DropGameCompleteNotification("plinko-out-of-bounds-token", winningBucketIndex: 2);
             await handler.Handle(notification, CancellationToken.None);
 
             plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "plinko-complete-token" &&
-                r.BucketIndex == 2 &&
-                r.Score == 100 &&
-                r.IsWin)), Times.Once);
+                r.DropToken == "plinko-out-of-bounds-token" &&
+                r.BucketIndex == 0 &&
+                r.Score == 0 &&
+                !r.IsWin)), Times.Once);
         }
 
         [Fact]
         public async Task ResolveMediaUrlsAsync_MultipleEmotesAndUrls_ResolvesAllValidItems()
         {
             var emoteMock = new Mock<IEmoteService>();
+            var cachedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sptvShots"] = "https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0",
+                ["sptvLights"] = "https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0"
+            };
+            emoteMock.Setup(e => e.GetEmotesAsync()).ReturnsAsync(cachedMap);
             emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvShots"))
                 .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0");
             emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvLights"))
@@ -1112,6 +1239,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task ResolveCharacterOrEmoteUrlAsync_MultipleEmoteNames_PicksFromPool()
         {
             var emoteMock = new Mock<IEmoteService>();
+            var cachedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sptvShots"] = "https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0",
+                ["sptvLights"] = "https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0"
+            };
+            emoteMock.Setup(e => e.GetEmotesAsync()).ReturnsAsync(cachedMap);
             emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvShots"))
                 .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0");
             emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvLights"))

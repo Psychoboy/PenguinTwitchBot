@@ -128,6 +128,69 @@ namespace PenguinTwitchBot.Test.Controllers
             var statusResult = Assert.IsType<StatusCodeResult>(result);
             Assert.Equal(404, statusResult.StatusCode);
         }
+
+        [Fact]
+        public async Task ProxyImage_DisallowedHost_ReturnsBadRequest()
+        {
+            var controller = CreateController();
+            var result = await controller.ProxyImage("https://evil.example.com/exploit.png");
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task ProxyImage_NonImageContentType_ReturnsBadRequest()
+        {
+            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/test/default/dark/2.0";
+            var fakeBytes = "<html><body>Not an image</body></html>"u8.ToArray();
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new ByteArrayContent(fakeBytes)
+                    {
+                        Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html") }
+                    }
+                });
+
+            var httpClient = new HttpClient(handlerMock.Object);
+            _httpClientFactoryMock.Setup(f => f.CreateClient("Emotes")).Returns(httpClient);
+
+            var controller = CreateController();
+            var result = await controller.ProxyImage(testUrl);
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
+
+        [Fact]
+        public async Task ProxyImage_RedirectResponse_ReturnsBadRequest()
+        {
+            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/test/default/dark/2.0";
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.MovedPermanently
+                });
+
+            var httpClient = new HttpClient(handlerMock.Object);
+            _httpClientFactoryMock.Setup(f => f.CreateClient("Emotes")).Returns(httpClient);
+
+            var controller = CreateController();
+            var result = await controller.ProxyImage(testUrl);
+            Assert.IsType<BadRequestObjectResult>(result);
+        }
     }
 }
 

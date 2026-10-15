@@ -13,9 +13,10 @@ In **Parachute Drop**, viewers float down the screen under a parachute canopy ai
 Obstacle droplets can fall from the sky to knock parachuters off course:
 - **Momentum Transfer**: When a falling droplet strikes a parachuter canopy or body, it transfers physical horizontal momentum, kicking the parachuter sideways and tilting their chute.
 - **Patterns**:
+  - `Targeted`: Concentrated waves of droplets aimed near active parachuters.
   - `TopRain`: Droplets fall from randomized locations across the top of the screen (matching classic arcade drops).
   - `SideWind`: Droplets stream in diagonally from the left or right edges.
-  - `Barrage`: Concentrated waves of droplets aimed near active parachuters.
+  - `Fountain`: Droplets erupt upwards from the bottom of the screen and arc downward.
 - **Droplet Sizing**: Choose from Small, Medium, Large, or Giant droplets, or assign custom Twitch emotes as the falling projectiles.
 
 ## Game Modes

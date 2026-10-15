@@ -1,4 +1,5 @@
 @using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Bot.Commands.Games.Common
 @using MudBlazor
 @inject MediaUploadService MediaUploadService
 @inject IEmoteService EmoteService
@@ -315,24 +316,7 @@
                 _items.Clear();
                 if (!string.IsNullOrWhiteSpace(currentVal))
                 {
-                    var tokens = currentVal
-                        .Split(new[] { ',', ';', '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .Select(t => t.Trim())
-                        .Where(t => !string.IsNullOrEmpty(t))
-                        .ToList();
-
-                    var subTokens = new List<string>();
-                    foreach (var t in tokens)
-                    {
-                        if (t.Contains(' ') && !t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                        {
-                            subTokens.AddRange(t.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-                        }
-                        else
-                        {
-                            subTokens.Add(t);
-                        }
-                    }
+                    var subTokens = DropGameMediaResolver.ParseMediaTokens(currentVal);
 
                     foreach (var token in subTokens)
                     {
@@ -397,24 +381,7 @@
         var rawInput = _newItemInput;
         _newItemInput = string.Empty;
 
-        var tokens = rawInput
-            .Split(new[] { ',', ';', '|', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(t => t.Trim())
-            .Where(t => !string.IsNullOrEmpty(t))
-            .ToList();
-
-        var subTokens = new List<string>();
-        foreach (var t in tokens)
-        {
-            if (t.Contains(' ') && !t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !t.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                subTokens.AddRange(t.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-            }
-            else
-            {
-                subTokens.Add(t);
-            }
-        }
+        var subTokens = DropGameMediaResolver.ParseMediaTokens(rawInput);
 
         bool addedAny = false;
         foreach (var rawToken in subTokens)

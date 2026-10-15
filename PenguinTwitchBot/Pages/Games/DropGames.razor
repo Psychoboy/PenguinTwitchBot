@@ -13,6 +13,7 @@
 @inject IPlinkoDropService PlinkoDropService
 @inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @inject ILogger<DropGames> Logger
 
 <PageTitle>Parachute Drop & Plinko Bounce</PageTitle>
@@ -815,6 +816,14 @@
 
     private async Task ResetAllSettingsToDefaultsAsync()
     {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset All Settings to Defaults",
+            "Are you sure you want to reset all Parachute Drop and Plinko Bounce settings to defaults? Any custom themes and Plinko bucket configurations will be permanently deleted.",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
         _settings = new DropGamesSettings();
         DropGamesSettingsService.EnsureStockThemes(_settings);
         _selectedTheme = _settings.Themes.FirstOrDefault();

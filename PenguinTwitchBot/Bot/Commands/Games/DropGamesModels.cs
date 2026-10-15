@@ -438,6 +438,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];
+        public List<PlinkoBucket>? Buckets { get; init; }
 
         // Processing & completion state
         public bool IsProcessing { get; set; }

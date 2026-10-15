@@ -17,19 +17,20 @@ When a win trigger executes, the following runtime variables are available for s
 | `%User%` | Viewer's username login (e.g. `coolstreamer`) |
 | `%DisplayName%` | Viewer's friendly display name |
 | `%Score%` | Points earned from the drop (Parachute score or Plinko bucket value) |
-| `%Multiplier%` | Score multiplier earned from the landing slot |
-| `%TargetDistance%` | Distance from platform center (0.0 = perfect bullseye) |
-| `%IsBullseye%` | `True` if landed within the center bullseye |
+| `%IsBullseye%` | `True` if landed within the center bullseye (or highest-scoring winning bucket) |
+| `%DropletHits%` | Number of interactive droplets that collided with the parachutist mid-air |
+| `%Theme%` | Active seasonal or custom theme name |
 | `%BucketLabel%` | Name of the Plinko bucket landed in |
-| `%BucketPoints%` | Points assigned to the winning Plinko bucket |
-| `%IsWin%` | `True` if the Plinko bucket was marked as a winning slot |
+| `%BucketIndex%` | Zero-based index of the Plinko bucket landed in |
+| `%IsWin%` | `True` if the drop landed in a winning target zone or winning bucket |
 
 ## Drop Sub-Actions
 
-You can trigger drops and obstacles from Channel Points, timers, or commands using these sub-actions:
+You can trigger drops, sessions, and obstacles from Channel Points, timers, or commands using these sub-actions:
 
+- **Start Drop Game Session**: Initiates a timed round (Parachute Drop or Plinko Bounce) with a countdown window for group participation.
+- **Stop Drop Game Session**: Forcibly concludes an active round, awards points to the current leader, and advances the session queue.
 - **Parachute Drop**: Initiates a drop for a viewer with custom parachute color and emote.
 - **Parachute Droplets**: Spawns an obstacle barrage (count, size, speed, pattern, and custom image).
 - **Plinko Drop**: Drops a Plinko token for a viewer with custom color and emote.
-- **Stop Drop Game Session**: Forcibly concludes an active round, awards points to the current leader, and advances the session queue.
 
