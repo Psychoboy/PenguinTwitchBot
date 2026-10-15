@@ -939,6 +939,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         {
             try
             {
+                dropRegistry.SetSessionActive(DropGameType.Parachute, false);
                 var s = Interlocked.Exchange(ref _activeSession, null);
                 s?.ExpiryTimer?.Dispose();
                 s?.Cts.Cancel();

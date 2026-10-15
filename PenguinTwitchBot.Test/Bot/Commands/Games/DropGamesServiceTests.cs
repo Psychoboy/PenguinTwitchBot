@@ -1635,6 +1635,88 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.False(string.IsNullOrWhiteSpace(userColor));
             Assert.StartsWith("#", userColor);
         }
+
+        [Fact]
+        public void EnsureStockThemes_ConvertsRecognizedLegacySevenBucketLayout_AndPreservesCustomLayouts()
+        {
+            // Case 1: Recognized complete legacy 7-bucket layout is converted
+            var settingsWithLegacy = new DropGamesSettings
+            {
+                Plinko = new PlinkoGameSettings
+                {
+                    Buckets =
+                    [
+                        new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 },
+                        new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
+                        new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
+                        new PlinkoBucket { Label = "JACKPOT", Score = 500, IsWin = true, Color = "#F59E0B", Weight = 6 },
+                        new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
+                        new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
+                        new PlinkoBucket { Label = "MISS", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 }
+                    ]
+                }
+            };
+            DropGamesSettingsService.EnsureStockThemes(settingsWithLegacy);
+            Assert.Equal(5, settingsWithLegacy.Plinko.Buckets.Count);
+            Assert.Equal("WINNER", settingsWithLegacy.Plinko.Buckets[2].Label);
+
+            // Case 2: Custom 7-bucket layout with customized scores/labels is preserved
+            var settingsWithCustom7 = new DropGamesSettings
+            {
+                Plinko = new PlinkoGameSettings
+                {
+                    Buckets =
+                    [
+                        new PlinkoBucket { Label = "TRY AGAIN", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 },
+                        new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
+                        new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
+                        new PlinkoBucket { Label = "JACKPOT", Score = 1000, IsWin = true, Color = "#F59E0B", Weight = 6 },
+                        new PlinkoBucket { Label = "100 PTS", Score = 100, IsWin = true, Color = "#10B981", Weight = 12 },
+                        new PlinkoBucket { Label = "50 PTS", Score = 50, IsWin = true, Color = "#3B82F6", Weight = 20 },
+                        new PlinkoBucket { Label = "TRY AGAIN", Score = 0, IsWin = false, Color = "#64748B", Weight = 25 }
+                    ]
+                }
+            };
+            DropGamesSettingsService.EnsureStockThemes(settingsWithCustom7);
+            Assert.Equal(7, settingsWithCustom7.Plinko.Buckets.Count);
+            Assert.Equal("TRY AGAIN", settingsWithCustom7.Plinko.Buckets[0].Label);
+            Assert.Equal(1000, settingsWithCustom7.Plinko.Buckets[3].Score);
+
+            // Case 3: Custom 14-bucket layout is preserved
+            var settingsWith14 = new DropGamesSettings
+            {
+                Plinko = new PlinkoGameSettings
+                {
+                    Buckets = Enumerable.Range(0, 14).Select(i => new PlinkoBucket
+                    {
+                        Label = i == 0 ? "MISS" : (i == 1 ? "50 PTS" : (i == 3 ? "JACKPOT" : $"B{i}")),
+                        Score = i * 10,
+                        IsWin = i % 2 == 0,
+                        Weight = 10
+                    }).ToList()
+                }
+            };
+            DropGamesSettingsService.EnsureStockThemes(settingsWith14);
+            Assert.Equal(14, settingsWith14.Plinko.Buckets.Count);
+        }
+
+        [Fact]
+        public async Task DropServices_StopAsync_ClearsSessionActiveInRegistry()
+        {
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+            var plinkoSut = CreatePlinkoService(dropRegistry: registry);
+
+            registry.SetSessionActive(DropGameType.Parachute, true);
+            Assert.True(registry.IsSessionActive(DropGameType.Parachute));
+            await parachuteSut.StopAsync(CancellationToken.None);
+            Assert.False(registry.IsSessionActive(DropGameType.Parachute));
+
+            registry.SetSessionActive(DropGameType.Plinko, true);
+            Assert.True(registry.IsSessionActive(DropGameType.Plinko));
+            await plinkoSut.StopAsync(CancellationToken.None);
+            Assert.False(registry.IsSessionActive(DropGameType.Plinko));
+        }
     }
 }
 

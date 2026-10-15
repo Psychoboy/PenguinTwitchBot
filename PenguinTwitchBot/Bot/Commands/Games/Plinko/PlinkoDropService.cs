@@ -726,6 +726,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
         {
             try
             {
+                dropRegistry.SetSessionActive(DropGameType.Plinko, false);
                 var s = Interlocked.Exchange(ref _activeSession, null);
                 s?.ExpiryTimer?.Dispose();
                 s?.Cts.Cancel();

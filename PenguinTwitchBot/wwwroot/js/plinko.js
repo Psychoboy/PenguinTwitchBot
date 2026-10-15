@@ -1793,11 +1793,12 @@
             ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 10);
             ctx.fill();
 
-            ctx.strokeStyle = isLeader ? '#FFD700' : (userColor || theme.primaryColor || '#FF8FA3');
+            const tokenTheme = t.theme || currentTheme || {};
+            ctx.strokeStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.primaryColor || currentTheme.primaryColor || '#FF8FA3');
             ctx.lineWidth = isLeader ? 2 : 1.2;
             ctx.stroke();
 
-            ctx.fillStyle = isLeader ? '#FFD700' : (userColor || theme.textColor || '#FFFFFF');
+            ctx.fillStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(label, 0, pillY + pillH / 2 + 1);

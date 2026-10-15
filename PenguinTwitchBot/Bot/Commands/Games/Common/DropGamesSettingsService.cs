@@ -133,10 +133,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
             }
-            else if ((settings.Plinko.Buckets.Count == 7 || (settings.Plinko.Buckets.Count >= 14 && settings.Plinko.Buckets.Count % 7 == 0)) &&
-                     settings.Plinko.Buckets[0].Label == "MISS" &&
-                     settings.Plinko.Buckets[1].Label == "50 PTS" &&
-                     settings.Plinko.Buckets[3].Label == "JACKPOT")
+            else if (IsRecognizedLegacySevenBucketLayout(settings.Plinko.Buckets))
             {
                 settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
             }
@@ -170,6 +167,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             {
                 settings.Parachute.DefaultDropletRandomSizes = ["Small", "Medium", "Large", "Giant"];
             }
+        }
+
+        private static bool IsRecognizedLegacySevenBucketLayout(List<PlinkoBucket> buckets)
+        {
+            if (buckets.Count != 7) return false;
+
+            return buckets[0].Label == "MISS" && buckets[0].Score == 0 && !buckets[0].IsWin &&
+                   buckets[1].Label == "50 PTS" && buckets[1].Score == 50 && buckets[1].IsWin &&
+                   buckets[2].Label == "100 PTS" && buckets[2].Score == 100 && buckets[2].IsWin &&
+                   buckets[3].Label == "JACKPOT" && buckets[3].Score == 500 && buckets[3].IsWin &&
+                   buckets[4].Label == "100 PTS" && buckets[4].Score == 100 && buckets[4].IsWin &&
+                   buckets[5].Label == "50 PTS" && buckets[5].Score == 50 && buckets[5].IsWin &&
+                   buckets[6].Label == "MISS" && buckets[6].Score == 0 && !buckets[6].IsWin;
         }
     }
 }
