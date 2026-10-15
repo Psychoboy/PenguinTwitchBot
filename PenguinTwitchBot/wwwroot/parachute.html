@@ -50,20 +50,20 @@
         #ws-status.hidden {
             opacity: 0;
         }
-    </style>
-    <script src="js/reconnecting-websocket/reconnectingWS.min.js"></script>
-    <script src="js/ws-client.js"></script>
-    <script src="js/ws-status.js"></script>
-    <script>
-        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
-        const script = document.createElement('script');
-        script.src = 'js/parachute.js?v=' + encodeURIComponent(cacheBust);
-        document.head.appendChild(script);
-    </script>
 </head>
 <body>
     <div id="ws-status" data-overlay="Parachute Drop">Disconnected</div>
     <canvas id="parachute-canvas"></canvas>
+
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
+    <script src="/js/ws-status.js"></script>
+    <script>
+        const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
+        const script = document.createElement('script');
+        script.src = '/js/parachute.js?v=' + encodeURIComponent(cacheBust);
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>
 

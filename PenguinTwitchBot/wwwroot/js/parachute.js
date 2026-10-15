@@ -3,6 +3,10 @@
     'use strict';
 
     const canvas = document.getElementById('parachute-canvas');
+    if (!canvas) {
+        console.error('Parachute canvas element (#parachute-canvas) not found.');
+        return;
+    }
     const ctx = canvas.getContext('2d');
 
     const TICK_RATE = 60;

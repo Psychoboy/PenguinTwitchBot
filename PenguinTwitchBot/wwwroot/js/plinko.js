@@ -3,6 +3,10 @@
     'use strict';
 
     const canvas = document.getElementById('plinko-canvas');
+    if (!canvas) {
+        console.error('Plinko canvas element (#plinko-canvas) not found.');
+        return;
+    }
     const ctx = canvas.getContext('2d');
 
     let width = window.innerWidth || 800;

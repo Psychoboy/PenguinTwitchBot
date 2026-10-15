@@ -3,11 +3,23 @@
     const containerEl = document.getElementById("counters-container");
     const statusEl = document.getElementById("counter-status");
 
+    let statusHideTimer = null;
     function setStatus(message, connected) {
         if (!statusEl) return;
+        if (statusHideTimer) {
+            clearTimeout(statusHideTimer);
+            statusHideTimer = null;
+        }
         statusEl.textContent = message;
-        statusEl.classList.toggle("connected", connected);
-        statusEl.classList.toggle("hidden", connected);
+        if (connected) {
+            statusEl.classList.add("connected");
+            statusEl.classList.remove("hidden");
+            statusHideTimer = setTimeout(() => {
+                statusEl.classList.add("hidden");
+            }, 2000);
+        } else {
+            statusEl.classList.remove("connected", "hidden");
+        }
     }
 
     const currentUrlParams = new URLSearchParams(window.location.search);
@@ -94,13 +106,14 @@
     items = parseItems(currentUrlParams);
 
     // If no counters were found in current query params, attempt to load from overlay layout config (fallback)
-    if (items.length === 0) {
+    async function loadFallbackConfigIfEmpty() {
+        if (items.length > 0) return;
         try {
             const layout = currentUrlParams.get("layout") || "";
             const cfgUrl = layout
                 ? `/api/overlay/config?layout=${encodeURIComponent(layout)}`
                 : "/api/overlay/config";
-            const res = await fetch(cfgUrl);
+            const res = await fetch(cfgUrl, { cache: "no-store" });
             if (res.ok) {
                 const cfg = await res.json();
                 const counterWidget = (cfg.widgets || []).find(w => w.widgetType === "counter" && w.isEnabled);
@@ -108,6 +121,8 @@
                     const subUrl = new URL(counterWidget.sourcePath, window.location.origin);
                     settings = parseSettings(subUrl.searchParams);
                     items = parseItems(subUrl.searchParams);
+                    applyStyles();
+                    renderSkeleton();
                 }
             }
         } catch (err) {
@@ -255,7 +270,7 @@
 
         try {
             if (genericNames.length > 0) {
-                const res = await fetch(`/api/overlay/counter-state?names=${encodeURIComponent(genericNames.join(","))}`);
+                const res = await fetch(`/api/overlay/counter-state?names=${encodeURIComponent(genericNames.join(","))}`, { cache: "no-store" });
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data)) {
@@ -269,7 +284,7 @@
             }
 
             if (hasDeath) {
-                const res = await fetch("/api/overlay/death-counter-state");
+                const res = await fetch("/api/overlay/death-counter-state", { cache: "no-store" });
                 if (res.ok) {
                     const data = await res.json();
                     if (data) {
@@ -283,20 +298,86 @@
         }
     }
 
-    function initSignalR() {
-        if (typeof signalR === "undefined") {
-            setStatus("SignalR not loaded", false);
+    let connection = null;
+    let reconnectTimeout = null;
+    let isConnecting = false;
+
+    function scheduleReconnect(delay = 5000) {
+        if (reconnectTimeout) return;
+        reconnectTimeout = setTimeout(() => {
+            reconnectTimeout = null;
+            connect();
+        }, delay);
+    }
+
+    async function ensureSignalR() {
+        if (typeof signalR !== "undefined") return true;
+        try {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement("script");
+                s.src = "/js/signalr/dist/browser/signalr.js";
+                s.onload = () => resolve();
+                s.onerror = (e) => reject(e);
+                document.head.appendChild(s);
+            });
+            return typeof signalR !== "undefined";
+        } catch {
+            return false;
+        }
+    }
+
+    async function connect() {
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
+
+        if (isConnecting) return;
+
+        const hasSignalR = await ensureSignalR();
+        if (!hasSignalR) {
+            setStatus("Counters: SignalR failed to load", false);
+            scheduleReconnect(5000);
             return;
         }
 
-        setStatus("Connecting...", false);
+        if (connection) {
+            try {
+                if (connection.state === signalR.HubConnectionState.Connected ||
+                    connection.state === signalR.HubConnectionState.Connecting ||
+                    connection.state === signalR.HubConnectionState.Reconnecting) {
+                    return;
+                }
+            } catch (e) {
+                // Ignore
+            }
 
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/mainHub")
-            .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+            try {
+                connection.onclose(() => {});
+                await connection.stop();
+            } catch (e) {
+                // Ignore
+            }
+            connection = null;
+        }
+
+        isConnecting = true;
+        setStatus("Counters: connecting...", false);
+
+        const newConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/mainhub")
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    const delays = [0, 2000, 5000, 10000, 15000, 30000];
+                    if (retryContext.previousRetryCount < delays.length) {
+                        return delays[retryContext.previousRetryCount];
+                    }
+                    return 30000;
+                }
+            })
             .build();
 
-        connection.on("CounterUpdated", counter => {
+        newConnection.on("CounterUpdated", counter => {
             if (counter) {
                 const cName = counter.counterName || counter.CounterName;
                 const cAmount = counter.amount ?? counter.Amount ?? 0;
@@ -306,7 +387,7 @@
             }
         });
 
-        connection.on("DeathCounterUpdated", data => {
+        newConnection.on("DeathCounterUpdated", data => {
             if (data) {
                 const count = data.count ?? data.amount ?? data.Count ?? data.Amount;
                 if (typeof count !== "undefined") {
@@ -315,32 +396,40 @@
             }
         });
 
-        connection.onreconnecting(() => {
-            setStatus("Reconnecting...", false);
+        newConnection.onreconnecting(() => {
+            setStatus("Counters: reconnecting...", false);
         });
 
-        connection.onreconnected(() => {
-            setStatus("Connected", true);
-            fetchInitialState();
+        newConnection.onreconnected(async () => {
+            setStatus("Counters: connected", true);
+            await loadFallbackConfigIfEmpty();
+            await fetchInitialState();
         });
 
-        connection.onclose(() => {
-            setStatus("Disconnected", false);
+        newConnection.onclose(() => {
+            setStatus("Counters: disconnected", false);
+            scheduleReconnect(5000);
         });
 
-        connection.start()
-            .then(() => {
-                setStatus("Connected", true);
-                fetchInitialState();
-            })
-            .catch(err => {
-                console.error("SignalR Connection Error:", err);
-                setStatus("Connection Error", false);
-            });
+        connection = newConnection;
+
+        try {
+            await connection.start();
+            isConnecting = false;
+            setStatus("Counters: connected", true);
+            await loadFallbackConfigIfEmpty();
+            await fetchInitialState();
+        } catch (err) {
+            isConnecting = false;
+            console.error("SignalR Connection Error:", err);
+            setStatus("Counters: connection failed", false);
+            scheduleReconnect(5000);
+        }
     }
 
+    await loadFallbackConfigIfEmpty();
     applyStyles();
     renderSkeleton();
     await fetchInitialState();
-    initSignalR();
+    connect();
 })();

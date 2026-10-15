@@ -4,11 +4,23 @@
     const textEl = document.getElementById("timer-text");
     const statusEl = document.getElementById("timer-status");
 
+    let statusHideTimer = null;
     function setStatus(message, connected) {
         if (!statusEl) return;
+        if (statusHideTimer) {
+            clearTimeout(statusHideTimer);
+            statusHideTimer = null;
+        }
         statusEl.textContent = message;
-        statusEl.classList.toggle("connected", connected);
-        statusEl.classList.toggle("hidden", connected);
+        if (connected) {
+            statusEl.classList.add("connected");
+            statusEl.classList.remove("hidden");
+            statusHideTimer = setTimeout(() => {
+                statusEl.classList.add("hidden");
+            }, 2000);
+        } else {
+            statusEl.classList.remove("connected", "hidden");
+        }
     }
 
     const params = new URLSearchParams(window.location.search);
@@ -151,7 +163,15 @@
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/mainhub")
-            .withAutomaticReconnect()
+            .withAutomaticReconnect({
+                nextRetryDelayInMilliseconds: retryContext => {
+                    const delays = [0, 2000, 5000, 10000, 15000, 30000];
+                    if (retryContext.previousRetryCount < delays.length) {
+                        return delays[retryContext.previousRetryCount];
+                    }
+                    return 30000;
+                }
+            })
             .build();
 
         connection.on("StreamTimerUpdate", applyState);
