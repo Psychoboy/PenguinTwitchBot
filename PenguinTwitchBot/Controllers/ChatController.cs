@@ -91,63 +91,60 @@ namespace PenguinTwitchBot.Controllers
                     request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
 
                     await UpstreamThrottle.WaitAsync(cancellationToken);
-                    HttpResponseMessage response;
                     try
                     {
-                        response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+                        if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
+                        {
+                            return BadRequest("Redirects are not allowed");
+                        }
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            var safeUrl = SanitizeForLog(url);
+                            logger.LogWarning("Upstream image fetch returned {StatusCode} for URL: {Url}", response.StatusCode, safeUrl);
+                            return StatusCode((int)response.StatusCode);
+                        }
+
+                        var contentType = response.Content.Headers.ContentType?.MediaType;
+                        if (string.IsNullOrEmpty(contentType) || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return BadRequest("Response is not an image");
+                        }
+
+                        const long maxBytes = 10 * 1024 * 1024; // 10 MiB
+                        if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value > maxBytes)
+                        {
+                            return BadRequest("Image exceeds maximum allowed size");
+                        }
+
+                        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                        using var ms = new MemoryStream();
+                        var buffer = new byte[81920];
+                        int bytesRead;
+                        long totalBytesRead = 0;
+
+                        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
+                        {
+                            totalBytesRead += bytesRead;
+                            if (totalBytesRead > maxBytes)
+                            {
+                                return BadRequest("Image exceeds maximum allowed size");
+                            }
+                            ms.Write(buffer, 0, bytesRead);
+                        }
+
+                        var bytes = ms.ToArray();
+                        cached = (bytes, contentType);
+                        var entryOptions = new MemoryCacheEntryOptions()
+                            .SetAbsoluteExpiration(TimeSpan.FromHours(1))
+                            .SetSize(bytes.Length);
+                        memoryCache.Set(cacheKey, cached, entryOptions);
                     }
                     finally
                     {
                         UpstreamThrottle.Release();
-                    }
-                    using (response)
-                    {
-                    if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400)
-                    {
-                        return BadRequest("Redirects are not allowed");
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var safeUrl = SanitizeForLog(url);
-                        logger.LogWarning("Upstream image fetch returned {StatusCode} for URL: {Url}", response.StatusCode, safeUrl);
-                        return StatusCode((int)response.StatusCode);
-                    }
-
-                    var contentType = response.Content.Headers.ContentType?.MediaType;
-                    if (string.IsNullOrEmpty(contentType) || !contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return BadRequest("Response is not an image");
-                    }
-
-                    const long maxBytes = 10 * 1024 * 1024; // 10 MiB
-                    if (response.Content.Headers.ContentLength.HasValue && response.Content.Headers.ContentLength.Value > maxBytes)
-                    {
-                        return BadRequest("Image exceeds maximum allowed size");
-                    }
-
-                    using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                    using var ms = new MemoryStream();
-                    var buffer = new byte[81920];
-                    int bytesRead;
-                    long totalBytesRead = 0;
-
-                    while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
-                    {
-                        totalBytesRead += bytesRead;
-                        if (totalBytesRead > maxBytes)
-                        {
-                            return BadRequest("Image exceeds maximum allowed size");
-                        }
-                        ms.Write(buffer, 0, bytesRead);
-                    }
-
-                    var bytes = ms.ToArray();
-                    cached = (bytes, contentType);
-                    var entryOptions = new MemoryCacheEntryOptions()
-                        .SetAbsoluteExpiration(TimeSpan.FromHours(1))
-                        .SetSize(bytes.Length);
-                    memoryCache.Set(cacheKey, cached, entryOptions);
                     }
                 }
                 catch (OperationCanceledException) when (HttpContext?.RequestAborted.IsCancellationRequested == true)
