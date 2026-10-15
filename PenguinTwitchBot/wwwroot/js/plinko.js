@@ -868,39 +868,12 @@
             for (let i = 0; i < buckets.length; i++) {
                 const b = buckets[i];
                 const isWinSlot = !!b.isWin;
-                const bx = padX + i * slotW + 4;
-                const bw = slotW - 8;
-
-                ctx.save();
-                ctx.globalAlpha = alpha * (isWinSlot ? 1.0 : 0.65);
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-                ctx.shadowBlur = 6;
-                ctx.fillStyle = isWinSlot ? (b.color || '#10B981') : '#475569';
-                ctx.beginPath();
-                ctx.roundRect(bx, bucketY, bw, bucketH, 10);
-                ctx.fill();
-
-                ctx.lineWidth = isWinSlot ? 2.5 : 1.5;
-                ctx.strokeStyle = isWinSlot ? '#FFFFFF' : 'rgba(255,255,255,0.3)';
-                ctx.stroke();
+                const bx = padX + i * slotW;
+                const bw = slotW;
 
                 if (isWinSlot) {
-                    drawWinningSlotDecor(ctx, bx + bw / 2, bucketY + bucketH * 0.58, bw, bucketH, season, alpha);
+                    drawWinningSlotDecor(ctx, bx + bw / 2, bucketY + bucketH * 0.50, bw, bucketH, season, alpha);
                 }
-
-                ctx.fillStyle = '#FFFFFF';
-                ctx.font = '700 13px Fredoka, Rubik, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0,0,0,0.85)';
-                ctx.shadowBlur = 4;
-                ctx.fillText(b.label || '', bx + bw / 2, isWinSlot ? (bucketY + bucketH * 0.24) : (bucketY + bucketH * 0.52));
-
-                if (b.score > 0) {
-                    ctx.font = '500 11px Fredoka, Rubik, sans-serif';
-                    ctx.fillStyle = isWinSlot ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.65)';
-                    ctx.fillText(b.score + ' pts', bx + bw / 2, bucketY + bucketH * 0.88);
-                }
-                ctx.restore();
             }
 
             drawSlotDividers(ctx, padX, boardW, buckets.length, bucketY, bucketH, season, alpha);
@@ -913,15 +886,23 @@
         ctx.save();
         const customDecorImg = getLoadedImage(currentTheme && currentTheme.plinkoWinningSlotImageUrl);
         if (customDecorImg) {
-            const maxW = Math.min(slotW * 0.75, 56);
-            const maxH = Math.min(slotH * 0.58, 44);
+            const maxW = Math.min(slotW * 0.70, 84);
+            const maxH = Math.min(slotH * 0.90, 84);
             ctx.drawImage(customDecorImg, cx - maxW / 2, cy - maxH / 2, maxW, maxH);
             ctx.restore();
             return;
         }
 
-        const size = Math.min(slotW * 0.38, slotH * 0.48, 28);
-        const pulse = 1.0 + 0.04 * Math.sin(Date.now() * 0.005);
+        const size = Math.min(slotW * 0.40, slotH * 0.75, 52);
+        const pulse = 1.0 + 0.05 * Math.sin(Date.now() * 0.005);
+
+        // Soft ground beacon glow under target
+        ctx.save();
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.16)';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + size * 0.40, size * 0.85, size * 0.20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
 
         ctx.translate(cx, cy);
         ctx.scale(pulse, pulse);
@@ -930,7 +911,7 @@
             // Jack-o'-Lantern / Glowing Carved Pumpkin
             ctx.save();
             ctx.shadowColor = '#FF7518';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 12;
 
             // Pumpkin lobes
             ctx.fillStyle = '#E85D04';
@@ -997,48 +978,134 @@
 
             ctx.restore();
         } else if (season === 'christmas') {
-            // Golden Jingle Bell with Ribbon
+            // Festive Decorated Christmas Tree with Golden Star
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 8;
+
+            // Wooden Tree Trunk
+            ctx.fillStyle = '#6F4E37';
+            ctx.beginPath();
+            ctx.roundRect(-size * 0.12, size * 0.32, size * 0.24, size * 0.24, [0, 0, 2, 2]);
+            ctx.fill();
+
+            // Tree Base glow / soft shadow
             ctx.save();
             ctx.shadowColor = '#FFD166';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 12;
 
-            // Bell body
-            ctx.fillStyle = '#F59E0B';
+            // Tier 3: Bottom Pine Layer (Deep Evergreen)
+            ctx.fillStyle = '#1B4D3E';
             ctx.beginPath();
-            ctx.arc(0, 0, size * 0.46, Math.PI, 0, false);
-            ctx.lineTo(size * 0.54, size * 0.26);
-            ctx.lineTo(-size * 0.54, size * 0.26);
+            ctx.moveTo(0, -size * 0.06);
+            ctx.lineTo(size * 0.52, size * 0.34);
+            ctx.quadraticCurveTo(size * 0.26, size * 0.28, 0, size * 0.34);
+            ctx.quadraticCurveTo(-size * 0.26, size * 0.28, -size * 0.52, size * 0.34);
             ctx.closePath();
             ctx.fill();
 
-            // Gleam
-            ctx.fillStyle = '#FFF3B0';
+            // Tier 2: Middle Pine Layer (Vibrant Pine)
+            ctx.fillStyle = '#226F54';
             ctx.beginPath();
-            ctx.ellipse(-size * 0.16, -size * 0.16, size * 0.1, size * 0.18, -0.4, 0, Math.PI * 2);
+            ctx.moveTo(0, -size * 0.28);
+            ctx.lineTo(size * 0.42, size * 0.08);
+            ctx.quadraticCurveTo(size * 0.20, size * 0.02, 0, size * 0.08);
+            ctx.quadraticCurveTo(-size * 0.20, size * 0.02, -size * 0.42, size * 0.08);
+            ctx.closePath();
             ctx.fill();
 
-            // Lower rim
-            ctx.fillStyle = '#D97706';
+            // Tier 1: Top Pine Layer (Fresh Emerald)
+            ctx.fillStyle = '#2E8B57';
             ctx.beginPath();
-            ctx.roundRect(-size * 0.58, size * 0.24, size * 1.16, size * 0.12, 3);
+            ctx.moveTo(0, -size * 0.52);
+            ctx.lineTo(size * 0.30, -size * 0.16);
+            ctx.quadraticCurveTo(size * 0.15, -size * 0.22, 0, -size * 0.16);
+            ctx.quadraticCurveTo(-size * 0.15, -size * 0.22, -size * 0.30, -size * 0.16);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Snow dusting on pine branches
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.beginPath();
+            ctx.ellipse(-size * 0.34, size * 0.31, size * 0.08, size * 0.025, 0.1, 0, Math.PI * 2);
+            ctx.ellipse(size * 0.34, size * 0.31, size * 0.08, size * 0.025, -0.1, 0, Math.PI * 2);
+            ctx.ellipse(-size * 0.26, size * 0.06, size * 0.06, size * 0.02, 0.1, 0, Math.PI * 2);
+            ctx.ellipse(size * 0.26, size * 0.06, size * 0.06, size * 0.02, -0.1, 0, Math.PI * 2);
+            ctx.ellipse(-size * 0.18, -size * 0.17, size * 0.05, size * 0.018, 0.1, 0, Math.PI * 2);
+            ctx.ellipse(size * 0.18, -size * 0.17, size * 0.05, size * 0.018, -0.1, 0, Math.PI * 2);
             ctx.fill();
 
-            // Clapper hole
-            ctx.fillStyle = '#78350F';
+            // Golden Garland Tinsel Drapes
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 1.8;
             ctx.beginPath();
-            ctx.arc(0, size * 0.28, size * 0.08, 0, Math.PI * 2);
+            ctx.moveTo(-size * 0.20, -size * 0.18);
+            ctx.quadraticCurveTo(-size * 0.05, -size * 0.10, size * 0.22, -size * 0.16);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-size * 0.32, size * 0.06);
+            ctx.quadraticCurveTo(0, size * 0.18, size * 0.34, size * 0.07);
+            ctx.stroke();
+
+            // Colorful Ornaments (Baubles) with gleams
+            const ornaments = [
+                { x: -size * 0.24, y: size * 0.24, r: size * 0.058, c: '#E63946' },
+                { x: size * 0.12,  y: size * 0.26, r: size * 0.058, c: '#FFD166' },
+                { x: size * 0.32,  y: size * 0.22, r: size * 0.052, c: '#38BDF8' },
+                { x: -size * 0.08, y: size * 0.22, r: size * 0.050, c: '#A855F7' },
+                { x: -size * 0.16, y: size * 0.02, r: size * 0.052, c: '#FFD166' },
+                { x: size * 0.18,  y: size * 0.01, r: size * 0.054, c: '#E63946' },
+                { x: 0,            y: -size * 0.06, r: size * 0.048, c: '#38BDF8' },
+                { x: -size * 0.06, y: -size * 0.24, r: size * 0.046, c: '#E63946' },
+                { x: size * 0.10,  y: -size * 0.22, r: size * 0.046, c: '#FFD166' }
+            ];
+
+            for (let o = 0; o < ornaments.length; o++) {
+                const orn = ornaments[o];
+                ctx.fillStyle = orn.c;
+                ctx.beginPath();
+                ctx.arc(orn.x, orn.y, orn.r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Highlight gleam
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+                ctx.beginPath();
+                ctx.arc(orn.x - orn.r * 0.35, orn.y - orn.r * 0.35, orn.r * 0.32, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Radiant 5-Pointed Star on Top
+            ctx.save();
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 14;
+            ctx.fillStyle = '#FFD700';
+
+            const starX = 0;
+            const starY = -size * 0.58;
+            const starOuter = size * 0.18;
+            const starInner = size * 0.08;
+            ctx.beginPath();
+            for (let s = 0; s < 5; s++) {
+                const outerA = (s * 2 * Math.PI) / 5 - Math.PI / 2;
+                const innerA = outerA + Math.PI / 5;
+                if (s === 0) {
+                    ctx.moveTo(starX + Math.cos(outerA) * starOuter, starY + Math.sin(outerA) * starOuter);
+                } else {
+                    ctx.lineTo(starX + Math.cos(outerA) * starOuter, starY + Math.sin(outerA) * starOuter);
+                }
+                ctx.lineTo(starX + Math.cos(innerA) * starInner, starY + Math.sin(innerA) * starInner);
+            }
+            ctx.closePath();
             ctx.fill();
 
-            // Ribbon bow
-            ctx.fillStyle = '#D90429';
+            // Center glow of star
+            ctx.fillStyle = '#FFFFFF';
             ctx.beginPath();
-            ctx.ellipse(-size * 0.2, -size * 0.48, size * 0.18, size * 0.1, -0.3, 0, Math.PI * 2);
-            ctx.ellipse(size * 0.2, -size * 0.48, size * 0.18, size * 0.1, 0.3, 0, Math.PI * 2);
+            ctx.arc(starX, starY, size * 0.045, 0, Math.PI * 2);
             ctx.fill();
-            ctx.fillStyle = '#9B2226';
-            ctx.beginPath();
-            ctx.arc(0, -size * 0.48, size * 0.08, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.restore();
 
             ctx.restore();
         } else if (season === 'summer') {
@@ -1604,8 +1671,8 @@
                 const landPxY = t.y * height;
 
                 const highlightText = t.isWin
-                    ? ('🎉 ' + t.winningBucketLabel + (t.score > 0 ? ' (+' + t.score + ')' : ''))
-                    : ('❌ ' + t.winningBucketLabel);
+                    ? (t.winningBucketLabel + (t.score > 0 ? ' (+' + t.score + ')' : ''))
+                    : t.winningBucketLabel;
 
                 bucketHighlights.push({
                     x: landPxX,
@@ -1703,7 +1770,7 @@
             }
 
             const label = isLeader && t.completed
-                ? `👑 ${t.displayName} (${t.score} pts)`
+                ? `${t.displayName} (${t.score} pts)`
                 : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
 
             ctx.font = '700 13px Fredoka, Rubik, sans-serif';
@@ -1812,7 +1879,7 @@
                     ctx.fillStyle = '#34D399';
                     ctx.shadowColor = 'rgba(0,0,0,0.85)';
                     ctx.shadowBlur = 6;
-                    ctx.fillText(`🎉 Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, bannerCenterX, bannerY + bannerH / 2);
+                    ctx.fillText(`Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, bannerCenterX, bannerY + bannerH / 2);
                     ctx.restore();
                     return;
                 } else {
@@ -1845,7 +1912,7 @@
                 ctx.fillStyle = '#FFFFFF';
                 ctx.shadowColor = 'rgba(0,0,0,0.85)';
                 ctx.shadowBlur = 6;
-                ctx.fillText(`🪙 Tokens: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
+                ctx.fillText(`Tokens: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
                 ctx.restore();
             } else if (!hasActiveToken && activeTokens.length === 0) {
                 sessionState.totalDrops = 0;
@@ -1902,11 +1969,11 @@
         // Banner text
         let bannerText = '';
         if (showTimer && showCount) {
-            bannerText = `⏳ Round Ends: ${timeStr}  |  🪙 Tokens: ${sessionState.totalDrops}`;
+            bannerText = `Round Ends: ${timeStr}  |  Tokens: ${sessionState.totalDrops}`;
         } else if (showTimer) {
-            bannerText = `⏳ Round Ends: ${timeStr}`;
+            bannerText = `Round Ends: ${timeStr}`;
         } else if (showCount) {
-            bannerText = `🪙 Tokens: ${sessionState.totalDrops}`;
+            bannerText = `Tokens: ${sessionState.totalDrops}`;
         }
 
         if (bannerText) {

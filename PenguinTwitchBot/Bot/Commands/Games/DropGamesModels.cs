@@ -176,7 +176,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double WindStrength { get; set; } = 0.25;
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "🪂 {user} landed on the target with {score} pts!{bullseye}";
+        public string WinChatMessageTemplate { get; set; } = "{user} landed on the target with {score} pts!{bullseye}";
 
         // Default Droplets settings
         public int DefaultDropletCount { get; set; } = 5;
@@ -192,8 +192,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int DefaultSessionDurationSeconds { get; set; } = 100;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
         public bool AnnounceSessionStatusInChat { get; set; } = true;
-        public string SessionStartChatMessageTemplate { get; set; } = "🪂 Parachute Drop is now OPEN for {duration}s! Type !drop [emote] to join!";
-        public string SessionEndChatMessageTemplate { get; set; } = "🪂 Parachute Drop round is now CLOSED! {count} total parachutists dropped!";
+        public string SessionStartChatMessageTemplate { get; set; } = "Parachute Drop is now OPEN for {duration}s! Type !drop [emote] to join!";
+        public string SessionEndChatMessageTemplate { get; set; } = "Parachute Drop round is now CLOSED! {count} total parachutists dropped!";
 
         // Overlay Header & Display settings
         public bool AutoAvoidOverlap { get; set; } = true;
@@ -219,7 +219,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         }
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "🪙 {user}'s Plinko token landed in [{bucket}]!";
+        public string WinChatMessageTemplate { get; set; } = "{user}'s Plinko token landed in [{bucket}]!";
         public List<PlinkoBucket> Buckets { get; set; } = [];
 
         // Timed Session / Round settings
@@ -228,8 +228,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int DefaultSessionDurationSeconds { get; set; } = 100;
         public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
         public bool AnnounceSessionStatusInChat { get; set; } = true;
-        public string SessionStartChatMessageTemplate { get; set; } = "🪙 Plinko Bounce is now OPEN for {duration}s! Type !plinko [emote] to join!";
-        public string SessionEndChatMessageTemplate { get; set; } = "🪙 Plinko Bounce round is now CLOSED! {count} total tokens dropped!";
+        public string SessionStartChatMessageTemplate { get; set; } = "Plinko Bounce is now OPEN for {duration}s! Type !plinko [emote] to join!";
+        public string SessionEndChatMessageTemplate { get; set; } = "Plinko Bounce round is now CLOSED! {count} total tokens dropped!";
 
         // Overlay Header & Display settings
         public bool AutoAvoidOverlap { get; set; } = true;

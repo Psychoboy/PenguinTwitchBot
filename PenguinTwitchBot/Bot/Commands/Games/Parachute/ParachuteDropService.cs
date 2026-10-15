@@ -768,7 +768,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 if (!record.WinChatAnnounced && pSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(pSettings.WinChatMessageTemplate))
                 {
-                    var bullseyeTag = record.IsBullseye ? " 🎯 BULLSEYE!" : "";
+                    var bullseyeTag = record.IsBullseye ? " BULLSEYE!" : "";
                     var msg = pSettings.WinChatMessageTemplate
                         .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
                         .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)

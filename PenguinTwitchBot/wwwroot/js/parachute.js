@@ -1421,14 +1421,13 @@
             }
         }
 
-        // Target badge with seasonal icon
-        const targetEmoji = season === 'fall' ? '🍂' : (season === 'winter' ? '❄️' : (season === 'summer' ? '🏊' : (season === 'halloween' ? '🎃' : (season === 'christmas' ? '🎄' : '🌸'))));
+        // Target badge
         ctx.font = '700 14px Fredoka, Rubik, sans-serif';
         ctx.fillStyle = '#FFFFFF';
         ctx.textAlign = 'center';
         ctx.shadowColor = 'rgba(0,0,0,0.85)';
         ctx.shadowBlur = 6;
-        ctx.fillText(`${targetEmoji} TARGET`, cx, y + 34);
+        ctx.fillText('TARGET', cx, y + 34);
 
         ctx.restore();
     }
@@ -1627,7 +1626,7 @@
         ctx.rotate(-drop.tiltAngle); // Keep username horizontal for readability
         ctx.font = '700 15px Fredoka, Rubik, sans-serif';
         const label = isSessionLeader && drop.completed
-            ? `👑 ${drop.displayName} (${drop.score} pts)`
+            ? `${drop.displayName} (${drop.score} pts)`
             : (drop.completed && drop.score > 0 ? `${drop.displayName} (${drop.score})` : drop.displayName);
         const textWidth = ctx.measureText(label).width;
         const pillW = textWidth + 18;
@@ -2154,8 +2153,8 @@
 
                     // Celebration or miss popup
                 const popupText = drop.isBullseye
-                    ? '🎯 BULLSEYE! +' + drop.score
-                    : (drop.isHit ? '✨ HIT! +' + drop.score : '💨 MISS');
+                    ? 'BULLSEYE! +' + drop.score
+                    : (drop.isHit ? 'HIT! +' + drop.score : 'MISS');
                 const popupColor = drop.isBullseye
                     ? '#FFD166'
                     : (drop.isHit ? '#6BCB77' : '#94A3B8');
@@ -2397,7 +2396,7 @@
                     ctx.fillStyle = '#34D399';
                     ctx.shadowColor = 'rgba(0,0,0,0.85)';
                     ctx.shadowBlur = 6;
-                    ctx.fillText(`🎉 Round Closed! Total Parachutists: ${sessionState.totalDrops}`, bannerCenterX, bannerY + bannerH / 2);
+                    ctx.fillText(`Round Closed! Total Drops: ${sessionState.totalDrops}`, bannerCenterX, bannerY + bannerH / 2);
                     ctx.restore();
                     return;
                 } else {
@@ -2430,7 +2429,7 @@
                 ctx.fillStyle = '#FFFFFF';
                 ctx.shadowColor = 'rgba(0,0,0,0.85)';
                 ctx.shadowBlur = 6;
-                ctx.fillText(`🪂 Drops: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
+                ctx.fillText(`Drops: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
                 ctx.restore();
             } else if (!hasActiveDrop && activeDrops.length === 0) {
                 sessionState.totalDrops = 0;
@@ -2487,11 +2486,11 @@
         // Banner text
         let bannerText = '';
         if (showTimer && showCount) {
-            bannerText = `⏳ Round Ends: ${timeStr}  |  🪂 Drops: ${sessionState.totalDrops}`;
+            bannerText = `Round Ends: ${timeStr}  |  Drops: ${sessionState.totalDrops}`;
         } else if (showTimer) {
-            bannerText = `⏳ Round Ends: ${timeStr}`;
+            bannerText = `Round Ends: ${timeStr}`;
         } else if (showCount) {
-            bannerText = `🪂 Drops: ${sessionState.totalDrops}`;
+            bannerText = `Drops: ${sessionState.totalDrops}`;
         }
 
         if (bannerText) {
