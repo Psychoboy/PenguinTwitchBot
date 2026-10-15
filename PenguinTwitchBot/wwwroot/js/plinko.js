@@ -438,6 +438,7 @@
 
     let boardConfig = {
         rowCount: 8,
+        pegTransparency: 15,
         buckets: [
             { label: 'MISS', score: 0, isWin: false, color: '#64748B' },
             { label: '50 PTS', score: 50, isWin: true, color: '#3B82F6' },
@@ -449,6 +450,16 @@
         ],
         visibleUntil: 0
     };
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('pegTransparency')) {
+            const parsed = parseInt(urlParams.get('pegTransparency'), 10);
+            if (!isNaN(parsed)) {
+                boardConfig.pegTransparency = Math.max(0, Math.min(100, parsed));
+            }
+        }
+    } catch (_) {}
 
     let sessionState = {
         isActive: false,
@@ -535,6 +546,9 @@
 
             const b = msg.board;
             boardConfig.rowCount = b.rowCount || 8;
+            if (typeof b.pegTransparency === 'number') {
+                boardConfig.pegTransparency = Math.max(0, Math.min(100, b.pegTransparency));
+            }
             if (Array.isArray(b.buckets) && b.buckets.length) {
                 boardConfig.buckets = b.buckets;
             }
@@ -593,6 +607,15 @@
                 sessionState.totalDrops = s.totalDrops;
             }
             if (s.theme) currentTheme = s.theme;
+            if (msg.board) {
+                if (typeof msg.board.rowCount === 'number') boardConfig.rowCount = msg.board.rowCount;
+                if (typeof msg.board.pegTransparency === 'number') {
+                    boardConfig.pegTransparency = Math.max(0, Math.min(100, msg.board.pegTransparency));
+                }
+                if (Array.isArray(msg.board.buckets) && msg.board.buckets.length) {
+                    boardConfig.buckets = msg.board.buckets;
+                }
+            }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
             if (typeof msg.session.totalDrops === 'number') {
@@ -721,32 +744,43 @@
         const cols = Math.max(6, (boardConfig.buckets ? boardConfig.buckets.length : 7));
         const pegRadius = Math.max(5, Math.min(width, height) * 0.0085);
         const pegImg = getLoadedImage(currentTheme.plinkoPegImageUrl);
+        const pegTransparencyLevel = typeof boardConfig.pegTransparency === 'number'
+            ? Math.max(0, Math.min(100, boardConfig.pegTransparency))
+            : 15;
+        const pegAlphaFactor = pegTransparencyLevel / 100;
 
-        for (let r = 0; r < rows; r++) {
-            const progress = (r + 1) / rows;
-            const rowY = (0.16 + progress * 0.64) * height;
-            const isOdd = (r % 2 === 1);
-            const countInRow = isOdd ? cols - 1 : cols;
+        if (pegAlphaFactor > 0) {
+            ctx.save();
+            ctx.globalAlpha = alpha * pegAlphaFactor;
 
-            for (let c = 0; c < countInRow; c++) {
-                const normX = isOdd
-                    ? (c + 1.0) / cols
-                    : (c + 0.5) / cols;
-                const pegX = padX + normX * boardW;
+            for (let r = 0; r < rows; r++) {
+                const progress = (r + 1) / rows;
+                const rowY = (0.16 + progress * 0.64) * height;
+                const isOdd = (r % 2 === 1);
+                const countInRow = isOdd ? cols - 1 : cols;
 
-                if (pegImg) {
-                    ctx.drawImage(pegImg, pegX - pegRadius * 1.4, rowY - pegRadius * 1.4, pegRadius * 2.8, pegRadius * 2.8);
-                } else {
-                    ctx.save();
-                    ctx.shadowColor = currentTheme.secondaryColor || '#FFB7C5';
-                    ctx.shadowBlur = 8;
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.beginPath();
-                    ctx.arc(pegX, rowY, pegRadius, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.restore();
+                for (let c = 0; c < countInRow; c++) {
+                    const normX = isOdd
+                        ? (c + 1.0) / cols
+                        : (c + 0.5) / cols;
+                    const pegX = padX + normX * boardW;
+
+                    if (pegImg) {
+                        ctx.drawImage(pegImg, pegX - pegRadius * 1.4, rowY - pegRadius * 1.4, pegRadius * 2.8, pegRadius * 2.8);
+                    } else {
+                        ctx.save();
+                        ctx.shadowColor = currentTheme.secondaryColor || '#FFB7C5';
+                        ctx.shadowBlur = 8;
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.beginPath();
+                        ctx.arc(pegX, rowY, pegRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
                 }
             }
+
+            ctx.restore();
         }
 
         // Bottom Prize Buckets

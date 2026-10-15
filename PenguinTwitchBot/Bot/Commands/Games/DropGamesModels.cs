@@ -196,9 +196,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
     public class PlinkoGameSettings
     {
+        private int _pegTransparency = 15;
+
         public string ActiveThemeId { get; set; } = "spring";
         public int RowCount { get; set; } = 8;
         public double DropDurationSeconds { get; set; } = 4.5;
+        public int PegTransparency
+        {
+            get => _pegTransparency;
+            set => _pegTransparency = Math.Clamp(value, 0, 100);
+        }
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
         public string WinChatMessageTemplate { get; set; } = "🪙 {user}'s Plinko token landed in [{bucket}] ({score} pts)!";

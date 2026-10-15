@@ -119,6 +119,58 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Contains(settings.Themes, t => t.Id == "fall" && t.SeasonPreset == "fall" && t.IsStock);
             Assert.Contains(settings.Themes, t => t.Id == "winter" && t.SeasonPreset == "winter" && t.IsStock);
             Assert.NotEmpty(settings.Plinko.Buckets);
+            Assert.Equal(15, settings.Plinko.PegTransparency);
+        }
+
+        [Fact]
+        public void PlinkoGameSettings_PegTransparency_DefaultsTo15_AndClampsProperly()
+        {
+            var settings = new PlinkoGameSettings();
+            Assert.Equal(15, settings.PegTransparency);
+
+            settings.PegTransparency = 100;
+            Assert.Equal(100, settings.PegTransparency);
+
+            settings.PegTransparency = 0;
+            Assert.Equal(0, settings.PegTransparency);
+
+            settings.PegTransparency = -10;
+            Assert.Equal(0, settings.PegTransparency);
+
+            settings.PegTransparency = 150;
+            Assert.Equal(100, settings.PegTransparency);
+        }
+
+        [Fact]
+        public async Task TriggerPlinkoDropAsync_IncludesPegTransparencyInBoardPayload()
+        {
+            var registry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Plinko.PegTransparency = 35;
+            await settingsService.SaveSettingsAsync(settings);
+
+            string? capturedTopic = null;
+            string? capturedJson = null;
+            _webSocketMessenger
+                .Setup(m => m.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
+                .Callback<string, string>((topic, json) =>
+                {
+                    capturedTopic = topic;
+                    capturedJson = json;
+                })
+                .Returns(Task.CompletedTask);
+
+            var sut = CreatePlinkoService(settingsService, registry);
+            var token = await sut.TriggerPlinkoDropAsync(new CommandEventArgs { Name = "viewer1", DisplayName = "Viewer1" });
+
+            Assert.NotNull(capturedJson);
+            Assert.Equal(WsTopics.Plinko, capturedTopic);
+            using var doc = System.Text.Json.JsonDocument.Parse(capturedJson);
+            var root = doc.RootElement;
+            Assert.True(root.TryGetProperty("board", out var board));
+            Assert.True(board.TryGetProperty("pegTransparency", out var pegTransparency));
+            Assert.Equal(35, pegTransparency.GetInt32());
         }
 
         [Fact]

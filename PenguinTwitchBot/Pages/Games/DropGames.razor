@@ -353,15 +353,21 @@
                                     </MudSelect>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="int" Label="Peg Rows (5 - 14)" Variant="Variant.Outlined"
                                                              Min="5" Max="14"
                                                              @bind-Value="_settings.Plinko.RowCount" />
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="double" Label="Drop Duration (Seconds)" Variant="Variant.Outlined"
                                                              Min="2.0" Max="12.0" Step="0.5"
                                                              @bind-Value="_settings.Plinko.DropDurationSeconds" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Transparency Level (0 - 100%)" Variant="Variant.Outlined"
+                                                             Min="0" Max="100" Step="5"
+                                                             HelperText="100% = total visible, 0% = invisible (default 15%)."
+                                                             @bind-Value="_settings.Plinko.PegTransparency" />
                                         </MudItem>
                                     </MudGrid>
 

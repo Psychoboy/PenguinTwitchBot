@@ -253,7 +253,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     Theme = theme
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto }, _jsonOptions);
+                var board = new
+                {
+                    rowCount = Math.Clamp(settings.Plinko.RowCount, 5, 14),
+                    durationSeconds = Math.Clamp(settings.Plinko.DropDurationSeconds, 2.0, 12.0),
+                    pegTransparency = Math.Clamp(settings.Plinko.PegTransparency, 0, 100),
+                    buckets = (settings.Plinko.Buckets.Count > 0 ? settings.Plinko.Buckets : PlinkoGameSettings.CreateDefaultBuckets())
+                };
+
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_start");
 
                 if (settings.Plinko.AnnounceSessionStatusInChat)
@@ -383,6 +391,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             var rows = Math.Clamp(plinkoSettings.RowCount, 5, 14);
             var durationSeconds = Math.Clamp(plinkoSettings.DropDurationSeconds, 2.0, 12.0);
+            var pegTransparency = Math.Clamp(plinkoSettings.PegTransparency, 0, 100);
 
             int winningBucketIndex;
             if (forcedBucketIndex.HasValue)
@@ -463,6 +472,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 {
                     rowCount = rows,
                     durationSeconds,
+                    pegTransparency,
                     buckets,
                     winningBucketIndex,
                     winningBucketLabel = winningBucket.Label,
