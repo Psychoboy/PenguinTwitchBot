@@ -314,7 +314,10 @@ namespace PenguinTwitchBot.Bot.Notifications
                     {
                         var dropComplete = JsonSerializer.Deserialize<DropGameCompleteMessage>(data, _serializerOptions);
                         if (dropComplete != null && !string.IsNullOrWhiteSpace(dropComplete.DropToken))
-                            await _dispatcher.Publish(new DropGameCompleteNotification(dropComplete.DropToken));
+                            await _dispatcher.Publish(new DropGameCompleteNotification(
+                                dropComplete.DropToken,
+                                dropComplete.LandingX,
+                                dropComplete.WinningBucketIndex));
                     }
                     catch (JsonException)
                     {

@@ -1554,28 +1554,50 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         /// <inheritdoc />
         public async Task<Dictionary<string, string>> GetChatEmotesAsync()
         {
-            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                var globalEmotes = await _chatClient.GetGlobalEmotesAsync(
-                    _configuration["twitchClientId"]!,
-                    _accessToken);
-                foreach (var emote in globalEmotes)
+                await ValidateAndRefreshToken();
+
+                try
                 {
-                    result[emote.Name] = emote.ImageUrl1x;
+                    var globalEmotes = await _chatClient.GetGlobalEmotesAsync(
+                        _configuration["twitchClientId"]!,
+                        _accessToken);
+                    foreach (var emote in globalEmotes)
+                    {
+                        var url = !string.IsNullOrEmpty(emote.Id)
+                            ? $"https://static-cdn.jtvnw.net/emoticons/v2/{emote.Id}/default/dark/2.0"
+                            : (!string.IsNullOrEmpty(emote.ImageUrl1x) ? emote.ImageUrl1x : string.Empty);
+                        result[emote.Name] = url;
+                    }
+                }
+                catch (Exception gEx)
+                {
+                    _logger.LogWarning(gEx, "Failed to fetch global chat emotes");
                 }
 
                 var broadcasterId = await GetBroadcasterUserId();
                 if (!string.IsNullOrEmpty(broadcasterId))
                 {
-                    var channelEmotes = await _chatClient.GetChannelEmotesAsync(
-                        _configuration["twitchClientId"]!,
-                        _accessToken,
-                        broadcasterId);
-                    foreach (var emote in channelEmotes)
+                    try
                     {
-                        // Channel emotes override globals for the same name
-                        result[emote.Name] = emote.ImageUrl1x;
+                        var channelEmotes = await _chatClient.GetChannelEmotesAsync(
+                            _configuration["twitchClientId"]!,
+                            _accessToken,
+                            broadcasterId);
+                        foreach (var emote in channelEmotes)
+                        {
+                            // Channel emotes override globals for the same name
+                            var url = !string.IsNullOrEmpty(emote.Id)
+                                ? $"https://static-cdn.jtvnw.net/emoticons/v2/{emote.Id}/default/dark/2.0"
+                                : (!string.IsNullOrEmpty(emote.ImageUrl1x) ? emote.ImageUrl1x : string.Empty);
+                            result[emote.Name] = url;
+                        }
+                    }
+                    catch (Exception cEx)
+                    {
+                        _logger.LogWarning(cEx, "Failed to fetch channel chat emotes for broadcaster {BroadcasterId}", broadcasterId);
                     }
                 }
             }

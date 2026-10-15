@@ -37,7 +37,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         /// <summary>
         /// Spawn trajectory pattern: "Targeted", "TopRain", "SideWind", "Fountain".
         /// </summary>
-        public string SpawnPattern { get; set; } = "Targeted";
+        public string SpawnPattern { get; set; } = "TopRain";
 
         /// <summary>
         /// Multiplier for knockback force applied when a droplet hits a parachuting character.

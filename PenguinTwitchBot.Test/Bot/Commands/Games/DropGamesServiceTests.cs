@@ -3,11 +3,13 @@ using System.Linq.Expressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using PenguinTwitchBot.Application.DropGameNotifications;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Core;
@@ -855,6 +857,213 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal(expectedBullseye, record.IsBullseye);
             Assert.Equal(expectedWin, record.IsWin);
             Assert.Equal(expectedHit, record.IsHit);
+        }
+
+        [Fact]
+        public void ParachuteSimulation_DirectionalSpeedAndWallBounce_ReflectsWithoutSway()
+        {
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "wall-bounce-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.90,
+                StartY = 0.04,
+                LandingY = 0.88,
+                InitialVx = 0.15, // Fast sharp rightward glide
+                InitialVy = 0.10,
+                WindAccelX = 0.0,
+                SwayAmplitude = 0.0,
+                SwayFrequency = 0.0,
+                SwayPhase = 0.0,
+                TotalTicks = 120,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.09
+            };
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
+
+            // Parachuter should hit the right wall margin (0.95), reflect leftward, and land with negative horizontal velocity
+            Assert.Contains(record.Keyframes, k => k.X >= 0.90);
+            Assert.Contains(record.Keyframes, k => k.Vx < 0);
+            Assert.True(record.LandingX < 0.95);
+            Assert.True(record.LandingX > 0.05);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Parachute_RecalculatesScoreWithReportedLandingX()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "para-complete-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.20,
+                StartY = 0.04,
+                LandingY = 0.88,
+                InitialVx = 0.0,
+                InitialVy = 0.10,
+                WindAccelX = 0.0,
+                SwayAmplitude = 0.0,
+                SwayFrequency = 0.0,
+                SwayPhase = 0.0,
+                TotalTicks = 60,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                LandingX = 0.20,
+                Score = 0,
+                IsHit = false,
+                IsBullseye = false,
+                IsWin = false
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Viewer bounced off another player and landed dead center at 0.50!
+            var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50);
+            await handler.Handle(notification, CancellationToken.None);
+
+            parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "para-complete-token" &&
+                r.LandingX == 0.50 &&
+                r.Score == 100 &&
+                r.IsBullseye &&
+                r.IsWin &&
+                r.IsHit)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Plinko_RecalculatesOutcomeWithReportedBucketIndex()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "plinko-complete-token",
+                GameType = DropGameType.Plinko,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "plinko", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                StartY = 0.04,
+                LandingY = 0.88,
+                InitialVx = 0.0,
+                InitialVy = 0.10,
+                WindAccelX = 0.0,
+                SwayAmplitude = 0.0,
+                SwayFrequency = 0.0,
+                SwayPhase = 0.0,
+                TotalTicks = 60,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                BucketIndex = 0,
+                BucketLabel = "Loss",
+                Score = 0,
+                IsWin = false
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Viewer bumped another token into bucket 2 (100 pts Win)
+            var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2);
+            await handler.Handle(notification, CancellationToken.None);
+
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "plinko-complete-token" &&
+                r.BucketIndex == 2 &&
+                r.Score == 100 &&
+                r.IsWin)), Times.Once);
+        }
+
+        [Fact]
+        public async Task ResolveMediaUrlsAsync_MultipleEmotesAndUrls_ResolvesAllValidItems()
+        {
+            var emoteMock = new Mock<IEmoteService>();
+            emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvShots"))
+                .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0");
+            emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvLights"))
+                .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0");
+            emoteMock.Setup(e => e.ResolveEmoteUrlAsync("unknownEmote"))
+                .ReturnsAsync((string?)null);
+
+            var eventArgs = new CommandEventArgs { Arg = "" };
+            var rawInput = "sptvShots, https://example.com/custom.png; sptvLights unknownEmote";
+
+            var results = await DropGameMediaResolver.ResolveMediaUrlsAsync(
+                emoteMock.Object, eventArgs, rawInput, fallbackInput: null, allowDirectUrlOrPath: true);
+
+            Assert.Equal(3, results.Count);
+            Assert.Contains("https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0", results);
+            Assert.Contains("https://example.com/custom.png", results);
+            Assert.Contains("https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0", results);
+            Assert.DoesNotContain("unknownEmote", results);
+        }
+
+        [Fact]
+        public async Task ResolveCharacterOrEmoteUrlAsync_MultipleEmoteNames_PicksFromPool()
+        {
+            var emoteMock = new Mock<IEmoteService>();
+            emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvShots"))
+                .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0");
+            emoteMock.Setup(e => e.ResolveEmoteUrlAsync("sptvLights"))
+                .ReturnsAsync("https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0");
+
+            var eventArgs = new CommandEventArgs { Arg = "sptvShots, sptvLights" };
+
+            var picked = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
+                emoteMock.Object, eventArgs, emoteOrImageInput: null, fallbackUrl: null, allowDirectUrlOrPath: false);
+
+            Assert.True(
+                picked == "https://static-cdn.jtvnw.net/emoticons/v2/em1/default/dark/2.0" ||
+                picked == "https://static-cdn.jtvnw.net/emoticons/v2/em2/default/dark/2.0");
         }
     }
 }

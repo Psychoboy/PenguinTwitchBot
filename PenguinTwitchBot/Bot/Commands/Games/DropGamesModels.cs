@@ -120,7 +120,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int DefaultDropletCount { get; set; } = 5;
         public string DefaultDropletSize { get; set; } = "Medium"; // Small, Medium, Large, Giant, Random
         public string DefaultDropletSpeed { get; set; } = "Normal"; // Slow, Normal, Fast, Hyper, Random
-        public string DefaultDropletPattern { get; set; } = "Targeted"; // Targeted, TopRain, SideWind, Fountain
+        public string DefaultDropletPattern { get; set; } = "TopRain"; // TopRain, Targeted, SideWind, Fountain
         public double DefaultKnockbackMultiplier { get; set; } = 1.0;
 
         // Timed Session / Round settings
@@ -325,6 +325,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     {
         [JsonPropertyName("dropToken")]
         public string DropToken { get; set; } = "";
+
+        [JsonPropertyName("landingX")]
+        public double? LandingX { get; set; }
+
+        [JsonPropertyName("winningBucketIndex")]
+        public int? WinningBucketIndex { get; set; }
     }
 
     /// <summary>
@@ -365,8 +371,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool IsBullseye { get; set; }
         public bool IsWin { get; set; }
         public int DropletHitCount { get; set; }
-        public int BucketIndex { get; init; }
-        public string BucketLabel { get; init; } = "";
+        public int BucketIndex { get; set; }
+        public string BucketLabel { get; set; } = "";
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];

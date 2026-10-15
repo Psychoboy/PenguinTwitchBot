@@ -13,16 +13,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var normalized = preset?.Trim() ?? "Medium";
             if (normalized.Equals("Random", StringComparison.OrdinalIgnoreCase))
             {
-                string[] choices = ["Small", "Medium", "Large", "Giant"];
-                normalized = choices[RandomNumberGenerator.GetInt32(0, choices.Length)];
+                // Weighted selection matching PixelPlush's [1, .5, .5, .5, .5, .5] distribution
+                // ~17% Large/Giant, ~83% Small/Medium
+                var roll = RandomNumberGenerator.GetInt32(0, 100);
+                normalized = roll switch
+                {
+                    < 25 => "Small",
+                    < 75 => "Medium",
+                    < 92 => "Large",
+                    _ => "Giant"
+                };
             }
 
             return normalized.ToLowerInvariant() switch
             {
-                "small" => ("Small", 0.65, 0.018, 0.55),
-                "large" => ("Large", 1.55, 0.042, 1.75),
-                "giant" => ("Giant", 2.25, 0.060, 2.85),
-                _ => ("Medium", 1.0, 0.028, 1.0)
+                "small" => ("Small", 0.60, 0.018, 0.50),
+                "large" => ("Large", 1.50, 0.042, 1.80),
+                "giant" => ("Giant", 2.00, 0.058, 2.80),
+                _ => ("Medium", 1.00, 0.028, 1.00)
             };
         }
 
@@ -91,13 +99,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 return (startX, startY, vx, vy, gravity);
             }
 
-            // Default TopRain
+            // Default TopRain (matching PixelPlush bouncing obstacles)
             {
-                var startX = DropGameMath.RandomDouble(0.12, 0.88);
-                var startY = -0.04;
-                var vx = DropGameMath.RandomDouble(-0.08, 0.08) * speedScale;
-                var vy = DropGameMath.RandomDouble(0.35, 0.55) * speedScale;
-                var gravity = 0.18 * speedScale;
+                var startX = DropGameMath.RandomDouble(0.06, 0.94);
+                var startY = -0.06;
+                var vx = DropGameMath.RandomDouble(-0.35, 0.35) * speedScale;
+                var vy = DropGameMath.RandomDouble(0.06, 0.20) * speedScale;
+                var gravity = 0.32 * speedScale;
                 return (startX, startY, vx, vy, gravity);
             }
         }

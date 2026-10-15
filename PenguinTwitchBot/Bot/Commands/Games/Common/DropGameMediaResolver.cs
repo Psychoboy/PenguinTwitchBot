@@ -5,53 +5,186 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 {
     public static class DropGameMediaResolver
     {
+        private static readonly char[] Delimiters = [',', ';', '|', '\n', '\r'];
+
+        /// <summary>
+        /// Splits a configuration string into individual image/emote tokens by comma, semicolon, pipe, newline, or whitespace.
+        /// </summary>
+        public static List<string> ParseMediaTokens(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return [];
+
+            var rawTokens = input
+                .Split(Delimiters, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrEmpty(t) && !t.StartsWith('%'))
+                .ToList();
+
+            var result = new List<string>();
+            foreach (var token in rawTokens)
+            {
+                if (token.Contains(' ') &&
+                    !token.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !token.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    var subTokens = token
+                        .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Where(t => !string.IsNullOrEmpty(t) && !t.StartsWith('%'));
+                    result.AddRange(subTokens);
+                }
+                else
+                {
+                    result.Add(token);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves one or more media tokens (Twitch/BTTV/FFZ/7TV emote codes or image URLs/paths) into valid CDN URLs.
+        /// Supports multi-image pools (e.g. "sptvShots, sptvLights, sptv30k").
+        /// </summary>
+        public static async Task<List<string>> ResolveMediaUrlsAsync(
+            IEmoteService? emoteService,
+            CommandEventArgs? eventArgs,
+            string? emoteOrImageInput,
+            string? fallbackInput,
+            bool allowDirectUrlOrPath = false)
+        {
+            // 1. Native Twitch emote fragment attached to CommandEventArgs (from Twitch chat)
+            if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl) && string.IsNullOrWhiteSpace(emoteOrImageInput))
+            {
+                return [NormalizeTwitchEmoteUrl(eventArgs.EmoteUrl)];
+            }
+
+            var primaryTokens = ParseMediaTokens(emoteOrImageInput);
+            if (primaryTokens.Count == 0)
+            {
+                primaryTokens = ParseMediaTokens(eventArgs?.Arg);
+            }
+
+            var resolved = new List<string>();
+
+            if (primaryTokens.Count > 0)
+            {
+                foreach (var token in primaryTokens)
+                {
+                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath);
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        resolved.Add(url);
+                    }
+                }
+            }
+
+            // If no primary tokens resolved, resolve the fallbackInput (e.g. active theme's DefaultDropletImageUrl)
+            if (resolved.Count == 0 && !string.IsNullOrWhiteSpace(fallbackInput))
+            {
+                var fallbackTokens = ParseMediaTokens(fallbackInput);
+                foreach (var token in fallbackTokens)
+                {
+                    // Fallback tokens come from saved theme settings and are trusted to allow local paths/URLs
+                    var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath: true);
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        resolved.Add(url);
+                    }
+                }
+            }
+
+            return resolved;
+        }
+
+        /// <summary>
+        /// Resolves a character or item sprite URL. If multiple items are configured, picks one randomly.
+        /// Returns empty string if no valid sprite could be resolved (allowing the overlay to use built-in seasonal art).
+        /// </summary>
         public static async Task<string?> ResolveCharacterOrEmoteUrlAsync(
             IEmoteService? emoteService,
             CommandEventArgs? eventArgs,
             string? emoteOrImageInput,
-            string fallbackUrl,
+            string? fallbackUrl = null,
             bool allowDirectUrlOrPath = false)
         {
-            // 1. Native Twitch emote fragment attached to CommandEventArgs
-            if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl))
+            var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath);
+            if (urls.Count == 0) return "";
+            if (urls.Count == 1) return urls[0];
+            return urls[Random.Shared.Next(urls.Count)];
+        }
+
+        private static async Task<string?> ResolveSingleTokenAsync(
+            IEmoteService? emoteService,
+            string token,
+            bool allowDirectUrlOrPath)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
+            token = NormalizeTwitchEmoteUrl(token);
+
+            // Direct URL (http:// or https://) or absolute path (/images/...)
+            if (IsAllowedPathOrUrl(token))
             {
-                return eventArgs.EmoteUrl;
+                return allowDirectUrlOrPath ? token : null;
             }
 
-            var candidate = !string.IsNullOrWhiteSpace(emoteOrImageInput)
-                ? emoteOrImageInput.Trim()
-                : eventArgs?.Arg?.Trim();
-
-            if (!string.IsNullOrWhiteSpace(candidate))
+            // Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService
+            if (emoteService != null)
             {
-                // Direct URL or local media path (only allowed when explicitly trusted, e.g. subaction configuration or dashboard test)
-                if (allowDirectUrlOrPath && IsAllowedPathOrUrl(candidate))
+                try
                 {
-                    return candidate;
-                }
-
-                // First token lookup in EmoteService (Twitch + BTTV + FFZ + 7TV)
-                var firstWord = candidate.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
-                if (!string.IsNullOrWhiteSpace(firstWord) && !firstWord.StartsWith('%') && emoteService != null)
-                {
-                    try
+                    var emoteUrl = await emoteService.ResolveEmoteUrlAsync(token);
+                    if (!string.IsNullOrWhiteSpace(emoteUrl))
                     {
-                        var emotes = await emoteService.GetEmotesAsync();
-                        var match = emotes.FirstOrDefault(e => e.Key.Equals(firstWord, StringComparison.OrdinalIgnoreCase));
+                        return NormalizeTwitchEmoteUrl(emoteUrl);
+                    }
+
+                    var emotes = await emoteService.GetEmotesAsync();
+                    if (emotes != null)
+                    {
+                        if (emotes.TryGetValue(token, out var dictUrl) && !string.IsNullOrWhiteSpace(dictUrl))
+                        {
+                            return NormalizeTwitchEmoteUrl(dictUrl);
+                        }
+
+                        var match = emotes.FirstOrDefault(kvp => kvp.Key.Equals(token, StringComparison.OrdinalIgnoreCase));
                         if (!string.IsNullOrWhiteSpace(match.Value))
                         {
-                            return match.Value;
+                            return NormalizeTwitchEmoteUrl(match.Value);
                         }
                     }
-                    catch
-                    {
-                        // Fallback on lookup failure
-                    }
+                }
+                catch
+                {
+                    // Fallback on lookup failure
                 }
             }
 
-            // Fallback to theme's default character/droplet image URL (empty string uses built-in seasonal sprite on overlay)
-            return fallbackUrl;
+            // Relative media path with image extension (e.g. "images/droplets/drop1.png")
+            if (allowDirectUrlOrPath && token.Contains('.') &&
+                (token.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
+            {
+                return token.StartsWith('/') ? token : $"/{token}";
+            }
+
+            // Do NOT return unresolved plain text names like "sptvShots" because the browser
+            // would attempt GET http://localhost:5000/sptvShots, resulting in 404 errors.
+            return null;
+        }
+
+        public static string NormalizeTwitchEmoteUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return string.Empty;
+            if (url.Contains("static-cdn.jtvnw.net/emoticons/v2/", StringComparison.OrdinalIgnoreCase))
+            {
+                return url.Replace("/static/", "/default/", StringComparison.OrdinalIgnoreCase);
+            }
+            return url;
         }
 
         public static bool IsAllowedPathOrUrl(string? candidate)

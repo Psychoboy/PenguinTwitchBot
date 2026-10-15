@@ -21,20 +21,400 @@
     resizeCanvas();
 
     const imageCache = new Map();
-    function getLoadedImage(url) {
-        if (!url) return null;
-        if (imageCache.has(url)) {
-            const entry = imageCache.get(url);
-            return entry.loaded ? entry.img : null;
+
+    function normalizeImageUrl(url) {
+        if (!url || typeof url !== 'string') return url;
+        if (url.includes('static-cdn.jtvnw.net/emoticons/v2/')) {
+            return url.replace('/static/', '/default/');
         }
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        const entry = { img, loaded: false, error: false };
-        img.onload = function () { entry.loaded = true; };
-        img.onerror = function () { entry.error = true; };
-        img.src = url;
-        imageCache.set(url, entry);
-        return null;
+        return url;
+    }
+
+    function detectMimeType(buffer) {
+        if (!buffer || buffer.byteLength < 12) return 'image/gif';
+        const bytes = new Uint8Array(buffer.slice(0, 12));
+        if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+        if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+            bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+        return 'image/gif';
+    }
+
+    async function loadAnimatedFrames(url, entry) {
+        try {
+            let fetchUrl = url;
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                try {
+                    const parsed = new URL(url);
+                    if (parsed.hostname === window.location.hostname || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+                        fetchUrl = parsed.pathname + parsed.search;
+                    } else {
+                        fetchUrl = `/api/chat/proxy-image?url=${encodeURIComponent(url)}`;
+                    }
+                } catch (_) {
+                    fetchUrl = `/api/chat/proxy-image?url=${encodeURIComponent(url)}`;
+                }
+            }
+
+            const resp = await fetch(fetchUrl);
+            if (!resp.ok) {
+                console.warn('[Parachute] Image fetch returned status', resp.status, 'for', fetchUrl);
+                return;
+            }
+            const buffer = await resp.arrayBuffer();
+            const headerType = resp.headers.get('content-type');
+            const mimeType = (headerType && headerType.startsWith('image/'))
+                ? headerType.split(';')[0].trim()
+                : detectMimeType(buffer);
+
+            // 1. WebCodecs ImageDecoder (fast GPU hardware-decoded frames)
+            if (typeof window.ImageDecoder !== 'undefined') {
+                try {
+                    let isSupported = true;
+                    if (typeof ImageDecoder.isTypeSupported === 'function') {
+                        isSupported = await ImageDecoder.isTypeSupported(mimeType);
+                    }
+
+                    if (isSupported) {
+                        const decoder = new ImageDecoder({
+                            data: buffer,
+                            type: mimeType,
+                            preferAnimation: true
+                        });
+
+                        // Standard WebCodecs Promise is decoder.tracks.ready
+                        await decoder.tracks.ready;
+
+                        if (decoder.completed) {
+                            try { await decoder.completed; } catch (_) { }
+                        }
+
+                        const track = decoder.tracks.selectedTrack;
+                        let frameCount = track ? track.frameCount : 1;
+                        const isAnimated = track ? track.animated : (frameCount > 1);
+
+                        if (isAnimated && frameCount > 1) {
+                            const frames = [];
+                            let totalDurationMs = 0;
+                            for (let i = 0; i < frameCount; i++) {
+                                const frameResult = await decoder.decode({ frameIndex: i });
+                                const durationMs = Math.max(20, (frameResult.image.duration ? frameResult.image.duration / 1000 : 100));
+                                const bmp = await createImageBitmap(frameResult.image);
+                                frameResult.image.close();
+                                frames.push({ bmp, duration: durationMs });
+                                totalDurationMs += durationMs;
+                            }
+
+                            if (frames.length > 1) {
+                                entry.frames = frames;
+                                entry.totalDurationMs = totalDurationMs;
+                                entry.isAnimated = true;
+                                console.log('[Parachute] Successfully decoded ' + frames.length + ' frames via WebCodecs for ' + url);
+                                decoder.close();
+                                return;
+                            }
+                        }
+                        decoder.close();
+                    }
+                } catch (decErr) {
+                    console.warn('[Parachute] WebCodecs decode failed for ' + url + ', trying GIF fallback:', decErr);
+                }
+            }
+
+            // 2. Pure-JS GIF parser fallback (works universally in all OBS / browser versions)
+            if (mimeType === 'image/gif' || detectMimeType(buffer) === 'image/gif') {
+                try {
+                    const gifFrames = await parseAndDecodeGif(buffer);
+                    if (gifFrames && gifFrames.length > 1) {
+                        entry.frames = gifFrames;
+                        entry.totalDurationMs = gifFrames.reduce((acc, f) => acc + f.duration, 0);
+                        entry.isAnimated = true;
+                        console.log('[Parachute] Successfully decoded ' + gifFrames.length + ' frames via JS GIF decoder for ' + url);
+                        return;
+                    }
+                } catch (gifErr) {
+                    console.warn('[Parachute] JS GIF decode failed for ' + url + ':', gifErr);
+                }
+            }
+        } catch (err) {
+            console.warn('[Parachute] loadAnimatedFrames error for ' + url + ':', err);
+        }
+    }
+
+    async function parseAndDecodeGif(arrayBuffer) {
+        const u8 = new Uint8Array(arrayBuffer);
+        if (u8.length < 14) return null;
+        if (u8[0] !== 0x47 || u8[1] !== 0x49 || u8[2] !== 0x46) return null; // "GIF"
+
+        let p = 6;
+        const screenWidth = u8[p] | (u8[p + 1] << 8); p += 2;
+        const screenHeight = u8[p] | (u8[p + 1] << 8); p += 2;
+        if (screenWidth <= 0 || screenHeight <= 0) return null;
+
+        const packed = u8[p++];
+        const gctFlag = (packed & 0x80) !== 0;
+        const gctSize = 1 << ((packed & 0x07) + 1);
+        p++; // bgIndex
+        p++; // pixel aspect ratio
+
+        let globalPalette = null;
+        if (gctFlag) {
+            globalPalette = new Uint32Array(gctSize);
+            for (let i = 0; i < gctSize; i++) {
+                const r = u8[p++];
+                const g = u8[p++];
+                const b = u8[p++];
+                globalPalette[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+
+        const rawFrames = [];
+        let disposalMethod = 0;
+        let transparentIndex = -1;
+        let delayMs = 100;
+
+        while (p < u8.length) {
+            const blockType = u8[p++];
+            if (blockType === 0x3B) break; // Trailer
+
+            if (blockType === 0x21) {
+                const extLabel = u8[p++];
+                if (extLabel === 0xF9) {
+                    p++; // block size 4
+                    const gcPacked = u8[p++];
+                    disposalMethod = (gcPacked >> 2) & 0x07;
+                    const hasTransparency = (gcPacked & 0x01) !== 0;
+                    const rawDelay = u8[p] | (u8[p + 1] << 8); p += 2;
+                    delayMs = Math.max(20, rawDelay * 10);
+                    const transIdx = u8[p++];
+                    transparentIndex = hasTransparency ? transIdx : -1;
+                    p++; // terminator 0x00
+                } else {
+                    while (p < u8.length) {
+                        const subSize = u8[p++];
+                        if (subSize === 0) break;
+                        p += subSize;
+                    }
+                }
+            } else if (blockType === 0x2C) {
+                const left = u8[p] | (u8[p + 1] << 8); p += 2;
+                const top = u8[p] | (u8[p + 1] << 8); p += 2;
+                const width = u8[p] | (u8[p + 1] << 8); p += 2;
+                const height = u8[p] | (u8[p + 1] << 8); p += 2;
+                const imgPacked = u8[p++];
+                const lctFlag = (imgPacked & 0x80) !== 0;
+                const lctSize = lctFlag ? (1 << ((imgPacked & 0x07) + 1)) : 0;
+                let activePalette = globalPalette;
+
+                if (lctFlag) {
+                    activePalette = new Uint32Array(lctSize);
+                    for (let i = 0; i < lctSize; i++) {
+                        const r = u8[p++];
+                        const g = u8[p++];
+                        const b = u8[p++];
+                        activePalette[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+                    }
+                }
+
+                if (!activePalette) return null;
+
+                const minCodeSize = u8[p++];
+                const lzwData = [];
+                while (p < u8.length) {
+                    const subSize = u8[p++];
+                    if (subSize === 0) break;
+                    for (let i = 0; i < subSize; i++) lzwData.push(u8[p++]);
+                }
+
+                const pixelCount = width * height;
+                const pixels = new Uint8Array(pixelCount);
+                decodeLzw(minCodeSize, lzwData, pixels);
+
+                rawFrames.push({
+                    left, top, width, height,
+                    pixels,
+                    palette: activePalette,
+                    transparentIndex,
+                    disposalMethod,
+                    delayMs
+                });
+
+                disposalMethod = 0;
+                transparentIndex = -1;
+                delayMs = 100;
+            }
+        }
+
+        if (rawFrames.length <= 1) return null;
+
+        const compCanvas = document.createElement('canvas');
+        compCanvas.width = screenWidth;
+        compCanvas.height = screenHeight;
+        const compCtx = compCanvas.getContext('2d', { willReadFrequently: true });
+
+        const prevCanvas = document.createElement('canvas');
+        prevCanvas.width = screenWidth;
+        prevCanvas.height = screenHeight;
+        const prevCtx = prevCanvas.getContext('2d', { willReadFrequently: true });
+
+        const resultFrames = [];
+
+        for (let i = 0; i < rawFrames.length; i++) {
+            const rf = rawFrames[i];
+
+            if (rf.disposalMethod === 3) {
+                prevCtx.clearRect(0, 0, screenWidth, screenHeight);
+                prevCtx.drawImage(compCanvas, 0, 0);
+            }
+
+            const frameImgData = compCtx.createImageData(rf.width, rf.height);
+            const data32 = new Uint32Array(frameImgData.data.buffer);
+
+            for (let px = 0; px < rf.pixels.length; px++) {
+                const colorIdx = rf.pixels[px];
+                if (colorIdx === rf.transparentIndex) {
+                    data32[px] = 0;
+                } else {
+                    data32[px] = rf.palette[colorIdx] || 0;
+                }
+            }
+
+            const patchCanvas = document.createElement('canvas');
+            patchCanvas.width = rf.width;
+            patchCanvas.height = rf.height;
+            patchCanvas.getContext('2d').putImageData(frameImgData, 0, 0);
+
+            compCtx.drawImage(patchCanvas, rf.left, rf.top);
+
+            const bmp = await createImageBitmap(compCanvas);
+            resultFrames.push({ bmp, duration: rf.delayMs });
+
+            if (rf.disposalMethod === 2) {
+                compCtx.clearRect(rf.left, rf.top, rf.width, rf.height);
+            } else if (rf.disposalMethod === 3) {
+                compCtx.clearRect(0, 0, screenWidth, screenHeight);
+                compCtx.drawImage(prevCanvas, 0, 0);
+            }
+        }
+
+        return resultFrames;
+    }
+
+    function decodeLzw(minCodeSize, inputBytes, outputPixels) {
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+        let codeSize = minCodeSize + 1;
+        let codeMask = (1 << codeSize) - 1;
+
+        const dictPrefix = new Int32Array(4096);
+        const dictSuffix = new Uint8Array(4096);
+
+        function initDict() {
+            for (let i = 0; i < clearCode; i++) {
+                dictPrefix[i] = -1;
+                dictSuffix[i] = i;
+            }
+        }
+        initDict();
+
+        let dictEntries = eoiCode + 1;
+        let bytePos = 0;
+        let bitBuffer = 0;
+        let bitCount = 0;
+        let outPos = 0;
+        let prevCode = -1;
+        const stack = new Uint8Array(4096);
+
+        while (bytePos < inputBytes.length && outPos < outputPixels.length) {
+            while (bitCount < codeSize && bytePos < inputBytes.length) {
+                bitBuffer |= (inputBytes[bytePos++] << bitCount);
+                bitCount += 8;
+            }
+
+            if (bitCount < codeSize) break;
+
+            const code = bitBuffer & codeMask;
+            bitBuffer >>= codeSize;
+            bitCount -= codeSize;
+
+            if (code === clearCode) {
+                codeSize = minCodeSize + 1;
+                codeMask = (1 << codeSize) - 1;
+                dictEntries = eoiCode + 1;
+                prevCode = -1;
+                initDict();
+                continue;
+            }
+
+            if (code === eoiCode) break;
+
+            let stackPtr = 0;
+            if (code < dictEntries) {
+                let cur = code;
+                while (cur >= 0) {
+                    stack[stackPtr++] = dictSuffix[cur];
+                    cur = dictPrefix[cur];
+                }
+            } else if (code === dictEntries && prevCode >= 0) {
+                let cur = prevCode;
+                stack[stackPtr++] = dictSuffix[cur];
+                while (cur >= 0) {
+                    stack[stackPtr++] = dictSuffix[cur];
+                    cur = dictPrefix[cur];
+                }
+                const firstByte = stack[stackPtr - 1];
+                stack[0] = firstByte;
+            } else {
+                break;
+            }
+
+            for (let i = stackPtr - 1; i >= 0 && outPos < outputPixels.length; i--) {
+                outputPixels[outPos++] = stack[i];
+            }
+
+            if (prevCode >= 0 && dictEntries < 4096) {
+                dictPrefix[dictEntries] = prevCode;
+                dictSuffix[dictEntries] = stack[stackPtr - 1];
+                dictEntries++;
+
+                if (dictEntries > codeMask && codeSize < 12) {
+                    codeSize++;
+                    codeMask = (1 << codeSize) - 1;
+                }
+            }
+
+            prevCode = code;
+        }
+    }
+
+    function getLoadedImage(rawUrl) {
+        const url = normalizeImageUrl(rawUrl);
+        if (!url) return null;
+        let entry = imageCache.get(url);
+        if (!entry) {
+            const img = new Image();
+            entry = { img, loaded: false, error: false, frames: null, totalDurationMs: 0, isAnimated: false };
+            img.onload = function () { entry.loaded = true; };
+            img.onerror = function () { entry.error = true; };
+            img.src = url;
+            imageCache.set(url, entry);
+            loadAnimatedFrames(url, entry);
+            return null;
+        }
+
+        if (entry.isAnimated && entry.frames && entry.frames.length > 1) {
+            const now = performance.now();
+            let elapsed = now % entry.totalDurationMs;
+            for (let i = 0; i < entry.frames.length; i++) {
+                if (elapsed < entry.frames[i].duration) {
+                    return entry.frames[i].bmp;
+                }
+                elapsed -= entry.frames[i].duration;
+            }
+            return entry.frames[entry.frames.length - 1].bmp;
+        }
+
+        return entry.loaded ? entry.img : null;
     }
 
     function playSound(url, volume = 0.5) {
@@ -107,20 +487,20 @@
     function spawnSplashBurst(xPx, yPx, color, count, scale = 1.0, shape = 'circle') {
         for (let i = 0; i < count; i++) {
             const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
-            const speed = (70 + Math.random() * 140) * scale;
+            const speed = (24 + Math.random() * 45) * scale;
             splashBursts.push({
                 x: xPx,
                 y: yPx,
                 vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed - 40,
-                size: (4 + Math.random() * 5) * scale,
+                vy: Math.sin(angle) * speed - 12,
+                size: (1.5 + Math.random() * 1.8) * scale,
                 color: color,
                 shape: shape,
                 rotation: Math.random() * Math.PI * 2,
                 spin: (Math.random() - 0.5) * 5,
                 alpha: 1.0,
                 life: 0,
-                maxLife: 0.55 + Math.random() * 0.35
+                maxLife: 0.22 + Math.random() * 0.12
             });
         }
     }
@@ -245,27 +625,33 @@
     const pendingCompletions = [];
     const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
 
-    function sendCompletion(token) {
+    function sendCompletion(token, landingX) {
         if (!token) return;
+        const payload = { dropToken: token };
+        if (typeof landingX === 'number' && !isNaN(landingX)) {
+            payload.landingX = Math.round(landingX * 10000) / 10000;
+        }
         if (socket && socket.readyState === WebSocket.OPEN) {
             try {
-                socket.send(JSON.stringify({ dropToken: token }));
+                socket.send(JSON.stringify(payload));
                 return;
             } catch (_) {}
         }
-        if (!pendingCompletions.includes(token)) {
-            pendingCompletions.push(token);
+        if (!pendingCompletions.some(p => p.token === token)) {
+            pendingCompletions.push({ token, landingX });
         }
     }
 
     function flushPendingCompletions() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
         while (pendingCompletions.length > 0) {
-            const token = pendingCompletions.shift();
+            const item = pendingCompletions.shift();
             try {
-                socket.send(JSON.stringify({ dropToken: token }));
+                const payload = { dropToken: item.token };
+                if (typeof item.landingX === 'number') payload.landingX = item.landingX;
+                socket.send(JSON.stringify(payload));
             } catch (_) {
-                pendingCompletions.unshift(token);
+                pendingCompletions.unshift(item);
                 break;
             }
         }
@@ -300,17 +686,26 @@
             return;
         }
 
-        if (msg.type === 'parachute_drop' && msg.physics) {
+        const p = msg.trajectory || msg.physics;
+        if (msg.type === 'parachute_drop' && p) {
             if (msg.theme) {
                 currentTheme = msg.theme;
                 syncAmbientParticles();
             }
 
-            const p = msg.physics;
             targetState.centerX = p.targetCenterX || 0.5;
             targetState.targetHalfWidth = p.targetHalfWidth || 0.09;
-            targetState.bullseyeHalfWidth = p.bullseyeHalfWidth || 0.025;
+            targetState.bullseyeHalfWidth = p.bullseyeHalfWidth || (targetState.targetHalfWidth * 0.25);
             targetState.visibleUntil = performance.now() + ((p.durationSeconds || 6.5) + 4.5) * 1000;
+
+            if (msg.session && typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+                if (typeof msg.session.isActive === 'boolean') {
+                    sessionState.isActive = msg.session.isActive;
+                }
+            } else if (!sessionState.isActive) {
+                sessionState.totalDrops = (sessionState.totalDrops || 0) + 1;
+            }
 
             if (currentTheme.dropSoundUrl) {
                 playSound(currentTheme.dropSoundUrl, 0.45);
@@ -349,7 +744,7 @@
                 keyframes: p.keyframes || [],
                 collisions: [],
                 triggeredCollisionTicks: new Set(),
-                tiltAngle: 0,
+                tiltAngle: p.initialTilt !== undefined ? p.initialTilt : (Math.random() - 0.5) * 0.45,
                 completed: false,
                 landedAtMs: 0
             });
@@ -360,11 +755,12 @@
             }
 
             const nowMs = performance.now();
-            targetState.visibleUntil = Math.max(targetState.visibleUntil, nowMs + 5000);
+            targetState.visibleUntil = Math.max(targetState.visibleUntil, nowMs + 8000);
 
             if (Array.isArray(msg.droplets)) {
                 msg.droplets.forEach(function (d) {
                     if (d.imageUrl) getLoadedImage(d.imageUrl);
+                    const speedMultiplier = d.speedScale || 1.0;
                     activeDroplets.push({
                         id: d.id,
                         spawnTimeMs: nowMs + (d.spawnTickOffset || 0) * DT * 1000,
@@ -372,17 +768,22 @@
                         startY: d.startY,
                         x: d.startX,
                         y: d.startY,
-                        vx: d.vx,
-                        vy: d.vy,
-                        gravity: d.gravity || 0.15,
+                        vx: (d.vx || 0),
+                        vy: (d.vy || 0.12),
+                        gravity: (d.gravity || 0.18) * 1.5,
                         radius: d.radius || 0.028,
                         sizeScale: d.sizeScale || 1.0,
-                        speedScale: d.speedScale || 1.0,
+                        speedScale: speedMultiplier,
                         sizeLabel: d.sizeLabel || 'Medium',
                         speedLabel: d.speedLabel || 'Normal',
                         imageUrl: d.imageUrl || '',
-                        hit: false,
-                        rotation: Math.random() * Math.PI * 2
+                        rotation: Math.random() * Math.PI * 2,
+                        angularVel: ((Math.random() - 0.5) * 5.0 + (d.vx || 0) * 8.0) * speedMultiplier,
+                        restitution: 0.82,
+                        isSettled: false,
+                        settledTimer: 0,
+                        hitCount: 0,
+                        alpha: 1.0
                     });
                 });
             }
@@ -413,7 +814,9 @@
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 100;
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
-            sessionState.totalDrops = s.totalDrops || 0;
+            if (typeof s.totalDrops === 'number') {
+                sessionState.totalDrops = s.totalDrops;
+            }
             if (s.theme) {
                 currentTheme = s.theme;
                 syncAmbientParticles();
@@ -425,7 +828,9 @@
             }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
-            sessionState.totalDrops = msg.session.totalDrops || sessionState.totalDrops;
+            if (typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+            }
             sessionState.endedAtMs = performance.now();
             if (msg.session.targetCenterX !== undefined && msg.session.targetCenterX !== null) {
                 targetState.centerX = msg.session.targetCenterX;
@@ -433,7 +838,9 @@
         }
 
         if (msg.session && sessionState) {
-            sessionState.totalDrops = msg.session.totalDrops || sessionState.totalDrops;
+            if (typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+            }
             if (msg.session.targetCenterX !== undefined && msg.session.targetCenterX !== null) {
                 targetState.centerX = msg.session.targetCenterX;
                 if (msg.session.targetHalfWidth) targetState.targetHalfWidth = msg.session.targetHalfWidth;
@@ -886,9 +1293,12 @@
     function drawDroplet(droplet) {
         const dx = droplet.x * width;
         const dy = droplet.y * height;
-        const rPx = Math.max(10, droplet.radius * Math.min(width, height));
+        const rPx = Math.max(12, (droplet.radius || 0.028) * Math.min(width, height));
 
         ctx.save();
+        if (droplet.alpha !== undefined) {
+            ctx.globalAlpha = Math.max(0, Math.min(1.0, droplet.alpha));
+        }
         ctx.translate(dx, dy);
         ctx.rotate(droplet.rotation);
 
@@ -965,35 +1375,226 @@
             drawTargetPlatform();
         }
 
-        // Update & draw interactive droplets
+        // Update & draw interactive droplets with bouncy physics & settling
         for (let i = activeDroplets.length - 1; i >= 0; i--) {
             const d = activeDroplets[i];
             if (now < d.spawnTimeMs) continue;
 
-            const elapsedSec = (now - d.spawnTimeMs) / 1000;
-            d.x = d.startX + d.vx * elapsedSec;
-            d.y = d.startY + d.vy * elapsedSec + 0.5 * d.gravity * elapsedSec * elapsedSec;
-            d.rotation += dtSec * 2.5 * d.speedScale;
+            if (!d.spawned) {
+                d.spawned = true;
+                d.spawnActualTime = now;
+            }
 
-            // Check visual collision with active parachutists
-            for (let j = 0; j < activeDrops.length; j++) {
-                const drop = activeDrops[j];
-                if (drop.completed) continue;
-                const dx = drop.x - d.x;
-                const dy = drop.y - d.y;
-                const minDist = 0.036 + d.radius;
-                if (!d.hit && (dx * dx + dy * dy) <= minDist * minDist) {
-                    d.hit = true;
-                    spawnSplashBurst(drop.x * width, drop.y * height, currentTheme.accentColor || '#FFE066', 14, d.sizeScale);
-                    drop.tiltAngle = (d.vx >= 0 ? 1 : -1) * Math.min(0.55, 0.22 * d.sizeScale * d.speedScale);
-                    if (currentTheme.dropletHitSoundUrl) {
-                        playSound(currentTheme.dropletHitSoundUrl, 0.45);
+            const r = d.radius || 0.028;
+
+            // If settled, handle settling pause & smooth fade out
+            if (d.isSettled) {
+                d.settledTimer = (d.settledTimer || 0) + dtSec;
+                if (d.settledTimer > 3.5) {
+                    d.alpha = Math.max(0, 1.0 - (d.settledTimer - 3.5) / 1.0);
+                    if (d.alpha <= 0) {
+                        activeDroplets.splice(i, 1);
+                        continue;
                     }
-                    break;
+                }
+            } else {
+                // Apply dynamic 2D bouncy physics
+                // Gravity & clean kinematic integration (zero air friction, matching Matter.js in PixelPlush)
+                d.vy += (d.gravity || 0.32) * dtSec;
+
+                // Position integration
+                d.x += d.vx * dtSec;
+                d.y += d.vy * dtSec;
+                d.rotation += (d.angularVel || 2.0) * dtSec;
+
+                // 1. Boundary bounce: Left and Right walls
+                if (d.x < r) {
+                    d.x = r;
+                    d.vx = Math.abs(d.vx) * (d.restitution || 1.0);
+                    d.angularVel = -d.angularVel * 0.7;
+                } else if (d.x > 1.0 - r) {
+                    d.x = 1.0 - r;
+                    d.vx = -Math.abs(d.vx) * (d.restitution || 1.0);
+                    d.angularVel = -d.angularVel * 0.7;
+                }
+
+                // 2. Target Platform bounce
+                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
+                const minPadX = (targetWNorm * 0.5) + 24 / width;
+                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
+                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const targetHalfW = targetState.targetHalfWidth || 0.09;
+                const targetTopY = 0.88;
+
+                if (d.vy > 0 && d.y + r >= targetTopY && d.y - r <= 0.91) {
+                    if (Math.abs(d.x - targetCx) <= targetHalfW + r * 0.5) {
+                        d.y = targetTopY - r;
+                        if (Math.abs(d.vy) > 0.05) {
+                            d.vy = -d.vy * Math.min(0.95, (d.restitution || 1.0));
+                            d.vx += (Math.random() - 0.5) * 0.06;
+                            d.angularVel = (Math.random() - 0.5) * 8.0;
+                        } else {
+                            d.vy = 0;
+                            d.vx *= 0.75;
+                            if (Math.abs(d.vx) < 0.01) {
+                                d.vx = 0;
+                                d.angularVel = 0;
+                                d.isSettled = true;
+                            }
+                        }
+                    }
+                }
+
+                // 3. Floor bounce
+                const floorY = 0.935;
+                if (d.y + r >= floorY) {
+                    d.y = floorY - r;
+                    if (Math.abs(d.vy) > 0.05) {
+                        d.vy = -d.vy * (d.restitution * 0.85);
+                        d.vx *= 0.85;
+                        d.angularVel = -d.angularVel * 0.6;
+                    } else {
+                        d.vy = 0;
+                        d.vx *= 0.70;
+                        if (Math.abs(d.vx) < 0.01) {
+                            d.vx = 0;
+                            d.angularVel = 0;
+                            d.isSettled = true;
+                        }
+                    }
+                }
+
+                // 4. Elastic collision with falling parachutists and landed parachutists
+                const charRadius = Math.max(24, Math.min(width, height) * 0.032) / height;
+                const canopyRadius = charRadius * 1.65;
+                const canopyOffsetY = -charRadius * 2.1;
+
+                for (let j = 0; j < activeDrops.length; j++) {
+                    const drop = activeDrops[j];
+                    if (!drop || (drop.completed && (now - drop.landedAtMs) > 12000)) continue;
+
+                    // Test against canopy (only if falling)
+                    if (!drop.completed) {
+                        const canX = drop.x;
+                        const canY = drop.y + canopyOffsetY;
+                        const canMinDist = canopyRadius + r;
+                        const canDx = d.x - canX;
+                        const canDy = d.y - canY;
+                        const canDistSq = canDx * canDx + canDy * canDy;
+                        if (canDistSq < canMinDist * canMinDist && canDistSq > 0.00001) {
+                            const dist = Math.sqrt(canDistSq);
+                            const nx = canDx / dist;
+                            const ny = canDy / dist;
+                            d.x = canX + nx * canMinDist;
+                            d.y = canY + ny * canMinDist;
+
+                            const MAX_DROP_VX = 0.55;
+                            const relVx = d.vx - (drop.vx || 0);
+                            const relVy = d.vy - (drop.vy || 0.12);
+                            const vDot = relVx * nx + relVy * ny;
+                            if (vDot < 0) {
+                                const impulse = -(1 + (d.restitution || 1.0)) * vDot;
+                                d.vx -= impulse * nx * 0.4;
+                                d.vy -= impulse * ny * 0.4;
+                                d.angularVel = (Math.random() - 0.5) * 10.0;
+                                d.hitCount = (d.hitCount || 0) + 1;
+
+                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                if (canKnock) {
+                                    drop.lastDropletHitTime = now;
+                                    const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
+                                    drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
+                                    drop.vy = Math.max(0.08, Math.min(0.22, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
+                                }
+
+                                if (currentTheme.dropletHitSoundUrl && (!d.lastSfxTime || (now - d.lastSfxTime) > 180)) {
+                                    playSound(currentTheme.dropletHitSoundUrl, 0.35);
+                                    d.lastSfxTime = now;
+                                }
+                            }
+                        }
+                    }
+
+                    // Test against player character body (both falling and landed)
+                    const bodyX = drop.x;
+                    const bodyY = drop.y;
+                    const bodyMinDist = charRadius + r;
+                    const bDx = d.x - bodyX;
+                    const bDy = d.y - bodyY;
+                    const bDistSq = bDx * bDx + bDy * bDy;
+                    if (bDistSq < bodyMinDist * bodyMinDist && bDistSq > 0.00001) {
+                        const dist = Math.sqrt(bDistSq);
+                        const nx = bDx / dist;
+                        const ny = bDy / dist;
+                        d.x = bodyX + nx * bodyMinDist;
+                        d.y = bodyY + ny * bodyMinDist;
+
+                        const MAX_DROP_VX = 0.55;
+                        const relVx = d.vx - (drop.vx || 0);
+                        const relVy = d.vy - (drop.vy || 0.12);
+                        const vDot = relVx * nx + relVy * ny;
+                        if (vDot < 0) {
+                            const impulse = -(1 + (d.restitution || 1.0)) * vDot;
+                            d.vx -= impulse * nx * 0.4;
+                            d.vy -= impulse * ny * 0.4;
+                            d.angularVel = (Math.random() - 0.5) * 10.0;
+                            d.hitCount = (d.hitCount || 0) + 1;
+
+                            if (!drop.completed) {
+                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                if (canKnock) {
+                                    drop.lastDropletHitTime = now;
+                                    const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
+                                    drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
+                                    drop.vy = Math.max(0.08, Math.min(0.22, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
+                                }
+                            }
+
+                            if (currentTheme.dropletHitSoundUrl && (!d.lastSfxTime || (now - d.lastSfxTime) > 180)) {
+                                playSound(currentTheme.dropletHitSoundUrl, 0.35);
+                                d.lastSfxTime = now;
+                            }
+                        }
+                    }
+                }
+
+                // 5. Droplet-to-droplet elastic bouncing
+                for (let k = i - 1; k >= 0; k--) {
+                    const other = activeDroplets[k];
+                    if (now < other.spawnTimeMs || other.isSettled) continue;
+                    const oR = other.radius || 0.028;
+                    const oDx = other.x - d.x;
+                    const oDy = other.y - d.y;
+                    const oMinDist = r + oR;
+                    const oDistSq = oDx * oDx + oDy * oDy;
+                    if (oDistSq < oMinDist * oMinDist && oDistSq > 0.000001) {
+                        const oDist = Math.sqrt(oDistSq);
+                        const nx = oDx / oDist;
+                        const ny = oDy / oDist;
+                        const overlap = 0.5 * (oMinDist - oDist);
+                        d.x -= nx * overlap;
+                        d.y -= ny * overlap;
+                        other.x += nx * overlap;
+                        other.y += ny * overlap;
+
+                        const dvx = d.vx - other.vx;
+                        const dvy = d.vy - other.vy;
+                        const p = (nx * dvx + ny * dvy);
+                        if (p > 0) {
+                            d.vx -= p * nx * 0.85;
+                            d.vy -= p * ny * 0.85;
+                            other.vx += p * nx * 0.85;
+                            other.vy += p * ny * 0.85;
+                        }
+                    }
                 }
             }
 
-            if (d.hit || d.y > 1.08 || d.x < -0.12 || d.x > 1.12) {
+            // Absolute bounds cleanup or max lifetime cap (25s)
+            const ageMs = now - (d.spawnActualTime || d.spawnTimeMs);
+            if (d.x < -0.2 || d.x > 1.2 || d.y > 1.2 || ageMs > 25000) {
                 activeDroplets.splice(i, 1);
                 continue;
             }
@@ -1015,83 +1616,201 @@
             }
         }
 
-        // Update & draw parachutists
+        // Step active parachutists physics (directional descent, wall bounce, tilt)
+        const charRadiusNorm = Math.max(24, Math.min(width, height) * 0.032) / height;
+        const colRadius = charRadiusNorm * 1.45;
+
+        for (let i = 0; i < activeDrops.length; i++) {
+            const drop = activeDrops[i];
+            if (drop.completed) continue;
+
+            const elapsedSec = (now - drop.startTimeMs) / 1000;
+            drop.currentTick = Math.min(drop.totalTicks, elapsedSec * TICK_RATE);
+
+            // Clamp velocity within physical readable limits
+            const MAX_DROP_VX = 0.55;
+            drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, drop.vx || 0));
+            drop.vy = Math.max(0.08, Math.min(0.22, drop.vy || 0.12));
+
+            // Move along current velocity vector (no sinusoidal sway)
+            drop.x += drop.vx * dtSec;
+            drop.y += drop.vy * dtSec;
+
+            // Clean bounce off left / right screen borders with reflection
+            if (drop.x < 0.05) {
+                drop.x = 0.05;
+                drop.vx = Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * 0.90);
+                if (currentTheme.dropSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
+                    playSound(currentTheme.dropSoundUrl, 0.35);
+                    drop.lastWallSfx = now;
+                }
+            } else if (drop.x > 0.95) {
+                drop.x = 0.95;
+                drop.vx = -Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * 0.90);
+                if (currentTheme.dropSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
+                    playSound(currentTheme.dropSoundUrl, 0.35);
+                    drop.lastWallSfx = now;
+                }
+            }
+
+            // Tilt corresponds directly to lateral flight speed
+            const targetTilt = Math.max(-0.65, Math.min(0.65, (drop.vx || 0) * 2.2));
+            drop.tiltAngle = (drop.tiltAngle || 0) * 0.88 + targetTilt * 0.12;
+
+            // Trigger any server-recorded collision impulses at their exact tick
+            if (Array.isArray(drop.collisions)) {
+                for (let c = 0; c < drop.collisions.length; c++) {
+                    const col = drop.collisions[c];
+                    if (drop.currentTick >= col.tick && !drop.triggeredCollisionTicks.has(col.tick)) {
+                        drop.triggeredCollisionTicks.add(col.tick);
+                        drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
+                        drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
+                    }
+                }
+            }
+        }
+
+        // Active Parachuter-to-Parachuter Mid-Air 2D Elastic Bouncing
+        for (let i = 0; i < activeDrops.length; i++) {
+            const dropA = activeDrops[i];
+            if (dropA.completed) continue;
+
+            for (let j = i + 1; j < activeDrops.length; j++) {
+                const dropB = activeDrops[j];
+                if (dropB.completed) continue;
+
+                const dx = dropA.x - dropB.x;
+                const dy = dropA.y - dropB.y;
+                const distSq = dx * dx + dy * dy;
+                const minDist = colRadius * 2.0;
+
+                if (distSq < minDist * minDist && distSq > 0.000001) {
+                    const dist = Math.sqrt(distSq);
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    // Positional separation
+                    const overlap = 0.5 * (minDist - dist);
+                    dropA.x += nx * overlap;
+                    dropA.y += ny * overlap;
+                    dropB.x -= nx * overlap;
+                    dropB.y -= ny * overlap;
+
+                    // Elastic bounce impulse
+                    const rvx = (dropA.vx || 0) - (dropB.vx || 0);
+                    const rvy = (dropA.vy || 0) - (dropB.vy || 0);
+                    const vDot = rvx * nx + rvy * ny;
+
+                    if (vDot < 0) {
+                        const MAX_DROP_VX = 0.55;
+                        const impulse = -(1 + 0.85) * vDot * 0.5 + 0.04;
+                        dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse));
+                        dropA.vy = Math.max(0.08, Math.min(0.22, (dropA.vy || 0.12) + ny * impulse * 0.4));
+                        dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse));
+                        dropB.vy = Math.max(0.08, Math.min(0.22, (dropB.vy || 0.12) - ny * impulse * 0.4));
+
+                        if (currentTheme.dropletHitSoundUrl && (!dropA.lastBounceSfx || (now - dropA.lastBounceSfx) > 150)) {
+                            playSound(currentTheme.dropletHitSoundUrl, 0.45);
+                            dropA.lastBounceSfx = now;
+                        }
+
+                        dropA.tiltAngle = Math.max(-0.65, Math.min(0.65, dropA.vx * 2.2));
+                        dropB.tiltAngle = Math.max(-0.65, Math.min(0.65, dropB.vx * 2.2));
+                    }
+                }
+            }
+
+            // Deflect falling parachuter off already landed players
+            for (let j = 0; j < activeDrops.length; j++) {
+                if (i === j) continue;
+                const dropB = activeDrops[j];
+                if (!dropB.completed) continue;
+
+                const dx = dropA.x - dropB.x;
+                const dy = dropA.y - dropB.y;
+                const distSq = dx * dx + dy * dy;
+                const minDist = colRadius * 1.6;
+
+                if (distSq < minDist * minDist && distSq > 0.00001) {
+                    const dist = Math.sqrt(distSq);
+                    const nx = dx / dist;
+                    const MAX_DROP_VX = 0.55;
+                    dropA.x += nx * (minDist - dist);
+                    dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * 0.15));
+                    dropA.tiltAngle = Math.max(-0.65, Math.min(0.65, (dropA.vx || 0) * 2.2));
+                }
+            }
+        }
+
+        // Draw and finalize parachutists
         for (let i = activeDrops.length - 1; i >= 0; i--) {
             const drop = activeDrops[i];
-            const elapsedSec = (now - drop.startTimeMs) / 1000;
-            const tick = Math.min(drop.totalTicks, elapsedSec * TICK_RATE);
-            drop.currentTick = tick;
 
-            if (!drop.completed) {
-                const sampled = sampleKeyframes(drop.keyframes, tick);
-                if (sampled) {
-                    drop.x = sampled.x;
-                    drop.y = sampled.y;
-                    drop.vx = sampled.vx;
-                    drop.vy = sampled.vy;
+            if (!drop.completed && drop.y >= drop.landingY) {
+                drop.completed = true;
+                drop.y = drop.landingY;
+                drop.tiltAngle = 0;
+                drop.landedAtMs = now;
+                drop.landingX = Math.round(Math.max(0.05, Math.min(0.95, drop.x)) * 10000) / 10000;
+                drop.x = drop.landingX;
+
+                // Evaluate landing score (0 - 100 scale)
+                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
+                const minPadX = (targetWNorm * 0.5) + 24 / width;
+                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
+                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const distFromCenter = Math.abs(drop.landingX - targetCx);
+                const halfW = targetState.targetHalfWidth || 0.09;
+                drop.isHit = distFromCenter <= halfW;
+                if (drop.isHit) {
+                    const ratio = Math.min(1.0, Math.max(0.0, distFromCenter / Math.max(0.0001, halfW)));
+                    drop.score = Math.max(1, Math.min(100, Math.round(100.0 - (ratio * 99.0))));
+                    drop.isBullseye = drop.score === 100;
+                    drop.isWin = true;
+                } else {
+                    drop.score = 0;
+                    drop.isBullseye = false;
+                    drop.isWin = false;
                 }
 
-                // Trigger any server-recorded collision bursts at their exact tick
-                if (Array.isArray(drop.collisions)) {
-                    for (let c = 0; c < drop.collisions.length; c++) {
-                        const col = drop.collisions[c];
-                        if (tick >= col.tick && !drop.triggeredCollisionTicks.has(col.tick)) {
-                            drop.triggeredCollisionTicks.add(col.tick);
-                            spawnSplashBurst(col.x * width, col.y * height, currentTheme.accentColor || '#FFE066', 16, col.sizeScale || 1.0);
-                            drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
-                        }
-                    }
+                // If this newly landed drop landed on target and beats previous high score, update leader
+                if (sessionState.isActive && (drop.isHit || drop.isBullseye) && (drop.score || 0) > maxLandedScore) {
+                    maxLandedScore = drop.score || 0;
+                    leaderDropToken = drop.dropToken;
                 }
 
-                const swayAngle = Math.sin(elapsedSec * drop.swayFrequency + drop.swayPhase) * 0.12;
-                drop.tiltAngle = drop.tiltAngle * 0.92 + (swayAngle + Math.max(-0.35, Math.min(0.35, drop.vx * 1.4))) * 0.08;
-
-                if (tick >= drop.totalTicks || drop.y >= drop.landingY) {
-                    drop.completed = true;
-                    drop.x = drop.landingX;
-                    drop.y = drop.landingY;
-                    drop.tiltAngle = 0;
-                    drop.landedAtMs = now;
-
-                    // If this newly landed drop landed on target and beats previous high score, update leader
-                    if (sessionState.isActive && (drop.isHit || drop.isBullseye) && (drop.score || 0) > maxLandedScore) {
-                        maxLandedScore = drop.score || 0;
-                        leaderDropToken = drop.dropToken;
-                    }
-
-                    // Send completion token to server (queued if reconnecting)
-                    sendCompletion(drop.dropToken);
+                // Send completion token and validated landed X to server
+                sendCompletion(drop.dropToken, drop.landingX);
 
                     // Celebration or miss popup
-                    const popupText = drop.isBullseye
-                        ? '🎯 BULLSEYE! +' + drop.score
-                        : (drop.isHit ? '✨ HIT! +' + drop.score : '💨 MISS');
-                    const popupColor = drop.isBullseye
-                        ? '#FFD166'
-                        : (drop.isHit ? '#6BCB77' : '#94A3B8');
+                const popupText = drop.isBullseye
+                    ? '🎯 BULLSEYE! +' + drop.score
+                    : (drop.isHit ? '✨ HIT! +' + drop.score : '💨 MISS');
+                const popupColor = drop.isBullseye
+                    ? '#FFD166'
+                    : (drop.isHit ? '#6BCB77' : '#94A3B8');
 
-                    landingPopups.push({
-                        x: drop.x * width,
-                        y: drop.y * height - 40,
-                        text: popupText,
-                        subText: drop.displayName,
-                        color: popupColor,
-                        alpha: 1.0,
-                        createdAt: now
-                    });
+                landingPopups.push({
+                    x: drop.x * width,
+                    y: drop.y * height - 40,
+                    text: popupText,
+                    subText: drop.displayName,
+                    color: popupColor,
+                    alpha: 1.0,
+                    createdAt: now
+                });
 
-                    // Trigger seasonal landing puff when touching down on or near target
-                    const dropSeason = ((drop.theme && drop.theme.seasonPreset) || (currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
-                    if (drop.isHit || drop.isBullseye) {
-                        spawnLandingPuff(drop.x * width, drop.y * height, dropSeason, drop.isBullseye);
-                    }
+                // Trigger seasonal landing puff when touching down on or near target
+                const dropSeason = ((drop.theme && drop.theme.seasonPreset) || (currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
+                if (drop.isHit || drop.isBullseye) {
+                    spawnLandingPuff(drop.x * width, drop.y * height, dropSeason, drop.isBullseye);
+                }
 
-                    if (drop.isWin) {
-                        spawnSplashBurst(drop.x * width, drop.y * height, '#FFD166', 28, 1.35);
-                        if (drop.theme && drop.theme.winSoundUrl) playSound(drop.theme.winSoundUrl, 0.55);
-                    } else if (drop.theme && drop.theme.loseSoundUrl) {
-                        playSound(drop.theme.loseSoundUrl, 0.45);
-                    }
+                if (drop.isWin) {
+                    spawnSplashBurst(drop.x * width, drop.y * height, '#FFD166', 28, 1.35);
+                    if (drop.theme && drop.theme.winSoundUrl) playSound(drop.theme.winSoundUrl, 0.55);
+                } else if (drop.theme && drop.theme.loseSoundUrl) {
+                    playSound(drop.theme.loseSoundUrl, 0.45);
                 }
             }
 
@@ -1156,7 +1875,7 @@
             }
             b.x += b.vx * dtSec;
             b.y += b.vy * dtSec;
-            b.vy += 260 * dtSec;
+            b.vy += 100 * dtSec;
             b.alpha = 1.0 - (b.life / b.maxLife);
 
             ctx.save();
@@ -1225,7 +1944,72 @@
     }
 
     function drawSessionBanner(now) {
-        if (!sessionState.isActive && (!sessionState.endedAtMs || (now - sessionState.endedAtMs) > 6000)) {
+        if (!sessionState.isActive) {
+            if (sessionState.endedAtMs) {
+                const ageSec = (now - sessionState.endedAtMs) / 1000;
+                if (ageSec <= 6.0) {
+                    // Flash completed round banner and fade out
+                    const bannerW = Math.min(width * 0.72, 480);
+                    const bannerH = 46;
+                    const bannerX = (width - bannerW) / 2;
+                    const bannerY = 18;
+                    ctx.save();
+                    const alpha = Math.max(0, 1.0 - (ageSec / 6.0));
+                    ctx.globalAlpha = alpha;
+
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                    ctx.strokeStyle = '#10B981';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 23);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.font = '700 17px Fredoka, Rubik, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#34D399';
+                    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                    ctx.shadowBlur = 6;
+                    ctx.fillText(`🎉 Round Closed! Total Parachutists: ${sessionState.totalDrops}`, width / 2, bannerY + bannerH / 2);
+                    ctx.restore();
+                    return;
+                } else {
+                    // Round fanfare has ended: clear drops and reset state so everything disappears cleanly
+                    sessionState.endedAtMs = 0;
+                    sessionState.totalDrops = 0;
+                    return;
+                }
+            }
+
+            // Free Play mode: only show while drops are actively on screen!
+            const hasActiveDrop = activeDrops.some(d => !d.completed || (now - d.landedAtMs) < 6000);
+            if (hasActiveDrop && sessionState.totalDrops > 0) {
+                ctx.save();
+                const pillW = 210;
+                const pillH = 38;
+                const pillX = (width - pillW) / 2;
+                const pillY = 16;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+                ctx.strokeStyle = currentTheme.primaryColor || '#60A5FA';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(pillX, pillY, pillW, pillH, 19);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = '700 16px Fredoka, Rubik, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = 6;
+                ctx.fillText(`🪂 Drops: ${sessionState.totalDrops}`, width / 2, pillY + pillH / 2);
+                ctx.restore();
+            } else if (!hasActiveDrop && activeDrops.length === 0) {
+                sessionState.totalDrops = 0;
+            }
             return;
         }
 

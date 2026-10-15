@@ -414,6 +414,17 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             [
                 ("Balance & Economy", Icons.Material.Filled.QueryStats, "fishing/balance-analysis.md")
             ]
+        ),
+        ["drop-games"] = (
+            "Parachute Drop & Plinko Bounce Guide",
+            Icons.Material.Filled.SportsEsports,
+            [
+                ("Overview & Overlays", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Parachute Drop", Icons.Material.Filled.Paragliding, "drop-games/parachute.md"),
+                ("Plinko Bounce", Icons.Material.Filled.Casino, "drop-games/plinko.md"),
+                ("Themes & Emotes", Icons.Material.Filled.Palette, "drop-games/themes.md"),
+                ("Triggers & Sub-Actions", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
         )
     };
 

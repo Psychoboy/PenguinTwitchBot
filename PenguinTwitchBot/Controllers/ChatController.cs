@@ -15,6 +15,7 @@ namespace PenguinTwitchBot.Controllers
         ITwitchService twitchService,
         IMemoryCache memoryCache,
         IEmoteService emoteService,
+        IHttpClientFactory httpClientFactory,
         ILogger<ChatController> logger) : ControllerBase
     {
         private const string BadgeCacheKey = "chat_badges_v1";
@@ -47,6 +48,65 @@ namespace PenguinTwitchBot.Controllers
         {
             var emotes = await emoteService.GetEmotesAsync();
             return Ok(new { emotes });
+        }
+
+        /// <summary>
+        /// Proxies remote images (e.g. Twitch, 7TV, BTTV emotes) to avoid CORS restrictions
+        /// when decoding animated frames via ImageDecoder / Canvas.
+        /// </summary>
+        [HttpGet("proxy-image")]
+        [ResponseCache(Duration = 3600)]
+        public async Task<IActionResult> ProxyImage([FromQuery] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                return BadRequest("Invalid image URL");
+            }
+
+            if (uri.IsLoopback || uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("Invalid host");
+            }
+
+            var cacheKey = $"proxy_img_{url}";
+            if (!memoryCache.TryGetValue(cacheKey, out (byte[] bytes, string contentType) cached))
+            {
+                try
+                {
+                    var client = httpClientFactory.CreateClient("Emotes");
+                    using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                    request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                    request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
+
+                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        logger.LogWarning("Upstream image fetch returned {StatusCode} for URL: {Url}", response.StatusCode, url);
+                        return StatusCode((int)response.StatusCode);
+                    }
+
+                    var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/png";
+                    var bytes = await response.Content.ReadAsByteArrayAsync();
+
+                    if (bytes.Length <= 10 * 1024 * 1024)
+                    {
+                        cached = (bytes, contentType);
+                        memoryCache.Set(cacheKey, cached, TimeSpan.FromHours(1));
+                    }
+                    else
+                    {
+                        return File(bytes, contentType);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to proxy image: {Url}", url);
+                    return StatusCode(502);
+                }
+            }
+
+            return File(cached.bytes, cached.contentType);
         }
     }
 }

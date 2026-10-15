@@ -18,20 +18,400 @@
     resizeCanvas();
 
     const imageCache = new Map();
-    function getLoadedImage(url) {
-        if (!url) return null;
-        if (imageCache.has(url)) {
-            const entry = imageCache.get(url);
-            return entry.loaded ? entry.img : null;
+
+    function normalizeImageUrl(url) {
+        if (!url || typeof url !== 'string') return url;
+        if (url.includes('static-cdn.jtvnw.net/emoticons/v2/')) {
+            return url.replace('/static/', '/default/');
         }
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        const entry = { img, loaded: false, error: false };
-        img.onload = function () { entry.loaded = true; };
-        img.onerror = function () { entry.error = true; };
-        img.src = url;
-        imageCache.set(url, entry);
-        return null;
+        return url;
+    }
+
+    function detectMimeType(buffer) {
+        if (!buffer || buffer.byteLength < 12) return 'image/gif';
+        const bytes = new Uint8Array(buffer.slice(0, 12));
+        if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+        if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+            bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'image/webp';
+        if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+        return 'image/gif';
+    }
+
+    async function loadAnimatedFrames(url, entry) {
+        try {
+            let fetchUrl = url;
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                try {
+                    const parsed = new URL(url);
+                    if (parsed.hostname === window.location.hostname || parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+                        fetchUrl = parsed.pathname + parsed.search;
+                    } else {
+                        fetchUrl = `/api/chat/proxy-image?url=${encodeURIComponent(url)}`;
+                    }
+                } catch (_) {
+                    fetchUrl = `/api/chat/proxy-image?url=${encodeURIComponent(url)}`;
+                }
+            }
+
+            const resp = await fetch(fetchUrl);
+            if (!resp.ok) {
+                console.warn('[Plinko] Image fetch returned status', resp.status, 'for', fetchUrl);
+                return;
+            }
+            const buffer = await resp.arrayBuffer();
+            const headerType = resp.headers.get('content-type');
+            const mimeType = (headerType && headerType.startsWith('image/'))
+                ? headerType.split(';')[0].trim()
+                : detectMimeType(buffer);
+
+            // 1. WebCodecs ImageDecoder (fast GPU hardware-decoded frames)
+            if (typeof window.ImageDecoder !== 'undefined') {
+                try {
+                    let isSupported = true;
+                    if (typeof ImageDecoder.isTypeSupported === 'function') {
+                        isSupported = await ImageDecoder.isTypeSupported(mimeType);
+                    }
+
+                    if (isSupported) {
+                        const decoder = new ImageDecoder({
+                            data: buffer,
+                            type: mimeType,
+                            preferAnimation: true
+                        });
+
+                        // Standard WebCodecs Promise is decoder.tracks.ready
+                        await decoder.tracks.ready;
+
+                        if (decoder.completed) {
+                            try { await decoder.completed; } catch (_) { }
+                        }
+
+                        const track = decoder.tracks.selectedTrack;
+                        let frameCount = track ? track.frameCount : 1;
+                        const isAnimated = track ? track.animated : (frameCount > 1);
+
+                        if (isAnimated && frameCount > 1) {
+                            const frames = [];
+                            let totalDurationMs = 0;
+                            for (let i = 0; i < frameCount; i++) {
+                                const frameResult = await decoder.decode({ frameIndex: i });
+                                const durationMs = Math.max(20, (frameResult.image.duration ? frameResult.image.duration / 1000 : 100));
+                                const bmp = await createImageBitmap(frameResult.image);
+                                frameResult.image.close();
+                                frames.push({ bmp, duration: durationMs });
+                                totalDurationMs += durationMs;
+                            }
+
+                            if (frames.length > 1) {
+                                entry.frames = frames;
+                                entry.totalDurationMs = totalDurationMs;
+                                entry.isAnimated = true;
+                                console.log('[Plinko] Successfully decoded ' + frames.length + ' frames via WebCodecs for ' + url);
+                                decoder.close();
+                                return;
+                            }
+                        }
+                        decoder.close();
+                    }
+                } catch (decErr) {
+                    console.warn('[Plinko] WebCodecs decode failed for ' + url + ', trying GIF fallback:', decErr);
+                }
+            }
+
+            // 2. Pure-JS GIF parser fallback (works universally in all OBS / browser versions)
+            if (mimeType === 'image/gif' || detectMimeType(buffer) === 'image/gif') {
+                try {
+                    const gifFrames = await parseAndDecodeGif(buffer);
+                    if (gifFrames && gifFrames.length > 1) {
+                        entry.frames = gifFrames;
+                        entry.totalDurationMs = gifFrames.reduce((acc, f) => acc + f.duration, 0);
+                        entry.isAnimated = true;
+                        console.log('[Plinko] Successfully decoded ' + gifFrames.length + ' frames via JS GIF decoder for ' + url);
+                        return;
+                    }
+                } catch (gifErr) {
+                    console.warn('[Plinko] JS GIF decode failed for ' + url + ':', gifErr);
+                }
+            }
+        } catch (err) {
+            console.warn('[Plinko] loadAnimatedFrames error for ' + url + ':', err);
+        }
+    }
+
+    async function parseAndDecodeGif(arrayBuffer) {
+        const u8 = new Uint8Array(arrayBuffer);
+        if (u8.length < 14) return null;
+        if (u8[0] !== 0x47 || u8[1] !== 0x49 || u8[2] !== 0x46) return null; // "GIF"
+
+        let p = 6;
+        const screenWidth = u8[p] | (u8[p + 1] << 8); p += 2;
+        const screenHeight = u8[p] | (u8[p + 1] << 8); p += 2;
+        if (screenWidth <= 0 || screenHeight <= 0) return null;
+
+        const packed = u8[p++];
+        const gctFlag = (packed & 0x80) !== 0;
+        const gctSize = 1 << ((packed & 0x07) + 1);
+        p++; // bgIndex
+        p++; // pixel aspect ratio
+
+        let globalPalette = null;
+        if (gctFlag) {
+            globalPalette = new Uint32Array(gctSize);
+            for (let i = 0; i < gctSize; i++) {
+                const r = u8[p++];
+                const g = u8[p++];
+                const b = u8[p++];
+                globalPalette[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+            }
+        }
+
+        const rawFrames = [];
+        let disposalMethod = 0;
+        let transparentIndex = -1;
+        let delayMs = 100;
+
+        while (p < u8.length) {
+            const blockType = u8[p++];
+            if (blockType === 0x3B) break; // Trailer
+
+            if (blockType === 0x21) {
+                const extLabel = u8[p++];
+                if (extLabel === 0xF9) {
+                    p++; // block size 4
+                    const gcPacked = u8[p++];
+                    disposalMethod = (gcPacked >> 2) & 0x07;
+                    const hasTransparency = (gcPacked & 0x01) !== 0;
+                    const rawDelay = u8[p] | (u8[p + 1] << 8); p += 2;
+                    delayMs = Math.max(20, rawDelay * 10);
+                    const transIdx = u8[p++];
+                    transparentIndex = hasTransparency ? transIdx : -1;
+                    p++; // terminator 0x00
+                } else {
+                    while (p < u8.length) {
+                        const subSize = u8[p++];
+                        if (subSize === 0) break;
+                        p += subSize;
+                    }
+                }
+            } else if (blockType === 0x2C) {
+                const left = u8[p] | (u8[p + 1] << 8); p += 2;
+                const top = u8[p] | (u8[p + 1] << 8); p += 2;
+                const width = u8[p] | (u8[p + 1] << 8); p += 2;
+                const height = u8[p] | (u8[p + 1] << 8); p += 2;
+                const imgPacked = u8[p++];
+                const lctFlag = (imgPacked & 0x80) !== 0;
+                const lctSize = lctFlag ? (1 << ((imgPacked & 0x07) + 1)) : 0;
+                let activePalette = globalPalette;
+
+                if (lctFlag) {
+                    activePalette = new Uint32Array(lctSize);
+                    for (let i = 0; i < lctSize; i++) {
+                        const r = u8[p++];
+                        const g = u8[p++];
+                        const b = u8[p++];
+                        activePalette[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+                    }
+                }
+
+                if (!activePalette) return null;
+
+                const minCodeSize = u8[p++];
+                const lzwData = [];
+                while (p < u8.length) {
+                    const subSize = u8[p++];
+                    if (subSize === 0) break;
+                    for (let i = 0; i < subSize; i++) lzwData.push(u8[p++]);
+                }
+
+                const pixelCount = width * height;
+                const pixels = new Uint8Array(pixelCount);
+                decodeLzw(minCodeSize, lzwData, pixels);
+
+                rawFrames.push({
+                    left, top, width, height,
+                    pixels,
+                    palette: activePalette,
+                    transparentIndex,
+                    disposalMethod,
+                    delayMs
+                });
+
+                disposalMethod = 0;
+                transparentIndex = -1;
+                delayMs = 100;
+            }
+        }
+
+        if (rawFrames.length <= 1) return null;
+
+        const compCanvas = document.createElement('canvas');
+        compCanvas.width = screenWidth;
+        compCanvas.height = screenHeight;
+        const compCtx = compCanvas.getContext('2d', { willReadFrequently: true });
+
+        const prevCanvas = document.createElement('canvas');
+        prevCanvas.width = screenWidth;
+        prevCanvas.height = screenHeight;
+        const prevCtx = prevCanvas.getContext('2d', { willReadFrequently: true });
+
+        const resultFrames = [];
+
+        for (let i = 0; i < rawFrames.length; i++) {
+            const rf = rawFrames[i];
+
+            if (rf.disposalMethod === 3) {
+                prevCtx.clearRect(0, 0, screenWidth, screenHeight);
+                prevCtx.drawImage(compCanvas, 0, 0);
+            }
+
+            const frameImgData = compCtx.createImageData(rf.width, rf.height);
+            const data32 = new Uint32Array(frameImgData.data.buffer);
+
+            for (let px = 0; px < rf.pixels.length; px++) {
+                const colorIdx = rf.pixels[px];
+                if (colorIdx === rf.transparentIndex) {
+                    data32[px] = 0;
+                } else {
+                    data32[px] = rf.palette[colorIdx] || 0;
+                }
+            }
+
+            const patchCanvas = document.createElement('canvas');
+            patchCanvas.width = rf.width;
+            patchCanvas.height = rf.height;
+            patchCanvas.getContext('2d').putImageData(frameImgData, 0, 0);
+
+            compCtx.drawImage(patchCanvas, rf.left, rf.top);
+
+            const bmp = await createImageBitmap(compCanvas);
+            resultFrames.push({ bmp, duration: rf.delayMs });
+
+            if (rf.disposalMethod === 2) {
+                compCtx.clearRect(rf.left, rf.top, rf.width, rf.height);
+            } else if (rf.disposalMethod === 3) {
+                compCtx.clearRect(0, 0, screenWidth, screenHeight);
+                compCtx.drawImage(prevCanvas, 0, 0);
+            }
+        }
+
+        return resultFrames;
+    }
+
+    function decodeLzw(minCodeSize, inputBytes, outputPixels) {
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+        let codeSize = minCodeSize + 1;
+        let codeMask = (1 << codeSize) - 1;
+
+        const dictPrefix = new Int32Array(4096);
+        const dictSuffix = new Uint8Array(4096);
+
+        function initDict() {
+            for (let i = 0; i < clearCode; i++) {
+                dictPrefix[i] = -1;
+                dictSuffix[i] = i;
+            }
+        }
+        initDict();
+
+        let dictEntries = eoiCode + 1;
+        let bytePos = 0;
+        let bitBuffer = 0;
+        let bitCount = 0;
+        let outPos = 0;
+        let prevCode = -1;
+        const stack = new Uint8Array(4096);
+
+        while (bytePos < inputBytes.length && outPos < outputPixels.length) {
+            while (bitCount < codeSize && bytePos < inputBytes.length) {
+                bitBuffer |= (inputBytes[bytePos++] << bitCount);
+                bitCount += 8;
+            }
+
+            if (bitCount < codeSize) break;
+
+            const code = bitBuffer & codeMask;
+            bitBuffer >>= codeSize;
+            bitCount -= codeSize;
+
+            if (code === clearCode) {
+                codeSize = minCodeSize + 1;
+                codeMask = (1 << codeSize) - 1;
+                dictEntries = eoiCode + 1;
+                prevCode = -1;
+                initDict();
+                continue;
+            }
+
+            if (code === eoiCode) break;
+
+            let stackPtr = 0;
+            if (code < dictEntries) {
+                let cur = code;
+                while (cur >= 0) {
+                    stack[stackPtr++] = dictSuffix[cur];
+                    cur = dictPrefix[cur];
+                }
+            } else if (code === dictEntries && prevCode >= 0) {
+                let cur = prevCode;
+                stack[stackPtr++] = dictSuffix[cur];
+                while (cur >= 0) {
+                    stack[stackPtr++] = dictSuffix[cur];
+                    cur = dictPrefix[cur];
+                }
+                const firstByte = stack[stackPtr - 1];
+                stack[0] = firstByte;
+            } else {
+                break;
+            }
+
+            for (let i = stackPtr - 1; i >= 0 && outPos < outputPixels.length; i--) {
+                outputPixels[outPos++] = stack[i];
+            }
+
+            if (prevCode >= 0 && dictEntries < 4096) {
+                dictPrefix[dictEntries] = prevCode;
+                dictSuffix[dictEntries] = stack[stackPtr - 1];
+                dictEntries++;
+
+                if (dictEntries > codeMask && codeSize < 12) {
+                    codeSize++;
+                    codeMask = (1 << codeSize) - 1;
+                }
+            }
+
+            prevCode = code;
+        }
+    }
+
+    function getLoadedImage(rawUrl) {
+        const url = normalizeImageUrl(rawUrl);
+        if (!url) return null;
+        let entry = imageCache.get(url);
+        if (!entry) {
+            const img = new Image();
+            entry = { img, loaded: false, error: false, frames: null, totalDurationMs: 0, isAnimated: false };
+            img.onload = function () { entry.loaded = true; };
+            img.onerror = function () { entry.error = true; };
+            img.src = url;
+            imageCache.set(url, entry);
+            loadAnimatedFrames(url, entry);
+            return null;
+        }
+
+        if (entry.isAnimated && entry.frames && entry.frames.length > 1) {
+            const now = performance.now();
+            let elapsed = now % entry.totalDurationMs;
+            for (let i = 0; i < entry.frames.length; i++) {
+                if (elapsed < entry.frames[i].duration) {
+                    return entry.frames[i].bmp;
+                }
+                elapsed -= entry.frames[i].duration;
+            }
+            return entry.frames[entry.frames.length - 1].bmp;
+        }
+
+        return entry.loaded ? entry.img : null;
     }
 
     function playSound(url, volume = 0.5) {
@@ -87,27 +467,33 @@
 
     const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko]);
 
-    function sendCompletion(token) {
+    function sendCompletion(token, winningBucketIndex) {
         if (!token) return;
+        const payload = { dropToken: token };
+        if (typeof winningBucketIndex === 'number') {
+            payload.winningBucketIndex = winningBucketIndex;
+        }
         if (socket && socket.readyState === WebSocket.OPEN) {
             try {
-                socket.send(JSON.stringify({ dropToken: token }));
+                socket.send(JSON.stringify(payload));
                 return;
             } catch (_) {}
         }
-        if (!pendingCompletions.includes(token)) {
-            pendingCompletions.push(token);
+        if (!pendingCompletions.some(p => p.token === token)) {
+            pendingCompletions.push({ token, winningBucketIndex });
         }
     }
 
     function flushPendingCompletions() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
         while (pendingCompletions.length > 0) {
-            const token = pendingCompletions.shift();
+            const item = pendingCompletions.shift();
             try {
-                socket.send(JSON.stringify({ dropToken: token }));
+                const payload = { dropToken: item.token };
+                if (typeof item.winningBucketIndex === 'number') payload.winningBucketIndex = item.winningBucketIndex;
+                socket.send(JSON.stringify(payload));
             } catch (_) {
-                pendingCompletions.unshift(token);
+                pendingCompletions.unshift(item);
                 break;
             }
         }
@@ -182,27 +568,43 @@
                 isWin: !!b.isWin,
                 x: waypoints[0].x,
                 y: waypoints[0].y,
-                rotation: 0,
+                rotation: (Math.random() - 0.5) * Math.PI,
+                spinSpeed: 3.5 + Math.random() * 3.5,
+                bounceAmp: 0.016 + Math.random() * 0.010,
                 lastRippleSegment: -1,
                 completed: false,
                 completedAtMs: 0
             });
+            if (msg.session && typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+                if (typeof msg.session.isActive === 'boolean') {
+                    sessionState.isActive = msg.session.isActive;
+                }
+            } else if (!sessionState.isActive) {
+                sessionState.totalDrops = (sessionState.totalDrops || 0) + 1;
+            }
         } else if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
             sessionState.isActive = true;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 100;
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
-            sessionState.totalDrops = s.totalDrops || 0;
+            if (typeof s.totalDrops === 'number') {
+                sessionState.totalDrops = s.totalDrops;
+            }
             if (s.theme) currentTheme = s.theme;
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
-            sessionState.totalDrops = msg.session.totalDrops || sessionState.totalDrops;
+            if (typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+            }
             sessionState.endedAtMs = performance.now();
         }
 
         if (msg.session && sessionState) {
-            sessionState.totalDrops = msg.session.totalDrops || sessionState.totalDrops;
+            if (typeof msg.session.totalDrops === 'number') {
+                sessionState.totalDrops = msg.session.totalDrops;
+            }
             if (!sessionState.isActive && msg.session.isActive) {
                 sessionState.isActive = true;
                 sessionState.totalDurationSeconds = msg.session.totalDurationSeconds || 100;
@@ -435,72 +837,152 @@
             }
         }
 
-        // Update & draw tokens
-        for (let i = activeTokens.length - 1; i >= 0; i--) {
+        // Update token positions along waypoints with deflection
+        for (let i = 0; i < activeTokens.length; i++) {
             const t = activeTokens[i];
+            if (t.completed) continue;
+
             const elapsed = now - t.startTimeMs;
             const progress = Math.min(1.0, Math.max(0.0, elapsed / t.durationMs));
+            t.progress = progress;
 
-            if (!t.completed) {
-                const segCount = t.waypoints.length - 1;
-                const scaled = progress * segCount;
-                const segIdx = Math.min(segCount - 1, Math.floor(scaled));
-                const localT = scaled - segIdx;
+            const segCount = t.waypoints.length - 1;
+            const scaled = progress * segCount;
+            const segIdx = Math.min(segCount - 1, Math.floor(scaled));
+            const localT = scaled - segIdx;
 
-                const wpA = t.waypoints[segIdx];
-                const wpB = t.waypoints[segIdx + 1];
+            const wpA = t.waypoints[segIdx];
+            const wpB = t.waypoints[segIdx + 1];
 
-                // Parabolic bounce arc between peg rows
-                t.x = wpA.x + (wpB.x - wpA.x) * localT;
-                const linearY = wpA.y + (wpB.y - wpA.y) * localT;
-                const arcBounce = -Math.sin(localT * Math.PI) * 0.018;
-                t.y = linearY + arcBounce;
-                t.rotation += (wpB.x >= wpA.x ? 1 : -1) * dtSec * 4.5;
+            // Base position along waypoints
+            const baseX = wpA.x + (wpB.x - wpA.x) * localT;
+            const linearY = wpA.y + (wpB.y - wpA.y) * localT;
+            const arcBounce = -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
+            const baseY = linearY + arcBounce;
 
-                if (segIdx !== t.lastRippleSegment && segIdx > 0) {
-                    t.lastRippleSegment = segIdx;
-                    pegRipples.push({
-                        x: padX + wpA.x * boardW,
-                        y: wpA.y * height,
-                        age: 0
-                    });
+            // Apply physical deflection offset from collisions
+            t.offsetX = (t.offsetX || 0) + (t.vx || 0) * dtSec;
+            t.offsetY = (t.offsetY || 0) + (t.vy || 0) * dtSec;
+            t.vx = (t.vx || 0) * 0.94;
+            t.vy = (t.vy || 0) * 0.94;
+
+            t.x = Math.max(0.06, Math.min(0.94, baseX + (t.offsetX || 0)));
+            t.y = baseY + (t.offsetY || 0);
+
+            t.rotation += ((wpB.x >= wpA.x ? 1 : -1) * (t.spinSpeed || 5.0) + (t.vx || 0) * 15) * dtSec;
+
+            if (segIdx !== t.lastRippleSegment && segIdx > 0) {
+                t.lastRippleSegment = segIdx;
+                pegRipples.push({
+                    x: padX + wpA.x * boardW,
+                    y: wpA.y * height,
+                    age: 0
+                });
+            }
+        }
+
+        // Active Token-to-Token 2D Bouncing
+        const tokenRadiusNorm = (tokenRadius * 1.05) / boardW;
+        for (let i = 0; i < activeTokens.length; i++) {
+            const tA = activeTokens[i];
+            if (tA.completed) continue;
+
+            for (let j = i + 1; j < activeTokens.length; j++) {
+                const tB = activeTokens[j];
+                if (tB.completed) continue;
+
+                const dx = tA.x - tB.x;
+                const dy = (tA.y - tB.y) * (height / boardW);
+                const distSq = dx * dx + dy * dy;
+                const minDist = tokenRadiusNorm * 2.0;
+
+                if (distSq < minDist * minDist && distSq > 0.000001) {
+                    const dist = Math.sqrt(distSq);
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    // Positional separation
+                    const overlap = 0.5 * (minDist - dist);
+                    tA.offsetX = (tA.offsetX || 0) + nx * overlap;
+                    tB.offsetX = (tB.offsetX || 0) - nx * overlap;
+                    tA.x = Math.max(0.06, Math.min(0.94, tA.x + nx * overlap));
+                    tB.x = Math.max(0.06, Math.min(0.94, tB.x - nx * overlap));
+
+                    // Elastic bounce impulse
+                    const rvx = (tA.vx || 0) - (tB.vx || 0);
+                    const rvy = (tA.vy || 0) - (tB.vy || 0);
+                    const vDot = rvx * nx + rvy * ny;
+
+                    const impulse = 0.32 + Math.abs(vDot) * 0.45;
+                    tA.vx = (tA.vx || 0) + nx * impulse;
+                    tA.vy = (tA.vy || 0) + ny * impulse * 0.4;
+                    tB.vx = (tB.vx || 0) - nx * impulse;
+                    tB.vy = (tB.vy || 0) - ny * impulse * 0.4;
+
+                    tA.spinSpeed = (tA.spinSpeed || 5.0) + (Math.random() - 0.5) * 8.0;
+                    tB.spinSpeed = (tB.spinSpeed || 5.0) + (Math.random() - 0.5) * 8.0;
+
+                    // Clink SFX (debounced)
+                    if (tA.theme && tA.theme.dropSoundUrl && (!tA.lastClink || (now - tA.lastClink) > 140)) {
+                        playSound(tA.theme.dropSoundUrl, 0.45);
+                        tA.lastClink = now;
+                    }
+                }
+            }
+        }
+
+        // Draw and finalize tokens
+        for (let i = activeTokens.length - 1; i >= 0; i--) {
+            const t = activeTokens[i];
+
+            if (!t.completed && ((t.progress || 0) >= 1.0 || t.y >= 0.88)) {
+                t.completed = true;
+                t.completedAtMs = now;
+                t.y = 0.88;
+
+                const buckets = boardConfig.buckets || [];
+                let landedBucketIdx = t.winningBucketIndex;
+                if (buckets.length > 0) {
+                    const slotW = 1.0 / buckets.length;
+                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
+                    const landedBucket = buckets[landedBucketIdx];
+                    t.winningBucketIndex = landedBucketIdx;
+                    t.winningBucketLabel = landedBucket.label;
+                    t.score = landedBucket.score;
+                    t.isWin = !!landedBucket.isWin;
+                    t.x = (landedBucketIdx + 0.5) * slotW; // Center inside the landed bucket slot!
+                    sendCompletion(t.dropToken, landedBucketIdx);
+                } else {
+                    t.x = t.waypoints[t.waypoints.length - 1].x;
+                    sendCompletion(t.dropToken);
                 }
 
-                if (progress >= 1.0) {
-                    t.completed = true;
-                    t.completedAtMs = now;
-                    t.x = t.waypoints[t.waypoints.length - 1].x;
-                    t.y = t.waypoints[t.waypoints.length - 1].y;
+                // If this newly landed token sets a new high score in active session, update leader
+                if (sessionState.isActive && (t.score || 0) > maxLandedScore) {
+                    maxLandedScore = t.score || 0;
+                    leaderDropToken = t.dropToken;
+                }
 
-                    // If this newly landed token sets a new high score in active session, update leader
-                    if (sessionState.isActive && (t.score || 0) > maxLandedScore) {
-                        maxLandedScore = t.score || 0;
-                        leaderDropToken = t.dropToken;
-                    }
+                const landPxX = padX + t.x * boardW;
+                const landPxY = t.y * height;
 
-                    sendCompletion(t.dropToken);
+                const highlightText = t.isWin
+                    ? ('🎉 ' + t.winningBucketLabel + (t.score > 0 ? ' (+' + t.score + ')' : ''))
+                    : ('❌ ' + t.winningBucketLabel);
 
-                    const landPxX = padX + t.x * boardW;
-                    const landPxY = t.y * height;
+                bucketHighlights.push({
+                    x: landPxX,
+                    y: landPxY - 32,
+                    text: highlightText,
+                    color: t.isWin ? '#FFD166' : '#94A3B8',
+                    createdAt: now
+                });
 
-                    const highlightText = t.isWin
-                        ? ('🎉 ' + t.winningBucketLabel + (t.score > 0 ? ' (+' + t.score + ')' : ''))
-                        : ('❌ ' + t.winningBucketLabel);
-
-                    bucketHighlights.push({
-                        x: landPxX,
-                        y: landPxY - 32,
-                        text: highlightText,
-                        color: t.isWin ? '#FFD166' : '#94A3B8',
-                        createdAt: now
-                    });
-
-                    if (t.isWin) {
-                        spawnConfetti(landPxX, landPxY);
-                        if (t.theme && t.theme.winSoundUrl) playSound(t.theme.winSoundUrl, 0.55);
-                    } else if (t.theme && t.theme.loseSoundUrl) {
-                        playSound(t.theme.loseSoundUrl, 0.45);
-                    }
+                if (t.isWin) {
+                    spawnConfetti(landPxX, landPxY);
+                    if (t.theme && t.theme.winSoundUrl) playSound(t.theme.winSoundUrl, 0.55);
+                } else if (t.theme && t.theme.loseSoundUrl) {
+                    playSound(t.theme.loseSoundUrl, 0.45);
                 }
             }
 
@@ -657,7 +1139,72 @@
     }
 
     function drawSessionBanner(now) {
-        if (!sessionState.isActive && (!sessionState.endedAtMs || (now - sessionState.endedAtMs) > 6000)) {
+        if (!sessionState.isActive) {
+            if (sessionState.endedAtMs) {
+                const ageSec = (now - sessionState.endedAtMs) / 1000;
+                if (ageSec <= 6.0) {
+                    // Flash completed round banner
+                    const bannerW = Math.min(width * 0.72, 480);
+                    const bannerH = 46;
+                    const bannerX = (width - bannerW) / 2;
+                    const bannerY = 18;
+                    ctx.save();
+                    const alpha = Math.max(0, 1.0 - (ageSec / 6.0));
+                    ctx.globalAlpha = alpha;
+
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                    ctx.strokeStyle = '#10B981';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(bannerX, bannerY, bannerW, bannerH, 23);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.font = '700 17px Fredoka, Rubik, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#34D399';
+                    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                    ctx.shadowBlur = 6;
+                    ctx.fillText(`🎉 Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`, width / 2, bannerY + bannerH / 2);
+                    ctx.restore();
+                    return;
+                } else {
+                    // Round fanfare has ended: clear tokens and reset state so everything disappears cleanly
+                    sessionState.endedAtMs = 0;
+                    sessionState.totalDrops = 0;
+                    return;
+                }
+            }
+
+            // Free Play mode: only show while tokens are actively on screen!
+            const hasActiveToken = activeTokens.some(t => !t.completed || (now - t.completedAtMs) < 6000);
+            if (hasActiveToken && sessionState.totalDrops > 0) {
+                ctx.save();
+                const pillW = 210;
+                const pillH = 38;
+                const pillX = (width - pillW) / 2;
+                const pillY = 16;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+                ctx.strokeStyle = currentTheme.primaryColor || '#FF8FA3';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(pillX, pillY, pillW, pillH, 19);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = '700 16px Fredoka, Rubik, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = 6;
+                ctx.fillText(`🪙 Tokens: ${sessionState.totalDrops}`, width / 2, pillY + pillH / 2);
+                ctx.restore();
+            } else if (!hasActiveToken && activeTokens.length === 0) {
+                sessionState.totalDrops = 0;
+            }
             return;
         }
 

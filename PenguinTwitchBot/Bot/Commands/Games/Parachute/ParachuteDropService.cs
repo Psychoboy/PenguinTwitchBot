@@ -409,19 +409,35 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var totalTicks = Math.Max(60, (int)Math.Round(durationSeconds * ParachuteSimulationEngine.TickRateHz));
 
             var startX = forcedStartX.HasValue
-                ? Math.Clamp(forcedStartX.Value, 0.12, 0.88)
-                : DropGameMath.RandomDouble(0.18, 0.82);
+                ? Math.Clamp(forcedStartX.Value, 0.08, 0.92)
+                : DropGameMath.RandomDouble(0.10, 0.90);
 
-            var startY = 0.06;
+            var startY = 0.04;
             var landingY = 0.88;
             var baseVy = (landingY - startY) / durationSeconds;
 
             var windScale = Math.Clamp(pSettings.WindStrength, 0.0, 1.0);
-            var windAccelX = forcedWindAccelX ?? (DropGameMath.RandomDouble(-0.028, 0.028) * windScale);
-            var initialVx = forcedWindAccelX.HasValue ? 0.0 : DropGameMath.RandomDouble(-0.035, 0.035) * Math.Max(0.25, windScale);
-            var swayAmplitude = forcedStartX.HasValue && forcedWindAccelX.HasValue ? 0.0 : DropGameMath.RandomDouble(0.012, 0.028);
-            var swayFrequency = DropGameMath.RandomDouble(1.6, 2.6);
-            var swayPhase = DropGameMath.RandomDouble(0, Math.PI * 2.0);
+            var windAccelX = forcedWindAccelX ?? 0.0;
+
+            // Directional drop angle (no periodic sway): sharper angle = faster lateral speed
+            double initialVx;
+            double initialTilt;
+            if (forcedWindAccelX.HasValue)
+            {
+                initialVx = 0.0;
+                initialTilt = 0.0;
+            }
+            else
+            {
+                // Angle between -55 deg and +55 deg in radians
+                var dropAngleRad = DropGameMath.RandomDouble(-0.95, 0.95);
+                initialVx = Math.Round(Math.Clamp(baseVy * Math.Tan(dropAngleRad) * 1.15, -ParachuteSimulationEngine.MaxVx, ParachuteSimulationEngine.MaxVx), 4);
+                initialTilt = Math.Round(Math.Clamp(dropAngleRad * 0.65, -0.60, 0.60), 4);
+            }
+
+            var swayAmplitude = 0.0;
+            var swayFrequency = 0.0;
+            var swayPhase = 0.0;
 
             var targetHalfWidth = Math.Clamp(pSettings.TargetWidthPercent / 200.0, 0.02, 0.35);
             var bullseyeHalfWidth = targetHalfWidth * 0.25;
@@ -510,6 +526,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 };
             }
 
+            var trajectoryObj = new
+            {
+                startX,
+                startY,
+                landingY,
+                initialVx,
+                initialVy = baseVy,
+                windAccelX,
+                swayAmplitude,
+                swayFrequency,
+                swayPhase,
+                durationSeconds,
+                targetCenterX,
+                targetHalfWidth,
+                bullseyeHalfWidth,
+                landingX = record.LandingX,
+                score = record.Score,
+                isHit = record.IsHit,
+                isBullseye = record.IsBullseye,
+                isWin = record.IsWin,
+                totalTicks = record.TotalTicks,
+                initialTilt,
+                keyframes = record.Keyframes
+            };
+
             var payload = new
             {
                 type = "parachute_drop",
@@ -520,29 +561,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
                 session = activeSessionDto,
-                trajectory = new
-                {
-                    startX,
-                    startY,
-                    landingY,
-                    initialVx,
-                    initialVy = baseVy,
-                    windAccelX,
-                    swayAmplitude,
-                    swayFrequency,
-                    swayPhase,
-                    durationSeconds,
-                    targetCenterX,
-                    targetHalfWidth,
-                    bullseyeHalfWidth,
-                    landingX = record.LandingX,
-                    score = record.Score,
-                    isHit = record.IsHit,
-                    isBullseye = record.IsBullseye,
-                    isWin = record.IsWin,
-                    totalTicks = record.TotalTicks,
-                    keyframes = record.Keyframes
-                }
+                trajectory = trajectoryObj,
+                physics = trajectoryObj
             };
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
@@ -568,7 +588,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 Arg = request.EmoteOrImage ?? "",
                 EmoteUrl = request.NativeEmoteUrl
             };
-            var dropletImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl, request.AllowDirectUrlOrPath) ?? "";
+            var dropletUrls = await DropGameMediaResolver.ResolveMediaUrlsAsync(
+                emoteService, fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl, request.AllowDirectUrlOrPath);
 
             var droplets = new List<DropletInstanceDto>(count);
             var trajectoryUpdates = new List<ParachuteTrajectoryUpdateDto>();
@@ -590,6 +611,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                     var (startX, startY, vx, vy, gravity) = DropletPatternGenerator.CalculateTrajectory(
                         pattern, i, speedScale, targetDrop, now, spawnTickOffset);
+
+                    var dropletImageUrl = dropletUrls.Count > 0
+                        ? dropletUrls[Random.Shared.Next(dropletUrls.Count)]
+                        : "";
 
                     droplets.Add(new DropletInstanceDto
                     {

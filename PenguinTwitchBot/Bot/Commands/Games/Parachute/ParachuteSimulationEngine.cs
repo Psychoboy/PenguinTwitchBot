@@ -7,6 +7,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         public const double TickRateHz = 60.0;
         public const double Dt = 1.0 / TickRateHz;
         public const double ParachuteRadius = 0.036;
+        public const double MaxVx = 0.55;
+        public const double MinVy = 0.08;
+        public const double MaxVy = 0.22;
 
         public static ParachuteTrajectoryPointDto GetParachutePositionAtTick(PendingDropRecord record, int tick)
         {
@@ -107,15 +110,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             // Relative velocity and momentum impulse scaled by droplet mass (size) and speed
                             var relVx = dvx - vx;
                             var relVy = dvy - vy;
-                            var impulseMagnitude = 0.085 * droplet.Mass * Math.Max(0.6, droplet.SpeedScale);
+                            var impulseMagnitude = 0.16 * droplet.Mass * Math.Max(0.7, droplet.SpeedScale);
 
                             // Push horizontally in the direction of droplet travel + collision normal
                             var pushDirectionX = Math.Abs(dvx) > 0.04 ? Math.Sign(dvx) : (Math.Abs(nx) > 0.05 ? Math.Sign(nx) : 1.0);
-                            var deltaVx = (pushDirectionX * impulseMagnitude) + (relVx * 0.22 * Math.Min(2.5, droplet.Mass));
-                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.25) + (relVy * 0.08), -0.06, 0.08);
+                            var deltaVx = Math.Clamp((pushDirectionX * impulseMagnitude) + (relVx * 0.25 * Math.Min(2.5, droplet.Mass)), -0.25, 0.25);
+                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.18) + (relVy * 0.06), -0.05, 0.06);
 
-                            vx = Math.Clamp(vx + deltaVx, -0.45, 0.45);
-                            vy = Math.Clamp(vy + deltaVy, record.InitialVy * 0.55, record.InitialVy * 1.85);
+                            vx = Math.Clamp(vx + deltaVx, -MaxVx, MaxVx);
+                            vy = Math.Clamp(vy + deltaVy, MinVy, MaxVy);
 
                             existingCollisions.Add(new ParachuteCollisionEventDto
                             {
@@ -148,24 +151,23 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     break;
                 }
 
-                // Step physics (wind + air drag + sway)
-                var swayVelX = record.SwayAmplitude * record.SwayFrequency * Math.Cos((record.SwayFrequency * t) + record.SwayPhase) * 0.35;
-                vx = (vx + record.WindAccelX * Dt) * 0.992; // Gentle horizontal air drag
-                vy = record.InitialVy + (vy - record.InitialVy) * 0.96; // Canopy stabilizes vertical speed back toward terminal velocity
+                // Step physics: constant directional velocity along drop angle (no sinusoidal sway)
+                vx = Math.Clamp((vx + record.WindAccelX * Dt) * 0.998, -MaxVx, MaxVx);
+                vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, MaxVy); // Canopy stabilizes vertical speed
 
-                x += (vx + swayVelX) * Dt;
+                x += vx * Dt;
                 y += vy * Dt;
 
-                // Soft bounce off left/right screen margins
+                // Clean bounce off left/right screen margins
                 if (x < 0.05)
                 {
                     x = 0.05;
-                    vx = Math.Abs(vx) * 0.65;
+                    vx = Math.Min(MaxVx, Math.Abs(vx) * 0.90);
                 }
                 else if (x > 0.95)
                 {
                     x = 0.95;
-                    vx = -Math.Abs(vx) * 0.65;
+                    vx = -Math.Min(MaxVx, Math.Abs(vx) * 0.90);
                 }
             }
 

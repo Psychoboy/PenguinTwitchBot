@@ -21,12 +21,16 @@
     <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
             <div>
-                <MudText Typo="Typo.h4">🪂 Parachute Drop & 🪙 Plinko Bounce</MudText>
+                <MudText Typo="Typo.h4">Parachute Drop & Plinko Bounce</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
                     Customizable stream overlay minigames with seasonal themes, interactive droplets, emote support, and tamper-proof win actions.
                 </MudText>
             </div>
-            <MudStack Row="true" Spacing="2">
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetAllSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
                            Href="/parachute.html" Target="_blank">
                     Open Parachute Overlay
@@ -39,6 +43,7 @@
                            OnClick="SaveAllSettingsAsync">
                     Save All Settings
                 </MudButton>
+                <HelpButton Topic="drop-games" />
             </MudStack>
         </MudStack>
 
@@ -129,7 +134,7 @@
                             </MudPaper>
 
                             <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">⏱️ Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
                                     Run timed drop rounds (e.g., 100 seconds). Controls when viewers can participate and how rounds start/stop.
                                 </MudText>
@@ -185,7 +190,7 @@
 
                         <MudItem xs="12" md="5">
                             <MudPaper Class="pa-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">🧪 Test Parachute Drop Live</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Test Parachute Drop Live</MudText>
                                 <MudStack Spacing="3">
                                     <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
                                                   @bind-Value="_testUsername" />
@@ -212,7 +217,7 @@
                                     </MudButton>
 
                                     <MudDivider Class="my-2" />
-                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">⏱️ Session Controls</MudText>
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
                                     <MudStack Row="true" Spacing="2">
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
                                                    StartIcon="@Icons.Material.Filled.PlayArrow"
@@ -293,7 +298,7 @@
 
                         <MudItem xs="12" md="5">
                             <MudPaper Class="pa-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">🌊 Live Droplet Barrage Tester</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Live Droplet Barrage Tester</MudText>
                                 <MudStack Spacing="2">
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                                                StartIcon="@Icons.Material.Filled.WaterDrop"
@@ -369,7 +374,7 @@
                             </MudPaper>
 
                             <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">⏱️ Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
                                 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
                                     Run timed Plinko rounds (e.g., 100 seconds). Controls when viewers can participate and how rounds start/stop.
                                 </MudText>
@@ -484,7 +489,7 @@
 
                         <MudItem xs="12" md="5">
                             <MudPaper Class="pa-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">🧪 Test Plinko Bounce Live</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Test Plinko Bounce Live</MudText>
                                 <MudStack Spacing="3">
                                     <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
                                                   @bind-Value="_testUsername" />
@@ -504,7 +509,7 @@
                                     </MudButton>
 
                                     <MudDivider Class="my-2" />
-                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">⏱️ Session Controls</MudText>
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
                                     <MudStack Row="true" Spacing="2">
                                         <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
                                                    StartIcon="@Icons.Material.Filled.PlayArrow"
@@ -586,10 +591,10 @@
                                         <MudItem xs="6" sm="3">
                                             <MudSelect T="string" Label="Seasonal Style" Variant="Variant.Outlined"
                                                        @bind-Value="_selectedTheme.SeasonPreset">
-                                                <MudSelectItem Value="@("spring")">🌸 Spring</MudSelectItem>
-                                                <MudSelectItem Value="@("summer")">☀️ Summer</MudSelectItem>
-                                                <MudSelectItem Value="@("fall")">🍁 Fall</MudSelectItem>
-                                                <MudSelectItem Value="@("winter")">❄️ Winter</MudSelectItem>
+                                                <MudSelectItem Value="@("spring")">Spring</MudSelectItem>
+                                                <MudSelectItem Value="@("summer")">Summer</MudSelectItem>
+                                                <MudSelectItem Value="@("fall")">Fall</MudSelectItem>
+                                                <MudSelectItem Value="@("winter")">Winter</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
                                         <MudItem xs="6" sm="3">
@@ -626,15 +631,19 @@
                                             <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Custom Sprites & Media (Leave blank to use built-in Seasonal Art)</b></MudText>
                                         </MudItem>
 
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Default Character Image (Fallback when no emote used)"
+                                        <MudItem xs="12" lg="6">
+                                            <MediaUrlPicker Label="Character Emotes / Images"
                                                             @bind-Value="_selectedTheme.DefaultCharacterImageUrl"
-                                                            HelperText="Used when a viewer runs !drop or !plinko without specifying an emote." />
+                                                            AllowMultiple="true"
+                                                            Placeholder="Type emote name (e.g. sptvShots) or image URL..."
+                                                            HelperText="Used when a viewer runs !drop or !plinko without specifying an emote. Multiple items can be added to randomly pick one per drop." />
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
-                                            <MediaUrlPicker Label="Default Droplet Image"
+                                        <MudItem xs="12" lg="6">
+                                            <MediaUrlPicker Label="Droplet Emotes / Images"
                                                             @bind-Value="_selectedTheme.DefaultDropletImageUrl"
-                                                            HelperText="Used for interactive droplets when no custom emote is provided." />
+                                                            AllowMultiple="true"
+                                                            Placeholder="Type emote name (e.g. sptv30k) or image URL..."
+                                                            HelperText="Used for interactive droplets when no custom emote is provided. Multiple items can be added to randomly pick one per droplet." />
                                         </MudItem>
                                         <MudItem xs="12" sm="6">
                                             <MediaUrlPicker Label="Parachute Canopy Image"
@@ -698,6 +707,15 @@
         if (_settings == null) return;
         await SettingsService.SaveSettingsAsync(_settings);
         Snackbar.Add("Parachute Drop & Plinko Bounce settings saved!", Severity.Success);
+    }
+
+    private async Task ResetAllSettingsToDefaultsAsync()
+    {
+        _settings = new DropGamesSettings();
+        DropGamesSettingsService.EnsureStockThemes(_settings);
+        _selectedTheme = _settings.Themes.FirstOrDefault();
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("All game settings have been reset to default baseline values!", Severity.Warning);
     }
 
     private void CreateCustomTheme()
