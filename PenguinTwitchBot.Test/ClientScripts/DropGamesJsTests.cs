@@ -888,7 +888,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
         [InlineData(0.1, 5.0, 0.1)]   // Low gravity, high bounce
         public void DropGames_ExtremePhysicsParameters_DoNotProduceNaNOrBoundsViolation(double gravity, double bounciness, double mass)
         {
-            // 1. Plinko Extreme Check
+            var jsDir = FindWwwRootPath();
+
+            // 1. Plinko Extreme Check (C# lattice + JS overlay execution)
             const int rows = 8;
             const int bucketCount = 5;
             for (var b = 0; b < bucketCount; b++)
@@ -903,7 +905,55 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }
             }
 
-            // 2. Parachute Extreme Check
+            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var plinkoEngine = CreateMockBrowserEngine(out _);
+            plinkoEngine.Execute(plinkoJs);
+
+            var buckets = new[]
+            {
+                new { label = "0", score = 10, isWin = false },
+                new { label = "1", score = 20, isWin = false },
+                new { label = "2", score = 100, isWin = true },
+                new { label = "3", score = 20, isWin = false },
+                new { label = "4", score = 10, isWin = false }
+            };
+
+            DispatchWsMessage(plinkoEngine, new
+            {
+                type = "session_start",
+                session = new { gameType = "plinko", isActive = true, durationSeconds = 60, totalDurationSeconds = 60, roundNumber = 1 },
+                board = new { rows, cols = bucketCount, buckets }
+            });
+
+            const int targetBucket = 2;
+            var targetWaypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
+            DispatchWsMessage(plinkoEngine, new
+            {
+                type = "plinko_drop",
+                dropToken = "extreme-plinko",
+                displayName = "ExtremePlayer",
+                userColor = "#FF00FF",
+                board = new
+                {
+                    rowCount = rows,
+                    durationSeconds = 1.2,
+                    gravity = gravity,
+                    bounciness = bounciness,
+                    mass = mass,
+                    buckets = buckets,
+                    winningBucketIndex = targetBucket,
+                    waypoints = targetWaypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                }
+            });
+
+            StepEngineFrames(plinkoEngine, 100);
+            Assert.Equal(0, plinkoEngine.Evaluate("console._errors.length").AsNumber());
+            var plinkoLanded = plinkoEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-plinko')");
+            Assert.False(plinkoLanded.IsNull() || plinkoLanded.IsUndefined(), "Plinko JS failed to complete under extreme physics");
+            var landedIdx = plinkoEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-plinko').winningBucketIndex").AsNumber();
+            Assert.Equal(targetBucket, (int)landedIdx);
+
+            // 2. Parachute Extreme Check (C# simulation + JS overlay execution)
             var baseRecord = CreateTestDropRecord("extreme-drop", "ExtremeUser", 0.50, 0.20, 0.14, 0.92, 360);
             var record = new PendingDropRecord
             {
@@ -939,6 +989,190 @@ namespace PenguinTwitchBot.Test.ClientScripts
             ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
             Assert.False(double.IsNaN(record.LandingX) || double.IsInfinity(record.LandingX), "Parachute LandingX is NaN or Infinity");
             Assert.InRange(record.LandingX, 0.05, 0.95);
+
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var parachuteEngine = CreateMockBrowserEngine(out _);
+            parachuteEngine.Execute(parachuteJs);
+
+            DispatchWsMessage(parachuteEngine, new
+            {
+                type = "session_start",
+                session = new { gameType = "parachute", isActive = true, durationSeconds = 60, totalDurationSeconds = 60, roundNumber = 1 },
+                target = new { centerX = record.TargetCenterX, targetHalfWidth = record.TargetHalfWidth }
+            });
+
+            DispatchWsMessage(parachuteEngine, new
+            {
+                type = "parachute_drop",
+                dropToken = record.DropToken,
+                displayName = record.DisplayName,
+                trajectory = new
+                {
+                    startX = record.StartX,
+                    startY = record.StartY,
+                    initialVx = record.InitialVx,
+                    initialVy = record.InitialVy,
+                    landingY = record.LandingY,
+                    totalTicks = record.TotalTicks,
+                    bounciness = record.Bounciness,
+                    mass = record.Mass,
+                    gravity = record.Gravity,
+                    targetCenterX = record.TargetCenterX,
+                    targetHalfWidth = record.TargetHalfWidth,
+                    collisions = record.Collisions.Select(c => new
+                    {
+                        tick = c.Tick,
+                        dropletId = c.DropletId,
+                        x = c.X,
+                        y = c.Y,
+                        deltaVx = c.DeltaVx,
+                        deltaVy = c.DeltaVy
+                    }).ToList()
+                }
+            });
+
+            DispatchWsMessage(parachuteEngine, new
+            {
+                type = "parachute_droplets",
+                droplets = droplets.Select(d => new
+                {
+                    id = d.Id,
+                    startX = d.StartX,
+                    startY = d.StartY,
+                    vx = d.Vx,
+                    vy = d.Vy,
+                    gravity = d.Gravity,
+                    radius = d.Radius,
+                    spawnTickOffset = d.SpawnTickOffset
+                }).ToList()
+            });
+
+            StepEngineFrames(parachuteEngine, 420);
+            Assert.Equal(0, parachuteEngine.Evaluate("console._errors.length").AsNumber());
+
+            var parachuteLanded = parachuteEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-drop')");
+            Assert.False(parachuteLanded.IsNull() || parachuteLanded.IsUndefined(), "Parachute JS failed to complete under extreme physics");
+            var clientLandingX = parachuteEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-drop').landingX").AsNumber();
+            Assert.False(double.IsNaN(clientLandingX) || double.IsInfinity(clientLandingX));
+            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.05,
+                $"Client landingX {clientLandingX} differed from server {record.LandingX} under extreme physics (gravity={gravity}, bounce={bounciness}, mass={mass})");
+        }
+
+        [Fact]
+        public void ParachuteJs_DenseDropletShower_MultipleDropsParityWithServerSimulation()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new
+                {
+                    gameType = "parachute",
+                    isActive = true,
+                    durationSeconds = 60,
+                    totalDurationSeconds = 60,
+                    roundNumber = 1
+                },
+                target = new { centerX = 0.50, targetHalfWidth = 0.10 }
+            });
+
+            // Two drops descending simultaneously across the board without mutual collision
+            var dropA = CreateTestDropRecord("dense-drop-A", "PlayerA", 0.25, 0.0, 0.14, 0.92, 380);
+            var dropB = CreateTestDropRecord("dense-drop-B", "PlayerB", 0.75, 0.0, 0.14, 0.92, 380);
+
+            // Dense shower of 20 droplets spanning the screen width
+            var droplets = new List<DropletInstanceDto>();
+            for (var i = 0; i < 20; i++)
+            {
+                droplets.Add(new DropletInstanceDto
+                {
+                    Id = $"shower-d-{i}",
+                    StartX = 0.10 + (i % 10) * 0.08,
+                    StartY = 0.02 + (i / 10) * 0.04,
+                    Vx = (i % 2 == 0 ? 0.03 : -0.03),
+                    Vy = 0.32 + (i % 4) * 0.04,
+                    Gravity = 0.30,
+                    Radius = 0.025,
+                    Mass = 0.45,
+                    SpawnTickOffset = i * 12,
+                    SpeedScale = 1.0
+                });
+            }
+
+            // Simulate both drops through the 20-droplet shower
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(dropA, 0, droplets);
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(dropB, 0, droplets);
+
+            // Dispatch drops to JS client
+            foreach (var record in new[] { dropA, dropB })
+            {
+                DispatchWsMessage(engine, new
+                {
+                    type = "parachute_drop",
+                    dropToken = record.DropToken,
+                    displayName = record.DisplayName,
+                    trajectory = new
+                    {
+                        startX = record.StartX,
+                        startY = record.StartY,
+                        initialVx = record.InitialVx,
+                        initialVy = record.InitialVy,
+                        landingY = record.LandingY,
+                        totalTicks = record.TotalTicks,
+                        bounciness = record.Bounciness,
+                        mass = record.Mass,
+                        targetCenterX = record.TargetCenterX,
+                        targetHalfWidth = record.TargetHalfWidth,
+                        collisions = record.Collisions.Select(c => new
+                        {
+                            tick = c.Tick,
+                            dropletId = c.DropletId,
+                            x = c.X,
+                            y = c.Y,
+                            deltaVx = c.DeltaVx,
+                            deltaVy = c.DeltaVy
+                        }).ToList()
+                    }
+                });
+            }
+
+            // Dispatch all 20 droplets to JS client
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_droplets",
+                droplets = droplets.Select(d => new
+                {
+                    id = d.Id,
+                    startX = d.StartX,
+                    startY = d.StartY,
+                    vx = d.Vx,
+                    vy = d.Vy,
+                    gravity = d.Gravity,
+                    radius = d.Radius,
+                    spawnTickOffset = d.SpawnTickOffset
+                }).ToList()
+            });
+
+            // Step 420 frames to complete both drops
+            StepEngineFrames(engine, 420);
+
+            var errors = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errors);
+
+            var clientLandingA = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'dense-drop-A').landingX").AsNumber();
+            var clientLandingB = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'dense-drop-B').landingX").AsNumber();
+
+            Assert.False(double.IsNaN(clientLandingA) || double.IsInfinity(clientLandingA));
+            Assert.False(double.IsNaN(clientLandingB) || double.IsInfinity(clientLandingB));
+
+            Assert.True(Math.Abs(clientLandingA - dropA.LandingX) <= 0.05,
+                $"Drop A client landingX {clientLandingA} differed from server {dropA.LandingX} by {Math.Abs(clientLandingA - dropA.LandingX):F4}");
+            Assert.True(Math.Abs(clientLandingB - dropB.LandingX) <= 0.05,
+                $"Drop B client landingX {clientLandingB} differed from server {dropB.LandingX} by {Math.Abs(clientLandingB - dropB.LandingX):F4}");
         }
 
         [Fact]

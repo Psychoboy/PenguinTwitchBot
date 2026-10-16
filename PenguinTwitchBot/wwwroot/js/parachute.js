@@ -2164,10 +2164,11 @@
 
             // Trigger any server-recorded collision impulses at their exact tick
             if (Array.isArray(drop.collisions)) {
+                drop.triggeredCollisionIndices = drop.triggeredCollisionIndices || new Set();
                 for (let c = 0; c < drop.collisions.length; c++) {
                     const col = drop.collisions[c];
-                    if (drop.currentTick >= col.tick && !drop.triggeredCollisionTicks.has(col.tick)) {
-                        drop.triggeredCollisionTicks.add(col.tick);
+                    if (drop.currentTick >= col.tick && !drop.triggeredCollisionIndices.has(c)) {
+                        drop.triggeredCollisionIndices.add(c);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
                         drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
