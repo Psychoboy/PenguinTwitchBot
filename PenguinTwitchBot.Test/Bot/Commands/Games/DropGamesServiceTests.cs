@@ -1386,7 +1386,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 landedPositions.Add(finalWaypoint.X);
 
                 // Verify every intermediate peg waypoint (r = 0..rows-1) lands on a physical peg coordinate
-                var cols = Math.Max(6, bucketCount);
+                var cols = Math.Max(2, bucketCount);
                 for (var r = 0; r < rows; r++)
                 {
                     var wp = waypoints[r + 1];

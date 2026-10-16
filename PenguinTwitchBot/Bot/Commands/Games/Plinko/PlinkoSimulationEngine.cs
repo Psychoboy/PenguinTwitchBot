@@ -24,31 +24,59 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
         public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex, double bounciness = 0.75)
         {
-            var cols = Math.Max(6, bucketCount);
+            var cols = Math.Max(2, bucketCount);
+            targetBucketIndex = Math.Clamp(targetBucketIndex, 0, cols - 1);
             var waypoints = new List<PlinkoWaypointDto>(rows + 2);
-            var slotJitter = DropGameMath.RandomDouble(0.25, 0.75);
-            var targetX = (targetBucketIndex + slotJitter) / bucketCount;
 
             var pegCols = new int[rows];
-
-            // Determine bottom peg in row (rows - 1) feeding into targetX
             var lastIsOdd = (rows - 1) % 2 == 1;
             var lastCount = lastIsOdd ? cols - 1 : cols;
-            var idealLastC = (int)Math.Round(targetX * cols - (lastIsOdd ? 1.0 : 0.5));
-            var candidateLastCols = new List<int>();
-            for (var offset = -1; offset <= 1; offset++)
+
+            // Determine the bottom peg(s) that physically feed directly into targetBucketIndex:
+            // Odd row pegs are at (c + 1.0)/cols (divider between bucket c and c+1).
+            // A peg at c can bounce LEFT into bucket c, or RIGHT into bucket c+1.
+            // Even row pegs are at (c + 0.5)/cols (centered above bucket c).
+            var validLastPegs = new List<(int Col, double TargetX)>();
+
+            if (lastIsOdd)
             {
-                var cand = idealLastC + offset;
-                if (cand >= 0 && cand < lastCount)
+                if (targetBucketIndex < cols - 1)
                 {
-                    candidateLastCols.Add(cand);
+                    // Bounce LEFT from divider peg targetBucketIndex into targetBucketIndex
+                    var jitter = DropGameMath.RandomDouble(0.38, 0.65);
+                    validLastPegs.Add((targetBucketIndex, (targetBucketIndex + jitter) / cols));
+                }
+                if (targetBucketIndex - 1 >= 0)
+                {
+                    // Bounce RIGHT from divider peg targetBucketIndex - 1 into targetBucketIndex
+                    var jitter = DropGameMath.RandomDouble(0.35, 0.62);
+                    validLastPegs.Add((targetBucketIndex - 1, (targetBucketIndex + jitter) / cols));
                 }
             }
-            if (candidateLastCols.Count == 0)
+            else
             {
-                candidateLastCols.Add(Math.Clamp(idealLastC, 0, lastCount - 1));
+                var jitterCenter = DropGameMath.RandomDouble(0.38, 0.62);
+                validLastPegs.Add((targetBucketIndex, (targetBucketIndex + jitterCenter) / cols));
+                if (targetBucketIndex - 1 >= 0)
+                {
+                    var jitterRight = DropGameMath.RandomDouble(0.30, 0.52);
+                    validLastPegs.Add((targetBucketIndex - 1, (targetBucketIndex + jitterRight) / cols));
+                }
+                if (targetBucketIndex + 1 < cols)
+                {
+                    var jitterLeft = DropGameMath.RandomDouble(0.48, 0.70);
+                    validLastPegs.Add((targetBucketIndex + 1, (targetBucketIndex + jitterLeft) / cols));
+                }
             }
-            pegCols[rows - 1] = candidateLastCols[RandomNumberGenerator.GetInt32(0, candidateLastCols.Count)];
+
+            if (validLastPegs.Count == 0)
+            {
+                validLastPegs.Add((Math.Clamp(targetBucketIndex, 0, lastCount - 1), (targetBucketIndex + 0.5) / cols));
+            }
+
+            var chosen = validLastPegs[RandomNumberGenerator.GetInt32(0, validLastPegs.Count)];
+            pegCols[rows - 1] = chosen.Col;
+            var targetX = chosen.TargetX;
 
             // Work backward from bottom peg row up to row 0 along connected peg lattice
             for (var r = rows - 1; r > 0; r--)
@@ -58,12 +86,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 var prevIsOdd = (r - 1) % 2 == 1;
                 var prevCount = prevIsOdd ? cols - 1 : cols;
 
-                var parentA = curIsOdd ? curC : curC - 1;
-                var parentB = curIsOdd ? curC + 1 : curC;
+                var parentLeft = curIsOdd ? curC : curC - 1;
+                var parentRight = curIsOdd ? curC + 1 : curC;
 
                 var validParents = new List<int>();
-                if (parentA >= 0 && parentA < prevCount) validParents.Add(parentA);
-                if (parentB >= 0 && parentB < prevCount) validParents.Add(parentB);
+                if (parentLeft >= 0 && parentLeft < prevCount) validParents.Add(parentLeft);
+                if (parentRight >= 0 && parentRight < prevCount) validParents.Add(parentRight);
 
                 if (validParents.Count > 0)
                 {
@@ -71,13 +99,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 }
                 else
                 {
-                    pegCols[r - 1] = Math.Clamp(parentA, 0, prevCount - 1);
+                    pegCols[r - 1] = Math.Clamp(parentLeft, 0, prevCount - 1);
                 }
             }
 
             // Entry point above the top peg
             var startPegX = (pegCols[0] + 0.5) / cols;
-            var startX = Math.Clamp(startPegX + DropGameMath.RandomDouble(-0.012, 0.012), 0.06, 0.94);
+            var startX = Math.Clamp(startPegX + DropGameMath.RandomDouble(-0.012, 0.012), 0.04, 0.96);
 
             waypoints.Add(new PlinkoWaypointDto
             {

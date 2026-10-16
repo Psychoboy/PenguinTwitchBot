@@ -907,9 +907,9 @@
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        const padX = Math.max(12, Math.round(width * 0.012));
+        const padX = 0;
         const padY = height * 0.04;
-        const boardW = width - padX * 2;
+        const boardW = width;
         const boardH = height - padY * 2;
 
         // Optional custom background image only (transparent background by default)
@@ -921,7 +921,7 @@
 
         // Peg Grid
         const rows = boardConfig.rowCount || 8;
-        const cols = Math.max(6, (boardConfig.buckets ? boardConfig.buckets.length : 7));
+        const cols = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
         const pegRadius = Math.max(5, Math.min(width, height) * 0.0085);
         const pegImg = getLoadedImage(currentTheme.plinkoPegImageUrl);
         const pegTransparencyLevel = typeof boardConfig.pegTransparency === 'number'
@@ -1573,9 +1573,11 @@
 
         drawBoard(fadeAlpha);
 
-        const padX = Math.max(12, Math.round(width * 0.012));
-        const boardW = width - padX * 2;
+        const padX = 0;
+        const boardW = width;
         const tokenRadius = Math.max(18, Math.min(width, height) * 0.028);
+        const tokenLandingY = height - tokenRadius - 4;
+        const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
 
         // Update & draw peg ripples
         for (let i = pegRipples.length - 1; i >= 0; i--) {
@@ -1628,9 +1630,11 @@
             const wpB = t.waypoints[segIdx + 1];
 
             // Base position along waypoints
+            const isLastSeg = (segIdx === segCount - 1);
+            const targetY = isLastSeg ? Math.min(tokenLandingYNorm, wpB.y) : wpB.y;
             const baseX = wpA.x + (wpB.x - wpA.x) * localT;
-            const linearY = wpA.y + (wpB.y - wpA.y) * localT;
-            const arcBounce = -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
+            const linearY = wpA.y + (targetY - wpA.y) * localT;
+            const arcBounce = isLastSeg ? 0 : -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
             const baseY = linearY + arcBounce;
 
             // Apply physical deflection offset from collisions
@@ -1639,13 +1643,13 @@
             t.vx = (t.vx || 0) * 0.94;
             t.vy = (t.vy || 0) * 0.94;
 
-            const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+            const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
             const halfBucketW = 0.5 / bucketCount;
             const minTokenX = halfBucketW;
             const maxTokenX = 1.0 - halfBucketW;
 
             t.x = Math.max(minTokenX, Math.min(maxTokenX, baseX + (t.offsetX || 0)));
-            t.y = baseY + (t.offsetY || 0);
+            t.y = Math.min(tokenLandingYNorm, baseY + (t.offsetY || 0));
 
             t.rotation += ((wpB.x >= wpA.x ? 1 : -1) * (t.spinSpeed || 5.0) + (t.vx || 0) * 15) * dtSec;
 
@@ -1679,7 +1683,7 @@
                     const nx = dx / dist;
                     const ny = dy / dist;
 
-                    const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+                    const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
                     const halfBucketW = 0.5 / bucketCount;
                     const minTokenX = halfBucketW;
                     const maxTokenX = 1.0 - halfBucketW;
@@ -1734,47 +1738,28 @@
         for (let i = activeTokens.length - 1; i >= 0; i--) {
             const t = activeTokens[i];
 
-            const tokenLandingY = height - tokenRadius - 4;
-            const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
-
-            if (!t.completed && ((t.progress || 0) >= 1.0 || t.y >= tokenLandingYNorm)) {
+            if (!t.completed && (t.progress || 0) >= 1.0) {
                 t.completed = true;
                 t.completedAtMs = now;
                 t.y = tokenLandingYNorm;
 
                 const buckets = boardConfig.buckets || [];
                 let landedBucketIdx;
-                if (buckets.length > 0 && Math.abs(t.offsetX || 0) > 0.001 && typeof t.x === 'number') {
-                    const slotW = 1.0 / buckets.length;
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
-                } else if (typeof t.winningBucketIndex === 'number' && buckets.length > 0) {
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, t.winningBucketIndex));
-                } else if (buckets.length > 0) {
-                    const slotW = 1.0 / buckets.length;
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
-                } else {
-                    landedBucketIdx = 0;
-                }
-
                 if (buckets.length > 0) {
                     const slotW = 1.0 / buckets.length;
+                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
                     const landedBucket = buckets[landedBucketIdx];
                     t.winningBucketIndex = landedBucketIdx;
                     t.winningBucketLabel = landedBucket.label;
                     t.score = landedBucket.score;
                     t.isWin = !!landedBucket.isWin;
 
-                    // Natural landing spread across slot width
+                    // Keep token resting naturally within landed bucket boundaries without snapping
                     const margin = Math.min(0.035, slotW * 0.22);
                     const minSlotX = landedBucketIdx * slotW + margin;
                     const maxSlotX = (landedBucketIdx + 1) * slotW - margin;
+                    t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
 
-                    if (typeof t.x === 'number' && t.x >= (landedBucketIdx * slotW) && t.x <= ((landedBucketIdx + 1) * slotW)) {
-                        t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
-                    } else {
-                        const jitter = (Math.random() - 0.5) * (slotW - 2 * margin) * 0.65;
-                        t.x = (landedBucketIdx + 0.5) * slotW + jitter;
-                    }
                     sendCompletion(t.dropToken, landedBucketIdx);
                 } else {
                     t.x = t.waypoints[t.waypoints.length - 1].x;
@@ -1922,7 +1907,7 @@
             ctx.strokeText(label, 0, textY);
 
             const tokenTheme = t.theme || currentTheme || {};
-            const rawColor = isLeader ? '#FFD700' : (userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
+            const rawColor = isLeader ? '#FFD700' : (t.userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
             const nameColor = isLeader ? '#FFD700' : brightenColor(rawColor);
             ctx.fillStyle = nameColor;
             ctx.fillText(label, 0, textY);

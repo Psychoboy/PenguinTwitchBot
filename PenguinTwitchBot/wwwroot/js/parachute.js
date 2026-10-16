@@ -874,7 +874,6 @@
                 vx: p.initialVx || 0,
                 vy: p.initialVy || 0.12,
                 initialVy: p.initialVy || 0.12,
-                windAccelX: typeof p.windAccelX === 'number' ? p.windAccelX : 0,
                 nameFontSize: typeof p.nameFontSize === 'number' ? p.nameFontSize : (msg.nameFontSize || headerConfig.nameFontSize || 18),
                 gravity: typeof p.gravity === 'number' ? p.gravity : 1.0,
                 bounciness: typeof p.bounciness === 'number' ? p.bounciness : 0.85,
@@ -2055,7 +2054,7 @@
                         const oDist = Math.sqrt(oDistSq);
                         const nx = oDx / oDist;
                         const ny = oDy / oDist;
-                        const overlapPx = 0.5 * (oMinDist - oDist);
+                        const overlapPx = Math.min(2.5, 0.5 * (oMinDist - oDist));
                         d.x -= (nx * overlapPx) / width;
                         d.y -= (ny * overlapPx) / height;
                         other.x += (nx * overlapPx) / width;
