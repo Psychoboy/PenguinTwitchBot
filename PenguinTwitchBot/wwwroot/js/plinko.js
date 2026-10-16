@@ -418,13 +418,117 @@
         return entry.loaded ? entry.img : null;
     }
 
+    const SoundManager = (function () {
+        const audioCache = new Map();
+        const activeVoices = [];
+        let currentBundle = null;
+
+        function preload(url) {
+            if (!url || typeof Audio === 'undefined') return;
+            if (audioCache.has(url)) return audioCache.get(url);
+            try {
+                const a = new Audio();
+                a.preload = 'auto';
+                a.src = url;
+                if (typeof a.load === 'function') a.load();
+                audioCache.set(url, a);
+                return a;
+            } catch (_) { }
+            return null;
+        }
+
+        function updateBundle(bundle) {
+            if (!bundle) return;
+            currentBundle = bundle;
+            const keys = ['start', 'end', 'drop', 'win', 'pegCollision'];
+            keys.forEach(k => {
+                const s = bundle[k];
+                if (s && s.enabled && s.url) {
+                    preload(s.url);
+                }
+            });
+        }
+
+        function play(soundDto, key = 'drop', isHighPriority = false) {
+            if (!soundDto || !soundDto.enabled || !soundDto.url) return;
+            if (typeof Audio === 'undefined') return;
+
+            const maxVoices = (currentBundle && typeof currentBundle.maxConcurrentSounds === 'number' && currentBundle.maxConcurrentSounds >= 1)
+                ? currentBundle.maxConcurrentSounds
+                : 1;
+
+            // Clean up ended voices
+            for (let i = activeVoices.length - 1; i >= 0; i--) {
+                const v = activeVoices[i];
+                if (!v.audio || v.audio.ended || v.audio.paused) {
+                    activeVoices.splice(i, 1);
+                }
+            }
+
+            // Per-key instance replacement: cut over immediately if same key is already playing
+            for (let i = activeVoices.length - 1; i >= 0; i--) {
+                const v = activeVoices[i];
+                if (v.key === key) {
+                    try {
+                        v.audio.pause();
+                        v.audio.currentTime = 0;
+                    } catch (_) { }
+                    activeVoices.splice(i, 1);
+                }
+            }
+
+            // Enforce concurrency limit with immediate voice stealing (no queuing!)
+            while (activeVoices.length >= maxVoices) {
+                let victimIdx = 0;
+                if (!isHighPriority) {
+                    const nonHighIdx = activeVoices.findIndex(v => !v.isHighPriority);
+                    if (nonHighIdx !== -1) victimIdx = nonHighIdx;
+                }
+                const victim = activeVoices.splice(victimIdx, 1)[0];
+                if (victim && victim.audio) {
+                    try {
+                        victim.audio.pause();
+                        victim.audio.currentTime = 0;
+                    } catch (_) { }
+                }
+            }
+
+            try {
+                const audio = new Audio(soundDto.url);
+                const volFraction = (typeof soundDto.volume === 'number' ? soundDto.volume : 80) / 100;
+                audio.volume = Math.max(0, Math.min(1, volFraction));
+                audio.preload = 'auto';
+
+                const voiceRecord = { audio, key, isHighPriority };
+                activeVoices.push(voiceRecord);
+
+                if (typeof audio.addEventListener === 'function') {
+                    audio.addEventListener('ended', function () {
+                        const idx = activeVoices.indexOf(voiceRecord);
+                        if (idx !== -1) activeVoices.splice(idx, 1);
+                    });
+                }
+
+                audio.play().catch(function () { });
+            } catch (_) { }
+        }
+
+        return {
+            preload,
+            updateBundle,
+            play,
+            getBundle: function () { return currentBundle; },
+            getActiveCount: function () { return activeVoices.length; }
+        };
+    })();
+
+    if (typeof window !== 'undefined') {
+        window.__plinkoSoundManager = SoundManager;
+    }
+
     function playSound(url, volume = 0.5) {
         if (!url) return;
-        try {
-            const audio = new Audio(url);
-            audio.volume = volume;
-            audio.play().catch(function () { });
-        } catch (_) { }
+        SoundManager.play({ enabled: true, url, volume: Math.round(volume * 100) }, 'legacy', false);
     }
 
     let currentTheme = {
@@ -640,6 +744,12 @@
             isOtherGameActive = msg.isOtherGameActive;
         }
 
+        if (msg.sounds) {
+            SoundManager.updateBundle(msg.sounds);
+        } else if (msg.session && msg.session.sounds) {
+            SoundManager.updateBundle(msg.session.sounds);
+        }
+
         if (msg.type === 'plinko_drop' && msg.board) {
             if (msg.theme) {
                 currentTheme = msg.theme;
@@ -663,7 +773,13 @@
             if (currentTheme.plinkoBoardBackgroundImageUrl) getLoadedImage(currentTheme.plinkoBoardBackgroundImageUrl);
             if (currentTheme.plinkoPegImageUrl) getLoadedImage(currentTheme.plinkoPegImageUrl);
 
-            if (currentTheme.dropSoundUrl) {
+            if (msg.sounds) {
+                SoundManager.updateBundle(msg.sounds);
+            }
+            const dropSound = (msg.sounds && msg.sounds.drop) || (SoundManager.getBundle() && SoundManager.getBundle().drop);
+            if (dropSound) {
+                SoundManager.play(dropSound, 'drop', false);
+            } else if (currentTheme.dropSoundUrl) {
                 playSound(currentTheme.dropSoundUrl, 0.45);
             }
 
@@ -673,6 +789,7 @@
 
             activeTokens.push({
                 dropToken: msg.dropToken,
+                sounds: msg.sounds || (msg.session && msg.session.sounds) || SoundManager.getBundle(),
                 username: msg.username || 'viewer',
                 displayName: msg.displayName || msg.username || 'Viewer',
                 userColor: msg.userColor || msg.color || null,
@@ -708,6 +825,16 @@
             }
         } else if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
+            if (msg.sounds) {
+                SoundManager.updateBundle(msg.sounds);
+            } else if (s.sounds) {
+                SoundManager.updateBundle(s.sounds);
+            }
+            const startSound = (msg.sounds && msg.sounds.start) || (s.sounds && s.sounds.start) || (SoundManager.getBundle() && SoundManager.getBundle().start);
+            if (startSound) {
+                SoundManager.play(startSound, 'start', true);
+            }
+
             // 100% full reset on new session start (#1365)
             activeTokens.length = 0;
             pegRipples.length = 0;
@@ -731,6 +858,16 @@
             }
         } else if (msg.type === 'session_end' && msg.session) {
             sessionState.isActive = false;
+            if (msg.sounds) {
+                SoundManager.updateBundle(msg.sounds);
+            } else if (msg.session && msg.session.sounds) {
+                SoundManager.updateBundle(msg.session.sounds);
+            }
+            const endSound = (msg.sounds && msg.sounds.end) || (msg.session && msg.session.sounds && msg.session.sounds.end) || (SoundManager.getBundle() && SoundManager.getBundle().end);
+            if (endSound) {
+                SoundManager.play(endSound, 'end', true);
+            }
+
             if (typeof msg.session.totalDrops === 'number') {
                 sessionState.totalDrops = msg.session.totalDrops;
             }
@@ -1691,6 +1828,10 @@
                     age: 0
                 });
                 t.spinSpeed = ((wpB.x >= wpA.x ? 1 : -1) * (6.0 + Math.random() * 4.0));
+                const pegSound = (t.sounds && t.sounds.pegCollision) || (SoundManager.getBundle() && SoundManager.getBundle().pegCollision);
+                if (pegSound) {
+                    SoundManager.play(pegSound, 'pegCollision', false);
+                }
             }
         }
 
@@ -1820,7 +1961,12 @@
 
                 if (t.isWin) {
                     spawnConfetti(landPxX, landPxY);
-                    if (t.theme && t.theme.winSoundUrl) playSound(t.theme.winSoundUrl, 0.55);
+                    const winSound = (t.sounds && t.sounds.win) || (SoundManager.getBundle() && SoundManager.getBundle().win);
+                    if (winSound) {
+                        SoundManager.play(winSound, 'win', true);
+                    } else if (t.theme && t.theme.winSoundUrl) {
+                        playSound(t.theme.winSoundUrl, 0.55);
+                    }
                 } else if (t.theme && t.theme.loseSoundUrl) {
                     playSound(t.theme.loseSoundUrl, 0.45);
                 }

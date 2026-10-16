@@ -1,0 +1,402 @@
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Services
+@using PenguinTwitchBot.Shared
+@inject MediaUploadService MediaUploadService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<MudPaper Outlined="true" Class="pa-3 mb-3">
+    <MudStack Spacing="2">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Wrap="Wrap.Wrap">
+            <div>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@(IsActive ? Icons.Material.Filled.VolumeUp : Icons.Material.Filled.VolumeOff)"
+                             Color="@(IsActive ? Color.Primary : Color.Default)"
+                             Size="Size.Medium" />
+                    <div>
+                        <MudText Typo="Typo.subtitle2"><b>@Title</b></MudText>
+                        @if (!string.IsNullOrWhiteSpace(HelperText))
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@HelperText</MudText>
+                        }
+                    </div>
+                </MudStack>
+            </div>
+
+            <div>
+                @if (IsThemeOverride)
+                {
+                    <MudSelect T="DropGameSoundOverrideMode"
+                               Value="@(SoundOverride?.OverrideMode ?? DropGameSoundOverrideMode.Inherit)"
+                               ValueChanged="OnOverrideModeChanged"
+                               Label="Theme Sound"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Dense="true"
+                               Style="min-width: 170px;">
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Inherit">Inherit Overall</MudSelectItem>
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Custom">Custom Sound</MudSelectItem>
+                        <MudSelectItem Value="@DropGameSoundOverrideMode.Mute">Mute for Theme</MudSelectItem>
+                    </MudSelect>
+                }
+                else
+                {
+                    <MudSwitch T="bool"
+                               Value="@(SoundConfig?.Enabled ?? false)"
+                               ValueChanged="OnEnabledChanged"
+                               Color="Color.Primary"
+                               Label="@((SoundConfig?.Enabled ?? false) ? "Enabled" : "Disabled")" />
+                }
+            </div>
+        </MudStack>
+
+        @if (IsActive)
+        {
+            <MudDivider Class="my-1" />
+            <MudGrid Spacing="2" Class="align-center">
+                <MudItem xs="12" md="7">
+                    <MudPaper Outlined="true" Class="pa-2 px-3 d-flex align-center justify-space-between" Style="background: var(--mud-palette-background-grey); min-height: 44px; border-radius: 6px;">
+                        @if (!string.IsNullOrWhiteSpace(CurrentSoundFile))
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="min-width: 0; overflow: hidden;">
+                                <MudIcon Icon="@Icons.Material.Filled.AudioFile" Color="Color.Primary" Size="Size.Small" />
+                                <MudText Typo="Typo.body2" Class="text-truncate" Style="font-weight: 500;">
+                                    @GetCleanFileName(CurrentSoundFile)
+                                </MudText>
+                            </MudStack>
+                            <MudTooltip Text="Clear sound">
+                                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                               Size="Size.Small"
+                                               Color="Color.Default"
+                                               OnClick="ClearSoundAsync" />
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="font-italic">
+                                No sound selected (click Media Manager to select)
+                            </MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Justify="Justify.FlexEnd" Wrap="Wrap.Wrap">
+                        <!-- Preview Button -->
+                        <MudTooltip Text="@(_isPlaying ? "Stop Preview" : "Preview Audio")">
+                            <MudIconButton Icon="@(_isPlaying ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                                           Color="@(_isPlaying ? Color.Error : Color.Primary)"
+                                           Variant="Variant.Filled"
+                                           Size="Size.Medium"
+                                           OnClick="TogglePreview"
+                                           Disabled="@(string.IsNullOrWhiteSpace(CurrentSoundFile) || _isUploading)"
+                                           Style="height: 40px; width: 40px;" />
+                        </MudTooltip>
+
+                        <!-- Media Manager Button -->
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.PhotoLibrary"
+                                   Size="Size.Medium"
+                                   OnClick="OpenMediaLibraryAsync"
+                                   Disabled="@_isUploading"
+                                   Style="height: 40px; white-space: nowrap;">
+                            Media Manager
+                        </MudButton>
+
+                        <!-- Upload Sound Button -->
+                        <MudFileUpload T="IBrowserFile"
+                                       FilesChanged="UploadAudioFileAsync"
+                                       Accept=".mp3,.wav,.ogg,.aac,.webm,.opus,.m4a"
+                                       Disabled="@_isUploading"
+                                       Class="d-inline-flex">
+                            <CustomContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Secondary"
+                                           StartIcon="@(_isUploading ? null : Icons.Material.Filled.CloudUpload)"
+                                           OnClick="@context.OpenFilePickerAsync"
+                                           Disabled="@_isUploading"
+                                           Size="Size.Medium"
+                                           Style="height: 40px; white-space: nowrap;">
+                                    @if (_isUploading)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                        <text>Uploading...</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Upload</text>
+                                    }
+                                </MudButton>
+                            </CustomContent>
+                            <SelectedTemplate Context="_"></SelectedTemplate>
+                        </MudFileUpload>
+                    </MudStack>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudText Typo="Typo.caption" Style="min-width: 90px;">
+                            Volume: <b>@(CurrentVolume)%</b>
+                        </MudText>
+                        <div style="flex: 1 1 auto;">
+                            <MudSlider T="int"
+                                       Value="@CurrentVolume"
+                                       ValueChanged="OnVolumeChanged"
+                                       Min="0"
+                                       Max="100"
+                                       Step="5"
+                                       ValueLabel="true"
+                                       Color="Color.Primary" />
+                        </div>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        }
+        else if (IsThemeOverride && SoundOverride?.OverrideMode == DropGameSoundOverrideMode.Inherit)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                @(string.IsNullOrWhiteSpace(FallbackInfo) ? "Inheriting overall game sound setting." : FallbackInfo)
+            </MudText>
+        }
+        else if (IsThemeOverride && SoundOverride?.OverrideMode == DropGameSoundOverrideMode.Mute)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">
+                <MudIcon Icon="@Icons.Material.Filled.VolumeMute" Size="Size.Small" Class="mr-1" Style="vertical-align: middle;" />
+                Explicitly silenced for this theme.
+            </MudText>
+        }
+
+        @if (!string.IsNullOrEmpty(_audioPreviewUrl))
+        {
+            <audio id="@_previewElementId" @key="_audioPreviewKey" autoplay src="@_audioPreviewUrl" @onended="OnAudioEnded" style="display: none;"></audio>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Sound Effect";
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public DropGameSoundConfig? SoundConfig { get; set; }
+    [Parameter] public DropGameSoundOverride? SoundOverride { get; set; }
+    [Parameter] public bool IsThemeOverride { get; set; }
+    [Parameter] public string? FallbackInfo { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool _isPlaying = false;
+    private bool _isUploading = false;
+    private string? _audioPreviewUrl;
+    private string _audioPreviewKey = Guid.NewGuid().ToString();
+    private string _previewElementId = $"audio_prev_{Guid.NewGuid():N}";
+
+    private bool IsActive => IsThemeOverride
+        ? (SoundOverride?.OverrideMode == DropGameSoundOverrideMode.Custom)
+        : (SoundConfig?.Enabled ?? false);
+
+    private string? CurrentSoundFile
+    {
+        get => IsThemeOverride ? SoundOverride?.SoundFile : SoundConfig?.SoundFile;
+        set
+        {
+            if (IsThemeOverride)
+            {
+                if (SoundOverride != null) SoundOverride.SoundFile = value;
+            }
+            else
+            {
+                if (SoundConfig != null) SoundConfig.SoundFile = value;
+            }
+        }
+    }
+
+    private int CurrentVolume
+    {
+        get => IsThemeOverride ? (SoundOverride?.Volume ?? 80) : (SoundConfig?.Volume ?? 80);
+        set
+        {
+            if (IsThemeOverride)
+            {
+                if (SoundOverride != null) SoundOverride.Volume = Math.Clamp(value, 0, 100);
+            }
+            else
+            {
+                if (SoundConfig != null) SoundConfig.Volume = Math.Clamp(value, 0, 100);
+            }
+        }
+    }
+
+    private static string GetCleanFileName(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        var fileName = System.IO.Path.GetFileName(path);
+        return string.IsNullOrWhiteSpace(fileName) ? path : fileName;
+    }
+
+    private async Task ClearSoundAsync()
+    {
+        StopPreview();
+        CurrentSoundFile = "";
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task OnEnabledChanged(bool enabled)
+    {
+        if (SoundConfig != null)
+        {
+            SoundConfig.Enabled = enabled;
+        }
+        StopPreview();
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task OnOverrideModeChanged(DropGameSoundOverrideMode mode)
+    {
+        if (SoundOverride != null)
+        {
+            SoundOverride.OverrideMode = mode;
+        }
+        StopPreview();
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task OnVolumeChanged(int volume)
+    {
+        CurrentVolume = volume;
+        if (_isPlaying)
+        {
+            await ApplyPreviewVolumeAsync();
+        }
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task TogglePreview()
+    {
+        if (_isPlaying)
+        {
+            StopPreview();
+        }
+        else
+        {
+            await StartPreviewAsync();
+        }
+    }
+
+    private async Task StartPreviewAsync()
+    {
+        var sound = CurrentSoundFile;
+        if (string.IsNullOrWhiteSpace(sound))
+            return;
+
+        var url = MediaUploadService.ResolveSoundUrl(sound);
+        if (string.IsNullOrEmpty(url))
+        {
+            Snackbar.Add($"Could not locate audio file for '{sound}' on the server.", Severity.Warning);
+            StopPreview();
+            return;
+        }
+
+        _audioPreviewKey = Guid.NewGuid().ToString();
+        _audioPreviewUrl = $"{url}?t={DateTime.UtcNow.Ticks}";
+        _isPlaying = true;
+        StateHasChanged();
+
+        await Task.Delay(60);
+        await ApplyPreviewVolumeAsync();
+    }
+
+    private async Task ApplyPreviewVolumeAsync()
+    {
+        try
+        {
+            var volumeFraction = Math.Clamp(CurrentVolume / 100.0, 0.0, 1.0);
+            await JSRuntime.InvokeVoidAsync("eval", $"var el = document.getElementById('{_previewElementId}'); if (el) el.volume = {volumeFraction.ToString(System.Globalization.CultureInfo.InvariantCulture)};");
+        }
+        catch
+        {
+            // Ignore preview volume setting exceptions in headless/unsupported environments
+        }
+    }
+
+    private void StopPreview()
+    {
+        _isPlaying = false;
+        _audioPreviewUrl = null;
+    }
+
+    private void OnAudioEnded()
+    {
+        _isPlaying = false;
+        _audioPreviewUrl = null;
+        StateHasChanged();
+    }
+
+    private async Task OpenMediaLibraryAsync()
+    {
+        StopPreview();
+        var parameters = new DialogParameters<MediaBrowserDialog>
+        {
+            { x => x.SelectionMode, true }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+
+        var dialog = await DialogService.ShowAsync<MediaBrowserDialog>("Browse Media Library", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is MediaFileInfo selectedFile)
+        {
+            CurrentSoundFile = selectedFile.RelativeUrl;
+            await OnChanged.InvokeAsync();
+            Snackbar.Add($"Selected '{selectedFile.FileName}'", Severity.Info);
+        }
+    }
+
+    private async Task UploadAudioFileAsync(IBrowserFile? file)
+    {
+        if (file == null) return;
+
+        StopPreview();
+        _isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+            var result = await MediaUploadService.UploadAudioAsync(stream, file.Name);
+
+            if (result.Success && !string.IsNullOrEmpty(result.FileName))
+            {
+                CurrentSoundFile = result.FileName;
+                await OnChanged.InvokeAsync();
+                Snackbar.Add($"Sound file '{result.FileName}' uploaded and ready!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add(result.ErrorMessage ?? "Failed to upload audio file.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        StopPreview();
+    }
+}

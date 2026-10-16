@@ -49,6 +49,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string PlinkoWinningSlotImageUrl { get; set; } = "";
         public string PlinkoDividerImageUrl { get; set; } = "";
 
+        // Parachute Sound Overrides
+        public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteEndSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteDropSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteWinSound { get; set; } = new();
+
+        // Plinko Sound Overrides
+        public DropGameSoundOverride PlinkoStartSound { get; set; } = new();
+        public DropGameSoundOverride PlinkoEndSound { get; set; } = new();
+        public DropGameSoundOverride PlinkoDropSound { get; set; } = new();
+        public DropGameSoundOverride PlinkoWinSound { get; set; } = new();
+        public DropGameSoundOverride PlinkoPegCollisionSound { get; set; } = new();
+
+        // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
         public string DropletHitSoundUrl { get; set; } = "";
         public string WinSoundUrl { get; set; } = "";
@@ -167,6 +181,98 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         ];
     }
 
+    public enum DropGameSoundOverrideMode
+    {
+        Inherit,
+        Custom,
+        Mute
+    }
+
+    public class DropGameSoundConfig
+    {
+        public bool Enabled { get; set; } = false;
+        public string AudioFile { get; set; } = "";
+
+        [JsonIgnore]
+        public string? SoundFile
+        {
+            get => AudioFile;
+            set => AudioFile = value ?? "";
+        }
+
+        private int _volume = 50;
+        public int Volume
+        {
+            get => _volume;
+            set => _volume = Math.Clamp(value, 0, 100);
+        }
+    }
+
+    public class DropGameSoundOverride
+    {
+        public bool Override { get; set; } = false;
+        public bool Enabled { get; set; } = true;
+        public string AudioFile { get; set; } = "";
+
+        [JsonIgnore]
+        public string? SoundFile
+        {
+            get => AudioFile;
+            set => AudioFile = value ?? "";
+        }
+
+        private int _volume = 50;
+        public int Volume
+        {
+            get => _volume;
+            set => _volume = Math.Clamp(value, 0, 100);
+        }
+
+        [JsonIgnore]
+        public DropGameSoundOverrideMode OverrideMode
+        {
+            get
+            {
+                if (!Override) return DropGameSoundOverrideMode.Inherit;
+                return Enabled ? DropGameSoundOverrideMode.Custom : DropGameSoundOverrideMode.Mute;
+            }
+            set
+            {
+                switch (value)
+                {
+                    case DropGameSoundOverrideMode.Inherit:
+                        Override = false;
+                        break;
+                    case DropGameSoundOverrideMode.Custom:
+                        Override = true;
+                        Enabled = true;
+                        break;
+                    case DropGameSoundOverrideMode.Mute:
+                        Override = true;
+                        Enabled = false;
+                        break;
+                }
+            }
+        }
+    }
+
+    public class DropGameEffectiveSoundDto
+    {
+        public bool Enabled { get; set; }
+        public string? Url { get; set; }
+        public int Volume { get; set; }
+    }
+
+    public class DropGameSoundBundleDto
+    {
+        public int MaxConcurrentSounds { get; set; } = 1;
+        public DropGameEffectiveSoundDto? Start { get; set; }
+        public DropGameEffectiveSoundDto? End { get; set; }
+        public DropGameEffectiveSoundDto? Drop { get; set; }
+        public DropGameEffectiveSoundDto? Win { get; set; }
+        public DropGameEffectiveSoundDto? PegCollision { get; set; }
+    }
+
     public class ParachuteGameSettings
     {
         public string ActiveThemeId { get; set; } = "spring";
@@ -175,6 +281,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double Gravity { get; set; } = 1.0;
         public double Bounciness { get; set; } = 0.85;
         public double Mass { get; set; } = 1.0;
+
+        private int _maxConcurrentSounds = 1;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
+        }
+
+        // Sound Effects
+        public DropGameSoundConfig StartSound { get; set; } = new();
+        public DropGameSoundConfig EndSound { get; set; } = new();
+        public DropGameSoundConfig DropSound { get; set; } = new();
+        public DropGameSoundConfig WinSound { get; set; } = new();
 
         // Legacy database JSON field; ignored on write and marked for deletion later
         public double DescentDurationSeconds
@@ -236,6 +355,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double Gravity { get; set; } = 1.0;
         public double Bounciness { get; set; } = 0.75;
         public double Mass { get; set; } = 1.0;
+
+        private int _maxConcurrentSounds = 1;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
+        }
+
+        // Sound Effects
+        public DropGameSoundConfig StartSound { get; set; } = new();
+        public DropGameSoundConfig EndSound { get; set; } = new();
+        public DropGameSoundConfig DropSound { get; set; } = new();
+        public DropGameSoundConfig WinSound { get; set; } = new();
+        public DropGameSoundConfig PegCollisionSound { get; set; } = new();
 
         // Legacy database JSON field; ignored on write and marked for deletion later
         public double DropDurationSeconds
@@ -563,6 +696,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("headerConfig")]
         public DropGameHeaderConfigDto? HeaderConfig { get; set; }
+
+        [JsonPropertyName("sounds")]
+        public DropGameSoundBundleDto? Sounds { get; set; }
     }
 
     public class DropGameHeaderConfigDto
