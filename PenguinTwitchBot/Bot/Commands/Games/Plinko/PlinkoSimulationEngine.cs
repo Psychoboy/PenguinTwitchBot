@@ -24,38 +24,101 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
         public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex, double bounciness = 0.75)
         {
+            var cols = Math.Max(2, bucketCount);
+            targetBucketIndex = Math.Clamp(targetBucketIndex, 0, cols - 1);
             var waypoints = new List<PlinkoWaypointDto>(rows + 2);
-            var slotJitter = DropGameMath.RandomDouble(0.25, 0.75);
-            var targetX = (targetBucketIndex + slotJitter) / bucketCount;
-            // Widen starting drop point across the top board width (matching PixelPlush's randomized entry)
-            var currentX = Math.Clamp(DropGameMath.RandomDouble(0.12, 0.88), 0.10, 0.90);
-            var bounceScale = Math.Clamp(bounciness / 0.75, 0.2, 3.5);
+
+            var pegCols = new int[rows];
+            var lastIsOdd = (rows - 1) % 2 == 1;
+            var lastCount = lastIsOdd ? cols - 1 : cols;
+
+            // Determine the bottom peg(s) that physically feed directly into targetBucketIndex:
+            // Odd row pegs are at (c + 1.0)/cols (divider between bucket c and c+1).
+            // A peg at c can bounce LEFT into bucket c, or RIGHT into bucket c+1.
+            // Even row pegs are at (c + 0.5)/cols (centered above bucket c).
+            var validLastPegs = new List<(int Col, double TargetX)>();
+
+            if (lastIsOdd)
+            {
+                if (targetBucketIndex < cols - 1)
+                {
+                    // Bounce LEFT from divider peg targetBucketIndex into targetBucketIndex
+                    var jitter = DropGameMath.RandomDouble(0.38, 0.65);
+                    validLastPegs.Add((targetBucketIndex, (targetBucketIndex + jitter) / cols));
+                }
+                if (targetBucketIndex - 1 >= 0)
+                {
+                    // Bounce RIGHT from divider peg targetBucketIndex - 1 into targetBucketIndex
+                    var jitter = DropGameMath.RandomDouble(0.35, 0.62);
+                    validLastPegs.Add((targetBucketIndex - 1, (targetBucketIndex + jitter) / cols));
+                }
+            }
+            else
+            {
+                var jitterCenter = DropGameMath.RandomDouble(0.38, 0.62);
+                validLastPegs.Add((targetBucketIndex, (targetBucketIndex + jitterCenter) / cols));
+            }
+
+            if (validLastPegs.Count == 0)
+            {
+                validLastPegs.Add((Math.Clamp(targetBucketIndex, 0, lastCount - 1), (targetBucketIndex + 0.5) / cols));
+            }
+
+            var chosen = validLastPegs[RandomNumberGenerator.GetInt32(0, validLastPegs.Count)];
+            pegCols[rows - 1] = chosen.Col;
+            var targetX = chosen.TargetX;
+
+            // Work backward from bottom peg row up to row 0 along connected peg lattice
+            for (var r = rows - 1; r > 0; r--)
+            {
+                var curC = pegCols[r];
+                var curIsOdd = r % 2 == 1;
+                var prevIsOdd = (r - 1) % 2 == 1;
+                var prevCount = prevIsOdd ? cols - 1 : cols;
+
+                var parentLeft = curIsOdd ? curC : curC - 1;
+                var parentRight = curIsOdd ? curC + 1 : curC;
+
+                var validParents = new List<int>();
+                if (parentLeft >= 0 && parentLeft < prevCount) validParents.Add(parentLeft);
+                if (parentRight >= 0 && parentRight < prevCount) validParents.Add(parentRight);
+
+                if (validParents.Count > 0)
+                {
+                    pegCols[r - 1] = validParents[RandomNumberGenerator.GetInt32(0, validParents.Count)];
+                }
+                else
+                {
+                    pegCols[r - 1] = Math.Clamp(parentLeft, 0, prevCount - 1);
+                }
+            }
+
+            // Entry point above the top peg
+            var startPegX = (pegCols[0] + 0.5) / cols;
+            var startX = Math.Clamp(startPegX + DropGameMath.RandomDouble(-0.012, 0.012), 0.04, 0.96);
 
             waypoints.Add(new PlinkoWaypointDto
             {
                 Row = -1,
-                Col = (int)Math.Round(currentX * bucketCount),
-                X = Math.Round(currentX, 4),
+                Col = pegCols[0],
+                X = Math.Round(startX, 4),
                 Y = 0.04
             });
 
             for (var r = 0; r < rows; r++)
             {
-                var progress = (double)(r + 1) / rows;
-                var rowY = 0.14 + (progress * 0.68);
-                var remainingRows = rows - r;
-
-                // Guide token smoothly toward targetX while bouncing left/right off pegs with organic physics jitter
-                var idealStep = (targetX - currentX) / Math.Max(1, remainingRows);
-                var jitter = (RandomNumberGenerator.GetInt32(0, 2) == 0 ? -1 : 1) * DropGameMath.RandomDouble(0.024, 0.052) * bounceScale * (1.0 - (progress * 0.35));
-                currentX = Math.Clamp(currentX + idealStep + jitter, 0.08, 0.92);
+                var isOdd = r % 2 == 1;
+                var countInRow = isOdd ? cols - 1 : cols;
+                var c = Math.Clamp(pegCols[r], 0, countInRow - 1);
+                var pegNormX = isOdd ? (c + 1.0) / cols : (c + 0.5) / cols;
+                var pegNormY = 0.16 + (((double)(r + 1) / rows) * 0.64);
 
                 waypoints.Add(new PlinkoWaypointDto
                 {
                     Row = r,
-                    Col = (int)Math.Round(currentX * bucketCount),
-                    X = Math.Round(currentX, 4),
-                    Y = Math.Round(rowY, 4)
+                    Col = c,
+                    X = Math.Round(pegNormX, 4),
+                    Y = Math.Round(pegNormY, 4)
                 });
             }
 

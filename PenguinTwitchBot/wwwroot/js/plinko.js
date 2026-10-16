@@ -460,7 +460,8 @@
         showCount: true,
         showFreePlayCounter: true,
         position: 'top-center',
-        yOffset: 18
+        yOffset: 18,
+        nameFontSize: 18
     };
 
     let isOtherGameActive = false;
@@ -481,6 +482,10 @@
         if (urlParams.has('yOffset')) {
             const parsed = parseInt(urlParams.get('yOffset'), 10);
             if (!isNaN(parsed)) headerConfig.yOffset = parsed;
+        }
+        if (urlParams.has('nameFontSize')) {
+            const parsed = parseInt(urlParams.get('nameFontSize'), 10);
+            if (!isNaN(parsed)) headerConfig.nameFontSize = parsed;
         }
         if (urlParams.has('autoAvoid')) {
             headerConfig.autoAvoidOverlap = urlParams.get('autoAvoid') !== 'false' && urlParams.get('autoAvoid') !== '0';
@@ -509,6 +514,7 @@
         if (typeof cfg.showFreePlayCounter === 'boolean') headerConfig.showFreePlayCounter = cfg.showFreePlayCounter;
         if (typeof cfg.position === 'string' && cfg.position) headerConfig.position = cfg.position;
         if (typeof cfg.yOffset === 'number' && !isNaN(cfg.yOffset)) headerConfig.yOffset = cfg.yOffset;
+        if (typeof cfg.nameFontSize === 'number' && !isNaN(cfg.nameFontSize)) headerConfig.nameFontSize = cfg.nameFontSize;
     }
 
     let sessionState = {
@@ -650,7 +656,7 @@
             const tokenGravity = typeof b.gravity === 'number' ? Math.max(0.1, Math.min(10.0, b.gravity)) : 1.0;
             const tokenBounciness = typeof b.bounciness === 'number' ? Math.max(0.1, Math.min(5.0, b.bounciness)) : 0.80;
             const tokenMass = typeof b.mass === 'number' ? Math.max(0.1, Math.min(10.0, b.mass)) : 1.0;
-            const durationSec = b.durationSeconds || (4.5 / tokenGravity);
+            const durationSec = b.durationSeconds || Math.max(2.5, Math.min(7.0, 4.2 / Math.pow(tokenGravity, 0.25)));
             boardConfig.visibleUntil = performance.now() + (durationSec + 4.0) * 1000;
 
             getLoadedImage(msg.characterImageUrl);
@@ -677,6 +683,7 @@
                 gravity: tokenGravity,
                 bounciness: tokenBounciness,
                 mass: tokenMass,
+                nameFontSize: typeof b.nameFontSize === 'number' ? b.nameFontSize : (msg.nameFontSize || headerConfig.nameFontSize || 18),
                 waypoints: waypoints,
                 winningBucketIndex: b.winningBucketIndex || 0,
                 winningBucketLabel: b.winningBucketLabel || '',
@@ -743,6 +750,81 @@
             }
         }
     });
+
+    function brightenColor(hex, minLightness = 0.62, minLuminance = 0.42) {
+        if (!hex || typeof hex !== 'string') return '#FFFFFF';
+        let clean = hex.trim();
+        if (!clean.startsWith('#')) clean = '#' + clean;
+        if (clean.length === 4) {
+            clean = '#' + clean[1] + clean[1] + clean[2] + clean[2] + clean[3] + clean[3];
+        }
+        if (clean.length < 7) return hex;
+
+        const r = parseInt(clean.substring(1, 3), 16) / 255;
+        const g = parseInt(clean.substring(3, 5), 16) / 255;
+        const b = parseInt(clean.substring(5, 7), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
+
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+
+        if (lum >= minLuminance && l >= 0.48) {
+            return clean;
+        }
+
+        let targetL = Math.max(l, minLightness);
+        let targetS = s;
+        if (s > 0.08) {
+            targetS = Math.max(s, 0.65);
+        } else {
+            targetL = Math.max(targetL, 0.85);
+        }
+
+        function hslToRgb(h, s, l) {
+            if (s === 0) return [l, l, l];
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            };
+            return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)];
+        }
+
+        let rgb = hslToRgb(h, targetS, targetL);
+        let curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+
+        while (curLum < minLuminance && targetL < 0.88) {
+            targetL += 0.04;
+            rgb = hslToRgb(h, targetS, targetL);
+            curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+        }
+
+        const toHex = (n) => {
+            const hexVal = Math.round(Math.max(0, Math.min(255, n * 255))).toString(16);
+            return hexVal.length === 1 ? '0' + hexVal : hexVal;
+        };
+
+        return '#' + toHex(rgb[0]) + toHex(rgb[1]) + toHex(rgb[2]);
+    }
 
     function drawSeasonalDefaultPenguin(ctx, r, season) {
         ctx.fillStyle = '#2B2D42';
@@ -825,9 +907,9 @@
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        const padX = width * 0.06;
+        const padX = 0;
         const padY = height * 0.04;
-        const boardW = width - padX * 2;
+        const boardW = width;
         const boardH = height - padY * 2;
 
         // Optional custom background image only (transparent background by default)
@@ -839,7 +921,7 @@
 
         // Peg Grid
         const rows = boardConfig.rowCount || 8;
-        const cols = Math.max(6, (boardConfig.buckets ? boardConfig.buckets.length : 7));
+        const cols = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
         const pegRadius = Math.max(5, Math.min(width, height) * 0.0085);
         const pegImg = getLoadedImage(currentTheme.plinkoPegImageUrl);
         const pegTransparencyLevel = typeof boardConfig.pegTransparency === 'number'
@@ -1491,9 +1573,11 @@
 
         drawBoard(fadeAlpha);
 
-        const padX = width * 0.06;
-        const boardW = width - padX * 2;
+        const padX = 0;
+        const boardW = width;
         const tokenRadius = Math.max(18, Math.min(width, height) * 0.028);
+        const tokenLandingY = height - tokenRadius - 4;
+        const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
 
         // Update & draw peg ripples
         for (let i = pegRipples.length - 1; i >= 0; i--) {
@@ -1544,26 +1628,58 @@
 
             const wpA = t.waypoints[segIdx];
             const wpB = t.waypoints[segIdx + 1];
+            // Authentic Plinko projectile bounce physics (The Price Is Right style):
+            // 1. Initial drop (segIdx === 0): free fall under gravity from dispenser to top peg.
+            // 2. Peg hops (segIdx > 0 && !isLastSeg): striking a peg causes an elastic collision where the chip
+            //    visibly pops UP and arcs over the peg, then accelerates downward under gravity into the next peg.
+            // 3. Bucket descent (isLastSeg): smooth glide off bottom peg into the prize slot.
+            const isLastSeg = (segIdx === segCount - 1);
+            const targetY = isLastSeg ? Math.min(tokenLandingYNorm, wpB.y) : wpB.y;
+            const dx = wpB.x - wpA.x;
+            const dy = targetY - wpA.y;
 
-            // Base position along waypoints
-            const baseX = wpA.x + (wpB.x - wpA.x) * localT;
-            const linearY = wpA.y + (wpB.y - wpA.y) * localT;
-            const arcBounce = -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
-            const baseY = linearY + arcBounce;
+            const gEff = Math.max(0.1, Math.min(5.0, t.gravity || 1.0));
+            const bEff = Math.max(0.1, Math.min(5.0, t.bounciness || 0.80));
 
-            // Apply physical deflection offset from collisions
-            t.offsetX = (t.offsetX || 0) + (t.vx || 0) * dtSec;
-            t.offsetY = (t.offsetY || 0) + (t.vy || 0) * dtSec;
-            t.vx = (t.vx || 0) * 0.94;
-            t.vy = (t.vy || 0) * 0.94;
+            let baseX;
+            let baseY;
 
-            const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+            if (segIdx === 0) {
+                // Free fall from top dispenser into first peg
+                baseX = wpA.x + dx * localT;
+                baseY = wpA.y + dy * (localT * localT);
+            } else {
+                // Real physical bounce off peg wpA (including the final peg bouncing into the slot!):
+                // Normal force from peg collision pops the chip upward (Hpeak)
+                // then downward gravity (gEff) pulls it into free-fall dive toward wpB
+                const hPeak = Math.max(0.005, Math.min(0.038, dy * 0.25 * (bEff / 0.80) / Math.sqrt(gEff)));
+                const a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
+                const b = dy - a;
+
+                // Parabolic vertical hop: pops UP off peg, peaks at u ≈ 0.20, dives into next peg / slot floor at u = 1.0
+                baseY = Math.min(tokenLandingYNorm, wpA.y + a * localT + b * (localT * localT));
+
+                // Natural lateral deflection arc curving away from peg corridor
+                const lateralBulge = 0.14 * Math.sin(localT * Math.PI);
+                baseX = wpA.x + dx * (localT + lateralBulge);
+            }
+
+            // Apply physical deflection offset from collisions with spring decay
+            // Ensures tokens bounce elastically when colliding mid-air, but smoothly
+            // return to the deterministic waypoint path so they land cleanly in their designated bucket
+            const springDecay = isLastSeg ? Math.pow(0.70, dtSec * 60) : Math.pow(0.88, dtSec * 60);
+            t.offsetX = ((t.offsetX || 0) + (t.vx || 0) * dtSec) * springDecay;
+            t.offsetY = ((t.offsetY || 0) + (t.vy || 0) * dtSec) * springDecay;
+            t.vx = (t.vx || 0) * (isLastSeg ? 0.75 : 0.94);
+            t.vy = (t.vy || 0) * (isLastSeg ? 0.75 : 0.94);
+
+            const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
             const halfBucketW = 0.5 / bucketCount;
             const minTokenX = halfBucketW;
             const maxTokenX = 1.0 - halfBucketW;
 
             t.x = Math.max(minTokenX, Math.min(maxTokenX, baseX + (t.offsetX || 0)));
-            t.y = baseY + (t.offsetY || 0);
+            t.y = Math.min(tokenLandingYNorm, baseY + (t.offsetY || 0));
 
             t.rotation += ((wpB.x >= wpA.x ? 1 : -1) * (t.spinSpeed || 5.0) + (t.vx || 0) * 15) * dtSec;
 
@@ -1574,6 +1690,7 @@
                     y: wpA.y * height,
                     age: 0
                 });
+                t.spinSpeed = ((wpB.x >= wpA.x ? 1 : -1) * (6.0 + Math.random() * 4.0));
             }
         }
 
@@ -1597,17 +1714,15 @@
                     const nx = dx / dist;
                     const ny = dy / dist;
 
-                    const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 7;
+                    const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
                     const halfBucketW = 0.5 / bucketCount;
                     const minTokenX = halfBucketW;
                     const maxTokenX = 1.0 - halfBucketW;
 
-                    // Positional separation
-                    const overlap = 0.5 * (minDist - dist);
+                    // Positional separation applied to deflection offset
+                    const overlap = Math.min(0.015, 0.5 * (minDist - dist));
                     tA.offsetX = (tA.offsetX || 0) + nx * overlap;
                     tB.offsetX = (tB.offsetX || 0) - nx * overlap;
-                    tA.x = Math.max(minTokenX, Math.min(maxTokenX, tA.x + nx * overlap));
-                    tB.x = Math.max(minTokenX, Math.min(maxTokenX, tB.x - nx * overlap));
 
                     // Constrain completed tokens inside their landed slot margins
                     if (tA.completed && typeof tA.winningBucketIndex === 'number') {
@@ -1652,47 +1767,30 @@
         for (let i = activeTokens.length - 1; i >= 0; i--) {
             const t = activeTokens[i];
 
-            const tokenLandingY = height - tokenRadius - 4;
-            const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
-
-            if (!t.completed && ((t.progress || 0) >= 1.0 || t.y >= tokenLandingYNorm)) {
+            if (!t.completed && (t.progress || 0) >= 1.0) {
                 t.completed = true;
                 t.completedAtMs = now;
                 t.y = tokenLandingYNorm;
 
                 const buckets = boardConfig.buckets || [];
                 let landedBucketIdx;
-                if (buckets.length > 0 && Math.abs(t.offsetX || 0) > 0.001 && typeof t.x === 'number') {
-                    const slotW = 1.0 / buckets.length;
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
-                } else if (typeof t.winningBucketIndex === 'number' && buckets.length > 0) {
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, t.winningBucketIndex));
-                } else if (buckets.length > 0) {
-                    const slotW = 1.0 / buckets.length;
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
-                } else {
-                    landedBucketIdx = 0;
-                }
-
                 if (buckets.length > 0) {
                     const slotW = 1.0 / buckets.length;
+                    landedBucketIdx = (typeof t.winningBucketIndex === 'number' && t.winningBucketIndex >= 0 && t.winningBucketIndex < buckets.length)
+                        ? t.winningBucketIndex
+                        : Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
                     const landedBucket = buckets[landedBucketIdx];
                     t.winningBucketIndex = landedBucketIdx;
                     t.winningBucketLabel = landedBucket.label;
                     t.score = landedBucket.score;
                     t.isWin = !!landedBucket.isWin;
 
-                    // Natural landing spread across slot width
+                    // Stop token naturally where it landed in the slot without forcing to center
                     const margin = Math.min(0.035, slotW * 0.22);
                     const minSlotX = landedBucketIdx * slotW + margin;
                     const maxSlotX = (landedBucketIdx + 1) * slotW - margin;
+                    t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
 
-                    if (typeof t.x === 'number' && t.x >= (landedBucketIdx * slotW) && t.x <= ((landedBucketIdx + 1) * slotW)) {
-                        t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
-                    } else {
-                        const jitter = (Math.random() - 0.5) * (slotW - 2 * margin) * 0.65;
-                        t.x = (landedBucketIdx + 0.5) * slotW + jitter;
-                    }
                     sendCompletion(t.dropToken, landedBucketIdx);
                 } else {
                     t.x = t.waypoints[t.waypoints.length - 1].x;
@@ -1796,42 +1894,54 @@
             }
             ctx.restore();
 
-            // DisplayName tag above token with crown for leader
+            // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
+            const fontSize = Math.max(12, Math.min(36, t.nameFontSize || headerConfig.nameFontSize || 18));
+            ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
             const label = isLeader && t.completed
                 ? `${t.displayName} (${t.score} pts)`
                 : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
 
-            const userColor = t.userColor || null;
-            ctx.font = '700 13px Fredoka, Rubik, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-            const pillW = textWidth + 14;
-            const pillH = 20;
-            const pillY = -tokenRadius - 22;
+            const textY = -tokenRadius - fontSize * 0.7 - 2;
+            const strokeWidth = Math.max(4.5, fontSize * 0.26);
 
             if (isLeader && t.completed) {
                 ctx.save();
-                ctx.font = '700 18px "Segoe UI Emoji", Fredoka, sans-serif';
+                ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.shadowColor = '#FFD700';
                 ctx.shadowBlur = 10;
-                ctx.fillText('👑', 0, pillY - 6);
+                ctx.fillText('👑', 0, textY - fontSize * 0.9);
                 ctx.restore();
             }
 
-            ctx.fillStyle = isLeader ? 'rgba(30, 27, 75, 0.92)' : 'rgba(15, 23, 42, 0.85)';
-            ctx.beginPath();
-            ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 10);
-            ctx.fill();
-
-            const tokenTheme = t.theme || currentTheme || {};
-            ctx.strokeStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.primaryColor || currentTheme.primaryColor || '#FF8FA3');
-            ctx.lineWidth = isLeader ? 2 : 1.2;
-            ctx.stroke();
-
-            ctx.fillStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(label, 0, pillY + pillH / 2 + 1);
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+
+            // Dark drop shadow behind outline
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = Math.max(6, fontSize * 0.4);
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 2;
+
+            // Heavy dark contrast outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = strokeWidth + 1.5;
+            ctx.strokeText(label, 0, textY);
+            ctx.restore();
+
+            // Razor-sharp crisp black contrast border
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeText(label, 0, textY);
+
+            const tokenTheme = t.theme || currentTheme || {};
+            const rawColor = isLeader ? '#FFD700' : (t.userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
+            const nameColor = isLeader ? '#FFD700' : brightenColor(rawColor);
+            ctx.fillStyle = nameColor;
+            ctx.fillText(label, 0, textY);
 
             ctx.restore();
 
@@ -2044,6 +2154,7 @@
         ctx.restore();
     }
 
+    if (typeof window !== 'undefined') window.__plinkoTokens = activeTokens;
     requestAnimationFrame(animate);
 })();
 

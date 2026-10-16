@@ -472,7 +472,8 @@
         showCount: true,
         showFreePlayCounter: true,
         position: 'top-center',
-        yOffset: 18
+        yOffset: 18,
+        nameFontSize: 18
     };
 
     let isOtherGameActive = false;
@@ -486,6 +487,10 @@
         if (urlParams.has('yOffset')) {
             const parsed = parseInt(urlParams.get('yOffset'), 10);
             if (!isNaN(parsed)) headerConfig.yOffset = parsed;
+        }
+        if (urlParams.has('nameFontSize')) {
+            const parsed = parseInt(urlParams.get('nameFontSize'), 10);
+            if (!isNaN(parsed)) headerConfig.nameFontSize = parsed;
         }
         if (urlParams.has('autoAvoid')) {
             headerConfig.autoAvoidOverlap = urlParams.get('autoAvoid') !== 'false' && urlParams.get('autoAvoid') !== '0';
@@ -514,6 +519,7 @@
         if (typeof cfg.showFreePlayCounter === 'boolean') headerConfig.showFreePlayCounter = cfg.showFreePlayCounter;
         if (typeof cfg.position === 'string' && cfg.position) headerConfig.position = cfg.position;
         if (typeof cfg.yOffset === 'number' && !isNaN(cfg.yOffset)) headerConfig.yOffset = cfg.yOffset;
+        if (typeof cfg.nameFontSize === 'number' && !isNaN(cfg.nameFontSize)) headerConfig.nameFontSize = cfg.nameFontSize;
     }
 
 
@@ -867,6 +873,8 @@
                 y: p.startY,
                 vx: p.initialVx || 0,
                 vy: p.initialVy || 0.12,
+                initialVy: p.initialVy || 0.12,
+                nameFontSize: typeof p.nameFontSize === 'number' ? p.nameFontSize : (msg.nameFontSize || headerConfig.nameFontSize || 18),
                 gravity: typeof p.gravity === 'number' ? p.gravity : 1.0,
                 bounciness: typeof p.bounciness === 'number' ? p.bounciness : 0.85,
                 mass: typeof p.mass === 'number' ? p.mass : 1.0,
@@ -880,7 +888,7 @@
                 isWin: !!p.isWin,
                 dropletHits: 0,
                 keyframes: p.keyframes || [],
-                collisions: [],
+                collisions: Array.isArray(p.collisions) ? p.collisions : [],
                 triggeredCollisionTicks: new Set(),
                 tiltAngle: p.initialTilt !== undefined ? p.initialTilt : (Math.random() - 0.5) * 0.45,
                 completed: false,
@@ -1097,10 +1105,7 @@
     function getPlatformMetrics() {
         const targetW = targetState.targetHalfWidth * 2 * width;
         const bullseyeW = targetState.bullseyeHalfWidth * 2 * width;
-        const minPadX = (targetW / 2) + 24;
-        const maxPadX = width - (targetW / 2) - 24;
-        const rawCx = (targetState.centerX || 0.5) * width;
-        const cx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, rawCx)) : width / 2;
+        const cx = (typeof targetState.centerX === 'number' ? targetState.centerX : 0.5) * width;
         const y = height - 34;
         const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
         return { targetW, bullseyeW, cx, y, season };
@@ -1557,6 +1562,81 @@
         }
     }
 
+    function brightenColor(hex, minLightness = 0.62, minLuminance = 0.42) {
+        if (!hex || typeof hex !== 'string') return '#FFFFFF';
+        let clean = hex.trim();
+        if (!clean.startsWith('#')) clean = '#' + clean;
+        if (clean.length === 4) {
+            clean = '#' + clean[1] + clean[1] + clean[2] + clean[2] + clean[3] + clean[3];
+        }
+        if (clean.length < 7) return hex;
+
+        const r = parseInt(clean.substring(1, 3), 16) / 255;
+        const g = parseInt(clean.substring(3, 5), 16) / 255;
+        const b = parseInt(clean.substring(5, 7), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
+
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+
+        if (lum >= minLuminance && l >= 0.48) {
+            return clean;
+        }
+
+        let targetL = Math.max(l, minLightness);
+        let targetS = s;
+        if (s > 0.08) {
+            targetS = Math.max(s, 0.65);
+        } else {
+            targetL = Math.max(targetL, 0.85);
+        }
+
+        function hslToRgb(h, s, l) {
+            if (s === 0) return [l, l, l];
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            };
+            return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)];
+        }
+
+        let rgb = hslToRgb(h, targetS, targetL);
+        let curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+
+        while (curLum < minLuminance && targetL < 0.88) {
+            targetL += 0.04;
+            rgb = hslToRgb(h, targetS, targetL);
+            curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+        }
+
+        const toHex = (n) => {
+            const hexVal = Math.round(Math.max(0, Math.min(255, n * 255))).toString(16);
+            return hexVal.length === 1 ? '0' + hexVal : hexVal;
+        };
+
+        return '#' + toHex(rgb[0]) + toHex(rgb[1]) + toHex(rgb[2]);
+    }
+
     function drawParachutist(drop, dropAlpha = 1.0, isSessionLeader = false) {
         const px = drop.x * width;
         const py = drop.y * height;
@@ -1629,41 +1709,53 @@
         // Leader Crown above character
         if (isSessionLeader && drop.completed) {
             ctx.save();
-            ctx.font = '700 20px "Segoe UI Emoji", Fredoka, sans-serif';
+            ctx.font = '700 22px "Segoe UI Emoji", Fredoka, sans-serif';
             ctx.textAlign = 'center';
             ctx.shadowColor = '#FFD700';
             ctx.shadowBlur = 10;
-            ctx.fillText('👑', 0, -charRadius - 6);
+            ctx.fillText('👑', 0, -charRadius - 8);
             ctx.restore();
         }
 
-        // Viewer DisplayName Pill
+        // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
         ctx.rotate(-drop.tiltAngle); // Keep username horizontal for readability
-        ctx.font = '700 15px Fredoka, Rubik, sans-serif';
+        const fontSize = Math.max(12, Math.min(36, drop.nameFontSize || headerConfig.nameFontSize || 18));
+        ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
         const label = isSessionLeader && drop.completed
             ? `${drop.displayName} (${drop.score} pts)`
             : (drop.completed && drop.score > 0 ? `${drop.displayName} (${drop.score})` : drop.displayName);
-        const textWidth = ctx.measureText(label).width;
-        const pillW = textWidth + 18;
-        const pillH = 24;
-        const pillY = charRadius + 8;
 
-        ctx.fillStyle = isSessionLeader
-            ? 'rgba(30, 27, 75, 0.92)'
-            : 'rgba(15, 23, 42, 0.82)';
-        ctx.beginPath();
-        ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 12);
-        ctx.fill();
+        const textY = charRadius + fontSize + 2;
+        const strokeWidth = Math.max(4.5, fontSize * 0.26);
 
-        const userColor = drop.userColor || null;
-        ctx.strokeStyle = isSessionLeader ? '#FFD700' : (userColor || theme.primaryColor || '#FF8FA3');
-        ctx.lineWidth = isSessionLeader ? 2.5 : 1.5;
-        ctx.stroke();
-
-        ctx.fillStyle = isSessionLeader ? '#FFD700' : (userColor || theme.textColor || '#FFFFFF');
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, 0, pillY + pillH / 2 + 1);
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+
+        // Dark drop shadow behind outline
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = Math.max(6, fontSize * 0.4);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+
+        // Heavy dark contrast outline
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth + 1.5;
+        ctx.strokeText(label, 0, textY);
+        ctx.restore();
+
+        // Razor-sharp crisp black contrast border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeText(label, 0, textY);
+
+        // High-contrast text fill: Gold for leader, otherwise vibrant brightened userColor (preserving identity)
+        const rawColor = isSessionLeader ? '#FFD700' : (drop.userColor || theme.textColor || '#FFFFFF');
+        const nameColor = isSessionLeader ? '#FFD700' : brightenColor(rawColor);
+        ctx.fillStyle = nameColor;
+        ctx.fillText(label, 0, textY);
 
         ctx.restore();
     }
@@ -1881,7 +1973,8 @@
                                 d.angularVel = (Math.random() - 0.5) * 10.0;
                                 d.hitCount = (d.hitCount || 0) + 1;
 
-                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
+                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
                                     const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
@@ -1926,7 +2019,8 @@
                             d.hitCount = (d.hitCount || 0) + 1;
 
                             if (!drop.completed) {
-                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
+                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
                                     const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
@@ -1959,7 +2053,7 @@
                         const oDist = Math.sqrt(oDistSq);
                         const nx = oDx / oDist;
                         const ny = oDy / oDist;
-                        const overlapPx = 0.5 * (oMinDist - oDist);
+                        const overlapPx = Math.min(2.5, 0.5 * (oMinDist - oDist));
                         d.x -= (nx * overlapPx) / width;
                         d.y -= (ny * overlapPx) / height;
                         other.x += (nx * overlapPx) / width;
@@ -2012,15 +2106,18 @@
 
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
-            drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, drop.vx || 0));
-            drop.vy = Math.max(0.04, Math.min(0.45, drop.vy || 0.12));
+            const decayVx = Math.pow(0.998, dtSec * 60);
+            drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
+            const initialVy = drop.initialVy || 0.12;
+            const decayVy = Math.pow(0.96, dtSec * 60);
+            drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
 
             // Move along current velocity vector (no sinusoidal sway)
             drop.x += drop.vx * dtSec;
             drop.y += drop.vy * dtSec;
 
             // Clean bounce off left / right screen borders with configurable bounciness
-            const wallRestitution = Math.max(0.1, Math.min(1.35, drop.bounciness || 0.85));
+            const wallRestitution = Math.max(0.15, Math.min(2.5, (drop.bounciness || 0.85) * 1.05));
             if (drop.x < 0.05) {
                 drop.x = 0.05;
                 drop.vx = Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * wallRestitution);
@@ -2039,21 +2136,18 @@
 
             // Interactive Target Rim / Wall Bounce (Pool / Cauldron / Leaf Pile side lip)
             if (!drop.bouncedOffTargetRim && drop.y >= (drop.landingY - 0.038) && drop.y < drop.landingY) {
-                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
-                const minPadX = (targetWNorm * 0.5) + 24 / width;
-                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
-                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const targetCx = typeof targetState.centerX === 'number' ? targetState.centerX : 0.5;
                 const dx = drop.x - targetCx;
                 const dist = Math.abs(dx);
                 const halfW = targetState.targetHalfWidth || 0.09;
                 if (dist >= halfW * 0.93 && dist <= halfW * 1.07) {
                     drop.bouncedOffTargetRim = true;
                     if (Math.sign(drop.vx) === Math.sign(dx) && Math.abs(drop.vx) > 0.01) {
-                        drop.vx = -drop.vx * wallRestitution; // Bounced off outer wall!
+                        drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, -drop.vx * (drop.bounciness || 0.85))); // Bounced off outer wall!
                     } else {
-                        drop.vx = (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * wallRestitution); // Bounced over lip into the pool!
+                        drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.95 * (drop.bounciness || 0.85)))); // Bounced over lip into the pool!
                     }
-                    drop.vy = Math.max(0.04, drop.vy * 0.65);
+                    drop.vy = Math.max(0.04, drop.vy * Math.max(0.25, Math.min(1.0, 0.65 * (drop.bounciness || 0.85))));
                     if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                         playSound(currentTheme.dropletHitSoundUrl, 0.4);
                         drop.lastWallSfx = now;
@@ -2067,11 +2161,13 @@
 
             // Trigger any server-recorded collision impulses at their exact tick
             if (Array.isArray(drop.collisions)) {
+                drop.triggeredCollisionIndices = drop.triggeredCollisionIndices || new Set();
                 for (let c = 0; c < drop.collisions.length; c++) {
                     const col = drop.collisions[c];
-                    if (drop.currentTick >= col.tick && !drop.triggeredCollisionTicks.has(col.tick)) {
-                        drop.triggeredCollisionTicks.add(col.tick);
+                    if (drop.currentTick >= col.tick && !drop.triggeredCollisionIndices.has(c)) {
+                        drop.triggeredCollisionIndices.add(c);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
+                        drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
                     }
                 }
@@ -2101,8 +2197,8 @@
                     const nx = dxPx / distPx;
                     const ny = dyPx / distPx;
 
-                    // Positional separation in pixel space, normalized back to canvas coordinates
-                    const overlapPx = 0.5 * (minDistPx - distPx);
+                    // Positional separation in pixel space, capped per frame to prevent teleporting
+                    const overlapPx = Math.min(2.5, 0.5 * (minDistPx - distPx));
                     dropA.x += (nx * overlapPx) / width;
                     dropA.y += (ny * overlapPx) / height;
                     dropB.x -= (nx * overlapPx) / width;
@@ -2150,10 +2246,7 @@
                 drop.x = drop.landingX;
 
                 // Evaluate landing score (0 - 100 scale)
-                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
-                const minPadX = (targetWNorm * 0.5) + 24 / width;
-                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
-                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const targetCx = typeof targetState.centerX === 'number' ? targetState.centerX : 0.5;
                 const distFromCenter = Math.abs(drop.landingX - targetCx);
                 const halfW = targetState.targetHalfWidth || 0.09;
                 drop.isHit = distFromCenter <= halfW;

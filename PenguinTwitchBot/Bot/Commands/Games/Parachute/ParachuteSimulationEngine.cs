@@ -20,7 +20,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             }
 
             var t = tick * Dt;
-            var x = Math.Clamp(record.StartX + record.InitialVx * t + 0.5 * record.WindAccelX * t * t, 0.06, 0.94);
+            var x = Math.Clamp(record.StartX + record.InitialVx * t, 0.06, 0.94);
             var y = Math.Clamp(record.StartY + record.InitialVy * t, record.StartY, record.LandingY);
             return new ParachuteTrajectoryPointDto { Tick = tick, X = x, Y = y, Vx = record.InitialVx, Vy = record.InitialVy };
         }
@@ -157,8 +157,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 }
 
                 // Step physics: constant directional velocity along drop angle (no sinusoidal sway)
-                var windEffect = record.WindAccelX / Math.Sqrt(parachuteMass);
-                vx = Math.Clamp((vx + windEffect * Dt) * 0.998, -MaxVx, MaxVx);
+                vx = Math.Clamp(vx * 0.998, -MaxVx, MaxVx);
                 vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15)); // Canopy stabilizes vertical speed
 
                 x += vx * Dt;
