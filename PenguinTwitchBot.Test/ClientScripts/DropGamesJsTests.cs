@@ -483,9 +483,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
             // Parachutists bounced off each other elastically in mid-air
             Assert.True(landingXA < landingXB, "Drop A and Drop B preserved physical separation after elastic bounce");
 
-            // Tolerance check: server-side DropGameCompleteHandler allows 0.40 baseline tolerance
+            // Tolerance check: server-side DropGameCompleteHandler allows 0.30 baseline tolerance
             var serverRecordA = CreateTestDropRecord("player-A", "PlayerA", 0.35, 0.08, 0.18, 0.92, 240, 0.55);
-            var tolerance = Math.Min(0.85, 0.40 + (serverRecordA.DropletHitCount * 0.15));
+            var tolerance = Math.Min(0.40, 0.30 + (serverRecordA.DropletHitCount * 0.05));
             Assert.True(Math.Abs(landingXA - serverRecordA.LandingX) <= tolerance,
                 $"Reported landingX {landingXA} exceeded server tolerance {tolerance} from {serverRecordA.LandingX}");
         }
@@ -638,6 +638,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
         [Theory]
         [InlineData(6, 3)]
+        [InlineData(7, 5)]
         [InlineData(8, 5)]
         [InlineData(10, 7)]
         [InlineData(12, 9)]

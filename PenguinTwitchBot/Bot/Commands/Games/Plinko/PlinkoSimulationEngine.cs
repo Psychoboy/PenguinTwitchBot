@@ -57,16 +57,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             {
                 var jitterCenter = DropGameMath.RandomDouble(0.38, 0.62);
                 validLastPegs.Add((targetBucketIndex, (targetBucketIndex + jitterCenter) / cols));
-                if (targetBucketIndex - 1 >= 0)
-                {
-                    var jitterRight = DropGameMath.RandomDouble(0.30, 0.52);
-                    validLastPegs.Add((targetBucketIndex - 1, (targetBucketIndex + jitterRight) / cols));
-                }
-                if (targetBucketIndex + 1 < cols)
-                {
-                    var jitterLeft = DropGameMath.RandomDouble(0.48, 0.70);
-                    validLastPegs.Add((targetBucketIndex + 1, (targetBucketIndex + jitterLeft) / cols));
-                }
             }
 
             if (validLastPegs.Count == 0)

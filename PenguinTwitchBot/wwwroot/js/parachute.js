@@ -1105,10 +1105,7 @@
     function getPlatformMetrics() {
         const targetW = targetState.targetHalfWidth * 2 * width;
         const bullseyeW = targetState.bullseyeHalfWidth * 2 * width;
-        const minPadX = (targetW / 2) + 24;
-        const maxPadX = width - (targetW / 2) - 24;
-        const rawCx = (targetState.centerX || 0.5) * width;
-        const cx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, rawCx)) : width / 2;
+        const cx = (typeof targetState.centerX === 'number' ? targetState.centerX : 0.5) * width;
         const y = height - 34;
         const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
         return { targetW, bullseyeW, cx, y, season };
@@ -2249,10 +2246,7 @@
                 drop.x = drop.landingX;
 
                 // Evaluate landing score (0 - 100 scale)
-                const targetWNorm = (targetState.targetHalfWidth || 0.09) * 2;
-                const minPadX = (targetWNorm * 0.5) + 24 / width;
-                const maxPadX = 1.0 - (targetWNorm * 0.5) - 24 / width;
-                const targetCx = minPadX < maxPadX ? Math.max(minPadX, Math.min(maxPadX, targetState.centerX || 0.5)) : 0.5;
+                const targetCx = typeof targetState.centerX === 'number' ? targetState.centerX : 0.5;
                 const distFromCenter = Math.abs(drop.landingX - targetCx);
                 const halfW = targetState.targetHalfWidth || 0.09;
                 drop.isHit = distFromCenter <= halfW;
