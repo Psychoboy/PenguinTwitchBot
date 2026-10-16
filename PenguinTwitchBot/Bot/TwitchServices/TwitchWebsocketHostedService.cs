@@ -66,13 +66,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 }
 
                 var fragments = (message.Fragments ?? []).Select(MapFragment).ToList();
-                var firstEmote = message.Fragments?.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id));
-                string? firstEmoteUrl = null;
-                if (firstEmote?.Emote != null)
-                {
-                    var format = (firstEmote.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
-                    firstEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{firstEmote.Emote.Id}/{format}/dark/3.0";
-                }
+                var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+                string? firstEmoteUrl = firstEmote?.EmoteUrl;
 
                 var channelPointRedeemEventArgs = new ChannelPointRedeemEventArgs
                 {
@@ -121,13 +116,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
         internal ChatNotificationEventArgs CreateChatNotificationEventArgs(ChannelChatNotification e)
         {
             var fragments = (e.Message?.Fragments ?? []).Select(MapFragment).ToList();
-            var firstEmote = e.Message?.Fragments?.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id));
-            string? firstEmoteUrl = null;
-            if (firstEmote?.Emote != null)
-            {
-                var format = (firstEmote.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
-                firstEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{firstEmote.Emote.Id}/{format}/dark/3.0";
-            }
+            var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+            string? firstEmoteUrl = firstEmote?.EmoteUrl;
 
             return new ChatNotificationEventArgs
             {
@@ -342,7 +332,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 .ToList();
 
             string? firstEmoteUrl = null;
-            if (e.Message.Fragments != null)
+            if (fragments.Count > 0)
             {
                 var candidateEmoteText = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0] : null;
                 var isExplicitPath = !string.IsNullOrWhiteSpace(candidateEmoteText) &&
@@ -353,14 +343,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (!isExplicitPath)
                 {
                     var emoteFragment = !string.IsNullOrWhiteSpace(candidateEmoteText)
-                        ? e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
-                        : e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id));
+                        ? fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
+                        : fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
 
-                    if (emoteFragment?.Emote != null)
-                    {
-                        var format = (emoteFragment.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
-                        firstEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{emoteFragment.Emote.Id}/{format}/dark/3.0";
-                    }
+                    firstEmoteUrl = emoteFragment?.EmoteUrl;
                 }
             }
 
@@ -747,7 +733,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                             !string.IsNullOrWhiteSpace(f.Emote.Id))
                         {
                             var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
-                            var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/3.0";
+                            var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/1.0";
                             firstEmoteUrl ??= url;
                             bitsFragments.Add(new ChatOverlayFragment
                             {
@@ -771,7 +757,7 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 if (payload.Event.PowerUp?.Emote != null && !string.IsNullOrWhiteSpace(payload.Event.PowerUp.Emote.Id))
                 {
-                    var powerUpEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{payload.Event.PowerUp.Emote.Id}/default/dark/3.0";
+                    var powerUpEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{payload.Event.PowerUp.Emote.Id}/default/dark/1.0";
                     firstEmoteUrl ??= powerUpEmoteUrl;
                     bitsFragments.Add(new ChatOverlayFragment
                     {

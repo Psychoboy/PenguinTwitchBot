@@ -120,7 +120,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                         (!string.IsNullOrWhiteSpace(f.EmoteUrl) || !string.IsNullOrWhiteSpace(f.EmoteId)));
                     if (firstEmoteFrag != null)
                     {
-                        var fragUrl = GetHighResFragmentEmoteUrl(firstEmoteFrag);
+                        var fragUrl = GetFragmentEmoteUrl(firstEmoteFrag);
                         if (!string.IsNullOrWhiteSpace(fragUrl))
                         {
                             resolved.Add(fragUrl);
@@ -175,21 +175,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
         }
 
-        private static string? GetHighResFragmentEmoteUrl(ChatOverlayFragment fragment)
+        private static string? GetFragmentEmoteUrl(ChatOverlayFragment fragment)
         {
             if (!string.IsNullOrWhiteSpace(fragment.EmoteUrl))
             {
-                var url = NormalizeTwitchEmoteUrl(fragment.EmoteUrl);
-                if (url.EndsWith("/1.0", StringComparison.OrdinalIgnoreCase))
-                {
-                    return string.Concat(url.AsSpan(0, url.Length - 4), "/3.0");
-                }
-                return url;
+                return NormalizeTwitchEmoteUrl(fragment.EmoteUrl);
             }
 
             if (!string.IsNullOrWhiteSpace(fragment.EmoteId))
             {
-                return $"https://static-cdn.jtvnw.net/emoticons/v2/{fragment.EmoteId}/default/dark/3.0";
+                return $"https://static-cdn.jtvnw.net/emoticons/v2/{fragment.EmoteId}/default/dark/1.0";
             }
 
             return null;
@@ -217,7 +212,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
                 if (matchedFrag != null)
                 {
-                    var fragUrl = GetHighResFragmentEmoteUrl(matchedFrag);
+                    var fragUrl = GetFragmentEmoteUrl(matchedFrag);
                     if (!string.IsNullOrWhiteSpace(fragUrl))
                     {
                         return fragUrl;

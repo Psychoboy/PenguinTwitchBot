@@ -211,7 +211,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var resolvedDirect = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: true);
             Assert.Equal("/media/custom_chibi.png", resolvedDirect);
 
-            // 3b. Cross-channel or special event emote in Fragments is resolved and upgraded to /3.0 even if not in global/channel emote cache
+            // 3b. Cross-channel or special event emote in Fragments is resolved as provided even if not in global/channel emote cache
             var specialEventArgs = new CommandEventArgs
             {
                 Name = "viewer1",
@@ -229,7 +229,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 ]
             };
             var resolvedSpecial = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, specialEventArgs, null, "/fallback.png");
-            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_special999/default/dark/3.0", resolvedSpecial);
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_special999/default/dark/1.0", resolvedSpecial);
 
             // 4. Unknown word or empty input falls back to theme default character sprite
             var noEmoteArgs = new CommandEventArgs
