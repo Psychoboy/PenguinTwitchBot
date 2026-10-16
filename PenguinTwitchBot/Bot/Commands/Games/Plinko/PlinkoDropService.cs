@@ -272,10 +272,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     HeaderConfig = headerConfig
                 };
 
-                var startGravity = Math.Clamp(settings.Plinko.Gravity, 0.2, 3.0);
-                var startBounciness = Math.Clamp(settings.Plinko.Bounciness, 0.1, 1.5);
-                var startMass = Math.Clamp(settings.Plinko.Mass, 0.2, 5.0);
-                var startDurationSeconds = Math.Clamp(4.5 / startGravity, 1.5, 25.0);
+                var startGravity = Math.Clamp(settings.Plinko.Gravity, 0.1, 10.0);
+                var startBounciness = Math.Clamp(settings.Plinko.Bounciness, 0.1, 5.0);
+                var startMass = Math.Clamp(settings.Plinko.Mass, 0.1, 10.0);
+                var startDurationSeconds = Math.Clamp(4.5 / startGravity, 0.45, 45.0);
 
                 var board = new
                 {
@@ -513,7 +513,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = skipMinimumDurationCheck
                     ? now.AddMilliseconds(-100)
-                    : now.AddMilliseconds(500),
+                    : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
                 StartX = waypoints.First().X,
                 LandingX = waypoints.Last().X,

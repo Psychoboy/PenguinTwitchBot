@@ -13,7 +13,7 @@ using Xunit;
 
 namespace PenguinTwitchBot.Test.Controllers
 {
-    public class ChatControllerTests
+    public class ChatControllerTests : IDisposable
     {
         private readonly Mock<ITwitchService> _twitchServiceMock = new();
         private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
@@ -22,11 +22,27 @@ namespace PenguinTwitchBot.Test.Controllers
         private readonly Mock<ILogger<ChatController>> _loggerMock = new();
         private readonly Mock<IDropRegistry> _dropRegistryMock = new();
         private readonly Mock<IDropGamesSettingsService> _settingsServiceMock = new();
+        private readonly string _tempCacheDir = Path.Combine(Path.GetTempPath(), $"penguin-test-cache-{Guid.NewGuid():N}");
 
         public ChatControllerTests()
         {
             _dropRegistryMock.Setup(r => r.IsProxyUrlAllowed(It.IsAny<string>())).Returns(true);
             _settingsServiceMock.Setup(s => s.GetSettingsAsync()).ReturnsAsync(new DropGamesSettings());
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(_tempCacheDir))
+                {
+                    Directory.Delete(_tempCacheDir, recursive: true);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors in tests
+            }
         }
 
         private ChatController CreateController()
@@ -36,7 +52,8 @@ namespace PenguinTwitchBot.Test.Controllers
                 _memoryCache,
                 _emoteServiceMock.Object,
                 _httpClientFactoryMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _tempCacheDir);
         }
 
         [Theory]
@@ -177,7 +194,8 @@ namespace PenguinTwitchBot.Test.Controllers
                 freshMemoryCache,
                 _emoteServiceMock.Object,
                 _httpClientFactoryMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _tempCacheDir);
 
             var result2 = await controller2.ProxyImage(testUrl);
             var fileResult2 = Assert.IsType<FileContentResult>(result2);

@@ -102,35 +102,52 @@ namespace PenguinTwitchBot.Controllers
             {
                 var cancellationToken = HttpContext?.RequestAborted ?? CancellationToken.None;
                 var client = httpClientFactory.CreateClient("Emotes");
-                using var request = new HttpRequestMessage(HttpMethod.Get, normalizedUrl);
-                request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-                request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
 
                 await UpstreamThrottle.WaitAsync(cancellationToken);
                 try
                 {
-                    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    var currentUri = uri;
+                    HttpResponseMessage? response = null;
+                    const int maxHops = 5;
 
-                    // Manually follow a single redirect if the underlying handler did not auto-follow
-                    if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400 && response.Headers.Location != null)
+                    for (int hop = 0; hop <= maxHops; hop++)
                     {
-                        var redirectUri = response.Headers.Location.IsAbsoluteUri
-                            ? response.Headers.Location
-                            : new Uri(uri, response.Headers.Location);
+                        using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+                        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                        request.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
 
-                        if (IsLoopbackOrPrivateUri(redirectUri))
+                        response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+                        if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400 && response.Headers.Location != null)
                         {
-                            return BadRequest("Invalid redirect host");
+                            var redirectUri = response.Headers.Location.IsAbsoluteUri
+                                ? response.Headers.Location
+                                : new Uri(currentUri, response.Headers.Location);
+
+                            response.Dispose();
+                            response = null;
+
+                            if (IsLoopbackOrPrivateUri(redirectUri))
+                            {
+                                return BadRequest("Invalid redirect host");
+                            }
+
+                            currentUri = redirectUri;
+                            continue;
                         }
 
-                        using var redirectRequest = new HttpRequestMessage(HttpMethod.Get, redirectUri);
-                        redirectRequest.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-                        redirectRequest.Headers.TryAddWithoutValidation("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
-                        using var redirectResponse = await client.SendAsync(redirectRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                        return await ProcessUpstreamResponseAsync(redirectResponse, normalizedUrl, cacheKey, cancellationToken);
+                        break;
                     }
 
-                    return await ProcessUpstreamResponseAsync(response, normalizedUrl, cacheKey, cancellationToken);
+                    if (response == null)
+                    {
+                        return BadRequest("Too many redirects");
+                    }
+
+                    using (response)
+                    {
+                        return await ProcessUpstreamResponseAsync(response, normalizedUrl, cacheKey, cancellationToken);
+                    }
                 }
                 finally
                 {
@@ -277,31 +294,48 @@ namespace PenguinTwitchBot.Controllers
 
             if (IPAddress.TryParse(uri.Host, out var ip))
             {
-                if (IPAddress.IsLoopback(ip)) return true;
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                return IsPrivateIp(ip);
+            }
+
+            return false;
+        }
+
+        private static bool IsPrivateIp(IPAddress ip)
+        {
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+
+            if (IPAddress.IsLoopback(ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))
+            {
+                return true;
+            }
+
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var b = ip.GetAddressBytes();
+                // 0.0.0.0/8, 10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10 (CGNAT)
+                if (b[0] == 0 || b[0] == 10 || b[0] == 127 ||
+                    (b[0] == 169 && b[1] == 254) ||
+                    (b[0] == 172 && b[1] >= 16 && b[1] <= 31) ||
+                    (b[0] == 192 && b[1] == 168) ||
+                    (b[0] == 100 && (b[1] & 0xC0) == 64))
                 {
-                    var b = ip.GetAddressBytes();
-                    // 10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 0.0.0.0/8
-                    if (b[0] == 10 || b[0] == 127 || b[0] == 0 ||
-                        (b[0] == 169 && b[1] == 254) ||
-                        (b[0] == 172 && b[1] >= 16 && b[1] <= 31) ||
-                        (b[0] == 192 && b[1] == 168))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
-                else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.Equals(IPAddress.IPv6None) || ip.Equals(IPAddress.IPv6Loopback))
                 {
-                    if (ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.Equals(IPAddress.IPv6None))
-                    {
-                        return true;
-                    }
-                    var b = ip.GetAddressBytes();
-                    // fc00::/7 (Unique Local)
-                    if ((b[0] & 0xfe) == 0xfc)
-                    {
-                        return true;
-                    }
+                    return true;
+                }
+                var b = ip.GetAddressBytes();
+                // fc00::/7 (Unique Local)
+                if ((b[0] & 0xfe) == 0xfc)
+                {
+                    return true;
                 }
             }
 

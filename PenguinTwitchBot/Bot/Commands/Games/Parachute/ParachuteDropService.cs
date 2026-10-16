@@ -565,7 +565,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = skipMinimumDurationCheck
                     ? now.AddMilliseconds(-100)
-                    : now.AddMilliseconds(500),
+                    : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
                 StartX = startX,
                 StartY = startY,

@@ -107,7 +107,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             // If primary tokens did not match a known emote/URL, check if Twitch provided a native EmoteUrl or emote fragment on the event
-            if (resolved.Count == 0)
+            // Only select an event emote fallback when no explicit primary input was supplied.
+            if (resolved.Count == 0 && string.IsNullOrWhiteSpace(emoteOrImageInput))
             {
                 if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl))
                 {
@@ -223,7 +224,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             // 2. Direct URL (http:// or https://) or absolute path (/images/...)
             if (IsAllowedPathOrUrl(token))
             {
-                return token;
+                return allowDirectUrlOrPath ? token : null;
             }
 
             // 3. Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService
@@ -274,7 +275,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             // 4. Relative media path with image extension (e.g. "images/droplets/drop1.png")
-            if (token.Contains('.') &&
+            if (allowDirectUrlOrPath && token.Contains('.') &&
                 (token.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                  token.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                  token.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
