@@ -56,6 +56,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     location: { search: '' },
                     WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
                     __sentCompletions: [],
+                    __drawnTexts: [],
                     __onWsSend: function(data) {
                         try {
                             window.__sentCompletions.push(JSON.parse(data));
@@ -94,7 +95,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                     strokeRect: function() {},
                                     clearRect: function() {},
                                     drawImage: function() {},
-                                    fillText: function() {},
+                                    fillText: function(txt) { if (window.__drawnTexts) window.__drawnTexts.push(String(txt)); },
                                     strokeText: function() {},
                                     measureText: function(txt) { return { width: (txt || '').length * 10 }; },
                                     rotate: function() {},
@@ -668,6 +669,348 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 Assert.InRange(finalWp.X, minBucketX, maxBucketX);
                 Assert.Equal(0.96, finalWp.Y);
             }
+        }
+
+        [Fact]
+        public void ParachuteJs_WallBounceRebound_ParityWithServerSimulation()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new
+                {
+                    gameType = "parachute",
+                    isActive = true,
+                    durationSeconds = 60,
+                    totalDurationSeconds = 60,
+                    roundNumber = 1
+                },
+                target = new { centerX = 0.50, targetHalfWidth = 0.09 }
+            });
+
+            // Parachutist begins near left wall moving left with high horizontal speed
+            var record = CreateTestDropRecord("wall-bounce-drop", "Bouncer", 0.15, -0.30, 0.16, 0.92, 360);
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
+
+            // Assert that server simulation registered wall bounce (X bounced off 0.05 and reversed direction)
+            Assert.True(record.LandingX > 0.15, "Server simulation rebounded player from left wall into open screen area");
+
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_drop",
+                dropToken = record.DropToken,
+                displayName = record.DisplayName,
+                trajectory = new
+                {
+                    startX = record.StartX,
+                    startY = record.StartY,
+                    initialVx = record.InitialVx,
+                    initialVy = record.InitialVy,
+                    landingY = record.LandingY,
+                    totalTicks = record.TotalTicks,
+                    bounciness = record.Bounciness,
+                    mass = record.Mass,
+                    targetCenterX = record.TargetCenterX,
+                    targetHalfWidth = record.TargetHalfWidth,
+                    collisions = new object[0]
+                }
+            });
+
+            // Step 380 frames (~6.3s) to completion
+            StepEngineFrames(engine, 380);
+
+            var errors = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errors);
+
+            var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'wall-bounce-drop').landingX").AsNumber();
+
+            // Client and server bounce off left wall with matching restitution and land within 0.04
+            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.04,
+                $"Wall rebound landingX {clientLandingX} differed from server simulation {record.LandingX} by {Math.Abs(clientLandingX - record.LandingX):F4}");
+        }
+
+        [Fact]
+        public void ParachuteJs_TargetRimBounce_ParityWithServerSimulation()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new
+                {
+                    gameType = "parachute",
+                    isActive = true,
+                    durationSeconds = 60,
+                    totalDurationSeconds = 60,
+                    roundNumber = 1
+                },
+                target = new { centerX = 0.50, targetHalfWidth = 0.10 }
+            });
+
+            // Parachutist trajectory descends directly onto outer lip of the target platform
+            var record = CreateTestDropRecord("rim-bounce-drop", "RimBouncer", 0.595, 0.005, 0.16, 0.92, 360);
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_drop",
+                dropToken = record.DropToken,
+                displayName = record.DisplayName,
+                trajectory = new
+                {
+                    startX = record.StartX,
+                    startY = record.StartY,
+                    initialVx = record.InitialVx,
+                    initialVy = record.InitialVy,
+                    landingY = record.LandingY,
+                    totalTicks = record.TotalTicks,
+                    bounciness = record.Bounciness,
+                    mass = record.Mass,
+                    targetCenterX = record.TargetCenterX,
+                    targetHalfWidth = record.TargetHalfWidth,
+                    collisions = new object[0]
+                }
+            });
+
+            StepEngineFrames(engine, 380);
+
+            var errors = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errors);
+
+            var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'rim-bounce-drop').landingX").AsNumber();
+            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.04,
+                $"Rim bounce landingX {clientLandingX} differed from server simulation {record.LandingX} by {Math.Abs(clientLandingX - record.LandingX):F4}");
+        }
+
+        [Fact]
+        public void ParachuteJs_MultiDropletStorm_ParityWithServerSimulation()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new
+                {
+                    gameType = "parachute",
+                    isActive = true,
+                    durationSeconds = 60,
+                    totalDurationSeconds = 60,
+                    roundNumber = 1
+                },
+                target = new { centerX = 0.50, targetHalfWidth = 0.09 }
+            });
+
+            var record = CreateTestDropRecord("storm-drop", "StormViewer", 0.50, 0.0, 0.14, 0.92, 380);
+
+            // 3 successive droplets falling along flight path
+            var droplets = new List<DropletInstanceDto>
+            {
+                new DropletInstanceDto { Id = "d-1", StartX = 0.500, StartY = 0.046, Vx = 0.12, Vy = 0.35, Gravity = 0.32, Radius = 0.035, Mass = 0.4, SpawnTickOffset = 20, SpeedScale = 1.0 },
+                new DropletInstanceDto { Id = "d-2", StartX = 0.538, StartY = 0.116, Vx = 0.12, Vy = 0.35, Gravity = 0.32, Radius = 0.035, Mass = 0.4, SpawnTickOffset = 50, SpeedScale = 1.0 },
+                new DropletInstanceDto { Id = "d-3", StartX = 0.608, StartY = 0.186, Vx = 0.12, Vy = 0.35, Gravity = 0.32, Radius = 0.035, Mass = 0.4, SpawnTickOffset = 80, SpeedScale = 1.0 }
+            };
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
+            Assert.True(record.Collisions.Count >= 2, $"Expected at least 2 droplet collisions, got {record.Collisions.Count}");
+
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_drop",
+                dropToken = record.DropToken,
+                displayName = record.DisplayName,
+                trajectory = new
+                {
+                    startX = record.StartX,
+                    startY = record.StartY,
+                    initialVx = record.InitialVx,
+                    initialVy = record.InitialVy,
+                    landingY = record.LandingY,
+                    totalTicks = record.TotalTicks,
+                    bounciness = record.Bounciness,
+                    mass = record.Mass,
+                    targetCenterX = record.TargetCenterX,
+                    targetHalfWidth = record.TargetHalfWidth,
+                    collisions = record.Collisions.Select(c => new
+                    {
+                        tick = c.Tick,
+                        dropletId = c.DropletId,
+                        x = c.X,
+                        y = c.Y,
+                        deltaVx = c.DeltaVx,
+                        deltaVy = c.DeltaVy
+                    }).ToList()
+                }
+            });
+
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_droplets",
+                droplets = droplets.Select(d => new
+                {
+                    id = d.Id,
+                    startX = d.StartX,
+                    startY = d.StartY,
+                    vx = d.Vx,
+                    vy = d.Vy,
+                    gravity = d.Gravity,
+                    radius = d.Radius,
+                    spawnTickOffset = d.SpawnTickOffset
+                }).ToList()
+            });
+
+            StepEngineFrames(engine, 420);
+
+            var errors = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errors);
+
+            var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'storm-drop').landingX").AsNumber();
+            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.05,
+                $"Storm cumulative landingX {clientLandingX} differed from server simulation {record.LandingX} by {Math.Abs(clientLandingX - record.LandingX):F4}");
+        }
+
+        [Theory]
+        [InlineData(0.1, 0.1, 0.1)]   // Minimum bounds
+        [InlineData(10.0, 5.0, 10.0)] // Maximum bounds
+        [InlineData(5.0, 0.1, 10.0)]  // High gravity, low bounce
+        [InlineData(0.1, 5.0, 0.1)]   // Low gravity, high bounce
+        public void DropGames_ExtremePhysicsParameters_DoNotProduceNaNOrBoundsViolation(double gravity, double bounciness, double mass)
+        {
+            // 1. Plinko Extreme Check
+            const int rows = 8;
+            const int bucketCount = 5;
+            for (var b = 0; b < bucketCount; b++)
+            {
+                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, b);
+                foreach (var wp in waypoints)
+                {
+                    Assert.False(double.IsNaN(wp.X) || double.IsInfinity(wp.X), "Plinko Waypoint X is NaN or Infinity");
+                    Assert.False(double.IsNaN(wp.Y) || double.IsInfinity(wp.Y), "Plinko Waypoint Y is NaN or Infinity");
+                    Assert.InRange(wp.X, 0.0, 1.0);
+                    Assert.InRange(wp.Y, 0.0, 1.0);
+                }
+            }
+
+            // 2. Parachute Extreme Check
+            var baseRecord = CreateTestDropRecord("extreme-drop", "ExtremeUser", 0.50, 0.20, 0.14, 0.92, 360);
+            var record = new PendingDropRecord
+            {
+                DropToken = baseRecord.DropToken,
+                GameType = baseRecord.GameType,
+                Username = baseRecord.Username,
+                DisplayName = baseRecord.DisplayName,
+                UserId = baseRecord.UserId,
+                EventArgs = baseRecord.EventArgs,
+                Theme = baseRecord.Theme,
+                CreatedAtUtc = baseRecord.CreatedAtUtc,
+                EarliestCompletionUtc = baseRecord.EarliestCompletionUtc,
+                ExpiresAtUtc = baseRecord.ExpiresAtUtc,
+                StartX = baseRecord.StartX,
+                StartY = baseRecord.StartY,
+                InitialVx = baseRecord.InitialVx,
+                InitialVy = baseRecord.InitialVy,
+                LandingY = baseRecord.LandingY,
+                LandingX = baseRecord.LandingX,
+                TotalTicks = baseRecord.TotalTicks,
+                Bounciness = bounciness,
+                Mass = mass,
+                Gravity = gravity,
+                TargetCenterX = baseRecord.TargetCenterX,
+                TargetHalfWidth = baseRecord.TargetHalfWidth
+            };
+
+            var droplets = new List<DropletInstanceDto>
+            {
+                new DropletInstanceDto { Id = "d-extreme", StartX = 0.52, StartY = 0.05, Vx = 0.05, Vy = 0.30, Gravity = gravity, Radius = 0.028, Mass = mass, SpawnTickOffset = 15, SpeedScale = 1.0 }
+            };
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
+            Assert.False(double.IsNaN(record.LandingX) || double.IsInfinity(record.LandingX), "Parachute LandingX is NaN or Infinity");
+            Assert.InRange(record.LandingX, 0.05, 0.95);
+        }
+
+        [Fact]
+        public void DropGames_SessionLeaderboardCrown_IdentifiesAndCrownsHighestScore()
+        {
+            var jsDir = FindWwwRootPath();
+            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(plinkoJs);
+
+            const int rows = 8;
+            const int bucketCount = 3;
+
+            var buckets = new[]
+            {
+                new { label = "Low", score = 10, isWin = false },
+                new { label = "Mid", score = 25, isWin = true },
+                new { label = "High", score = 100, isWin = true }
+            };
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new
+                {
+                    gameType = "plinko",
+                    isActive = true,
+                    durationSeconds = 60,
+                    totalDurationSeconds = 60,
+                    roundNumber = 1
+                },
+                board = new { rows, cols = bucketCount, buckets }
+            });
+
+            // Drop 3 tokens landing in Low (10), Mid (25), and High (100)
+            for (var t = 0; t < 3; t++)
+            {
+                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, t);
+                DispatchWsMessage(engine, new
+                {
+                    type = "plinko_drop",
+                    dropToken = $"token-{t}",
+                    displayName = $"Player{t}",
+                    userColor = "#00FF00",
+                    board = new
+                    {
+                        rowCount = rows,
+                        durationSeconds = 1.5,
+                        gravity = 1.0,
+                        bounciness = 0.85,
+                        mass = 1.0,
+                        buckets = buckets,
+                        winningBucketIndex = t,
+                        waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    }
+                });
+            }
+
+            // Step 150 frames to complete all drops
+            StepEngineFrames(engine, 150);
+
+            // Verify all 3 completions were reported
+            var completionCount = engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.Equal(3, (int)completionCount);
+
+            // Verify token-2 reported winning bucket index 2
+            var token2Bucket = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'token-2').winningBucketIndex").AsNumber();
+            Assert.Equal(2, (int)token2Bucket);
+
+            // Assert that the leader crown emoji 👑 was rendered on the canvas
+            var hasCrown = engine.Evaluate("window.__drawnTexts.some(t => t.indexOf('👑') >= 0)").AsBoolean();
+            Assert.True(hasCrown, "Highest score drop was crowned with 👑 on the overlay");
         }
     }
 }
