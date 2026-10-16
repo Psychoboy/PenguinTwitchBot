@@ -1,4 +1,6 @@
-﻿namespace PenguinTwitchBot.Bot.Events
+using PenguinTwitchBot.Bot.Models.Chat;
+
+namespace PenguinTwitchBot.Bot.Events
 {
     public class ChatNotificationEventArgs
     {
@@ -9,6 +11,8 @@
         public string NoticeType { get; set; } = string.Empty;
         public string SystemMessage { get; set; } = string.Empty;
         public string? Message { get; set; }
+        public string? EmoteUrl { get; set; }
+        public List<ChatOverlayFragment> Fragments { get; set; } = [];
 
         /// <summary>Populated when NoticeType == "sub"</summary>
         public ChatNotificationSubInfo? Sub { get; set; }

@@ -36,9 +36,7 @@ namespace PenguinTwitchBot.Test.Controllers
                 _memoryCache,
                 _emoteServiceMock.Object,
                 _httpClientFactoryMock.Object,
-                _loggerMock.Object,
-                _dropRegistryMock.Object,
-                _settingsServiceMock.Object);
+                _loggerMock.Object);
         }
 
         [Theory]
@@ -72,7 +70,7 @@ namespace PenguinTwitchBot.Test.Controllers
         [Fact]
         public async Task ProxyImage_ValidRemoteImage_FetchesAndCachesResponse()
         {
-            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_abc123/default/dark/2.0";
+            var testUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_{Guid.NewGuid():N}/default/dark/2.0";
             var fakeBytes = new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 }; // GIF89a
 
             var handlerMock = new Mock<HttpMessageHandler>();
@@ -117,7 +115,7 @@ namespace PenguinTwitchBot.Test.Controllers
         [Fact]
         public async Task ProxyImage_UpstreamNotFound_ReturnsStatusCode()
         {
-            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/missing/default/dark/2.0";
+            var testUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/missing_{Guid.NewGuid():N}/default/dark/2.0";
 
             var handlerMock = new Mock<HttpMessageHandler>();
             handlerMock
@@ -141,22 +139,63 @@ namespace PenguinTwitchBot.Test.Controllers
             Assert.Equal(404, statusResult.StatusCode);
         }
 
-        [Theory]
-        [InlineData("https://evil.example.com/exploit.png")]
-        [InlineData("https://unallowed.jtvnw.net/exploit.png")]
-        [InlineData("https://api.betterttv.net/3/exploit.png")]
-        [InlineData("https://betterttv.net/exploit.png")]
-        public async Task ProxyImage_DisallowedHost_ReturnsBadRequest(string url)
+        [Fact]
+        public async Task ProxyImage_ExternalEmoteHost_FetchesAndPersistsToDiskCacheAcrossMemoryResets()
         {
-            var controller = CreateController();
-            var result = await controller.ProxyImage(url);
-            Assert.IsType<BadRequestObjectResult>(result);
+            var testUrl = $"https://custom-emotes.example.com/special-event/{Guid.NewGuid():N}.png";
+            var fakeBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+            var handlerMock = new Mock<HttpMessageHandler>();
+            handlerMock
+                .Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(r => r.RequestUri!.ToString() == testUrl),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new ByteArrayContent(fakeBytes)
+                    {
+                        Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png") }
+                    }
+                });
+
+            var httpClient = new HttpClient(handlerMock.Object);
+            _httpClientFactoryMock.Setup(f => f.CreateClient("Emotes")).Returns(httpClient);
+
+            var controller1 = CreateController();
+            var result1 = await controller1.ProxyImage(testUrl);
+            var fileResult1 = Assert.IsType<FileContentResult>(result1);
+            Assert.Equal("image/png", fileResult1.ContentType);
+            Assert.Equal(fakeBytes, fileResult1.FileContents);
+
+            // Create a second controller with a brand-new empty MemoryCache to verify 24h disk cache persistence
+            using var freshMemoryCache = new MemoryCache(new MemoryCacheOptions());
+            var controller2 = new ChatController(
+                _twitchServiceMock.Object,
+                freshMemoryCache,
+                _emoteServiceMock.Object,
+                _httpClientFactoryMock.Object,
+                _loggerMock.Object);
+
+            var result2 = await controller2.ProxyImage(testUrl);
+            var fileResult2 = Assert.IsType<FileContentResult>(result2);
+            Assert.Equal("image/png", fileResult2.ContentType);
+            Assert.Equal(fakeBytes, fileResult2.FileContents);
+
+            // Upstream HTTP handler was only invoked once
+            handlerMock.Protected().Verify(
+                "SendAsync",
+                Times.Once(),
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>());
         }
 
         [Fact]
         public async Task ProxyImage_NonImageContentType_ReturnsBadRequest()
         {
-            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/test/default/dark/2.0";
+            var testUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/test_{Guid.NewGuid():N}/default/dark/2.0";
             var fakeBytes = "<html><body>Not an image</body></html>"u8.ToArray();
 
             var handlerMock = new Mock<HttpMessageHandler>();
@@ -181,44 +220,6 @@ namespace PenguinTwitchBot.Test.Controllers
             var controller = CreateController();
             var result = await controller.ProxyImage(testUrl);
             Assert.IsType<BadRequestObjectResult>(result);
-        }
-
-        [Fact]
-        public async Task ProxyImage_RedirectResponse_ReturnsBadRequest()
-        {
-            var testUrl = "https://static-cdn.jtvnw.net/emoticons/v2/test/default/dark/2.0";
-
-            var handlerMock = new Mock<HttpMessageHandler>();
-            handlerMock
-                .Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>())
-                .ReturnsAsync(new HttpResponseMessage
-                {
-                    StatusCode = HttpStatusCode.MovedPermanently
-                });
-
-            var httpClient = new HttpClient(handlerMock.Object);
-            _httpClientFactoryMock.Setup(f => f.CreateClient("Emotes")).Returns(httpClient);
-
-            var controller = CreateController();
-            var result = await controller.ProxyImage(testUrl);
-            Assert.IsType<BadRequestObjectResult>(result);
-        }
-
-        [Fact]
-        public async Task ProxyImage_UnregisteredGameAssetUrl_ReturnsForbidden()
-        {
-            _dropRegistryMock.Setup(r => r.IsProxyUrlAllowed(It.IsAny<string>())).Returns(false);
-            _settingsServiceMock.Setup(s => s.GetSettingsAsync()).ReturnsAsync(new DropGamesSettings());
-
-            var controller = CreateController();
-            var result = await controller.ProxyImage("https://static-cdn.jtvnw.net/emoticons/v2/unregistered_token/default/dark/2.0");
-
-            var statusResult = Assert.IsType<ObjectResult>(result);
-            Assert.Equal(403, statusResult.StatusCode);
         }
     }
 }

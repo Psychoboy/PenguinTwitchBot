@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models.Chat;
 using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Common
@@ -54,9 +55,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             CommandEventArgs? eventArgs,
             string? emoteOrImageInput,
             string? fallbackInput,
-            bool allowDirectUrlOrPath = false)
+            bool allowDirectUrlOrPath = true)
         {
-            // 1. Native Twitch emote fragment attached to CommandEventArgs (from Twitch chat)
+            // 1. Native Twitch emote fragment attached to CommandEventArgs when no explicit input is given
             if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl) && string.IsNullOrWhiteSpace(emoteOrImageInput))
             {
                 return [NormalizeTwitchEmoteUrl(eventArgs.EmoteUrl)];
@@ -87,7 +88,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 }
             }
 
-            var context = new ResolutionContext { CachedEmotes = cachedEmotes };
+            var context = new ResolutionContext
+            {
+                CachedEmotes = cachedEmotes,
+                Fragments = eventArgs?.Fragments
+            };
 
             if (primaryTokens.Count > 0)
             {
@@ -101,7 +106,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 }
             }
 
-            // If no primary tokens resolved, resolve the fallbackInput (e.g. active theme's DefaultDropletImageUrl)
+            // If primary tokens did not match a known emote/URL, check if Twitch provided a native EmoteUrl or emote fragment on the event
+            if (resolved.Count == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl))
+                {
+                    resolved.Add(NormalizeTwitchEmoteUrl(eventArgs.EmoteUrl));
+                }
+                else if (eventArgs?.Fragments != null)
+                {
+                    var firstEmoteFrag = eventArgs.Fragments.FirstOrDefault(f =>
+                        string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                        (!string.IsNullOrWhiteSpace(f.EmoteUrl) || !string.IsNullOrWhiteSpace(f.EmoteId)));
+                    if (firstEmoteFrag != null)
+                    {
+                        var fragUrl = GetHighResFragmentEmoteUrl(firstEmoteFrag);
+                        if (!string.IsNullOrWhiteSpace(fragUrl))
+                        {
+                            resolved.Add(fragUrl);
+                        }
+                    }
+                }
+            }
+
+            // If no primary tokens or native event emote resolved, resolve the fallbackInput (e.g. active theme's DefaultDropletImageUrl)
             if (resolved.Count == 0 && !string.IsNullOrWhiteSpace(fallbackInput))
             {
                 var fallbackTokens = ParseMediaTokens(fallbackInput);
@@ -112,7 +140,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
                 foreach (var token in fallbackTokens)
                 {
-                    // Fallback tokens come from saved theme settings and are trusted to allow local paths/URLs
                     var url = await ResolveSingleTokenAsync(emoteService, token, allowDirectUrlOrPath: true, context);
                     if (!string.IsNullOrWhiteSpace(url))
                     {
@@ -127,6 +154,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         private sealed class ResolutionContext
         {
             public Dictionary<string, string>? CachedEmotes { get; set; }
+            public List<ChatOverlayFragment>? Fragments { get; set; }
             public bool HasRefreshedLookup { get; set; }
         }
 
@@ -139,12 +167,32 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             CommandEventArgs? eventArgs,
             string? emoteOrImageInput,
             string? fallbackUrl = null,
-            bool allowDirectUrlOrPath = false)
+            bool allowDirectUrlOrPath = true)
         {
             var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath);
             if (urls.Count == 0) return "";
             if (urls.Count == 1) return urls[0];
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
+        }
+
+        private static string? GetHighResFragmentEmoteUrl(ChatOverlayFragment fragment)
+        {
+            if (!string.IsNullOrWhiteSpace(fragment.EmoteUrl))
+            {
+                var url = NormalizeTwitchEmoteUrl(fragment.EmoteUrl);
+                if (url.EndsWith("/1.0", StringComparison.OrdinalIgnoreCase))
+                {
+                    return string.Concat(url.AsSpan(0, url.Length - 4), "/3.0");
+                }
+                return url;
+            }
+
+            if (!string.IsNullOrWhiteSpace(fragment.EmoteId))
+            {
+                return $"https://static-cdn.jtvnw.net/emoticons/v2/{fragment.EmoteId}/default/dark/3.0";
+            }
+
+            return null;
         }
 
         private static async Task<string?> ResolveSingleTokenAsync(
@@ -157,18 +205,38 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
             token = NormalizeTwitchEmoteUrl(token);
 
-            // Direct URL (http:// or https://) or absolute path (/images/...)
-            if (IsAllowedPathOrUrl(token))
+            // 1. Check native Twitch emote fragments carried directly on BaseChatEventArgs.Fragments
+            if (context.Fragments != null && context.Fragments.Count > 0)
             {
-                return allowDirectUrlOrPath ? token : null;
+                var exactFrag = context.Fragments.FirstOrDefault(f =>
+                    string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Text?.Trim(), token, StringComparison.Ordinal));
+                var matchedFrag = exactFrag ?? context.Fragments.FirstOrDefault(f =>
+                    string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Text?.Trim(), token, StringComparison.OrdinalIgnoreCase));
+
+                if (matchedFrag != null)
+                {
+                    var fragUrl = GetHighResFragmentEmoteUrl(matchedFrag);
+                    if (!string.IsNullOrWhiteSpace(fragUrl))
+                    {
+                        return fragUrl;
+                    }
+                }
             }
 
-            // Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService
+            // 2. Direct URL (http:// or https://) or absolute path (/images/...)
+            if (IsAllowedPathOrUrl(token))
+            {
+                return token;
+            }
+
+            // 3. Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService
             if (emoteService != null)
             {
                 try
                 {
-                    // 1. Check cached dictionary first for exact or case-insensitive match
+                    // Check cached dictionary first for exact or case-insensitive match
                     var emotes = context.CachedEmotes;
                     if (emotes != null)
                     {
@@ -184,7 +252,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                         }
                     }
 
-                    // 2. Fall back to refreshing lookup at most once per ResolveMediaUrlsAsync call
+                    // Fall back to refreshing lookup at most once per ResolveMediaUrlsAsync call
                     if (!context.HasRefreshedLookup)
                     {
                         context.HasRefreshedLookup = true;
@@ -210,8 +278,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 }
             }
 
-            // Relative media path with image extension (e.g. "images/droplets/drop1.png")
-            if (allowDirectUrlOrPath && token.Contains('.') &&
+            // 4. Relative media path with image extension (e.g. "images/droplets/drop1.png")
+            if (token.Contains('.') &&
                 (token.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                  token.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                  token.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||

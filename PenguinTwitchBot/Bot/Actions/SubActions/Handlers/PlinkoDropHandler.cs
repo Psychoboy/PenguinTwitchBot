@@ -54,11 +54,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 eventArgs.UserId = string.Empty;
             }
 
-            var allowDirectUrlOrPath = !string.IsNullOrWhiteSpace(plinkoSubAction.EmoteOrImage) &&
-                                       !plinkoSubAction.EmoteOrImage.Contains("%Args%", StringComparison.OrdinalIgnoreCase);
-
             context?.LogMessage(subActionIndex, $"Triggering Plinko Bounce for {resolvedUser}");
-            await plinkoDropService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: allowDirectUrlOrPath);
+            await plinkoDropService.TriggerPlinkoDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
         }
     }
 }

@@ -22,13 +22,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             return buckets.Count / 2;
         }
 
-        public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex)
+        public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex, double bounciness = 0.75)
         {
             var waypoints = new List<PlinkoWaypointDto>(rows + 2);
             var slotJitter = DropGameMath.RandomDouble(0.25, 0.75);
             var targetX = (targetBucketIndex + slotJitter) / bucketCount;
             // Widen starting drop point across the top board width (matching PixelPlush's randomized entry)
             var currentX = Math.Clamp(DropGameMath.RandomDouble(0.12, 0.88), 0.10, 0.90);
+            var bounceScale = Math.Clamp(bounciness / 0.75, 0.2, 3.5);
 
             waypoints.Add(new PlinkoWaypointDto
             {
@@ -46,7 +47,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 // Guide token smoothly toward targetX while bouncing left/right off pegs with organic physics jitter
                 var idealStep = (targetX - currentX) / Math.Max(1, remainingRows);
-                var jitter = (RandomNumberGenerator.GetInt32(0, 2) == 0 ? -1 : 1) * DropGameMath.RandomDouble(0.024, 0.052) * (1.0 - (progress * 0.35));
+                var jitter = (RandomNumberGenerator.GetInt32(0, 2) == 0 ? -1 : 1) * DropGameMath.RandomDouble(0.024, 0.052) * bounceScale * (1.0 - (progress * 0.35));
                 currentX = Math.Clamp(currentX + idealStep + jitter, 0.08, 0.92);
 
                 waypoints.Add(new PlinkoWaypointDto

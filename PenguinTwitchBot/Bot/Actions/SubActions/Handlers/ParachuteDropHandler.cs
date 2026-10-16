@@ -54,11 +54,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 eventArgs.UserId = string.Empty;
             }
 
-            var allowDirectUrlOrPath = !string.IsNullOrWhiteSpace(dropSubAction.EmoteOrImage) &&
-                                       !dropSubAction.EmoteOrImage.Contains("%Args%", StringComparison.OrdinalIgnoreCase);
-
             context?.LogMessage(subActionIndex, $"Triggering Parachute Drop for {resolvedUser}");
-            await parachuteDropService.TriggerParachuteDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: allowDirectUrlOrPath);
+            await parachuteDropService.TriggerParachuteDropAsync(eventArgs, resolvedEmote, resolvedTheme, allowDirectUrlOrPath: true);
         }
     }
 }

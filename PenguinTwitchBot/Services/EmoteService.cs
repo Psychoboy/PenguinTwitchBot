@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using PenguinTwitchBot.Bot.TwitchServices;
@@ -40,7 +41,9 @@ public class EmoteService(
     public async Task<Dictionary<string, string>> GetEmotesAsync()
     {
         if (memoryCache.TryGetValue(EmoteCacheKey, out Dictionary<string, string>? emotes) && emotes != null)
+        {
             return emotes;
+        }
 
         // Serialize cache-miss fetches so concurrent chat overlay / RaidRewards requests
         // don't each hit BTTV/FFZ/7TV/Twitch at once.
@@ -48,7 +51,9 @@ public class EmoteService(
         try
         {
             if (memoryCache.TryGetValue(EmoteCacheKey, out emotes) && emotes != null)
+            {
                 return emotes;
+            }
 
             var channelId = await twitchService.GetBroadcasterUserId();
             emotes = await FetchAllEmotesAsync(channelId);

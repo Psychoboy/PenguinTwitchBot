@@ -35,9 +35,6 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 subActionIndex,
                 $"Spawning {dropletsSubAction.Count} Parachute Droplets (Size={dropletsSubAction.SizePreset}, Speed={dropletsSubAction.SpeedPreset}, Pattern={dropletsSubAction.SpawnPattern})");
 
-            var allowDirectUrlOrPath = !string.IsNullOrWhiteSpace(dropletsSubAction.EmoteOrImage) &&
-                                       !dropletsSubAction.EmoteOrImage.Contains("%Args%", StringComparison.OrdinalIgnoreCase);
-
             await parachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
             {
                 Count = dropletsSubAction.Count,
@@ -47,7 +44,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 KnockbackMultiplier = dropletsSubAction.KnockbackMultiplier,
                 EmoteOrImage = resolvedEmote,
                 NativeEmoteUrl = eventArgs?.EmoteUrl,
-                AllowDirectUrlOrPath = allowDirectUrlOrPath,
+                Fragments = eventArgs?.Fragments,
+                AllowDirectUrlOrPath = true,
                 TriggeredByUser = triggeredBy
             });
         }

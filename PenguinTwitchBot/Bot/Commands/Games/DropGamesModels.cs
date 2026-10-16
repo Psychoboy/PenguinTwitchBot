@@ -172,7 +172,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
         public double TargetWidthPercent { get; set; } = 18.0;
-        public double DescentDurationSeconds { get; set; } = 6.5;
+        public double Gravity { get; set; } = 1.0;
+        public double Bounciness { get; set; } = 0.85;
+        public double Mass { get; set; } = 1.0;
+
+        // Legacy database JSON field; ignored on write and marked for deletion later
+        public double DescentDurationSeconds
+        {
+            get => Math.Round(Math.Clamp(6.5 / Math.Clamp(Gravity, 0.1, 10.0), 0.65, 65.0), 2);
+            set { /* Ignored - superseded by Gravity, Bounciness, and Mass */ }
+        }
+
         public double WindStrength { get; set; } = 0.25;
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
@@ -211,7 +221,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         public string ActiveThemeId { get; set; } = "spring";
         public int RowCount { get; set; } = 8;
-        public double DropDurationSeconds { get; set; } = 4.5;
+        public double Gravity { get; set; } = 1.0;
+        public double Bounciness { get; set; } = 0.75;
+        public double Mass { get; set; } = 1.0;
+
+        // Legacy database JSON field; ignored on write and marked for deletion later
+        public double DropDurationSeconds
+        {
+            get => Math.Round(Math.Clamp(4.5 / Math.Clamp(Gravity, 0.1, 10.0), 0.45, 45.0), 2);
+            set { /* Ignored - superseded by Gravity, Bounciness, and Mass */ }
+        }
+
         public int PegTransparency
         {
             get => _pegTransparency;
@@ -269,8 +289,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double KnockbackMultiplier { get; set; } = 1.0;
         public string? EmoteOrImage { get; set; }
         public string? NativeEmoteUrl { get; set; }
+        public List<PenguinTwitchBot.Bot.Models.Chat.ChatOverlayFragment>? Fragments { get; set; }
         public string? TriggeredByUser { get; set; }
-        public bool AllowDirectUrlOrPath { get; set; }
+        public bool AllowDirectUrlOrPath { get; set; } = true;
     }
 
     public class DropletInstanceDto
@@ -451,6 +472,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int TotalTicks { get; set; }
         public double TargetCenterX { get; init; }
         public double TargetHalfWidth { get; init; }
+        public double Gravity { get; init; } = 1.0;
+        public double Bounciness { get; init; } = 0.85;
+        public double Mass { get; init; } = 1.0;
 
         // Authoritative outcome (updated by server 60Hz simulation if droplets collide)
         public double LandingX { get; set; }

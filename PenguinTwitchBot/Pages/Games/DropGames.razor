@@ -87,12 +87,27 @@
                                     </MudGrid>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
-                                            <MudNumericField T="double" Label="Descent Duration (Seconds)" Variant="Variant.Outlined"
-                                                             Min="2.5" Max="15.0" Step="0.5"
-                                                             @bind-Value="_settings.Parachute.DescentDurationSeconds"
-                                                             HelperText="Time it takes to parachute from top to bottom" />
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Gravity (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.Gravity"
+                                                             HelperText="1.0 = Standard fall speed (higher = faster)" />
                                         </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Bounciness (0.1 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.05"
+                                                             @bind-Value="_settings.Parachute.Bounciness"
+                                                             HelperText="Wall & mid-air collision bounce elasticity" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Mass (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.Mass"
+                                                             HelperText="Higher mass resists droplet & mid-air knockback" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
                                         <MudItem xs="12" sm="6">
                                             <MudNumericField T="double" Label="Wind Drift Strength (0.0 - 1.0)" Variant="Variant.Outlined"
                                                              Min="0.0" Max="1.0" Step="0.05"
@@ -401,21 +416,37 @@
                                     </MudSelect>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="6">
                                             <MudNumericField T="int" Label="Peg Rows (5 - 14)" Variant="Variant.Outlined"
                                                              Min="5" Max="14"
                                                              @bind-Value="_settings.Plinko.RowCount" />
                                         </MudItem>
-                                        <MudItem xs="12" sm="4">
-                                            <MudNumericField T="double" Label="Drop Duration (Seconds)" Variant="Variant.Outlined"
-                                                             Min="2.0" Max="12.0" Step="0.5"
-                                                             @bind-Value="_settings.Plinko.DropDurationSeconds" />
-                                        </MudItem>
-                                        <MudItem xs="12" sm="4">
+                                        <MudItem xs="12" sm="6">
                                             <MudNumericField T="int" Label="Peg Transparency Level (0 - 100%)" Variant="Variant.Outlined"
                                                              Min="0" Max="100" Step="5"
                                                              HelperText="100% = total visible, 0% = invisible (default 15%)."
                                                              @bind-Value="_settings.Plinko.PegTransparency" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Gravity (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Plinko.Gravity"
+                                                             HelperText="1.0 = Standard fall speed (higher = faster)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Bounciness (0.1 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.05"
+                                                             @bind-Value="_settings.Plinko.Bounciness"
+                                                             HelperText="Peg bounce height & token collision elasticity" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Mass (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Plinko.Mass"
+                                                             HelperText="Token weight during mid-air collisions" />
                                         </MudItem>
                                     </MudGrid>
 

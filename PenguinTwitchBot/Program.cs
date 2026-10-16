@@ -320,7 +320,8 @@ internal class Program
             c.DefaultRequestHeaders.UserAgent.ParseAdd("PenguinTwitchBot/1.0");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
-            AllowAutoRedirect = false
+            AllowAutoRedirect = true,
+            MaxAutomaticRedirections = 5
         });
         // IMemoryCache is also added transitively by AddServerSideBlazor, but EmoteService
         // depends on it directly so register it explicitly rather than relying on that.

@@ -70,7 +70,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 : [];
 
             var hitDropletIds = new HashSet<string>(StringComparer.Ordinal);
-            var maxAllowedTicks = Math.Max(record.TotalTicks, 60) + 180; // Bounded cap (~3 seconds extra if vertical speed was dampened)
+            var bounciness = Math.Clamp(record.Bounciness > 0 ? record.Bounciness : 0.85, 0.1, 5.0);
+            var parachuteMass = Math.Clamp(record.Mass > 0 ? record.Mass : 1.0, 0.1, 10.0);
+            var maxAllowedTicks = Math.Max(record.TotalTicks, 30) + 180; // Bounded cap (~3 seconds extra if vertical speed was dampened)
             var finalTick = startTick;
             var bouncedOffTargetRim = false;
 
@@ -108,18 +110,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             var nx = distX / dist;
                             var ny = distY / dist;
 
-                            // Relative velocity and momentum impulse scaled by droplet mass (size) and speed
+                            // Relative velocity and momentum impulse scaled by droplet mass, parachute mass, and bounciness
                             var relVx = dvx - vx;
                             var relVy = dvy - vy;
-                            var impulseMagnitude = 0.16 * droplet.Mass * Math.Max(0.7, droplet.SpeedScale);
+                            var massRatio = droplet.Mass / parachuteMass;
+                            var restitutionScale = Math.Clamp(bounciness / 0.85, 0.2, 4.0);
+                            var impulseMagnitude = 0.16 * massRatio * Math.Max(0.7, droplet.SpeedScale) * restitutionScale;
 
                             // Push horizontally in the direction of droplet travel + collision normal
                             var pushDirectionX = Math.Abs(dvx) > 0.04 ? Math.Sign(dvx) : (Math.Abs(nx) > 0.05 ? Math.Sign(nx) : 1.0);
-                            var deltaVx = Math.Clamp((pushDirectionX * impulseMagnitude) + (relVx * 0.25 * Math.Min(2.5, droplet.Mass)), -0.25, 0.25);
-                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.18) + (relVy * 0.06), -0.05, 0.06);
+                            var deltaVx = Math.Clamp((pushDirectionX * impulseMagnitude) + (relVx * 0.25 * Math.Min(5.0, massRatio) * restitutionScale), -0.65, 0.65);
+                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.18) + (relVy * 0.06), -0.06, 0.08);
 
                             vx = Math.Clamp(vx + deltaVx, -MaxVx, MaxVx);
-                            vy = Math.Clamp(vy + deltaVy, MinVy, MaxVy);
+                            vy = Math.Clamp(vy + deltaVy, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15));
 
                             existingCollisions.Add(new ParachuteCollisionEventDto
                             {
@@ -153,8 +157,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 }
 
                 // Step physics: constant directional velocity along drop angle (no sinusoidal sway)
-                vx = Math.Clamp((vx + record.WindAccelX * Dt) * 0.998, -MaxVx, MaxVx);
-                vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, MaxVy); // Canopy stabilizes vertical speed
+                var windEffect = record.WindAccelX / Math.Sqrt(parachuteMass);
+                vx = Math.Clamp((vx + windEffect * Dt) * 0.998, -MaxVx, MaxVx);
+                vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15)); // Canopy stabilizes vertical speed
 
                 x += vx * Dt;
                 y += vy * Dt;
@@ -170,13 +175,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         // Outer rim bounce: deflects outward or bounces over the lip into the basin
                         if (Math.Sign(vx) == Math.Sign(dx) && Math.Abs(vx) > 0.01)
                         {
-                            vx = -vx * 0.85; // Bounced off outer wall!
+                            vx = Math.Clamp(-vx * bounciness, -MaxVx, MaxVx); // Bounced off outer wall!
                         }
                         else
                         {
-                            vx = (dx > 0 ? -1 : 1) * Math.Max(0.04, Math.Abs(vx) * 0.8); // Bounced over lip into the pool!
+                            vx = Math.Clamp((dx > 0 ? -1 : 1) * Math.Max(0.04, Math.Abs(vx) * 0.95 * bounciness), -MaxVx, MaxVx); // Bounced over lip into the pool!
                         }
-                        vy = Math.Max(MinVy, vy * 0.65); // Springy cushion pop
+                        vy = Math.Max(MinVy, vy * Math.Clamp(0.65 * bounciness, 0.25, 1.0)); // Springy cushion pop
 
                         keyframes.Add(new ParachuteTrajectoryPointDto
                         {
@@ -190,15 +195,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 }
 
                 // Clean bounce off left/right screen margins
+                var wallRestitution = Math.Clamp(bounciness * 1.05, 0.15, 2.5);
                 if (x < 0.05)
                 {
                     x = 0.05;
-                    vx = Math.Min(MaxVx, Math.Abs(vx) * 0.90);
+                    vx = Math.Min(MaxVx, Math.Abs(vx) * wallRestitution);
                 }
                 else if (x > 0.95)
                 {
                     x = 0.95;
-                    vx = -Math.Min(MaxVx, Math.Abs(vx) * 0.90);
+                    vx = -Math.Min(MaxVx, Math.Abs(vx) * wallRestitution);
                 }
             }
 

@@ -31,7 +31,6 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                 if (record.GameType == DropGameType.Parachute)
                 {
                     if (notification.LandingX.HasValue &&
-                        Math.Abs(notification.LandingX.Value - record.LandingX) <= 0.15 &&
                         notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
                     {
                         record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
@@ -55,7 +54,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                         if (notification.WinningBucketIndex.HasValue)
                         {
                             var idx = notification.WinningBucketIndex.Value;
-                            if (Math.Abs(idx - record.BucketIndex) <= 1 && idx >= 0 && idx < buckets.Count)
+                            if (idx >= 0 && idx < buckets.Count)
                             {
                                 record.BucketIndex = idx;
                             }
