@@ -130,11 +130,36 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 var URLSearchParams = function() {
                     return { get: function() { return null; } };
                 };
-                var Audio = function() {
-                    return {
-                        play: function() { return Promise.resolve(); },
-                        pause: function() {},
-                        volume: 1
+                window.__audioPlayed = [];
+                window.__audioPreloaded = [];
+                var Audio = function(src) {
+                    var self = this;
+                    this.src = src || '';
+                    this.preload = 'none';
+                    this.volume = 1;
+                    this.paused = true;
+                    this.ended = false;
+                    this.currentTime = 0;
+                    this._listeners = {};
+                    this.addEventListener = function(evt, handler) {
+                        if (!self._listeners[evt]) self._listeners[evt] = [];
+                        self._listeners[evt].push(handler);
+                    };
+                    this.load = function() {
+                        if (window.__audioPreloaded) {
+                            window.__audioPreloaded.push({ src: self.src, preload: self.preload });
+                        }
+                    };
+                    this.play = function() {
+                        self.paused = false;
+                        self.ended = false;
+                        if (window.__audioPlayed) {
+                            window.__audioPlayed.push({ src: self.src, volume: self.volume });
+                        }
+                        return Promise.resolve();
+                    };
+                    this.pause = function() {
+                        self.paused = true;
                     };
                 };
                 var console = {
@@ -1917,6 +1942,256 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var landedBucket = engine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
             Assert.Equal(targetBucket, (int)landedBucket);
+        }
+
+        [Fact]
+        public void DropGameMediaResolver_SoundBundle_ResolvesCorrectly_WithOverridesAndDefaults()
+        {
+            var pSettings = new ParachuteGameSettings
+            {
+                MaxConcurrentSounds = 2,
+                StartSound = new DropGameSoundConfig { Enabled = true, AudioFile = "chime.wav", Volume = 80 },
+                EndSound = new DropGameSoundConfig { Enabled = true, AudioFile = "horn.mp3", Volume = 70 },
+                DropSound = new DropGameSoundConfig { Enabled = false, AudioFile = "swoosh.wav", Volume = 60 },
+                WinSound = new DropGameSoundConfig { Enabled = true, AudioFile = "fanfare.mp3", Volume = 90 }
+            };
+
+            var theme = new DropGameTheme
+            {
+                Id = "custom",
+                Name = "Custom Theme",
+                ParachuteStartSound = new DropGameSoundOverride { Override = false }, // Inherit
+                ParachuteEndSound = new DropGameSoundOverride { Override = true, Enabled = false }, // Mute
+                ParachuteDropSound = new DropGameSoundOverride { Override = true, Enabled = true, AudioFile = "theme_drop.wav", Volume = 95 }, // Custom
+                ParachuteWinSound = new DropGameSoundOverride { Override = false } // Inherit
+            };
+
+            var bundle = DropGameMediaResolver.ResolveParachuteSoundBundle(pSettings, theme, null);
+            Assert.NotNull(bundle);
+            Assert.Equal(2, bundle.MaxConcurrentSounds);
+
+            // Start: Inherit -> enabled, volume 80
+            Assert.NotNull(bundle.Start);
+            Assert.Equal(80, bundle.Start.Volume);
+
+            // End: Mute -> disabled
+            Assert.NotNull(bundle.End);
+            Assert.False(bundle.End.Enabled);
+
+            // Drop: Custom -> enabled, volume 95
+            Assert.NotNull(bundle.Drop);
+            Assert.Equal(95, bundle.Drop.Volume);
+
+            // Win: Inherit -> enabled, volume 90
+            Assert.NotNull(bundle.Win);
+            Assert.Equal(90, bundle.Win.Volume);
+        }
+
+        [Fact]
+        public void ParachuteJs_SoundManager_PreloadsAndPlaysEventsWithoutQueuing()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJsPath = Path.Combine(jsDir, "parachute.js");
+            Assert.True(File.Exists(parachuteJsPath));
+
+            var code = File.ReadAllText(parachuteJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(code);
+
+            // 1. Send session_start with sound bundle
+            var sessionStartPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_start",
+                session = new
+                {
+                    isActive = true,
+                    totalDurationSeconds = 60,
+                    remainingSeconds = 60,
+                    totalDrops = 0
+                },
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    start = new { enabled = true, url = "/audio/start.mp3", volume = 80 },
+                    end = new { enabled = true, url = "/audio/end.mp3", volume = 75 },
+                    drop = new { enabled = true, url = "/audio/drop.mp3", volume = 70 },
+                    win = new { enabled = true, url = "/audio/win.mp3", volume = 90 }
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{sessionStartPayload}' }})");
+
+            // Verify preloading was triggered for bundle sounds
+            var preloadedCount = engine.Evaluate("window.__audioPreloaded.length").AsNumber();
+            Assert.True(preloadedCount >= 4, "Start, end, drop, and win sounds are preloaded upfront");
+
+            // Verify start sound played immediately
+            var playedCount = engine.Evaluate("window.__audioPlayed.length").AsNumber();
+            Assert.True(playedCount >= 1, "Start sound played on session_start");
+            var lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/start.mp3", lastPlayedSrc);
+
+            // 2. Send parachute_drop
+            var dropPayload = JsonSerializer.Serialize(new
+            {
+                type = "parachute_drop",
+                dropToken = "sound-drop-token",
+                displayName = "AudioTester",
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    drop = new { enabled = true, url = "/audio/drop.mp3", volume = 70 },
+                    win = new { enabled = true, url = "/audio/win.mp3", volume = 90 }
+                },
+                physics = new
+                {
+                    startX = 0.5,
+                    startY = 0.90,
+                    landingY = 0.94,
+                    initialVx = 0.0,
+                    initialVy = 0.20,
+                    durationSeconds = 1.0,
+                    totalTicks = 60,
+                    isHit = true,
+                    isBullseye = true,
+                    targetCenterX = 0.5,
+                    targetHalfWidth = 0.10
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{dropPayload}' }})");
+
+            // Verify drop sound played immediately
+            lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/drop.mp3", lastPlayedSrc);
+
+            // 3. Step frames to simulate parachute landing on platform
+            StepEngineFrames(engine, 70);
+
+            // Verify win sound played on landing
+            var totalPlayed = (int)engine.Evaluate("window.__audioPlayed.length").AsNumber();
+            Assert.True(totalPlayed >= 3, "Start, drop, and win sounds were triggered");
+            lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/win.mp3", lastPlayedSrc);
+
+            // 4. Send session_end
+            var sessionEndPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_end",
+                session = new { isActive = false, totalDrops = 1 },
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    end = new { enabled = true, url = "/audio/end.mp3", volume = 75 }
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{sessionEndPayload}' }})");
+
+            lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/end.mp3", lastPlayedSrc);
+        }
+
+        [Fact]
+        public void PlinkoJs_SoundManager_PreloadsAndPlaysEventsWithoutQueuing()
+        {
+            var jsDir = FindWwwRootPath();
+            var plinkoJsPath = Path.Combine(jsDir, "plinko.js");
+            Assert.True(File.Exists(plinkoJsPath));
+
+            var code = File.ReadAllText(plinkoJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(code);
+
+            // 1. Send session_start with sound bundle
+            var sessionStartPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_start",
+                session = new { isActive = true, totalDurationSeconds = 60 },
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    start = new { enabled = true, url = "/audio/plinko_start.mp3", volume = 85 },
+                    end = new { enabled = true, url = "/audio/plinko_end.mp3", volume = 75 },
+                    drop = new { enabled = true, url = "/audio/plinko_drop.mp3", volume = 70 },
+                    pegCollision = new { enabled = true, url = "/audio/peg_clink.wav", volume = 60 },
+                    win = new { enabled = true, url = "/audio/plinko_win.mp3", volume = 90 }
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{sessionStartPayload}' }})");
+
+            // Verify start sound played
+            var lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/plinko_start.mp3", lastPlayedSrc);
+
+            // 2. Send plinko_drop
+            var dropPayload = JsonSerializer.Serialize(new
+            {
+                type = "plinko_drop",
+                dropToken = "plinko-sound-token",
+                displayName = "PlinkoPlayer",
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    drop = new { enabled = true, url = "/audio/plinko_drop.mp3", volume = 70 },
+                    pegCollision = new { enabled = true, url = "/audio/peg_clink.wav", volume = 60 },
+                    win = new { enabled = true, url = "/audio/plinko_win.mp3", volume = 90 }
+                },
+                board = new
+                {
+                    rowCount = 5,
+                    durationSeconds = 1.0,
+                    gravity = 1.0,
+                    bounciness = 0.8,
+                    mass = 1.0,
+                    isWin = true,
+                    winningBucketIndex = 2,
+                    waypoints = new[]
+                    {
+                        new { x = 0.5, y = 0.08, row = -1 },
+                        new { x = 0.5, y = 0.25, row = 0 },
+                        new { x = 0.45, y = 0.50, row = 2 },
+                        new { x = 0.5, y = 0.88, row = 5 }
+                    }
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{dropPayload}' }})");
+
+            // Verify drop sound played immediately
+            lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/plinko_drop.mp3", lastPlayedSrc);
+
+            // 3. Step frames through peg collision
+            StepEngineFrames(engine, 30);
+
+            // Verify peg collision was triggered
+            var clinkPlayed = engine.Evaluate("window.__audioPlayed.some(function(a) { return a.src === '/audio/peg_clink.wav'; })").AsBoolean();
+            Assert.True(clinkPlayed, "Peg collision sound clinked on peg bounce");
+
+            // 4. Complete drop into winning bucket
+            StepEngineFrames(engine, 60);
+
+            var winPlayed = engine.Evaluate("window.__audioPlayed.some(function(a) { return a.src === '/audio/plinko_win.mp3'; })").AsBoolean();
+            Assert.True(winPlayed, "Win sound played on winning bucket landing");
+
+            // 5. Send session_end
+            var sessionEndPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_end",
+                session = new { isActive = false, totalDrops = 1 },
+                sounds = new
+                {
+                    maxConcurrentSounds = 1,
+                    end = new { enabled = true, url = "/audio/plinko_end.mp3", volume = 75 }
+                }
+            });
+
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{sessionEndPayload}' }})");
+
+            lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
+            Assert.Equal("/audio/plinko_end.mp3", lastPlayedSrc);
         }
     }
 }

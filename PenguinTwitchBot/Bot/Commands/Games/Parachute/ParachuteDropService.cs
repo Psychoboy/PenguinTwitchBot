@@ -25,10 +25,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         IDropGamesSettingsService settingsService,
         IDropRegistry dropRegistry,
         ILogger<ParachuteDropService> logger,
-        IChatColorService? chatColorService = null)
+        IChatColorService? chatColorService = null,
+        MediaUploadService? mediaUploadService = null)
         : BaseCommandService(serviceBackbone, commandHandler, "ParachuteDrop", dispatcher), IHostedService, IParachuteDropService
     {
         private readonly IChatColorService _chatColorService = chatColorService ?? new ChatColorService();
+        private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -38,6 +40,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         private readonly SemaphoreSlim _sessionLock = new(1, 1);
         private readonly object _simulationLock = new();
         private DropGameSessionState? _activeSession;
+
+        private MediaUploadService? GetMediaUploadService()
+        {
+            if (_mediaUploadService != null) return _mediaUploadService;
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                return scope.ServiceProvider.GetService<MediaUploadService>();
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         private sealed class QueuedSessionRequest
         {
@@ -300,7 +316,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     HeaderConfig = headerConfig
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig }, _jsonOptions);
+                var soundBundle = DropGameMediaResolver.ResolveParachuteSoundBundle(settings.Parachute, theme, GetMediaUploadService());
+                dto.Sounds = soundBundle;
+
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_start");
 
                 var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "parachute" }, _jsonOptions);
@@ -401,7 +420,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 HeaderConfig = headerConfig
             };
 
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
+            var soundBundle = DropGameMediaResolver.ResolveParachuteSoundBundle(settings.Parachute, theme, GetMediaUploadService());
+            dto.Sounds = soundBundle;
+
+            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_end");
 
             var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "parachute" }, _jsonOptions);
@@ -659,6 +681,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 keyframes = record.Keyframes
             };
 
+            var soundBundle = DropGameMediaResolver.ResolveParachuteSoundBundle(pSettings, theme, GetMediaUploadService());
+            if (activeSessionDto != null)
+            {
+                activeSessionDto.Sounds = soundBundle;
+            }
+
             var payload = new
             {
                 type = "parachute_drop",
@@ -674,6 +702,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 session = activeSessionDto,
                 isOtherGameActive,
                 headerConfig,
+                sounds = soundBundle,
                 trajectory = trajectoryObj,
                 physics = trajectoryObj
             };

@@ -25,10 +25,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
         IDropGamesSettingsService settingsService,
         IDropRegistry dropRegistry,
         ILogger<PlinkoDropService> logger,
-        IChatColorService? chatColorService = null)
+        IChatColorService? chatColorService = null,
+        MediaUploadService? mediaUploadService = null)
         : BaseCommandService(serviceBackbone, commandHandler, "PlinkoDrop", dispatcher), IHostedService, IPlinkoDropService
     {
         private readonly IChatColorService _chatColorService = chatColorService ?? new ChatColorService();
+        private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
         private readonly JsonSerializerOptions _jsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -37,6 +39,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
         private readonly ConcurrentQueue<QueuedSessionRequest> _sessionQueue = new();
         private readonly SemaphoreSlim _sessionLock = new(1, 1);
         private DropGameSessionState? _activeSession;
+
+        private MediaUploadService? GetMediaUploadService()
+        {
+            if (_mediaUploadService != null) return _mediaUploadService;
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                return scope.ServiceProvider.GetService<MediaUploadService>();
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         private sealed class QueuedSessionRequest
         {
@@ -273,6 +289,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     HeaderConfig = headerConfig
                 };
 
+                var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(settings.Plinko, theme, GetMediaUploadService());
+                dto.Sounds = soundBundle;
+
                 var startGravity = Math.Clamp(settings.Plinko.Gravity, 0.1, 10.0);
                 var startBounciness = Math.Clamp(settings.Plinko.Bounciness, 0.1, 5.0);
                 var startMass = Math.Clamp(settings.Plinko.Mass, 0.1, 10.0);
@@ -289,7 +308,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     buckets = (settings.Plinko.Buckets.Count > 0 ? settings.Plinko.Buckets : PlinkoGameSettings.CreateDefaultBuckets())
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig, sounds = soundBundle }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_start");
 
                 var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "plinko" }, _jsonOptions);
@@ -387,7 +406,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 HeaderConfig = headerConfig
             };
 
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig }, _jsonOptions);
+            var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(settings.Plinko, theme, GetMediaUploadService());
+            dto.Sounds = soundBundle;
+
+            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
 
             var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "plinko" }, _jsonOptions);
@@ -570,6 +592,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 };
             }
 
+            var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(plinkoSettings, theme, GetMediaUploadService());
+            if (activeSessionDto != null)
+            {
+                activeSessionDto.Sounds = soundBundle;
+            }
+
             var payload = new
             {
                 type = "plinko_drop",
@@ -581,6 +609,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 characterImageUrl = characterImageUrl ?? "",
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
+                sounds = soundBundle,
                 nameFontSize = plinkoSettings.NameFontSize,
                 session = activeSessionDto,
                 isOtherGameActive,

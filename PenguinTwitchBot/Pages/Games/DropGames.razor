@@ -247,6 +247,44 @@
                                                Label="Show Free-Play Counter Pill (during non-session drops)" />
                                 </MudStack>
                             </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Parachute Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, drops, and winning platform landings.</MudText>
+                                    </div>
+                                </MudStack>
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Parachute.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Parachute.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Parachute round begins"
+                                                         SoundConfig="_settings.Parachute.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Parachute round finishes"
+                                                         SoundConfig="_settings.Parachute.EndSound" />
+
+                                    <DropGameSoundEditor Title="Player Drop Sound"
+                                                         HelperText="Plays when a viewer drops a parachute into the game"
+                                                         SoundConfig="_settings.Parachute.DropSound" />
+
+                                    <DropGameSoundEditor Title="Target Platform Win Sound"
+                                                         HelperText="Plays when a player successfully lands on the target platform"
+                                                         SoundConfig="_settings.Parachute.WinSound" />
+                                </MudStack>
+                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" md="5">
@@ -637,6 +675,48 @@
                                     }
                                 </MudStack>
                             </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Plinko Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, drops, peg collisions, and winning buckets.</MudText>
+                                    </div>
+                                </MudStack>
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Plinko.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Plinko.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Plinko round begins"
+                                                         SoundConfig="_settings.Plinko.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Plinko round finishes"
+                                                         SoundConfig="_settings.Plinko.EndSound" />
+
+                                    <DropGameSoundEditor Title="Token Drop Sound"
+                                                         HelperText="Plays when a viewer drops a Plinko token into the board"
+                                                         SoundConfig="_settings.Plinko.DropSound" />
+
+                                    <DropGameSoundEditor Title="Winning Bucket Sound"
+                                                         HelperText="Plays when a token lands into any winning bucket"
+                                                         SoundConfig="_settings.Plinko.WinSound" />
+
+                                    <DropGameSoundEditor Title="Peg Collision Bounce Sound"
+                                                         HelperText="Plays when a Plinko token bounces off a board peg"
+                                                         SoundConfig="_settings.Plinko.PegCollisionSound" />
+                                </MudStack>
+                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" md="5">
@@ -920,6 +1000,58 @@
                                                                         HelperText="Optional custom slot divider pillar (overrides seasonal candle, candy cane, bamboo, icicle)." />
                                                     </MudItem>
                                                 </MudGrid>
+                                            </MudPaper>
+                                        </MudItem>
+
+                                        <!-- Group 4: Theme Audio & Sound Overrides -->
+                                        <MudItem xs="12">
+                                            <MudPaper Class="pa-3" Outlined="true">
+                                                <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Theme Audio & Sound Overrides</b></MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                                                    Optionally customize or mute sounds specifically when this theme is active.
+                                                </MudText>
+
+                                                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Parachute Sounds</MudText>
+                                                <DropGameSoundEditor Title="Parachute Start Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteStartSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.StartSound)" />
+                                                <DropGameSoundEditor Title="Parachute End Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteEndSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.EndSound)" />
+                                                <DropGameSoundEditor Title="Parachute Drop Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteDropSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.DropSound)" />
+                                                <DropGameSoundEditor Title="Parachute Win Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteWinSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.WinSound)" />
+
+                                                <MudDivider Class="my-3" />
+
+                                                <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mt-2 mb-2">Plinko Sounds</MudText>
+                                                <DropGameSoundEditor Title="Plinko Start Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.PlinkoStartSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.StartSound)" />
+                                                <DropGameSoundEditor Title="Plinko End Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.PlinkoEndSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.EndSound)" />
+                                                <DropGameSoundEditor Title="Plinko Drop Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.PlinkoDropSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.DropSound)" />
+                                                <DropGameSoundEditor Title="Plinko Win Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.PlinkoWinSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.WinSound)" />
+                                                <DropGameSoundEditor Title="Plinko Peg Collision Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.PlinkoPegCollisionSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.PegCollisionSound)" />
                                             </MudPaper>
                                         </MudItem>
                                     </MudGrid>
@@ -1264,6 +1396,16 @@
         {
             Snackbar.Add("No active or queued Plinko Bounce session to stop.", Severity.Info);
         }
+    }
+
+    private static string GetSoundFallbackInfo(DropGameSoundConfig? config)
+    {
+        if (config == null || !config.Enabled)
+        {
+            return "Disabled in overall settings";
+        }
+        var file = string.IsNullOrWhiteSpace(config.SoundFile) ? "(no file selected)" : config.SoundFile;
+        return $"Overall active: {file} at {config.Volume}% volume";
     }
 }
 

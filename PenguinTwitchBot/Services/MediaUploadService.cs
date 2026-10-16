@@ -123,6 +123,87 @@ namespace PenguinTwitchBot.Services
             return null;
         }
 
+        public string? ResolveSoundUrl(string? soundName)
+        {
+            if (string.IsNullOrWhiteSpace(soundName))
+                return null;
+
+            var trimmed = soundName.Trim();
+
+            // 1. Direct /audio/ path
+            if (trimmed.StartsWith("/audio/", StringComparison.OrdinalIgnoreCase))
+            {
+                var relativeName = Uri.UnescapeDataString(trimmed["/audio/".Length..]);
+                var localPath = Path.Combine(AudioDirectory, relativeName);
+                if (File.Exists(localPath))
+                {
+                    return $"/audio/{Uri.EscapeDataString(Path.GetFileName(localPath))}";
+                }
+            }
+
+            // 2. Direct /media/ path
+            if (trimmed.StartsWith("/media/", StringComparison.OrdinalIgnoreCase))
+            {
+                var relativeName = Uri.UnescapeDataString(trimmed["/media/".Length..]);
+                var localPath = Path.Combine(MediaDirectory, relativeName);
+                if (File.Exists(localPath))
+                {
+                    return $"/media/{Uri.EscapeDataString(Path.GetFileName(localPath))}";
+                }
+            }
+
+            // 3. Check audio directory (/audio/...)
+            var audioUrl = ResolveAudioUrl(trimmed);
+            if (!string.IsNullOrEmpty(audioUrl))
+            {
+                return audioUrl;
+            }
+
+            // 4. Check media directory (/media/...)
+            var mediaUrl = ResolveMediaUrl(trimmed);
+            if (!string.IsNullOrEmpty(mediaUrl))
+            {
+                return mediaUrl;
+            }
+
+            // 5. Check if soundName without extension matches an audio file in media directory
+            var baseName = Path.GetFileNameWithoutExtension(trimmed);
+            if (Directory.Exists(MediaDirectory))
+            {
+                foreach (var ext in SupportedAudioExtensions)
+                {
+                    var candidate = Path.Combine(MediaDirectory, $"{baseName}{ext}");
+                    if (File.Exists(candidate))
+                    {
+                        return $"/media/{Uri.EscapeDataString(Path.GetFileName(candidate))}";
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public List<string> GetAvailableSoundFiles()
+        {
+            var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Add files from Audio directory
+            foreach (var audio in GetAudioFiles())
+            {
+                if (!string.IsNullOrWhiteSpace(audio))
+                    results.Add(audio);
+            }
+
+            // Add audio files from Media directory
+            foreach (var media in GetMediaFiles().Where(f => f.IsAudio))
+            {
+                if (!string.IsNullOrWhiteSpace(media.FileName))
+                    results.Add(media.FileName);
+            }
+
+            return results.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
         public async Task<MediaUploadResult> UploadAudioAsync(Stream stream, string originalFileName, long maxSizeBytes = 25 * 1024 * 1024)
         {
             try

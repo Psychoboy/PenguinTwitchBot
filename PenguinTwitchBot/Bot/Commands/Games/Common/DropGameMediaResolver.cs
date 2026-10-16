@@ -316,6 +316,76 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 ?? settings.Themes.FirstOrDefault()
                 ?? DropGameTheme.CreateDefaultSeasonalThemes()[0];
         }
+
+        public static DropGameEffectiveSoundDto ResolveSound(
+            DropGameSoundConfig? baseConfig,
+            DropGameSoundOverride? themeOverride,
+            MediaUploadService? mediaService)
+        {
+            var isOverridden = themeOverride != null && themeOverride.Override;
+            var enabled = isOverridden ? themeOverride!.Enabled : (baseConfig?.Enabled ?? false);
+            var file = isOverridden ? themeOverride!.AudioFile : (baseConfig?.AudioFile ?? string.Empty);
+            var volume = isOverridden ? themeOverride!.Volume : (baseConfig?.Volume ?? 50);
+
+            if (!enabled || string.IsNullOrWhiteSpace(file) || mediaService == null)
+            {
+                return new DropGameEffectiveSoundDto
+                {
+                    Enabled = false,
+                    Url = null,
+                    Volume = volume
+                };
+            }
+
+            var resolvedUrl = mediaService.ResolveSoundUrl(file);
+            if (string.IsNullOrEmpty(resolvedUrl))
+            {
+                return new DropGameEffectiveSoundDto
+                {
+                    Enabled = false,
+                    Url = null,
+                    Volume = volume
+                };
+            }
+
+            return new DropGameEffectiveSoundDto
+            {
+                Enabled = true,
+                Url = resolvedUrl,
+                Volume = volume
+            };
+        }
+
+        public static DropGameSoundBundleDto ResolveParachuteSoundBundle(
+            ParachuteGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.ParachuteStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.ParachuteEndSound, mediaService),
+                Drop = ResolveSound(settings.DropSound, theme.ParachuteDropSound, mediaService),
+                Win = ResolveSound(settings.WinSound, theme.ParachuteWinSound, mediaService)
+            };
+        }
+
+        public static DropGameSoundBundleDto ResolvePlinkoSoundBundle(
+            PlinkoGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.PlinkoStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.PlinkoEndSound, mediaService),
+                Drop = ResolveSound(settings.DropSound, theme.PlinkoDropSound, mediaService),
+                Win = ResolveSound(settings.WinSound, theme.PlinkoWinSound, mediaService),
+                PegCollision = ResolveSound(settings.PegCollisionSound, theme.PlinkoPegCollisionSound, mediaService)
+            };
+        }
     }
 }
 
