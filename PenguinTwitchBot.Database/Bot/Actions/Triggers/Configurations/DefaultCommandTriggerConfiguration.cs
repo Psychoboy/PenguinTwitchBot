@@ -49,6 +49,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string WheelSpinResult = "WheelSpin.Result";
 
         // Parachute Drop events
+        public const string ParachuteStart = "Parachute.Start";
+        public const string ParachuteStarted = "Parachute.Start";
         public const string ParachuteWin = "Parachute.Win";
         public const string ParachuteBullseye = "Parachute.Bullseye";
         public const string ParachuteLose = "Parachute.Lose";
@@ -56,6 +58,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string ParachuteEnded = "Parachute.End";
 
         // Plinko Bounce events
+        public const string PlinkoStart = "Plinko.Start";
+        public const string PlinkoStarted = "Plinko.Start";
         public const string PlinkoWin = "Plinko.Win";
         public const string PlinkoLose = "Plinko.Lose";
         public const string PlinkoEnd = "Plinko.End";

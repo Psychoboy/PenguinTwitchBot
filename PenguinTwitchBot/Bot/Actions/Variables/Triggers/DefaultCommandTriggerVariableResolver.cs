@@ -184,6 +184,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
                     eventType = DefaultCommandEventTypes.ParachuteWin;
                 else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
                     eventType = DefaultCommandEventTypes.ParachuteLose;
+                else if (nameLower.Contains("start"))
+                    eventType = DefaultCommandEventTypes.ParachuteStart;
                 else if (nameLower.Contains("end"))
                     eventType = DefaultCommandEventTypes.ParachuteEnd;
             }
@@ -193,6 +195,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
                     eventType = DefaultCommandEventTypes.PlinkoWin;
                 else if (nameLower.Contains("lose"))
                     eventType = DefaultCommandEventTypes.PlinkoLose;
+                else if (nameLower.Contains("start"))
+                    eventType = DefaultCommandEventTypes.PlinkoStart;
                 else if (nameLower.Contains("end"))
                     eventType = DefaultCommandEventTypes.PlinkoEnd;
             }
@@ -348,8 +352,16 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
     private static void ResolveParachuteVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
     {
-        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.ParachuteEnd, StringComparison.OrdinalIgnoreCase) ||
-                                  eventType.Equals(DefaultCommandEventTypes.ParachuteEnded, StringComparison.OrdinalIgnoreCase)))
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.ParachuteStart, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.ParachuteStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the parachute session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the parachute session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "ParachuteDrop");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.ParachuteEnd, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.ParachuteEnded, StringComparison.OrdinalIgnoreCase)))
         {
             variables.SetVariable("TotalDrops", "Total number of parachutists who dropped during the round", source, category, "42");
             variables.SetVariable("Duration", "Total duration of the parachute session in seconds", source, category, "100");
@@ -370,8 +382,16 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
 
     private static void ResolvePlinkoVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
     {
-        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.PlinkoEnd, StringComparison.OrdinalIgnoreCase) ||
-                                  eventType.Equals(DefaultCommandEventTypes.PlinkoEnded, StringComparison.OrdinalIgnoreCase)))
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.PlinkoStart, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.PlinkoStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the plinko session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the plinko session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "PlinkoBounce");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.PlinkoEnd, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.PlinkoEnded, StringComparison.OrdinalIgnoreCase)))
         {
             variables.SetVariable("TotalDrops", "Total number of plinko tokens dropped during the round", source, category, "35");
             variables.SetVariable("TotalTokens", "Total number of plinko tokens dropped during the round", source, category, "35");

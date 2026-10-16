@@ -918,6 +918,7 @@
             },
             "drop" or "parachute" => new List<string>
             {
+                DefaultCommandEventTypes.ParachuteStart,
                 DefaultCommandEventTypes.ParachuteBullseye,
                 DefaultCommandEventTypes.ParachuteWin,
                 DefaultCommandEventTypes.ParachuteLose,
@@ -925,6 +926,7 @@
             },
             "plinko" => new List<string>
             {
+                DefaultCommandEventTypes.PlinkoStart,
                 DefaultCommandEventTypes.PlinkoWin,
                 DefaultCommandEventTypes.PlinkoLose,
                 DefaultCommandEventTypes.PlinkoEnd
@@ -961,10 +963,12 @@
             DefaultCommandEventTypes.DeathReset => "Death Reset",
             DefaultCommandEventTypes.DeathSet => "Death Set",
             DefaultCommandEventTypes.WheelSpinResult => "Spin Result",
+            DefaultCommandEventTypes.ParachuteStart => "Round Started (Session Active)",
             DefaultCommandEventTypes.ParachuteWin => "Win (Target Hit)",
             DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",
             DefaultCommandEventTypes.ParachuteLose => "Missed Target (Lose)",
             DefaultCommandEventTypes.ParachuteEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.PlinkoStart => "Round Started (Session Active)",
             DefaultCommandEventTypes.PlinkoWin => "Winning Bucket",
             DefaultCommandEventTypes.PlinkoLose => "Losing Bucket",
             DefaultCommandEventTypes.PlinkoEnd => "Round Ended (Session Closed)",
@@ -992,10 +996,14 @@
                 "%user%, %userid%, %game%, %newcount%, %oldcount%",
             DefaultCommandEventTypes.WheelSpinResult =>
                 "%user%, %userid%, %segment_label%, %prize_amount%, %spin_outcome%",
+            DefaultCommandEventTypes.ParachuteStart =>
+                "%user%, %duration%, %theme%, %game%",
             DefaultCommandEventTypes.ParachuteBullseye or DefaultCommandEventTypes.ParachuteWin or DefaultCommandEventTypes.ParachuteLose =>
                 "%user%, %userid%, %score%, %is_bullseye%, %multiplier%, %points_awarded%",
             DefaultCommandEventTypes.ParachuteEnd =>
                 "%user%, %TotalDrops%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.PlinkoStart =>
+                "%user%, %duration%, %theme%, %game%",
             DefaultCommandEventTypes.PlinkoWin or DefaultCommandEventTypes.PlinkoLose =>
                 "%user%, %userid%, %bucket_index%, %multiplier%, %points_awarded%",
             DefaultCommandEventTypes.PlinkoEnd =>
