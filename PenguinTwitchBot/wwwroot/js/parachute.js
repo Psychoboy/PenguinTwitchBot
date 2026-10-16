@@ -888,7 +888,7 @@
                 isWin: !!p.isWin,
                 dropletHits: 0,
                 keyframes: p.keyframes || [],
-                collisions: [],
+                collisions: Array.isArray(p.collisions) ? p.collisions : [],
                 triggeredCollisionTicks: new Set(),
                 tiltAngle: p.initialTilt !== undefined ? p.initialTilt : (Math.random() - 0.5) * 0.45,
                 completed: false,
@@ -1976,7 +1976,8 @@
                                 d.angularVel = (Math.random() - 0.5) * 10.0;
                                 d.hitCount = (d.hitCount || 0) + 1;
 
-                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
+                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
                                     const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
@@ -2021,7 +2022,8 @@
                             d.hitCount = (d.hitCount || 0) + 1;
 
                             if (!drop.completed) {
-                                const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
+                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
+                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
                                     const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
@@ -2167,6 +2169,7 @@
                     if (drop.currentTick >= col.tick && !drop.triggeredCollisionTicks.has(col.tick)) {
                         drop.triggeredCollisionTicks.add(col.tick);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
+                        drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
                     }
                 }

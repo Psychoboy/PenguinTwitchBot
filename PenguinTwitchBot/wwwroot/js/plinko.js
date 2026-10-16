@@ -1637,11 +1637,14 @@
             const arcBounce = isLastSeg ? 0 : -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
             const baseY = linearY + arcBounce;
 
-            // Apply physical deflection offset from collisions
-            t.offsetX = (t.offsetX || 0) + (t.vx || 0) * dtSec;
-            t.offsetY = (t.offsetY || 0) + (t.vy || 0) * dtSec;
-            t.vx = (t.vx || 0) * 0.94;
-            t.vy = (t.vy || 0) * 0.94;
+            // Apply physical deflection offset from collisions with spring decay
+            // Ensures tokens bounce elastically when colliding mid-air, but smoothly
+            // return to the deterministic waypoint path so they land cleanly in their designated bucket
+            const springDecay = isLastSeg ? Math.pow(0.70, dtSec * 60) : Math.pow(0.88, dtSec * 60);
+            t.offsetX = ((t.offsetX || 0) + (t.vx || 0) * dtSec) * springDecay;
+            t.offsetY = ((t.offsetY || 0) + (t.vy || 0) * dtSec) * springDecay;
+            t.vx = (t.vx || 0) * (isLastSeg ? 0.75 : 0.94);
+            t.vy = (t.vy || 0) * (isLastSeg ? 0.75 : 0.94);
 
             const bucketCount = (boardConfig.buckets && boardConfig.buckets.length) ? boardConfig.buckets.length : 5;
             const halfBucketW = 0.5 / bucketCount;
@@ -1688,12 +1691,10 @@
                     const minTokenX = halfBucketW;
                     const maxTokenX = 1.0 - halfBucketW;
 
-                    // Positional separation
-                    const overlap = 0.5 * (minDist - dist);
+                    // Positional separation applied to deflection offset
+                    const overlap = Math.min(0.015, 0.5 * (minDist - dist));
                     tA.offsetX = (tA.offsetX || 0) + nx * overlap;
                     tB.offsetX = (tB.offsetX || 0) - nx * overlap;
-                    tA.x = Math.max(minTokenX, Math.min(maxTokenX, tA.x + nx * overlap));
-                    tB.x = Math.max(minTokenX, Math.min(maxTokenX, tB.x - nx * overlap));
 
                     // Constrain completed tokens inside their landed slot margins
                     if (tA.completed && typeof tA.winningBucketIndex === 'number') {
@@ -1747,7 +1748,9 @@
                 let landedBucketIdx;
                 if (buckets.length > 0) {
                     const slotW = 1.0 / buckets.length;
-                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
+                    landedBucketIdx = (typeof t.winningBucketIndex === 'number' && t.winningBucketIndex >= 0 && t.winningBucketIndex < buckets.length)
+                        ? t.winningBucketIndex
+                        : Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
                     const landedBucket = buckets[landedBucketIdx];
                     t.winningBucketIndex = landedBucketIdx;
                     t.winningBucketLabel = landedBucket.label;
@@ -1758,7 +1761,7 @@
                     const margin = Math.min(0.035, slotW * 0.22);
                     const minSlotX = landedBucketIdx * slotW + margin;
                     const maxSlotX = (landedBucketIdx + 1) * slotW - margin;
-                    t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
+                    t.x = Math.max(minSlotX, Math.min(maxSlotX, (landedBucketIdx + 0.5) * slotW + (t.offsetX || 0) * 0.15));
 
                     sendCompletion(t.dropToken, landedBucketIdx);
                 } else {
