@@ -173,6 +173,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
             ";
 
             engine.Execute(mockDomScript);
+            var commonJsPath = Path.Combine(FindWwwRootPath(), "drop-games-common.js");
+            if (File.Exists(commonJsPath))
+            {
+                engine.Execute(File.ReadAllText(commonJsPath));
+                engine.Execute("var DropGamesCommon = window.DropGamesCommon;");
+            }
             var audioJsPath = Path.Combine(FindWwwRootPath(), "drop-games-audio.js");
             if (File.Exists(audioJsPath))
             {
@@ -232,23 +238,23 @@ namespace PenguinTwitchBot.Test.ClientScripts
         public void BrightenColor_PreservesHueAndEnsuresContrast(string inputHex, bool shouldMatchExactly)
         {
             var jsDir = FindWwwRootPath();
-            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var commonJs = File.ReadAllText(Path.Combine(jsDir, "drop-games-common.js"));
 
             // Extract brightenColor function directly to test its pure logic
-            var startIndex = plinkoJs.IndexOf("function brightenColor(");
-            Assert.True(startIndex >= 0, "brightenColor function not found in plinko.js");
+            var startIndex = commonJs.IndexOf("function brightenColor(");
+            Assert.True(startIndex >= 0, "brightenColor function not found in drop-games-common.js");
 
             // Extract the function body
-            var openBrace = plinkoJs.IndexOf('{', startIndex);
+            var openBrace = commonJs.IndexOf('{', startIndex);
             var depth = 1;
             var endIndex = openBrace + 1;
-            while (depth > 0 && endIndex < plinkoJs.Length)
+            while (depth > 0 && endIndex < commonJs.Length)
             {
-                if (plinkoJs[endIndex] == '{') depth++;
-                else if (plinkoJs[endIndex] == '}') depth--;
+                if (commonJs[endIndex] == '{') depth++;
+                else if (commonJs[endIndex] == '}') depth--;
                 endIndex++;
             }
-            var brightenFunc = plinkoJs.Substring(startIndex, endIndex - startIndex);
+            var brightenFunc = commonJs.Substring(startIndex, endIndex - startIndex);
 
             var engine = new Engine();
             engine.Execute(brightenFunc);
@@ -2279,6 +2285,49 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var totalPlayed = (int)engine.Evaluate("window.__audioPlayed.length").AsNumber();
             Assert.True(totalPlayed >= 3);
+        }
+
+        [Fact]
+        public void DropGamesCommonJs_LoadsAndExecutesWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var commonJsPath = Path.Combine(jsDir, "drop-games-common.js");
+            Assert.True(File.Exists(commonJsPath), $"drop-games-common.js not found at {commonJsPath}");
+
+            var code = File.ReadAllText(commonJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            Assert.True(engine.Evaluate("typeof window.DropGamesCommon.createImageLoader === 'function'").AsBoolean());
+            Assert.True(engine.Evaluate("typeof window.DropGamesCommon.brightenColor === 'function'").AsBoolean());
+            Assert.True(engine.Evaluate("typeof window.DropGamesCommon.drawSeasonalDefaultPenguin === 'function'").AsBoolean());
+        }
+
+        [Fact]
+        public void DropGamesCommonJs_ImageLoader_NormalizesTwitchEmoteUrls()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            var normalized = engine.Evaluate("DropGamesCommon.normalizeImageUrl('https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_123/static/light/1.0')").AsString();
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_123/default/light/1.0", normalized);
+        }
+
+        [Fact]
+        public void DropGamesCommonJs_SeasonalPenguin_ExecutesWithoutError()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            var ex = Record.Exception(() => engine.Execute(@"
+                var canvas = document.getElementById('plinko-canvas');
+                var ctx = canvas.getContext('2d');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'spring');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'summer');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'fall');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'winter');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'halloween');
+                DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'christmas');
+            "));
+            Assert.Null(ex);
         }
     }
 }
