@@ -421,109 +421,21 @@
         return entry.loaded ? entry.img : null;
     }
 
-    const SoundManager = (function () {
-        const audioCache = new Map();
-        const activeVoices = [];
-        let currentBundle = null;
+    const audioModule = (typeof DropGamesAudio !== 'undefined')
+        ? DropGamesAudio
+        : (typeof window !== 'undefined' && window.DropGamesAudio ? window.DropGamesAudio : null);
 
-        function preload(url) {
-            if (!url || typeof Audio === 'undefined') return;
-            if (audioCache.has(url)) return audioCache.get(url);
-            try {
-                const a = new Audio();
-                a.preload = 'auto';
-                a.src = url;
-                if (typeof a.load === 'function') a.load();
-                audioCache.set(url, a);
-                return a;
-            } catch (_) { }
-            return null;
-        }
-
-        function updateBundle(bundle) {
-            if (!bundle) return;
-            currentBundle = bundle;
-            const keys = ['start', 'end', 'drop', 'win'];
-            keys.forEach(k => {
-                const s = bundle[k];
-                if (s && s.enabled && s.url) {
-                    preload(s.url);
-                }
-            });
-        }
-
-        function play(soundDto, key = 'drop', isHighPriority = false) {
-            if (!soundDto || !soundDto.enabled || !soundDto.url) return;
-            if (typeof Audio === 'undefined') return;
-
-            const maxVoices = (currentBundle && typeof currentBundle.maxConcurrentSounds === 'number' && currentBundle.maxConcurrentSounds >= 1)
-                ? currentBundle.maxConcurrentSounds
-                : 1;
-
-            // Clean up ended voices
-            for (let i = activeVoices.length - 1; i >= 0; i--) {
-                const v = activeVoices[i];
-                if (!v.audio || v.audio.ended || v.audio.paused) {
-                    activeVoices.splice(i, 1);
-                }
-            }
-
-            // Per-key instance replacement: cut over immediately if same key is already playing
-            for (let i = activeVoices.length - 1; i >= 0; i--) {
-                const v = activeVoices[i];
-                if (v.key === key) {
-                    try {
-                        v.audio.pause();
-                        v.audio.currentTime = 0;
-                    } catch (_) { }
-                    activeVoices.splice(i, 1);
-                }
-            }
-
-            // Enforce concurrency limit with immediate voice stealing (no queuing!)
-            while (activeVoices.length >= maxVoices) {
-                let victimIdx = 0;
-                if (!isHighPriority) {
-                    const nonHighIdx = activeVoices.findIndex(v => !v.isHighPriority);
-                    if (nonHighIdx !== -1) victimIdx = nonHighIdx;
-                }
-                const victim = activeVoices.splice(victimIdx, 1)[0];
-                if (victim && victim.audio) {
-                    try {
-                        victim.audio.pause();
-                        victim.audio.currentTime = 0;
-                    } catch (_) { }
-                }
-            }
-
-            try {
-                const audio = new Audio(soundDto.url);
-                const volFraction = (typeof soundDto.volume === 'number' ? soundDto.volume : 80) / 100;
-                audio.volume = Math.max(0, Math.min(1, volFraction));
-                audio.preload = 'auto';
-
-                const voiceRecord = { audio, key, isHighPriority };
-                activeVoices.push(voiceRecord);
-
-                if (typeof audio.addEventListener === 'function') {
-                    audio.addEventListener('ended', function () {
-                        const idx = activeVoices.indexOf(voiceRecord);
-                        if (idx !== -1) activeVoices.splice(idx, 1);
-                    });
-                }
-
-                audio.play().catch(function () { });
-            } catch (_) { }
-        }
-
-        return {
-            preload,
-            updateBundle,
-            play,
-            getBundle: function () { return currentBundle; },
-            getActiveCount: function () { return activeVoices.length; }
-        };
-    })();
+    const SoundManager = (audioModule && typeof audioModule.createSoundManager === 'function')
+        ? audioModule.createSoundManager()
+        : (function () {
+            return {
+                preload: function () { },
+                updateBundle: function () { },
+                play: function () { },
+                getBundle: function () { return null; },
+                getActiveCount: function () { return 0; }
+            };
+        })();
 
     if (typeof window !== 'undefined') {
         window.__parachuteSoundManager = SoundManager;

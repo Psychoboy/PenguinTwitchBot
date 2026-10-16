@@ -173,6 +173,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
             ";
 
             engine.Execute(mockDomScript);
+            var audioJsPath = Path.Combine(FindWwwRootPath(), "drop-games-audio.js");
+            if (File.Exists(audioJsPath))
+            {
+                engine.Execute(File.ReadAllText(audioJsPath));
+                engine.Execute("var DropGamesAudio = window.DropGamesAudio;");
+            }
             return engine;
         }
 
@@ -2226,6 +2232,53 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             lastPlayedSrc = engine.Evaluate("window.__audioPlayed[window.__audioPlayed.length - 1].src").AsString();
             Assert.Equal("/audio/plinko_end.mp3", lastPlayedSrc);
+        }
+
+        [Fact]
+        public void DropGamesAudioJs_LoadsAndExecutesWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var audioJsPath = Path.Combine(jsDir, "drop-games-audio.js");
+            Assert.True(File.Exists(audioJsPath), $"drop-games-audio.js not found at {audioJsPath}");
+
+            var code = File.ReadAllText(audioJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            var hasFactory = engine.Evaluate("typeof window.DropGamesAudio.createSoundManager === 'function'").AsBoolean();
+            Assert.True(hasFactory);
+        }
+
+        [Fact]
+        public void DropGamesAudioJs_CreateSoundManager_PreloadsAndEnforcesVoiceLimit()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(@"
+                var sm = DropGamesAudio.createSoundManager();
+                sm.updateBundle({
+                    maxConcurrentSounds: 2,
+                    start: { enabled: true, url: '/audio/start.mp3', volume: 80 },
+                    end: { enabled: true, url: '/audio/end.mp3', volume: 75 },
+                    drop: { enabled: true, url: '/audio/drop.mp3', volume: 70 }
+                });
+            ");
+
+            var preloaded = engine.Evaluate("window.__audioPreloaded.length").AsNumber();
+            Assert.True(preloaded >= 3);
+
+            engine.Execute(@"
+                sm.play({ enabled: true, url: '/audio/sound1.mp3', volume: 80 }, 'sound1', false);
+                sm.play({ enabled: true, url: '/audio/sound2.mp3', volume: 80 }, 'sound2', false);
+                sm.play({ enabled: true, url: '/audio/sound3.mp3', volume: 80 }, 'sound3', false);
+            ");
+
+            var activeCount = (int)engine.Evaluate("sm.getActiveCount()").AsNumber();
+            Assert.Equal(2, activeCount);
+
+            var totalPlayed = (int)engine.Evaluate("window.__audioPlayed.length").AsNumber();
+            Assert.True(totalPlayed >= 3);
         }
     }
 }
