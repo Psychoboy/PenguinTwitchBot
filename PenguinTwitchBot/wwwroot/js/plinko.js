@@ -656,7 +656,7 @@
             const tokenGravity = typeof b.gravity === 'number' ? Math.max(0.1, Math.min(10.0, b.gravity)) : 1.0;
             const tokenBounciness = typeof b.bounciness === 'number' ? Math.max(0.1, Math.min(5.0, b.bounciness)) : 0.80;
             const tokenMass = typeof b.mass === 'number' ? Math.max(0.1, Math.min(10.0, b.mass)) : 1.0;
-            const durationSec = b.durationSeconds || (4.5 / tokenGravity);
+            const durationSec = b.durationSeconds || Math.max(2.5, Math.min(7.0, 4.2 / Math.pow(tokenGravity, 0.25)));
             boardConfig.visibleUntil = performance.now() + (durationSec + 4.0) * 1000;
 
             getLoadedImage(msg.characterImageUrl);
@@ -1628,14 +1628,41 @@
 
             const wpA = t.waypoints[segIdx];
             const wpB = t.waypoints[segIdx + 1];
-
-            // Base position along waypoints
+            // Authentic Plinko projectile bounce physics (The Price Is Right style):
+            // 1. Initial drop (segIdx === 0): free fall under gravity from dispenser to top peg.
+            // 2. Peg hops (segIdx > 0 && !isLastSeg): striking a peg causes an elastic collision where the chip
+            //    visibly pops UP and arcs over the peg, then accelerates downward under gravity into the next peg.
+            // 3. Bucket descent (isLastSeg): smooth glide off bottom peg into the prize slot.
             const isLastSeg = (segIdx === segCount - 1);
             const targetY = isLastSeg ? Math.min(tokenLandingYNorm, wpB.y) : wpB.y;
-            const baseX = wpA.x + (wpB.x - wpA.x) * localT;
-            const linearY = wpA.y + (targetY - wpA.y) * localT;
-            const arcBounce = isLastSeg ? 0 : -Math.sin(localT * Math.PI) * (t.bounceAmp || 0.020);
-            const baseY = linearY + arcBounce;
+            const dx = wpB.x - wpA.x;
+            const dy = targetY - wpA.y;
+
+            const gEff = Math.max(0.1, Math.min(5.0, t.gravity || 1.0));
+            const bEff = Math.max(0.1, Math.min(5.0, t.bounciness || 0.80));
+
+            let baseX;
+            let baseY;
+
+            if (segIdx === 0) {
+                // Free fall from top dispenser into first peg
+                baseX = wpA.x + dx * localT;
+                baseY = wpA.y + dy * (localT * localT);
+            } else {
+                // Real physical bounce off peg wpA (including the final peg bouncing into the slot!):
+                // Normal force from peg collision pops the chip upward (Hpeak)
+                // then downward gravity (gEff) pulls it into free-fall dive toward wpB
+                const hPeak = Math.max(0.005, Math.min(0.038, dy * 0.25 * (bEff / 0.80) / Math.sqrt(gEff)));
+                const a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
+                const b = dy - a;
+
+                // Parabolic vertical hop: pops UP off peg, peaks at u ≈ 0.20, dives into next peg / slot floor at u = 1.0
+                baseY = Math.min(tokenLandingYNorm, wpA.y + a * localT + b * (localT * localT));
+
+                // Natural lateral deflection arc curving away from peg corridor
+                const lateralBulge = 0.14 * Math.sin(localT * Math.PI);
+                baseX = wpA.x + dx * (localT + lateralBulge);
+            }
 
             // Apply physical deflection offset from collisions with spring decay
             // Ensures tokens bounce elastically when colliding mid-air, but smoothly
@@ -1663,6 +1690,7 @@
                     y: wpA.y * height,
                     age: 0
                 });
+                t.spinSpeed = ((wpB.x >= wpA.x ? 1 : -1) * (6.0 + Math.random() * 4.0));
             }
         }
 
@@ -1757,11 +1785,11 @@
                     t.score = landedBucket.score;
                     t.isWin = !!landedBucket.isWin;
 
-                    // Keep token resting naturally within landed bucket boundaries without snapping
+                    // Stop token naturally where it landed in the slot without forcing to center
                     const margin = Math.min(0.035, slotW * 0.22);
                     const minSlotX = landedBucketIdx * slotW + margin;
                     const maxSlotX = (landedBucketIdx + 1) * slotW - margin;
-                    t.x = Math.max(minSlotX, Math.min(maxSlotX, (landedBucketIdx + 0.5) * slotW + (t.offsetX || 0) * 0.15));
+                    t.x = Math.max(minSlotX, Math.min(maxSlotX, t.x));
 
                     sendCompletion(t.dropToken, landedBucketIdx);
                 } else {
@@ -2126,6 +2154,7 @@
         ctx.restore();
     }
 
+    if (typeof window !== 'undefined') window.__plinkoTokens = activeTokens;
     requestAnimationFrame(animate);
 })();
 

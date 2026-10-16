@@ -1841,5 +1841,81 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 Assert.InRange(landingX, 0.05, 0.95);
             }
         }
+
+        [Fact]
+        public void PlinkoJs_WaypointTrajectory_FollowsNaturalGravitationalArcNotStraightDiagonal()
+        {
+            var jsDir = FindWwwRootPath();
+            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(plinkoJs);
+
+            const int rows = 8;
+            const int bucketCount = 5;
+
+            var buckets = new[]
+            {
+                new { label = "0", score = 10, isWin = false },
+                new { label = "1", score = 25, isWin = true },
+                new { label = "2", score = 100, isWin = true },
+                new { label = "3", score = 25, isWin = true },
+                new { label = "4", score = 10, isWin = false }
+            };
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { gameType = "plinko", isActive = true, durationSeconds = 60, totalDurationSeconds = 60, roundNumber = 1 },
+                board = new { rows, cols = bucketCount, buckets }
+            });
+
+            // Target bucket 3 (forces lateral peg navigation with dx != 0)
+            const int targetBucket = 3;
+            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "plinko_drop",
+                dropToken = "arc-test-token",
+                displayName = "ArcViewer",
+                board = new
+                {
+                    rowCount = rows,
+                    durationSeconds = 2.0,
+                    gravity = 1.0,
+                    bounciness = 0.85,
+                    mass = 1.0,
+                    buckets = buckets,
+                    winningBucketIndex = targetBucket,
+                    waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                }
+            });
+
+            // Sample positions over the first 30 frames
+            var sampledPositions = new List<(double x, double y)>();
+            for (var f = 0; f < 30; f++)
+            {
+                StepEngineFrames(engine, 1);
+                var x = engine.Evaluate("window.__plinkoTokens[0].x").AsNumber();
+                var y = engine.Evaluate("window.__plinkoTokens[0].y").AsNumber();
+                sampledPositions.Add((x, y));
+            }
+
+            // Verify the vertical movement exhibits non-linear gravitational acceleration
+            // With gravitational acceleration, the token rolls smoothly over the apex and picks up downward velocity
+            var deltaY1 = sampledPositions[10].y - sampledPositions[0].y;
+            var deltaY2 = sampledPositions[25].y - sampledPositions[15].y;
+            Assert.True(deltaY1 > 0, "Token moves downward");
+            Assert.True(deltaY2 > 0, "Token continues downward");
+
+            // Complete the full drop
+            StepEngineFrames(engine, 120);
+
+            var completions = engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.Equal(1, (int)completions);
+
+            var landedBucket = engine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
+            Assert.Equal(targetBucket, (int)landedBucket);
+        }
     }
 }

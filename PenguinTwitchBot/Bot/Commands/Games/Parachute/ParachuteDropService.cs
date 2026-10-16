@@ -485,7 +485,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var gravity = Math.Clamp(pSettings.Gravity, 0.1, 10.0);
             var bounciness = Math.Clamp(pSettings.Bounciness, 0.1, 5.0);
             var mass = Math.Clamp(pSettings.Mass, 0.1, 10.0);
-            var durationSeconds = Math.Clamp(6.5 / gravity, 0.65, 65.0);
+            var durationSeconds = Math.Clamp(6.2 / Math.Pow(gravity, 0.25), 3.5, 8.5);
             var totalTicks = Math.Max(30, (int)Math.Round(durationSeconds * ParachuteSimulationEngine.TickRateHz));
 
             var startX = forcedStartX.HasValue

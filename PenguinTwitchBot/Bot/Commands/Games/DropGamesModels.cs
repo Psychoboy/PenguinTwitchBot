@@ -179,7 +179,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Legacy database JSON field; ignored on write and marked for deletion later
         public double DescentDurationSeconds
         {
-            get => Math.Round(Math.Clamp(6.5 / Math.Clamp(Gravity, 0.1, 10.0), 0.65, 65.0), 2);
+            get => Math.Round(Math.Clamp(6.2 / Math.Pow(Math.Clamp(Gravity, 0.1, 10.0), 0.25), 3.5, 8.5), 2);
             set { /* Ignored - superseded by Gravity, Bounciness, and Mass */ }
         }
 

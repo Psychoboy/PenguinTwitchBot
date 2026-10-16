@@ -276,7 +276,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 var startGravity = Math.Clamp(settings.Plinko.Gravity, 0.1, 10.0);
                 var startBounciness = Math.Clamp(settings.Plinko.Bounciness, 0.1, 5.0);
                 var startMass = Math.Clamp(settings.Plinko.Mass, 0.1, 10.0);
-                var startDurationSeconds = Math.Clamp(4.5 / startGravity, 0.45, 45.0);
+                var startDurationSeconds = Math.Clamp(4.2 / Math.Pow(startGravity, 0.25), 2.5, 7.0);
 
                 var board = new
                 {
@@ -476,7 +476,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var gravity = Math.Clamp(plinkoSettings.Gravity, 0.1, 10.0);
             var bounciness = Math.Clamp(plinkoSettings.Bounciness, 0.1, 5.0);
             var mass = Math.Clamp(plinkoSettings.Mass, 0.1, 10.0);
-            var durationSeconds = Math.Clamp(4.5 / gravity, 0.45, 45.0);
+            var durationSeconds = Math.Clamp(4.2 / Math.Pow(gravity, 0.25), 2.5, 7.0);
             var pegTransparency = Math.Clamp(plinkoSettings.PegTransparency, 0, 100);
 
             int winningBucketIndex;
