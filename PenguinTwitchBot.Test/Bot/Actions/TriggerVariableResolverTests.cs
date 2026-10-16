@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Actions.Triggers;
 using PenguinTwitchBot.Bot.Actions.Variables;
 using PenguinTwitchBot.Bot.Actions.Variables.Triggers;
 using PenguinTwitchBot.Database.Bot.Actions;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
 using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers;
 using Xunit;
 
@@ -55,6 +56,41 @@ namespace PenguinTwitchBot.Test.Bot.Actions
 
             Assert.True(variables.ContainsKey("JackpotAmount"));
             Assert.True(variables.ContainsKey("TotalWinnings"));
+        }
+
+        [Fact]
+        public void DefaultCommandTriggerVariableResolver_ResolvesParachuteAndPlinkoStartVariables()
+        {
+            var resolver = new DefaultCommandTriggerVariableResolver();
+
+            // Name-inferred Parachute start
+            var paraVars = new Dictionary<string, ActionVariableInfo>();
+            var paraTrigger = new TriggerType { Type = TriggerTypes.DefaultCommand, Name = "parachute_start" };
+            resolver.ResolveVariables(paraTrigger, paraVars);
+            Assert.True(paraVars.ContainsKey("Duration"));
+            Assert.True(paraVars.ContainsKey("TriggeredBy"));
+            Assert.True(paraVars.ContainsKey("Theme"));
+            Assert.True(paraVars.ContainsKey("Game"));
+            Assert.False(paraVars.ContainsKey("Score"));
+
+            // Configured Plinko start
+            var plinkoVars = new Dictionary<string, ActionVariableInfo>();
+            var plinkoTrigger = new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Name = "PlinkoRoundStart",
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "plinko",
+                    EventType = DefaultCommandEventTypes.PlinkoStart
+                })
+            };
+            resolver.ResolveVariables(plinkoTrigger, plinkoVars);
+            Assert.True(plinkoVars.ContainsKey("Duration"));
+            Assert.True(plinkoVars.ContainsKey("TriggeredBy"));
+            Assert.True(plinkoVars.ContainsKey("Theme"));
+            Assert.True(plinkoVars.ContainsKey("Game"));
+            Assert.False(plinkoVars.ContainsKey("Score"));
         }
 
         [Fact]

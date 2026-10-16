@@ -324,6 +324,36 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     }
                 }
 
+                var startVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["Duration"] = duration.ToString(CultureInfo.InvariantCulture),
+                    ["Theme"] = theme.Name,
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "Plinko"
+                };
+
+                var startEventArgs = new CommandEventArgs
+                {
+                    Command = "plinko",
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "plinko",
+                        DefaultCommandEventTypes.PlinkoStart,
+                        startEventArgs,
+                        startVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire PlinkoStart trigger");
+                }
+
                 logger.LogInformation("Started Plinko session for {Duration}s (Triggered by {User})", duration, triggeredBy ?? "System");
                 return dto;
             }

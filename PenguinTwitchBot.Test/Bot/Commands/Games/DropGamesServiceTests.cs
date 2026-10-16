@@ -1914,6 +1914,150 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public void TriggerCatalog_ContainsParachuteAndPlinkoStartTriggers()
+        {
+            var parachuteStart = TriggerCatalog.AllTriggers.FirstOrDefault(t => t.Id == "parachute-start");
+            Assert.NotNull(parachuteStart);
+            Assert.Equal("minigames", parachuteStart.CategoryId);
+            Assert.Equal("drop", parachuteStart.DefaultCommandName);
+            Assert.Equal(DefaultCommandEventTypes.ParachuteStart, parachuteStart.DefaultCommandEventType);
+
+            var plinkoStart = TriggerCatalog.AllTriggers.FirstOrDefault(t => t.Id == "plinko-start");
+            Assert.NotNull(plinkoStart);
+            Assert.Equal("minigames", plinkoStart.CategoryId);
+            Assert.Equal("plinko", plinkoStart.DefaultCommandName);
+            Assert.Equal(DefaultCommandEventTypes.PlinkoStart, plinkoStart.DefaultCommandEventType);
+        }
+
+        [Fact]
+        public async Task StartSessionAsync_FiresDefaultCommandStartTriggerWithVariables()
+        {
+            var parachuteSut = CreateParachuteService();
+            var plinkoSut = CreatePlinkoService();
+
+            string? firedParachuteCommand = null;
+            string? firedParachuteEvent = null;
+            CommandEventArgs? firedParachuteArgs = null;
+            Dictionary<string, string>? firedParachuteVars = null;
+
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
+                {
+                    if (cmd == "drop")
+                    {
+                        firedParachuteCommand = cmd;
+                        firedParachuteEvent = evt;
+                        firedParachuteArgs = args;
+                        firedParachuteVars = vars;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            await parachuteSut.StartSessionAsync(60, triggeredBy: "StartModUser");
+
+            Assert.Equal("drop", firedParachuteCommand);
+            Assert.Equal(DefaultCommandEventTypes.ParachuteStart, firedParachuteEvent);
+            Assert.NotNull(firedParachuteArgs);
+            Assert.Equal("drop", firedParachuteArgs.Command);
+            Assert.NotNull(firedParachuteVars);
+            Assert.Equal("StartModUser", firedParachuteVars["User"]);
+            Assert.Equal("ParachuteDrop", firedParachuteVars["Game"]);
+            Assert.Equal("60", firedParachuteVars["Duration"]);
+            Assert.True(firedParachuteVars.ContainsKey("Theme"));
+
+            string? firedPlinkoCommand = null;
+            string? firedPlinkoEvent = null;
+            CommandEventArgs? firedPlinkoArgs = null;
+            Dictionary<string, string>? firedPlinkoVars = null;
+
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
+                {
+                    if (cmd == "plinko")
+                    {
+                        firedPlinkoCommand = cmd;
+                        firedPlinkoEvent = evt;
+                        firedPlinkoArgs = args;
+                        firedPlinkoVars = vars;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            await plinkoSut.StartSessionAsync(45, triggeredBy: "PlinkoBroadcaster");
+
+            Assert.Equal("plinko", firedPlinkoCommand);
+            Assert.Equal(DefaultCommandEventTypes.PlinkoStart, firedPlinkoEvent);
+            Assert.NotNull(firedPlinkoArgs);
+            Assert.Equal("plinko", firedPlinkoArgs.Command);
+            Assert.NotNull(firedPlinkoVars);
+            Assert.Equal("PlinkoBroadcaster", firedPlinkoVars["User"]);
+            Assert.Equal("Plinko", firedPlinkoVars["Game"]);
+            Assert.Equal("45", firedPlinkoVars["Duration"]);
+            Assert.True(firedPlinkoVars.ContainsKey("Theme"));
+        }
+
+        [Fact]
+        public async Task StartSessionAsync_WhenQueued_DoesNotFireStartTriggerUntilDequeued()
+        {
+            var parachuteSut = CreateParachuteService();
+
+            var startTriggerEvents = new List<string>();
+            var endTriggerEvents = new List<string>();
+
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
+                {
+                    if (evt == DefaultCommandEventTypes.ParachuteStart)
+                    {
+                        startTriggerEvents.Add(vars?["User"] ?? "Unknown");
+                    }
+                    else if (evt == DefaultCommandEventTypes.ParachuteEnd)
+                    {
+                        endTriggerEvents.Add(vars?["User"] ?? "Unknown");
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            // 1. Start active session 1
+            var s1 = await parachuteSut.StartSessionAsync(60, triggeredBy: "UserFirst");
+            Assert.True(s1.IsActive);
+            Assert.False(s1.IsQueued);
+            Assert.Single(startTriggerEvents);
+            Assert.Equal("UserFirst", startTriggerEvents[0]);
+
+            // 2. Start session 2 while session 1 is active -> should be queued
+            var s2 = await parachuteSut.StartSessionAsync(30, triggeredBy: "UserSecond");
+            Assert.False(s2.IsActive);
+            Assert.True(s2.IsQueued);
+            Assert.Equal(1, s2.QueuePosition);
+
+            // CRITICAL: Ensure NO start trigger fired for the queued session
+            Assert.Single(startTriggerEvents);
+
+            // 3. Stop session 1 -> triggers End for session 1, then dequeues and starts session 2
+            await parachuteSut.StopSessionAsync("UserFirst");
+
+            Assert.Single(endTriggerEvents);
+            Assert.Equal("UserFirst", endTriggerEvents[0]);
+
+            // Now session 2 should have started, firing its start trigger
+            Assert.Equal(2, startTriggerEvents.Count);
+            Assert.Equal("UserSecond", startTriggerEvents[1]);
+        }
+
+        [Fact]
         public async Task StartSessionAsync_Performs100PercentResetAndClearsPendingDropsForGame()
         {
             var registry = CreateDropRegistry();

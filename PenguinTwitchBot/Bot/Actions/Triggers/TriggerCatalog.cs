@@ -341,6 +341,20 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "parachute-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Parachute Drop - Round Started",
+                Description = "Triggers when a timed parachute session/round actually starts",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "drop",
+                DefaultCommandEventType = DefaultCommandEventTypes.ParachuteStart
+            },
+            new()
+            {
                 Id = "parachute-end",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",
@@ -380,6 +394,20 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 FeatureKey = FeatureKeys.DropGames,
                 DefaultCommandName = "plinko",
                 DefaultCommandEventType = DefaultCommandEventTypes.PlinkoLose
+            },
+            new()
+            {
+                Id = "plinko-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Plinko - Round Started",
+                Description = "Triggers when a timed plinko session/round actually starts",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "plinko",
+                DefaultCommandEventType = DefaultCommandEventTypes.PlinkoStart
             },
             new()
             {

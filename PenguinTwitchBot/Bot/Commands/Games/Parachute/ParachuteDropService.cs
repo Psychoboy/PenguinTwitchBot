@@ -335,6 +335,36 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     }
                 }
 
+                var startVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["Duration"] = duration.ToString(CultureInfo.InvariantCulture),
+                    ["Theme"] = theme.Name,
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "ParachuteDrop"
+                };
+
+                var startEventArgs = new CommandEventArgs
+                {
+                    Command = "drop",
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "drop",
+                        DefaultCommandEventTypes.ParachuteStart,
+                        startEventArgs,
+                        startVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire ParachuteStart trigger");
+                }
+
                 logger.LogInformation("Started Parachute session for {Duration}s (Triggered by {User})", duration, triggeredBy ?? "System");
                 return dto;
             }
