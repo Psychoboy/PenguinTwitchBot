@@ -2431,7 +2431,7 @@
                     spawnLandingPuff(drop.x * width, drop.y * height, dropSeason, drop.isBullseye);
                 }
 
-                if (drop.isWin || drop.isHit || drop.isBullseye) {
+                if (drop.isWin) {
                     spawnSplashBurst(drop.x * width, drop.y * height, '#FFD166', 28, 1.35);
                     const winSound = (drop.sounds && drop.sounds.win) || (SoundManager.getBundle() && SoundManager.getBundle().win);
                     if (winSound) {

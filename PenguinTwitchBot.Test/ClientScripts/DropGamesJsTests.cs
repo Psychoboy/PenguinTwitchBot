@@ -9,6 +9,8 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace PenguinTwitchBot.Test.ClientScripts
@@ -1947,44 +1949,76 @@ namespace PenguinTwitchBot.Test.ClientScripts
         [Fact]
         public void DropGameMediaResolver_SoundBundle_ResolvesCorrectly_WithOverridesAndDefaults()
         {
-            var pSettings = new ParachuteGameSettings
+            var tempRoot = Path.Combine(Path.GetTempPath(), "DropGameMediaResolverTests_" + Guid.NewGuid().ToString("N"));
+            var audioDir = Path.Combine(tempRoot, "audio");
+            Directory.CreateDirectory(audioDir);
+
+            try
             {
-                MaxConcurrentSounds = 2,
-                StartSound = new DropGameSoundConfig { Enabled = true, AudioFile = "chime.wav", Volume = 80 },
-                EndSound = new DropGameSoundConfig { Enabled = true, AudioFile = "horn.mp3", Volume = 70 },
-                DropSound = new DropGameSoundConfig { Enabled = false, AudioFile = "swoosh.wav", Volume = 60 },
-                WinSound = new DropGameSoundConfig { Enabled = true, AudioFile = "fanfare.mp3", Volume = 90 }
-            };
+                // Create temporary audio fixtures
+                File.WriteAllBytes(Path.Combine(audioDir, "chime.wav"), [0x52, 0x49, 0x46, 0x46]);
+                File.WriteAllBytes(Path.Combine(audioDir, "fanfare.mp3"), [0xFF, 0xFB, 0x90, 0x64]);
+                File.WriteAllBytes(Path.Combine(audioDir, "theme_drop.wav"), [0x52, 0x49, 0x46, 0x46]);
 
-            var theme = new DropGameTheme
+                var mediaService = new MediaUploadService(tempRoot, NullLogger<MediaUploadService>.Instance);
+
+                var pSettings = new ParachuteGameSettings
+                {
+                    MaxConcurrentSounds = 2,
+                    StartSound = new DropGameSoundConfig { Enabled = true, AudioFile = "chime.wav", Volume = 80 },
+                    EndSound = new DropGameSoundConfig { Enabled = true, AudioFile = "horn.mp3", Volume = 70 },
+                    DropSound = new DropGameSoundConfig { Enabled = false, AudioFile = "swoosh.wav", Volume = 60 },
+                    WinSound = new DropGameSoundConfig { Enabled = true, AudioFile = "fanfare.mp3", Volume = 90 }
+                };
+
+                var theme = new DropGameTheme
+                {
+                    Id = "custom",
+                    Name = "Custom Theme",
+                    ParachuteStartSound = new DropGameSoundOverride { Override = false }, // Inherit
+                    ParachuteEndSound = new DropGameSoundOverride { Override = true, Enabled = false }, // Mute
+                    ParachuteDropSound = new DropGameSoundOverride { Override = true, Enabled = true, AudioFile = "theme_drop.wav", Volume = 95 }, // Custom
+                    ParachuteWinSound = new DropGameSoundOverride { Override = false } // Inherit
+                };
+
+                var bundle = DropGameMediaResolver.ResolveParachuteSoundBundle(pSettings, theme, mediaService);
+                Assert.NotNull(bundle);
+                Assert.Equal(2, bundle.MaxConcurrentSounds);
+
+                // Start: Inherit -> enabled, url resolved to /audio/chime.wav, volume 80
+                Assert.NotNull(bundle.Start);
+                Assert.True(bundle.Start.Enabled);
+                Assert.Equal("/audio/chime.wav", bundle.Start.Url);
+                Assert.Equal(80, bundle.Start.Volume);
+
+                // End: Mute -> disabled, null url
+                Assert.NotNull(bundle.End);
+                Assert.False(bundle.End.Enabled);
+                Assert.Null(bundle.End.Url);
+
+                // Drop: Custom -> enabled, url resolved to /audio/theme_drop.wav, volume 95
+                Assert.NotNull(bundle.Drop);
+                Assert.True(bundle.Drop.Enabled);
+                Assert.Equal("/audio/theme_drop.wav", bundle.Drop.Url);
+                Assert.Equal(95, bundle.Drop.Volume);
+
+                // Win: Inherit -> enabled, url resolved to /audio/fanfare.mp3, volume 90
+                Assert.NotNull(bundle.Win);
+                Assert.True(bundle.Win.Enabled);
+                Assert.Equal("/audio/fanfare.mp3", bundle.Win.Url);
+                Assert.Equal(90, bundle.Win.Volume);
+
+                // Also verify that when both configs are absent, ResolveSound returns null
+                var unconfigured = DropGameMediaResolver.ResolveSound(null, null, mediaService);
+                Assert.Null(unconfigured);
+            }
+            finally
             {
-                Id = "custom",
-                Name = "Custom Theme",
-                ParachuteStartSound = new DropGameSoundOverride { Override = false }, // Inherit
-                ParachuteEndSound = new DropGameSoundOverride { Override = true, Enabled = false }, // Mute
-                ParachuteDropSound = new DropGameSoundOverride { Override = true, Enabled = true, AudioFile = "theme_drop.wav", Volume = 95 }, // Custom
-                ParachuteWinSound = new DropGameSoundOverride { Override = false } // Inherit
-            };
-
-            var bundle = DropGameMediaResolver.ResolveParachuteSoundBundle(pSettings, theme, null);
-            Assert.NotNull(bundle);
-            Assert.Equal(2, bundle.MaxConcurrentSounds);
-
-            // Start: Inherit -> enabled, volume 80
-            Assert.NotNull(bundle.Start);
-            Assert.Equal(80, bundle.Start.Volume);
-
-            // End: Mute -> disabled
-            Assert.NotNull(bundle.End);
-            Assert.False(bundle.End.Enabled);
-
-            // Drop: Custom -> enabled, volume 95
-            Assert.NotNull(bundle.Drop);
-            Assert.Equal(95, bundle.Drop.Volume);
-
-            // Win: Inherit -> enabled, volume 90
-            Assert.NotNull(bundle.Win);
-            Assert.Equal(90, bundle.Win.Volume);
+                if (Directory.Exists(tempRoot))
+                {
+                    try { Directory.Delete(tempRoot, true); } catch { /* Ignore cleanup issues in temp */ }
+                }
+            }
         }
 
         [Fact]

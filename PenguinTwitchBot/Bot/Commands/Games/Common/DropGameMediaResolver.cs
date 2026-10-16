@@ -317,11 +317,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 ?? DropGameTheme.CreateDefaultSeasonalThemes()[0];
         }
 
-        public static DropGameEffectiveSoundDto ResolveSound(
+        public static DropGameEffectiveSoundDto? ResolveSound(
             DropGameSoundConfig? baseConfig,
             DropGameSoundOverride? themeOverride,
             MediaUploadService? mediaService)
         {
+            if (baseConfig == null && (themeOverride == null || !themeOverride.Override))
+            {
+                return null;
+            }
+
             var isOverridden = themeOverride != null && themeOverride.Override;
             var enabled = isOverridden ? themeOverride!.Enabled : (baseConfig?.Enabled ?? false);
             var file = isOverridden ? themeOverride!.AudioFile : (baseConfig?.AudioFile ?? string.Empty);

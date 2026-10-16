@@ -133,22 +133,28 @@ namespace PenguinTwitchBot.Services
             // 1. Direct /audio/ path
             if (trimmed.StartsWith("/audio/", StringComparison.OrdinalIgnoreCase))
             {
-                var relativeName = Uri.UnescapeDataString(trimmed["/audio/".Length..]);
-                var localPath = Path.Combine(AudioDirectory, relativeName);
-                if (File.Exists(localPath))
+                var fileNameOnly = Path.GetFileName(Uri.UnescapeDataString(trimmed["/audio/".Length..]));
+                if (!string.IsNullOrEmpty(fileNameOnly))
                 {
-                    return $"/audio/{Uri.EscapeDataString(Path.GetFileName(localPath))}";
+                    var localPath = Path.Combine(AudioDirectory, fileNameOnly);
+                    if (File.Exists(localPath))
+                    {
+                        return $"/audio/{Uri.EscapeDataString(fileNameOnly)}";
+                    }
                 }
             }
 
             // 2. Direct /media/ path
             if (trimmed.StartsWith("/media/", StringComparison.OrdinalIgnoreCase))
             {
-                var relativeName = Uri.UnescapeDataString(trimmed["/media/".Length..]);
-                var localPath = Path.Combine(MediaDirectory, relativeName);
-                if (File.Exists(localPath))
+                var fileNameOnly = Path.GetFileName(Uri.UnescapeDataString(trimmed["/media/".Length..]));
+                if (!string.IsNullOrEmpty(fileNameOnly))
                 {
-                    return $"/media/{Uri.EscapeDataString(Path.GetFileName(localPath))}";
+                    var localPath = Path.Combine(MediaDirectory, fileNameOnly);
+                    if (File.Exists(localPath))
+                    {
+                        return $"/media/{Uri.EscapeDataString(fileNameOnly)}";
+                    }
                 }
             }
 
