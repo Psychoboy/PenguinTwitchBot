@@ -57,13 +57,25 @@
     <canvas id="parachute-canvas"></canvas>
 
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
-    <script src="/js/ws-client.js"></script>
-    <script src="/js/ws-status.js"></script>
     <script>
         const cacheBust = new URLSearchParams(window.location.search).get('_cb') || Date.now().toString();
-        const script = document.createElement('script');
-        script.src = '/js/parachute.js?v=' + encodeURIComponent(cacheBust);
-        document.head.appendChild(script);
+        const scripts = [
+            '/js/ws-client.js',
+            '/js/ws-status.js',
+            '/js/drop-games-common.js',
+            '/js/drop-games-audio.js',
+            '/js/parachute.js'
+        ];
+        function loadScripts(list, index) {
+            if (index >= list.length) return;
+            const s = document.createElement('script');
+            s.src = list[index] + '?v=' + encodeURIComponent(cacheBust);
+            s.onload = s.onerror = function () {
+                loadScripts(list, index + 1);
+            };
+            document.head.appendChild(s);
+        }
+        loadScripts(scripts, 0);
     </script>
 </body>
 </html>

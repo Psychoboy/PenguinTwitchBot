@@ -370,18 +370,18 @@
 
         try
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
-            var result = await MediaUploadService.UploadAudioAsync(stream, file.Name);
+            using var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+            var result = await MediaUploadService.UploadMediaAsync(stream, file.Name);
 
             if (result.Success && !string.IsNullOrEmpty(result.FileName))
             {
-                CurrentSoundFile = result.FileName;
+                CurrentSoundFile = result.RelativeUrl ?? result.FileName;
                 await OnChanged.InvokeAsync();
-                Snackbar.Add($"Sound file '{result.FileName}' uploaded and ready!", Severity.Success);
+                Snackbar.Add($"Sound file '{result.FileName}' uploaded to media library and ready!", Severity.Success);
             }
             else
             {
-                Snackbar.Add(result.ErrorMessage ?? "Failed to upload audio file.", Severity.Error);
+                Snackbar.Add(result.ErrorMessage ?? "Failed to upload media file.", Severity.Error);
             }
         }
         catch (Exception ex)
