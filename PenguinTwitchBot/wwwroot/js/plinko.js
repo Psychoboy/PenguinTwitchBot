@@ -460,7 +460,8 @@
         showCount: true,
         showFreePlayCounter: true,
         position: 'top-center',
-        yOffset: 18
+        yOffset: 18,
+        nameFontSize: 18
     };
 
     let isOtherGameActive = false;
@@ -481,6 +482,10 @@
         if (urlParams.has('yOffset')) {
             const parsed = parseInt(urlParams.get('yOffset'), 10);
             if (!isNaN(parsed)) headerConfig.yOffset = parsed;
+        }
+        if (urlParams.has('nameFontSize')) {
+            const parsed = parseInt(urlParams.get('nameFontSize'), 10);
+            if (!isNaN(parsed)) headerConfig.nameFontSize = parsed;
         }
         if (urlParams.has('autoAvoid')) {
             headerConfig.autoAvoidOverlap = urlParams.get('autoAvoid') !== 'false' && urlParams.get('autoAvoid') !== '0';
@@ -509,6 +514,7 @@
         if (typeof cfg.showFreePlayCounter === 'boolean') headerConfig.showFreePlayCounter = cfg.showFreePlayCounter;
         if (typeof cfg.position === 'string' && cfg.position) headerConfig.position = cfg.position;
         if (typeof cfg.yOffset === 'number' && !isNaN(cfg.yOffset)) headerConfig.yOffset = cfg.yOffset;
+        if (typeof cfg.nameFontSize === 'number' && !isNaN(cfg.nameFontSize)) headerConfig.nameFontSize = cfg.nameFontSize;
     }
 
     let sessionState = {
@@ -677,6 +683,7 @@
                 gravity: tokenGravity,
                 bounciness: tokenBounciness,
                 mass: tokenMass,
+                nameFontSize: typeof b.nameFontSize === 'number' ? b.nameFontSize : (msg.nameFontSize || headerConfig.nameFontSize || 18),
                 waypoints: waypoints,
                 winningBucketIndex: b.winningBucketIndex || 0,
                 winningBucketLabel: b.winningBucketLabel || '',
@@ -743,6 +750,81 @@
             }
         }
     });
+
+    function brightenColor(hex, minLightness = 0.62, minLuminance = 0.42) {
+        if (!hex || typeof hex !== 'string') return '#FFFFFF';
+        let clean = hex.trim();
+        if (!clean.startsWith('#')) clean = '#' + clean;
+        if (clean.length === 4) {
+            clean = '#' + clean[1] + clean[1] + clean[2] + clean[2] + clean[3] + clean[3];
+        }
+        if (clean.length < 7) return hex;
+
+        const r = parseInt(clean.substring(1, 3), 16) / 255;
+        const g = parseInt(clean.substring(3, 5), 16) / 255;
+        const b = parseInt(clean.substring(5, 7), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+
+        const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h = 0, s = 0, l = (max + min) / 2;
+
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+
+        if (lum >= minLuminance && l >= 0.48) {
+            return clean;
+        }
+
+        let targetL = Math.max(l, minLightness);
+        let targetS = s;
+        if (s > 0.08) {
+            targetS = Math.max(s, 0.65);
+        } else {
+            targetL = Math.max(targetL, 0.85);
+        }
+
+        function hslToRgb(h, s, l) {
+            if (s === 0) return [l, l, l];
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            };
+            return [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)];
+        }
+
+        let rgb = hslToRgb(h, targetS, targetL);
+        let curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+
+        while (curLum < minLuminance && targetL < 0.88) {
+            targetL += 0.04;
+            rgb = hslToRgb(h, targetS, targetL);
+            curLum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+        }
+
+        const toHex = (n) => {
+            const hexVal = Math.round(Math.max(0, Math.min(255, n * 255))).toString(16);
+            return hexVal.length === 1 ? '0' + hexVal : hexVal;
+        };
+
+        return '#' + toHex(rgb[0]) + toHex(rgb[1]) + toHex(rgb[2]);
+    }
 
     function drawSeasonalDefaultPenguin(ctx, r, season) {
         ctx.fillStyle = '#2B2D42';
@@ -825,7 +907,7 @@
         ctx.save();
         ctx.globalAlpha = alpha;
 
-        const padX = width * 0.06;
+        const padX = Math.max(12, Math.round(width * 0.012));
         const padY = height * 0.04;
         const boardW = width - padX * 2;
         const boardH = height - padY * 2;
@@ -1491,7 +1573,7 @@
 
         drawBoard(fadeAlpha);
 
-        const padX = width * 0.06;
+        const padX = Math.max(12, Math.round(width * 0.012));
         const boardW = width - padX * 2;
         const tokenRadius = Math.max(18, Math.min(width, height) * 0.028);
 
@@ -1796,42 +1878,54 @@
             }
             ctx.restore();
 
-            // DisplayName tag above token with crown for leader
+            // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
+            const fontSize = Math.max(12, Math.min(36, t.nameFontSize || headerConfig.nameFontSize || 18));
+            ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
             const label = isLeader && t.completed
                 ? `${t.displayName} (${t.score} pts)`
                 : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
 
-            const userColor = t.userColor || null;
-            ctx.font = '700 13px Fredoka, Rubik, sans-serif';
-            const textWidth = ctx.measureText(label).width;
-            const pillW = textWidth + 14;
-            const pillH = 20;
-            const pillY = -tokenRadius - 22;
+            const textY = -tokenRadius - fontSize * 0.7 - 2;
+            const strokeWidth = Math.max(4.5, fontSize * 0.26);
 
             if (isLeader && t.completed) {
                 ctx.save();
-                ctx.font = '700 18px "Segoe UI Emoji", Fredoka, sans-serif';
+                ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.shadowColor = '#FFD700';
                 ctx.shadowBlur = 10;
-                ctx.fillText('👑', 0, pillY - 6);
+                ctx.fillText('👑', 0, textY - fontSize * 0.9);
                 ctx.restore();
             }
 
-            ctx.fillStyle = isLeader ? 'rgba(30, 27, 75, 0.92)' : 'rgba(15, 23, 42, 0.85)';
-            ctx.beginPath();
-            ctx.roundRect(-pillW / 2, pillY, pillW, pillH, 10);
-            ctx.fill();
-
-            const tokenTheme = t.theme || currentTheme || {};
-            ctx.strokeStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.primaryColor || currentTheme.primaryColor || '#FF8FA3');
-            ctx.lineWidth = isLeader ? 2 : 1.2;
-            ctx.stroke();
-
-            ctx.fillStyle = isLeader ? '#FFD700' : (userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(label, 0, pillY + pillH / 2 + 1);
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+
+            // Dark drop shadow behind outline
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+            ctx.shadowBlur = Math.max(6, fontSize * 0.4);
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 2;
+
+            // Heavy dark contrast outline
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = strokeWidth + 1.5;
+            ctx.strokeText(label, 0, textY);
+            ctx.restore();
+
+            // Razor-sharp crisp black contrast border
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = strokeWidth;
+            ctx.strokeText(label, 0, textY);
+
+            const tokenTheme = t.theme || currentTheme || {};
+            const rawColor = isLeader ? '#FFD700' : (userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
+            const nameColor = isLeader ? '#FFD700' : brightenColor(rawColor);
+            ctx.fillStyle = nameColor;
+            ctx.fillText(label, 0, textY);
 
             ctx.restore();
 

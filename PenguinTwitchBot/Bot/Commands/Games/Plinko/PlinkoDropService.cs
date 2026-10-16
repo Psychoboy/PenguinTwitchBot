@@ -253,7 +253,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     ShowCount = settings.Plinko.ShowTokenCount,
                     ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
                     Position = settings.Plinko.HeaderPosition,
-                    YOffset = settings.Plinko.HeaderCustomYOffset
+                    YOffset = settings.Plinko.HeaderCustomYOffset,
+                    NameFontSize = settings.Plinko.NameFontSize
                 };
 
                 var dto = new DropGameSessionDto
@@ -368,7 +369,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 ShowCount = settings.Plinko.ShowTokenCount,
                 ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
                 Position = settings.Plinko.HeaderPosition,
-                YOffset = settings.Plinko.HeaderCustomYOffset
+                YOffset = settings.Plinko.HeaderCustomYOffset,
+                NameFontSize = settings.Plinko.NameFontSize
             };
 
             var dto = new DropGameSessionDto
@@ -541,7 +543,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 ShowCount = plinkoSettings.ShowTokenCount,
                 ShowFreePlayCounter = plinkoSettings.ShowFreePlayCounter,
                 Position = plinkoSettings.HeaderPosition,
-                YOffset = plinkoSettings.HeaderCustomYOffset
+                YOffset = plinkoSettings.HeaderCustomYOffset,
+                NameFontSize = plinkoSettings.NameFontSize
             };
 
             DropGameSessionDto? activeSessionDto = null;
@@ -578,6 +581,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 characterImageUrl = characterImageUrl ?? "",
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
+                nameFontSize = plinkoSettings.NameFontSize,
                 session = activeSessionDto,
                 isOtherGameActive,
                 headerConfig,
@@ -588,6 +592,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     gravity,
                     bounciness,
                     mass,
+                    nameFontSize = plinkoSettings.NameFontSize,
                     pegTransparency,
                     buckets,
                     winningBucketIndex,

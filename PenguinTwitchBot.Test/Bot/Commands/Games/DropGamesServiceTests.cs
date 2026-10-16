@@ -1384,6 +1384,21 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 // Must be safely within the target bucket slot bounds [0.40, 0.60]
                 Assert.InRange(finalWaypoint.X, 0.40, 0.60);
                 landedPositions.Add(finalWaypoint.X);
+
+                // Verify every intermediate peg waypoint (r = 0..rows-1) lands on a physical peg coordinate
+                var cols = Math.Max(6, bucketCount);
+                for (var r = 0; r < rows; r++)
+                {
+                    var wp = waypoints[r + 1];
+                    Assert.Equal(r, wp.Row);
+                    var isOdd = r % 2 == 1;
+                    var countInRow = isOdd ? cols - 1 : cols;
+                    Assert.InRange(wp.Col, 0, countInRow - 1);
+                    var expectedX = Math.Round(isOdd ? (wp.Col + 1.0) / cols : (wp.Col + 0.5) / cols, 4);
+                    var expectedY = Math.Round(0.16 + (((double)(r + 1) / rows) * 0.64), 4);
+                    Assert.Equal(expectedX, wp.X);
+                    Assert.Equal(expectedY, wp.Y);
+                }
             }
 
             // Verify the landings are naturally distributed rather than all snapped to identical center (0.50)
@@ -1496,6 +1511,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(parachute.ShowFreePlayCounter);
             Assert.Equal("TopCenter", parachute.HeaderPosition);
             Assert.Equal(18, parachute.HeaderCustomYOffset);
+            Assert.Equal(18, parachute.NameFontSize);
 
             var plinko = new PlinkoGameSettings();
             Assert.True(plinko.AutoAvoidOverlap);
@@ -1505,6 +1521,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(plinko.ShowFreePlayCounter);
             Assert.Equal("TopCenter", plinko.HeaderPosition);
             Assert.Equal(18, plinko.HeaderCustomYOffset);
+            Assert.Equal(18, plinko.NameFontSize);
         }
 
         [Fact]

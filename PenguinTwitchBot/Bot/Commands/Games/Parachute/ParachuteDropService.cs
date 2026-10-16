@@ -277,7 +277,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     ShowCount = settings.Parachute.ShowDropCount,
                     ShowFreePlayCounter = settings.Parachute.ShowFreePlayCounter,
                     Position = settings.Parachute.HeaderPosition,
-                    YOffset = settings.Parachute.HeaderCustomYOffset
+                    YOffset = settings.Parachute.HeaderCustomYOffset,
+                    NameFontSize = settings.Parachute.NameFontSize
                 };
 
                 var dto = new DropGameSessionDto
@@ -379,7 +380,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ShowCount = settings.Parachute.ShowDropCount,
                 ShowFreePlayCounter = settings.Parachute.ShowFreePlayCounter,
                 Position = settings.Parachute.HeaderPosition,
-                YOffset = settings.Parachute.HeaderCustomYOffset
+                YOffset = settings.Parachute.HeaderCustomYOffset,
+                NameFontSize = settings.Parachute.NameFontSize
             };
 
             var dto = new DropGameSessionDto
@@ -494,13 +496,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var landingY = 0.94;
             var baseVy = (landingY - startY) / durationSeconds;
 
-            var windScale = Math.Clamp(pSettings.WindStrength, 0.0, 1.0);
-            var windAccelX = forcedWindAccelX ?? 0.0;
+            const double windAccelX = 0.0;
 
             // Directional drop angle (no periodic sway): sharper angle = faster lateral speed
             double initialVx;
             double initialTilt;
-            if (forcedWindAccelX.HasValue)
+            if (forcedStartX.HasValue)
             {
                 initialVx = 0.0;
                 initialTilt = 0.0;
@@ -534,7 +535,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             {
                 targetCenterX = Math.Clamp(currentSessionState.TargetCenterX.Value, minSafeX, maxSafeX);
             }
-            else if (forcedStartX.HasValue && forcedWindAccelX.HasValue)
+            else if (forcedStartX.HasValue)
             {
                 targetCenterX = Math.Clamp(forcedStartX.Value, minSafeX, maxSafeX);
             }
@@ -600,7 +601,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ShowCount = pSettings.ShowDropCount,
                 ShowFreePlayCounter = pSettings.ShowFreePlayCounter,
                 Position = pSettings.HeaderPosition,
-                YOffset = pSettings.HeaderCustomYOffset
+                YOffset = pSettings.HeaderCustomYOffset,
+                NameFontSize = pSettings.NameFontSize
             };
 
             DropGameSessionDto? activeSessionDto = null;
@@ -643,6 +645,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 gravity,
                 bounciness,
                 mass,
+                nameFontSize = pSettings.NameFontSize,
                 targetCenterX,
                 targetHalfWidth,
                 bullseyeHalfWidth,
@@ -667,6 +670,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 characterImageUrl = characterImageUrl ?? "",
                 isCustomEmote = !string.IsNullOrWhiteSpace(characterImageUrl) && !string.Equals(characterImageUrl, theme.DefaultCharacterImageUrl, StringComparison.OrdinalIgnoreCase),
                 theme,
+                nameFontSize = pSettings.NameFontSize,
                 session = activeSessionDto,
                 isOtherGameActive,
                 headerConfig,

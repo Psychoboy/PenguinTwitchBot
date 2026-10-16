@@ -106,15 +106,6 @@
                                                              HelperText="Higher mass resists droplet & mid-air knockback" />
                                         </MudItem>
                                     </MudGrid>
-
-                                    <MudGrid>
-                                        <MudItem xs="12" sm="6">
-                                            <MudNumericField T="double" Label="Wind Drift Strength (0.0 - 1.0)" Variant="Variant.Outlined"
-                                                             Min="0.0" Max="1.0" Step="0.05"
-                                                             @bind-Value="_settings.Parachute.WindStrength"
-                                                             HelperText="Horizontal breeze affecting descent trajectory" />
-                                        </MudItem>
-                                    </MudGrid>
                                 </MudStack>
                             </MudPaper>
 
@@ -218,7 +209,7 @@
                                                Label="Auto-Avoid Overlap with Plinko (Automatically stacks headers vertically when both games run simultaneously)" />
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Parachute.HeaderPosition">
                                                 <MudSelectItem Value="@("TopCenter")">Top Center (Default)</MudSelectItem>
@@ -226,11 +217,17 @@
                                                 <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="int" Label="Vertical Y Offset (Pixels)" Variant="Variant.Outlined"
                                                              Min="0" Max="500" Step="2"
                                                              @bind-Value="_settings.Parachute.HeaderCustomYOffset"
                                                              HelperText="Default: 18 px" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Name Font Size (Pixels)" Variant="Variant.Outlined"
+                                                             Min="12" Max="36" Step="1"
+                                                             @bind-Value="_settings.Parachute.NameFontSize"
+                                                             HelperText="Default: 18 px (12 - 36 px)" />
                                         </MudItem>
                                     </MudGrid>
 
@@ -543,7 +540,7 @@
                                                Label="Auto-Avoid Overlap with Parachute (Automatically stacks headers vertically when both games run simultaneously)" />
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
                                                        @bind-Value="_settings.Plinko.HeaderPosition">
                                                 <MudSelectItem Value="@("TopCenter")">Top Center (Default)</MudSelectItem>
@@ -551,11 +548,17 @@
                                                 <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
                                             </MudSelect>
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="int" Label="Vertical Y Offset (Pixels)" Variant="Variant.Outlined"
                                                              Min="0" Max="500" Step="2"
                                                              @bind-Value="_settings.Plinko.HeaderCustomYOffset"
                                                              HelperText="Default: 18 px" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Name Font Size (Pixels)" Variant="Variant.Outlined"
+                                                             Min="12" Max="36" Step="1"
+                                                             @bind-Value="_settings.Plinko.NameFontSize"
+                                                             HelperText="Default: 18 px (12 - 36 px)" />
                                         </MudItem>
                                     </MudGrid>
 

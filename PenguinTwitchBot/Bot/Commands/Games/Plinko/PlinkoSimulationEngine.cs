@@ -24,38 +24,83 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
         public static List<PlinkoWaypointDto> BuildPlinkoWaypoints(int rows, int bucketCount, int targetBucketIndex, double bounciness = 0.75)
         {
+            var cols = Math.Max(6, bucketCount);
             var waypoints = new List<PlinkoWaypointDto>(rows + 2);
             var slotJitter = DropGameMath.RandomDouble(0.25, 0.75);
             var targetX = (targetBucketIndex + slotJitter) / bucketCount;
-            // Widen starting drop point across the top board width (matching PixelPlush's randomized entry)
-            var currentX = Math.Clamp(DropGameMath.RandomDouble(0.12, 0.88), 0.10, 0.90);
-            var bounceScale = Math.Clamp(bounciness / 0.75, 0.2, 3.5);
+
+            var pegCols = new int[rows];
+
+            // Determine bottom peg in row (rows - 1) feeding into targetX
+            var lastIsOdd = (rows - 1) % 2 == 1;
+            var lastCount = lastIsOdd ? cols - 1 : cols;
+            var idealLastC = (int)Math.Round(targetX * cols - (lastIsOdd ? 1.0 : 0.5));
+            var candidateLastCols = new List<int>();
+            for (var offset = -1; offset <= 1; offset++)
+            {
+                var cand = idealLastC + offset;
+                if (cand >= 0 && cand < lastCount)
+                {
+                    candidateLastCols.Add(cand);
+                }
+            }
+            if (candidateLastCols.Count == 0)
+            {
+                candidateLastCols.Add(Math.Clamp(idealLastC, 0, lastCount - 1));
+            }
+            pegCols[rows - 1] = candidateLastCols[RandomNumberGenerator.GetInt32(0, candidateLastCols.Count)];
+
+            // Work backward from bottom peg row up to row 0 along connected peg lattice
+            for (var r = rows - 1; r > 0; r--)
+            {
+                var curC = pegCols[r];
+                var curIsOdd = r % 2 == 1;
+                var prevIsOdd = (r - 1) % 2 == 1;
+                var prevCount = prevIsOdd ? cols - 1 : cols;
+
+                var parentA = curIsOdd ? curC : curC - 1;
+                var parentB = curIsOdd ? curC + 1 : curC;
+
+                var validParents = new List<int>();
+                if (parentA >= 0 && parentA < prevCount) validParents.Add(parentA);
+                if (parentB >= 0 && parentB < prevCount) validParents.Add(parentB);
+
+                if (validParents.Count > 0)
+                {
+                    pegCols[r - 1] = validParents[RandomNumberGenerator.GetInt32(0, validParents.Count)];
+                }
+                else
+                {
+                    pegCols[r - 1] = Math.Clamp(parentA, 0, prevCount - 1);
+                }
+            }
+
+            // Entry point above the top peg
+            var startPegX = (pegCols[0] + 0.5) / cols;
+            var startX = Math.Clamp(startPegX + DropGameMath.RandomDouble(-0.012, 0.012), 0.06, 0.94);
 
             waypoints.Add(new PlinkoWaypointDto
             {
                 Row = -1,
-                Col = (int)Math.Round(currentX * bucketCount),
-                X = Math.Round(currentX, 4),
+                Col = pegCols[0],
+                X = Math.Round(startX, 4),
                 Y = 0.04
             });
 
             for (var r = 0; r < rows; r++)
             {
-                var progress = (double)(r + 1) / rows;
-                var rowY = 0.14 + (progress * 0.68);
-                var remainingRows = rows - r;
-
-                // Guide token smoothly toward targetX while bouncing left/right off pegs with organic physics jitter
-                var idealStep = (targetX - currentX) / Math.Max(1, remainingRows);
-                var jitter = (RandomNumberGenerator.GetInt32(0, 2) == 0 ? -1 : 1) * DropGameMath.RandomDouble(0.024, 0.052) * bounceScale * (1.0 - (progress * 0.35));
-                currentX = Math.Clamp(currentX + idealStep + jitter, 0.08, 0.92);
+                var isOdd = r % 2 == 1;
+                var countInRow = isOdd ? cols - 1 : cols;
+                var c = Math.Clamp(pegCols[r], 0, countInRow - 1);
+                var pegNormX = isOdd ? (c + 1.0) / cols : (c + 0.5) / cols;
+                var pegNormY = 0.16 + (((double)(r + 1) / rows) * 0.64);
 
                 waypoints.Add(new PlinkoWaypointDto
                 {
                     Row = r,
-                    Col = (int)Math.Round(currentX * bucketCount),
-                    X = Math.Round(currentX, 4),
-                    Y = Math.Round(rowY, 4)
+                    Col = c,
+                    X = Math.Round(pegNormX, 4),
+                    Y = Math.Round(pegNormY, 4)
                 });
             }
 

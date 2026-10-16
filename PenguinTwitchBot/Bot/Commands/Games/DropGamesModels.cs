@@ -183,7 +183,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set { /* Ignored - superseded by Gravity, Bounciness, and Mass */ }
         }
 
-        public double WindStrength { get; set; } = 0.25;
+        // Legacy database JSON field; wind drift removed in #1371 in favor of clean launch angles and collisions
+        public double WindStrength
+        {
+            get => 0.0;
+            set { /* Ignored - wind removed */ }
+        }
         public string WinActionName { get; set; } = "";
         public bool AnnounceWinsInChat { get; set; } = true;
         public string WinChatMessageTemplate { get; set; } = "{user} landed on the target with {score} pts!{bullseye}";
@@ -213,6 +218,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
     }
 
     public class PlinkoGameSettings
@@ -259,6 +271,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
 
         public static List<PlinkoBucket> CreateDefaultBuckets() =>
         [
@@ -568,6 +587,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("yOffset")]
         public int YOffset { get; set; } = 18;
+
+        [JsonPropertyName("nameFontSize")]
+        public int NameFontSize { get; set; } = 18;
     }
 }
 
