@@ -1,4 +1,6 @@
-﻿namespace PenguinTwitchBot.Bot.Events
+using PenguinTwitchBot.Bot.Models.Chat;
+
+namespace PenguinTwitchBot.Bot.Events
 {
     public class BitsUseEventArgs
     {
@@ -32,6 +34,8 @@
         /// </summary>
         public bool HasBitsMessage { get; set; }
         public BitsMessage? BitsMessage { get; set; }
+        public string? EmoteUrl { get; set; }
+        public List<ChatOverlayFragment> Fragments { get; set; } = [];
     }
 
     /// <summary>

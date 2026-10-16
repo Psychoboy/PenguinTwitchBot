@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using PenguinTwitchBot.Bot.Models.Chat;
 
 namespace PenguinTwitchBot.Bot.Events
 {
@@ -12,5 +13,7 @@ namespace PenguinTwitchBot.Bot.Events
         public string Username { get; set; } = "";
         public string Title { get; set; } = "";
         public string UserInput { get; set; } = "";
+        public string? EmoteUrl { get; set; }
+        public List<ChatOverlayFragment> Fragments { get; set; } = [];
     }
 }

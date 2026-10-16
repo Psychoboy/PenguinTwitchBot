@@ -241,6 +241,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Plinko.ActiveThemeId);
                 _activeSession = state;
+                dropRegistry.ClearDropsForGame(DropGameType.Plinko);
                 dropRegistry.SetSessionActive(DropGameType.Plinko, true);
                 var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute);
 
@@ -271,10 +272,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     HeaderConfig = headerConfig
                 };
 
+                var startGravity = Math.Clamp(settings.Plinko.Gravity, 0.1, 10.0);
+                var startBounciness = Math.Clamp(settings.Plinko.Bounciness, 0.1, 5.0);
+                var startMass = Math.Clamp(settings.Plinko.Mass, 0.1, 10.0);
+                var startDurationSeconds = Math.Clamp(4.5 / startGravity, 0.45, 45.0);
+
                 var board = new
                 {
                     rowCount = Math.Clamp(settings.Plinko.RowCount, 5, 14),
-                    durationSeconds = Math.Clamp(settings.Plinko.DropDurationSeconds, 2.0, 12.0),
+                    durationSeconds = startDurationSeconds,
+                    gravity = startGravity,
+                    bounciness = startBounciness,
+                    mass = startMass,
                     pegTransparency = Math.Clamp(settings.Plinko.PegTransparency, 0, 100),
                     buckets = (settings.Plinko.Buckets.Count > 0 ? settings.Plinko.Buckets : PlinkoGameSettings.CreateDefaultBuckets())
                 };
@@ -446,7 +455,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             string? themeOverrideId = null,
             int? forcedBucketIndex = null,
             bool skipMinimumDurationCheck = false,
-            bool allowDirectUrlOrPath = false)
+            bool allowDirectUrlOrPath = true)
         {
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
@@ -462,7 +471,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 : PlinkoGameSettings.CreateDefaultBuckets();
 
             var rows = Math.Clamp(plinkoSettings.RowCount, 5, 14);
-            var durationSeconds = Math.Clamp(plinkoSettings.DropDurationSeconds, 2.0, 12.0);
+            var gravity = Math.Clamp(plinkoSettings.Gravity, 0.1, 10.0);
+            var bounciness = Math.Clamp(plinkoSettings.Bounciness, 0.1, 5.0);
+            var mass = Math.Clamp(plinkoSettings.Mass, 0.1, 10.0);
+            var durationSeconds = Math.Clamp(4.5 / gravity, 0.45, 45.0);
             var pegTransparency = Math.Clamp(plinkoSettings.PegTransparency, 0, 100);
 
             int winningBucketIndex;
@@ -477,7 +489,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             var winningBucket = buckets[winningBucketIndex];
             var effectiveScore = winningBucket.IsWin ? winningBucket.Score : 0;
-            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, buckets.Count, winningBucketIndex);
+            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, buckets.Count, winningBucketIndex, bounciness);
 
             var dropToken = RandomNumberGenerator.GetHexString(64);
             var now = DateTime.UtcNow;
@@ -501,10 +513,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = skipMinimumDurationCheck
                     ? now.AddMilliseconds(-100)
-                    : now.AddSeconds(Math.Max(1.0, durationSeconds * 0.55)),
+                    : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
                 StartX = waypoints.First().X,
                 LandingX = waypoints.Last().X,
+                TotalTicks = Math.Max(30, (int)Math.Round(durationSeconds * 60.0)),
+                Gravity = gravity,
+                Bounciness = bounciness,
+                Mass = mass,
                 Score = effectiveScore,
                 IsHit = winningBucket.IsWin,
                 IsBullseye = winningBucket.IsWin && winningBucket.Score >= buckets.Where(b => b.IsWin).Select(b => b.Score).DefaultIfEmpty(0).Max(),
@@ -569,6 +585,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 {
                     rowCount = rows,
                     durationSeconds,
+                    gravity,
+                    bounciness,
+                    mass,
                     pegTransparency,
                     buckets,
                     winningBucketIndex,

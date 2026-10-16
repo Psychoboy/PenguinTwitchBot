@@ -157,5 +157,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         {
             return _activeSessions.TryGetValue(gameType, out var active) && active;
         }
+
+        public void ClearDropsForGame(DropGameType gameType)
+        {
+            foreach (var kvp in _pendingDrops)
+            {
+                if (kvp.Value.GameType == gameType)
+                {
+                    _pendingDrops.TryRemove(kvp.Key, out _);
+                }
+            }
+        }
     }
 }

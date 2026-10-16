@@ -10,7 +10,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             string? themeOverrideId = null,
             int? forcedBucketIndex = null,
             bool skipMinimumDurationCheck = false,
-            bool allowDirectUrlOrPath = false);
+            bool allowDirectUrlOrPath = true);
 
         Task<DropGameSessionDto> StartSessionAsync(
             int? durationSeconds = null,

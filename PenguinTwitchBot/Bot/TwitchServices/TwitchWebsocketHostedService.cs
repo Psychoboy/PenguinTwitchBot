@@ -8,6 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using PenguinTwitchBot.Helpers;
+using PenguinTwitchBot.Services;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs;
 using PenguinTwitchBot.TwitchApi.EventSub.EventArgs.Channel;
@@ -64,13 +65,19 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                     return;
                 }
 
+                var fragments = (message.Fragments ?? []).Select(MapFragment).ToList();
+                var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+                string? firstEmoteUrl = firstEmote?.EmoteUrl;
+
                 var channelPointRedeemEventArgs = new ChannelPointRedeemEventArgs
                 {
                     UserId = payload.Event.ChatterUserId,
                     Sender = payload.Event.ChatterUserName,
                     Username = payload.Event.ChatterUserLogin,
                     Title = channelPoint.Title,
-                    UserInput = messageText
+                    UserInput = messageText,
+                    EmoteUrl = firstEmoteUrl,
+                    Fragments = fragments
                 };
 
 
@@ -108,6 +115,10 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
         internal ChatNotificationEventArgs CreateChatNotificationEventArgs(ChannelChatNotification e)
         {
+            var fragments = (e.Message?.Fragments ?? []).Select(MapFragment).ToList();
+            var firstEmote = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+            string? firstEmoteUrl = firstEmote?.EmoteUrl;
+
             return new ChatNotificationEventArgs
             {
                 UserId = e.ChatterUserId,
@@ -117,6 +128,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 NoticeType = e.NoticeType,
                 SystemMessage = e.SystemMessage,
                 Message = ViewerInputSanitizer.Sanitize(e.Message?.Text),
+                EmoteUrl = firstEmoteUrl,
+                Fragments = fragments,
                 Sub = e.Sub == null ? null : new ChatNotificationSubInfo
                 {
                     SubTier = e.Sub.SubTier,
@@ -309,8 +322,17 @@ namespace PenguinTwitchBot.Bot.TwitchServices
             var command = argsFull[0];
             var ArgumentsAsString = argsFull.Length > 1 ? argsFull[1] : "";
             var ArgumentsAsList = string.IsNullOrWhiteSpace(ArgumentsAsString) ? [] : ArgumentsAsString.Split(" ").ToList();
+
+            var fragments = (e.Message.Fragments ?? [])
+                .Select(f => MapFragment(f))
+                .ToList();
+
+            var badges = (e.Badges ?? [])
+                .Select(b => new ChatOverlayBadge { SetId = b.SetId, Id = b.Id })
+                .ToList();
+
             string? firstEmoteUrl = null;
-            if (e.Message.Fragments != null)
+            if (fragments.Count > 0)
             {
                 var candidateEmoteText = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0] : null;
                 var isExplicitPath = !string.IsNullOrWhiteSpace(candidateEmoteText) &&
@@ -321,17 +343,14 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (!isExplicitPath)
                 {
                     var emoteFragment = !string.IsNullOrWhiteSpace(candidateEmoteText)
-                        ? e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
-                        : e.Message.Fragments.FirstOrDefault(f => f.Type == "emote" && f.Emote != null && !string.IsNullOrWhiteSpace(f.Emote.Id));
+                        ? fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
+                        : fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
 
-                    if (emoteFragment?.Emote != null)
-                    {
-                        var format = (emoteFragment.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
-                        firstEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{emoteFragment.Emote.Id}/{format}/dark/3.0";
-                    }
+                    firstEmoteUrl = emoteFragment?.EmoteUrl;
                 }
             }
 
+            var resolvedColor = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color);
             var eventArgs = new CommandEventArgs
             {
                 Command = command[1..].ToLower(),
@@ -341,7 +360,8 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 UserId = e.ChatterUserId,
                 Name = e.ChatterUserLogin,
                 DisplayName = e.ChatterUserName,
-                Color = chatColorService.GetOrAssignColor(e.ChatterUserId, e.Color),
+                Color = resolvedColor,
+                ResolvedColor = resolvedColor,
                 IsSub = e.IsSubscriber,
                 IsMod = e.IsModerator,
                 IsVip = e.IsVip,
@@ -349,7 +369,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 TargetUser = ArgumentsAsList.Count > 0 ? ArgumentsAsList[0].Replace("@", "").Trim() : "",
                 FromOwnChannel = string.IsNullOrWhiteSpace(e.SourceBroadcasterUserId),
                 MessageId = e.MessageId,
-                EmoteUrl = firstEmoteUrl
+                EmoteUrl = firstEmoteUrl,
+                Fragments = fragments,
+                Badges = badges
             };
             await eventService.OnCommand(eventArgs);
         }
@@ -700,6 +722,53 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                 if (DidProcessMessage(payload.Metadata)) return;
                 logger.LogInformation("OnChannelBitsUse: {UserLogin}", payload.Event.UserLogin);
 
+                var bitsFragments = new List<ChatOverlayFragment>();
+                string? firstEmoteUrl = null;
+                if (payload.Event.Message?.Fragments != null)
+                {
+                    foreach (var f in payload.Event.Message.Fragments)
+                    {
+                        if (string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                            f.Emote != null &&
+                            !string.IsNullOrWhiteSpace(f.Emote.Id))
+                        {
+                            var format = (f.Emote.Format?.Contains("animated") == true) ? "animated" : "static";
+                            var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{f.Emote.Id}/{format}/dark/1.0";
+                            firstEmoteUrl ??= url;
+                            bitsFragments.Add(new ChatOverlayFragment
+                            {
+                                Type = "emote",
+                                Text = f.Text ?? string.Empty,
+                                EmoteId = f.Emote.Id,
+                                EmoteProvider = "twitch",
+                                EmoteUrl = url
+                            });
+                        }
+                        else
+                        {
+                            bitsFragments.Add(new ChatOverlayFragment
+                            {
+                                Type = f.Type ?? "text",
+                                Text = ViewerInputSanitizer.Sanitize(f.Text, trim: false)
+                            });
+                        }
+                    }
+                }
+
+                if (payload.Event.PowerUp?.Emote != null && !string.IsNullOrWhiteSpace(payload.Event.PowerUp.Emote.Id))
+                {
+                    var powerUpEmoteUrl = $"https://static-cdn.jtvnw.net/emoticons/v2/{payload.Event.PowerUp.Emote.Id}/default/dark/1.0";
+                    firstEmoteUrl ??= powerUpEmoteUrl;
+                    bitsFragments.Add(new ChatOverlayFragment
+                    {
+                        Type = "emote",
+                        Text = payload.Event.PowerUp.Emote.Name ?? string.Empty,
+                        EmoteId = payload.Event.PowerUp.Emote.Id,
+                        EmoteProvider = "twitch",
+                        EmoteUrl = powerUpEmoteUrl
+                    });
+                }
+
                 var bitsUseEventArgs = new BitsUseEventArgs
                 {
                     Name = payload.Event.UserLogin,
@@ -736,7 +805,9 @@ namespace PenguinTwitchBot.Bot.TwitchServices
                             EmoteOwnerId = emote.Emote?.OwnerId,
                             EmoteFormat = emote.Emote?.Format,
                         }).ToList() ?? []
-                    }
+                    },
+                    EmoteUrl = firstEmoteUrl,
+                    Fragments = bitsFragments
                 };
 
                 await twitchEventActionHandler.HandleBitsUseAsync(bitsUseEventArgs);

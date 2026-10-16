@@ -48,7 +48,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     PropertyName = nameof(EmoteOrImage),
                     Label = "Emote / Token Image (Optional)",
                     FieldType = UIFieldType.Text,
-                    HelperText = "Emote code, image URL, or %Args%. Leave blank or use %Args% to fall back to the theme's default character when no emote is provided."
+                    HelperText = "Emote code, %EmoteUrl%, image URL, or %Args%. Leave blank or use %Args% to fall back to the theme's default character when no emote is provided. Warning: Direct image URLs are allowed—avoid blindly passing raw unvalidated URLs from untrusted external triggers."
                 },
                 new()
                 {

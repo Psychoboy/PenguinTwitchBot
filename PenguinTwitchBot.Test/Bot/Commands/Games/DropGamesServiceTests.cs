@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models.Chat;
 using PenguinTwitchBot.Bot.Models.Commands;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions;
@@ -206,13 +207,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var resolvedEmote = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, bttvEventArgs, null, "/fallback.png");
             Assert.Equal("https://cdn.7tv.app/emote/penguin_dance/3x.webp", resolvedEmote);
 
-            // 3. Direct custom URL is preserved when allowDirectUrlOrPath is true
+            // 3. Direct custom URL or path is resolved
             var resolvedDirect = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: true);
             Assert.Equal("/media/custom_chibi.png", resolvedDirect);
 
-            // Chat-sourced direct path without explicit opt-in falls back safely
-            var resolvedUntrustedPath = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, null, "/media/custom_chibi.png", "/fallback.png", allowDirectUrlOrPath: false);
-            Assert.Equal("/fallback.png", resolvedUntrustedPath);
+            // 3b. Cross-channel or special event emote in Fragments is resolved as provided even if not in global/channel emote cache
+            var specialEventArgs = new CommandEventArgs
+            {
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                Arg = "HyperspecialEmote",
+                Fragments =
+                [
+                    new ChatOverlayFragment
+                    {
+                        Type = "emote",
+                        Text = "HyperspecialEmote",
+                        EmoteId = "emotesv2_special999",
+                        EmoteUrl = "https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_special999/default/dark/1.0"
+                    }
+                ]
+            };
+            var resolvedSpecial = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, specialEventArgs, null, "/fallback.png");
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/emotesv2_special999/default/dark/1.0", resolvedSpecial);
 
             // 4. Unknown word or empty input falls back to theme default character sprite
             var noEmoteArgs = new CommandEventArgs
@@ -1092,7 +1109,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public async Task DropGameCompleteHandler_Parachute_OutOfToleranceLandingX_PreservesServerOutcome()
+        public async Task DropGameCompleteHandler_Parachute_LargeDeflectionLandingX_RecalculatesWinOutcome()
         {
             var dropRegistry = CreateDropRegistry();
             var settingsService = CreateSettingsService();
@@ -1104,7 +1121,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord
             {
-                DropToken = "para-out-of-bounds-token",
+                DropToken = "para-large-deflection-token",
                 GameType = DropGameType.Parachute,
                 Username = "testuser",
                 DisplayName = "TestUser",
@@ -1135,15 +1152,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
-            // Client reports 0.50 but server computed 0.20 (diff 0.30 > 0.15 tolerance) -> server values preserved
-            var notification = new DropGameCompleteNotification("para-out-of-bounds-token", landingX: 0.50);
+            // Client reports 0.50 after a big droplet/mid-air bounce from 0.20 -> outcome is recalculated as a win
+            var notification = new DropGameCompleteNotification("para-large-deflection-token", landingX: 0.50);
             await handler.Handle(notification, CancellationToken.None);
 
             parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "para-out-of-bounds-token" &&
-                r.LandingX == 0.20 &&
-                r.Score == 0 &&
-                !r.IsWin)), Times.Once);
+                r.DropToken == "para-large-deflection-token" &&
+                r.LandingX == 0.50 &&
+                r.Score == 100 &&
+                r.IsBullseye &&
+                r.IsWin)), Times.Once);
         }
 
         [Fact]
@@ -1196,7 +1214,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
-            // Viewer bumped into bucket 2 within tolerance (Math.Abs(2 - 1) == 1 <= 1)
+            // Viewer bumped into bucket 2
             var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2);
             await handler.Handle(notification, CancellationToken.None);
 
@@ -1209,7 +1227,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public async Task DropGameCompleteHandler_Plinko_OutOfToleranceBucketIndex_PreservesServerOutcome()
+        public async Task DropGameCompleteHandler_Plinko_MultiBucketDeflection_RecalculatesWinOutcome()
         {
             var dropRegistry = CreateDropRegistry();
             var settingsService = CreateSettingsService();
@@ -1221,7 +1239,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord
             {
-                DropToken = "plinko-out-of-bounds-token",
+                DropToken = "plinko-multi-bucket-token",
                 GameType = DropGameType.Plinko,
                 Username = "testuser",
                 DisplayName = "TestUser",
@@ -1251,15 +1269,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
-            // Client reports 2 but server was 0 (diff = 2 > 1 tolerance) -> server outcome preserved
-            var notification = new DropGameCompleteNotification("plinko-out-of-bounds-token", winningBucketIndex: 2);
+            // Client reports bucket 2 after bouncing across multiple buckets from 0 -> recalculated as win
+            var notification = new DropGameCompleteNotification("plinko-multi-bucket-token", winningBucketIndex: 2);
             await handler.Handle(notification, CancellationToken.None);
 
             plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "plinko-out-of-bounds-token" &&
-                r.BucketIndex == 0 &&
-                r.Score == 0 &&
-                !r.IsWin)), Times.Once);
+                r.DropToken == "plinko-multi-bucket-token" &&
+                r.BucketIndex == 2 &&
+                r.BucketLabel == "WINNER" &&
+                r.IsWin)), Times.Once);
         }
 
         [Fact]
@@ -1876,6 +1894,143 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal("minigames", plinkoEnd.CategoryId);
             Assert.Equal("plinko", plinkoEnd.DefaultCommandName);
             Assert.Equal(DefaultCommandEventTypes.PlinkoEnd, plinkoEnd.DefaultCommandEventType);
+        }
+
+        [Fact]
+        public async Task StartSessionAsync_Performs100PercentResetAndClearsPendingDropsForGame()
+        {
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+            var plinkoSut = CreatePlinkoService(dropRegistry: registry);
+
+            var paraToken = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "viewer1", DisplayName = "Viewer1", UserId = "1001" },
+                emoteOrImage: null);
+            var plinkoToken = await plinkoSut.TriggerPlinkoDropAsync(
+                new CommandEventArgs { Name = "viewer2", DisplayName = "Viewer2", UserId = "1002" },
+                emoteOrImage: null);
+
+            Assert.NotNull(registry.GetPendingDrop(paraToken));
+            Assert.NotNull(registry.GetPendingDrop(plinkoToken));
+
+            // Starting a new Parachute session clears Parachute drops but leaves Plinko untouched
+            await parachuteSut.StartSessionAsync(60, triggeredBy: "Broadcaster");
+            Assert.Null(registry.GetPendingDrop(paraToken));
+            Assert.NotNull(registry.GetPendingDrop(plinkoToken));
+
+            // Starting a new Plinko session clears Plinko drops
+            await plinkoSut.StartSessionAsync(60, triggeredBy: "Broadcaster");
+            Assert.Null(registry.GetPendingDrop(plinkoToken));
+        }
+
+        [Fact]
+        public async Task ParachuteProcessCompletionAsync_OnBullseye_FiresBothBullseyeAndWinTriggers()
+        {
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+
+            var firedEvents = new List<string>();
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                "drop",
+                It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
+                {
+                    firedEvents.Add(evt);
+                })
+                .Returns(Task.CompletedTask);
+
+            var now = DateTime.UtcNow;
+            var bullseyeRecord = new PendingDropRecord
+            {
+                DropToken = "bullseye-win-token",
+                GameType = DropGameType.Parachute,
+                Username = "winner1",
+                DisplayName = "Winner1",
+                UserId = "2001",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "winner1", DisplayName = "Winner1", UserId = "2001" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-3),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                LandingX = 0.50,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                Score = 100,
+                IsHit = true,
+                IsBullseye = true,
+                IsWin = true
+            };
+
+            await parachuteSut.ProcessCompletionAsync(bullseyeRecord);
+
+            Assert.Contains(DefaultCommandEventTypes.ParachuteBullseye, firedEvents);
+            Assert.Contains(DefaultCommandEventTypes.ParachuteWin, firedEvents);
+        }
+
+        [Fact]
+        public async Task DropServices_RespectConfigurableGravityBouncinessAndMass()
+        {
+            var registry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+
+            var fastSettings = await settingsService.GetSettingsAsync();
+            fastSettings.Parachute.Gravity = 2.5;
+            fastSettings.Parachute.Bounciness = 0.85;
+            fastSettings.Parachute.Mass = 1.5;
+            fastSettings.Plinko.Gravity = 2.2;
+            fastSettings.Plinko.Bounciness = 0.9;
+            fastSettings.Plinko.Mass = 1.8;
+            await settingsService.SaveSettingsAsync(fastSettings);
+
+            var parachuteSut = CreateParachuteService(settingsService: settingsService, dropRegistry: registry);
+            var plinkoSut = CreatePlinkoService(settingsService: settingsService, dropRegistry: registry);
+
+            var fastParaToken = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "fast1", DisplayName = "Fast1", UserId = "3001" },
+                emoteOrImage: null,
+                forcedStartX: 0.5,
+                forcedWindAccelX: 0.0);
+            var fastParaRecord = registry.GetPendingDrop(fastParaToken);
+            Assert.NotNull(fastParaRecord);
+            Assert.Equal(2.5, fastParaRecord.Gravity);
+            Assert.Equal(0.85, fastParaRecord.Bounciness);
+            Assert.Equal(1.5, fastParaRecord.Mass);
+
+            var fastPlinkoToken = await plinkoSut.TriggerPlinkoDropAsync(
+                new CommandEventArgs { Name = "fast2", DisplayName = "Fast2", UserId = "3002" },
+                emoteOrImage: null);
+            var fastPlinkoRecord = registry.GetPendingDrop(fastPlinkoToken);
+            Assert.NotNull(fastPlinkoRecord);
+            Assert.Equal(2.2, fastPlinkoRecord.Gravity);
+            Assert.Equal(0.9, fastPlinkoRecord.Bounciness);
+            Assert.Equal(1.8, fastPlinkoRecord.Mass);
+
+            var slowSettings = await settingsService.GetSettingsAsync();
+            slowSettings.Parachute.Gravity = 0.4;
+            slowSettings.Parachute.Bounciness = 0.3;
+            slowSettings.Parachute.Mass = 0.6;
+            slowSettings.Plinko.Gravity = 0.5;
+            slowSettings.Plinko.Bounciness = 0.3;
+            slowSettings.Plinko.Mass = 0.5;
+            await settingsService.SaveSettingsAsync(slowSettings);
+
+            var slowParaToken = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "slow1", DisplayName = "Slow1", UserId = "3003" },
+                emoteOrImage: null,
+                forcedStartX: 0.5,
+                forcedWindAccelX: 0.0);
+            var slowParaRecord = registry.GetPendingDrop(slowParaToken);
+            Assert.NotNull(slowParaRecord);
+            Assert.True(fastParaRecord.TotalTicks < slowParaRecord.TotalTicks);
+
+            var slowPlinkoToken = await plinkoSut.TriggerPlinkoDropAsync(
+                new CommandEventArgs { Name = "slow2", DisplayName = "Slow2", UserId = "3004" },
+                emoteOrImage: null);
+            var slowPlinkoRecord = registry.GetPendingDrop(slowPlinkoToken);
+            Assert.NotNull(slowPlinkoRecord);
+            Assert.True(fastPlinkoRecord.TotalTicks < slowPlinkoRecord.TotalTicks);
         }
     }
 }

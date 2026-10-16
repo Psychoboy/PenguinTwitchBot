@@ -867,6 +867,9 @@
                 y: p.startY,
                 vx: p.initialVx || 0,
                 vy: p.initialVy || 0.12,
+                gravity: typeof p.gravity === 'number' ? p.gravity : 1.0,
+                bounciness: typeof p.bounciness === 'number' ? p.bounciness : 0.85,
+                mass: typeof p.mass === 'number' ? p.mass : 1.0,
                 swayPhase: p.swayPhase || 0,
                 swayFrequency: p.swayFrequency || 2.0,
                 swayAmplitude: p.swayAmplitude || 0.02,
@@ -945,13 +948,17 @@
             }
         } else if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
+            // 100% full reset on new session start (#1365)
+            activeDrops.length = 0;
+            activeDroplets.length = 0;
+            splashBursts.length = 0;
+            landingPopups.length = 0;
             sessionState.isActive = true;
+            sessionState.endedAtMs = 0;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 100;
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
-            if (typeof s.totalDrops === 'number') {
-                sessionState.totalDrops = s.totalDrops;
-            }
+            sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
             if (s.theme) {
                 currentTheme = s.theme;
                 syncAmbientParticles();
@@ -983,6 +990,7 @@
             }
             if (!sessionState.isActive && msg.session.isActive) {
                 sessionState.isActive = true;
+                sessionState.endedAtMs = 0;
                 sessionState.totalDurationSeconds = msg.session.totalDurationSeconds || 100;
                 sessionState.startedAtMs = performance.now();
                 sessionState.endsAtMs = performance.now() + (msg.session.remainingSeconds || 100) * 1000;
@@ -1876,9 +1884,11 @@
                                 const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
-                                    const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
+                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
+                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
+                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
 
@@ -1919,9 +1929,11 @@
                                 const canKnock = !drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
-                                    const deltaVx = Math.max(-0.25, Math.min(0.25, nx * impulse * 0.50));
+                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
+                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
+                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15));
+                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
                             }
@@ -2007,17 +2019,18 @@
             drop.x += drop.vx * dtSec;
             drop.y += drop.vy * dtSec;
 
-            // Clean bounce off left / right screen borders with reflection
+            // Clean bounce off left / right screen borders with configurable bounciness
+            const wallRestitution = Math.max(0.1, Math.min(1.35, drop.bounciness || 0.85));
             if (drop.x < 0.05) {
                 drop.x = 0.05;
-                drop.vx = Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * 0.90);
+                drop.vx = Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * wallRestitution);
                 if (currentTheme.dropSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                     playSound(currentTheme.dropSoundUrl, 0.35);
                     drop.lastWallSfx = now;
                 }
             } else if (drop.x > 0.95) {
                 drop.x = 0.95;
-                drop.vx = -Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * 0.90);
+                drop.vx = -Math.min(MAX_DROP_VX, Math.abs(drop.vx || 0.12) * wallRestitution);
                 if (currentTheme.dropSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                     playSound(currentTheme.dropSoundUrl, 0.35);
                     drop.lastWallSfx = now;
@@ -2036,9 +2049,9 @@
                 if (dist >= halfW * 0.93 && dist <= halfW * 1.07) {
                     drop.bouncedOffTargetRim = true;
                     if (Math.sign(drop.vx) === Math.sign(dx) && Math.abs(drop.vx) > 0.01) {
-                        drop.vx = -drop.vx * 0.85; // Bounced off outer wall!
+                        drop.vx = -drop.vx * wallRestitution; // Bounced off outer wall!
                     } else {
-                        drop.vx = (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.8); // Bounced over lip into the pool!
+                        drop.vx = (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * wallRestitution); // Bounced over lip into the pool!
                     }
                     drop.vy = Math.max(0.04, drop.vy * 0.65);
                     if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
@@ -2102,11 +2115,15 @@
 
                     if (vDot < 0) {
                         const MAX_DROP_VX = 0.55;
-                        const impulse = Math.max(0.01, -(1 + 0.85) * vDot * 0.5);
-                        dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse));
-                        dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * 0.4));
-                        dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse));
-                        dropB.vy = Math.max(0.04, Math.min(0.45, (dropB.vy || 0.12) - ny * impulse * 0.4));
+                        const eBounce = Math.max(0.1, Math.min(5.0, ((dropA.bounciness || 0.85) + (dropB.bounciness || 0.85)) * 0.5));
+                        const mA = Math.max(0.1, dropA.mass || 1.0);
+                        const mB = Math.max(0.1, dropB.mass || 1.0);
+                        const totalMass = mA + mB;
+                        const impulse = Math.max(0.01, -(1 + eBounce) * vDot);
+                        dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse * (mB / totalMass)));
+                        dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * (mB / totalMass) * 0.4));
+                        dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse * (mA / totalMass)));
+                        dropB.vy = Math.max(0.04, Math.min(0.45, (dropB.vy || 0.12) - ny * impulse * (mA / totalMass) * 0.4));
 
                         if (currentTheme.dropletHitSoundUrl && (!dropA.lastBounceSfx || (now - dropA.lastBounceSfx) > 150)) {
                             playSound(currentTheme.dropletHitSoundUrl, 0.45);

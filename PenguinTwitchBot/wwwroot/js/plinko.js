@@ -647,7 +647,10 @@
             if (Array.isArray(b.buckets) && b.buckets.length) {
                 boardConfig.buckets = b.buckets;
             }
-            const durationSec = b.durationSeconds || 4.5;
+            const tokenGravity = typeof b.gravity === 'number' ? Math.max(0.1, Math.min(10.0, b.gravity)) : 1.0;
+            const tokenBounciness = typeof b.bounciness === 'number' ? Math.max(0.1, Math.min(5.0, b.bounciness)) : 0.80;
+            const tokenMass = typeof b.mass === 'number' ? Math.max(0.1, Math.min(10.0, b.mass)) : 1.0;
+            const durationSec = b.durationSeconds || (4.5 / tokenGravity);
             boardConfig.visibleUntil = performance.now() + (durationSec + 4.0) * 1000;
 
             getLoadedImage(msg.characterImageUrl);
@@ -671,6 +674,9 @@
                 theme: msg.theme || currentTheme,
                 startTimeMs: performance.now(),
                 durationMs: durationSec * 1000,
+                gravity: tokenGravity,
+                bounciness: tokenBounciness,
+                mass: tokenMass,
                 waypoints: waypoints,
                 winningBucketIndex: b.winningBucketIndex || 0,
                 winningBucketLabel: b.winningBucketLabel || '',
@@ -680,7 +686,7 @@
                 y: waypoints[0].y,
                 rotation: (Math.random() - 0.5) * Math.PI,
                 spinSpeed: 3.5 + Math.random() * 3.5,
-                bounceAmp: 0.016 + Math.random() * 0.010,
+                bounceAmp: (0.016 + Math.random() * 0.010) * (tokenBounciness / 0.80),
                 lastRippleSegment: -1,
                 completed: false,
                 completedAtMs: 0
@@ -695,13 +701,17 @@
             }
         } else if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
+            // 100% full reset on new session start (#1365)
+            activeTokens.length = 0;
+            pegRipples.length = 0;
+            bucketHighlights.length = 0;
+            confettiParticles.length = 0;
             sessionState.isActive = true;
+            sessionState.endedAtMs = 0;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 100;
             sessionState.startedAtMs = performance.now();
             sessionState.endsAtMs = performance.now() + (s.remainingSeconds || s.totalDurationSeconds || 100) * 1000;
-            if (typeof s.totalDrops === 'number') {
-                sessionState.totalDrops = s.totalDrops;
-            }
+            sessionState.totalDrops = typeof s.totalDrops === 'number' ? s.totalDrops : 0;
             if (s.theme) currentTheme = s.theme;
             if (msg.board) {
                 if (typeof msg.board.rowCount === 'number') boardConfig.rowCount = msg.board.rowCount;
@@ -726,6 +736,7 @@
             }
             if (!sessionState.isActive && msg.session.isActive) {
                 sessionState.isActive = true;
+                sessionState.endedAtMs = 0;
                 sessionState.totalDurationSeconds = msg.session.totalDurationSeconds || 100;
                 sessionState.startedAtMs = performance.now();
                 sessionState.endsAtMs = performance.now() + (msg.session.remainingSeconds || 100) * 1000;
@@ -1610,16 +1621,20 @@
                         tB.x = Math.max(tB.winningBucketIndex * slotW + margin, Math.min((tB.winningBucketIndex + 1) * slotW - margin, tB.x));
                     }
 
-                    // Elastic bounce impulse
+                    // Elastic bounce impulse with configurable bounciness and mass
                     const rvx = (tA.vx || 0) - (tB.vx || 0);
                     const rvy = (tA.vy || 0) - (tB.vy || 0);
                     const vDot = rvx * nx + rvy * ny;
 
-                    const impulse = 0.32 + Math.abs(vDot) * 0.45;
-                    tA.vx = (tA.vx || 0) + nx * impulse;
-                    tA.vy = (tA.vy || 0) + ny * impulse * 0.4;
-                    tB.vx = (tB.vx || 0) - nx * impulse;
-                    tB.vy = (tB.vy || 0) - ny * impulse * 0.4;
+                    const eBounce = Math.max(0.1, Math.min(5.0, ((tA.bounciness || 0.80) + (tB.bounciness || 0.80)) * 0.5));
+                    const mA = Math.max(0.1, tA.mass || 1.0);
+                    const mB = Math.max(0.1, tB.mass || 1.0);
+                    const totalMass = mA + mB;
+                    const impulse = (0.32 + Math.abs(vDot) * 0.45) * (eBounce / 0.80);
+                    tA.vx = (tA.vx || 0) + nx * impulse * (2.0 * mB / totalMass);
+                    tA.vy = (tA.vy || 0) + ny * impulse * 0.4 * (2.0 * mB / totalMass);
+                    tB.vx = (tB.vx || 0) - nx * impulse * (2.0 * mA / totalMass);
+                    tB.vy = (tB.vy || 0) - ny * impulse * 0.4 * (2.0 * mA / totalMass);
 
                     tA.spinSpeed = (tA.spinSpeed || 5.0) + (Math.random() - 0.5) * 8.0;
                     tB.spinSpeed = (tB.spinSpeed || 5.0) + (Math.random() - 0.5) * 8.0;
@@ -1647,7 +1662,10 @@
 
                 const buckets = boardConfig.buckets || [];
                 let landedBucketIdx;
-                if (typeof t.winningBucketIndex === 'number' && buckets.length > 0) {
+                if (buckets.length > 0 && Math.abs(t.offsetX || 0) > 0.001 && typeof t.x === 'number') {
+                    const slotW = 1.0 / buckets.length;
+                    landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, Math.floor(t.x / slotW)));
+                } else if (typeof t.winningBucketIndex === 'number' && buckets.length > 0) {
                     landedBucketIdx = Math.max(0, Math.min(buckets.length - 1, t.winningBucketIndex));
                 } else if (buckets.length > 0) {
                     const slotW = 1.0 / buckets.length;

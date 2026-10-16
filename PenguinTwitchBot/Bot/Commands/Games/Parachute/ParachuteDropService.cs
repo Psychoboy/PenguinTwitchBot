@@ -265,6 +265,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 state.BullseyeHalfWidth = bullseyeHalfWidth;
 
                 _activeSession = state;
+                dropRegistry.ClearDropsForGame(DropGameType.Parachute);
                 dropRegistry.SetSessionActive(DropGameType.Parachute, true);
                 var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
 
@@ -468,7 +469,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             double? forcedStartX = null,
             double? forcedWindAccelX = null,
             bool skipMinimumDurationCheck = false,
-            bool allowDirectUrlOrPath = false)
+            bool allowDirectUrlOrPath = true)
         {
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
@@ -479,8 +480,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             dropRegistry.RegisterAllowedProxyUrl(theme.ParachuteCanopyImageUrl);
             dropRegistry.RegisterAllowedProxyUrl(theme.DefaultCharacterImageUrl);
 
-            var durationSeconds = Math.Clamp(pSettings.DescentDurationSeconds, 2.5, 15.0);
-            var totalTicks = Math.Max(60, (int)Math.Round(durationSeconds * ParachuteSimulationEngine.TickRateHz));
+            var gravity = Math.Clamp(pSettings.Gravity, 0.1, 10.0);
+            var bounciness = Math.Clamp(pSettings.Bounciness, 0.1, 5.0);
+            var mass = Math.Clamp(pSettings.Mass, 0.1, 10.0);
+            var durationSeconds = Math.Clamp(6.5 / gravity, 0.65, 65.0);
+            var totalTicks = Math.Max(30, (int)Math.Round(durationSeconds * ParachuteSimulationEngine.TickRateHz));
 
             var startX = forcedStartX.HasValue
                 ? Math.Clamp(forcedStartX.Value, 0.08, 0.92)
@@ -561,7 +565,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = skipMinimumDurationCheck
                     ? now.AddMilliseconds(-100)
-                    : now.AddSeconds(Math.Max(1.0, durationSeconds * 0.55)),
+                    : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
                 StartX = startX,
                 StartY = startY,
@@ -572,6 +576,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 SwayAmplitude = swayAmplitude,
                 SwayFrequency = swayFrequency,
                 SwayPhase = swayPhase,
+                Gravity = gravity,
+                Bounciness = bounciness,
+                Mass = mass,
                 TotalTicks = totalTicks,
                 TargetCenterX = targetCenterX,
                 TargetHalfWidth = targetHalfWidth
@@ -633,6 +640,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 swayFrequency,
                 swayPhase,
                 durationSeconds,
+                gravity,
+                bounciness,
+                mass,
                 targetCenterX,
                 targetHalfWidth,
                 bullseyeHalfWidth,
@@ -692,7 +702,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var fakeEventArgs = new CommandEventArgs
             {
                 Arg = request.EmoteOrImage ?? "",
-                EmoteUrl = request.NativeEmoteUrl
+                EmoteUrl = request.NativeEmoteUrl,
+                Fragments = request.Fragments != null ? request.Fragments.ToList() : []
             };
             var dropletUrls = await DropGameMediaResolver.ResolveMediaUrlsAsync(
                 emoteService, fakeEventArgs, request.EmoteOrImage, theme.DefaultDropletImageUrl, request.AllowDirectUrlOrPath);
@@ -803,15 +814,32 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             if (!record.DefaultCommandTriggerExecuted)
             {
-                var eventType = record.IsBullseye
-                    ? DefaultCommandEventTypes.ParachuteBullseye
-                    : (record.IsWin ? DefaultCommandEventTypes.ParachuteWin : DefaultCommandEventTypes.ParachuteLose);
+                if (record.IsBullseye)
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "drop",
+                        DefaultCommandEventTypes.ParachuteBullseye,
+                        record.EventArgs,
+                        variables);
 
-                await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                    "drop",
-                    eventType,
-                    record.EventArgs,
-                    variables);
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "drop",
+                        DefaultCommandEventTypes.ParachuteWin,
+                        record.EventArgs,
+                        variables);
+                }
+                else
+                {
+                    var eventType = record.IsWin
+                        ? DefaultCommandEventTypes.ParachuteWin
+                        : DefaultCommandEventTypes.ParachuteLose;
+
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "drop",
+                        eventType,
+                        record.EventArgs,
+                        variables);
+                }
 
                 record.DefaultCommandTriggerExecuted = true;
             }
@@ -966,6 +994,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             KnockbackMultiplier = pSettings.DefaultKnockbackMultiplier,
                             EmoteOrImage = e.Arg,
                             NativeEmoteUrl = e.EmoteUrl,
+                            Fragments = e.Fragments,
                             TriggeredByUser = e.DisplayName
                         });
                     }

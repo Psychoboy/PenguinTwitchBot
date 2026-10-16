@@ -179,13 +179,17 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
 
             var sanitizedUserInput = ViewerInputSanitizer.Sanitize(eventArgs.UserInput);
 
+            var fragmentsCopy = eventArgs.Fragments != null ? eventArgs.Fragments.ToList() : [];
+
             var sanitizedEventArgs = new ChannelPointRedeemEventArgs
             {
                 UserId = eventArgs.UserId ?? string.Empty,
                 Sender = eventArgs.Sender ?? string.Empty,
                 Username = eventArgs.Username ?? eventArgs.Sender ?? string.Empty,
                 Title = eventArgs.Title ?? string.Empty,
-                UserInput = sanitizedUserInput
+                UserInput = sanitizedUserInput,
+                EmoteUrl = eventArgs.EmoteUrl,
+                Fragments = fragmentsCopy
             };
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -202,8 +206,14 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["UserInput"] = sanitizedUserInput,
                 ["Message"] = sanitizedUserInput,
                 ["rawInput"] = sanitizedUserInput,
+                ["EmoteUrl"] = eventArgs.EmoteUrl ?? string.Empty,
                 ["ChannelPointRedeemEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs)
             };
+
+            if (fragmentsCopy.Count > 0)
+            {
+                dictionary["Fragments"] = JsonSerializer.Serialize(fragmentsCopy);
+            }
 
             return dictionary;
         }
@@ -256,6 +266,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             }
 
             var sanitizedMessage = ViewerInputSanitizer.Sanitize(eventArgs.Message);
+            var bitsFragments = eventArgs.Fragments != null ? eventArgs.Fragments.ToList() : [];
 
             var sanitizedEventArgs = new BitsUseEventArgs
             {
@@ -293,7 +304,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                         EmoteOwnerId = e.EmoteOwnerId,
                         EmoteFormat = e.EmoteFormat
                     }).ToList() ?? []
-                }
+                },
+                EmoteUrl = eventArgs.EmoteUrl,
+                Fragments = bitsFragments
             };
 
             var dictionary = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -313,8 +326,14 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["CustomPowerUpTitle"] = eventArgs.CustomPowerUp?.Title ?? string.Empty,
                 ["CustomPowerUpRewardId"] = eventArgs.CustomPowerUp?.RewardId ?? string.Empty,
                 ["HasBitsMessage"] = eventArgs.HasBitsMessage.ToString(),
+                ["EmoteUrl"] = eventArgs.EmoteUrl ?? string.Empty,
                 ["BitsUseEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs)
             };
+
+            if (bitsFragments.Count > 0)
+            {
+                dictionary["Fragments"] = JsonSerializer.Serialize(bitsFragments);
+            }
 
             return dictionary;
         }
@@ -327,6 +346,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             }
 
             var sanitizedMessage = ViewerInputSanitizer.Sanitize(eventArgs.Message);
+            var notifFragments = eventArgs.Fragments != null ? eventArgs.Fragments.ToList() : [];
 
             var sanitizedEventArgs = new ChatNotificationEventArgs
             {
@@ -337,6 +357,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 NoticeType = eventArgs.NoticeType,
                 SystemMessage = eventArgs.SystemMessage,
                 Message = sanitizedMessage,
+                EmoteUrl = eventArgs.EmoteUrl,
+                Fragments = notifFragments,
                 Sub = eventArgs.Sub,
                 Resub = eventArgs.Resub,
                 SubGift = eventArgs.SubGift,
@@ -363,6 +385,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["SystemMessage"] = eventArgs.SystemMessage ?? string.Empty,
                 ["Message"] = sanitizedMessage,
                 ["rawInput"] = sanitizedMessage,
+                ["EmoteUrl"] = eventArgs.EmoteUrl ?? string.Empty,
                 // Sub (notice_type == "sub")
                 ["Sub.SubTier"] = eventArgs.Sub?.SubTier ?? string.Empty,
                 ["Sub.DurationMonths"] = eventArgs.Sub?.DurationMonths.ToString() ?? string.Empty,
@@ -426,6 +449,11 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 ["WatchStreak.ChannelPointsAwarded"] = eventArgs.WatchStreak?.ChannelPointsAwarded.ToString() ?? string.Empty,
                 ["ChatNotificationEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs)
             };
+
+            if (notifFragments.Count > 0)
+            {
+                dictionary["Fragments"] = JsonSerializer.Serialize(notifFragments);
+            }
 
             return dictionary;
         }

@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Models.Chat;
 using PenguinTwitchBot.Helpers;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -48,6 +49,8 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
             dictionary["SkipLock"] = eventArgs.SkipLock.ToString();
             dictionary["FromOwnChannel"] = eventArgs.FromOwnChannel.ToString();
             dictionary["Color"] = eventArgs.Color ?? string.Empty;
+            dictionary["ResolvedColor"] = eventArgs.ResolvedColor ?? "#FFFFFF";
+            dictionary["EmoteUrl"] = eventArgs.EmoteUrl ?? string.Empty;
 
             if(eventArgs.Args != null && eventArgs.Args.Count > 0)
             {
@@ -63,6 +66,9 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 dictionary["rawInput"] = string.Empty;
             }
 
+            var fragmentsCopy = eventArgs.Fragments != null ? eventArgs.Fragments.ToList() : [];
+            var badgesCopy = eventArgs.Badges != null ? eventArgs.Badges.ToList() : [];
+
             var sanitizedEventArgs = new CommandEventArgs
             {
                 IsSub = eventArgs.IsSub,
@@ -73,6 +79,7 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 Name = eventArgs.Name ?? string.Empty,
                 UserId = eventArgs.UserId ?? string.Empty,
                 Color = eventArgs.Color ?? string.Empty,
+                ResolvedColor = eventArgs.ResolvedColor ?? "#FFFFFF",
                 MessageId = eventArgs.MessageId ?? string.Empty,
                 Command = eventArgs.Command ?? string.Empty,
                 Arg = ViewerInputSanitizer.Sanitize(eventArgs.Arg),
@@ -84,10 +91,16 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
                 FromAlias = eventArgs.FromAlias,
                 SkipLock = eventArgs.SkipLock,
                 FromOwnChannel = eventArgs.FromOwnChannel,
-                EmoteUrl = eventArgs.EmoteUrl
+                EmoteUrl = eventArgs.EmoteUrl,
+                Fragments = fragmentsCopy,
+                Badges = badgesCopy
             };
 
             dictionary["OriginalEventArgs"] = JsonSerializer.Serialize(sanitizedEventArgs);
+            if (fragmentsCopy.Count > 0)
+            {
+                dictionary["Fragments"] = JsonSerializer.Serialize(fragmentsCopy);
+            }
 
             // Add Args as indexed items (Args_0, Args_1, etc.)
             if (eventArgs.Args != null && eventArgs.Args.Count > 0)
@@ -105,42 +118,92 @@ namespace PenguinTwitchBot.Bot.Actions.Utilities
         /// <summary>
         /// Creates a new instance of the CommandEventArgs class from the specified dictionary, if possible.
         /// </summary>
-        /// <remarks>If the dictionary is null, does not contain the required key, or if deserialization
-        /// fails, a default CommandEventArgs instance is returned.</remarks>
-        /// <param name="dictionary">A dictionary containing serialized event argument data. The dictionary should include an entry with the key
-        /// "OriginalEventArgs" containing a JSON representation of a CommandEventArgs object.</param>
-        /// <returns>A CommandEventArgs instance deserialized from the dictionary if possible; otherwise, a new CommandEventArgs
-        /// instance.</returns>
         public static CommandEventArgs FromDictionary(ConcurrentDictionary<string, string> dictionary)
         {
-            if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
-            {
-                return new CommandEventArgs();
-            }
-            try
-            {
-                return JsonSerializer.Deserialize<CommandEventArgs>(json) ?? new CommandEventArgs();
-            }
-            catch
-            {
-                return new CommandEventArgs();
-            }
+            return FromDictionaryOrNull(dictionary) ?? new CommandEventArgs();
         }
 
         public static CommandEventArgs? FromDictionaryOrNull(ConcurrentDictionary<string, string> dictionary)
         {
-            if (dictionary == null || !dictionary.TryGetValue("OriginalEventArgs", out var json))
+            if (dictionary == null)
             {
                 return null;
             }
-            try
+
+            if (dictionary.TryGetValue("OriginalEventArgs", out var json) && !string.IsNullOrWhiteSpace(json))
             {
-                return JsonSerializer.Deserialize<CommandEventArgs>(json);
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<CommandEventArgs>(json);
+                    if (parsed != null)
+                    {
+                        parsed.Fragments ??= [];
+                        parsed.Badges ??= [];
+                        return parsed;
+                    }
+                }
+                catch
+                {
+                    // Fall through to dictionary key reconstruction
+                }
             }
-            catch
+
+            var hasEmoteUrl = dictionary.TryGetValue("EmoteUrl", out var emoteUrl) && !string.IsNullOrWhiteSpace(emoteUrl);
+            var hasFragments = dictionary.TryGetValue("Fragments", out var fragmentsJson) && !string.IsNullOrWhiteSpace(fragmentsJson);
+            var hasUser = dictionary.TryGetValue("User", out var user) && !string.IsNullOrWhiteSpace(user);
+
+            if (!hasEmoteUrl && !hasFragments && !hasUser)
             {
                 return null;
             }
+
+            var fragments = new List<ChatOverlayFragment>();
+            if (hasFragments && !string.IsNullOrWhiteSpace(fragmentsJson))
+            {
+                try
+                {
+                    var deserialized = JsonSerializer.Deserialize<List<ChatOverlayFragment>>(fragmentsJson);
+                    if (deserialized != null)
+                    {
+                        fragments = deserialized;
+                    }
+                }
+                catch
+                {
+                    // Ignore malformed Fragments JSON
+                }
+            }
+
+            var argText = dictionary.TryGetValue("Arg", out var argVal) && !string.IsNullOrWhiteSpace(argVal)
+                ? argVal
+                : (dictionary.TryGetValue("UserInput", out var uiVal) && !string.IsNullOrWhiteSpace(uiVal)
+                    ? uiVal
+                    : (dictionary.TryGetValue("Message", out var msgVal) ? msgVal : string.Empty));
+
+            var displayName = dictionary.TryGetValue("DisplayName", out var dn) && !string.IsNullOrWhiteSpace(dn)
+                ? dn
+                : (user ?? string.Empty);
+
+            var loginName = dictionary.TryGetValue("Name", out var nm) && !string.IsNullOrWhiteSpace(nm)
+                ? nm
+                : displayName.ToLowerInvariant();
+
+            var userId = dictionary.TryGetValue("UserId", out var uid) ? uid : string.Empty;
+            var color = dictionary.TryGetValue("Color", out var col) ? col : string.Empty;
+
+            return new CommandEventArgs
+            {
+                UserId = userId,
+                Name = loginName,
+                DisplayName = displayName,
+                Color = color,
+                ResolvedColor = !string.IsNullOrWhiteSpace(color) ? color : "#FFFFFF",
+                Arg = argText,
+                Args = string.IsNullOrWhiteSpace(argText) ? [] : argText.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList(),
+                EmoteUrl = hasEmoteUrl ? emoteUrl : null,
+                Fragments = fragments,
+                FromOwnChannel = true
+            };
         }
 
         /// <summary>

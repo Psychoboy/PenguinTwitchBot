@@ -66,6 +66,22 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                     if (!isMatch) continue;
 
                     // Convert chat message to command event args for permission checks
+                    string? firstEmoteUrl = null;
+                    if (notification.EventArgs.Fragments != null)
+                    {
+                        foreach (var f in notification.EventArgs.Fragments)
+                        {
+                            if (string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                                !string.IsNullOrWhiteSpace(f.EmoteUrl))
+                            {
+                                firstEmoteUrl = f.EmoteUrl.EndsWith("/1.0", StringComparison.OrdinalIgnoreCase)
+                                    ? string.Concat(f.EmoteUrl.AsSpan(0, f.EmoteUrl.Length - 4), "/3.0")
+                                    : f.EmoteUrl;
+                                break;
+                            }
+                        }
+                    }
+
                     var commandEventArgs = new CommandEventArgs
                     {
                         Arg = notification.EventArgs.Message,
@@ -78,7 +94,13 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
                         IsSub = notification.EventArgs.IsSub,
                         IsVip = notification.EventArgs.IsVip,
                         UserId = notification.EventArgs.UserId,
-                        FromOwnChannel = notification.EventArgs.FromOwnChannel
+                        MessageId = notification.EventArgs.MessageId,
+                        Color = !string.IsNullOrWhiteSpace(notification.EventArgs.Color) ? notification.EventArgs.Color : notification.EventArgs.ResolvedColor,
+                        ResolvedColor = notification.EventArgs.ResolvedColor,
+                        FromOwnChannel = notification.EventArgs.FromOwnChannel,
+                        Fragments = notification.EventArgs.Fragments ?? [],
+                        Badges = notification.EventArgs.Badges ?? [],
+                        EmoteUrl = firstEmoteUrl
                     };
 
                     if (!CommandHandler.CheckIfAllowedInSharedChat(commandEventArgs, keyword))

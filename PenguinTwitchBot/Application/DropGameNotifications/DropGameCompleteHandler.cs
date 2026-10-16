@@ -31,12 +31,15 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                 if (record.GameType == DropGameType.Parachute)
                 {
                     if (notification.LandingX.HasValue &&
-                        Math.Abs(notification.LandingX.Value - record.LandingX) <= 0.15 &&
                         notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
                     {
-                        record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
-                        (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
-                            ParachuteSimulationEngine.CalculateLandingScore(record.LandingX, record.TargetCenterX, record.TargetHalfWidth);
+                        var landingTolerance = Math.Min(0.50, 0.35 + (record.DropletHitCount * 0.10));
+                        if (Math.Abs(notification.LandingX.Value - record.LandingX) <= landingTolerance)
+                        {
+                            record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
+                            (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
+                                ParachuteSimulationEngine.CalculateLandingScore(record.LandingX, record.TargetCenterX, record.TargetHalfWidth);
+                        }
                     }
 
                     await parachuteDropService.ProcessCompletionAsync(record);
@@ -55,7 +58,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                         if (notification.WinningBucketIndex.HasValue)
                         {
                             var idx = notification.WinningBucketIndex.Value;
-                            if (Math.Abs(idx - record.BucketIndex) <= 1 && idx >= 0 && idx < buckets.Count)
+                            var bucketTolerance = Math.Min(4, 2 + record.DropletHitCount);
+                            if (Math.Abs(idx - record.BucketIndex) <= bucketTolerance && idx >= 0 && idx < buckets.Count)
                             {
                                 record.BucketIndex = idx;
                             }

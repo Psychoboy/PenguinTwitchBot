@@ -130,7 +130,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     PropertyName = nameof(EmoteOrImage),
                     Label = "Custom Droplet Emote / Image (Optional)",
                     FieldType = UIFieldType.Text,
-                    HelperText = "Emote code, %Args%, or image URL. Leave blank to use the seasonal theme's droplet sprite."
+                    HelperText = "Emote code, %EmoteUrl%, %Args%, or image URL. Leave blank to use the seasonal theme's droplet sprite. Warning: Direct image URLs are allowed—avoid blindly passing raw unvalidated URLs from untrusted external triggers."
                 },
                 new()
                 {
