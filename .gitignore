@@ -540,6 +540,15 @@ PenguinTwitchBot/wwwroot/media/*
 !PenguinTwitchBot/wwwroot/media/parachute_pop.wav
 !PenguinTwitchBot/wwwroot/media/cannonball.wav
 !PenguinTwitchBot/wwwroot/media/splat.mp3
+!PenguinTwitchBot/wwwroot/media/parachute_drop.wav
+!PenguinTwitchBot/wwwroot/media/droplet.wav
+!PenguinTwitchBot/wwwroot/media/plinko_win.wav
+!PenguinTwitchBot/wwwroot/media/plinko_peg.wav
+!PenguinTwitchBot/wwwroot/media/plinko_drop.wav
+!PenguinTwitchBot/wwwroot/media/round_start.wav
+!PenguinTwitchBot/wwwroot/media/round_end.wav
+!PenguinTwitchBot/wwwroot/media/droplet_hit.wav
+!PenguinTwitchBot/wwwroot/media/miss_land.wav
 PenguinTwitchBot/vetoed.txt
 PenguinTwitchBot/kokoro.onnx
 PenguinTwitchBot/Data/piper/*
