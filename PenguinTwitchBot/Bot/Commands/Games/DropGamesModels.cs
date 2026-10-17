@@ -69,9 +69,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
-        public string DropletHitSoundUrl { get; set; } = "";
+        public string DropletHitSoundUrl { get; set; } = "/media/droplet_hit.wav";
         public string WinSoundUrl { get; set; } = "";
-        public string LoseSoundUrl { get; set; } = "";
+        public string LoseSoundUrl { get; set; } = "/media/miss_land.wav";
 
         public static List<DropGameTheme> CreateDefaultSeasonalThemes() =>
         [
@@ -306,11 +306,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
         }
 
-        // Sound Effects
-        public DropGameSoundConfig StartSound { get; set; } = new();
-        public DropGameSoundConfig EndSound { get; set; } = new();
-        public DropGameSoundConfig DropSound { get; set; } = new();
-        public DropGameSoundConfig WinSound { get; set; } = new();
+        // Sound Effects (Default enabled)
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
+        public DropGameSoundConfig DropSound { get; set; } = new() { Enabled = true, AudioFile = "/media/parachute_drop.wav", Volume = 60 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/droplet.wav", Volume = 65 };
 
         // Sky Rockets & Sabotage Sound Effects (Default enabled)
         public DropGameSoundConfig RocketLaunchSound { get; set; } = new() { Enabled = true, AudioFile = "/media/rocket_launch.wav", Volume = 60 };
@@ -395,12 +395,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
         }
 
-        // Sound Effects
-        public DropGameSoundConfig StartSound { get; set; } = new();
-        public DropGameSoundConfig EndSound { get; set; } = new();
-        public DropGameSoundConfig DropSound { get; set; } = new();
-        public DropGameSoundConfig WinSound { get; set; } = new();
-        public DropGameSoundConfig PegCollisionSound { get; set; } = new();
+        // Sound Effects (Default enabled)
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
+        public DropGameSoundConfig DropSound { get; set; } = new() { Enabled = true, AudioFile = "/media/plinko_drop.wav", Volume = 60 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/plinko_win.wav", Volume = 70 };
+        public DropGameSoundConfig PegCollisionSound { get; set; } = new() { Enabled = true, AudioFile = "/media/plinko_peg.wav", Volume = 50 };
 
         // Legacy database JSON field; ignored on write and marked for deletion later
         public double DropDurationSeconds
