@@ -1179,7 +1179,7 @@
         }
 
         const gEff = Math.max(0.1, Math.min(5.0, gravity || 1.0));
-        const bEff = Math.max(0.1, Math.min(5.0, bounciness || 0.80));
+        const bEff = Math.max(0.1, Math.min(5.0, bounciness || 0.8));
 
         const segments = [];
         let totalWeight = 0;
@@ -1203,15 +1203,15 @@
                 weight = Math.sqrt(dy);
             } else if (isLast) {
                 // Smooth final bounce off bottom peg into prize bucket
-                hPeak = Math.max(0.008, Math.min(0.035, dy * 0.22 * (bEff / 0.80) / Math.sqrt(gEff)));
+                hPeak = Math.max(0.008, Math.min(0.035, dy * 0.22 * (bEff / 0.8) / Math.sqrt(gEff)));
                 a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
                 b = dy - a;
-                bulge = 0.10;
+                bulge = 0.1;
                 weight = Math.sqrt(dy + hPeak);
             } else {
                 // Authentic Plinko upward bounce: pop UP off peg into the air above the row,
                 // hang at apex, then accelerate downward under gravity into next peg!
-                hPeak = Math.max(0.025, Math.min(0.090, dy * 0.38 * (bEff / 0.80) / Math.sqrt(gEff)));
+                hPeak = Math.max(0.025, Math.min(0.09, dy * 0.38 * (bEff / 0.8) / Math.sqrt(gEff)));
                 a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
                 b = dy - a;
                 bulge = 0.18;
@@ -1290,7 +1290,7 @@
                 wpA = seg.pA;
                 wpB = seg.pB;
 
-                const segSpan = Math.max(0.0001, tb[segIdx + 1] - tb[segIdx]);
+                const segSpan = Math.max(0.001, tb[segIdx + 1] - tb[segIdx]);
                 const localT = Math.max(0.0, Math.min(1.0, (progress - tb[segIdx]) / segSpan));
 
                 if (seg.isFirst) {
@@ -1315,7 +1315,7 @@
             // Apply physical deflection offset from collisions with spring decay
             // Ensures tokens bounce elastically when colliding mid-air, but smoothly
             // return to the deterministic waypoint path so they land cleanly in their designated bucket
-            const springDecay = isLastSeg ? Math.pow(0.70, dtSec * 60) : Math.pow(0.88, dtSec * 60);
+            const springDecay = isLastSeg ? Math.pow(0.7, dtSec * 60) : Math.pow(0.88, dtSec * 60);
             t.offsetX = ((t.offsetX || 0) + (t.vx || 0) * dtSec) * springDecay;
             t.offsetY = ((t.offsetY || 0) + (t.vy || 0) * dtSec) * springDecay;
             t.vx = (t.vx || 0) * (isLastSeg ? 0.75 : 0.94);
