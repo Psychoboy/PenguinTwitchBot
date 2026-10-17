@@ -283,6 +283,26 @@
                                     <DropGameSoundEditor Title="Target Platform Win Sound"
                                                          HelperText="Plays when a player successfully lands on the target platform"
                                                          SoundConfig="_settings.Parachute.WinSound" />
+
+                                    <DropGameSoundEditor Title="Rocket Launch Sound"
+                                                         HelperText="Plays when sky rockets are launched"
+                                                         SoundConfig="_settings.Parachute.RocketLaunchSound" />
+
+                                    <DropGameSoundEditor Title="Rocket Detonation Sound"
+                                                         HelperText="Plays when a sky rocket explodes"
+                                                         SoundConfig="_settings.Parachute.RocketExplodeSound" />
+
+                                    <DropGameSoundEditor Title="Parachute Pop / Sabotage Sound"
+                                                         HelperText="Plays when a parachute canopy is destroyed"
+                                                         SoundConfig="_settings.Parachute.ParachutePopSound" />
+
+                                    <DropGameSoundEditor Title="Cannonball Splash Sound (Water Landing)"
+                                                         HelperText="Plays when a crash-landing player lands in the water pool"
+                                                         SoundConfig="_settings.Parachute.CannonballSound" />
+
+                                    <DropGameSoundEditor Title="Crash Splat Sound (Ground Landing)"
+                                                         HelperText="Plays when a crash-landing player impacts the floor"
+                                                         SoundConfig="_settings.Parachute.CrashLandSound" />
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -313,6 +333,12 @@
                                                StartIcon="@Icons.Material.Filled.WaterDrop"
                                                OnClick="TestComboDropAndDropletsAsync">
                                         Combo Test: Drop + Mid-Air Droplets Collision!
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                               OnClick="TestNormalParachuteDropWithRocketAsync">
+                                        Combo Test: Drop + Rocket Intercept
                                     </MudButton>
 
                                     <MudDivider Class="my-2" />
@@ -435,7 +461,123 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 3: PLINKO BOUNCE ================= -->
+                <!-- ================= TAB 3: SKY ROCKETS & SABOTAGE ================= -->
+                <MudTabPanel Text="Sky Rockets & Sabotage" Icon="@Icons.Material.Filled.RocketLaunch">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-2">Sky Rockets & Parachute Sabotage Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                    Rockets are launched into the sky to push players mid-air. Direct hits on a parachute canopy destroy the canopy ("canopy kill"), triggering a high-speed comedic free-fall! Triggered exclusively via the <b>Parachute Rockets</b> Sub-Action for Channel Points, Bits, Action Groups, and stream events.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Parachute.EnableRockets"
+                                               Label="Enable Sky Rockets & Sabotage System" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="string" Label="Default Launch Pattern" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.RocketLaunchPattern"
+                                                       HelperText="Targeted aims at active parachutists; Barrage spreads evenly; Random shoots chaotically">
+                                                <MudSelectItem Value="@("Targeted")">Targeted (Lead active players)</MudSelectItem>
+                                                <MudSelectItem Value="@("Barrage")">Barrage (Wide multi-rocket salvo)</MudSelectItem>
+                                                <MudSelectItem Value="@("Random")">Random (Unpredictable fireworks)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CrashLandingScoreMode" Label="Crash Landing Score Outcome" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.CrashLandingScoreMode"
+                                                       HelperText="How points are scored when a player crash-lands after parachute destruction">
+                                                <MudSelectItem Value="@CrashLandingScoreMode.PreserveScore">Preserve Score (Retains points at impact site + Cannonball splash)</MudSelectItem>
+                                                <MudSelectItem Value="@CrashLandingScoreMode.HalfScore">Half Score (50% points on impact)</MudSelectItem>
+                                                <MudSelectItem Value="@CrashLandingScoreMode.ZeroScore">Zero Score (0 points on crash landing)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Knockback Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.RocketKnockbackMultiplier"
+                                                             HelperText="Force applied on explosive body knockback" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudSwitch T="bool" Color="Color.Error"
+                                                       @bind-Value="_settings.Parachute.DirectHitKillsParachute"
+                                                       Label="Direct Canopy Hit Kills Parachute" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Canopy Kill Chance (0.0 - 1.0)" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Parachute.CanopyKillChance"
+                                                             HelperText="1.0 = 100% kill chance on canopy hit" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Rocket & Crash Audio</MudText>
+                                <MudStack Spacing="2">
+                                    <DropGameSoundEditor Title="Rocket Launch Sound"
+                                                         HelperText="Plays when rockets fire up into the sky"
+                                                         SoundConfig="_settings.Parachute.RocketLaunchSound" />
+
+                                    <DropGameSoundEditor Title="Rocket Detonation Sound"
+                                                         HelperText="Plays when a rocket reaches fuse apex or explodes"
+                                                         SoundConfig="_settings.Parachute.RocketExplodeSound" />
+
+                                    <DropGameSoundEditor Title="Parachute Pop / Sabotage Sound"
+                                                         HelperText="Plays when a canopy is shredded mid-air"
+                                                         SoundConfig="_settings.Parachute.ParachutePopSound" />
+
+                                    <DropGameSoundEditor Title="Cannonball Splash Sound (Water Landing)"
+                                                         HelperText="Plays when a free-falling player splashes into the pool platform"
+                                                         SoundConfig="_settings.Parachute.CannonballSound" />
+
+                                    <DropGameSoundEditor Title="Crash Splat Sound (Ground Landing)"
+                                                         HelperText="Plays when a free-falling player splats on the floor"
+                                                         SoundConfig="_settings.Parachute.CrashLandSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Live Rocket & Sabotage Tester</MudText>
+                                <MudStack Spacing="3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                               OnClick="TestSingleRocketAsync">
+                                        Fire Single Test Rocket
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Celebration"
+                                               OnClick="TestRocketBarrageAsync">
+                                        Fire Rocket Barrage (6 Rockets)
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                               OnClick="TestNormalParachuteDropWithRocketAsync">
+                                        Combo Test: Drop + Rocket Intercept
+                                    </MudButton>
+
+                                    <MudDivider Class="my-2" />
+                                    <MudAlert Severity="Severity.Info" Dense="true">
+                                        <b>SubAction Controlled:</b> Streamers can trigger rockets via <b>SubActions &rarr; Parachute Rockets</b>. You can customize rocket count, launch pattern, targeted player, or specific fuse times for interactive bits rewards or channel points redemptions!
+                                    </MudAlert>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: PLINKO BOUNCE ================= -->
                 <MudTabPanel Text="Plinko Bounce (!plinko)" Icon="@Icons.Material.Filled.Apps">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -1028,6 +1170,26 @@
                                                                      IsThemeOverride="true"
                                                                      SoundOverride="_selectedTheme.ParachuteWinSound"
                                                                      FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.WinSound)" />
+                                                <DropGameSoundEditor Title="Parachute Rocket Launch Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteRocketLaunchSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.RocketLaunchSound)" />
+                                                <DropGameSoundEditor Title="Parachute Rocket Detonation Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteRocketExplodeSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.RocketExplodeSound)" />
+                                                <DropGameSoundEditor Title="Parachute Pop / Sabotage Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachutePopSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.ParachutePopSound)" />
+                                                <DropGameSoundEditor Title="Cannonball Splash Sound (Water Landing)"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteCannonballSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.CannonballSound)" />
+                                                <DropGameSoundEditor Title="Crash Splat Sound (Ground Landing)"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteCrashLandSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.CrashLandSound)" />
 
                                                 <MudDivider Class="my-3" />
 
@@ -1312,6 +1474,61 @@
             TriggeredByUser = _testUsername
         });
         Snackbar.Add($"Spawned {count}x {size}/{speed} ({pattern}) droplets!", Severity.Info);
+    }
+
+    private async Task TestSingleRocketAsync()
+    {
+        await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+        {
+            Count = 1,
+            Pattern = "Targeted",
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add("Fired test rocket on Parachute overlay!", Severity.Info);
+    }
+
+    private async Task TestRocketBarrageAsync()
+    {
+        await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+        {
+            Count = 6,
+            Pattern = "Barrage",
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add("Fired 6x rocket barrage on Parachute overlay!", Severity.Info);
+    }
+
+    private async Task TestNormalParachuteDropWithRocketAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var token = await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            _testEmoteInput,
+            allowDirectUrlOrPath: true);
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500);
+                    await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+                    {
+                        Count = 1,
+                        Pattern = _settings?.Parachute.RocketLaunchPattern ?? "Targeted",
+                        TargetUser = _testUsername,
+                        TriggeredByUser = _testUsername
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to fire test rocket intercept");
+                }
+            });
+        }
+
+        Snackbar.Add("Launched Parachute Drop + Rocket Intercept (Normal Settings)!", Severity.Info);
     }
 
     private async Task TestPlinkoDropAsync()

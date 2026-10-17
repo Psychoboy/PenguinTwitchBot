@@ -2193,6 +2193,253 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.NotNull(slowPlinkoRecord);
             Assert.True(fastPlinkoRecord.TotalTicks < slowPlinkoRecord.TotalTicks);
         }
+
+        [Fact]
+        public async Task ParachuteDropService_FireRockets_GeneratesRocketsAndBroadcasts()
+        {
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+
+            // Drop an active parachutist to be targeted
+            var dropToken = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "targetPlayer", DisplayName = "TargetPlayer", UserId = "5001" },
+                emoteOrImage: null,
+                forcedStartX: 0.50,
+                forcedWindAccelX: 0.0);
+
+            var rockets = await parachuteSut.FireRocketsAsync(new RocketFireRequest
+            {
+                Count = 3,
+                Pattern = "Barrage",
+                TriggeredByUser = "AdminStreamer"
+            });
+
+            Assert.NotNull(rockets);
+            Assert.Equal(3, rockets.Count);
+            Assert.All(rockets, r =>
+            {
+                Assert.False(string.IsNullOrEmpty(r.Id));
+                Assert.True(r.Vy < 0); // Firing upwards
+                Assert.True(r.FuseTicks > 0);
+            });
+
+            _webSocketMessenger.Verify(x => x.AddToQueue(
+                WsTopics.Parachute,
+                It.Is<string>(json => json.Contains("parachute_rockets"))),
+                Times.AtLeastOnce());
+        }
+
+        [Fact]
+        public void ParachuteSimulationEngine_RocketCanopyCollision_DestroysParachuteAndAcceleratesFreeFall()
+        {
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "rocket-kill-test",
+                GameType = DropGameType.Parachute,
+                Username = "testUser",
+                DisplayName = "TestUser",
+                UserId = "1001",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testUser", DisplayName = "TestUser", UserId = "1001" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                WindAccelX = 0.0,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                LandingY = 0.90,
+                InitialVy = 0.12,
+                Gravity = 1.0,
+                Bounciness = 0.85,
+                Mass = 1.0,
+                TotalTicks = 120
+            };
+
+            var rockets = new List<RocketInstanceDto>
+            {
+                new RocketInstanceDto
+                {
+                    Id = "rocket-canopy-sniper",
+                    StartX = 0.552,
+                    StartY = 1.02,
+                    TargetX = 0.552,
+                    TargetY = 0.027,
+                    Vx = 0.0,
+                    Vy = -1.655,
+                    AccelerationY = 0.04,
+                    FuseTicks = 42,
+                    SpawnTickOffset = 0
+                }
+            };
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                record,
+                elapsedTicksAtEvent: 0,
+                droplets: [],
+                rockets: rockets,
+                canopyKillChance: 1.0,
+                rocketKnockbackMultiplier: 1.0,
+                crashLandingScoreMode: CrashLandingScoreMode.PreserveScore);
+
+            Assert.True(record.ParachuteDestroyed, "Canopy hit should destroy parachute");
+            Assert.True(record.FreeFallStartTick >= 0, "FreeFallStartTick should be recorded");
+            Assert.Contains(record.Collisions, c => c.CollisionType == "rocket_canopy");
+
+            // Verify high-speed free fall acceleration occurred
+            Assert.True(record.Keyframes.Any(k => k.Vy > 0.45), "Terminal vertical speed should exceed normal canopy glide speed");
+            Assert.True(record.Keyframes.Max(k => k.Vy) <= ParachuteSimulationEngine.TerminalFreeFallVy + 0.001);
+        }
+
+        [Fact]
+        public void ParachuteSimulationEngine_RocketBodyCollision_AppliesKnockbackWithoutDestroyingCanopy()
+        {
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "rocket-body-test",
+                GameType = DropGameType.Parachute,
+                Username = "testUser",
+                DisplayName = "TestUser",
+                UserId = "1002",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testUser", DisplayName = "TestUser", UserId = "1002" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                WindAccelX = 0.0,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                LandingY = 0.90,
+                InitialVy = 0.12,
+                Gravity = 1.0,
+                Bounciness = 0.85,
+                Mass = 1.0,
+                TotalTicks = 120
+            };
+
+            var rockets = RocketTrajectoryGenerator.GenerateRockets(
+                new RocketFireRequest { Count = 1, Pattern = "Targeted" },
+                record,
+                now);
+            // Offset rocket slightly laterally and below canopy so it impacts the player body figurine
+            rockets[0].StartX += 0.02;
+            rockets[0].TargetX += 0.02;
+            rockets[0].TargetY += RocketTrajectoryGenerator.CanopyYOffset;
+            var leadTicks = Math.Max(1, rockets[0].FuseTicks - 8);
+            var flightDuration = leadTicks * ParachuteSimulationEngine.Dt;
+            rockets[0].Vy = ((rockets[0].TargetY - rockets[0].StartY) - (0.5 * rockets[0].AccelerationY * flightDuration * flightDuration)) / flightDuration;
+
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                record,
+                elapsedTicksAtEvent: 0,
+                droplets: [],
+                rockets: rockets,
+                canopyKillChance: 0.0,
+                rocketKnockbackMultiplier: 2.0,
+                crashLandingScoreMode: CrashLandingScoreMode.PreserveScore);
+
+            Assert.False(record.ParachuteDestroyed, "Body hit should not destroy canopy when directHitKillsParachute is false");
+            Assert.True(record.RocketHitCount > 0, "RocketHitCount should be incremented");
+            Assert.Contains(record.Collisions, c => c.CollisionType == "rocket_body");
+        }
+
+        [Theory]
+        [InlineData(CrashLandingScoreMode.PreserveScore, 0.50, 0.50, 0.10, true, 100, true, true)]
+        [InlineData(CrashLandingScoreMode.HalfScore, 0.50, 0.50, 0.10, true, 50, false, true)]
+        [InlineData(CrashLandingScoreMode.ZeroScore, 0.50, 0.50, 0.10, true, 0, false, false)]
+        [InlineData(CrashLandingScoreMode.PreserveScore, 0.55, 0.50, 0.10, true, 51, false, true)]
+        [InlineData(CrashLandingScoreMode.HalfScore, 0.55, 0.50, 0.10, true, 26, false, true)]
+        [InlineData(CrashLandingScoreMode.PreserveScore, 0.80, 0.50, 0.10, true, 0, false, false)] // Missed target
+        public void ParachuteSimulationEngine_CalculateLandingScore_EvaluatesCrashLandingScoreModes(
+            CrashLandingScoreMode scoreMode,
+            double landingX,
+            double targetCenterX,
+            double targetHalfWidth,
+            bool parachuteDestroyed,
+            int expectedScore,
+            bool expectedBullseye,
+            bool expectedWin)
+        {
+            var (score, isBullseye, isWin, _) = ParachuteSimulationEngine.CalculateLandingScore(
+                landingX,
+                targetCenterX,
+                targetHalfWidth,
+                parachuteDestroyed,
+                scoreMode);
+
+            Assert.Equal(expectedScore, score);
+            Assert.Equal(expectedBullseye, isBullseye);
+            Assert.Equal(expectedWin, isWin);
+        }
+
+        [Fact]
+        public async Task ParachuteRocketsHandler_ExecutesAndCallsFireRockets()
+        {
+            var parachuteMock = new Mock<IParachuteDropService>();
+            parachuteMock.Setup(x => x.FireRocketsAsync(It.IsAny<RocketFireRequest>()))
+                .ReturnsAsync([new RocketInstanceDto { Id = "r1" }]);
+
+            var handler = new PenguinTwitchBot.Bot.Actions.SubActions.Handlers.ParachuteRocketsHandler(parachuteMock.Object);
+
+            var variables = new ConcurrentDictionary<string, string>();
+            variables["User"] = "TestDonor";
+
+            var subAction = new ParachuteRocketsType
+            {
+                Count = 5,
+                Pattern = "Barrage",
+                TargetUser = "LuckyViewer",
+                CanopyKillChance = 75,
+                KnockbackMultiplier = 1.5,
+                CrashLandingScoreMode = "HalfScore"
+            };
+
+            await handler.ExecuteAsync(subAction, variables);
+
+            parachuteMock.Verify(x => x.FireRocketsAsync(It.Is<RocketFireRequest>(r =>
+                r.Count == 5 &&
+                r.Pattern == "Barrage" &&
+                r.TargetUser == "LuckyViewer" &&
+                r.CanopyKillChance == 75 &&
+                r.KnockbackMultiplier == 1.5 &&
+                r.ScoreModeOverride == CrashLandingScoreMode.HalfScore &&
+                r.TriggeredByUser == "TestDonor")),
+                Times.Once());
+        }
+
+        [Fact]
+        public void ParachuteRocketKill_TriggerCatalogAndVariables_AreProperlyConfigured()
+        {
+            var triggerItem = PenguinTwitchBot.Bot.Actions.Triggers.TriggerCatalog.AllTriggers
+                .FirstOrDefault(i => i.Id == "parachute-rocket-kill");
+
+            Assert.NotNull(triggerItem);
+            Assert.Equal(PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerTypes.DefaultCommand, triggerItem.Type);
+            Assert.Equal("drop", triggerItem.DefaultCommandName);
+            Assert.Equal(PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations.DefaultCommandEventTypes.ParachuteRocketKill, triggerItem.DefaultCommandEventType);
+
+            var resolver = new PenguinTwitchBot.Bot.Actions.Variables.Triggers.DefaultCommandTriggerVariableResolver();
+            var variables = new Dictionary<string, PenguinTwitchBot.Bot.Actions.Variables.ActionVariableInfo>();
+            var trigger = new PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerType
+            {
+                Type = PenguinTwitchBot.Database.Bot.Models.Actions.Triggers.TriggerTypes.DefaultCommand,
+                Name = "Parachute Rocket Kill",
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations.DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "drop",
+                    EventType = PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations.DefaultCommandEventTypes.ParachuteRocketKill
+                })
+            };
+
+            resolver.ResolveVariables(trigger, variables, "test");
+
+            Assert.True(variables.ContainsKey("Attacker"));
+            Assert.True(variables.ContainsKey("Victim"));
+            Assert.True(variables.ContainsKey("ParachuteDestroyed"));
+        }
     }
 }
 

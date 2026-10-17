@@ -15,7 +15,7 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.13");
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.ActionType", b =>
                 {
@@ -3444,6 +3444,34 @@ namespace PenguinTwitchBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.ToTable("subactions_parachute_droplets", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteRocketsType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("CanopyKillChance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CrashLandingScoreMode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("KnockbackMultiplier")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetUser")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.ToTable("subactions_parachute_rockets", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlaySoundType", b =>

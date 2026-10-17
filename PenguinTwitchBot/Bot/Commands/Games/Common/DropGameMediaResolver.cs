@@ -372,7 +372,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 Start = ResolveSound(settings.StartSound, theme.ParachuteStartSound, mediaService),
                 End = ResolveSound(settings.EndSound, theme.ParachuteEndSound, mediaService),
                 Drop = ResolveSound(settings.DropSound, theme.ParachuteDropSound, mediaService),
-                Win = ResolveSound(settings.WinSound, theme.ParachuteWinSound, mediaService)
+                Win = ResolveSound(settings.WinSound, theme.ParachuteWinSound, mediaService),
+                RocketLaunch = ResolveSound(settings.RocketLaunchSound, theme.ParachuteRocketLaunchSound, mediaService),
+                RocketExplode = ResolveSound(settings.RocketExplodeSound, theme.ParachuteRocketExplodeSound, mediaService),
+                ParachutePop = ResolveSound(settings.ParachutePopSound, theme.ParachutePopSound, mediaService),
+                CrashLand = ResolveSound(settings.CrashLandSound, theme.ParachuteCrashLandSound, mediaService),
+                Cannonball = ResolveSound(settings.CannonballSound, theme.ParachuteCannonballSound, mediaService)
             };
         }
 

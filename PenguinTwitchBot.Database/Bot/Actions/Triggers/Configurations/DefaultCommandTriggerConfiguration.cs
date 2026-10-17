@@ -56,6 +56,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string ParachuteLose = "Parachute.Lose";
         public const string ParachuteEnd = "Parachute.End";
         public const string ParachuteEnded = "Parachute.End";
+        public const string ParachuteRocketKill = "Parachute.RocketKill";
 
         // Plinko Bounce events
         public const string PlinkoStart = "Plinko.Start";

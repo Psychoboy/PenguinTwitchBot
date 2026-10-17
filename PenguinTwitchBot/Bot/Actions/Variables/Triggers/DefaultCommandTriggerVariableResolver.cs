@@ -180,6 +180,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             {
                 if (nameLower.Contains("bullseye"))
                     eventType = DefaultCommandEventTypes.ParachuteBullseye;
+                else if (nameLower.Contains("rocket") || nameLower.Contains("kill"))
+                    eventType = DefaultCommandEventTypes.ParachuteRocketKill;
                 else if (nameLower.Contains("win"))
                     eventType = DefaultCommandEventTypes.ParachuteWin;
                 else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
@@ -367,6 +369,16 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("Duration", "Total duration of the parachute session in seconds", source, category, "100");
             variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
             variables.SetVariable("Theme", "Active theme name of the parachute session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "ParachuteDrop");
+        }
+        else if (eventType != null && eventType.Equals(DefaultCommandEventTypes.ParachuteRocketKill, StringComparison.OrdinalIgnoreCase))
+        {
+            variables.SetVariable("Attacker", "Username or system that fired the rocket", source, category, "RocketSniper");
+            variables.SetVariable("TriggeredBy", "Username or system that fired the rocket", source, category, "RocketSniper");
+            variables.SetVariable("Victim", "Chatter whose parachute was destroyed", source, category, "victim_viewer");
+            variables.SetVariable("Score", "Landing accuracy score (or preserved crash score)", source, category, "100");
+            variables.SetVariable("ParachuteDestroyed", "True if the canopy was destroyed by a rocket", source, category, "true");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
             variables.SetVariable("Game", "Game name", source, category, "ParachuteDrop");
         }
         else

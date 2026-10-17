@@ -922,7 +922,8 @@
                 DefaultCommandEventTypes.ParachuteBullseye,
                 DefaultCommandEventTypes.ParachuteWin,
                 DefaultCommandEventTypes.ParachuteLose,
-                DefaultCommandEventTypes.ParachuteEnd
+                DefaultCommandEventTypes.ParachuteEnd,
+                DefaultCommandEventTypes.ParachuteRocketKill
             },
             "plinko" => new List<string>
             {
@@ -968,6 +969,7 @@
             DefaultCommandEventTypes.ParachuteBullseye => "Bullseye Hit (Center)",
             DefaultCommandEventTypes.ParachuteLose => "Missed Target (Lose)",
             DefaultCommandEventTypes.ParachuteEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.ParachuteRocketKill => "Rocket Kill (Canopy Destroyed)",
             DefaultCommandEventTypes.PlinkoStart => "Round Started (Session Active)",
             DefaultCommandEventTypes.PlinkoWin => "Winning Bucket",
             DefaultCommandEventTypes.PlinkoLose => "Losing Bucket",
@@ -1002,6 +1004,8 @@
                 "%user%, %userid%, %score%, %is_bullseye%, %multiplier%, %points_awarded%",
             DefaultCommandEventTypes.ParachuteEnd =>
                 "%user%, %TotalDrops%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.ParachuteRocketKill =>
+                "%user%, %userid%, %attacker%, %victim%, %score%, %theme%, %game%",
             DefaultCommandEventTypes.PlinkoStart =>
                 "%user%, %duration%, %theme%, %game%",
             DefaultCommandEventTypes.PlinkoWin or DefaultCommandEventTypes.PlinkoLose =>

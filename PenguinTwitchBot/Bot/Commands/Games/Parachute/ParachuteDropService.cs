@@ -858,6 +858,140 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             return droplets;
         }
 
+        public async Task<List<RocketInstanceDto>> FireRocketsAsync(RocketFireRequest request)
+        {
+            dropRegistry.CleanupExpiredDrops();
+            var settings = await settingsService.GetSettingsAsync();
+            var pSettings = settings.Parachute;
+
+            var count = Math.Clamp(request.Count > 0 ? request.Count : 1, 1, 10);
+            var pattern = !string.IsNullOrWhiteSpace(request.Pattern) ? request.Pattern : pSettings.RocketLaunchPattern;
+            var canopyKillChance = request.CanopyKillChance.HasValue
+                ? Math.Clamp(request.CanopyKillChance.Value / 100.0, 0.0, 1.0)
+                : pSettings.CanopyKillChance;
+            var knockbackMultiplier = request.KnockbackMultiplier.HasValue && request.KnockbackMultiplier.Value > 0
+                ? Math.Clamp(request.KnockbackMultiplier.Value, 0.1, 5.0)
+                : pSettings.RocketKnockbackMultiplier;
+            var scoreMode = request.ScoreModeOverride ?? pSettings.CrashLandingScoreMode;
+
+            var rockets = new List<RocketInstanceDto>(count);
+            var trajectoryUpdates = new List<ParachuteTrajectoryUpdateDto>();
+            var newlyKilledDrops = new List<PendingDropRecord>();
+            var now = DateTime.UtcNow;
+
+            lock (_simulationLock)
+            {
+                var activeParachutes = dropRegistry.GetActiveDrops(DropGameType.Parachute);
+
+                PendingDropRecord? targetDrop = null;
+                if (!string.IsNullOrWhiteSpace(request.TargetUser))
+                {
+                    targetDrop = activeParachutes.FirstOrDefault(d =>
+                        d.Username.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                        d.DisplayName.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+
+                targetDrop ??= activeParachutes.FirstOrDefault();
+
+                rockets = RocketTrajectoryGenerator.GenerateRockets(
+                    new RocketFireRequest
+                    {
+                        Count = count,
+                        Pattern = pattern,
+                        TargetUser = request.TargetUser,
+                        CanopyKillChance = canopyKillChance,
+                        KnockbackMultiplier = knockbackMultiplier,
+                        ScoreModeOverride = scoreMode,
+                        TriggeredByUser = request.TriggeredByUser
+                    },
+                    targetDrop,
+                    now);
+
+                foreach (var drop in activeParachutes)
+                {
+                    var wasDestroyedBefore = drop.ParachuteDestroyed;
+                    var elapsedTicks = Math.Clamp((int)Math.Round((now - drop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, drop.TotalTicks - 1);
+                    ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                        drop,
+                        elapsedTicks,
+                        droplets: null,
+                        rockets: rockets,
+                        canopyKillChance: canopyKillChance,
+                        rocketKnockbackMultiplier: knockbackMultiplier,
+                        crashLandingScoreMode: scoreMode);
+
+                    if (!wasDestroyedBefore && drop.ParachuteDestroyed)
+                    {
+                        newlyKilledDrops.Add(drop);
+                    }
+
+                    trajectoryUpdates.Add(new ParachuteTrajectoryUpdateDto
+                    {
+                        DropToken = drop.DropToken,
+                        LandingX = drop.LandingX,
+                        TotalTicks = drop.TotalTicks,
+                        Score = drop.Score,
+                        IsHit = drop.IsHit,
+                        IsBullseye = drop.IsBullseye,
+                        IsWin = drop.IsWin,
+                        DropletHits = drop.DropletHitCount,
+                        RocketHits = drop.RocketHitCount,
+                        ParachuteDestroyed = drop.ParachuteDestroyed,
+                        FreeFallStartTick = drop.FreeFallStartTick,
+                        Collisions = drop.Collisions,
+                        Keyframes = drop.Keyframes
+                    });
+                }
+            }
+
+            var payload = new
+            {
+                type = "parachute_rockets",
+                triggeredBy = request.TriggeredByUser ?? "SubAction",
+                rockets,
+                trajectoryUpdates
+            };
+
+            var json = JsonSerializer.Serialize(payload, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute rockets");
+
+            if (newlyKilledDrops.Count > 0)
+            {
+                var attacker = !string.IsNullOrWhiteSpace(request.TriggeredByUser) ? request.TriggeredByUser : "Stream";
+                foreach (var killedDrop in newlyKilledDrops)
+                {
+                    var killVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Attacker"] = attacker,
+                        ["TriggeredBy"] = attacker,
+                        ["Victim"] = killedDrop.DisplayName,
+                        ["Score"] = killedDrop.Score.ToString(CultureInfo.InvariantCulture),
+                        ["ParachuteDestroyed"] = "true",
+                        ["Theme"] = killedDrop.Theme?.Name ?? "Default",
+                        ["Game"] = "ParachuteDrop"
+                    };
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                                "drop",
+                                DefaultCommandEventTypes.ParachuteRocketKill,
+                                killedDrop.EventArgs,
+                                killVars);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "Failed to fire ParachuteRocketKill trigger for {User}", killedDrop.Username);
+                        }
+                    });
+                }
+            }
+
+            return rockets;
+        }
+
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
             var settings = await settingsService.GetSettingsAsync();
@@ -871,6 +1005,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ["IsWin"] = record.IsWin ? "true" : "false",
                 ["IsBullseye"] = record.IsBullseye ? "true" : "false",
                 ["DropletHits"] = record.DropletHitCount.ToString(CultureInfo.InvariantCulture),
+                ["RocketHits"] = record.RocketHitCount.ToString(CultureInfo.InvariantCulture),
+                ["ParachuteDestroyed"] = record.ParachuteDestroyed ? "true" : "false",
+                ["CrashLanded"] = record.ParachuteDestroyed ? "true" : "false",
                 ["Theme"] = record.Theme.Name,
                 ["Game"] = "ParachuteDrop"
             };
@@ -922,7 +1059,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
                         .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
                         .Replace("{bullseye}", bullseyeTag, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{droplethits}", record.DropletHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                        .Replace("{droplethits}", record.DropletHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                        .Replace("{rockethits}", record.RocketHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
                     await ServiceBackbone.SendChatMessage(msg);
                     record.WinChatAnnounced = true;
                 }

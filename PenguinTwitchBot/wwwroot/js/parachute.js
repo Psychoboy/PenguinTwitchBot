@@ -69,6 +69,9 @@
     // Active game entities
     const activeDrops = [];
     const activeDroplets = [];
+    const activeRockets = [];
+    const rocketExplosions = [];
+    const canopyFragments = [];
     const splashBursts = [];
     const landingPopups = [];
     const ambientParticles = [];
@@ -202,6 +205,92 @@
                 alpha: 1.0,
                 life: 0,
                 maxLife: 0.22 + Math.random() * 0.12
+            });
+        }
+    }
+
+    function spawnRocketExplosion(xPx, yPx, color, count = 40) {
+        const palette = [color || '#FF3366', '#FFD166', '#FFFFFF', '#00F0FF', '#FF9900', '#39FF14'];
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.35;
+            const speed = 70 + Math.random() * 200;
+            rocketExplosions.push({
+                x: xPx,
+                y: yPx,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                gravity: 140 + Math.random() * 80,
+                drag: 0.96,
+                size: 2.0 + Math.random() * 2.5,
+                color: palette[i % palette.length],
+                alpha: 1.0,
+                life: 0,
+                maxLife: 0.55 + Math.random() * 0.40
+            });
+        }
+    }
+
+    function spawnCanopyFragments(xPx, yPx, theme) {
+        const colors = [
+            (theme && theme.primaryColor) || '#FF8FA3',
+            (theme && theme.secondaryColor) || '#FFB7C5',
+            '#FFFFFF'
+        ];
+        for (let i = 0; i < 18; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 40 + Math.random() * 95;
+            canopyFragments.push({
+                x: xPx + (Math.random() - 0.5) * 32,
+                y: yPx + (Math.random() - 0.5) * 16,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 30,
+                rotation: Math.random() * Math.PI * 2,
+                spin: (Math.random() - 0.5) * 8,
+                size: 4 + Math.random() * 6,
+                color: colors[i % colors.length],
+                alpha: 1.0,
+                life: 0,
+                maxLife: 1.2 + Math.random() * 0.6
+            });
+        }
+    }
+
+    function spawnCannonballSplash(xPx, yPx) {
+        const splashColors = ['#00B4D8', '#48CAE4', '#90E0EF', '#FFFFFF', '#CAF0F8'];
+        for (let i = 0; i < 50; i++) {
+            const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.70);
+            const speed = 120 + Math.random() * 260;
+            splashBursts.push({
+                x: xPx + (Math.random() - 0.5) * 50,
+                y: yPx + (Math.random() - 0.5) * 10,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 80,
+                size: 3.0 + Math.random() * 4.0,
+                color: splashColors[i % splashColors.length],
+                shape: 'circle',
+                alpha: 1.0,
+                life: 0,
+                maxLife: 0.70 + Math.random() * 0.35
+            });
+        }
+    }
+
+    function spawnCrashSplat(xPx, yPx) {
+        const dustColors = ['#D1D5DB', '#9CA3AF', '#6B7280', '#E5E7EB'];
+        for (let i = 0; i < 30; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 40 + Math.random() * 110;
+            splashBursts.push({
+                x: xPx,
+                y: yPx,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed * 0.45,
+                size: 3.5 + Math.random() * 4.0,
+                color: dustColors[i % dustColors.length],
+                shape: 'circle',
+                alpha: 1.0,
+                life: 0,
+                maxLife: 0.60 + Math.random() * 0.30
             });
         }
     }
@@ -374,11 +463,15 @@
     const pendingCompletions = [];
     const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
 
-    function sendCompletion(token, landingX) {
+    function sendCompletion(token, landingX, parachuteDestroyed = false) {
         if (!token) return;
         const payload = { dropToken: token };
         if (typeof landingX === 'number' && !isNaN(landingX)) {
             payload.landingX = Math.round(landingX * 10000) / 10000;
+        }
+        if (parachuteDestroyed) {
+            payload.parachuteDestroyed = true;
+            payload.crashLanded = true;
         }
         if (socket && socket.readyState === WebSocket.OPEN) {
             try {
@@ -387,7 +480,7 @@
             } catch (_) {}
         }
         if (!pendingCompletions.some(p => p.token === token)) {
-            pendingCompletions.push({ token, landingX });
+            pendingCompletions.push({ token, landingX, parachuteDestroyed });
         }
     }
 
@@ -398,6 +491,10 @@
             try {
                 const payload = { dropToken: item.token };
                 if (typeof item.landingX === 'number') payload.landingX = item.landingX;
+                if (item.parachuteDestroyed) {
+                    payload.parachuteDestroyed = true;
+                    payload.crashLanded = true;
+                }
                 socket.send(JSON.stringify(payload));
             } catch (_) {
                 pendingCompletions.unshift(item);
@@ -603,6 +700,60 @@
                     }
                 });
             }
+        } else if (msg.type === 'parachute_rockets') {
+            const nowMs = performance.now();
+            targetState.visibleUntil = Math.max(targetState.visibleUntil, nowMs + 8000);
+
+            if (Array.isArray(msg.rockets)) {
+                msg.rockets.forEach(function (r) {
+                    activeRockets.push({
+                        id: r.id,
+                        spawnTimeMs: nowMs + (r.spawnTickOffset || 0) * DT * 1000,
+                        startX: r.startX,
+                        startY: r.startY,
+                        x: r.startX,
+                        y: r.startY,
+                        targetX: r.targetX,
+                        targetY: r.targetY,
+                        vx: r.vx || 0,
+                        vy: r.vy || -0.85,
+                        accelerationY: r.accelerationY || 0.04,
+                        fuseTicks: r.fuseTicks || 48,
+                        fuseTimeMs: nowMs + ((r.spawnTickOffset || 0) + (r.fuseTicks || 48)) * DT * 1000,
+                        color: r.color || '#FF3366',
+                        trailType: r.trailType || 'sparks',
+                        targetDropToken: r.targetDropToken,
+                        sparks: [],
+                        hasLaunched: false
+                    });
+                });
+            }
+
+            // Apply server-synchronized trajectory updates to active parachutists
+            if (Array.isArray(msg.trajectoryUpdates)) {
+                msg.trajectoryUpdates.forEach(function (upd) {
+                    const drop = activeDrops.find(function (ad) { return ad.dropToken === upd.dropToken; });
+                    if (drop) {
+                        drop.landingX = upd.landingX;
+                        drop.score = upd.score;
+                        drop.isHit = upd.isHit;
+                        drop.isBullseye = upd.isBullseye;
+                        drop.isWin = upd.isWin;
+                        drop.dropletHits = upd.dropletHits || 0;
+                        drop.rocketHits = upd.rocketHits || 0;
+                        if (upd.parachuteDestroyed) {
+                            drop.parachuteDestroyed = true;
+                            drop.freeFallStartTick = upd.freeFallStartTick;
+                        }
+                        if (Array.isArray(upd.keyframes) && upd.keyframes.length) {
+                            drop.keyframes = upd.keyframes;
+                        }
+                        if (Array.isArray(upd.collisions)) {
+                            drop.collisions = upd.collisions;
+                        }
+                    }
+                });
+            }
         } else if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
             if (msg.sounds) {
@@ -618,6 +769,9 @@
             // 100% full reset on new session start (#1365)
             activeDrops.length = 0;
             activeDroplets.length = 0;
+            activeRockets.length = 0;
+            rocketExplosions.length = 0;
+            canopyFragments.length = 0;
             splashBursts.length = 0;
             landingPopups.length = 0;
             sessionState.isActive = true;
@@ -1140,10 +1294,15 @@
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1.0, dropAlpha));
         ctx.translate(px, py);
-        ctx.rotate(drop.tiltAngle);
+        if (!drop.completed && drop.parachuteDestroyed) {
+            drop.tumbleAngle = (drop.tumbleAngle || 0) + 16.0 * 0.016;
+            ctx.rotate(drop.tumbleAngle);
+        } else {
+            ctx.rotate(drop.tiltAngle);
+        }
 
         // Suspension cords from canopy to character
-        if (!drop.completed) {
+        if (!drop.completed && !drop.parachuteDestroyed) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
             ctx.lineWidth = 2;
             const cordOffsets = [-0.88, -0.42, 0.42, 0.88];
@@ -1196,6 +1355,20 @@
             ctx.restore();
         } else {
             drawSeasonalDefaultPenguin(ctx, charRadius * 0.85, (theme.seasonPreset || 'spring').toLowerCase());
+        }
+
+        // Dizzy stars orbiting crash-landed character
+        if (drop.parachuteDestroyed && drop.completed) {
+            const starTime = performance.now() * 0.005;
+            ctx.fillStyle = '#FFE066';
+            for (let s = 0; s < 3; s++) {
+                const sAngle = starTime + (s * Math.PI * 2 / 3);
+                const sx = Math.cos(sAngle) * charRadius * 0.9;
+                const sy = -charRadius * 0.8 + Math.sin(sAngle) * (charRadius * 0.3);
+                ctx.beginPath();
+                ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         // Leader Crown above character
@@ -1574,6 +1747,190 @@
             drawDroplet(d);
         }
 
+        // Update & draw active rockets
+        for (let i = activeRockets.length - 1; i >= 0; i--) {
+            const r = activeRockets[i];
+            if (now < r.spawnTimeMs) continue;
+
+            if (!r.hasLaunched) {
+                r.hasLaunched = true;
+                const launchSound = (SoundManager.getBundle() && SoundManager.getBundle().rocketLaunch) || (currentTheme && currentTheme.rocketLaunchSoundUrl);
+                if (launchSound) {
+                    SoundManager.play(launchSound, 'rocketLaunch', false);
+                }
+            }
+
+            // Kinematic flight
+            r.vy += (r.accelerationY || 0.04) * dtSec;
+            r.x += r.vx * dtSec;
+            r.y += r.vy * dtSec;
+
+            // Emit trail sparks
+            if (!r.sparks) r.sparks = [];
+            for (let s = 0; s < 3; s++) {
+                r.sparks.push({
+                    x: r.x * width + (Math.random() - 0.5) * 4,
+                    y: r.y * height + (Math.random() - 0.5) * 4,
+                    vx: (Math.random() - 0.5) * 35 - (r.vx * width * 0.15),
+                    vy: (Math.random() - 0.5) * 35 - (r.vy * height * 0.15) + 20,
+                    size: 1.5 + Math.random() * 2.5,
+                    alpha: 1.0,
+                    color: Math.random() > 0.4 ? r.color : '#FFFFFF',
+                    life: 0,
+                    maxLife: 0.35 + Math.random() * 0.25
+                });
+            }
+
+            // Draw spark trail
+            for (let s = r.sparks.length - 1; s >= 0; s--) {
+                const sp = r.sparks[s];
+                sp.life += dtSec;
+                if (sp.life >= sp.maxLife) {
+                    r.sparks.splice(s, 1);
+                    continue;
+                }
+                sp.x += sp.vx * dtSec;
+                sp.y += sp.vy * dtSec;
+                sp.alpha = Math.max(0, 1.0 - (sp.life / sp.maxLife));
+
+                ctx.save();
+                ctx.globalAlpha = sp.alpha;
+                ctx.fillStyle = sp.color;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw rocket projectile
+            const rPxX = r.x * width;
+            const rPxY = r.y * height;
+            const flightAngle = Math.atan2(r.vy * height, r.vx * width);
+
+            ctx.save();
+            ctx.translate(rPxX, rPxY);
+            ctx.rotate(flightAngle);
+
+            // Rocket body
+            ctx.fillStyle = r.color || '#FF3366';
+            ctx.beginPath();
+            ctx.roundRect(-12, -4, 20, 8, 3);
+            ctx.fill();
+
+            // Nose cone
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.moveTo(8, -4);
+            ctx.lineTo(16, 0);
+            ctx.lineTo(8, 4);
+            ctx.closePath();
+            ctx.fill();
+
+            // Fins
+            ctx.fillStyle = '#FFD166';
+            ctx.beginPath();
+            ctx.moveTo(-12, -4);
+            ctx.lineTo(-16, -8);
+            ctx.lineTo(-8, -4);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(-12, 4);
+            ctx.lineTo(-16, 8);
+            ctx.lineTo(-8, 4);
+            ctx.closePath();
+            ctx.fill();
+
+            // Engine flame
+            ctx.fillStyle = '#FFA500';
+            ctx.beginPath();
+            ctx.moveTo(-12, -2.5);
+            ctx.lineTo(-18 - Math.random() * 8, 0);
+            ctx.lineTo(-12, 2.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+
+            // Check detonation condition (fuse reached, hit target ceiling/vicinity, or reached upward apex)
+            const targetY = (r.targetY !== undefined && r.targetY !== null) ? r.targetY : 0.10;
+            const shouldExplode = (now >= r.fuseTimeMs) || (r.y <= targetY) || (r.y <= 0.04) || (r.vy >= 0 && r.y < 0.85);
+            if (shouldExplode) {
+                spawnRocketExplosion(rPxX, rPxY, r.color, 45);
+                const explodeSound = (SoundManager.getBundle() && SoundManager.getBundle().rocketExplode) || (currentTheme && currentTheme.rocketExplodeSoundUrl);
+                if (explodeSound) {
+                    SoundManager.play(explodeSound, 'rocketExplode', false);
+                }
+
+                // If this rocket detonated near an active parachutist canopy whose parachute was destroyed
+                if (r.targetDropToken) {
+                    const targetDrop = activeDrops.find(d => d.dropToken === r.targetDropToken);
+                    if (targetDrop && targetDrop.parachuteDestroyed && !targetDrop.canopyPopped) {
+                        targetDrop.canopyPopped = true;
+                        const charRadius = Math.max(24, Math.min(width, height) * 0.032);
+                        spawnCanopyFragments(targetDrop.x * width, targetDrop.y * height - charRadius * 2.1, targetDrop.theme || currentTheme);
+                        const popSound = (SoundManager.getBundle() && SoundManager.getBundle().parachutePop) || (currentTheme && currentTheme.parachutePopSoundUrl);
+                        if (popSound) {
+                            SoundManager.play(popSound, 'parachutePop', true);
+                        }
+                    }
+                }
+
+                activeRockets.splice(i, 1);
+            }
+        }
+
+        // Update & draw rocket explosions
+        for (let i = rocketExplosions.length - 1; i >= 0; i--) {
+            const p = rocketExplosions[i];
+            p.life += dtSec;
+            if (p.life >= p.maxLife) {
+                rocketExplosions.splice(i, 1);
+                continue;
+            }
+            p.vx *= (p.drag || 0.96);
+            p.vy = (p.vy * (p.drag || 0.96)) + (p.gravity || 140) * dtSec;
+            p.x += p.vx * dtSec;
+            p.y += p.vy * dtSec;
+            p.alpha = Math.max(0, 1.0 - (p.life / p.maxLife));
+
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Update & draw canopy fragments
+        for (let i = canopyFragments.length - 1; i >= 0; i--) {
+            const f = canopyFragments[i];
+            f.life += dtSec;
+            if (f.life >= f.maxLife) {
+                canopyFragments.splice(i, 1);
+                continue;
+            }
+            f.x += f.vx * dtSec;
+            f.y += f.vy * dtSec;
+            f.vy += 120 * dtSec;
+            f.rotation += (f.spin || 4) * dtSec;
+            f.alpha = Math.max(0, 1.0 - (f.life / f.maxLife));
+
+            ctx.save();
+            ctx.globalAlpha = f.alpha;
+            ctx.translate(f.x, f.y);
+            ctx.rotate(f.rotation);
+            ctx.fillStyle = f.color;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, f.size, f.size * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         // Determine session leader (highest score among landed parachutists on target)
         // Must land on target with score > 0 to qualify for the crown!
         let leaderDropToken = null;
@@ -1598,11 +1955,28 @@
 
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
-            const decayVx = Math.pow(0.998, dtSec * 60);
-            drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
-            const initialVy = drop.initialVy || 0.12;
-            const decayVy = Math.pow(0.96, dtSec * 60);
-            drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+            if (drop.parachuteDestroyed) {
+                // High-speed comedic free-fall! Terminal velocity vy = 0.98, gravity = 1.10
+                drop.vy = Math.min(0.98, (drop.vy || 0.12) + 1.10 * dtSec);
+                const decayFreeFallVx = Math.pow(0.994, dtSec * 60);
+                drop.vx = Math.max(-MAX_DROP_VX * 1.5, Math.min(MAX_DROP_VX * 1.5, (drop.vx || 0) * decayFreeFallVx));
+
+                if (!drop.canopyPopped) {
+                    drop.canopyPopped = true;
+                    const charRadius = Math.max(24, Math.min(width, height) * 0.032);
+                    spawnCanopyFragments(drop.x * width, drop.y * height - charRadius * 2.1, drop.theme || currentTheme);
+                    const popSound = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop) || (currentTheme && currentTheme.parachutePopSoundUrl);
+                    if (popSound) {
+                        SoundManager.play(popSound, 'parachutePop', true);
+                    }
+                }
+            } else {
+                const decayVx = Math.pow(0.998, dtSec * 60);
+                drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
+                const initialVy = drop.initialVy || 0.12;
+                const decayVy = Math.pow(0.96, dtSec * 60);
+                drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+            }
 
             // Move along current velocity vector (no sinusoidal sway)
             drop.x += drop.vx * dtSec;
@@ -1760,15 +2134,49 @@
                 }
 
                 // Send completion token and validated landed X to server
-                sendCompletion(drop.dropToken, drop.landingX);
+                sendCompletion(drop.dropToken, drop.landingX, drop.parachuteDestroyed);
 
-                    // Celebration or miss popup
-                const popupText = drop.isBullseye
-                    ? 'BULLSEYE! +' + drop.score
-                    : (drop.isHit ? 'HIT! +' + drop.score : 'MISS');
-                const popupColor = drop.isBullseye
-                    ? '#FFD166'
-                    : (drop.isHit ? '#6BCB77' : '#94A3B8');
+                // Crash landing outcome resolution
+                if (drop.parachuteDestroyed) {
+                    drop.crashLanded = true;
+                    if (drop.isHit) {
+                        spawnCannonballSplash(drop.x * width, drop.y * height);
+                        const cannonSound = (drop.sounds && drop.sounds.cannonball) || (SoundManager.getBundle() && SoundManager.getBundle().cannonball) || (currentTheme && currentTheme.cannonballSoundUrl);
+                        if (cannonSound) {
+                            SoundManager.play(cannonSound, 'cannonball', true);
+                        }
+                    } else {
+                        spawnCrashSplat(drop.x * width, drop.y * height);
+                        const splatSound = (drop.sounds && drop.sounds.crashLand) || (SoundManager.getBundle() && SoundManager.getBundle().crashLand) || (currentTheme && currentTheme.crashLandSoundUrl);
+                        if (splatSound) {
+                            SoundManager.play(splatSound, 'crashLand', true);
+                        }
+                    }
+                }
+
+                // Celebration or miss popup
+                let popupText = '';
+                let popupColor = '';
+
+                if (drop.parachuteDestroyed) {
+                    if (drop.isBullseye) {
+                        popupText = 'CRASH BULLSEYE! +' + drop.score;
+                        popupColor = '#FFD166';
+                    } else if (drop.isHit) {
+                        popupText = drop.score > 0 ? 'CRASH LAND! +' + drop.score : 'CRASH LAND! 0 PTS';
+                        popupColor = drop.score > 0 ? '#FFA500' : '#EF4444';
+                    } else {
+                        popupText = 'SPLAT!';
+                        popupColor = '#EF4444';
+                    }
+                } else {
+                    popupText = drop.isBullseye
+                        ? 'BULLSEYE! +' + drop.score
+                        : (drop.isHit ? 'HIT! +' + drop.score : 'MISS');
+                    popupColor = drop.isBullseye
+                        ? '#FFD166'
+                        : (drop.isHit ? '#6BCB77' : '#94A3B8');
+                }
 
                 landingPopups.push({
                     x: drop.x * width,
@@ -1782,20 +2190,22 @@
 
                 // Trigger seasonal landing puff when touching down on or near target
                 const dropSeason = ((drop.theme && drop.theme.seasonPreset) || (currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
-                if (drop.isHit || drop.isBullseye) {
+                if ((drop.isHit || drop.isBullseye) && !drop.parachuteDestroyed) {
                     spawnLandingPuff(drop.x * width, drop.y * height, dropSeason, drop.isBullseye);
                 }
 
-                if (drop.isWin) {
-                    spawnSplashBurst(drop.x * width, drop.y * height, '#FFD166', 28, 1.35);
-                    const winSound = (drop.sounds && drop.sounds.win) || (SoundManager.getBundle() && SoundManager.getBundle().win);
-                    if (winSound) {
-                        SoundManager.play(winSound, 'win', true);
-                    } else if (drop.theme && drop.theme.winSoundUrl) {
-                        playSound(drop.theme.winSoundUrl, 0.55);
+                if (!drop.parachuteDestroyed) {
+                    if (drop.isWin) {
+                        spawnSplashBurst(drop.x * width, drop.y * height, '#FFD166', 28, 1.35);
+                        const winSound = (drop.sounds && drop.sounds.win) || (SoundManager.getBundle() && SoundManager.getBundle().win);
+                        if (winSound) {
+                            SoundManager.play(winSound, 'win', true);
+                        } else if (drop.theme && drop.theme.winSoundUrl) {
+                            playSound(drop.theme.winSoundUrl, 0.55);
+                        }
+                    } else if (drop.theme && drop.theme.loseSoundUrl) {
+                        playSound(drop.theme.loseSoundUrl, 0.45);
                     }
-                } else if (drop.theme && drop.theme.loseSoundUrl) {
-                    playSound(drop.theme.loseSoundUrl, 0.45);
                 }
             }
 
@@ -2127,6 +2537,8 @@
     syncAmbientParticles();
     if (typeof window !== 'undefined') {
         window.__activeDrops = activeDrops;
+        window.__activeRockets = activeRockets;
+        window.__activeDroplets = activeDroplets;
     }
     requestAnimationFrame(animate);
 })();
