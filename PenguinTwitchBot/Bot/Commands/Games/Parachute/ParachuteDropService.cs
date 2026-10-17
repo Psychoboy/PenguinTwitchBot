@@ -634,12 +634,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 Mass = mass,
                 TotalTicks = totalTicks,
                 TargetCenterX = targetCenterX,
-                TargetHalfWidth = targetHalfWidth
+                TargetHalfWidth = targetHalfWidth,
+                CrashLandingScoreMode = pSettings.CrashLandingScoreMode
             };
 
             lock (_simulationLock)
             {
-                ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, []);
+                ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                    record,
+                    0,
+                    droplets: null,
+                    rockets: null,
+                    crashLandingScoreMode: record.CrashLandingScoreMode,
+                    directHitKillsParachute: pSettings.DirectHitKillsParachute);
             }
 
             dropRegistry.RegisterDrop(record);
@@ -822,7 +829,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 foreach (var drop in activeParachutes)
                 {
                     var elapsedTicks = Math.Clamp((int)Math.Round((now - drop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, drop.TotalTicks - 1);
-                    ParachuteSimulationEngine.SimulateParachuteTrajectory(drop, elapsedTicks, droplets);
+                    ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                        drop,
+                        elapsedTicks,
+                        droplets: droplets,
+                        rockets: null,
+                        crashLandingScoreMode: drop.CrashLandingScoreMode,
+                        directHitKillsParachute: pSettings.DirectHitKillsParachute);
 
                     trajectoryUpdates.Add(new ParachuteTrajectoryUpdateDto
                     {
@@ -863,6 +876,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
             var pSettings = settings.Parachute;
+            if (!pSettings.EnableRockets)
+            {
+                return [];
+            }
 
             var count = Math.Clamp(request.Count > 0 ? request.Count : 1, 1, 10);
             var pattern = !string.IsNullOrWhiteSpace(request.Pattern) ? request.Pattern : pSettings.RocketLaunchPattern;
@@ -911,6 +928,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 {
                     var wasDestroyedBefore = drop.ParachuteDestroyed;
                     var elapsedTicks = Math.Clamp((int)Math.Round((now - drop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, drop.TotalTicks - 1);
+                    drop.CrashLandingScoreMode = scoreMode;
                     ParachuteSimulationEngine.SimulateParachuteTrajectory(
                         drop,
                         elapsedTicks,
@@ -918,7 +936,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                         rockets: rockets,
                         canopyKillChance: canopyKillChance,
                         rocketKnockbackMultiplier: knockbackMultiplier,
-                        crashLandingScoreMode: scoreMode);
+                        crashLandingScoreMode: scoreMode,
+                        directHitKillsParachute: pSettings.DirectHitKillsParachute);
 
                     if (!wasDestroyedBefore && drop.ParachuteDestroyed)
                     {

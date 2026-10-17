@@ -744,6 +744,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int RocketHitCount { get; set; }
         public bool ParachuteDestroyed { get; set; }
         public int FreeFallStartTick { get; set; }
+        public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
         public string BucketLabel { get; set; } = "";
 

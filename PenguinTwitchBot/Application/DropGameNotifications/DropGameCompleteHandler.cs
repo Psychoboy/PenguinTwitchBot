@@ -38,7 +38,12 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                         {
                             record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
                             (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
-                                ParachuteSimulationEngine.CalculateLandingScore(record.LandingX, record.TargetCenterX, record.TargetHalfWidth);
+                                ParachuteSimulationEngine.CalculateLandingScore(
+                                    record.LandingX,
+                                    record.TargetCenterX,
+                                    record.TargetHalfWidth,
+                                    record.ParachuteDestroyed,
+                                    record.CrashLandingScoreMode);
                         }
                     }
 

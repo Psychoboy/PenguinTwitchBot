@@ -41,7 +41,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             List<RocketInstanceDto>? rockets = null,
             double canopyKillChance = 1.0,
             double rocketKnockbackMultiplier = 1.0,
-            CrashLandingScoreMode crashLandingScoreMode = CrashLandingScoreMode.PreserveScore)
+            CrashLandingScoreMode crashLandingScoreMode = CrashLandingScoreMode.PreserveScore,
+            bool directHitKillsParachute = true)
         {
             droplets ??= [];
             rockets ??= [];
@@ -183,14 +184,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                             // Canopy direct hit: chance to destroy parachute
                             var roll = System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 100);
-                            if (roll < canopyKillChance * 100 && !record.ParachuteDestroyed)
+                            if (directHitKillsParachute && roll < canopyKillChance * 100 && !record.ParachuteDestroyed)
                             {
                                 record.ParachuteDestroyed = true;
                                 record.FreeFallStartTick = tick;
                             }
 
-                            var deltaVx = Math.Clamp(Math.Sign(rocket.Vx) * 0.18, -0.40, 0.40);
+                            var knockback = Math.Clamp(rocketKnockbackMultiplier, 0.1, 5.0);
+                            var deltaVx = Math.Clamp(Math.Sign(rocket.Vx) * 0.18 * knockback, -0.40, 0.40);
                             var deltaVy = 0.08;
+
+                            vx = Math.Clamp(vx + deltaVx, -MaxVx * 1.5, MaxVx * 1.5);
+                            vy = Math.Clamp(vy + deltaVy, MinVy, Math.Max(MaxVy, record.InitialVy * 1.3));
 
                             existingCollisions.Add(new ParachuteCollisionEventDto
                             {

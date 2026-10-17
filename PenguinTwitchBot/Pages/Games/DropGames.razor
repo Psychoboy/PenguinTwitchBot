@@ -56,7 +56,7 @@
         {
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: PARACHUTE DROP ================= -->
-                <MudTabPanel Text="Parachute Drop (!drop)" Icon="@Icons.Material.Filled.Paragliding">
+                <MudTabPanel Text="Parachute Drop (!drop)">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -362,7 +362,7 @@
                 </MudTabPanel>
 
                 <!-- ================= TAB 2: INTERACTIVE DROPLETS ================= -->
-                <MudTabPanel Text="Interactive Droplets (!droplets)" Icon="@Icons.Material.Filled.WaterDrop">
+                <MudTabPanel Text="Interactive Droplets (!droplets)">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -462,7 +462,7 @@
                 </MudTabPanel>
 
                 <!-- ================= TAB 3: SKY ROCKETS & SABOTAGE ================= -->
-                <MudTabPanel Text="Sky Rockets & Sabotage" Icon="@Icons.Material.Filled.RocketLaunch">
+                <MudTabPanel Text="Sky Rockets & Sabotage">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -578,7 +578,7 @@
                 </MudTabPanel>
 
                 <!-- ================= TAB 4: PLINKO BOUNCE ================= -->
-                <MudTabPanel Text="Plinko Bounce (!plinko)" Icon="@Icons.Material.Filled.Apps">
+                <MudTabPanel Text="Plinko Bounce (!plinko)">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -902,8 +902,8 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 4: SEASONAL & CUSTOM THEMES ================= -->
-                <MudTabPanel Text="Themes & Seasons (6 Stock + Custom)" Icon="@Icons.Material.Filled.Palette">
+                <!-- ================= TAB 5: SEASONAL & CUSTOM THEMES ================= -->
+                <MudTabPanel Text="Themes & Seasons (6 Stock + Custom)">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="4">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -1478,6 +1478,7 @@
 
     private async Task TestSingleRocketAsync()
     {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
         await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
         {
             Count = 1,
@@ -1489,6 +1490,7 @@
 
     private async Task TestRocketBarrageAsync()
     {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
         await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
         {
             Count = 6,

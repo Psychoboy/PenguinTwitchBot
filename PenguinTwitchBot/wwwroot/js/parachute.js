@@ -742,8 +742,14 @@
                         drop.dropletHits = upd.dropletHits || 0;
                         drop.rocketHits = upd.rocketHits || 0;
                         if (upd.parachuteDestroyed) {
-                            drop.parachuteDestroyed = true;
                             drop.freeFallStartTick = upd.freeFallStartTick;
+                            if (drop.freeFallStartTick === undefined || drop.freeFallStartTick === null || drop.currentTick >= drop.freeFallStartTick) {
+                                drop.parachuteDestroyed = true;
+                                drop.pendingParachuteDestroyed = false;
+                            } else {
+                                drop.pendingParachuteDestroyed = true;
+                                drop.parachuteDestroyed = false;
+                            }
                         }
                         if (Array.isArray(upd.keyframes) && upd.keyframes.length) {
                             drop.keyframes = upd.keyframes;
@@ -1283,7 +1289,7 @@
         ? commonModule.drawSeasonalDefaultPenguin
         : function () { };
 
-    function drawParachutist(drop, dropAlpha = 1.0, isSessionLeader = false) {
+    function drawParachutist(drop, dropAlpha = 1.0, isSessionLeader = false, dtSec = 0.016) {
         const px = drop.x * width;
         const py = drop.y * height;
         const theme = drop.theme || currentTheme;
@@ -1294,12 +1300,14 @@
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1.0, dropAlpha));
         ctx.translate(px, py);
+        let currentRotation = 0;
         if (!drop.completed && drop.parachuteDestroyed) {
-            drop.tumbleAngle = (drop.tumbleAngle || 0) + 16.0 * 0.016;
-            ctx.rotate(drop.tumbleAngle);
+            drop.tumbleAngle = (drop.tumbleAngle || 0) + 16.0 * dtSec;
+            currentRotation = drop.tumbleAngle;
         } else {
-            ctx.rotate(drop.tiltAngle);
+            currentRotation = drop.tiltAngle || 0;
         }
+        ctx.rotate(currentRotation);
 
         // Suspension cords from canopy to character
         if (!drop.completed && !drop.parachuteDestroyed) {
@@ -1383,7 +1391,7 @@
         }
 
         // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
-        ctx.rotate(-drop.tiltAngle); // Keep username horizontal for readability
+        ctx.rotate(-currentRotation); // Keep username horizontal for readability
         const fontSize = Math.max(12, Math.min(36, drop.nameFontSize || headerConfig.nameFontSize || 18));
         ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
         const label = isSessionLeader && drop.completed
@@ -1754,9 +1762,11 @@
 
             if (!r.hasLaunched) {
                 r.hasLaunched = true;
-                const launchSound = (SoundManager.getBundle() && SoundManager.getBundle().rocketLaunch) || (currentTheme && currentTheme.rocketLaunchSoundUrl);
-                if (launchSound) {
-                    SoundManager.play(launchSound, 'rocketLaunch', false);
+                const launchBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketLaunch;
+                if (launchBundle) {
+                    SoundManager.play(launchBundle, 'rocketLaunch', false);
+                } else if (currentTheme && currentTheme.rocketLaunchSoundUrl) {
+                    playSound(currentTheme.rocketLaunchSoundUrl, 0.60);
                 }
             }
 
@@ -1858,9 +1868,11 @@
             const shouldExplode = (now >= r.fuseTimeMs) || (r.y <= targetY) || (r.y <= 0.04) || (r.vy >= 0 && r.y < 0.85);
             if (shouldExplode) {
                 spawnRocketExplosion(rPxX, rPxY, r.color, 45);
-                const explodeSound = (SoundManager.getBundle() && SoundManager.getBundle().rocketExplode) || (currentTheme && currentTheme.rocketExplodeSoundUrl);
-                if (explodeSound) {
-                    SoundManager.play(explodeSound, 'rocketExplode', false);
+                const explodeBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketExplode;
+                if (explodeBundle) {
+                    SoundManager.play(explodeBundle, 'rocketExplode', false);
+                } else if (currentTheme && currentTheme.rocketExplodeSoundUrl) {
+                    playSound(currentTheme.rocketExplodeSoundUrl, 0.70);
                 }
 
                 // If this rocket detonated near an active parachutist canopy whose parachute was destroyed
@@ -1870,9 +1882,11 @@
                         targetDrop.canopyPopped = true;
                         const charRadius = Math.max(24, Math.min(width, height) * 0.032);
                         spawnCanopyFragments(targetDrop.x * width, targetDrop.y * height - charRadius * 2.1, targetDrop.theme || currentTheme);
-                        const popSound = (SoundManager.getBundle() && SoundManager.getBundle().parachutePop) || (currentTheme && currentTheme.parachutePopSoundUrl);
-                        if (popSound) {
-                            SoundManager.play(popSound, 'parachutePop', true);
+                        const popBundle = (targetDrop.sounds && targetDrop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                        if (popBundle) {
+                            SoundManager.play(popBundle, 'parachutePop', true);
+                        } else if ((targetDrop.theme && targetDrop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                            playSound((targetDrop.theme && targetDrop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.70);
                         }
                     }
                 }
@@ -1951,7 +1965,14 @@
             if (drop.completed) continue;
 
             const elapsedSec = (now - drop.startTimeMs) / 1000;
-            drop.currentTick = Math.min(drop.totalTicks, elapsedSec * TICK_RATE);
+            drop.currentTick = Math.max(0, Math.min(drop.totalTicks, elapsedSec * TICK_RATE));
+
+            if (drop.pendingParachuteDestroyed && !drop.parachuteDestroyed) {
+                if (drop.freeFallStartTick === undefined || drop.freeFallStartTick === null || drop.currentTick >= drop.freeFallStartTick) {
+                    drop.parachuteDestroyed = true;
+                    drop.pendingParachuteDestroyed = false;
+                }
+            }
 
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
@@ -1965,9 +1986,11 @@
                     drop.canopyPopped = true;
                     const charRadius = Math.max(24, Math.min(width, height) * 0.032);
                     spawnCanopyFragments(drop.x * width, drop.y * height - charRadius * 2.1, drop.theme || currentTheme);
-                    const popSound = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop) || (currentTheme && currentTheme.parachutePopSoundUrl);
-                    if (popSound) {
-                        SoundManager.play(popSound, 'parachutePop', true);
+                    const popBundle = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                    if (popBundle) {
+                        SoundManager.play(popBundle, 'parachutePop', true);
+                    } else if ((drop.theme && drop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                        playSound((drop.theme && drop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.70);
                     }
                 }
             } else {
@@ -2033,7 +2056,8 @@
                     if (drop.currentTick >= col.tick && !drop.triggeredCollisionIndices.has(c)) {
                         drop.triggeredCollisionIndices.add(c);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
-                        drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || initialVy) + (col.deltaVy || 0)));
+                        const maxAllowedVy = drop.parachuteDestroyed ? 0.98 : 0.45;
+                        drop.vy = Math.max(0.04, Math.min(maxAllowedVy, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
                     }
                 }
@@ -2141,15 +2165,19 @@
                     drop.crashLanded = true;
                     if (drop.isHit) {
                         spawnCannonballSplash(drop.x * width, drop.y * height);
-                        const cannonSound = (drop.sounds && drop.sounds.cannonball) || (SoundManager.getBundle() && SoundManager.getBundle().cannonball) || (currentTheme && currentTheme.cannonballSoundUrl);
-                        if (cannonSound) {
-                            SoundManager.play(cannonSound, 'cannonball', true);
+                        const cannonBundle = (drop.sounds && drop.sounds.cannonball) || (SoundManager.getBundle() && SoundManager.getBundle().cannonball);
+                        if (cannonBundle) {
+                            SoundManager.play(cannonBundle, 'cannonball', true);
+                        } else if ((drop.theme && drop.theme.cannonballSoundUrl) || (currentTheme && currentTheme.cannonballSoundUrl)) {
+                            playSound((drop.theme && drop.theme.cannonballSoundUrl) || currentTheme.cannonballSoundUrl, 0.75);
                         }
                     } else {
                         spawnCrashSplat(drop.x * width, drop.y * height);
-                        const splatSound = (drop.sounds && drop.sounds.crashLand) || (SoundManager.getBundle() && SoundManager.getBundle().crashLand) || (currentTheme && currentTheme.crashLandSoundUrl);
-                        if (splatSound) {
-                            SoundManager.play(splatSound, 'crashLand', true);
+                        const splatBundle = (drop.sounds && drop.sounds.crashLand) || (SoundManager.getBundle() && SoundManager.getBundle().crashLand);
+                        if (splatBundle) {
+                            SoundManager.play(splatBundle, 'crashLand', true);
+                        } else if ((drop.theme && drop.theme.crashLandSoundUrl) || (currentTheme && currentTheme.crashLandSoundUrl)) {
+                            playSound((drop.theme && drop.theme.crashLandSoundUrl) || currentTheme.crashLandSoundUrl, 0.60);
                         }
                     }
                 }
@@ -2253,7 +2281,7 @@
                 }
             }
 
-            drawParachutist(drop, dropAlpha, isLeader);
+            drawParachutist(drop, dropAlpha, isLeader, dtSec);
 
             if (shouldRemove) {
                 activeDrops.splice(i, 1);

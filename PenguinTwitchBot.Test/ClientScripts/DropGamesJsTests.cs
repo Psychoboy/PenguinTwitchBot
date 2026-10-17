@@ -2515,7 +2515,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                         dropletHits = 0,
                         rocketHits = 1,
                         parachuteDestroyed = true,
-                        freeFallStartTick = 10
+                        freeFallStartTick = 25
                     }
                 }
             });
@@ -2525,11 +2525,20 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var rocketCount = (int)engine.Evaluate("window.__activeRockets.length").AsNumber();
             Assert.Equal(1, rocketCount);
 
-            // Step frames through detonation and free fall acceleration
-            StepEngineFrames(engine, 25);
+            // Free fall should not begin before freeFallStartTick is reached
+            var destroyedInitial = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
+            Assert.False(destroyedInitial, "Parachute canopy should not be destroyed before freeFallStartTick is reached");
+
+            // Step 5 frames (total ticks ~15 < 25)
+            StepEngineFrames(engine, 5);
+            var destroyedBeforeTick = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
+            Assert.False(destroyedBeforeTick, "Parachute canopy should remain intact before tick 25");
+
+            // Step 30 frames (total ticks ~45 >= 25) to pass freeFallStartTick and accelerate in free fall
+            StepEngineFrames(engine, 30);
 
             var isDestroyed = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
-            Assert.True(isDestroyed, "Parachute canopy marked destroyed");
+            Assert.True(isDestroyed, "Parachute canopy marked destroyed once freeFallStartTick is reached");
 
             // Free fall speed should be significantly faster than initial vy (0.12)
             var vyFreeFall = engine.Evaluate("window.__activeDrops[0].vy").AsNumber();
@@ -2544,10 +2553,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var sentPayload = engine.Evaluate("JSON.stringify(window.__sentCompletions[0])").AsString();
             Assert.Contains("\"parachuteDestroyed\":true", sentPayload);
 
-            // Verify crash landing sound triggered
+            // Verify both rocket launch and crash landing sounds triggered
             var audioPlayed = engine.Evaluate("window.__audioPlayed.map(a => a.src).join(';')").AsString();
-            Assert.True(audioPlayed.Contains("cannonball") || audioPlayed.Contains("splat") || audioPlayed.Contains("rocket"),
-                $"Rocket/crash audio should be played (got {audioPlayed})");
+            Assert.Contains("rocket_launch.wav", audioPlayed);
+            Assert.Contains("cannonball.wav", audioPlayed);
         }
     }
 }
