@@ -15,6 +15,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
         Task<List<DropletInstanceDto>> SpawnDropletsAsync(DropletSpawnRequest request);
 
+        Task<List<RocketInstanceDto>> FireRocketsAsync(RocketFireRequest request);
+
         Task<DropGameSessionDto> StartSessionAsync(
             int? durationSeconds = null,
             string? themeOverrideId = null,

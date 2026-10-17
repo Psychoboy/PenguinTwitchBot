@@ -54,6 +54,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride ParachuteEndSound { get; set; } = new();
         public DropGameSoundOverride ParachuteDropSound { get; set; } = new();
         public DropGameSoundOverride ParachuteWinSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteRocketLaunchSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteRocketExplodeSound { get; set; } = new();
+        public DropGameSoundOverride ParachutePopSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteCrashLandSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteCannonballSound { get; set; } = new();
 
         // Plinko Sound Overrides
         public DropGameSoundOverride PlinkoStartSound { get; set; } = new();
@@ -271,6 +276,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? Drop { get; set; }
         public DropGameEffectiveSoundDto? Win { get; set; }
         public DropGameEffectiveSoundDto? PegCollision { get; set; }
+        public DropGameEffectiveSoundDto? RocketLaunch { get; set; }
+        public DropGameEffectiveSoundDto? RocketExplode { get; set; }
+        public DropGameEffectiveSoundDto? ParachutePop { get; set; }
+        public DropGameEffectiveSoundDto? CrashLand { get; set; }
+        public DropGameEffectiveSoundDto? Cannonball { get; set; }
+    }
+
+    public enum CrashLandingScoreMode
+    {
+        PreserveScore = 0,
+        ZeroScore = 1,
+        HalfScore = 2
     }
 
     public class ParachuteGameSettings
@@ -294,6 +311,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundConfig EndSound { get; set; } = new();
         public DropGameSoundConfig DropSound { get; set; } = new();
         public DropGameSoundConfig WinSound { get; set; } = new();
+
+        // Sky Rockets & Sabotage Sound Effects (Default enabled)
+        public DropGameSoundConfig RocketLaunchSound { get; set; } = new() { Enabled = true, AudioFile = "/media/rocket_launch.wav", Volume = 60 };
+        public DropGameSoundConfig RocketExplodeSound { get; set; } = new() { Enabled = true, AudioFile = "/media/rocket_explode.wav", Volume = 70 };
+        public DropGameSoundConfig ParachutePopSound { get; set; } = new() { Enabled = true, AudioFile = "/media/parachute_pop.wav", Volume = 70 };
+        public DropGameSoundConfig CrashLandSound { get; set; } = new() { Enabled = true, AudioFile = "/media/splat.mp3", Volume = 60 };
+        public DropGameSoundConfig CannonballSound { get; set; } = new() { Enabled = true, AudioFile = "/media/cannonball.wav", Volume = 75 };
+
+        // Sky Rockets & Sabotage Settings
+        public bool EnableRockets { get; set; } = true;
+        public double RocketKnockbackMultiplier { get; set; } = 1.0;
+        public bool DirectHitKillsParachute { get; set; } = true;
+        public double CanopyKillChance { get; set; } = 1.0; // 100% chance default
+        public string RocketLaunchPattern { get; set; } = "Targeted"; // Targeted, Random, Barrage
+        public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
 
         // Legacy database JSON field; ignored on write and marked for deletion later
         public double DescentDurationSeconds
@@ -491,6 +523,59 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string ImageUrl { get; set; } = "";
     }
 
+    public class RocketFireRequest
+    {
+        public int Count { get; set; } = 1;
+        public string Pattern { get; set; } = "Targeted"; // Targeted, Random, Barrage
+        public string? TargetUser { get; set; }
+        public double? CanopyKillChance { get; set; }
+        public double? KnockbackMultiplier { get; set; }
+        public CrashLandingScoreMode? ScoreModeOverride { get; set; }
+        public string? TriggeredByUser { get; set; }
+    }
+
+    public class RocketInstanceDto
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = "";
+
+        [JsonPropertyName("spawnTickOffset")]
+        public int SpawnTickOffset { get; set; }
+
+        [JsonPropertyName("startX")]
+        public double StartX { get; set; }
+
+        [JsonPropertyName("startY")]
+        public double StartY { get; set; }
+
+        [JsonPropertyName("targetX")]
+        public double TargetX { get; set; }
+
+        [JsonPropertyName("targetY")]
+        public double TargetY { get; set; }
+
+        [JsonPropertyName("vx")]
+        public double Vx { get; set; }
+
+        [JsonPropertyName("vy")]
+        public double Vy { get; set; }
+
+        [JsonPropertyName("accelerationY")]
+        public double AccelerationY { get; set; }
+
+        [JsonPropertyName("fuseTicks")]
+        public int FuseTicks { get; set; }
+
+        [JsonPropertyName("color")]
+        public string Color { get; set; } = "#FF3366";
+
+        [JsonPropertyName("trailType")]
+        public string TrailType { get; set; } = "sparks";
+
+        [JsonPropertyName("targetDropToken")]
+        public string? TargetDropToken { get; set; }
+    }
+
     public class ParachuteTrajectoryPointDto
     {
         [JsonPropertyName("tick")]
@@ -516,6 +601,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("dropletId")]
         public string DropletId { get; set; } = "";
+
+        [JsonPropertyName("rocketId")]
+        public string? RocketId { get; set; }
+
+        [JsonPropertyName("collisionType")]
+        public string CollisionType { get; set; } = "droplet"; // droplet, rocket_canopy, rocket_body
 
         [JsonPropertyName("x")]
         public double X { get; set; }
@@ -559,6 +650,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("dropletHits")]
         public int DropletHits { get; set; }
 
+        [JsonPropertyName("rocketHits")]
+        public int RocketHits { get; set; }
+
+        [JsonPropertyName("parachuteDestroyed")]
+        public bool ParachuteDestroyed { get; set; }
+
+        [JsonPropertyName("freeFallStartTick")]
+        public int FreeFallStartTick { get; set; }
+
         [JsonPropertyName("collisions")]
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
 
@@ -591,6 +691,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("winningBucketIndex")]
         public int? WinningBucketIndex { get; set; }
+
+        [JsonPropertyName("parachuteDestroyed")]
+        public bool ParachuteDestroyed { get; set; }
+
+        [JsonPropertyName("crashLanded")]
+        public bool CrashLanded { get; set; }
     }
 
     /// <summary>
@@ -635,6 +741,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool IsBullseye { get; set; }
         public bool IsWin { get; set; }
         public int DropletHitCount { get; set; }
+        public int RocketHitCount { get; set; }
+        public bool ParachuteDestroyed { get; set; }
+        public int FreeFallStartTick { get; set; }
+        public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
         public string BucketLabel { get; set; } = "";
 

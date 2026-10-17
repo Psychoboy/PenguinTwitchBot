@@ -369,6 +369,20 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "parachute-rocket-kill",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Parachute Drop - Rocket Kill",
+                Description = "Triggers when a rocket destroys a player's parachute, sending them into a free-fall crash",
+                Icon = Icons.Material.Filled.RocketLaunch,
+                Color = Color.Error,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "drop",
+                DefaultCommandEventType = DefaultCommandEventTypes.ParachuteRocketKill
+            },
+            new()
+            {
                 Id = "plinko-win",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

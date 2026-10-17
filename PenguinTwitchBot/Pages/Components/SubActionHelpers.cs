@@ -59,6 +59,7 @@ namespace PenguinTwitchBot.Pages.Components
                 OpenAiType ai => $"OpenAI: {(ai.Text?.Length > 50 ? ai.Text[..50] + "..." : ai.Text)} ({ai.Model})",
                 ParachuteDropType pDrop => $"Parachute Drop: {pDrop.Username}{(string.IsNullOrWhiteSpace(pDrop.EmoteOrImage) ? "" : $" ({pDrop.EmoteOrImage})")}",
                 ParachuteDropletsType droplets => $"Parachute Droplets: {droplets.Count}x {droplets.SizePreset} / {droplets.SpeedPreset} ({droplets.SpawnPattern})",
+                ParachuteRocketsType rockets => $"Sky Rockets: {rockets.Count}x ({rockets.Pattern}{(string.IsNullOrWhiteSpace(rockets.TargetUser) ? "" : $" -> {rockets.TargetUser}")})",
                 PlinkoDropType plinko => $"Plinko Bounce: {plinko.Username}{(string.IsNullOrWhiteSpace(plinko.EmoteOrImage) ? "" : $" ({plinko.EmoteOrImage})")}",
                 StartDropGameSessionType startSession => $"Start {startSession.GameType} Session ({startSession.DurationSeconds}s)",
                 StopDropGameSessionType stopSession => $"Stop {stopSession.GameType} Session",

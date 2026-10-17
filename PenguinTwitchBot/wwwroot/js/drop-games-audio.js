@@ -69,7 +69,7 @@
         function updateBundle(bundle) {
             if (!bundle) return;
             currentBundle = bundle;
-            const keys = ['start', 'end', 'drop', 'win', 'pegCollision'];
+            const keys = ['start', 'end', 'drop', 'win', 'pegCollision', 'rocketLaunch', 'rocketExplode', 'parachutePop', 'crashLand', 'cannonball'];
             keys.forEach(function (k) {
                 const s = bundle[k];
                 if (s && s.enabled && s.url) {
@@ -193,10 +193,19 @@
             }
         }
 
+        function playKey(key, isHighPriority) {
+            if (!currentBundle) return;
+            const dto = currentBundle[key];
+            if (dto) {
+                play(dto, key, isHighPriority);
+            }
+        }
+
         return {
             preload: preload,
             updateBundle: updateBundle,
             play: play,
+            playKey: playKey,
             getBundle: function () { return currentBundle; },
             getActiveCount: function () { return activeVoices.length; }
         };

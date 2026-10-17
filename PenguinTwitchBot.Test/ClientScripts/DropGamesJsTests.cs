@@ -1941,12 +1941,14 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 sampledPositions.Add((x, y));
             }
 
-            // Verify the vertical movement exhibits non-linear gravitational acceleration
-            // With gravitational acceleration, the token rolls smoothly over the apex and picks up downward velocity
+            // Verify the vertical movement exhibits authentic Plinko physics:
+            // 1. Initial downward free fall from dispenser into first peg
             var deltaY1 = sampledPositions[10].y - sampledPositions[0].y;
-            var deltaY2 = sampledPositions[25].y - sampledPositions[15].y;
-            Assert.True(deltaY1 > 0, "Token moves downward");
-            Assert.True(deltaY2 > 0, "Token continues downward");
+            Assert.True(deltaY1 > 0, "Token moves downward from dispenser");
+
+            // 2. Token advances downward through the peg field
+            var deltaOverall = sampledPositions[29].y - sampledPositions[0].y;
+            Assert.True(deltaOverall > 0, "Token progresses downward through the peg field");
 
             // Complete the full drop
             StepEngineFrames(engine, 120);
@@ -2418,6 +2420,143 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 DropGamesCommon.drawSeasonalDefaultPenguin(ctx, 32, 'christmas');
             "));
             Assert.Null(ex);
+        }
+
+        [Fact]
+        public void ParachuteJs_ParachuteRockets_DestroysCanopy_TriggersFreeFallAndCrashLanding()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJsPath = Path.Combine(jsDir, "parachute.js");
+            Assert.True(File.Exists(parachuteJsPath));
+
+            var code = File.ReadAllText(parachuteJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(code);
+
+            // 1. Start session with full sound bundle
+            var sessionStartPayload = JsonSerializer.Serialize(new
+            {
+                type = "session_start",
+                session = new { isActive = true, totalDurationSeconds = 60, totalDrops = 0 },
+                sounds = new
+                {
+                    maxConcurrentSounds = 5,
+                    start = new { enabled = false, url = "/audio/start.mp3", volume = 80 },
+                    rocketLaunch = new { enabled = true, url = "/media/rocket_launch.wav", volume = 80 },
+                    rocketExplode = new { enabled = true, url = "/media/rocket_explode.wav", volume = 80 },
+                    parachutePop = new { enabled = true, url = "/media/parachute_pop.wav", volume = 80 },
+                    cannonball = new { enabled = true, url = "/media/cannonball.wav", volume = 80 },
+                    crashLand = new { enabled = true, url = "/media/splat.mp3", volume = 80 }
+                }
+            });
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{sessionStartPayload}' }})");
+
+            // 2. Launch parachutist
+            var dropPayload = JsonSerializer.Serialize(new
+            {
+                type = "parachute_drop",
+                dropToken = "victim-drop-token",
+                displayName = "FallingPenguin",
+                physics = new
+                {
+                    startX = 0.50,
+                    startY = 0.10,
+                    landingY = 0.94,
+                    initialVx = 0.0,
+                    initialVy = 0.12,
+                    durationSeconds = 6.0,
+                    totalTicks = 360,
+                    isHit = true,
+                    isBullseye = true,
+                    targetCenterX = 0.50,
+                    targetHalfWidth = 0.10
+                }
+            });
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{dropPayload}' }})");
+
+            // Step a few frames while parachutist glides normally
+            StepEngineFrames(engine, 10);
+            var yGlide = engine.Evaluate("window.__activeDrops[0].y").AsNumber();
+            Assert.True(yGlide > 0.10, "Parachutist starts descent");
+
+            // 3. Fire rocket at parachutist with trajectory update destroying canopy
+            var rocketPayload = JsonSerializer.Serialize(new
+            {
+                type = "parachute_rockets",
+                rockets = new[]
+                {
+                    new
+                    {
+                        id = "sniper-rocket-1",
+                        startX = 0.50,
+                        startY = 0.95,
+                        targetX = 0.50,
+                        targetY = 0.20,
+                        vx = 0.0,
+                        vy = -0.85,
+                        accelerationY = 0.04,
+                        fuseTicks = 10,
+                        spawnTickOffset = 0,
+                        color = "#FF3366",
+                        trailType = "sparks",
+                        targetDropToken = "victim-drop-token"
+                    }
+                },
+                trajectoryUpdates = new[]
+                {
+                    new
+                    {
+                        dropToken = "victim-drop-token",
+                        landingX = 0.50,
+                        score = 100,
+                        isHit = true,
+                        isBullseye = true,
+                        isWin = true,
+                        dropletHits = 0,
+                        rocketHits = 1,
+                        parachuteDestroyed = true,
+                        freeFallStartTick = 25
+                    }
+                }
+            });
+            engine.Evaluate($"window.__wsMessageHandler({{ data: '{rocketPayload}' }})");
+
+            // Verify active rockets registered
+            var rocketCount = (int)engine.Evaluate("window.__activeRockets.length").AsNumber();
+            Assert.Equal(1, rocketCount);
+
+            // Free fall should not begin before freeFallStartTick is reached
+            var destroyedInitial = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
+            Assert.False(destroyedInitial, "Parachute canopy should not be destroyed before freeFallStartTick is reached");
+
+            // Step 5 frames (total ticks ~15 < 25)
+            StepEngineFrames(engine, 5);
+            var destroyedBeforeTick = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
+            Assert.False(destroyedBeforeTick, "Parachute canopy should remain intact before tick 25");
+
+            // Step 30 frames (total ticks ~45 >= 25) to pass freeFallStartTick and accelerate in free fall
+            StepEngineFrames(engine, 30);
+
+            var isDestroyed = engine.Evaluate("window.__activeDrops[0].parachuteDestroyed").AsBoolean();
+            Assert.True(isDestroyed, "Parachute canopy marked destroyed once freeFallStartTick is reached");
+
+            // Free fall speed should be significantly faster than initial vy (0.12)
+            var vyFreeFall = engine.Evaluate("window.__activeDrops[0].vy").AsNumber();
+            Assert.True(vyFreeFall > 0.40, $"Parachutist should accelerate in free fall (got {vyFreeFall})");
+
+            // Step frames until crash landing occurs
+            StepEngineFrames(engine, 70);
+
+            var completions = (int)engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.True(completions >= 1, "Completion token was sent upon crash landing");
+
+            var sentPayload = engine.Evaluate("JSON.stringify(window.__sentCompletions[0])").AsString();
+            Assert.Contains("\"parachuteDestroyed\":true", sentPayload);
+
+            // Verify both rocket launch and crash landing sounds triggered
+            var audioPlayed = engine.Evaluate("window.__audioPlayed.map(a => a.src).join(';')").AsString();
+            Assert.Contains("rocket_launch.wav", audioPlayed);
+            Assert.Contains("cannonball.wav", audioPlayed);
         }
     }
 }

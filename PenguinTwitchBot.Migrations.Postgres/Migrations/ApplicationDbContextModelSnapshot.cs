@@ -18,7 +18,7 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -3570,6 +3570,34 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_parachute_droplets", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.ParachuteRocketsType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("CanopyKillChance")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CrashLandingScoreMode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("KnockbackMultiplier")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetUser")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_parachute_rockets", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.PlaySoundType", b =>
