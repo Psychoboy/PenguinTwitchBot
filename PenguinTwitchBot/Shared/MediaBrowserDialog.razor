@@ -3,6 +3,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <MudDialog>
     <TitleContent>
@@ -109,7 +110,17 @@
                                         }
                                         else if (file.IsAudio)
                                         {
-                                            <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Large" Color="Color.Secondary" />
+                                            <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudTooltip Text="@(IsPlaying(file) ? "Stop Preview" : "Play Preview")">
+                                                    <MudFab Color="@(IsPlaying(file) ? Color.Error : Color.Primary)"
+                                                            StartIcon="@(IsPlaying(file) ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                                                            Size="Size.Small"
+                                                            OnClick="@(() => ToggleAudioPreview(file))" />
+                                                </MudTooltip>
+                                                <MudText Typo="Typo.caption" Color="@(IsPlaying(file) ? Color.Primary : Color.Secondary)">
+                                                    @(IsPlaying(file) ? "Playing..." : "Audio")
+                                                </MudText>
+                                            </MudStack>
                                         }
                                         else
                                         {
@@ -125,26 +136,39 @@
                                         </MudText>
                                     </MudCardContent>
                                     <MudCardActions Class="pa-1 justify-space-between" Style="border-top: 1px solid var(--mud-palette-lines-default);">
-                                        @if (SelectionMode)
-                                        {
-                                            <MudButton Size="Size.Small"
-                                                       Variant="Variant.Filled"
-                                                       Color="Color.Primary"
-                                                       OnClick="@(() => SelectFile(file))">
-                                                Select
-                                            </MudButton>
-                                        }
-                                        <MudTooltip Text="Copy URL to Clipboard">
-                                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                                                           Size="Size.Small"
-                                                           OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Delete File">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                           Size="Size.Small"
-                                                           Color="Color.Error"
-                                                           OnClick="@(() => DeleteFileAsync(file))" />
-                                        </MudTooltip>
+                                        <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                            @if (SelectionMode)
+                                            {
+                                                <MudButton Size="Size.Small"
+                                                           Variant="Variant.Filled"
+                                                           Color="Color.Primary"
+                                                           OnClick="@(() => SelectFile(file))">
+                                                    Select
+                                                </MudButton>
+                                            }
+                                            @if (file.IsAudio)
+                                            {
+                                                <MudTooltip Text="@(IsPlaying(file) ? "Stop Preview" : "Play Preview")">
+                                                    <MudIconButton Icon="@(IsPlaying(file) ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                                                                   Color="@(IsPlaying(file) ? Color.Error : Color.Primary)"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => ToggleAudioPreview(file))" />
+                                                </MudTooltip>
+                                            }
+                                        </MudStack>
+                                        <MudStack Row="true" Spacing="0" AlignItems="AlignItems.Center">
+                                            <MudTooltip Text="Copy URL to Clipboard">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="Delete File">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Size="Size.Small"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => DeleteFileAsync(file))" />
+                                            </MudTooltip>
+                                        </MudStack>
                                     </MudCardActions>
                                 </MudCard>
                             </MudItem>
@@ -178,9 +202,18 @@
                                         {
                                             <MudIcon Icon="@Icons.Material.Filled.Videocam" Size="Size.Small" Color="Color.Primary" />
                                         }
+                                        else if (file.IsAudio)
+                                        {
+                                            <MudTooltip Text="@(IsPlaying(file) ? "Stop Preview" : "Play Preview")">
+                                                <MudIconButton Icon="@(IsPlaying(file) ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                                                               Color="@(IsPlaying(file) ? Color.Error : Color.Primary)"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => ToggleAudioPreview(file))" />
+                                            </MudTooltip>
+                                        }
                                         else
                                         {
-                                            <MudIcon Icon="@Icons.Material.Filled.Audiotrack" Size="Size.Small" Color="Color.Secondary" />
+                                            <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Small" Color="Color.Default" />
                                         }
                                     </td>
                                     <td>
@@ -190,24 +223,39 @@
                                     <td>@FormatBytes(file.SizeBytes)</td>
                                     <td>@file.LastModified.ToLocalTime().ToString("MMM d, yyyy")</td>
                                     <td style="text-align: right;">
-                                        @if (SelectionMode)
-                                        {
-                                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => SelectFile(file))">
-                                                Select
-                                            </MudButton>
-                                        }
-                                        <MudTooltip Text="Copy URL to Clipboard">
-                                            <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
-                                        </MudTooltip>
-                                        <MudTooltip Text="Delete File">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteFileAsync(file))" />
-                                        </MudTooltip>
+                                        <MudStack Row="true" Spacing="1" Justify="Justify.FlexEnd" AlignItems="AlignItems.Center">
+                                            @if (file.IsAudio)
+                                            {
+                                                <MudTooltip Text="@(IsPlaying(file) ? "Stop Preview" : "Play Preview")">
+                                                    <MudIconButton Icon="@(IsPlaying(file) ? Icons.Material.Filled.Stop : Icons.Material.Filled.PlayArrow)"
+                                                                   Color="@(IsPlaying(file) ? Color.Error : Color.Primary)"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => ToggleAudioPreview(file))" />
+                                                </MudTooltip>
+                                            }
+                                            @if (SelectionMode)
+                                            {
+                                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SelectFile(file))">
+                                                    Select
+                                                </MudButton>
+                                            }
+                                            <MudTooltip Text="Copy URL to Clipboard">
+                                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" OnClick="@(() => CopyUrlAsync(file.RelativeUrl))" />
+                                            </MudTooltip>
+                                            <MudTooltip Text="Delete File">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteFileAsync(file))" />
+                                            </MudTooltip>
+                                        </MudStack>
                                     </td>
                                 </tr>
                             }
                         </tbody>
                     </MudSimpleTable>
                 </div>
+            }
+            @if (!string.IsNullOrEmpty(_currentlyPlayingUrl))
+            {
+                <audio @key="_audioPreviewKey" autoplay src="@_currentlyPlayingUrl" @onended="StopAudioPreview" @onerror="StopAudioPreview" style="display: none;"></audio>
             }
         </div>
     </DialogContent>
@@ -227,6 +275,39 @@
     private MediaTypeFilter _filter = MediaTypeFilter.All;
     private bool _isGridView = true;
     private bool _isUploading = false;
+    private string? _currentlyPlayingUrl;
+    private string? _audioPreviewKey;
+
+    private bool IsPlaying(MediaFileInfo file) =>
+        !string.IsNullOrEmpty(_currentlyPlayingUrl) &&
+        string.Equals(_currentlyPlayingUrl, file.RelativeUrl, StringComparison.OrdinalIgnoreCase);
+
+    private void ToggleAudioPreview(MediaFileInfo file)
+    {
+        if (IsPlaying(file))
+        {
+            StopAudioPreview();
+        }
+        else
+        {
+            _currentlyPlayingUrl = file.RelativeUrl;
+            _audioPreviewKey = Guid.NewGuid().ToString();
+            StateHasChanged();
+        }
+    }
+
+    private void StopAudioPreview()
+    {
+        _currentlyPlayingUrl = null;
+        _audioPreviewKey = null;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _currentlyPlayingUrl = null;
+        _audioPreviewKey = null;
+    }
 
     protected override void OnInitialized()
     {
@@ -290,6 +371,7 @@
 
     private void SelectFile(MediaFileInfo file)
     {
+        StopAudioPreview();
         MudDialog.Close(DialogResult.Ok(file));
     }
 
@@ -319,6 +401,11 @@
 
         if (confirmed != true) return;
 
+        if (IsPlaying(file))
+        {
+            StopAudioPreview();
+        }
+
         var deleted = MediaUploadService.DeleteMediaFile(file.FileName);
         if (deleted)
         {
@@ -339,5 +426,9 @@
         return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
-    private void Cancel() => MudDialog.Cancel();
+    private void Cancel()
+    {
+        StopAudioPreview();
+        MudDialog.Cancel();
+    }
 }
