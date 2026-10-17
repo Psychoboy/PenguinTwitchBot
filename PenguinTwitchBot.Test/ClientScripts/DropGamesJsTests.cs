@@ -1959,6 +1959,96 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void PlinkoJs_OrganicBouncePhysics_ExhibitsUpwardBounceAndSkipsIntermediateRows_LandsInTargetBucket()
+        {
+            var jsDir = FindWwwRootPath();
+            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(plinkoJs);
+
+            const int rows = 8;
+            const int bucketCount = 5;
+
+            var buckets = new[]
+            {
+                new { label = "0", score = 10, isWin = false },
+                new { label = "1", score = 25, isWin = true },
+                new { label = "2", score = 100, isWin = true },
+                new { label = "3", score = 25, isWin = true },
+                new { label = "4", score = 10, isWin = false }
+            };
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { gameType = "plinko", isActive = true, durationSeconds = 60, totalDurationSeconds = 60, roundNumber = 1 },
+                board = new { rows, cols = bucketCount, buckets }
+            });
+
+            const int targetBucket = 2;
+            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "plinko_drop",
+                dropToken = "bounce-up-test-token",
+                displayName = "Bouncer",
+                board = new
+                {
+                    rowCount = rows,
+                    durationSeconds = 2.5,
+                    gravity = 1.0,
+                    bounciness = 1.0,
+                    mass = 1.0,
+                    buckets = buckets,
+                    winningBucketIndex = targetBucket,
+                    waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                }
+            });
+
+            // 1. Step 1 frame to initialize trajectory
+            StepEngineFrames(engine, 1);
+
+            // 2. Verify that the trajectory synthesizer did NOT create a node for every single row
+            // For an 8-row board (10 raw waypoints: dispenser, 8 pegs, bucket), the organic trajectory must have fewer nodes (e.g. 4-5)
+            var nodeCount = engine.Evaluate("window.__plinkoTokens[0].trajectory.nodes.length").AsNumber();
+            Assert.True(nodeCount < waypoints.Count, $"Organic trajectory should skip rows instead of visiting all {waypoints.Count} waypoints (got {nodeCount} nodes)");
+
+            // 3. Sample frame positions across the drop to detect true upward bounce (negative delta Y)
+            var ySamples = new List<double>();
+            var detectedUpwardBounce = false;
+            double maxUpwardHop = 0;
+
+            for (var f = 0; f < 150; f++)
+            {
+                StepEngineFrames(engine, 1);
+                var y = engine.Evaluate("window.__plinkoTokens[0].y").AsNumber();
+                if (ySamples.Count > 0)
+                {
+                    var prevY = ySamples.Last();
+                    var dy = y - prevY;
+                    if (dy < -0.0005) // token is moving UPWARDS against gravity
+                    {
+                        detectedUpwardBounce = true;
+                        var hop = prevY - y;
+                        if (hop > maxUpwardHop) maxUpwardHop = hop;
+                    }
+                }
+                ySamples.Add(y);
+            }
+
+            Assert.True(detectedUpwardBounce, "Token should exhibit a true upward bounce (negative delta Y) after peg impact");
+            Assert.True(maxUpwardHop > 0.001, $"Upward bounce hop should be visible (got {maxUpwardHop:F4})");
+
+            // 4. Complete the drop and verify bucket landing
+            StepEngineFrames(engine, 60);
+            var completions = engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.Equal(1, (int)completions);
+            var landedBucket = engine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
+            Assert.Equal(targetBucket, (int)landedBucket);
+        }
+
+        [Fact]
         public void DropGameMediaResolver_SoundBundle_ResolvesCorrectly_WithOverridesAndDefaults()
         {
             var tempRoot = Path.Combine(Path.GetTempPath(), "DropGameMediaResolverTests_" + Guid.NewGuid().ToString("N"));

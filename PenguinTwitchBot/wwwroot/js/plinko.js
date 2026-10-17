@@ -1137,6 +1137,119 @@
             }
         }
 
+    function buildOrganicPlinkoTrajectory(rawWaypoints, gravity, bounciness) {
+        if (!Array.isArray(rawWaypoints) || rawWaypoints.length < 2) {
+            return null;
+        }
+
+        // Select bounce nodes from rawWaypoints so the token does not mechanically hit every single row
+        let nodes = [];
+        if (rawWaypoints.length <= 5) {
+            nodes = rawWaypoints.slice();
+        } else {
+            // Keep dispenser (Row -1)
+            nodes.push(rawWaypoints[0]);
+
+            // First peg impact: row 0 or 1
+            nodes.push(rawWaypoints[1]);
+
+            // Intermediate impacts: skip rows to create natural projectile flights and free-fall arcs
+            let lastIdx = 1;
+            for (let i = 2; i < rawWaypoints.length - 2; i++) {
+                const prev = rawWaypoints[i - 1];
+                const cur = rawWaypoints[i];
+                const next = rawWaypoints[i + 1];
+                const isTurn = Math.abs((cur.x - prev.x) - (next.x - cur.x)) > 0.01;
+                const distFromLast = i - lastIdx;
+
+                if ((isTurn && distFromLast >= 2) || distFromLast >= 3) {
+                    nodes.push(cur);
+                    lastIdx = i;
+                }
+            }
+
+            // Bottom peg (just before bucket)
+            const bottomPegIdx = rawWaypoints.length - 2;
+            if (lastIdx !== bottomPegIdx) {
+                nodes.push(rawWaypoints[bottomPegIdx]);
+            }
+
+            // Target bucket landing spot
+            nodes.push(rawWaypoints[rawWaypoints.length - 1]);
+        }
+
+        const gEff = Math.max(0.1, Math.min(5.0, gravity || 1.0));
+        const bEff = Math.max(0.1, Math.min(5.0, bounciness || 0.80));
+
+        const segments = [];
+        let totalWeight = 0;
+
+        for (let s = 0; s < nodes.length - 1; s++) {
+            const pA = nodes[s];
+            const pB = nodes[s + 1];
+            const dx = pB.x - pA.x;
+            const dy = Math.max(0.001, pB.y - pA.y);
+            const isFirst = (s === 0);
+            const isLast = (s === nodes.length - 2);
+
+            let weight;
+            let a = 0;
+            let b = 0;
+            let hPeak = 0;
+            let bulge = 0;
+
+            if (isFirst) {
+                // Free fall from dispenser into first peg: accelerates under gravity (u^2)
+                weight = Math.sqrt(dy);
+            } else if (isLast) {
+                // Smooth final bounce off bottom peg into prize bucket
+                hPeak = Math.max(0.008, Math.min(0.035, dy * 0.22 * (bEff / 0.80) / Math.sqrt(gEff)));
+                a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
+                b = dy - a;
+                bulge = 0.10;
+                weight = Math.sqrt(dy + hPeak);
+            } else {
+                // Authentic Plinko upward bounce: pop UP off peg into the air above the row,
+                // hang at apex, then accelerate downward under gravity into next peg!
+                hPeak = Math.max(0.025, Math.min(0.090, dy * 0.38 * (bEff / 0.80) / Math.sqrt(gEff)));
+                a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
+                b = dy - a;
+                bulge = 0.18;
+                weight = Math.sqrt(dy + 2 * hPeak);
+            }
+
+            totalWeight += weight;
+            segments.push({
+                pA: pA,
+                pB: pB,
+                dx: dx,
+                dy: dy,
+                isFirst: isFirst,
+                isLast: isLast,
+                hPeak: hPeak,
+                a: a,
+                b: b,
+                bulge: bulge,
+                weight: weight
+            });
+        }
+
+        // Compute cumulative time boundaries [0, t1, t2, ..., 1.0]
+        let cumTime = 0;
+        const timeBounds = [0];
+        for (let s = 0; s < segments.length; s++) {
+            cumTime += segments[s].weight / totalWeight;
+            timeBounds.push(Math.min(1.0, cumTime));
+        }
+        timeBounds[timeBounds.length - 1] = 1.0;
+
+        return {
+            nodes: nodes,
+            segments: segments,
+            timeBounds: timeBounds
+        };
+    }
+
         // Update token positions along waypoints with deflection
         for (let i = 0; i < activeTokens.length; i++) {
             const t = activeTokens[i];
@@ -1146,47 +1259,57 @@
             const progress = Math.min(1.0, Math.max(0.0, elapsed / t.durationMs));
             t.progress = progress;
 
-            const segCount = t.waypoints.length - 1;
-            const scaled = progress * segCount;
-            const segIdx = Math.min(segCount - 1, Math.floor(scaled));
-            const localT = scaled - segIdx;
-
-            const wpA = t.waypoints[segIdx];
-            const wpB = t.waypoints[segIdx + 1];
-            // Authentic Plinko projectile bounce physics (The Price Is Right style):
-            // 1. Initial drop (segIdx === 0): free fall under gravity from dispenser to top peg.
-            // 2. Peg hops (segIdx > 0 && !isLastSeg): striking a peg causes an elastic collision where the chip
-            //    visibly pops UP and arcs over the peg, then accelerates downward under gravity into the next peg.
-            // 3. Bucket descent (isLastSeg): smooth glide off bottom peg into the prize slot.
-            const isLastSeg = (segIdx === segCount - 1);
-            const targetY = isLastSeg ? Math.min(tokenLandingYNorm, wpB.y) : wpB.y;
-            const dx = wpB.x - wpA.x;
-            const dy = targetY - wpA.y;
-
-            const gEff = Math.max(0.1, Math.min(5.0, t.gravity || 1.0));
-            const bEff = Math.max(0.1, Math.min(5.0, t.bounciness || 0.80));
+            let traj = t.trajectory;
+            if (!traj && t.waypoints) {
+                traj = buildOrganicPlinkoTrajectory(t.waypoints, t.gravity, t.bounciness);
+                t.trajectory = traj;
+            }
 
             let baseX;
             let baseY;
+            let segIdx = 0;
+            let isLastSeg = false;
+            let wpA = t.waypoints[0];
+            let wpB = t.waypoints[t.waypoints.length - 1];
 
-            if (segIdx === 0) {
-                // Free fall from top dispenser into first peg
-                baseX = wpA.x + dx * localT;
-                baseY = wpA.y + dy * (localT * localT);
+            if (traj && traj.segments.length > 0) {
+                const segs = traj.segments;
+                const tb = traj.timeBounds;
+
+                // Find active segment in trajectory
+                segIdx = segs.length - 1;
+                for (let s = 0; s < segs.length; s++) {
+                    if (progress < tb[s + 1] || s === segs.length - 1) {
+                        segIdx = s;
+                        break;
+                    }
+                }
+
+                const seg = segs[segIdx];
+                isLastSeg = seg.isLast;
+                wpA = seg.pA;
+                wpB = seg.pB;
+
+                const segSpan = Math.max(0.0001, tb[segIdx + 1] - tb[segIdx]);
+                const localT = Math.max(0.0, Math.min(1.0, (progress - tb[segIdx]) / segSpan));
+
+                if (seg.isFirst) {
+                    // Free fall from dispenser into first peg under gravity
+                    baseX = wpA.x + seg.dx * localT;
+                    baseY = wpA.y + seg.dy * (localT * localT);
+                } else {
+                    // Parabolic vertical hop: pops UP off peg into the air, peaks at apex, dives down under gravity
+                    const rawY = wpA.y + seg.a * localT + seg.b * (localT * localT);
+                    baseY = Math.min(tokenLandingYNorm, rawY);
+
+                    // Lateral deflection arc curving away from peg corridor
+                    const lateralBulge = seg.bulge * Math.sin(localT * Math.PI);
+                    baseX = wpA.x + seg.dx * (localT + lateralBulge);
+                }
             } else {
-                // Real physical bounce off peg wpA (including the final peg bouncing into the slot!):
-                // Normal force from peg collision pops the chip upward (Hpeak)
-                // then downward gravity (gEff) pulls it into free-fall dive toward wpB
-                const hPeak = Math.max(0.005, Math.min(0.038, dy * 0.25 * (bEff / 0.80) / Math.sqrt(gEff)));
-                const a = -2 * hPeak - 2 * Math.sqrt(hPeak * hPeak + hPeak * dy);
-                const b = dy - a;
-
-                // Parabolic vertical hop: pops UP off peg, peaks at u ≈ 0.20, dives into next peg / slot floor at u = 1.0
-                baseY = Math.min(tokenLandingYNorm, wpA.y + a * localT + b * (localT * localT));
-
-                // Natural lateral deflection arc curving away from peg corridor
-                const lateralBulge = 0.14 * Math.sin(localT * Math.PI);
-                baseX = wpA.x + dx * (localT + lateralBulge);
+                // Fallback linear
+                baseX = wpA.x + (wpB.x - wpA.x) * progress;
+                baseY = wpA.y + (wpB.y - wpA.y) * progress;
             }
 
             // Apply physical deflection offset from collisions with spring decay
