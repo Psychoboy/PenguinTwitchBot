@@ -1309,14 +1309,55 @@
         }
         ctx.rotate(currentRotation);
 
+        // Dynamic canopy deployment scale (PixelPlush deploys when falling, folds when moving upward or near ceiling)
+        let targetCanopyScale = 1.0;
+        if (drop.completed || drop.parachuteDestroyed) {
+            targetCanopyScale = 0.0;
+        } else if (drop.y < 0.08 || (typeof drop.vy === 'number' && drop.vy < 0)) {
+            // Fold canopy shut when near ceiling OR when knocked upward against gravity!
+            targetCanopyScale = 0.0;
+        } else if (drop.y < 0.14) {
+            targetCanopyScale = Math.min(1.0, Math.max(0.0, (drop.y - 0.08) / 0.06));
+        } else {
+            targetCanopyScale = 1.0;
+        }
+
+        if (drop.canopyScale === undefined) {
+            drop.canopyScale = (drop.y >= 0.10) ? 1.0 : 0.0;
+        }
+
+        const prevCanopyScale = drop.canopyScale;
+        drop.canopyScale += (targetCanopyScale - drop.canopyScale) * Math.min(1.0, 14.0 * dtSec);
+
+        // Parachute flap/open sound when opening from closed state
+        if (prevCanopyScale < 0.05 && drop.canopyScale >= 0.05 && !drop.completed && !drop.parachuteDestroyed) {
+            const flapBundle = (drop.sounds && drop.sounds.parachuteFlap) || (SoundManager.getBundle() && SoundManager.getBundle().parachuteFlap);
+            if (flapBundle) {
+                SoundManager.play(flapBundle, 'parachuteFlap', true);
+            } else if ((drop.theme && drop.theme.parachuteFlapSoundUrl) || (currentTheme && currentTheme.parachuteFlapSoundUrl)) {
+                playSound((drop.theme && drop.theme.parachuteFlapSoundUrl) || currentTheme.parachuteFlapSoundUrl, 0.65);
+            } else {
+                const popBundle = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                if (popBundle) {
+                    SoundManager.play(popBundle, 'parachutePop', true);
+                } else if ((drop.theme && drop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                    playSound((drop.theme && drop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.65);
+                }
+            }
+        }
+
         // Suspension cords from canopy to character
-        if (!drop.completed && !drop.parachuteDestroyed) {
+        if (!drop.completed && !drop.parachuteDestroyed && drop.canopyScale > 0.02) {
+            const cScale = drop.canopyScale;
+            const scaledCanopyRadius = canopyRadius * cScale;
+            const scaledCanopyOffsetY = canopyOffsetY * cScale;
+
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = Math.max(1, 2 * cScale);
             const cordOffsets = [-0.88, -0.42, 0.42, 0.88];
             for (let i = 0; i < cordOffsets.length; i++) {
                 ctx.beginPath();
-                ctx.moveTo(cordOffsets[i] * canopyRadius, canopyOffsetY);
+                ctx.moveTo(cordOffsets[i] * scaledCanopyRadius, scaledCanopyOffsetY);
                 ctx.lineTo(cordOffsets[i] * charRadius * 0.45, -charRadius * 0.5);
                 ctx.stroke();
             }
@@ -1324,30 +1365,30 @@
             // Parachute canopy
             const customCanopy = getLoadedImage(theme.parachuteCanopyImageUrl);
             if (customCanopy) {
-                ctx.drawImage(customCanopy, -canopyRadius, canopyOffsetY - canopyRadius * 0.9, canopyRadius * 2, canopyRadius * 1.1);
+                ctx.drawImage(customCanopy, -scaledCanopyRadius, scaledCanopyOffsetY - scaledCanopyRadius * 0.9, scaledCanopyRadius * 2, scaledCanopyRadius * 1.1);
             } else {
                 ctx.save();
                 ctx.shadowColor = 'rgba(0,0,0,0.35)';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 10 * cScale;
 
                 // Outer dome
                 ctx.fillStyle = theme.primaryColor || '#FF8FA3';
                 ctx.beginPath();
-                ctx.arc(0, canopyOffsetY, canopyRadius, Math.PI, 0, false);
+                ctx.arc(0, scaledCanopyOffsetY, scaledCanopyRadius, Math.PI, 0, false);
                 ctx.closePath();
                 ctx.fill();
 
                 // Center stripe panel
                 ctx.fillStyle = theme.secondaryColor || '#FFB7C5';
                 ctx.beginPath();
-                ctx.ellipse(0, canopyOffsetY, canopyRadius * 0.48, canopyRadius, 0, Math.PI, 0, false);
+                ctx.ellipse(0, scaledCanopyOffsetY, scaledCanopyRadius * 0.48, scaledCanopyRadius, 0, Math.PI, 0, false);
                 ctx.closePath();
                 ctx.fill();
 
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 2.5 * cScale;
                 ctx.strokeStyle = '#FFFFFF';
                 ctx.beginPath();
-                ctx.arc(0, canopyOffsetY, canopyRadius, Math.PI, 0, false);
+                ctx.arc(0, scaledCanopyOffsetY, scaledCanopyRadius, Math.PI, 0, false);
                 ctx.stroke();
                 ctx.restore();
             }
@@ -1618,26 +1659,26 @@
 
                 for (let j = 0; j < activeDrops.length; j++) {
                     const drop = activeDrops[j];
-                    if (!drop || (drop.completed && (now - drop.landedAtMs) > 12000)) continue;
+                    if (!drop || drop.completed) continue;
 
                     // Test against canopy (only if falling)
                     if (!drop.completed) {
                         const canPxX = drop.x * width;
                         const canPxY = drop.y * height + canopyOffsetYPx;
                         const canMinDist = canopyRadiusPx + rPx;
-                        const canDx = dPxX - canPxX;
-                        const canDy = dPxY - canPxY;
+                        const canDx = canPxX - dPxX;
+                        const canDy = canPxY - dPxY;
                         const canDistSq = canDx * canDx + canDy * canDy;
                         if (canDistSq < canMinDist * canMinDist && canDistSq > 0.0001) {
                             const dist = Math.sqrt(canDistSq);
                             const nx = canDx / dist;
                             const ny = canDy / dist;
-                            d.x = (canPxX + nx * canMinDist) / width;
-                            d.y = (canPxY + ny * canMinDist) / height;
+                            d.x = (canPxX - nx * canMinDist) / width;
+                            d.y = (canPxY - ny * canMinDist) / height;
 
-                            const MAX_DROP_VX = 0.55;
-                            const relVx = d.vx - (drop.vx || 0);
-                            const relVy = d.vy - (drop.vy || 0.12);
+                            const MAX_DROP_VX = 0.65;
+                            const relVx = (drop.vx || 0) - d.vx;
+                            const relVy = (drop.vy || 0.12) - d.vy;
                             const vDot = relVx * nx + relVy * ny;
                             if (vDot < 0) {
                                 const impulse = -(1 + (d.restitution || 1.0)) * vDot;
@@ -1650,11 +1691,12 @@
                                 const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
-                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
-                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
-                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
+                                    const massFactor = Math.max(0.5, Math.min(6.0, (d.mass || 3.2) / Math.max(0.2, drop.mass || 1.0)));
+                                    const bounceScale = Math.max(0.1, Math.min(2.5, drop.bounciness || 0.85)) / 0.85;
+                                    const deltaVx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, nx * impulse * 0.85 * massFactor * bounceScale));
+                                    const deltaVy = Math.max(-1.10, Math.min(0.55, ny * impulse * 0.95 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
+                                    drop.vy = Math.max(-1.20, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
 
@@ -1670,19 +1712,19 @@
                     const bodyPxX = drop.x * width;
                     const bodyPxY = drop.y * height;
                     const bodyMinDist = charRadiusPx + rPx;
-                    const bDx = dPxX - bodyPxX;
-                    const bDy = dPxY - bodyPxY;
+                    const bDx = bodyPxX - dPxX;
+                    const bDy = bodyPxY - dPxY;
                     const bDistSq = bDx * bDx + bDy * bDy;
                     if (bDistSq < bodyMinDist * bodyMinDist && bDistSq > 0.0001) {
                         const dist = Math.sqrt(bDistSq);
                         const nx = bDx / dist;
                         const ny = bDy / dist;
-                        d.x = (bodyPxX + nx * bodyMinDist) / width;
-                        d.y = (bodyPxY + ny * bodyMinDist) / height;
+                        d.x = (bodyPxX - nx * bodyMinDist) / width;
+                        d.y = (bodyPxY - ny * bodyMinDist) / height;
 
-                        const MAX_DROP_VX = 0.55;
-                        const relVx = d.vx - (drop.vx || 0);
-                        const relVy = d.vy - (drop.vy || 0.12);
+                        const MAX_DROP_VX = 0.65;
+                        const relVx = (drop.vx || 0) - d.vx;
+                        const relVy = (drop.vy || 0.12) - d.vy;
                         const vDot = relVx * nx + relVy * ny;
                         if (vDot < 0) {
                             const impulse = -(1 + (d.restitution || 1.0)) * vDot;
@@ -1696,11 +1738,12 @@
                                 const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
-                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
-                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
-                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
+                                    const massFactor = Math.max(0.5, Math.min(6.0, (d.mass || 3.2) / Math.max(0.2, drop.mass || 1.0)));
+                                    const bounceScale = Math.max(0.1, Math.min(2.5, drop.bounciness || 0.85)) / 0.85;
+                                    const deltaVx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, nx * impulse * 0.85 * massFactor * bounceScale));
+                                    const deltaVy = Math.max(-1.10, Math.min(0.55, ny * impulse * 0.95 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
+                                    drop.vy = Math.max(-1.20, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
                             }
@@ -1976,6 +2019,9 @@
 
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
+            const MAX_DROP_VY = 0.45;
+            const initialVy = drop.initialVy || 0.12;
+
             if (drop.parachuteDestroyed) {
                 // High-speed comedic free-fall! Terminal velocity vy = 0.98, gravity = 1.10
                 drop.vy = Math.min(0.98, (drop.vy || 0.12) + 1.10 * dtSec);
@@ -1996,14 +2042,22 @@
             } else {
                 const decayVx = Math.pow(0.998, dtSec * 60);
                 drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
-                const initialVy = drop.initialVy || 0.12;
-                const decayVy = Math.pow(0.96, dtSec * 60);
-                drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+                if (drop.vy < initialVy) {
+                    // Ballistic upward arc decelerates under gravity back to terminal glide (PixelPlush Matter.js physics)
+                    drop.vy = Math.min(initialVy, drop.vy + 0.38 * dtSec);
+                } else {
+                    const decayVy = Math.pow(0.96, dtSec * 60);
+                    drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+                }
             }
 
             // Move along current velocity vector (no sinusoidal sway)
             drop.x += drop.vx * dtSec;
             drop.y += drop.vy * dtSec;
+            if (drop.y < 0.04) {
+                drop.y = 0.04;
+                drop.vy = Math.max(0.0, drop.vy);
+            }
 
             // Clean bounce off left / right screen borders with configurable bounciness
             const wallRestitution = Math.max(0.15, Math.min(2.5, (drop.bounciness || 0.85) * 1.05));
@@ -2036,7 +2090,7 @@
                     } else {
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.95 * (drop.bounciness || 0.85)))); // Bounced over lip into the pool!
                     }
-                    drop.vy = Math.max(0.04, drop.vy * Math.max(0.25, Math.min(1.0, 0.65 * (drop.bounciness || 0.85))));
+                    drop.vy = Math.max(-0.65, drop.vy * Math.max(0.25, Math.min(1.0, 0.65 * (drop.bounciness || 0.85))));
                     if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                         playSound(currentTheme.dropletHitSoundUrl, 0.4);
                         drop.lastWallSfx = now;
@@ -2100,16 +2154,16 @@
                     const vDot = rvx * nx + rvy * ny;
 
                     if (vDot < 0) {
-                        const MAX_DROP_VX = 0.55;
-                        const eBounce = Math.max(0.1, Math.min(5.0, ((dropA.bounciness || 0.85) + (dropB.bounciness || 0.85)) * 0.5));
+                        const MAX_DROP_VX = 0.65;
+                        const eBounce = Math.max(0.5, Math.min(2.0, ((dropA.bounciness || 0.85) + (dropB.bounciness || 0.85)) * 0.5));
                         const mA = Math.max(0.1, dropA.mass || 1.0);
                         const mB = Math.max(0.1, dropB.mass || 1.0);
                         const totalMass = mA + mB;
-                        const impulse = Math.max(0.01, -(1 + eBounce) * vDot);
+                        const impulse = -(1 + eBounce) * vDot;
                         dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse * (mB / totalMass)));
-                        dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * (mB / totalMass) * 0.4));
+                        dropA.vy = Math.max(-0.95, Math.min(0.55, (dropA.vy || 0.12) + ny * impulse * (mB / totalMass)));
                         dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse * (mA / totalMass)));
-                        dropB.vy = Math.max(0.04, Math.min(0.45, (dropB.vy || 0.12) - ny * impulse * (mA / totalMass) * 0.4));
+                        dropB.vy = Math.max(-0.95, Math.min(0.55, (dropB.vy || 0.12) - ny * impulse * (mA / totalMass)));
 
                         if (currentTheme.dropletHitSoundUrl && (!dropA.lastBounceSfx || (now - dropA.lastBounceSfx) > 150)) {
                             playSound(currentTheme.dropletHitSoundUrl, 0.45);

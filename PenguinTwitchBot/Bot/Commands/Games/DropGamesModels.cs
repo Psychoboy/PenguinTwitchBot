@@ -53,6 +53,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
         public DropGameSoundOverride ParachuteEndSound { get; set; } = new();
         public DropGameSoundOverride ParachuteDropSound { get; set; } = new();
+        public DropGameSoundOverride ParachuteFlapSound { get; set; } = new();
         public DropGameSoundOverride ParachuteWinSound { get; set; } = new();
         public DropGameSoundOverride ParachuteRocketLaunchSound { get; set; } = new();
         public DropGameSoundOverride ParachuteRocketExplodeSound { get; set; } = new();
@@ -274,6 +275,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? Start { get; set; }
         public DropGameEffectiveSoundDto? End { get; set; }
         public DropGameEffectiveSoundDto? Drop { get; set; }
+        public DropGameEffectiveSoundDto? ParachuteFlap { get; set; }
         public DropGameEffectiveSoundDto? Win { get; set; }
         public DropGameEffectiveSoundDto? PegCollision { get; set; }
         public DropGameEffectiveSoundDto? RocketLaunch { get; set; }
@@ -310,6 +312,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
         public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
         public DropGameSoundConfig DropSound { get; set; } = new() { Enabled = true, AudioFile = "/media/parachute_drop.wav", Volume = 60 };
+        public DropGameSoundConfig ParachuteFlapSound { get; set; } = new() { Enabled = true, AudioFile = "/media/parachute_pop.wav", Volume = 65 };
         public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/droplet.wav", Volume = 65 };
 
         // Sky Rockets & Sabotage Sound Effects (Default enabled)

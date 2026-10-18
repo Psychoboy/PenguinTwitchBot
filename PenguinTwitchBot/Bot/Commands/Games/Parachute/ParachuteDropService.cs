@@ -523,7 +523,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             double? forcedStartX = null,
             double? forcedWindAccelX = null,
             bool skipMinimumDurationCheck = false,
-            bool allowDirectUrlOrPath = true)
+            bool allowDirectUrlOrPath = true,
+            double? forcedInitialVx = null)
         {
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
@@ -553,7 +554,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             // Directional drop angle (no periodic sway): sharper angle = faster lateral speed
             double initialVx;
             double initialTilt;
-            if (forcedStartX.HasValue)
+            if (forcedInitialVx.HasValue)
+            {
+                initialVx = Math.Clamp(forcedInitialVx.Value, -ParachuteSimulationEngine.MaxVx, ParachuteSimulationEngine.MaxVx);
+                initialTilt = Math.Clamp(initialVx * 1.5, -0.60, 0.60);
+            }
+            else if (forcedStartX.HasValue)
             {
                 initialVx = 0.0;
                 initialTilt = 0.0;

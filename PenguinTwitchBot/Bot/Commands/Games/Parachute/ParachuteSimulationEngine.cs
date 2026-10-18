@@ -15,6 +15,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         public const double MaxVx = 0.55;
         public const double MinVy = 0.04;
         public const double MaxVy = 0.45;
+        public const double ParachuteDeployY = 0.08;
 
         public static ParachuteTrajectoryPointDto GetParachutePositionAtTick(PendingDropRecord record, int tick)
         {
@@ -229,7 +230,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                             var impulse = 0.28 * Math.Clamp(rocketKnockbackMultiplier, 0.1, 5.0) * (bounciness / 0.85) / parachuteMass;
                             var deltaVx = Math.Clamp(nx * impulse, -0.65, 0.65);
-                            var deltaVy = Math.Clamp(ny * impulse * 0.35, -0.15, 0.25);
+                            var deltaVy = Math.Clamp(ny * impulse * 0.55, -0.45, 0.45);
 
                             vx = Math.Clamp(vx + deltaVx, -MaxVx * 1.5, MaxVx * 1.5);
                             vy = Math.Clamp(vy + deltaVy, MinVy, Math.Max(MaxVy, record.InitialVy * 1.3));
