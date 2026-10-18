@@ -297,8 +297,28 @@ namespace PenguinTwitchBot.Bot.Notifications
             {
                 var data = await ReadStringAsync(webSocket, cancellationToken);
                 if (data == null) continue;
-                if(data.Length > 0 && data.Equals("pong"))
+                if (data.Length > 0 && data.Equals("pong"))
                 {
+                    continue;
+                }
+                else if (data.Length > 0 && data.StartsWith("{\"type\":\"pong\""))
+                {
+                    try
+                    {
+                        var pong = JsonSerializer.Deserialize<DropGamePongMessage>(data, _serializerOptions);
+                        if (pong != null && !string.IsNullOrWhiteSpace(pong.Game))
+                        {
+                            await _dispatcher.Publish(new DropGameHeartbeatNotification(
+                                pong.Game,
+                                pong.ActiveTokens,
+                                pong.CompletingTokens,
+                                pong.OverlayKey));
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // Malformed pong JSON should not disconnect the socket
+                    }
                     continue;
                 } else if (data.Length >0 && data.StartsWith("TTSComplete: "))
                 {
@@ -317,7 +337,9 @@ namespace PenguinTwitchBot.Bot.Notifications
                             await _dispatcher.Publish(new DropGameCompleteNotification(
                                 dropComplete.DropToken,
                                 dropComplete.LandingX,
-                                dropComplete.WinningBucketIndex));
+                                dropComplete.WinningBucketIndex,
+                                dropComplete.OverlayKey,
+                                dropComplete.ParachuteDestroyed));
                     }
                     catch (JsonException)
                     {

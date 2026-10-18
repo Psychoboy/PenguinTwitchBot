@@ -54,13 +54,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return false;
             }
 
-            if (now < peekRecord.EarliestCompletionUtc)
-            {
-                failureReason = $"Premature drop token completion for {peekRecord.GameType} user {peekRecord.Username}";
-                logger.LogWarning("Rejected premature dropToken completion for {GameType} user {User} (arrived before minimum flight time).", peekRecord.GameType, peekRecord.Username);
-                return false;
-            }
-
             lock (peekRecord)
             {
                 if (peekRecord.IsCompleted)

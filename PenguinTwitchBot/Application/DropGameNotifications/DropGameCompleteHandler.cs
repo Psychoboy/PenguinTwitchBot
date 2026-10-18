@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Features;
+using PenguinTwitchBot.Bot.Overlay;
 
 namespace PenguinTwitchBot.Application.DropGameNotifications
 {
@@ -11,8 +12,9 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IParachuteDropService parachuteDropService,
         IPlinkoDropService plinkoDropService,
         IDropGamesSettingsService settingsService,
+        IOverlaySecurityService overlaySecurityService,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator)
-        : Application.Notifications.INotificationHandler<DropGameCompleteNotification>
+        : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
         {
@@ -28,23 +30,33 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
 
             try
             {
+                var isAuthorized = await overlaySecurityService.ValidateKeyAsync(notification.OverlayKey);
+
+                if (!isAuthorized)
+                {
+                    // Unauthorized client completion: discard client-reported outcome and fall back to authoritative server simulation
+                    notification.LandingX = null;
+                    notification.WinningBucketIndex = null;
+                }
+
                 if (record.GameType == DropGameType.Parachute)
                 {
-                    if (notification.LandingX.HasValue &&
-                        notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
+                    if (notification.LandingX.HasValue)
                     {
-                        var landingTolerance = Math.Min(0.60, 0.35 + (record.DropletHitCount * 0.05));
-                        if (Math.Abs(notification.LandingX.Value - record.LandingX) <= landingTolerance)
+                        // Authorized client with secret key: trust the client's rendered landing position directly
+                        record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
+                        if (notification.ParachuteDestroyed.HasValue)
                         {
-                            record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
-                            (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
-                                ParachuteSimulationEngine.CalculateLandingScore(
-                                    record.LandingX,
-                                    record.TargetCenterX,
-                                    record.TargetHalfWidth,
-                                    record.ParachuteDestroyed,
-                                    record.CrashLandingScoreMode);
+                            record.ParachuteDestroyed = notification.ParachuteDestroyed.Value;
                         }
+
+                        (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
+                            ParachuteSimulationEngine.CalculateLandingScore(
+                                record.LandingX,
+                                record.TargetCenterX,
+                                record.TargetHalfWidth,
+                                record.ParachuteDestroyed,
+                                record.CrashLandingScoreMode);
                     }
 
                     await parachuteDropService.ProcessCompletionAsync(record);
@@ -62,9 +74,9 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     {
                         if (notification.WinningBucketIndex.HasValue)
                         {
+                            // Authorized client with secret key: trust the client's final bucket landing directly
                             var idx = notification.WinningBucketIndex.Value;
-                            var bucketTolerance = Math.Min(4, 2 + record.DropletHitCount);
-                            if (Math.Abs(idx - record.BucketIndex) <= bucketTolerance && idx >= 0 && idx < buckets.Count)
+                            if (idx >= 0 && idx < buckets.Count)
                             {
                                 record.BucketIndex = idx;
                             }

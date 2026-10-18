@@ -524,6 +524,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("imageUrl")]
         public string ImageUrl { get; set; } = "";
+
+        [JsonPropertyName("targetDropToken")]
+        public string? TargetDropToken { get; set; }
     }
 
     public class RocketFireRequest
@@ -535,6 +538,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double? KnockbackMultiplier { get; set; }
         public CrashLandingScoreMode? ScoreModeOverride { get; set; }
         public string? TriggeredByUser { get; set; }
+        public bool? DirectHitKillsParachute { get; set; }
     }
 
     public class RocketInstanceDto
@@ -577,6 +581,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("targetDropToken")]
         public string? TargetDropToken { get; set; }
+
+        [JsonPropertyName("pattern")]
+        public string Pattern { get; set; } = "Random";
+
+        [JsonPropertyName("isTargeted")]
+        public bool IsTargeted { get; set; }
+
+        [JsonPropertyName("knockbackMultiplier")]
+        public double KnockbackMultiplier { get; set; } = 1.0;
+
+        [JsonPropertyName("canopyKillChance")]
+        public double CanopyKillChance { get; set; } = 1.0;
+
+        [JsonPropertyName("directHitKillsParachute")]
+        public bool DirectHitKillsParachute { get; set; } = true;
     }
 
     public class ParachuteTrajectoryPointDto
@@ -700,6 +719,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("crashLanded")]
         public bool CrashLanded { get; set; }
+
+        [JsonPropertyName("overlayKey")]
+        public string? OverlayKey { get; set; }
+    }
+
+    public class DropGamePongMessage
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "pong";
+
+        [JsonPropertyName("game")]
+        public string? Game { get; set; }
+
+        [JsonPropertyName("activeTokens")]
+        public List<string> ActiveTokens { get; set; } = [];
+
+        [JsonPropertyName("completingTokens")]
+        public List<string> CompletingTokens { get; set; } = [];
+
+        [JsonPropertyName("overlayKey")]
+        public string? OverlayKey { get; set; }
     }
 
     /// <summary>
@@ -718,7 +758,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public required DropGameTheme Theme { get; init; }
         public required DateTime CreatedAtUtc { get; init; }
         public required DateTime EarliestCompletionUtc { get; init; }
-        public required DateTime ExpiresAtUtc { get; init; }
+        public required DateTime ExpiresAtUtc { get; set; }
 
         // Parachute simulation fields (mutable under lock when droplets hit mid-flight)
         public double StartX { get; init; }
@@ -750,6 +790,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
         public string BucketLabel { get; set; } = "";
+        public string? RocketAttacker { get; set; }
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];
@@ -761,6 +802,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool DefaultCommandTriggerExecuted { get; set; }
         public bool WinActionExecuted { get; set; }
         public bool WinChatAnnounced { get; set; }
+        public DateTime? LastHeartbeatUtc { get; set; }
+        public int MissedHeartbeatCount { get; set; }
     }
 
     public class DropGameSessionDto
