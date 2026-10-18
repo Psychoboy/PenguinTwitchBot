@@ -1649,11 +1649,9 @@
                     }
                 }
 
-                // 4. Elastic collision with falling parachutists and landed parachutists
+                // 4. Elastic collision with falling parachutists (character figurine body only, matching original PixelPlush)
                 const rPx = Math.max(12, (d.radius || 0.028) * Math.min(width, height));
                 const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
-                const canopyRadiusPx = charRadiusPx * 1.65;
-                const canopyOffsetYPx = -charRadiusPx * 2.1;
                 const dPxX = d.x * width;
                 const dPxY = d.y * height;
 
@@ -1661,54 +1659,7 @@
                     const drop = activeDrops[j];
                     if (!drop || drop.completed) continue;
 
-                    // Test against canopy (only if falling)
-                    if (!drop.completed) {
-                        const canPxX = drop.x * width;
-                        const canPxY = drop.y * height + canopyOffsetYPx;
-                        const canMinDist = canopyRadiusPx + rPx;
-                        const canDx = canPxX - dPxX;
-                        const canDy = canPxY - dPxY;
-                        const canDistSq = canDx * canDx + canDy * canDy;
-                        if (canDistSq < canMinDist * canMinDist && canDistSq > 0.0001) {
-                            const dist = Math.sqrt(canDistSq);
-                            const nx = canDx / dist;
-                            const ny = canDy / dist;
-                            d.x = (canPxX - nx * canMinDist) / width;
-                            d.y = (canPxY - ny * canMinDist) / height;
-
-                            const MAX_DROP_VX = 0.65;
-                            const relVx = (drop.vx || 0) - d.vx;
-                            const relVy = (drop.vy || 0.12) - d.vy;
-                            const vDot = relVx * nx + relVy * ny;
-                            if (vDot < 0) {
-                                const impulse = -(1 + (d.restitution || 1.0)) * vDot;
-                                d.vx -= impulse * nx * 0.4;
-                                d.vy -= impulse * ny * 0.4;
-                                d.angularVel = (Math.random() - 0.5) * 10.0;
-                                d.hitCount = (d.hitCount || 0) + 1;
-
-                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
-                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
-                                if (canKnock) {
-                                    drop.lastDropletHitTime = now;
-                                    const massFactor = Math.max(0.5, Math.min(6.0, (d.mass || 3.2) / Math.max(0.2, drop.mass || 1.0)));
-                                    const bounceScale = Math.max(0.1, Math.min(2.5, drop.bounciness || 0.85)) / 0.85;
-                                    const deltaVx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, nx * impulse * 0.85 * massFactor * bounceScale));
-                                    const deltaVy = Math.max(-1.10, Math.min(0.55, ny * impulse * 0.95 * massFactor * bounceScale));
-                                    drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(-1.20, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
-                                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
-                                }
-
-                                if (currentTheme.dropletHitSoundUrl && (!d.lastSfxTime || (now - d.lastSfxTime) > 180)) {
-                                    playSound(currentTheme.dropletHitSoundUrl, 0.35);
-                                    d.lastSfxTime = now;
-                                }
-                            }
-                        }
-                    }
-
-                    // Test against player character body (both falling and landed)
+                    // Test against player character body (figurine only)
                     const bodyPxX = drop.x * width;
                     const bodyPxY = drop.y * height;
                     const bodyMinDist = charRadiusPx + rPx;
@@ -2111,7 +2062,7 @@
                         drop.triggeredCollisionIndices.add(c);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
                         const maxAllowedVy = drop.parachuteDestroyed ? 0.98 : 0.45;
-                        drop.vy = Math.max(0.04, Math.min(maxAllowedVy, (drop.vy || initialVy) + (col.deltaVy || 0)));
+                        drop.vy = Math.max(-1.20, Math.min(maxAllowedVy, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
                     }
                 }

@@ -524,7 +524,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             double? forcedWindAccelX = null,
             bool skipMinimumDurationCheck = false,
             bool allowDirectUrlOrPath = true,
-            double? forcedInitialVx = null)
+            double? forcedInitialVx = null,
+            double? forcedTargetCenterX = null)
         {
             dropRegistry.CleanupExpiredDrops();
             var settings = await settingsService.GetSettingsAsync();
@@ -589,13 +590,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             double targetCenterX;
             var currentSessionState = _activeSession;
-            if (currentSessionState != null && currentSessionState.EndsAtUtc > DateTime.UtcNow && currentSessionState.TargetCenterX.HasValue)
+            if (forcedTargetCenterX.HasValue)
+            {
+                targetCenterX = Math.Clamp(forcedTargetCenterX.Value, minSafeX, maxSafeX);
+            }
+            else if (currentSessionState != null && currentSessionState.EndsAtUtc > DateTime.UtcNow && currentSessionState.TargetCenterX.HasValue)
             {
                 targetCenterX = Math.Clamp(currentSessionState.TargetCenterX.Value, minSafeX, maxSafeX);
-            }
-            else if (forcedStartX.HasValue)
-            {
-                targetCenterX = Math.Clamp(forcedStartX.Value, minSafeX, maxSafeX);
             }
             else
             {

@@ -134,10 +134,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             // Push horizontally in the direction of droplet travel + collision normal
                             var pushDirectionX = Math.Abs(dvx) > 0.04 ? Math.Sign(dvx) : (Math.Abs(nx) > 0.05 ? Math.Sign(nx) : 1.0);
                             var deltaVx = Math.Clamp((pushDirectionX * impulseMagnitude) + (relVx * 0.25 * Math.Min(5.0, massRatio) * restitutionScale), -0.65, 0.65);
-                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.18) + (relVy * 0.06), -0.06, 0.08);
+                            var deltaVy = Math.Clamp((ny * impulseMagnitude * 0.75) + (relVy * 0.12), -1.20, 0.55);
 
                             vx = Math.Clamp(vx + deltaVx, -MaxVx, MaxVx);
-                            vy = Math.Clamp(vy + deltaVy, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15));
+                            vy = Math.Clamp(vy + deltaVy, -1.20, Math.Max(MaxVy, record.InitialVy * 1.15));
 
                             existingCollisions.Add(new ParachuteCollisionEventDto
                             {
@@ -233,7 +233,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                             var deltaVy = Math.Clamp(ny * impulse * 0.55, -0.45, 0.45);
 
                             vx = Math.Clamp(vx + deltaVx, -MaxVx * 1.5, MaxVx * 1.5);
-                            vy = Math.Clamp(vy + deltaVy, MinVy, Math.Max(MaxVy, record.InitialVy * 1.3));
+                            vy = Math.Clamp(vy + deltaVy, -1.20, Math.Max(MaxVy, record.InitialVy * 1.3));
 
                             existingCollisions.Add(new ParachuteCollisionEventDto
                             {
@@ -277,11 +277,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 else
                 {
                     vx = Math.Clamp(vx * 0.998, -MaxVx, MaxVx);
-                    vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15)); // Canopy stabilizes vertical speed
+                    if (vy < record.InitialVy)
+                    {
+                        // Ballistic upward arc decelerates under gravity back to terminal glide (matching parachute.js / Matter.js)
+                        vy = Math.Min(record.InitialVy, vy + 0.38 * Dt);
+                    }
+                    else
+                    {
+                        vy = Math.Clamp(record.InitialVy + (vy - record.InitialVy) * 0.96, MinVy, Math.Max(MaxVy, record.InitialVy * 1.15)); // Canopy stabilizes vertical speed
+                    }
                 }
 
                 x += vx * Dt;
                 y += vy * Dt;
+                if (y < 0.04)
+                {
+                    y = 0.04;
+                    vy = Math.Max(0.0, vy);
+                }
 
                 // Interactive Target Rim / Wall Bounce (Pool / Cauldron / Leaf Pile side lip)
                 if (!bouncedOffTargetRim && y >= record.LandingY - 0.038 && y < record.LandingY)

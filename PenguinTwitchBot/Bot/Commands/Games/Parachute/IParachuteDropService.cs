@@ -12,7 +12,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             double? forcedWindAccelX = null,
             bool skipMinimumDurationCheck = false,
             bool allowDirectUrlOrPath = true,
-            double? forcedInitialVx = null);
+            double? forcedInitialVx = null,
+            double? forcedTargetCenterX = null);
 
         Task<List<DropletInstanceDto>> SpawnDropletsAsync(DropletSpawnRequest request);
 

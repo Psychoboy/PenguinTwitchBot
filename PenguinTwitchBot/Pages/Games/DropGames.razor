@@ -1583,7 +1583,8 @@
             forcedStartX: Math.Max(0.12, targetCenter - 0.16),
             forcedWindAccelX: 0.0,
             allowDirectUrlOrPath: true,
-            forcedInitialVx: 0.22);
+            forcedInitialVx: 0.22,
+            forcedTargetCenterX: targetCenter);
 
         // Launch Player 2 from right of center moving leftward
         await ParachuteDropService.TriggerParachuteDropAsync(
@@ -1592,7 +1593,8 @@
             forcedStartX: Math.Min(0.88, targetCenter + 0.16),
             forcedWindAccelX: 0.0,
             allowDirectUrlOrPath: true,
-            forcedInitialVx: -0.22);
+            forcedInitialVx: -0.22,
+            forcedTargetCenterX: targetCenter);
 
         Snackbar.Add("Launched 2 parachuters on a mid-air head-on collision course! Watch them knock each other up and bounce!", Severity.Info);
     }
@@ -1611,7 +1613,8 @@
             capturedEmote,
             forcedStartX: targetCenter,
             forcedWindAccelX: 0.0,
-            allowDirectUrlOrPath: true);
+            allowDirectUrlOrPath: true,
+            forcedTargetCenterX: targetCenter);
 
         _ = Task.Run(async () =>
         {
