@@ -1866,8 +1866,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }).ToList()
             });
 
-            // Step 500 frames to allow full resolution of live knockbacks
-            StepEngineFrames(engine, 500);
+            // Step 750 frames to allow full resolution of live knockbacks and upward bounces
+            StepEngineFrames(engine, 750);
 
             var errors = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errors);
