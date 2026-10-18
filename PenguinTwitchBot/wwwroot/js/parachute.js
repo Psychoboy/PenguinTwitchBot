@@ -684,6 +684,9 @@
                 isBullseye: !!p.isBullseye,
                 isWin: !!p.isWin,
                 dropletHits: 0,
+                rocketHits: 0,
+                parachuteDestroyed: false,
+                pendingParachuteDestroyed: false,
                 keyframes: p.keyframes || [],
                 collisions: Array.isArray(p.collisions) ? p.collisions : [],
                 triggeredCollisionTicks: new Set(),
@@ -721,6 +724,7 @@
                         sizeLabel: d.sizeLabel || 'Medium',
                         speedLabel: d.speedLabel || 'Normal',
                         imageUrl: d.imageUrl || '',
+                        targetDropToken: d.targetDropToken,
                         rotation: Math.random() * Math.PI * 2,
                         angularVel: ((Math.random() - 0.5) * 5.0 + (d.vx || 0) * 8.0) * speedMultiplier,
                         restitution: 0.82,
@@ -774,7 +778,12 @@
                         fuseTimeMs: nowMs + ((r.spawnTickOffset || 0) + (r.fuseTicks || 48)) * DT * 1000,
                         color: r.color || '#FF3366',
                         trailType: r.trailType || 'sparks',
-                        targetDropToken: r.targetDropToken,
+                        targetDropToken: r.targetDropToken || null,
+                        pattern: r.pattern || (r.targetDropToken ? 'Targeted' : 'Random'),
+                        isTargeted: r.isTargeted || r.pattern === 'Targeted' || !!r.targetDropToken,
+                        knockbackMultiplier: typeof r.knockbackMultiplier === 'number' ? r.knockbackMultiplier : 1.0,
+                        canopyKillChance: typeof r.canopyKillChance === 'number' ? r.canopyKillChance : 1.0,
+                        directHitKillsParachute: r.directHitKillsParachute !== undefined ? r.directHitKillsParachute : true,
                         sparks: [],
                         hasLaunched: false
                     });
@@ -1620,6 +1629,26 @@
             if (!d.spawned) {
                 d.spawned = true;
                 d.spawnActualTime = now;
+                if (d.targetDropToken) {
+                    const targetDrop = activeDrops.find(function (drop) {
+                        return drop.dropToken === d.targetDropToken && !drop.completed;
+                    });
+                    if (targetDrop && targetDrop.y < (targetDrop.landingY || 0.90) - 0.08) {
+                        // Dynamically adjust horizontal velocity to intercept target drop based on live canvas position
+                        const g = d.gravity || 0.27;
+                        const a = 0.5 * g;
+                        const b = (d.vy || 0.12) - (targetDrop.vy || 0.12);
+                        const c = (d.startY !== undefined ? d.startY : d.y) - targetDrop.y;
+                        const disc = b * b - 4 * a * c;
+                        if (disc > 0) {
+                            const tMeet = (-b + Math.sqrt(disc)) / (2 * a);
+                            if (tMeet > 0.30 && tMeet < 5.0) {
+                                const predictedDropX = Math.max(0.06, Math.min(0.94, targetDrop.x + (targetDrop.vx || 0) * tMeet));
+                                d.vx = Math.max(-0.45, Math.min(0.45, (predictedDropX - d.x) / tMeet));
+                            }
+                        }
+                    }
+                }
             }
 
             const r = d.radius || 0.028;
@@ -1808,6 +1837,63 @@
 
             if (!r.hasLaunched) {
                 r.hasLaunched = true;
+                if (r.isTargeted || r.targetDropToken) {
+                    let targetDrop = null;
+                    if (r.targetDropToken) {
+                        targetDrop = activeDrops.find(function (d) {
+                            return d.dropToken === r.targetDropToken && !d.completed;
+                        });
+                        if (targetDrop && targetDrop.y >= ((targetDrop.landingY || 0.90) - 0.05)) {
+                            targetDrop = null;
+                        }
+                    }
+                    if (!targetDrop) {
+                        // User request: Targeted targets ANY active parachutist randomly (not closest),
+                        // excluding any that are too close to ground or would cause an almost-horizontal launch angle.
+                        const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                        const canopyOffsetY = (charRadiusPx * 2.1) / Math.max(1, height);
+                        const midAirDrops = activeDrops.filter(function (d) {
+                            return !d.completed && d.y < ((d.landingY || 0.90) - 0.06);
+                        });
+
+                        if (midAirDrops.length > 0) {
+                            // Filter candidates that have sufficient vertical climb distance (dy >= 0.16)
+                            // and a steep enough trajectory (dx / dy <= 1.4) to avoid launching almost horizontally.
+                            const steepCandidates = midAirDrops.filter(function (d) {
+                                const canopyY = d.y - canopyOffsetY;
+                                const dy = r.startY - canopyY;
+                                const dx = Math.abs(d.x - r.startX);
+                                return dy >= 0.16 && (dx / Math.max(0.01, dy)) <= 1.4;
+                            });
+
+                            const pool = steepCandidates.length > 0 ? steepCandidates : midAirDrops;
+                            targetDrop = pool[Math.floor(Math.random() * pool.length)];
+                            r.targetDropToken = targetDrop.dropToken;
+                        }
+                    }
+
+                    if (targetDrop && targetDrop.y < (targetDrop.landingY || 0.90) - 0.05) {
+                        // Dynamically adjust rocket lead interception using live canvas coordinates and closing speed
+                        const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                        const canopyOffsetY = (charRadiusPx * 2.1) / Math.max(1, height);
+                        const canopyY = targetDrop.y - canopyOffsetY;
+                        const dy = Math.max(0.08, Math.abs(r.startY - canopyY));
+                        const vAscent = Math.max(0.45, Math.abs(r.vy || -0.65));
+                        const vDescent = Math.max(0.04, targetDrop.vy || 0.12);
+                        const leadSec = Math.max(0.40, Math.min(1.25, dy / (vAscent + vDescent)));
+
+                        const predictedTargetX = Math.max(0.06, Math.min(0.94, targetDrop.x + (targetDrop.vx || 0) * leadSec));
+                        const predictedTargetY = Math.max(0.02, Math.min((targetDrop.landingY || 0.90) - 0.04, (targetDrop.y - canopyOffsetY) + (targetDrop.vy || 0.12) * leadSec));
+
+                        const accelY = (r.accelerationY !== undefined && r.accelerationY !== null) ? r.accelerationY : 0.04;
+                        r.targetX = predictedTargetX;
+                        r.targetY = predictedTargetY;
+                        r.vx = (predictedTargetX - r.startX) / leadSec;
+                        r.vy = ((predictedTargetY - r.startY) - (0.5 * accelY * leadSec * leadSec)) / leadSec;
+                        r.fuseTimeMs = now + (leadSec + 0.45) * 1000;
+                    }
+                }
+
                 const launchBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketLaunch;
                 if (launchBundle) {
                     SoundManager.play(launchBundle, 'rocketLaunch', false);
@@ -1815,6 +1901,9 @@
                     playSound(currentTheme.rocketLaunchSoundUrl, 0.60);
                 }
             }
+
+            const prevX = r.x;
+            const prevY = r.y;
 
             // Kinematic flight
             r.vy += (r.accelerationY || 0.04) * dtSec;
@@ -1909,9 +1998,123 @@
 
             ctx.restore();
 
-            // Check detonation condition (fuse reached, hit target ceiling/vicinity, or reached upward apex)
+            // Continuous collision check against active mid-air parachutists
+            let rocketCollided = false;
+            const prevRPxX = prevX * width;
+            const prevRPxY = prevY * height;
+
+            for (let j = 0; j < activeDrops.length; j++) {
+                const drop = activeDrops[j];
+                if (!drop || drop.completed) continue;
+
+                const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                const bodyPxX = drop.x * width;
+                const bodyPxY = drop.y * height;
+                const canopyOffsetYPx = -charRadiusPx * 2.1;
+                const canopyPxX = bodyPxX;
+                const canopyPxY = bodyPxY + canopyOffsetYPx;
+                const canopyRadiusPx = charRadiusPx * 1.65;
+                const rocketRadiusPx = Math.max(14, Math.min(width, height) * 0.018);
+
+                const segDx = rPxX - prevRPxX;
+                const segDy = rPxY - prevRPxY;
+                const segLenSq = segDx * segDx + segDy * segDy;
+
+                // 1. Canopy collision check
+                const canopyActive = !drop.parachuteDestroyed && (drop.canopyScale === undefined || drop.canopyScale > 0.15);
+                let hitCanopy = false;
+                if (canopyActive) {
+                    const minCanopyDist = canopyRadiusPx + rocketRadiusPx;
+                    let cDistSq;
+                    if (segLenSq > 0.001) {
+                        const t = Math.max(0, Math.min(1, ((canopyPxX - prevRPxX) * segDx + (canopyPxY - prevRPxY) * segDy) / segLenSq));
+                        const projX = prevRPxX + t * segDx;
+                        const projY = prevRPxY + t * segDy;
+                        const cEx = canopyPxX - projX;
+                        const cEy = canopyPxY - projY;
+                        cDistSq = cEx * cEx + cEy * cEy;
+                    } else {
+                        const cEx = canopyPxX - rPxX;
+                        const cEy = canopyPxY - rPxY;
+                        cDistSq = cEx * cEx + cEy * cEy;
+                    }
+                    hitCanopy = cDistSq <= (minCanopyDist * minCanopyDist);
+                }
+
+                // 2. Body figurine collision check
+                let hitBody = false;
+                if (!hitCanopy) {
+                    const minBodyDist = charRadiusPx + rocketRadiusPx;
+                    let bDistSq;
+                    if (segLenSq > 0.001) {
+                        const t = Math.max(0, Math.min(1, ((bodyPxX - prevRPxX) * segDx + (bodyPxY - prevRPxY) * segDy) / segLenSq));
+                        const projX = prevRPxX + t * segDx;
+                        const projY = prevRPxY + t * segDy;
+                        const bEx = bodyPxX - projX;
+                        const bEy = bodyPxY - projY;
+                        bDistSq = bEx * bEx + bEy * bEy;
+                    } else {
+                        const bEx = bodyPxX - rPxX;
+                        const bEy = bodyPxY - rPxY;
+                        bDistSq = bEx * bEx + bEy * bEy;
+                    }
+                    hitBody = bDistSq <= (minBodyDist * minBodyDist);
+                }
+
+                if (hitCanopy || hitBody) {
+                    rocketCollided = true;
+                    spawnRocketExplosion(rPxX, rPxY, r.color, 45);
+                    const explodeBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketExplode;
+                    if (explodeBundle) {
+                        SoundManager.play(explodeBundle, 'rocketExplode', false);
+                    } else if (currentTheme && currentTheme.rocketExplodeSoundUrl) {
+                        playSound(currentTheme.rocketExplodeSoundUrl, 0.70);
+                    }
+
+                    const knockback = typeof r.knockbackMultiplier === 'number' ? r.knockbackMultiplier : 1.0;
+                    const directHitKills = r.directHitKillsParachute !== undefined ? r.directHitKillsParachute : true;
+                    const shouldKill = drop.pendingParachuteDestroyed ||
+                        (hitCanopy && (typeof r.canopyKillChance === 'number' ? (Math.random() < r.canopyKillChance) : true)) ||
+                        (hitBody && directHitKills && (typeof r.canopyKillChance === 'number' ? (Math.random() < r.canopyKillChance) : true));
+
+                    if (shouldKill && !drop.parachuteDestroyed) {
+                        drop.parachuteDestroyed = true;
+                        drop.pendingParachuteDestroyed = false;
+                        drop.canopyPopped = true;
+                        spawnCanopyFragments(bodyPxX, canopyPxY, drop.theme || currentTheme);
+                        const popBundle = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                        if (popBundle) {
+                            SoundManager.play(popBundle, 'parachutePop', true);
+                        } else if ((drop.theme && drop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                            playSound((drop.theme && drop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.70);
+                        }
+                    }
+
+                    // Apply directional impulse and knockback
+                    const pushDirX = Math.abs(r.vx) > 0.05 ? Math.sign(r.vx) : (Math.random() > 0.5 ? 1 : -1);
+                    const deltaVx = Math.max(-0.45, Math.min(0.45, (pushDirX * 0.18 + r.vx * 0.15) * knockback));
+                    const deltaVy = Math.max(-0.20, Math.min(0.35, 0.08 * knockback));
+                    drop.vx = Math.max(-0.65, Math.min(0.65, (drop.vx || 0) + deltaVx));
+                    drop.vy = Math.max(0.04, Math.min(0.60, (drop.vy || 0.12) + deltaVy));
+                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
+                    drop.rocketHits = (drop.rocketHits || 0) + 1;
+
+                    activeRockets.splice(i, 1);
+                    break;
+                }
+            }
+
+            if (rocketCollided) continue;
+
+            // Check generic detonation condition:
+            // For targeted rockets: explode on timeout, reaching ceiling, or downward apex fall.
+            // For non-targeted rockets: also explode when ascending past target apex (targetY).
+            const isTargetedRocket = r.isTargeted || !!r.targetDropToken;
             const targetY = (r.targetY !== undefined && r.targetY !== null) ? r.targetY : 0.10;
-            const shouldExplode = (now >= r.fuseTimeMs) || (r.y <= targetY) || (r.y <= 0.04) || (r.vy >= 0 && r.y < 0.85);
+            const shouldExplode = (now >= r.fuseTimeMs) ||
+                (!isTargetedRocket && r.y <= targetY) ||
+                (r.y <= 0.04) ||
+                (r.vy >= 0 && r.y < 0.85);
             if (shouldExplode) {
                 spawnRocketExplosion(rPxX, rPxY, r.color, 45);
                 const explodeBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketExplode;
@@ -1924,7 +2127,9 @@
                 // If this rocket detonated near an active parachutist canopy whose parachute was destroyed
                 if (r.targetDropToken) {
                     const targetDrop = activeDrops.find(d => d.dropToken === r.targetDropToken);
-                    if (targetDrop && targetDrop.parachuteDestroyed && !targetDrop.canopyPopped) {
+                    if (targetDrop && (targetDrop.parachuteDestroyed || targetDrop.pendingParachuteDestroyed) && !targetDrop.canopyPopped) {
+                        targetDrop.parachuteDestroyed = true;
+                        targetDrop.pendingParachuteDestroyed = false;
                         targetDrop.canopyPopped = true;
                         const charRadius = Math.max(24, Math.min(width, height) * 0.032);
                         spawnCanopyFragments(targetDrop.x * width, targetDrop.y * height - charRadius * 2.1, targetDrop.theme || currentTheme);

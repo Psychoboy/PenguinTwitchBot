@@ -102,7 +102,7 @@
                         Preview
                     </MudButton>
                 </MudTooltip>
-                <MudTooltip Text="Copy OBS browser source URL (with security key) to clipboard - save first!">
+                <MudTooltip Text="Copy OBS browser source URL to clipboard">
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Variant="Variant.Outlined"
                                    OnClick="CopyUrl" Class="ml-1" />
@@ -1475,7 +1475,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         var keyParam = !string.IsNullOrWhiteSpace(_overlayKey) ? $"&key={Uri.EscapeDataString(_overlayKey)}" : "";
         var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}";
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
-        Snackbar.Add("OBS URL with security key copied to clipboard!", Severity.Info);
+        Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
     }
 
     private async Task RegenerateKeyAsync()

@@ -821,7 +821,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     SpeedScale = Math.Round(speedScale, 2),
                     SizeLabel = sizeLabel,
                     SpeedLabel = speedLabel,
-                    ImageUrl = dropletImageUrl
+                    ImageUrl = dropletImageUrl,
+                    TargetDropToken = pattern.Equals("Targeted", StringComparison.OrdinalIgnoreCase) ? targetDrop?.DropToken : null
                 });
             }
 
@@ -855,7 +856,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var count = Math.Clamp(request.Count > 0 ? request.Count : 1, 1, 10);
             var pattern = !string.IsNullOrWhiteSpace(request.Pattern) ? request.Pattern : pSettings.RocketLaunchPattern;
             var canopyKillChance = request.CanopyKillChance.HasValue
-                ? Math.Clamp(request.CanopyKillChance.Value / 100.0, 0.0, 1.0)
+                ? Math.Clamp(request.CanopyKillChance.Value > 1.0 ? request.CanopyKillChance.Value / 100.0 : request.CanopyKillChance.Value, 0.0, 1.0)
                 : pSettings.CanopyKillChance;
             var knockbackMultiplier = request.KnockbackMultiplier.HasValue && request.KnockbackMultiplier.Value > 0
                 ? Math.Clamp(request.KnockbackMultiplier.Value, 0.1, 5.0)
@@ -863,8 +864,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var scoreMode = request.ScoreModeOverride ?? pSettings.CrashLandingScoreMode;
 
             var rockets = new List<RocketInstanceDto>(count);
-            var trajectoryUpdates = new List<ParachuteTrajectoryUpdateDto>();
-            var newlyKilledDrops = new List<PendingDropRecord>();
             var now = DateTime.UtcNow;
 
             var activeParachutes = dropRegistry.GetActiveDrops(DropGameType.Parachute);
@@ -872,16 +871,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             Func<PendingDropRecord, bool> isMidAir = d =>
                 (int)Math.Round((now - d.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz) < d.TotalTicks;
 
-            PendingDropRecord? targetDrop = null;
-            if (!string.IsNullOrWhiteSpace(request.TargetUser))
-            {
-                targetDrop = activeParachutes.FirstOrDefault(d =>
-                    isMidAir(d) &&
-                    (d.Username.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                     d.DisplayName.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase)));
-            }
+            var midAirDrops = activeParachutes.Where(isMidAir).ToList();
 
-            targetDrop ??= activeParachutes.FirstOrDefault(isMidAir);
+            PendingDropRecord? targetDrop = null;
+            if (string.Equals(pattern, "Targeted", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!string.IsNullOrWhiteSpace(request.TargetUser))
+                {
+                    targetDrop = midAirDrops.FirstOrDefault(d =>
+                        d.Username.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                        d.DisplayName.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+            }
 
             rockets = RocketTrajectoryGenerator.GenerateRockets(
                 new RocketFireRequest
@@ -892,49 +893,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     CanopyKillChance = canopyKillChance,
                     KnockbackMultiplier = knockbackMultiplier,
                     ScoreModeOverride = scoreMode,
-                    TriggeredByUser = request.TriggeredByUser
+                    TriggeredByUser = request.TriggeredByUser,
+                    DirectHitKillsParachute = pSettings.DirectHitKillsParachute
                 },
                 targetDrop,
+                midAirDrops,
                 now);
 
-            if (targetDrop != null)
+            foreach (var drop in activeParachutes.Where(isMidAir))
             {
-                lock (targetDrop)
+                lock (drop)
                 {
-                    var wasDestroyedBefore = targetDrop.ParachuteDestroyed;
-                    var elapsedTicks = Math.Clamp((int)Math.Round((now - targetDrop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, targetDrop.TotalTicks - 1);
-                    targetDrop.CrashLandingScoreMode = scoreMode;
-                    ParachuteSimulationEngine.SimulateParachuteTrajectory(
-                        targetDrop,
-                        elapsedTicks,
-                        droplets: null,
-                        rockets: rockets.Where(r => r.TargetDropToken == targetDrop.DropToken).ToList(),
-                        canopyKillChance: canopyKillChance,
-                        rocketKnockbackMultiplier: knockbackMultiplier,
-                        crashLandingScoreMode: scoreMode,
-                        directHitKillsParachute: pSettings.DirectHitKillsParachute);
-
-                    if (!wasDestroyedBefore && targetDrop.ParachuteDestroyed)
-                    {
-                        newlyKilledDrops.Add(targetDrop);
-                    }
-
-                    trajectoryUpdates.Add(new ParachuteTrajectoryUpdateDto
-                    {
-                        DropToken = targetDrop.DropToken,
-                        LandingX = targetDrop.LandingX,
-                        TotalTicks = targetDrop.TotalTicks,
-                        Score = targetDrop.Score,
-                        IsHit = targetDrop.IsHit,
-                        IsBullseye = targetDrop.IsBullseye,
-                        IsWin = targetDrop.IsWin,
-                        DropletHits = targetDrop.DropletHitCount,
-                        RocketHits = targetDrop.RocketHitCount,
-                        ParachuteDestroyed = targetDrop.ParachuteDestroyed,
-                        FreeFallStartTick = targetDrop.FreeFallStartTick,
-                        Collisions = targetDrop.Collisions.ToList(),
-                        Keyframes = targetDrop.Keyframes.ToList()
-                    });
+                    drop.CrashLandingScoreMode = scoreMode;
+                    drop.RocketAttacker ??= request.TriggeredByUser ?? "SubAction";
                 }
             }
 
@@ -942,46 +913,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             {
                 type = "parachute_rockets",
                 triggeredBy = request.TriggeredByUser ?? "SubAction",
-                rockets,
-                trajectoryUpdates
+                rockets
             };
 
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute rockets");
 
-            if (newlyKilledDrops.Count > 0)
-            {
-                var attacker = !string.IsNullOrWhiteSpace(request.TriggeredByUser) ? request.TriggeredByUser : "Stream";
-                foreach (var killedDrop in newlyKilledDrops)
-                {
-                    var killVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                    {
-                        ["Attacker"] = attacker,
-                        ["TriggeredBy"] = attacker,
-                        ["Victim"] = killedDrop.DisplayName,
-                        ["Score"] = killedDrop.Score.ToString(CultureInfo.InvariantCulture),
-                        ["ParachuteDestroyed"] = "true",
-                        ["Theme"] = killedDrop.Theme?.Name ?? "Default",
-                        ["Game"] = "ParachuteDrop"
-                    };
-
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                                "drop",
-                                DefaultCommandEventTypes.ParachuteRocketKill,
-                                killedDrop.EventArgs,
-                                killVars);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex, "Failed to fire ParachuteRocketKill trigger for {User}", killedDrop.Username);
-                        }
-                    });
-                }
-            }
+            var rocketsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Plinko, rocketsNotice, "Parachute rockets active notice to Plinko");
 
             return rockets;
         }
@@ -1008,6 +947,34 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             if (!record.DefaultCommandTriggerExecuted)
             {
+                if (record.ParachuteDestroyed)
+                {
+                    var attacker = !string.IsNullOrWhiteSpace(record.RocketAttacker) ? record.RocketAttacker : "Stream";
+                    var killVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Attacker"] = attacker,
+                        ["TriggeredBy"] = attacker,
+                        ["Victim"] = record.DisplayName,
+                        ["Score"] = record.Score.ToString(CultureInfo.InvariantCulture),
+                        ["ParachuteDestroyed"] = "true",
+                        ["Theme"] = record.Theme?.Name ?? "Default",
+                        ["Game"] = "ParachuteDrop"
+                    };
+
+                    try
+                    {
+                        await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                            "drop",
+                            DefaultCommandEventTypes.ParachuteRocketKill,
+                            record.EventArgs,
+                            killVars);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to fire ParachuteRocketKill trigger for {User}", record.Username);
+                    }
+                }
+
                 if (record.IsBullseye)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(

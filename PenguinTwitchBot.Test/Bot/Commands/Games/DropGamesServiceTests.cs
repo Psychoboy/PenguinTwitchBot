@@ -403,16 +403,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.False(forgedResult);
             _actionService.Verify(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()), Times.Never);
 
-            // 2. Premature completion before EarliestCompletionUtc is rejected
-            var prematureToken = await sut.TriggerParachuteDropAsync(
-                new CommandEventArgs { Name = "earlyuser", DisplayName = "EarlyUser", UserId = "3002" },
+            // 2. Rapid drop completion (e.g. from rocket hit or free-fall) is accepted immediately
+            var rapidToken = await sut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "rapiduser", DisplayName = "RapidUser", UserId = "3002" },
                 forcedStartX: 0.50,
                 forcedWindAccelX: 0.0,
                 skipMinimumDurationCheck: false);
 
-            var prematureResult = registry.TryConsumeDrop(prematureToken, out _, out _);
-            Assert.False(prematureResult);
-            _actionService.Verify(x => x.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), It.IsAny<ActionType>()), Times.Never);
+            var rapidResult = registry.TryConsumeDrop(rapidToken, out var rapidRecord, out _);
+            Assert.True(rapidResult);
+            Assert.NotNull(rapidRecord);
 
             // 3. Valid completion when flight time has elapsed
             var validToken = await sut.TriggerParachuteDropAsync(
@@ -2364,120 +2364,38 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public void ParachuteSimulationEngine_RocketCanopyCollision_DestroysParachuteAndAcceleratesFreeFall()
+        public async Task ParachuteDropService_FireRockets_TargetedWithoutTargetUser_SelectsFromActiveCandidates()
         {
-            var now = DateTime.UtcNow;
-            var record = new PendingDropRecord
+            var registry = CreateDropRegistry();
+            var parachuteSut = CreateParachuteService(dropRegistry: registry);
+
+            var token1 = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "player1", DisplayName = "Player1", UserId = "5001" },
+                emoteOrImage: null,
+                forcedStartX: 0.30,
+                forcedWindAccelX: 0.0);
+
+            var token2 = await parachuteSut.TriggerParachuteDropAsync(
+                new CommandEventArgs { Name = "player2", DisplayName = "Player2", UserId = "5002" },
+                emoteOrImage: null,
+                forcedStartX: 0.70,
+                forcedWindAccelX: 0.0);
+
+            var rockets = await parachuteSut.FireRocketsAsync(new RocketFireRequest
             {
-                DropToken = "rocket-kill-test",
-                GameType = DropGameType.Parachute,
-                Username = "testUser",
-                DisplayName = "TestUser",
-                UserId = "1001",
-                EventArgs = new CommandEventArgs { Command = "drop", Name = "testUser", DisplayName = "TestUser", UserId = "1001" },
-                Theme = new DropGameTheme(),
-                CreatedAtUtc = now,
-                EarliestCompletionUtc = now,
-                ExpiresAtUtc = now.AddMinutes(1),
-                StartX = 0.50,
-                WindAccelX = 0.0,
-                TargetCenterX = 0.50,
-                TargetHalfWidth = 0.10,
-                LandingY = 0.90,
-                InitialVy = 0.12,
-                Gravity = 1.0,
-                Bounciness = 0.85,
-                Mass = 1.0,
-                TotalTicks = 120
-            };
+                Count = 4,
+                Pattern = "Targeted",
+                TargetUser = null,
+                TriggeredByUser = "Streamer"
+            });
 
-            var rockets = new List<RocketInstanceDto>
+            Assert.NotNull(rockets);
+            Assert.Equal(4, rockets.Count);
+            Assert.All(rockets, r =>
             {
-                new RocketInstanceDto
-                {
-                    Id = "rocket-canopy-sniper",
-                    StartX = 0.552,
-                    StartY = 1.02,
-                    TargetX = 0.552,
-                    TargetY = 0.027,
-                    Vx = 0.0,
-                    Vy = -1.655,
-                    AccelerationY = 0.04,
-                    FuseTicks = 42,
-                    SpawnTickOffset = 0
-                }
-            };
-
-            ParachuteSimulationEngine.SimulateParachuteTrajectory(
-                record,
-                elapsedTicksAtEvent: 0,
-                droplets: [],
-                rockets: rockets,
-                canopyKillChance: 1.0,
-                rocketKnockbackMultiplier: 1.0,
-                crashLandingScoreMode: CrashLandingScoreMode.PreserveScore);
-
-            Assert.True(record.ParachuteDestroyed, "Canopy hit should destroy parachute");
-            Assert.True(record.FreeFallStartTick >= 0, "FreeFallStartTick should be recorded");
-            Assert.Contains(record.Collisions, c => c.CollisionType == "rocket_canopy");
-
-            // Verify high-speed free fall acceleration occurred
-            Assert.True(record.Keyframes.Any(k => k.Vy > 0.45), "Terminal vertical speed should exceed normal canopy glide speed");
-            Assert.True(record.Keyframes.Max(k => k.Vy) <= ParachuteSimulationEngine.TerminalFreeFallVy + 0.001);
-        }
-
-        [Fact]
-        public void ParachuteSimulationEngine_RocketBodyCollision_AppliesKnockbackWithoutDestroyingCanopy()
-        {
-            var now = DateTime.UtcNow;
-            var record = new PendingDropRecord
-            {
-                DropToken = "rocket-body-test",
-                GameType = DropGameType.Parachute,
-                Username = "testUser",
-                DisplayName = "TestUser",
-                UserId = "1002",
-                EventArgs = new CommandEventArgs { Command = "drop", Name = "testUser", DisplayName = "TestUser", UserId = "1002" },
-                Theme = new DropGameTheme(),
-                CreatedAtUtc = now,
-                EarliestCompletionUtc = now,
-                ExpiresAtUtc = now.AddMinutes(1),
-                StartX = 0.50,
-                WindAccelX = 0.0,
-                TargetCenterX = 0.50,
-                TargetHalfWidth = 0.10,
-                LandingY = 0.90,
-                InitialVy = 0.12,
-                Gravity = 1.0,
-                Bounciness = 0.85,
-                Mass = 1.0,
-                TotalTicks = 120
-            };
-
-            var rockets = RocketTrajectoryGenerator.GenerateRockets(
-                new RocketFireRequest { Count = 1, Pattern = "Targeted" },
-                record,
-                now);
-            // Offset rocket slightly laterally and below canopy so it impacts the player body figurine
-            rockets[0].StartX += 0.02;
-            rockets[0].TargetX += 0.02;
-            rockets[0].TargetY += RocketTrajectoryGenerator.CanopyYOffset;
-            var leadTicks = Math.Max(1, rockets[0].FuseTicks - 8);
-            var flightDuration = leadTicks * ParachuteSimulationEngine.Dt;
-            rockets[0].Vy = ((rockets[0].TargetY - rockets[0].StartY) - (0.5 * rockets[0].AccelerationY * flightDuration * flightDuration)) / flightDuration;
-
-            ParachuteSimulationEngine.SimulateParachuteTrajectory(
-                record,
-                elapsedTicksAtEvent: 0,
-                droplets: [],
-                rockets: rockets,
-                canopyKillChance: 0.0,
-                rocketKnockbackMultiplier: 2.0,
-                crashLandingScoreMode: CrashLandingScoreMode.PreserveScore);
-
-            Assert.False(record.ParachuteDestroyed, "Body hit should not destroy canopy when directHitKillsParachute is false");
-            Assert.True(record.RocketHitCount > 0, "RocketHitCount should be incremented");
-            Assert.Contains(record.Collisions, c => c.CollisionType == "rocket_body");
+                Assert.True(r.IsTargeted);
+                Assert.True(r.TargetDropToken == token1 || r.TargetDropToken == token2);
+            });
         }
 
         [Theory]
@@ -2573,6 +2491,47 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(variables.ContainsKey("Attacker"));
             Assert.True(variables.ContainsKey("Victim"));
             Assert.True(variables.ContainsKey("ParachuteDestroyed"));
+        }
+
+        [Fact]
+        public async Task ParachuteDropService_ProcessCompletion_WithParachuteDestroyed_TriggersParachuteRocketKill()
+        {
+            var sut = CreateParachuteService();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "kill-completion-token",
+                GameType = DropGameType.Parachute,
+                Username = "VictimPenguin",
+                DisplayName = "VictimPenguin",
+                UserId = "999",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "VictimPenguin", DisplayName = "VictimPenguin", UserId = "999" },
+                Theme = new DropGameTheme { Name = "Arctic" },
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                LandingY = 0.90,
+                ParachuteDestroyed = true,
+                RocketAttacker = "RocketSniper",
+                Score = 50,
+                IsWin = true
+            };
+
+            await sut.ProcessCompletionAsync(record);
+
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "drop",
+                PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations.DefaultCommandEventTypes.ParachuteRocketKill,
+                record.EventArgs,
+                It.Is<Dictionary<string, string>>(v =>
+                    v["Attacker"] == "RocketSniper" &&
+                    v["Victim"] == "VictimPenguin" &&
+                    v["ParachuteDestroyed"] == "true")),
+                Times.Once());
         }
 
         [Fact]

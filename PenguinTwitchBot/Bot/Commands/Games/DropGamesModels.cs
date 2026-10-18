@@ -524,6 +524,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("imageUrl")]
         public string ImageUrl { get; set; } = "";
+
+        [JsonPropertyName("targetDropToken")]
+        public string? TargetDropToken { get; set; }
     }
 
     public class RocketFireRequest
@@ -535,6 +538,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public double? KnockbackMultiplier { get; set; }
         public CrashLandingScoreMode? ScoreModeOverride { get; set; }
         public string? TriggeredByUser { get; set; }
+        public bool? DirectHitKillsParachute { get; set; }
     }
 
     public class RocketInstanceDto
@@ -577,6 +581,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("targetDropToken")]
         public string? TargetDropToken { get; set; }
+
+        [JsonPropertyName("pattern")]
+        public string Pattern { get; set; } = "Random";
+
+        [JsonPropertyName("isTargeted")]
+        public bool IsTargeted { get; set; }
+
+        [JsonPropertyName("knockbackMultiplier")]
+        public double KnockbackMultiplier { get; set; } = 1.0;
+
+        [JsonPropertyName("canopyKillChance")]
+        public double CanopyKillChance { get; set; } = 1.0;
+
+        [JsonPropertyName("directHitKillsParachute")]
+        public bool DirectHitKillsParachute { get; set; } = true;
     }
 
     public class ParachuteTrajectoryPointDto
@@ -771,6 +790,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
         public string BucketLabel { get; set; } = "";
+        public string? RocketAttacker { get; set; }
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];
         public List<ParachuteTrajectoryPointDto> Keyframes { get; set; } = [];

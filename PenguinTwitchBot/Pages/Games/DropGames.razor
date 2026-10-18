@@ -1548,7 +1548,7 @@
                     await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
                     {
                         Count = 1,
-                        Pattern = _settings?.Parachute.RocketLaunchPattern ?? "Targeted",
+                        Pattern = "Targeted",
                         TargetUser = _testUsername,
                         TriggeredByUser = _testUsername
                     });

@@ -19,10 +19,29 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
         public static ParachuteTrajectoryPointDto GetParachutePositionAtTick(PendingDropRecord record, int tick)
         {
-            if (record.Keyframes.Count > 0)
+            if (record.Keyframes.Count > 1)
             {
-                var nearest = record.Keyframes.OrderBy(k => Math.Abs(k.Tick - tick)).First();
-                return nearest;
+                var sorted = record.Keyframes.OrderBy(k => k.Tick).ToList();
+                if (tick <= sorted[0].Tick) return sorted[0];
+                if (tick >= sorted[^1].Tick) return sorted[^1];
+
+                for (var i = 0; i < sorted.Count - 1; i++)
+                {
+                    var k1 = sorted[i];
+                    var k2 = sorted[i + 1];
+                    if (tick >= k1.Tick && tick <= k2.Tick)
+                    {
+                        var tRatio = (double)(tick - k1.Tick) / Math.Max(1, k2.Tick - k1.Tick);
+                        return new ParachuteTrajectoryPointDto
+                        {
+                            Tick = tick,
+                            X = Math.Round(k1.X + (k2.X - k1.X) * tRatio, 4),
+                            Y = Math.Round(k1.Y + (k2.Y - k1.Y) * tRatio, 4),
+                            Vx = Math.Round(k1.Vx + (k2.Vx - k1.Vx) * tRatio, 4),
+                            Vy = Math.Round(k1.Vy + (k2.Vy - k1.Vy) * tRatio, 4)
+                        };
+                    }
+                }
             }
 
             var t = tick * Dt;
@@ -32,9 +51,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
         }
 
         /// <summary>
-        /// Calculates baseline initial trajectory and uncollided landing for a Parachute drop.
-        /// Live mid-air collisions (droplets, player bounces, rockets) are simulated on the client canvas,
-        /// which reports the final landing coordinates with the secret key for authoritative scoring.
+        /// Calculates baseline initial trajectory and uncollided landing for a Parachute drop,
+        /// or runs physical collision step simulation when rockets are fired.
+        /// Live droplet collisions remain simulated on client canvas.
         /// </summary>
         public static void SimulateParachuteTrajectory(
             PendingDropRecord record,
@@ -46,18 +65,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             CrashLandingScoreMode crashLandingScoreMode = CrashLandingScoreMode.PreserveScore,
             bool directHitKillsParachute = true)
         {
+            record.CrashLandingScoreMode = crashLandingScoreMode;
+
             var durationSec = record.TotalTicks > 0 ? record.TotalTicks * Dt : 6.0;
             var uncollidedX = record.StartX + record.InitialVx * durationSec;
-            var keyframes = new List<ParachuteTrajectoryPointDto>();
-
-            keyframes.Add(new ParachuteTrajectoryPointDto
+            var keyframes = new List<ParachuteTrajectoryPointDto>
             {
-                Tick = 0,
-                X = Math.Round(record.StartX, 4),
-                Y = Math.Round(record.StartY, 4),
-                Vx = Math.Round(record.InitialVx, 4),
-                Vy = Math.Round(record.InitialVy, 4)
-            });
+                new ParachuteTrajectoryPointDto
+                {
+                    Tick = 0,
+                    X = Math.Round(record.StartX, 4),
+                    Y = Math.Round(record.StartY, 4),
+                    Vx = Math.Round(record.InitialVx, 4),
+                    Vy = Math.Round(record.InitialVy, 4)
+                }
+            };
 
             // Clean bounce off left/right screen edges if baseline glide trajectory crosses boundary
             if (uncollidedX < 0.05)
@@ -94,42 +116,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             }
 
             record.LandingX = Math.Round(Math.Clamp(uncollidedX, 0.05, 0.95), 4);
-            record.CrashLandingScoreMode = crashLandingScoreMode;
-
-            // Handle direct rocket canopy hit if simulated
-            if (rockets != null && rockets.Count > 0)
-            {
-                record.RocketHitCount = rockets.Count;
-                var killed = directHitKillsParachute && rockets.Any(r => canopyKillChance >= 1.0 || (canopyKillChance > 0 && Random.Shared.NextDouble() < canopyKillChance));
-                if (killed)
-                {
-                    record.ParachuteDestroyed = true;
-                    record.FreeFallStartTick = Math.Max(0, elapsedTicksAtEvent);
-                    record.Collisions.Add(new ParachuteCollisionEventDto
-                    {
-                        Tick = elapsedTicksAtEvent,
-                        CollisionType = "rocket_canopy"
-                    });
-                }
-                else
-                {
-                    record.Collisions.Add(new ParachuteCollisionEventDto
-                    {
-                        Tick = elapsedTicksAtEvent,
-                        CollisionType = "rocket_body"
-                    });
-                }
-            }
-
             keyframes.Add(new ParachuteTrajectoryPointDto
             {
                 Tick = record.TotalTicks,
                 X = record.LandingX,
                 Y = record.LandingY,
                 Vx = Math.Round(record.InitialVx, 4),
-                Vy = record.ParachuteDestroyed ? TerminalFreeFallVy : Math.Round(record.InitialVy, 4)
+                Vy = Math.Round(record.InitialVy, 4)
             });
-
             record.Keyframes = keyframes;
 
             (record.Score, record.IsBullseye, record.IsWin, record.IsHit) =
