@@ -1,12 +1,13 @@
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Features;
+using PenguinTwitchBot.Bot.Overlay;
 
 namespace PenguinTwitchBot.Application.DropGameNotifications
 {
     public class DropGameHeartbeatHandler(
         IDropRegistry dropRegistry,
-        IDropGamesSettingsService settingsService,
+        IOverlaySecurityService overlaySecurityService,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator,
         ILogger<DropGameHeartbeatHandler> logger)
         : Notifications.INotificationHandler<DropGameHeartbeatNotification>
@@ -20,12 +21,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                 return;
             }
 
-            var settings = await settingsService.GetSettingsAsync();
-            var authorizedSecretKey = settings.OverlaySecretKey;
-
             // Only heartbeats from authorized overlays with the correct secret key are trusted
-            if (string.IsNullOrWhiteSpace(authorizedSecretKey) ||
-                !string.Equals(notification.OverlayKey, authorizedSecretKey, StringComparison.Ordinal))
+            if (!await overlaySecurityService.ValidateKeyAsync(notification.OverlayKey))
             {
                 return;
             }

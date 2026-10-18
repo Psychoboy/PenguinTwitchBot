@@ -3,6 +3,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Features;
+using PenguinTwitchBot.Bot.Overlay;
 
 namespace PenguinTwitchBot.Application.DropGameNotifications
 {
@@ -11,8 +12,9 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IParachuteDropService parachuteDropService,
         IPlinkoDropService plinkoDropService,
         IDropGamesSettingsService settingsService,
+        IOverlaySecurityService overlaySecurityService,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator)
-        : Application.Notifications.INotificationHandler<DropGameCompleteNotification>
+        : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
         {
@@ -28,9 +30,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
 
             try
             {
-                var settings = await settingsService.GetSettingsAsync();
-                var isAuthorized = string.IsNullOrWhiteSpace(settings.OverlaySecretKey) ||
-                    string.Equals(notification.OverlayKey, settings.OverlaySecretKey, StringComparison.Ordinal);
+                var isAuthorized = await overlaySecurityService.ValidateKeyAsync(notification.OverlayKey);
 
                 if (!isAuthorized)
                 {
@@ -66,6 +66,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     var buckets = record.Buckets;
                     if (buckets == null || buckets.Count == 0)
                     {
+                        var settings = await settingsService.GetSettingsAsync();
                         buckets = settings.Plinko.Buckets;
                     }
 

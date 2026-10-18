@@ -869,15 +869,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var activeParachutes = dropRegistry.GetActiveDrops(DropGameType.Parachute);
 
+            Func<PendingDropRecord, bool> isMidAir = d =>
+                (int)Math.Round((now - d.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz) < d.TotalTicks;
+
             PendingDropRecord? targetDrop = null;
             if (!string.IsNullOrWhiteSpace(request.TargetUser))
             {
                 targetDrop = activeParachutes.FirstOrDefault(d =>
-                    d.Username.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                    d.DisplayName.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase));
+                    isMidAir(d) &&
+                    (d.Username.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     d.DisplayName.Equals(request.TargetUser.Trim(), StringComparison.OrdinalIgnoreCase)));
             }
 
-            targetDrop ??= activeParachutes.FirstOrDefault();
+            targetDrop ??= activeParachutes.FirstOrDefault(isMidAir);
 
             rockets = RocketTrajectoryGenerator.GenerateRockets(
                 new RocketFireRequest
@@ -895,40 +899,43 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             if (targetDrop != null)
             {
-                var wasDestroyedBefore = targetDrop.ParachuteDestroyed;
-                var elapsedTicks = Math.Clamp((int)Math.Round((now - targetDrop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, targetDrop.TotalTicks - 1);
-                targetDrop.CrashLandingScoreMode = scoreMode;
-                ParachuteSimulationEngine.SimulateParachuteTrajectory(
-                    targetDrop,
-                    elapsedTicks,
-                    droplets: null,
-                    rockets: rockets.Where(r => r.TargetDropToken == targetDrop.DropToken).ToList(),
-                    canopyKillChance: canopyKillChance,
-                    rocketKnockbackMultiplier: knockbackMultiplier,
-                    crashLandingScoreMode: scoreMode,
-                    directHitKillsParachute: pSettings.DirectHitKillsParachute);
-
-                if (!wasDestroyedBefore && targetDrop.ParachuteDestroyed)
+                lock (targetDrop)
                 {
-                    newlyKilledDrops.Add(targetDrop);
+                    var wasDestroyedBefore = targetDrop.ParachuteDestroyed;
+                    var elapsedTicks = Math.Clamp((int)Math.Round((now - targetDrop.CreatedAtUtc).TotalSeconds * ParachuteSimulationEngine.TickRateHz), 0, targetDrop.TotalTicks - 1);
+                    targetDrop.CrashLandingScoreMode = scoreMode;
+                    ParachuteSimulationEngine.SimulateParachuteTrajectory(
+                        targetDrop,
+                        elapsedTicks,
+                        droplets: null,
+                        rockets: rockets.Where(r => r.TargetDropToken == targetDrop.DropToken).ToList(),
+                        canopyKillChance: canopyKillChance,
+                        rocketKnockbackMultiplier: knockbackMultiplier,
+                        crashLandingScoreMode: scoreMode,
+                        directHitKillsParachute: pSettings.DirectHitKillsParachute);
+
+                    if (!wasDestroyedBefore && targetDrop.ParachuteDestroyed)
+                    {
+                        newlyKilledDrops.Add(targetDrop);
+                    }
+
+                    trajectoryUpdates.Add(new ParachuteTrajectoryUpdateDto
+                    {
+                        DropToken = targetDrop.DropToken,
+                        LandingX = targetDrop.LandingX,
+                        TotalTicks = targetDrop.TotalTicks,
+                        Score = targetDrop.Score,
+                        IsHit = targetDrop.IsHit,
+                        IsBullseye = targetDrop.IsBullseye,
+                        IsWin = targetDrop.IsWin,
+                        DropletHits = targetDrop.DropletHitCount,
+                        RocketHits = targetDrop.RocketHitCount,
+                        ParachuteDestroyed = targetDrop.ParachuteDestroyed,
+                        FreeFallStartTick = targetDrop.FreeFallStartTick,
+                        Collisions = targetDrop.Collisions.ToList(),
+                        Keyframes = targetDrop.Keyframes.ToList()
+                    });
                 }
-
-                trajectoryUpdates.Add(new ParachuteTrajectoryUpdateDto
-                {
-                    DropToken = targetDrop.DropToken,
-                    LandingX = targetDrop.LandingX,
-                    TotalTicks = targetDrop.TotalTicks,
-                    Score = targetDrop.Score,
-                    IsHit = targetDrop.IsHit,
-                    IsBullseye = targetDrop.IsBullseye,
-                    IsWin = targetDrop.IsWin,
-                    DropletHits = targetDrop.DropletHitCount,
-                    RocketHits = targetDrop.RocketHitCount,
-                    ParachuteDestroyed = targetDrop.ParachuteDestroyed,
-                    FreeFallStartTick = targetDrop.FreeFallStartTick,
-                    Collisions = targetDrop.Collisions,
-                    Keyframes = targetDrop.Keyframes
-                });
             }
 
             var payload = new

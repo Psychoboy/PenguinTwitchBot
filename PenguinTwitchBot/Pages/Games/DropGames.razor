@@ -9,6 +9,7 @@
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.Components
 @inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IParachuteDropService ParachuteDropService
 @inject IPlinkoDropService PlinkoDropService
 @inject IActionManagementService ActionManagementService
@@ -33,11 +34,11 @@
                     Reset to Defaults
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="@($"/parachute.html?key={Uri.EscapeDataString(_settings?.OverlaySecretKey ?? "")}")" Target="_blank">
+                           Href="@($"/parachute.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
                     Open Parachute Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="@($"/plinko.html?key={Uri.EscapeDataString(_settings?.OverlaySecretKey ?? "")}")" Target="_blank">
+                           Href="@($"/plinko.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
                     Open Plinko Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
@@ -1253,10 +1254,19 @@
     private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
+    private string _overlayKey = "";
     private IReadOnlyCollection<string> _selectedRandomDropletSizes = new HashSet<string>(["Small", "Medium", "Large", "Giant"]);
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
         _settings = await SettingsService.GetSettingsAsync();
         _selectedTheme = _settings.Themes.FirstOrDefault();
 

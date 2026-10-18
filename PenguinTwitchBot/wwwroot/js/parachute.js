@@ -533,7 +533,7 @@
     function sendHeartbeat() {
         if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
         const activeTokens = Array.isArray(activeDrops)
-            ? activeDrops.filter(d => d && d.dropToken && !d.isComplete).map(d => d.dropToken)
+            ? activeDrops.filter(d => d && d.dropToken && !d.completed).map(d => d.dropToken)
             : [];
         const completingTokens = Array.isArray(pendingCompletions)
             ? pendingCompletions.filter(c => c && c.token).map(c => c.token)
@@ -566,7 +566,7 @@
     socket.addEventListener('message', function (event) {
         if (!event.data || typeof event.data !== 'string') return;
         if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeDrops) && activeDrops.some(d => d && d.dropToken && !d.isComplete)) ||
+            const hasDrops = (Array.isArray(activeDrops) && activeDrops.some(d => d && d.dropToken && !d.completed)) ||
                              (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
             if (overlayKey && hasDrops) {
                 sendHeartbeat();

@@ -13,7 +13,7 @@
 @inject IJSRuntime JS
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ICounterService CounterService
-@inject PenguinTwitchBot.Bot.Commands.Games.Common.IDropGamesSettingsService DropGamesSettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -1023,7 +1023,7 @@
         await RefreshLayouts();
         try
         {
-            _overlayKey = await DropGamesSettingsService.GetOverlaySecretKeyAsync();
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
         }
         catch
         {
@@ -1482,7 +1482,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     {
         try
         {
-            _overlayKey = await DropGamesSettingsService.RegenerateOverlaySecretKeyAsync();
+            _overlayKey = await OverlaySecurityService.RegenerateOverlayKeyAsync();
             Snackbar.Add("Generated a new overlay security key! Please update your OBS browser source URL.", Severity.Warning);
         }
         catch (Exception ex)

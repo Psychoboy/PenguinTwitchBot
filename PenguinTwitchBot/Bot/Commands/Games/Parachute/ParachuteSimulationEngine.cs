@@ -99,28 +99,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             // Handle direct rocket canopy hit if simulated
             if (rockets != null && rockets.Count > 0)
             {
-                if (canopyKillChance > 0 && directHitKillsParachute)
+                record.RocketHitCount = rockets.Count;
+                var killed = directHitKillsParachute && rockets.Any(r => canopyKillChance >= 1.0 || (canopyKillChance > 0 && Random.Shared.NextDouble() < canopyKillChance));
+                if (killed)
                 {
                     record.ParachuteDestroyed = true;
-                    record.RocketHitCount = rockets.Count;
                     record.FreeFallStartTick = Math.Max(0, elapsedTicksAtEvent);
                     record.Collisions.Add(new ParachuteCollisionEventDto
                     {
                         Tick = elapsedTicksAtEvent,
                         CollisionType = "rocket_canopy"
                     });
-                    keyframes.Add(new ParachuteTrajectoryPointDto
-                    {
-                        Tick = record.TotalTicks,
-                        X = record.LandingX,
-                        Y = record.LandingY,
-                        Vx = Math.Round(record.InitialVx, 4),
-                        Vy = TerminalFreeFallVy
-                    });
                 }
                 else
                 {
-                    record.RocketHitCount = rockets.Count;
                     record.Collisions.Add(new ParachuteCollisionEventDto
                     {
                         Tick = elapsedTicksAtEvent,

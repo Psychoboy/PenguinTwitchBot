@@ -18,6 +18,7 @@ using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
 using PenguinTwitchBot.Bot.Models.Commands;
 using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Actions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types;
@@ -67,6 +68,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         private IDropGamesSettingsService CreateSettingsService()
         {
             return new DropGamesSettingsService(_scopeFactory.Object, NullLogger<DropGamesSettingsService>.Instance);
+        }
+
+        private IOverlaySecurityService CreateOverlaySecurityService()
+        {
+            return new OverlaySecurityService(_scopeFactory.Object, NullLogger<OverlaySecurityService>.Instance);
         }
 
         private IDropRegistry CreateDropRegistry()
@@ -1084,15 +1090,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             dropRegistry.RegisterDrop(record);
 
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
             var handler = new DropGameCompleteHandler(
                 dropRegistry,
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
-
-            var settings = await settingsService.GetSettingsAsync();
-            var validKey = settings.OverlaySecretKey;
 
             // Viewer bounced within tolerance (0.50 vs 0.42 = 0.08 <= 0.15) and landed dead center!
             var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50, overlayKey: validKey);
@@ -1112,6 +1119,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         {
             var dropRegistry = CreateDropRegistry();
             var settingsService = CreateSettingsService();
+            var securityService = CreateOverlaySecurityService();
             var parachuteServiceMock = new Mock<IParachuteDropService>();
             var plinkoServiceMock = new Mock<IPlinkoDropService>();
             var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
@@ -1144,15 +1152,15 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             dropRegistry.RegisterDrop(record);
 
+            var validKey = await securityService.GetOverlayKeyAsync();
+
             var handler = new DropGameCompleteHandler(
                 dropRegistry,
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
-
-            var settings = await settingsService.GetSettingsAsync();
-            var validKey = settings.OverlaySecretKey;
 
             // Client reports 0.50 after a big droplet/mid-air bounce from 0.20 -> outcome is recalculated as a win
             var notification = new DropGameCompleteNotification("para-large-deflection-token", landingX: 0.50, overlayKey: validKey);
@@ -1171,6 +1179,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         {
             var dropRegistry = CreateDropRegistry();
             var settingsService = CreateSettingsService();
+            var securityService = CreateOverlaySecurityService();
             var parachuteServiceMock = new Mock<IParachuteDropService>();
             var plinkoServiceMock = new Mock<IPlinkoDropService>();
             var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
@@ -1208,6 +1217,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
 
             // Attacker sends forged landingX = 0.50 with invalid key
@@ -1265,14 +1275,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             dropRegistry.RegisterDrop(record);
 
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
             var handler = new DropGameCompleteHandler(
                 dropRegistry,
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
-
-            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
 
             // Viewer bumped into bucket 2
             var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2, overlayKey: validKey);
@@ -1322,11 +1334,14 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             dropRegistry.RegisterDrop(record);
 
+            var securityService = CreateOverlaySecurityService();
+
             var handler = new DropGameCompleteHandler(
                 dropRegistry,
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
 
             // Attacker sends winning bucket 2 without valid key
@@ -1377,14 +1392,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             dropRegistry.RegisterDrop(record);
 
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
             var handler = new DropGameCompleteHandler(
                 dropRegistry,
                 parachuteServiceMock.Object,
                 plinkoServiceMock.Object,
                 settingsService,
+                securityService,
                 coordinatorMock.Object);
-
-            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
 
             // Client reports bucket 2 after bouncing across multiple buckets from 0 -> recalculated as win
             var notification = new DropGameCompleteNotification("plinko-multi-bucket-token", winningBucketIndex: 2, overlayKey: validKey);
@@ -2562,11 +2579,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task DropGameHeartbeatHandler_AuthorizedHeartbeat_UpdatesLivenessAndExtendsExpiry()
         {
             var dropRegistry = CreateDropRegistry();
-            var settingsService = CreateSettingsService();
+            var securityService = CreateOverlaySecurityService();
             var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
             coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
 
-            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+            var validKey = await securityService.GetOverlayKeyAsync();
 
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord
@@ -2587,7 +2604,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var handler = new DropGameHeartbeatHandler(
                 dropRegistry,
-                settingsService,
+                securityService,
                 coordinatorMock.Object,
                 NullLogger<DropGameHeartbeatHandler>.Instance);
 
@@ -2608,11 +2625,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task DropGameHeartbeatHandler_MissedHeartbeatsBeyondTolerance_PrunesDroppedToken()
         {
             var dropRegistry = CreateDropRegistry();
-            var settingsService = CreateSettingsService();
+            var securityService = CreateOverlaySecurityService();
             var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
             coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
 
-            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+            var validKey = await securityService.GetOverlayKeyAsync();
 
             var now = DateTime.UtcNow;
             var record = new PendingDropRecord
@@ -2633,7 +2650,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var handler = new DropGameHeartbeatHandler(
                 dropRegistry,
-                settingsService,
+                securityService,
                 coordinatorMock.Object,
                 NullLogger<DropGameHeartbeatHandler>.Instance);
 
@@ -2657,7 +2674,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task DropGameHeartbeatHandler_UnauthorizedHeartbeat_Ignored()
         {
             var dropRegistry = CreateDropRegistry();
-            var settingsService = CreateSettingsService();
+            var securityService = CreateOverlaySecurityService();
             var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
             coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
 
@@ -2680,7 +2697,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var handler = new DropGameHeartbeatHandler(
                 dropRegistry,
-                settingsService,
+                securityService,
                 coordinatorMock.Object,
                 NullLogger<DropGameHeartbeatHandler>.Instance);
 

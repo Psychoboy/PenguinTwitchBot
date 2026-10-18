@@ -35,7 +35,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                     {
                         // Successful read finds no settings row: initialize and persist defaults
                         var defaults = new DropGamesSettings();
-                        defaults.OverlaySecretKey = System.Security.Cryptography.RandomNumberGenerator.GetHexString(32);
                         EnsureStockThemes(defaults);
                         await PersistSettingsToDbAsync(defaults);
                         _cachedSettings = defaults;
@@ -48,11 +47,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                         if (loaded != null)
                         {
                             EnsureStockThemes(loaded);
-                            if (string.IsNullOrWhiteSpace(loaded.OverlaySecretKey))
-                            {
-                                loaded.OverlaySecretKey = System.Security.Cryptography.RandomNumberGenerator.GetHexString(32);
-                                await PersistSettingsToDbAsync(loaded);
-                            }
                             _cachedSettings = loaded;
                             return _cachedSettings;
                         }
@@ -66,26 +60,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
             // Database read or deserialization failure: return in-memory defaults without caching or persisting
             var fallback = new DropGamesSettings();
-            if (string.IsNullOrWhiteSpace(fallback.OverlaySecretKey))
-            {
-                fallback.OverlaySecretKey = System.Security.Cryptography.RandomNumberGenerator.GetHexString(32);
-            }
             EnsureStockThemes(fallback);
             return fallback;
-        }
-
-        public async Task<string> GetOverlaySecretKeyAsync()
-        {
-            var settings = await GetSettingsAsync();
-            return settings.OverlaySecretKey;
-        }
-
-        public async Task<string> RegenerateOverlaySecretKeyAsync()
-        {
-            var settings = await GetSettingsAsync();
-            settings.OverlaySecretKey = System.Security.Cryptography.RandomNumberGenerator.GetHexString(32);
-            await SaveSettingsAsync(settings);
-            return settings.OverlaySecretKey;
         }
 
         public async Task SaveSettingsAsync(DropGamesSettings settings)

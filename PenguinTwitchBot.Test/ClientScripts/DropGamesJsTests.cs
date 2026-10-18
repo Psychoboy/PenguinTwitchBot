@@ -1797,10 +1797,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 });
             }
 
-            // Simulate each drop through droplet interactions
+            // Baseline simulation for each drop
             foreach (var record in drops)
             {
-                ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
+                ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0);
                 DispatchWsMessage(engine, new
                 {
                     type = "parachute_drop",
@@ -1818,15 +1818,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                         mass = record.Mass,
                         targetCenterX = record.TargetCenterX,
                         targetHalfWidth = record.TargetHalfWidth,
-                        collisions = record.Collisions.Select(c => new
-                        {
-                            tick = c.Tick,
-                            dropletId = c.DropletId,
-                            x = c.X,
-                            y = c.Y,
-                            deltaVx = c.DeltaVx,
-                            deltaVy = c.DeltaVy
-                        }).ToList()
+                        collisions = new object[0]
                     }
                 });
             }
@@ -1848,8 +1840,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }).ToList()
             });
 
-            // Step 420 frames
-            StepEngineFrames(engine, 420);
+            // Step 500 frames to allow full resolution of live knockbacks
+            StepEngineFrames(engine, 500);
 
             var errors = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errors);

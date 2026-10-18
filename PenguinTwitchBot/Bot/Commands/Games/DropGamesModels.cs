@@ -14,7 +14,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public ParachuteGameSettings Parachute { get; set; } = new();
         public PlinkoGameSettings Plinko { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
-        public string OverlaySecretKey { get; set; } = "";
     }
 
     public class DropGameTheme
