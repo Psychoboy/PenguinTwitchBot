@@ -303,20 +303,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             });
 
             Assert.Equal(6, spawned.Count);
+            Assert.All(spawned, d => Assert.StartsWith("drp_", d.Id));
 
-            var after = registry.GetPendingDrop(token)!;
-            Assert.True(after.DropletHitCount > 0, "Expected targeted droplets to collide with the active parachutist.");
-            Assert.NotEmpty(after.Collisions);
-            Assert.NotEqual(initialLandingX, after.LandingX);
-
-            // Verify parachute_droplets message with droplets + trajectoryUpdates was queued on WsTopics.Parachute
+            // Verify parachute_droplets message with droplets was queued on WsTopics.Parachute
             _webSocketMessenger.Verify(
                 x => x.AddToQueue(
                     WsTopics.Parachute,
                     It.Is<string>(json =>
                         json.Contains("parachute_droplets") &&
-                        json.Contains("trajectoryUpdates") &&
-                        json.Contains(token))),
+                        json.Contains("droplets") &&
+                        json.Contains("ChaosViewer"))),
                 Times.Once);
         }
 
@@ -1095,8 +1091,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
+            var settings = await settingsService.GetSettingsAsync();
+            var validKey = settings.OverlaySecretKey;
+
             // Viewer bounced within tolerance (0.50 vs 0.42 = 0.08 <= 0.15) and landed dead center!
-            var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50);
+            var notification = new DropGameCompleteNotification("para-complete-token", landingX: 0.50, overlayKey: validKey);
             await handler.Handle(notification, CancellationToken.None);
 
             parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
@@ -1152,8 +1151,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
+            var settings = await settingsService.GetSettingsAsync();
+            var validKey = settings.OverlaySecretKey;
+
             // Client reports 0.50 after a big droplet/mid-air bounce from 0.20 -> outcome is recalculated as a win
-            var notification = new DropGameCompleteNotification("para-large-deflection-token", landingX: 0.50);
+            var notification = new DropGameCompleteNotification("para-large-deflection-token", landingX: 0.50, overlayKey: validKey);
             await handler.Handle(notification, CancellationToken.None);
 
             parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
@@ -1162,6 +1164,62 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 r.Score == 100 &&
                 r.IsBullseye &&
                 r.IsWin)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Parachute_UnauthorizedOrMissingKey_IgnoresReportedLandingX()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "para-unauth-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.10,
+                StartY = 0.06,
+                LandingY = 0.88,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                LandingX = 0.10, // Uncollided trajectory misses
+                Score = 0,
+                IsHit = false,
+                IsBullseye = false,
+                IsWin = false
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Attacker sends forged landingX = 0.50 with invalid key
+            var notification = new DropGameCompleteNotification("para-unauth-token", landingX: 0.50, overlayKey: "wrong-fake-key");
+            await handler.Handle(notification, CancellationToken.None);
+
+            // Verified: server ignored forged 0.50 and preserved authoritative 0.10 landing (0 score)
+            parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "para-unauth-token" &&
+                r.LandingX == 0.10 &&
+                r.Score == 0 &&
+                !r.IsWin)), Times.Once);
         }
 
         [Fact]
@@ -1214,8 +1272,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
+            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+
             // Viewer bumped into bucket 2
-            var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2);
+            var notification = new DropGameCompleteNotification("plinko-complete-token", winningBucketIndex: 2, overlayKey: validKey);
             await handler.Handle(notification, CancellationToken.None);
 
             plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
@@ -1224,6 +1284,61 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 r.BucketLabel == "WINNER" &&
                 r.Score == 0 &&
                 r.IsWin)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Plinko_UnauthorizedOrMissingKey_IgnoresReportedBucketIndex()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "plinko-unauth-token",
+                GameType = DropGameType.Plinko,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "plinko", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                StartY = 0.04,
+                LandingY = 0.88,
+                TargetCenterX = 0.50,
+                TargetHalfWidth = 0.10,
+                BucketIndex = 0,
+                BucketLabel = "MISS",
+                Score = 0,
+                IsWin = false
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                coordinatorMock.Object);
+
+            // Attacker sends winning bucket 2 without valid key
+            var notification = new DropGameCompleteNotification("plinko-unauth-token", winningBucketIndex: 2, overlayKey: "bad-key");
+            await handler.Handle(notification, CancellationToken.None);
+
+            // Verified: server ignored reported winning bucket 2 and preserved authoritative bucket 0 (MISS)
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "plinko-unauth-token" &&
+                r.BucketIndex == 0 &&
+                r.BucketLabel == "MISS" &&
+                !r.IsWin)), Times.Once);
         }
 
         [Fact]
@@ -1269,8 +1384,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService,
                 coordinatorMock.Object);
 
+            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+
             // Client reports bucket 2 after bouncing across multiple buckets from 0 -> recalculated as win
-            var notification = new DropGameCompleteNotification("plinko-multi-bucket-token", winningBucketIndex: 2);
+            var notification = new DropGameCompleteNotification("plinko-multi-bucket-token", winningBucketIndex: 2, overlayKey: validKey);
             await handler.Handle(notification, CancellationToken.None);
 
             plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
@@ -2439,6 +2556,140 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(variables.ContainsKey("Attacker"));
             Assert.True(variables.ContainsKey("Victim"));
             Assert.True(variables.ContainsKey("ParachuteDestroyed"));
+        }
+
+        [Fact]
+        public async Task DropGameHeartbeatHandler_AuthorizedHeartbeat_UpdatesLivenessAndExtendsExpiry()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "heartbeat-token-1",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-2),
+                EarliestCompletionUtc = now.AddSeconds(5),
+                ExpiresAtUtc = now.AddSeconds(10)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameHeartbeatHandler(
+                dropRegistry,
+                settingsService,
+                coordinatorMock.Object,
+                NullLogger<DropGameHeartbeatHandler>.Instance);
+
+            var notification = new DropGameHeartbeatNotification(
+                game: "parachute",
+                activeTokens: ["heartbeat-token-1"],
+                completingTokens: [],
+                overlayKey: validKey);
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            Assert.NotNull(record.LastHeartbeatUtc);
+            Assert.Equal(0, record.MissedHeartbeatCount);
+            Assert.True(record.ExpiresAtUtc >= DateTime.UtcNow.AddSeconds(14));
+        }
+
+        [Fact]
+        public async Task DropGameHeartbeatHandler_MissedHeartbeatsBeyondTolerance_PrunesDroppedToken()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var validKey = (await settingsService.GetSettingsAsync()).OverlaySecretKey;
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "stale-drop-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-15),
+                EarliestCompletionUtc = now.AddSeconds(-5), // Already past flight time
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameHeartbeatHandler(
+                dropRegistry,
+                settingsService,
+                coordinatorMock.Object,
+                NullLogger<DropGameHeartbeatHandler>.Instance);
+
+            // 1st heartbeat: missing token
+            var notification1 = new DropGameHeartbeatNotification("parachute", activeTokens: [], completingTokens: [], overlayKey: validKey);
+            await handler.Handle(notification1, CancellationToken.None);
+            Assert.Equal(1, record.MissedHeartbeatCount);
+            Assert.NotNull(dropRegistry.GetPendingDrop("stale-drop-token"));
+
+            // 2nd heartbeat: missing token
+            await handler.Handle(notification1, CancellationToken.None);
+            Assert.Equal(2, record.MissedHeartbeatCount);
+            Assert.NotNull(dropRegistry.GetPendingDrop("stale-drop-token"));
+
+            // 3rd heartbeat: tolerance exceeded (MaxMissedHeartbeats = 3) -> pruned
+            await handler.Handle(notification1, CancellationToken.None);
+            Assert.Null(dropRegistry.GetPendingDrop("stale-drop-token"));
+        }
+
+        [Fact]
+        public async Task DropGameHeartbeatHandler_UnauthorizedHeartbeat_Ignored()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "unauth-drop-token",
+                GameType = DropGameType.Parachute,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "drop", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-15),
+                EarliestCompletionUtc = now.AddSeconds(-5),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameHeartbeatHandler(
+                dropRegistry,
+                settingsService,
+                coordinatorMock.Object,
+                NullLogger<DropGameHeartbeatHandler>.Instance);
+
+            var notification = new DropGameHeartbeatNotification("parachute", activeTokens: [], completingTokens: [], overlayKey: "bad-fake-key");
+            await handler.Handle(notification, CancellationToken.None);
+
+            // MissedHeartbeatCount remains 0 and token was not pruned
+            Assert.Equal(0, record.MissedHeartbeatCount);
+            Assert.NotNull(dropRegistry.GetPendingDrop("unauth-drop-token"));
         }
     }
 }

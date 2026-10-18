@@ -55,11 +55,13 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     innerHeight: 1080,
                     addEventListener: function() {},
                     removeEventListener: function() {},
-                    location: { search: '' },
+                    location: { search: '?key=test-secret-key' },
                     WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
                     __sentCompletions: [],
+                    __sentRaw: [],
                     __drawnTexts: [],
                     __onWsSend: function(data) {
+                        if (window.__sentRaw) window.__sentRaw.push(String(data));
                         try {
                             window.__sentCompletions.push(JSON.parse(data));
                         } catch (_) {}
@@ -128,9 +130,32 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     now: function() { return this._now; }
                 };
                 var requestAnimationFrame = function(cb) { window.__nextRaf = cb; };
+                var __nextTimerId = 1;
+                var __activeIntervals = {};
+                var setInterval = function(cb, ms) {
+                    var id = __nextTimerId++;
+                    __activeIntervals[id] = { cb: cb, ms: ms };
+                    return id;
+                };
+                var clearInterval = function(id) {
+                    delete __activeIntervals[id];
+                };
                 var WebSocket = { OPEN: 1 };
-                var URLSearchParams = function() {
-                    return { get: function() { return null; } };
+                var URLSearchParams = function(query) {
+                    var q = query || '';
+                    if (q.indexOf('?') === 0) q = q.substring(1);
+                    return {
+                        get: function(param) {
+                            var pairs = q ? q.split('&') : [];
+                            for (var i = 0; i < pairs.length; i++) {
+                                var parts = pairs[i].split('=');
+                                if (decodeURIComponent(parts[0]) === param) {
+                                    return parts.length > 1 ? decodeURIComponent(parts[1]) : '';
+                                }
+                            }
+                            return null;
+                        }
+                    };
                 };
                 window.__audioPlayed = [];
                 window.__audioPreloaded = [];
@@ -610,13 +635,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }
             };
 
-            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0);
+            var initialBaselineLandingX = record.LandingX;
 
-            // Server simulated trajectory recorded collisions
-            Assert.NotEmpty(record.Collisions);
-            var serverLandingX = record.LandingX;
-
-            // 2. Dispatch drop + collisions and droplet message to JS engine
+            // 2. Dispatch drop and droplet message to JS engine
             DispatchWsMessage(engine, new
             {
                 type = "parachute_drop",
@@ -634,15 +656,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     mass = record.Mass,
                     targetCenterX = record.TargetCenterX,
                     targetHalfWidth = record.TargetHalfWidth,
-                    collisions = record.Collisions.Select(c => new
-                    {
-                        tick = c.Tick,
-                        dropletId = c.DropletId,
-                        x = c.X,
-                        y = c.Y,
-                        deltaVx = c.DeltaVx,
-                        deltaVy = c.DeltaVy
-                    }).ToList()
+                    collisions = new object[0]
                 }
             });
 
@@ -670,9 +684,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'drop-droplets').landingX").AsNumber();
 
-            // Client landing X must track server simulation closely (within 0.05 delta)
-            Assert.True(Math.Abs(clientLandingX - serverLandingX) <= 0.05,
-                $"Client landingX {clientLandingX} deviated from server simulation {serverLandingX} by {Math.Abs(clientLandingX - serverLandingX):F4}");
+            // Client canvas executes live collision, deflecting the drop from its baseline path while remaining in bounds
+            Assert.False(double.IsNaN(clientLandingX) || double.IsInfinity(clientLandingX));
+            Assert.InRange(clientLandingX, 0.05, 0.95);
+            Assert.True(Math.Abs(clientLandingX - initialBaselineLandingX) > 0.01,
+                $"Expected droplet collision to deflect client landingX from baseline {initialBaselineLandingX}, got {clientLandingX}");
         }
 
         [Theory]
@@ -865,8 +881,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 new DropletInstanceDto { Id = "d-3", StartX = 0.608, StartY = 0.186, Vx = 0.12, Vy = 0.35, Gravity = 0.32, Radius = 0.035, Mass = 0.4, SpawnTickOffset = 80, SpeedScale = 1.0 }
             };
 
-            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
-            Assert.True(record.Collisions.Count >= 2, $"Expected at least 2 droplet collisions, got {record.Collisions.Count}");
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0);
+            var baselineLandingX = record.LandingX;
 
             DispatchWsMessage(engine, new
             {
@@ -885,15 +901,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     mass = record.Mass,
                     targetCenterX = record.TargetCenterX,
                     targetHalfWidth = record.TargetHalfWidth,
-                    collisions = record.Collisions.Select(c => new
-                    {
-                        tick = c.Tick,
-                        dropletId = c.DropletId,
-                        x = c.X,
-                        y = c.Y,
-                        deltaVx = c.DeltaVx,
-                        deltaVy = c.DeltaVy
-                    }).ToList()
+                    collisions = new object[0]
                 }
             });
 
@@ -919,8 +927,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(0, errors);
 
             var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'storm-drop').landingX").AsNumber();
-            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.05,
-                $"Storm cumulative landingX {clientLandingX} differed from server simulation {record.LandingX} by {Math.Abs(clientLandingX - record.LandingX):F4}");
+            Assert.False(double.IsNaN(clientLandingX) || double.IsInfinity(clientLandingX));
+            Assert.InRange(clientLandingX, 0.05, 0.95);
+            Assert.True(Math.Abs(clientLandingX - baselineLandingX) > 0.01,
+                $"Storm cumulative droplet collision deflected player from baseline {baselineLandingX}, got {clientLandingX}");
         }
 
         [Theory]
@@ -1061,15 +1071,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     gravity = record.Gravity,
                     targetCenterX = record.TargetCenterX,
                     targetHalfWidth = record.TargetHalfWidth,
-                    collisions = record.Collisions.Select(c => new
-                    {
-                        tick = c.Tick,
-                        dropletId = c.DropletId,
-                        x = c.X,
-                        y = c.Y,
-                        deltaVx = c.DeltaVx,
-                        deltaVy = c.DeltaVy
-                    }).ToList()
+                    collisions = new object[0]
                 }
             });
 
@@ -1096,8 +1098,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.False(parachuteLanded.IsNull() || parachuteLanded.IsUndefined(), "Parachute JS failed to complete under extreme physics");
             var clientLandingX = parachuteEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-drop').landingX").AsNumber();
             Assert.False(double.IsNaN(clientLandingX) || double.IsInfinity(clientLandingX));
-            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.05,
-                $"Client landingX {clientLandingX} differed from server {record.LandingX} under extreme physics (gravity={gravity}, bounce={bounciness}, mass={mass})");
+            Assert.InRange(clientLandingX, 0.05, 0.95);
         }
 
         [Fact]
@@ -1169,15 +1170,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                         mass = record.Mass,
                         targetCenterX = record.TargetCenterX,
                         targetHalfWidth = record.TargetHalfWidth,
-                        collisions = record.Collisions.Select(c => new
-                        {
-                            tick = c.Tick,
-                            dropletId = c.DropletId,
-                            x = c.X,
-                            y = c.Y,
-                            deltaVx = c.DeltaVx,
-                            deltaVy = c.DeltaVy
-                        }).ToList()
+                        collisions = new object[0]
                     }
                 });
             }
@@ -1210,11 +1203,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             Assert.False(double.IsNaN(clientLandingA) || double.IsInfinity(clientLandingA));
             Assert.False(double.IsNaN(clientLandingB) || double.IsInfinity(clientLandingB));
-
-            Assert.True(Math.Abs(clientLandingA - dropA.LandingX) <= 0.05,
-                $"Drop A client landingX {clientLandingA} differed from server {dropA.LandingX} by {Math.Abs(clientLandingA - dropA.LandingX):F4}");
-            Assert.True(Math.Abs(clientLandingB - dropB.LandingX) <= 0.05,
-                $"Drop B client landingX {clientLandingB} differed from server {dropB.LandingX} by {Math.Abs(clientLandingB - dropB.LandingX):F4}");
+            Assert.InRange(clientLandingA, 0.05, 0.95);
+            Assert.InRange(clientLandingB, 0.05, 0.95);
         }
 
         [Fact]
@@ -1489,8 +1479,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 }
             };
 
-            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0, droplets);
-            Assert.NotEmpty(record.Collisions);
+            ParachuteSimulationEngine.SimulateParachuteTrajectory(record, 0);
+            var initialBaselineLandingX = record.LandingX;
 
             DispatchWsMessage(engine, new
             {
@@ -1509,15 +1499,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     mass = record.Mass,
                     targetCenterX = record.TargetCenterX,
                     targetHalfWidth = record.TargetHalfWidth,
-                    collisions = record.Collisions.Select(c => new
-                    {
-                        tick = c.Tick,
-                        dropletId = c.DropletId,
-                        x = c.X,
-                        y = c.Y,
-                        deltaVx = c.DeltaVx,
-                        deltaVy = c.DeltaVy
-                    }).ToList()
+                    collisions = new object[0]
                 }
             });
 
@@ -1544,8 +1526,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var clientLandingX = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'combo-drop').landingX").AsNumber();
             Assert.False(double.IsNaN(clientLandingX) || double.IsInfinity(clientLandingX));
-            Assert.True(Math.Abs(clientLandingX - record.LandingX) <= 0.05,
-                $"Droplet knockback + wall bounce landingX {clientLandingX} differed from server simulation {record.LandingX} by {Math.Abs(clientLandingX - record.LandingX):F4}");
+            Assert.InRange(clientLandingX, 0.05, 0.95);
+            Assert.True(clientLandingX > 0.15,
+                $"Droplet knockback + wall bounce rebounded player into open area, got {clientLandingX}");
         }
 
         [Fact]
@@ -2557,6 +2540,98 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var audioPlayed = engine.Evaluate("window.__audioPlayed.map(a => a.src).join(';')").AsString();
             Assert.Contains("rocket_launch.wav", audioPlayed);
             Assert.Contains("cannonball.wav", audioPlayed);
+        }
+
+        [Fact]
+        public void ParachuteJs_PingWithActiveDrops_SendsRichHeartbeatPong()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            // Add an active drop
+            engine.Evaluate(@"
+                window.__activeDrops.push({
+                    dropToken: 'ping-drop-token-123',
+                    isComplete: false,
+                    landingCelebration: false
+                });
+            ");
+
+            // Dispatch ping from server
+            engine.Evaluate("window.__wsMessageHandler({ data: 'ping' });");
+
+            var sentCount = (int)engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.Equal(1, sentCount);
+
+            var sentJson = engine.Evaluate("JSON.stringify(window.__sentCompletions[0])").AsString();
+            Assert.Contains("\"type\":\"pong\"", sentJson);
+            Assert.Contains("\"game\":\"parachute\"", sentJson);
+            Assert.Contains("\"ping-drop-token-123\"", sentJson);
+            Assert.Contains("\"test-secret-key\"", sentJson);
+        }
+
+        [Fact]
+        public void ParachuteJs_PingWithNoActiveDrops_SendsPlainPong()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            // No active drops
+            engine.Evaluate("window.__activeDrops = [];");
+
+            // Dispatch ping from server
+            engine.Evaluate("window.__wsMessageHandler({ data: 'ping' });");
+
+            var rawCount = (int)engine.Evaluate("window.__sentRaw.length").AsNumber();
+            Assert.True(rawCount >= 1);
+            var lastRaw = engine.Evaluate("window.__sentRaw[window.__sentRaw.length - 1]").AsString();
+            Assert.Equal("pong", lastRaw);
+        }
+
+        [Fact]
+        public void ParachuteJs_ActiveDrop_StartsClientDrivenHeartbeatTimer()
+        {
+            var jsDir = FindWwwRootPath();
+            var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(parachuteJs);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "parachute_drop",
+                dropToken = "client-timer-token-456",
+                username = "TestUser",
+                trajectory = new
+                {
+                    startX = 0.50,
+                    startY = 0.06,
+                    landingY = 0.88,
+                    initialVy = 0.12,
+                    totalTicks = 240
+                }
+            });
+
+            // Heartbeat interval should be registered in __activeIntervals
+            var intervalCount = (int)engine.Evaluate("Object.keys(__activeIntervals).length").AsNumber();
+            Assert.True(intervalCount >= 1, "Interval should be active while drop is in progress");
+
+            // Execute the interval callback directly (simulating 5 second tick)
+            engine.Evaluate(@"
+                var keys = Object.keys(__activeIntervals);
+                if (keys.length > 0) {
+                    __activeIntervals[keys[0]].cb();
+                }
+            ");
+
+            var sentCount = (int)engine.Evaluate("window.__sentCompletions.length").AsNumber();
+            Assert.True(sentCount >= 1);
+            var sentJson = engine.Evaluate("JSON.stringify(window.__sentCompletions[0])").AsString();
+            Assert.Contains("\"client-timer-token-456\"", sentJson);
+            Assert.Contains("\"type\":\"pong\"", sentJson);
         }
     }
 }

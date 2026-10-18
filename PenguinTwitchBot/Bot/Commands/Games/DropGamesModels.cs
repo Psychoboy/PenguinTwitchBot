@@ -14,6 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public ParachuteGameSettings Parachute { get; set; } = new();
         public PlinkoGameSettings Plinko { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
+        public string OverlaySecretKey { get; set; } = "";
     }
 
     public class DropGameTheme
@@ -700,6 +701,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("crashLanded")]
         public bool CrashLanded { get; set; }
+
+        [JsonPropertyName("overlayKey")]
+        public string? OverlayKey { get; set; }
+    }
+
+    public class DropGamePongMessage
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "pong";
+
+        [JsonPropertyName("game")]
+        public string? Game { get; set; }
+
+        [JsonPropertyName("activeTokens")]
+        public List<string> ActiveTokens { get; set; } = [];
+
+        [JsonPropertyName("completingTokens")]
+        public List<string> CompletingTokens { get; set; } = [];
+
+        [JsonPropertyName("overlayKey")]
+        public string? OverlayKey { get; set; }
     }
 
     /// <summary>
@@ -718,7 +740,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public required DropGameTheme Theme { get; init; }
         public required DateTime CreatedAtUtc { get; init; }
         public required DateTime EarliestCompletionUtc { get; init; }
-        public required DateTime ExpiresAtUtc { get; init; }
+        public required DateTime ExpiresAtUtc { get; set; }
 
         // Parachute simulation fields (mutable under lock when droplets hit mid-flight)
         public double StartX { get; init; }
@@ -761,6 +783,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool DefaultCommandTriggerExecuted { get; set; }
         public bool WinActionExecuted { get; set; }
         public bool WinChatAnnounced { get; set; }
+        public DateTime? LastHeartbeatUtc { get; set; }
+        public int MissedHeartbeatCount { get; set; }
     }
 
     public class DropGameSessionDto

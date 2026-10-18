@@ -4,6 +4,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
     {
         Task<DropGamesSettings> GetSettingsAsync();
         Task SaveSettingsAsync(DropGamesSettings settings);
+        Task<string> GetOverlaySecretKeyAsync();
+        Task<string> RegenerateOverlaySecretKeyAsync();
     }
 }
 

@@ -460,12 +460,17 @@
     }
 
     // WebSocket connection & completions queue
+    const overlayKey = new URLSearchParams(window.location.search).get('key') || '';
     const pendingCompletions = [];
     const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
 
     function sendCompletion(token, landingX, parachuteDestroyed = false) {
         if (!token) return;
-        const payload = { dropToken: token };
+        // View-Only mode: without the authorized overlay key, do not send completion packets
+        if (!overlayKey) {
+            return;
+        }
+        const payload = { dropToken: token, overlayKey: overlayKey };
         if (typeof landingX === 'number' && !isNaN(landingX)) {
             payload.landingX = Math.round(landingX * 10000) / 10000;
         }
@@ -481,15 +486,20 @@
         }
         if (!pendingCompletions.some(p => p.token === token)) {
             pendingCompletions.push({ token, landingX, parachuteDestroyed });
+            ensureHeartbeat();
         }
     }
 
     function flushPendingCompletions() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        if (!overlayKey) {
+            pendingCompletions.length = 0;
+            return;
+        }
         while (pendingCompletions.length > 0) {
             const item = pendingCompletions.shift();
             try {
-                const payload = { dropToken: item.token };
+                const payload = { dropToken: item.token, overlayKey: overlayKey };
                 if (typeof item.landingX === 'number') payload.landingX = item.landingX;
                 if (item.parachuteDestroyed) {
                     payload.parachuteDestroyed = true;
@@ -518,10 +528,51 @@
         window.wsStatusShow(true);
     }
 
+    let heartbeatInterval = null;
+
+    function sendHeartbeat() {
+        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
+        const activeTokens = Array.isArray(activeDrops)
+            ? activeDrops.filter(d => d && d.dropToken && !d.isComplete).map(d => d.dropToken)
+            : [];
+        const completingTokens = Array.isArray(pendingCompletions)
+            ? pendingCompletions.filter(c => c && c.token).map(c => c.token)
+            : [];
+
+        if (activeTokens.length === 0 && completingTokens.length === 0) {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            return;
+        }
+
+        try {
+            socket.send(JSON.stringify({
+                type: 'pong',
+                game: 'parachute',
+                activeTokens: activeTokens,
+                completingTokens: completingTokens,
+                overlayKey: overlayKey
+            }));
+        } catch (_) {}
+    }
+
+    function ensureHeartbeat() {
+        if (heartbeatInterval || !overlayKey) return;
+        heartbeatInterval = setInterval(sendHeartbeat, 5000);
+    }
+
     socket.addEventListener('message', function (event) {
         if (!event.data || typeof event.data !== 'string') return;
         if (event.data === 'ping') {
-            socket.send('pong');
+            const hasDrops = (Array.isArray(activeDrops) && activeDrops.some(d => d && d.dropToken && !d.isComplete)) ||
+                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
+            if (overlayKey && hasDrops) {
+                sendHeartbeat();
+            } else {
+                socket.send('pong');
+            }
             return;
         }
         if (!event.data.startsWith('{')) return;
@@ -640,6 +691,7 @@
                 completed: false,
                 landedAtMs: 0
             });
+            ensureHeartbeat();
         } else if (msg.type === 'parachute_droplets') {
             if (msg.theme) {
                 currentTheme = msg.theme;
@@ -1692,9 +1744,9 @@
                                     const massFactor = Math.max(0.5, Math.min(6.0, (d.mass || 3.2) / Math.max(0.2, drop.mass || 1.0)));
                                     const bounceScale = Math.max(0.1, Math.min(2.5, drop.bounciness || 0.85)) / 0.85;
                                     const deltaVx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, nx * impulse * 0.85 * massFactor * bounceScale));
-                                    const deltaVy = Math.max(-1.10, Math.min(0.55, ny * impulse * 0.95 * massFactor * bounceScale));
+                                    const deltaVy = Math.max(-0.25, Math.min(0.40, ny * impulse * 0.65 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(-1.20, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
+                                    drop.vy = Math.max(-0.15, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
                             }
@@ -1995,7 +2047,7 @@
                 drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
                 if (drop.vy < initialVy) {
                     // Ballistic upward arc decelerates under gravity back to terminal glide (PixelPlush Matter.js physics)
-                    drop.vy = Math.min(initialVy, drop.vy + 0.38 * dtSec);
+                    drop.vy = Math.min(initialVy, drop.vy + 1.20 * dtSec);
                 } else {
                     const decayVy = Math.pow(0.96, dtSec * 60);
                     drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));

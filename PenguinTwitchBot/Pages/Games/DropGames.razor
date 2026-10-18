@@ -33,11 +33,11 @@
                     Reset to Defaults
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="/parachute.html" Target="_blank">
+                           Href="@($"/parachute.html?key={Uri.EscapeDataString(_settings?.OverlaySecretKey ?? "")}")" Target="_blank">
                     Open Parachute Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="/plinko.html" Target="_blank">
+                           Href="@($"/plinko.html?key={Uri.EscapeDataString(_settings?.OverlaySecretKey ?? "")}")" Target="_blank">
                     Open Plinko Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
