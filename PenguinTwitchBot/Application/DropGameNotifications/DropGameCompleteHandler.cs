@@ -33,7 +33,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     if (notification.LandingX.HasValue &&
                         notification.LandingX.Value >= 0.04 && notification.LandingX.Value <= 0.96)
                     {
-                        var landingTolerance = Math.Min(0.40, 0.30 + (record.DropletHitCount * 0.05));
+                        var landingTolerance = Math.Min(0.60, 0.35 + (record.DropletHitCount * 0.05));
                         if (Math.Abs(notification.LandingX.Value - record.LandingX) <= landingTolerance)
                         {
                             record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);

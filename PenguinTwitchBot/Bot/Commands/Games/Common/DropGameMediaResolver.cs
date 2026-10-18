@@ -372,6 +372,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 Start = ResolveSound(settings.StartSound, theme.ParachuteStartSound, mediaService),
                 End = ResolveSound(settings.EndSound, theme.ParachuteEndSound, mediaService),
                 Drop = ResolveSound(settings.DropSound, theme.ParachuteDropSound, mediaService),
+                ParachuteFlap = ResolveSound(settings.ParachuteFlapSound, theme.ParachuteFlapSound, mediaService),
                 Win = ResolveSound(settings.WinSound, theme.ParachuteWinSound, mediaService),
                 RocketLaunch = ResolveSound(settings.RocketLaunchSound, theme.ParachuteRocketLaunchSound, mediaService),
                 RocketExplode = ResolveSound(settings.RocketExplodeSound, theme.ParachuteRocketExplodeSound, mediaService),

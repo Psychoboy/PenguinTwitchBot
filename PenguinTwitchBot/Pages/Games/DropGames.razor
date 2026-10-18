@@ -280,6 +280,10 @@
                                                          HelperText="Plays when a viewer drops a parachute into the game"
                                                          SoundConfig="_settings.Parachute.DropSound" />
 
+                                    <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                         HelperText="Plays when a parachute canopy opens after dropping"
+                                                         SoundConfig="_settings.Parachute.ParachuteFlapSound" />
+
                                     <DropGameSoundEditor Title="Target Platform Win Sound"
                                                          HelperText="Plays when a player successfully lands on the target platform"
                                                          SoundConfig="_settings.Parachute.WinSound" />
@@ -339,6 +343,18 @@
                                                StartIcon="@Icons.Material.Filled.RocketLaunch"
                                                OnClick="TestNormalParachuteDropWithRocketAsync">
                                         Combo Test: Drop + Rocket Intercept
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.SportsKabaddi"
+                                               OnClick="TestHeadOnPlayerBounceAsync">
+                                        Test: Mid-Air 2-Player Head-On Collision Bounce!
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Waves"
+                                               OnClick="TestUpwardFountainKnockupAsync">
+                                        Test: Drop + Upward Fountain Knockup!
                                     </MudButton>
 
                                     <MudDivider Class="my-2" />
@@ -1166,6 +1182,10 @@
                                                                      IsThemeOverride="true"
                                                                      SoundOverride="_selectedTheme.ParachuteDropSound"
                                                                      FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.DropSound)" />
+                                                <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteFlapSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.ParachuteFlapSound)" />
                                                 <DropGameSoundEditor Title="Parachute Win Sound"
                                                                      IsThemeOverride="true"
                                                                      SoundOverride="_selectedTheme.ParachuteWinSound"
@@ -1531,6 +1551,95 @@
         }
 
         Snackbar.Add("Launched Parachute Drop + Rocket Intercept (Normal Settings)!", Severity.Info);
+    }
+
+    private async Task TestHeadOnPlayerBounceAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var p1Args = new CommandEventArgs
+        {
+            Name = "drop_alpha",
+            DisplayName = "DropAlpha",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_1"
+        };
+        var p2Args = new CommandEventArgs
+        {
+            Name = "drop_beta",
+            DisplayName = "DropBeta",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_2"
+        };
+
+        // Launch Player 1 from left of center moving rightward
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p1Args,
+            _testEmoteInput,
+            forcedStartX: Math.Max(0.12, targetCenter - 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: 0.22,
+            forcedTargetCenterX: targetCenter);
+
+        // Launch Player 2 from right of center moving leftward
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p2Args,
+            _testEmoteInput,
+            forcedStartX: Math.Min(0.88, targetCenter + 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: -0.22,
+            forcedTargetCenterX: targetCenter);
+
+        Snackbar.Add("Launched 2 parachuters on a mid-air head-on collision course! Watch them knock each other up and bounce!", Severity.Info);
+    }
+
+    private async Task TestUpwardFountainKnockupAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var capturedEmote = _testEmoteInput;
+        var capturedUser = _testUsername;
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            capturedEmote,
+            forcedStartX: targetCenter,
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedTargetCenterX: targetCenter);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(900);
+                await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+                {
+                    Count = 4,
+                    SizePreset = "Giant",
+                    SpeedPreset = "Fast",
+                    SpawnPattern = "Fountain",
+                    KnockbackMultiplier = 2.5,
+                    EmoteOrImage = capturedEmote,
+                    AllowDirectUrlOrPath = true,
+                    TriggeredByUser = capturedUser
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to spawn upward fountain droplets");
+            }
+        });
+
+        Snackbar.Add("Launched Parachute Drop + Upward Fountain Knockup barrage!", Severity.Info);
     }
 
     private async Task TestPlinkoDropAsync()
