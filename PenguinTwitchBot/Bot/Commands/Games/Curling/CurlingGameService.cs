@@ -438,7 +438,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             }
             else
             {
-                rawPower = Random.Shared.Next(cSettings.DefaultPowerMin, cSettings.DefaultPowerMax + 1);
+                rawPower = GetRandomPower(cSettings.DefaultPowerMin, cSettings.DefaultPowerMax);
             }
 
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, cSettings.ActiveThemeId);
@@ -546,6 +546,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             return dropToken;
         }
 
+        private static int GetRandomPower(int defaultMin, int defaultMax)
+        {
+            var min = Math.Clamp(defaultMin, 1, 100);
+            var max = Math.Clamp(defaultMax, 1, 100);
+            if (min > max)
+            {
+                (min, max) = (max, min);
+            }
+            return Random.Shared.Next(min, max + 1);
+        }
+
         private static double ParsePowerFromArgs(CommandEventArgs e, int defaultMin, int defaultMax)
         {
             foreach (var arg in e.Args)
@@ -562,7 +573,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 return directParsed;
             }
 
-            return Random.Shared.Next(defaultMin, defaultMax + 1);
+            return GetRandomPower(defaultMin, defaultMax);
         }
 
         private static string? ResolveEmoteTokenFromArgs(CommandEventArgs e, string? explicitEmote)
@@ -626,10 +637,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 logger.LogError(ex, "Failed to fire Curling DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Enqueue Win / Bullseye Action if configured
+            // Enqueue Win / Bullseye / Lose Action if configured
             var actionToRun = (record.IsBullseye && !string.IsNullOrWhiteSpace(cSettings.BullseyeActionName))
                 ? cSettings.BullseyeActionName
-                : (record.IsWin ? cSettings.WinActionName : "");
+                : (record.IsWin ? cSettings.WinActionName : cSettings.LoseActionName);
 
             if (!string.IsNullOrWhiteSpace(actionToRun))
             {
@@ -688,7 +699,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             var settings = await settingsService.GetSettingsAsync();
             var cSettings = settings.Curling;
 
-            if (cmdName.Equals("curl", StringComparison.OrdinalIgnoreCase) ||
+            if (cmdName.Equals("curling", StringComparison.OrdinalIgnoreCase) ||
+                cmdName.Equals("curl", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("slide", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("shuffle", StringComparison.OrdinalIgnoreCase))
             {

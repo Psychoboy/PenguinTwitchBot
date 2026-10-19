@@ -108,7 +108,7 @@
                                             <MudNumericField T="double" Label="Target Transparency / Alpha" Variant="Variant.Outlined"
                                                              Min="0.1" Max="1.0" Step="0.05"
                                                              @bind-Value="_settings.Curling.TargetAlpha"
-                                                             HelperText="Opacity of the house rings or shuffleboard zones (default 0.85)" />
+                                                             HelperText="Opacity of the house rings or shuffleboard zones (default 0.45)" />
                                         </MudItem>
                                     </MudGrid>
 
@@ -198,7 +198,7 @@
                                             <MudNumericField T="double" Label="Default Target Distance (%)" Variant="Variant.Outlined"
                                                              Min="60.0" Max="95.0" Step="1.0"
                                                              @bind-Value="_settings.Curling.TargetDistancePercent"
-                                                             HelperText="Target distance from start of track (% of track length, default 78%)" />
+                                                             HelperText="Target distance from start of track (% of track length, default 84%)" />
                                         </MudItem>
                                     </MudGrid>
 
@@ -581,14 +581,37 @@
     private async Task TestGuaranteedBullseyeSlideAsync()
     {
         if (_settings == null) return;
-        await SettingsService.SaveSettingsAsync(_settings);
-        var targetDist = _settings.Curling.SlideDirection == CurlingSlideDirection.CenterTarget
-            ? 50.0
-            : _settings.Curling.TargetDistancePercent;
-        // Nominal power that reaches target distance exactly
-        var perfectPower = (targetDist / 78.0) * 51.5;
-        await CurlingGameService.TriggerCurlingSlideAsync(BuildTestEventArgs(), power: perfectPower, emoteOrImage: _testEmoteInput, allowDirectUrlOrPath: true);
-        Snackbar.Add("Launched guaranteed button curling slide!", Severity.Success);
+        var savedVariance = _settings.Curling.PowerVariancePercent;
+        try
+        {
+            _settings.Curling.PowerVariancePercent = 0.0;
+            await SettingsService.SaveSettingsAsync(_settings);
+            var targetDist = _settings.Curling.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : _settings.Curling.TargetDistancePercent;
+            // Slide distance from launch pos (0.05) to target pin (targetDist / 100)
+            var targetPos = targetDist / 100.0;
+            var requiredDist = Math.Max(0.01, targetPos - 0.05);
+            // On Normal ice (drag = 1.0, BaseFrictionDecel = 0.22): requiredDist = v0^2 / (2 * 0.22) = v0^2 / 0.44
+            // v0 = (power / 100) * 0.76 => power = 100 * sqrt(0.44 * requiredDist) / 0.76
+            var perfectPower = Math.Clamp(100.0 * Math.Sqrt(0.44 * requiredDist) / 0.76, 1.0, 100.0);
+            await CurlingGameService.TriggerCurlingSlideAsync(
+                BuildTestEventArgs(),
+                power: perfectPower,
+                emoteOrImage: _testEmoteInput,
+                allowDirectUrlOrPath: true,
+                conditionOverride: CurlingIceCondition.Normal,
+                targetDistanceOverride: targetDist);
+            Snackbar.Add("Launched guaranteed button curling slide!", Severity.Success);
+        }
+        finally
+        {
+            if (_settings.Curling.PowerVariancePercent != savedVariance)
+            {
+                _settings.Curling.PowerVariancePercent = savedVariance;
+                await SettingsService.SaveSettingsAsync(_settings);
+            }
+        }
     }
 
     private async Task StartCurlingSessionLiveAsync()

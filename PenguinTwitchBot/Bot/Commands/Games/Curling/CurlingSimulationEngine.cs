@@ -33,6 +33,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
         /// </summary>
         public static double CalculateEffectivePower(double rawPower, double variancePercent, Random? rng = null)
         {
+            if (!double.IsFinite(rawPower))
+            {
+                rawPower = 75.0;
+            }
             var clampedRaw = Math.Clamp(rawPower, 1.0, 100.0);
             if (variancePercent <= 0.0) return clampedRaw;
 

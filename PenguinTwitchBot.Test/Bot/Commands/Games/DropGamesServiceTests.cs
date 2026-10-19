@@ -3496,8 +3496,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             var service = CreateCurlingService(dropRegistry, settingsService);
 
-            // Start short session
-            await service.StartSessionAsync(5, triggeredBy: "TestMod");
+            // Start 10-second session (minimum session duration)
+            await service.StartSessionAsync(10, triggeredBy: "TestMod");
 
             var args = new CommandEventArgs
             {
@@ -3507,7 +3507,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 UserId = "bb-1"
             };
 
-            // Session has 5s total duration <= 10s cutoff, so throw should be rejected
+            // Session has 10s total duration <= 10s cutoff, so throw should be rejected
             var token = await service.TriggerCurlingSlideAsync(args);
 
             // Should not register in registry because it was rejected by Last Call cutoff

@@ -31,7 +31,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             var resolvedPowerStr = VariableReplacer.ReplaceVariables(curlingSubAction.Power ?? "", variables).Trim();
             double? parsedPower = null;
-            if (double.TryParse(resolvedPowerStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var p))
+            if (double.TryParse(resolvedPowerStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var p) && double.IsFinite(p))
             {
                 parsedPower = p;
             }

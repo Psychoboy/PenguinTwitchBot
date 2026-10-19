@@ -571,7 +571,10 @@
             boardConfig.visibleUntil = performance.now() + sessionState.totalDurationSeconds * 1000 + 6000;
 
             if (soundBundleManager && msg.sounds) {
+                sessionState.sounds = msg.sounds;
                 soundBundleManager.updateBundle(msg.sounds);
+            } else if (msg.sounds) {
+                sessionState.sounds = msg.sounds;
             }
             playSound(msg.sounds?.start || { enabled: true }, 'chime', 520);
         } else if (msg.type === 'session_end') {
@@ -684,6 +687,10 @@
         if (typeof msg.targetAlpha === 'number') boardConfig.targetAlpha = msg.targetAlpha;
         if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
         if (msg.theme) currentTheme = msg.theme;
+        if (msg.sounds) {
+            sessionState.sounds = msg.sounds;
+            if (soundBundleManager) soundBundleManager.updateBundle(msg.sounds);
+        }
 
         boardConfig.visibleUntil = Math.max(boardConfig.visibleUntil, performance.now() + 15000);
 
@@ -822,27 +829,28 @@
             }
         } else {
             // Curling House Rings
-            // Normalized house radii relative to track length
-            const distFromTarget = Math.abs(stone.u - effectiveTarget);
-            const buttonR = 0.022;
-            const ring4ftR = 0.048;
-            const ring8ftR = 0.082;
-            const ring12ftR = 0.125;
+            // Circular pixel distance from house center matching drawn concentric radii
+            const pos = getStoneCanvasCoords(stone, m);
+            const distFromHouseCenter = Math.hypot(pos.x - m.targetCenterX, pos.y - m.targetCenterY);
+            const buttonR = m.stoneRadius * 0.42;
+            const ring4ftR = m.stoneRadius * 1.15;
+            const ring8ftR = m.stoneRadius * 2.1;
+            const ring12ftR = m.stoneRadius * 3.2;
 
-            if (distFromTarget <= buttonR) {
+            if (distFromHouseCenter <= buttonR) {
                 score = 100;
                 isBullseye = true;
                 isWin = true;
                 isHit = true;
-            } else if (distFromTarget <= ring4ftR) {
+            } else if (distFromHouseCenter <= ring4ftR) {
                 score = 75;
                 isWin = true;
                 isHit = true;
-            } else if (distFromTarget <= ring8ftR) {
+            } else if (distFromHouseCenter <= ring8ftR) {
                 score = 50;
                 isWin = true;
                 isHit = true;
-            } else if (distFromTarget <= ring12ftR) {
+            } else if (distFromHouseCenter <= ring12ftR) {
                 score = 25;
                 isWin = true;
                 isHit = true;
@@ -857,10 +865,13 @@
         stone.isHit = isHit;
 
         // Sound & Score Popup
+        const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
+            ? soundBundleManager.getBundle()
+            : (sessionState.sounds || null);
         if (isBullseye) {
-            playSound({ enabled: true }, 'win');
+            playSound(bundle?.win || sessionState.sounds?.win || { enabled: true }, 'win');
         } else if (score > 0) {
-            playSound({ enabled: true }, 'score');
+            playSound(bundle?.score || sessionState.sounds?.score || { enabled: true }, 'score');
         }
 
         // Spawn visual score popup
@@ -1839,24 +1850,6 @@
                     borderWidth: 1.2
                 });
             }
-
-            // 5. Sculpted Gooseneck Handle (Rotates with stone spin)
-            ctx.save();
-            ctx.rotate(stone.angle || 0);
-            ctx.beginPath();
-            ctx.arc(0, -r * 0.15, r * 0.40, Math.PI * 0.85, Math.PI * 2.15);
-            ctx.strokeStyle = stone.userColor || '#e74c3c';
-            ctx.lineWidth = Math.max(2.5, r * 0.12);
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            // Chrome handle mounts
-            ctx.fillStyle = '#ecf0f1';
-            ctx.beginPath();
-            ctx.arc(-r * 0.35, -r * 0.05, 2.5, 0, Math.PI * 2);
-            ctx.arc(r * 0.35, -r * 0.05, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
         } else {
             // Even with custom stone, render player decal on center
             const innerRadius = r * 0.45;
