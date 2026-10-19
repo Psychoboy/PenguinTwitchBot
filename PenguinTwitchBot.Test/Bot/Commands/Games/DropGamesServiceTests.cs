@@ -1497,46 +1497,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public void BuildPlinkoWaypoints_ProducesOrganicLandingSpreadWithinTargetBucketSlot()
+        public async Task TriggerPlinkoDropAsync_RegistersPendingDropWithInitialPhysicsParameters()
         {
-            const int rows = 8;
-            const int bucketCount = 5;
-            const int targetBucketIndex = 2; // Center slot: bounds are [2/5, 3/5] = [0.40, 0.60]
+            var settingsService = CreateSettingsService();
+            var registry = CreateDropRegistry();
+            var sut = CreatePlinkoService(settingsService, registry);
 
-            var landedPositions = new HashSet<double>();
-            for (var i = 0; i < 20; i++)
-            {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucketIndex);
-                Assert.NotNull(waypoints);
-                Assert.Equal(rows + 2, waypoints.Count);
+            var token = await sut.TriggerPlinkoDropAsync(
+                new CommandEventArgs { Name = "plinkouser", DisplayName = "PlinkoUser", UserId = "7001" });
 
-                var finalWaypoint = waypoints.Last();
-                Assert.Equal(rows, finalWaypoint.Row);
-                Assert.Equal(targetBucketIndex, finalWaypoint.Col);
-                Assert.Equal(0.96, finalWaypoint.Y);
+            var record = registry.GetPendingDrop(token);
+            Assert.NotNull(record);
+            Assert.Equal(-1, record.BucketIndex);
+            Assert.InRange(record.StartX, 0.20, 0.80);
+            Assert.Equal(1.0, record.Gravity);
+            Assert.Equal(0.75, record.Bounciness);
+            Assert.Equal(1.0, record.Mass);
 
-                // Must be safely within the target bucket slot bounds [0.40, 0.60]
-                Assert.InRange(finalWaypoint.X, 0.40, 0.60);
-                landedPositions.Add(finalWaypoint.X);
-
-                // Verify every intermediate peg waypoint (r = 0..rows-1) lands on a physical peg coordinate
-                var cols = Math.Max(2, bucketCount);
-                for (var r = 0; r < rows; r++)
-                {
-                    var wp = waypoints[r + 1];
-                    Assert.Equal(r, wp.Row);
-                    var isOdd = r % 2 == 1;
-                    var countInRow = isOdd ? cols - 1 : cols;
-                    Assert.InRange(wp.Col, 0, countInRow - 1);
-                    var expectedX = Math.Round(isOdd ? (wp.Col + 1.0) / cols : (wp.Col + 0.5) / cols, 4);
-                    var expectedY = Math.Round(0.16 + (((double)(r + 1) / rows) * 0.64), 4);
-                    Assert.Equal(expectedX, wp.X);
-                    Assert.Equal(expectedY, wp.Y);
-                }
-            }
-
-            // Verify the landings are naturally distributed rather than all snapped to identical center (0.50)
-            Assert.True(landedPositions.Count > 1, "Landings should spread naturally across the bucket width instead of snapping to a single static center");
+            // Verify outcome evaluation helper
+            var outcome = PlinkoSimulationEngine.EvaluateBucketOutcome(record.Buckets, 2);
+            Assert.True(outcome.IsWin);
+            Assert.Equal(0, outcome.Score);
+            Assert.Equal("WINNER", outcome.Label);
+            Assert.True(outcome.IsBullseye);
         }
 
         [Fact]

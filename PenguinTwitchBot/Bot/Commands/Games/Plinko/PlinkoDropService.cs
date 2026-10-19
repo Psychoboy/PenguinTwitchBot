@@ -531,19 +531,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var durationSeconds = Math.Clamp(4.2 / Math.Pow(gravity, 0.25), 2.5, 7.0);
             var pegTransparency = Math.Clamp(plinkoSettings.PegTransparency, 0, 100);
 
-            int winningBucketIndex;
+            int bucketIndex = -1;
+            string bucketLabel = string.Empty;
+            int score = 0;
+            bool isWin = false;
+            bool isBullseye = false;
+            bool isHit = false;
+
+            double startX;
             if (forcedBucketIndex.HasValue)
             {
-                winningBucketIndex = Math.Clamp(forcedBucketIndex.Value, 0, buckets.Count - 1);
+                var clampedBucket = Math.Clamp(forcedBucketIndex.Value, 0, buckets.Count - 1);
+                startX = (clampedBucket + 0.5) / buckets.Count;
+                var outcome = PlinkoSimulationEngine.EvaluateBucketOutcome(buckets, clampedBucket);
+                bucketIndex = clampedBucket;
+                bucketLabel = outcome.Label;
+                score = outcome.Score;
+                isWin = outcome.IsWin;
+                isBullseye = outcome.IsBullseye;
+                isHit = outcome.IsWin;
             }
             else
             {
-                winningBucketIndex = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
+                startX = DropGameMath.RandomDouble(0.20, 0.80);
             }
-
-            var winningBucket = buckets[winningBucketIndex];
-            var effectiveScore = winningBucket.IsWin ? winningBucket.Score : 0;
-            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, buckets.Count, winningBucketIndex, bounciness);
 
             var dropToken = RandomNumberGenerator.GetHexString(64);
             var now = DateTime.UtcNow;
@@ -569,18 +580,18 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     ? now.AddMilliseconds(-100)
                     : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
-                StartX = waypoints.First().X,
-                LandingX = waypoints.Last().X,
+                StartX = startX,
+                LandingX = startX,
                 TotalTicks = Math.Max(30, (int)Math.Round(durationSeconds * 60.0)),
                 Gravity = gravity,
                 Bounciness = bounciness,
                 Mass = mass,
-                Score = effectiveScore,
-                IsHit = winningBucket.IsWin,
-                IsBullseye = winningBucket.IsWin && winningBucket.Score >= buckets.Where(b => b.IsWin).Select(b => b.Score).DefaultIfEmpty(0).Max(),
-                IsWin = winningBucket.IsWin,
-                BucketIndex = winningBucketIndex,
-                BucketLabel = winningBucket.Label,
+                Score = score,
+                IsHit = isHit,
+                IsBullseye = isBullseye,
+                IsWin = isWin,
+                BucketIndex = bucketIndex,
+                BucketLabel = bucketLabel,
                 Buckets = buckets.Select(b => new PlinkoBucket { Label = b.Label, Score = b.Score, IsWin = b.IsWin, Color = b.Color, Weight = b.Weight }).ToList()
             };
 
@@ -654,11 +665,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     nameFontSize = plinkoSettings.NameFontSize,
                     pegTransparency,
                     buckets,
-                    winningBucketIndex,
-                    winningBucketLabel = winningBucket.Label,
-                    score = effectiveScore,
-                    isWin = winningBucket.IsWin,
-                    waypoints
+                    physics = new
+                    {
+                        startX,
+                        startY = 0.04,
+                        gravity,
+                        bounciness,
+                        mass
+                    }
                 }
             };
 
