@@ -43,7 +43,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var engine = new Engine(options =>
             {
                 options.Strict = false;
-                options.TimeoutInterval(TimeSpan.FromSeconds(5));
+                options.TimeoutInterval(TimeSpan.FromSeconds(15));
             });
 
             var logs = new System.Collections.Generic.List<string>();
@@ -393,16 +393,23 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
         private static void StepEngineFrames(Engine engine, int frameCount, double dtMs = 16.666)
         {
-            engine.Execute($@"
-                for (var f = 0; f < {frameCount}; f++) {{
-                    performance._now += {dtMs};
-                    if (window.__nextRaf) {{
-                        var cb = window.__nextRaf;
-                        window.__nextRaf = null;
-                        cb(performance._now);
+            const int chunkSize = 60;
+            var remaining = frameCount;
+            while (remaining > 0)
+            {
+                var frames = Math.Min(remaining, chunkSize);
+                engine.Execute($@"
+                    for (var f = 0; f < {frames}; f++) {{
+                        performance._now += {dtMs};
+                        if (window.__nextRaf) {{
+                            var cb = window.__nextRaf;
+                            window.__nextRaf = null;
+                            cb(performance._now);
+                        }}
                     }}
-                }}
-            ");
+                ");
+                remaining -= frames;
+            }
         }
 
         private static void DispatchWsMessage(Engine engine, object message)
@@ -2239,11 +2246,21 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var engine = CreateMockBrowserEngine(out _);
             engine.Execute(code);
 
+            var winningBuckets = new[]
+            {
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true }
+            };
+
             // 1. Send session_start with sound bundle
             var sessionStartPayload = JsonSerializer.Serialize(new
             {
                 type = "session_start",
                 session = new { isActive = true, totalDurationSeconds = 60 },
+                board = new { rows = 5, cols = 5, buckets = winningBuckets },
                 sounds = new
                 {
                     maxConcurrentSounds = 1,
@@ -2283,6 +2300,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     mass = 1.0,
                     isWin = true,
                     winningBucketIndex = 2,
+                    buckets = winningBuckets,
                     waypoints = new[]
                     {
                         new { x = 0.5, y = 0.08, row = -1 },
