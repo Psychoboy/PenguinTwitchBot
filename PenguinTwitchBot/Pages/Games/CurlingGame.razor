@@ -1,0 +1,621 @@
+@page "/games/curling"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Curling
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject ICurlingGameService CurlingGameService
+@inject IActionManagementService ActionManagementService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<CurlingGame> Logger
+
+<PageTitle>Curling / Shuffleboard</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Curling / Shuffleboard</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Edge strip minigame featuring dynamic ice sheet conditions, anti-griefing lock-on-rest collisions, inward-facing nametags, and dual house / shuffleboard scoring.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/curling.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Curling Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+                <HelpButton Topic="curling-game" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: SHEET & TRACK LAYOUT ================= -->
+                <MudTabPanel Text="Sheet & Track Layout">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Sheet Track & Screen Placement</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Curling.ActiveThemeId"
+                                               HelperText="Select a theme with custom stone decals, handles, and sheet media.">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingStripPosition" Label="Strip Position" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Curling.StripPosition"
+                                                       HelperText="Edge of the screen where the track sits. Nametags automatically face inward towards center.">
+                                                <MudSelectItem Value="CurlingStripPosition.Bottom">Bottom Strip (Default)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Top">Top Strip</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Left">Left Strip</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Right">Right Strip</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingSlideDirection" Label="Slide Direction" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Curling.SlideDirection"
+                                                       HelperText="Delivery direction down the sheet track.">
+                                                <MudSelectItem Value="CurlingSlideDirection.LeftToRight">Left to Right</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.RightToLeft">Right to Left</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.TopToBottom">Top to Bottom</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.BottomToTop">Bottom to Top</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.Alternating">Alternating Ends</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.CenterTarget">Center Target</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Track Thickness (%)" Variant="Variant.Outlined"
+                                                             Min="10.0" Max="25.0" Step="1.0"
+                                                             @bind-Value="_settings.Curling.TrackThicknessPercent"
+                                                             HelperText="Width / Height percentage of screen (10% - 25%, default 14%)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Board Transparency / Alpha" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Curling.BoardAlpha"
+                                                             HelperText="0.0 = 100% transparent floating stones, 1.0 = solid background" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Target Transparency / Alpha" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Curling.TargetAlpha"
+                                                             HelperText="Opacity of the house rings or shuffleboard zones (default 0.85)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Curling.ShowBoardBorders"
+                                               Label="Show 1px Sheet Boundary Guide Rails (Turn off for completely borderless floating stones)" />
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Game Style & Collision Rules</MudText>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingScoringType" Label="Scoring Mode" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Curling.ScoringType"
+                                                       HelperText="Curling House rings (100 button) or Shuffleboard bands (10/20/30/Kitchen).">
+                                                <MudSelectItem Value="CurlingScoringType.CurlingHouse">Curling House Rings (Button = 100 pts)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingScoringType.Shuffleboard">Shuffleboard Zones (Apex = 30 pts, Kitchen = -10 pts)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingCollisionMode" Label="Collision Mode" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Curling.CollisionMode"
+                                                       HelperText="Anti-griefing: LockOnRest prevents late throwers from displacing resting stones.">
+                                                <MudSelectItem Value="CurlingCollisionMode.LockOnRest">Lock On Rest (Anti-Griefing Protection)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingCollisionMode.NoCollision">No Collision (Ghosting)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingCollisionMode.FullCollision">Full Elastic Collision</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    @if (_settings.Curling.ScoringType == CurlingScoringType.Shuffleboard)
+                                    {
+                                        <MudSwitch T="bool" Color="Color.Error"
+                                                   @bind-Value="_settings.Curling.EnableShuffleboardKitchenPenalty"
+                                                   Label="Enable 10-OFF Penalty Zone (The Kitchen)" />
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-n2 mb-2" Style="display:block;">
+                                            When enabled, sliding past the 30-point apex into the kitchen incurs a -10 point penalty. Turn off to disable the penalty and treat overshot pucks as 0 points.
+                                        </MudText>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: ICE CONDITIONS & MECHANICS ================= -->
+                <MudTabPanel Text="Ice Sheet & Mechanics">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Dynamic Sheet Conditions</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Varying ice conditions change drag and drift, preventing viewers from memorizing a single power number.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Curling.EnableDynamicIceConditions"
+                                               Label="Enable Dynamic Ice Sheet Conditions (Randomizes condition per round)" />
+
+                                    @if (!_settings.Curling.EnableDynamicIceConditions)
+                                    {
+                                        <MudSelect T="CurlingIceCondition" Label="Static Ice Condition" Variant="Variant.Outlined"
+                                                   @bind-Value="_settings.Curling.IceCondition"
+                                                   HelperText="Condition applied to all slides when dynamic conditions are disabled.">
+                                            <MudSelectItem Value="CurlingIceCondition.Normal">Normal Ice (Standard Drag)</MudSelectItem>
+                                            <MudSelectItem Value="CurlingIceCondition.Slick">Slick Ice (-20% Drag, Longer Slides)</MudSelectItem>
+                                            <MudSelectItem Value="CurlingIceCondition.HeavyFrost">Heavy Frost (+25% Drag, Shorter Slides)</MudSelectItem>
+                                            <MudSelectItem Value="CurlingIceCondition.CrossDrift">Cross-Drift (Lateral Drift Waves)</MudSelectItem>
+                                        </MudSelect>
+                                    }
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingTargetDistanceMode" Label="Target Distance Mode" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Curling.TargetDistanceMode"
+                                                       HelperText="Fixed distance or randomize house position between 70% and 92% each round.">
+                                                <MudSelectItem Value="CurlingTargetDistanceMode.Fixed">Fixed Distance</MudSelectItem>
+                                                <MudSelectItem Value="CurlingTargetDistanceMode.RandomizePerRound">Randomize Per Round (70% - 92%)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Default Target Distance (%)" Variant="Variant.Outlined"
+                                                             Min="60.0" Max="95.0" Step="1.0"
+                                                             @bind-Value="_settings.Curling.TargetDistancePercent"
+                                                             HelperText="Target distance from start of track (% of track length, default 78%)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Viewer Controls & Power</MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Secondary"
+                                               @bind-Value="_settings.Curling.EnableViewerPowerControl"
+                                               Label="Allow Viewers to Specify Manual Power (e.g. !curl 75 or !curl 75 emote)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Default Min Power" Variant="Variant.Outlined"
+                                                             Min="1" Max="100"
+                                                             @bind-Value="_settings.Curling.DefaultPowerMin"
+                                                             HelperText="Used when viewer does not specify a power number (default 65)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Default Max Power" Variant="Variant.Outlined"
+                                                             Min="1" Max="100"
+                                                             @bind-Value="_settings.Curling.DefaultPowerMax"
+                                                             HelperText="Used when viewer does not specify a power number (default 85)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Last Call Cutoff (Seconds)" Variant="Variant.Outlined"
+                                                             Min="0" Max="30"
+                                                             @bind-Value="_settings.Curling.LastCallCutoffSeconds"
+                                                             HelperText="Cut off new slides in final seconds of round so all stones finish" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Actions</MudText>
+
+                                    <MudSelect T="string" Label="Bullseye Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Curling.BullseyeActionName"
+                                               HelperText="Custom Action executed when a stone hits a perfect button or apex bullseye">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSelect T="string" Label="Win Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Curling.WinActionName"
+                                               HelperText="Custom Action executed when a stone scores points in the house">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSelect T="string" Label="Lose Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Curling.LoseActionName"
+                                               HelperText="Custom Action executed when a stone misses the scoring zones">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudSwitch T="bool" Color="Color.Success"
+                                               @bind-Value="_settings.Curling.AnnounceWinsInChat"
+                                               Label="Send Chat Message on Win" />
+
+                                    @if (_settings.Curling.AnnounceWinsInChat)
+                                    {
+                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
+                                                      @bind-Value="_settings.Curling.WinChatMessageTemplate"
+                                                      HelperText="Placeholders: {user}, {score}, {bullseye}" />
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: SESSION & OVERLAY DISPLAY ================= -->
+                <MudTabPanel Text="Session & Display">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Run timed Curling / Shuffleboard rounds (e.g. 90 seconds). Controls viewer participation and round announcements.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Curling.SessionModeEnabled"
+                                               Label="Enable Timed Session Mode (When off, curling slides run anytime in free-play mode)" />
+
+                                    @if (_settings.Curling.SessionModeEnabled)
+                                    {
+                                        <div>
+                                            <MudSwitch T="bool" Color="Color.Secondary"
+                                                       @bind-Value="_settings.Curling.AutoStartOnCommand"
+                                                       Label="Auto-start Round on Command (Starts round automatically when someone types !curl)" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block ml-3">
+                                                When off, rounds can only be started/stopped via SubActions, mod commands (!curl start [seconds]), or the button on this page.
+                                            </MudText>
+                                        </div>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Default Round Duration (Seconds)" Variant="Variant.Outlined"
+                                                                 Min="10" Max="600" Step="5"
+                                                                 @bind-Value="_settings.Curling.DefaultSessionDurationSeconds"
+                                                                 HelperText="e.g. 90 seconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Max Slides Per User Per Round" Variant="Variant.Outlined"
+                                                                 Min="0" Max="50"
+                                                                 @bind-Value="_settings.Curling.MaxDropsPerUserPerSession"
+                                                                 HelperText="0 = Unlimited slides during the round" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSwitch T="bool" Color="Color.Info"
+                                                   @bind-Value="_settings.Curling.AnnounceSessionStatusInChat"
+                                                   Label="Announce Round Start & End in Chat" />
+
+                                        @if (_settings.Curling.AnnounceSessionStatusInChat)
+                                        {
+                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Curling.SessionStartChatMessageTemplate"
+                                                          HelperText="Placeholders: {duration}, {theme}, {condition}, {distance}" />
+                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Curling.SessionEndChatMessageTemplate"
+                                                          HelperText="Placeholders: {count}, {duration}" />
+                                        }
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Curling.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner" />
+
+                                    @if (_settings.Curling.ShowHeaderBanner)
+                                    {
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                           @bind-Value="_settings.Curling.HeaderPosition">
+                                                    <MudSelectItem Value="@("TopCenter")">Top Center</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Header Y Offset (px)" Variant="Variant.Outlined"
+                                                                 Min="0" Max="200" Step="2"
+                                                                 @bind-Value="_settings.Curling.HeaderCustomYOffset" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Curling.ShowTimer"
+                                                           Label="Show Round Timer" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Curling.ShowDropCount"
+                                                           Label="Show Slide Count" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Curling.ShowFreePlayCounter"
+                                                           Label="Show Free-Play Pill" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
+                <MudTabPanel Text="Audio & Sound Effects">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Curling Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, sliding stone friction, sweeping, impacts, and scoring.</MudText>
+                                    </div>
+                                </MudStack>
+
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Curling.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Curling.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Curling / Shuffleboard round begins"
+                                                         SoundConfig="_settings.Curling.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Curling / Shuffleboard round finishes"
+                                                         SoundConfig="_settings.Curling.EndSound" />
+
+                                    <DropGameSoundEditor Title="Stone Sliding Sound"
+                                                         HelperText="Plays when a stone begins sliding down the sheet"
+                                                         SoundConfig="_settings.Curling.SlideSound" />
+
+                                    <DropGameSoundEditor Title="Sweeping Sound"
+                                                         HelperText="Plays rapid broom brush sweeps over the ice surface"
+                                                         SoundConfig="_settings.Curling.SweepSound" />
+
+                                    <DropGameSoundEditor Title="Stone Impact / Bonk Sound"
+                                                         HelperText="Plays when two granite stones collide"
+                                                         SoundConfig="_settings.Curling.HitSound" />
+
+                                    <DropGameSoundEditor Title="Score Sound"
+                                                         HelperText="Plays when a stone comes to rest in a scoring zone"
+                                                         SoundConfig="_settings.Curling.ScoreSound" />
+
+                                    <DropGameSoundEditor Title="Bullseye / Win Fanfare"
+                                                         HelperText="Plays when a stone lands directly in the button or apex"
+                                                         SoundConfig="_settings.Curling.WinSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private List<string> _actionNames = [];
+    private string _testUsername = "PenguinViewer";
+    private string _testEmoteInput = "";
+    private int _testPower = 50;
+    private string _overlayKey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
+
+        _settings = await SettingsService.GetSettingsAsync();
+
+        var actions = await ActionManagementService.GetAllActionsAsync();
+        _actionNames = actions
+            .Select(a => a.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private RenderFragment RenderLiveTester() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">Live Curling Tester</MudText>
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
+                              @bind-Value="_testUsername" />
+                <MudNumericField T="int" Label="Throw Power (1 - 100)" Variant="Variant.Outlined"
+                                 Min="1" Max="100"
+                                 @bind-Value="_testPower"
+                                 HelperText="Power around ~50-55 lands near the button under normal ice" />
+                <MudTextField T="string" Label="Test Emote Code or Decal Image URL (Optional)" Variant="Variant.Outlined"
+                              @bind-Value="_testEmoteInput"
+                              HelperText="Leave blank for theme default stone, or enter emote code / image URL." />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.SportsHockey"
+                           OnClick="TestCurlingSlideAsync">
+                    Launch Test Stone Slide
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.GpsFixed"
+                           OnClick="TestGuaranteedBullseyeSlideAsync">
+                    Launch Guaranteed Button (100 pts) Slide
+                </MudButton>
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartCurlingSessionLiveAsync">
+                        Start Round (@(_settings?.Curling.DefaultSessionDurationSeconds ?? 90)s)
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopCurlingSessionLiveAsync">
+                        Stop Round
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    };
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_testUsername) ? "penguinviewer" : _testUsername.Trim().ToLowerInvariant(),
+        DisplayName = string.IsNullOrWhiteSpace(_testUsername) ? "PenguinViewer" : _testUsername.Trim(),
+        Args = [_testPower.ToString()],
+        Arg = _testPower.ToString(),
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Curling / Shuffleboard settings saved!", Severity.Success);
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Curling Settings to Defaults",
+            "Are you sure you want to reset all Curling / Shuffleboard settings to defaults?",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Curling = new CurlingGameSettings();
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Curling settings have been reset to default values!", Severity.Warning);
+        }
+    }
+
+    private async Task TestCurlingSlideAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await CurlingGameService.TriggerCurlingSlideAsync(BuildTestEventArgs(), power: _testPower, emoteOrImage: _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched test curling stone! Watch your /curling.html overlay.", Severity.Info);
+    }
+
+    private async Task TestGuaranteedBullseyeSlideAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        var targetDist = _settings.Curling.SlideDirection == CurlingSlideDirection.CenterTarget
+            ? 50.0
+            : _settings.Curling.TargetDistancePercent;
+        // Nominal power that reaches target distance exactly
+        var perfectPower = (targetDist / 78.0) * 51.5;
+        await CurlingGameService.TriggerCurlingSlideAsync(BuildTestEventArgs(), power: perfectPower, emoteOrImage: _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched guaranteed button curling slide!", Severity.Success);
+    }
+
+    private async Task StartCurlingSessionLiveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var duration = _settings?.Curling.DefaultSessionDurationSeconds ?? 90;
+        var result = await CurlingGameService.StartSessionAsync(duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Curling session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Curling / Shuffleboard session for {duration} seconds!", Severity.Success);
+        }
+    }
+
+    private async Task StopCurlingSessionLiveAsync()
+    {
+        var result = await CurlingGameService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Curling session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Curling session to stop.", Severity.Info);
+        }
+    }
+}

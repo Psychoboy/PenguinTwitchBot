@@ -63,8 +63,9 @@
             </MudNavGroup>
             @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
             {
-                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/parachute", "games/plinko", "games/themes")">
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/curling", "games/parachute", "games/plinko", "games/themes")">
                     <MudNavLink Icon="@Icons.Material.Filled.Air" Href="/games/balloon" Match="NavLinkMatch.Prefix">Balloon Ascent</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.SportsHockey" Href="/games/curling" Match="NavLinkMatch.Prefix">Curling / Shuffleboard</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Paragliding" Href="/games/parachute" Match="NavLinkMatch.Prefix">Parachute Drop</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Grain" Href="/games/plinko" Match="NavLinkMatch.Prefix">Plinko Bounce</MudNavLink>
                     <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/games/themes" Match="NavLinkMatch.Prefix">Themes & Assets</MudNavLink>

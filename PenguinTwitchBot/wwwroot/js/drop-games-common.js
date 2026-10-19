@@ -984,6 +984,105 @@
         });
     }
 
+    function drawCircularDecal(ctx, img, radius, options) {
+        const opts = options || {};
+        const innerRadius = radius || 16;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+        ctx.clip();
+
+        let drawn = false;
+        if (img && img.naturalWidth > 0) {
+            try {
+                ctx.drawImage(img, -innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
+                drawn = true;
+            } catch (_) {}
+        }
+
+        if (!drawn) {
+            if (opts.fallbackPenguin && typeof drawSeasonalDefaultPenguin === 'function') {
+                drawSeasonalDefaultPenguin(ctx, innerRadius, opts.themeId || 'default');
+            } else {
+                ctx.fillStyle = opts.userColor || '#3498db';
+                ctx.fillRect(-innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${Math.round(innerRadius * 1.1)}px 'Rubik', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const initial = (opts.displayName || 'P').charAt(0).toUpperCase();
+                ctx.fillText(initial, 0, 1);
+            }
+        }
+        ctx.restore();
+
+        if (opts.strokeBorder) {
+            ctx.beginPath();
+            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = opts.borderColor || 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = opts.borderWidth || 1.2;
+            ctx.stroke();
+        }
+    }
+
+    function drawInwardNametag(ctx, displayName, cx, cy, radius, stripPosition, options) {
+        ctx.save();
+        const opts = options || {};
+        const pos = (stripPosition || 'bottom').toLowerCase();
+
+        let labelX = cx;
+        let labelY = cy;
+        let textAlign = 'center';
+        let textBaseline = 'middle';
+
+        const offsetDist = radius + (opts.offsetDist || 16);
+
+        if (pos === 'top') {
+            labelX = cx;
+            labelY = cy + offsetDist;
+            textAlign = 'center';
+            textBaseline = 'top';
+        } else if (pos === 'left') {
+            labelX = cx + offsetDist;
+            labelY = cy;
+            textAlign = 'left';
+            textBaseline = 'middle';
+        } else if (pos === 'right') {
+            labelX = cx - offsetDist;
+            labelY = cy;
+            textAlign = 'right';
+            textBaseline = 'middle';
+        } else {
+            // Default: bottom
+            labelX = cx;
+            labelY = cy - offsetDist;
+            textAlign = 'center';
+            textBaseline = 'bottom';
+        }
+
+        const scoreText = (opts.completed && typeof opts.score === 'number') ? ` (${opts.score} pts)` : '';
+        const leaderCrown = opts.isLeader ? '👑 ' : '';
+        const displayText = `${leaderCrown}${displayName}${scoreText}`;
+
+        ctx.font = `bold ${opts.fontSize || 15}px 'Rubik', sans-serif`;
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = textBaseline;
+
+        let nameColor = opts.userColor || '#ffffff';
+        if (typeof brightenColor === 'function') {
+            nameColor = brightenColor(nameColor);
+        }
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        ctx.fillStyle = opts.isLeader ? '#FFD700' : nameColor;
+        ctx.fillText(displayText, labelX, labelY);
+        ctx.restore();
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -999,7 +1098,9 @@
         drawSessionBanner: drawSessionBanner,
         updateAndDrawPopups: updateAndDrawPopups,
         calculateDropAlpha: calculateDropAlpha,
-        sortDropsForDraw: sortDropsForDraw
+        sortDropsForDraw: sortDropsForDraw,
+        drawCircularDecal: drawCircularDecal,
+        drawInwardNametag: drawInwardNametag
     };
 
     if (typeof module !== 'undefined' && module.exports) {

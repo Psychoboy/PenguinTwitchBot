@@ -75,5 +75,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string BalloonEnd = "Balloon.End";
         public const string BalloonEnded = "Balloon.End";
         public const string BalloonPopped = "Balloon.Popped";
+
+        // Curling / Shuffleboard events
+        public const string CurlingStart = "Curling.Start";
+        public const string CurlingStarted = "Curling.Start";
+        public const string CurlingWin = "Curling.Win";
+        public const string CurlingBullseye = "Curling.Bullseye";
+        public const string CurlingLose = "Curling.Lose";
+        public const string CurlingEnd = "Curling.End";
+        public const string CurlingEnded = "Curling.End";
     }
 }

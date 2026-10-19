@@ -14,6 +14,7 @@ using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
+using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
@@ -130,6 +131,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService ?? CreateSettingsService(),
                 dropRegistry ?? CreateDropRegistry(),
                 NullLogger<BalloonAscentService>.Instance);
+        }
+
+        private CurlingGameService CreateCurlingService(
+            IDropRegistry? dropRegistry = null,
+            IDropGamesSettingsService? settingsService = null)
+        {
+            return new CurlingGameService(
+                _serviceBackbone.Object,
+                _commandHandler.Object,
+                _defaultCommandTriggerService.Object,
+                _scopeFactory.Object,
+                _emoteService.Object,
+                _webSocketMessenger.Object,
+                _dispatcher.Object,
+                settingsService ?? CreateSettingsService(),
+                dropRegistry ?? CreateDropRegistry(),
+                NullLogger<CurlingGameService>.Instance);
         }
 
         [Fact]
@@ -3281,6 +3299,222 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal("Top", bHeader.Position);
             Assert.Equal(15, bHeader.YOffset);
             Assert.Equal(19, bHeader.NameFontSize);
+
+            var cSettings = new CurlingGameSettings
+            {
+                ShowHeaderBanner = true,
+                ShowTimer = true,
+                ShowDropCount = true,
+                ShowFreePlayCounter = false,
+                AutoAvoidOverlap = true,
+                HeaderPosition = "TopCenter",
+                HeaderCustomYOffset = 20,
+                NameFontSize = 18
+            };
+            var cHeader = DropGameHeaderConfigDto.FromSettings(cSettings);
+            Assert.True(cHeader.ShowBanner);
+            Assert.True(cHeader.ShowTimer);
+            Assert.True(cHeader.ShowCount);
+            Assert.False(cHeader.ShowFreePlayCounter);
+            Assert.True(cHeader.AutoAvoidOverlap);
+            Assert.Equal("TopCenter", cHeader.Position);
+            Assert.Equal(20, cHeader.YOffset);
+            Assert.Equal(18, cHeader.NameFontSize);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Curling_Authorized_TrustsClientOutcome()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var curlingServiceMock = new Mock<ICurlingGameService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "curling-auth-token",
+                GameType = DropGameType.Curling,
+                Username = "curler_1",
+                DisplayName = "Curler1",
+                UserId = "user-curl-1",
+                EventArgs = new CommandEventArgs { Command = "curl", Name = "curler_1", DisplayName = "Curler1", UserId = "user-curl-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-6),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object,
+                curlingServiceMock.Object);
+
+            var notification = new DropGameCompleteNotification(
+                "curling-auth-token",
+                landingX: 0.842,
+                score: 100,
+                isBullseye: true,
+                isWin: true,
+                isHit: true,
+                overlayKey: validKey);
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            curlingServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "curling-auth-token" &&
+                r.Score == 100 &&
+                r.IsBullseye == true &&
+                r.IsWin == true &&
+                r.IsHit == true &&
+                r.LandingX == 0.842)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Curling_Unauthorized_ReturnsEarly()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var curlingServiceMock = new Mock<ICurlingGameService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "curling-unauth-token",
+                GameType = DropGameType.Curling,
+                Username = "attacker",
+                DisplayName = "Attacker",
+                UserId = "attacker-1",
+                EventArgs = new CommandEventArgs { Command = "curl", Name = "attacker", DisplayName = "Attacker", UserId = "attacker-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-6),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object,
+                curlingServiceMock.Object);
+
+            var notification = new DropGameCompleteNotification(
+                "curling-unauth-token",
+                landingX: 0.84,
+                score: 100,
+                isBullseye: true,
+                isWin: true,
+                overlayKey: "invalid-key");
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            curlingServiceMock.Verify(s => s.ProcessCompletionAsync(It.IsAny<PendingDropRecord>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CurlingGameService_TriggerCurlingSlideAsync_RegistersDropAndBroadcasts()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var service = CreateCurlingService(dropRegistry);
+
+            var args = new CommandEventArgs
+            {
+                Command = "curl",
+                Name = "test_curler",
+                DisplayName = "TestCurler",
+                UserId = "curler-100",
+                Args = ["85"]
+            };
+
+            var token = await service.TriggerCurlingSlideAsync(args, power: 85.0);
+
+            Assert.False(string.IsNullOrWhiteSpace(token));
+            var registered = dropRegistry.GetPendingDrop(token);
+            Assert.NotNull(registered);
+            Assert.Equal(DropGameType.Curling, registered.GameType);
+            Assert.Equal("test_curler", registered.Username);
+        }
+
+        [Fact]
+        public async Task CurlingGameService_StartAndStopSession_ManagesActiveState()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var service = CreateCurlingService(dropRegistry);
+
+            var session = await service.StartSessionAsync(60, triggeredBy: "TestMod");
+
+            Assert.NotNull(session);
+            Assert.True(session.IsActive);
+            Assert.Equal("curling", session.GameType);
+            Assert.True(dropRegistry.IsSessionActive(DropGameType.Curling));
+
+            var current = service.GetCurrentSession();
+            Assert.NotNull(current);
+            Assert.True(current.IsActive);
+
+            var stopped = await service.StopSessionAsync("TestMod");
+
+            Assert.NotNull(stopped);
+            Assert.False(stopped.IsActive);
+            Assert.False(dropRegistry.IsSessionActive(DropGameType.Curling));
+            Assert.Null(service.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task CurlingGameService_LastCallCutoff_RejectsLateThrows()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Curling.LastCallCutoffSeconds = 10;
+            settings.Curling.DefaultSessionDurationSeconds = 15;
+
+            var service = CreateCurlingService(dropRegistry, settingsService);
+
+            // Start short session
+            await service.StartSessionAsync(5, triggeredBy: "TestMod");
+
+            var args = new CommandEventArgs
+            {
+                Command = "curl",
+                Name = "buzzer_beater",
+                DisplayName = "BuzzerBeater",
+                UserId = "bb-1"
+            };
+
+            // Session has 5s total duration <= 10s cutoff, so throw should be rejected
+            var token = await service.TriggerCurlingSlideAsync(args);
+
+            // Should not register in registry because it was rejected by Last Call cutoff
+            var registered = dropRegistry.GetPendingDrop(token);
+            Assert.Null(registered);
+
+            await service.StopSessionAsync("Cleanup");
         }
     }
 }

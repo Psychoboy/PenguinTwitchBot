@@ -7,7 +7,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     {
         Parachute,
         Plinko,
-        Balloon
+        Balloon,
+        Curling
     }
 
     public class DropGamesSettings
@@ -15,6 +16,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public ParachuteGameSettings Parachute { get; set; } = new();
         public PlinkoGameSettings Plinko { get; set; } = new();
         public BalloonAscentGameSettings Balloon { get; set; } = new();
+        public CurlingGameSettings Curling { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
     }
 
@@ -57,6 +59,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string BalloonAnvilImageUrl { get; set; } = "";
         public string BalloonNudgeImageUrl { get; set; } = "";
         public string BalloonWindGustImageUrl { get; set; } = "";
+        public string CurlingStoneImageUrl { get; set; } = "";
+        public string CurlingHouseImageUrl { get; set; } = "";
 
         // Parachute Sound Overrides
         public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
@@ -85,6 +89,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride BalloonBonkSound { get; set; } = new();
         public DropGameSoundOverride BalloonNudgeSound { get; set; } = new();
         public DropGameSoundOverride BalloonWinSound { get; set; } = new();
+
+        // Curling Sound Overrides
+        public DropGameSoundOverride CurlingStartSound { get; set; } = new();
+        public DropGameSoundOverride CurlingEndSound { get; set; } = new();
+        public DropGameSoundOverride CurlingSlideSound { get; set; } = new();
+        public DropGameSoundOverride CurlingSweepSound { get; set; } = new();
+        public DropGameSoundOverride CurlingHitSound { get; set; } = new();
+        public DropGameSoundOverride CurlingScoreSound { get; set; } = new();
+        public DropGameSoundOverride CurlingWinSound { get; set; } = new();
 
         // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
@@ -306,6 +319,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? BalloonBonk { get; set; }
         public DropGameEffectiveSoundDto? BalloonNudge { get; set; }
         public DropGameEffectiveSoundDto? BalloonWin { get; set; }
+        public DropGameEffectiveSoundDto? CurlingSlide { get; set; }
+        public DropGameEffectiveSoundDto? CurlingSweep { get; set; }
+        public DropGameEffectiveSoundDto? CurlingHit { get; set; }
+        public DropGameEffectiveSoundDto? CurlingScore { get; set; }
+        public DropGameEffectiveSoundDto? CurlingWin { get; set; }
     }
 
     public interface IDropGameHeaderSettings
@@ -406,6 +424,153 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
+        public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
+    }
+
+    public enum CurlingStripPosition
+    {
+        Bottom = 0,
+        Top = 1,
+        Left = 2,
+        Right = 3
+    }
+
+    public enum CurlingSlideDirection
+    {
+        LeftToRight = 0,
+        RightToLeft = 1,
+        TopToBottom = 2,
+        BottomToTop = 3,
+        Alternating = 4,
+        CenterTarget = 5
+    }
+
+    public enum CurlingCollisionMode
+    {
+        LockOnRest = 0,
+        NoCollision = 1,
+        FullCollision = 2
+    }
+
+    public enum CurlingScoringType
+    {
+        CurlingHouse = 0,
+        Shuffleboard = 1
+    }
+
+    public enum CurlingIceCondition
+    {
+        Normal = 0,
+        Slick = 1,
+        HeavyFrost = 2,
+        CrossDrift = 3
+    }
+
+    public enum CurlingTargetDistanceMode
+    {
+        Fixed = 0,
+        RandomizePerRound = 1
+    }
+
+    public class CurlingGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
+    {
+        public string ActiveThemeId { get; set; } = "spring";
+
+        // Track Layout & Positioning
+        public CurlingStripPosition StripPosition { get; set; } = CurlingStripPosition.Bottom;
+        public CurlingSlideDirection SlideDirection { get; set; } = CurlingSlideDirection.LeftToRight;
+        public double TrackThicknessPercent { get; set; } = 14.0;
+
+        private double _boardAlpha = 0.0;
+        public double BoardAlpha
+        {
+            get => _boardAlpha;
+            set => _boardAlpha = Math.Clamp(value, 0.0, 1.0);
+        }
+
+        public bool ShowBoardBorders { get; set; } = true;
+
+        // Target Placement & Scoring
+        public CurlingScoringType ScoringType { get; set; } = CurlingScoringType.CurlingHouse;
+        public bool EnableShuffleboardKitchenPenalty { get; set; } = true;
+        public CurlingTargetDistanceMode TargetDistanceMode { get; set; } = CurlingTargetDistanceMode.Fixed;
+
+        private double _targetDistancePercent = 84.0;
+        public double TargetDistancePercent
+        {
+            get => _targetDistancePercent;
+            set => _targetDistancePercent = Math.Clamp(value, 60.0, 95.0);
+        }
+
+        private double _targetAlpha = 0.45;
+        public double TargetAlpha
+        {
+            get => _targetAlpha;
+            set => _targetAlpha = Math.Clamp(value, 0.05, 1.0);
+        }
+
+        // Dynamic Sheet Conditions & Friction
+        public CurlingIceCondition IceCondition { get; set; } = CurlingIceCondition.Normal;
+        public bool EnableDynamicIceConditions { get; set; } = true;
+        public double PowerVariancePercent { get; set; } = 3.0;
+
+        // Physics & Anti-Griefing
+        public CurlingCollisionMode CollisionMode { get; set; } = CurlingCollisionMode.LockOnRest;
+        public int LastCallCutoffSeconds { get; set; } = 4;
+        public bool EnableViewerPowerControl { get; set; } = true;
+        public int DefaultPowerMin { get; set; } = 65;
+        public int DefaultPowerMax { get; set; } = 85;
+
+        private int _maxConcurrentSounds = 2;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
+        }
+
+        // Sound Effects (Default enabled)
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
+        public DropGameSoundConfig SlideSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_slide.wav", Volume = 60 };
+        public DropGameSoundConfig SweepSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_sweep.wav", Volume = 60 };
+        public DropGameSoundConfig HitSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_hit.wav", Volume = 65 };
+        public DropGameSoundConfig ScoreSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_score.wav", Volume = 65 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_win.wav", Volume = 70 };
+
+        // Win & Outcome Actions
+        public string WinActionName { get; set; } = "";
+        public string BullseyeActionName { get; set; } = "";
+        public string LoseActionName { get; set; } = "";
+        public bool AnnounceWinsInChat { get; set; } = true;
+        public string WinChatMessageTemplate { get; set; } = "{user} landed on the button with {score} pts!{bullseye}";
+
+        // Timed Session / Round settings
+        public bool SessionModeEnabled { get; set; } = false;
+        public bool AutoStartOnCommand { get; set; } = true;
+        public int DefaultSessionDurationSeconds { get; set; } = 90;
+        public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public bool AnnounceSessionStatusInChat { get; set; } = true;
+        public string SessionStartChatMessageTemplate { get; set; } = "Curling is now OPEN for {duration}s! Condition: {condition} | Target: {distance}m. Type !curl [power] [emote] to slide!";
+        public string SessionEndChatMessageTemplate { get; set; } = "Curling round is now CLOSED! {count} total stones delivered!";
+
+        // Overlay Header & Display settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter";
         public int HeaderCustomYOffset { get; set; } = 18;
 
         private int _nameFontSize = 18;

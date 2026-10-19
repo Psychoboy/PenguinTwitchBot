@@ -76,6 +76,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         StopDropGameSession,
         ParachuteRockets,
         BalloonAscent,
-        BalloonHazards
+        BalloonHazards,
+        CurlingSlide
     }
 }

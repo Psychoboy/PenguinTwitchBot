@@ -871,16 +871,16 @@
                 }
             }
 
-            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon")
+            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling")
             {
                 <MudDivider Class="mb-3" />
-                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType == "parachute" ? "Parachute Drop" : (_selected.WidgetType == "balloon" ? "Balloon Ascent" : "Plinko Bounce")) Settings</b></MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType switch { "parachute" => "Parachute Drop", "balloon" => "Balloon Ascent", "curling" => "Curling & Shuffleboard", _ => "Plinko Bounce" }) Settings</b></MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="display:block;">
                     Configure seasonal themes, interactive physics, mid-air hazards, and win actions in the settings page.
                 </MudText>
                 <MudButton FullWidth="true" Color="Color.Primary" Variant="Variant.Outlined" Class="mb-3"
                            StartIcon="@Icons.Material.Filled.Tune"
-                           Href="@(_selected.WidgetType == "parachute" ? "/games/parachute" : (_selected.WidgetType == "balloon" ? "/games/balloon" : "/games/plinko"))">
+                           Href="@(_selected.WidgetType switch { "parachute" => "/games/parachute", "balloon" => "/games/balloon", "curling" => "/games/curling", _ => "/games/plinko" })">
                     Open Game Settings
                 </MudButton>
             }
@@ -1504,6 +1504,8 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "counter"   => "#E65100",
         "parachute" => "#D81B60",
         "plinko"    => "#00897B",
+        "balloon"   => "#E11D48",
+        "curling"   => "#0284C7",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----

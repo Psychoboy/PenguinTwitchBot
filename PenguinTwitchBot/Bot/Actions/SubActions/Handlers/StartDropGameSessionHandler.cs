@@ -2,6 +2,8 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Balloon;
+using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Queues;
@@ -11,7 +13,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class StartDropGameSessionHandler(
         IParachuteDropService parachuteDropService,
-        IPlinkoDropService plinkoDropService) : ISubActionHandler
+        IPlinkoDropService plinkoDropService,
+        IBalloonAscentService? balloonAscentService = null,
+        ICurlingGameService? curlingGameService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StartDropGameSession;
 
@@ -27,9 +31,13 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             }
 
             var resolvedGame = VariableReplacer.ReplaceVariables(sessionSubAction.GameType ?? "Parachute", variables).Trim();
-            var gameType = resolvedGame.Equals("Plinko", StringComparison.OrdinalIgnoreCase)
-                ? DropGameType.Plinko
-                : DropGameType.Parachute;
+            var gameType = resolvedGame switch
+            {
+                var g when g.Equals("Plinko", StringComparison.OrdinalIgnoreCase) => DropGameType.Plinko,
+                var g when g.Equals("Balloon", StringComparison.OrdinalIgnoreCase) || g.Equals("BalloonAscent", StringComparison.OrdinalIgnoreCase) => DropGameType.Balloon,
+                var g when g.Equals("Curling", StringComparison.OrdinalIgnoreCase) || g.Equals("Shuffleboard", StringComparison.OrdinalIgnoreCase) => DropGameType.Curling,
+                _ => DropGameType.Parachute
+            };
 
             int? durationSeconds = null;
             var resolvedDuration = VariableReplacer.ReplaceVariables(sessionSubAction.DurationSeconds ?? "", variables).Trim();
@@ -45,6 +53,14 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             if (gameType == DropGameType.Plinko)
             {
                 await plinkoDropService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
+            else if (gameType == DropGameType.Balloon && balloonAscentService != null)
+            {
+                await balloonAscentService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
+            else if (gameType == DropGameType.Curling && curlingGameService != null)
+            {
+                await curlingGameService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
             }
             else
             {

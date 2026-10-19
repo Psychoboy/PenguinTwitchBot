@@ -151,6 +151,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
                     or SubActionTypes.PlinkoDrop or SubActionTypes.StartDropGameSession
                     or SubActionTypes.StopDropGameSession or SubActionTypes.ParachuteRockets
                     or SubActionTypes.BalloonAscent or SubActionTypes.BalloonHazards
+                    or SubActionTypes.CurlingSlide
                     => SubActionCategories.Minigames,
 
                 _ => SubActionCategories.General
