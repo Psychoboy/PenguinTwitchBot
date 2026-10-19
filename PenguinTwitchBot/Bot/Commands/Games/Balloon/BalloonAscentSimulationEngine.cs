@@ -47,7 +47,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
             var t = tick * Dt;
             var x = Math.Clamp(record.StartX + record.InitialVx * t, 0.06, 0.94);
-            var y = Math.Clamp(record.StartY + record.InitialVy * t, record.LandingY, record.StartY);
+            var minY = Math.Min(record.LandingY, record.StartY);
+            var maxY = Math.Max(record.LandingY, record.StartY);
+            var y = Math.Clamp(record.StartY + record.InitialVy * t, minY, maxY);
             return new ParachuteTrajectoryPointDto { Tick = tick, X = x, Y = y, Vx = record.InitialVx, Vy = record.InitialVy };
         }
 
@@ -79,7 +81,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             if (uncollidedX < 0.05)
             {
                 var bounceTick = (int)Math.Clamp(Math.Round(((0.05 - record.StartX) / (record.InitialVx != 0 ? record.InitialVx : -0.01)) * TickRateHz), 1, Math.Max(2, record.TotalTicks - 1));
-                var bounceY = Math.Clamp(record.StartY + record.InitialVy * (bounceTick * Dt), record.LandingY, record.StartY);
+                var minY = Math.Min(record.LandingY, record.StartY);
+                var maxY = Math.Max(record.LandingY, record.StartY);
+                var bounceY = Math.Clamp(record.StartY + record.InitialVy * (bounceTick * Dt), minY, maxY);
                 keyframes.Add(new ParachuteTrajectoryPointDto
                 {
                     Tick = bounceTick,
@@ -95,7 +99,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             else if (uncollidedX > 0.95)
             {
                 var bounceTick = (int)Math.Clamp(Math.Round(((0.95 - record.StartX) / (record.InitialVx != 0 ? record.InitialVx : 0.01)) * TickRateHz), 1, Math.Max(2, record.TotalTicks - 1));
-                var bounceY = Math.Clamp(record.StartY + record.InitialVy * (bounceTick * Dt), record.LandingY, record.StartY);
+                var minY = Math.Min(record.LandingY, record.StartY);
+                var maxY = Math.Max(record.LandingY, record.StartY);
+                var bounceY = Math.Clamp(record.StartY + record.InitialVy * (bounceTick * Dt), minY, maxY);
                 keyframes.Add(new ParachuteTrajectoryPointDto
                 {
                     Tick = bounceTick,

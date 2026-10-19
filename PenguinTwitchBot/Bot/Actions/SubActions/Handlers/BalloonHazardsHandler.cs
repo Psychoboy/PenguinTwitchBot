@@ -41,6 +41,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 SpeedPreset = hazardSubAction.SpeedPreset,
                 SizePreset = hazardSubAction.SizePreset,
                 EmoteOrImage = resolvedEmote,
+                TargetUser = string.IsNullOrWhiteSpace(resolvedTargetUser) ? null : resolvedTargetUser,
                 TriggeredBy = variables.TryGetValue("User", out var trigUser) ? trigUser : "SubAction"
             };
 

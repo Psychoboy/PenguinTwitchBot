@@ -1235,7 +1235,7 @@
             scorePopups.push({
                 x: b.x,
                 y: targetCloud.y - 0.04,
-                text: b.isBullseye ? 'GOLDEN BULLSEYE! 100 PTS' : `+${b.score} PTS!`,
+                text: b.isBullseye ? `GOLDEN BULLSEYE! ${b.score} PTS` : `+${b.score} PTS!`,
                 color: b.isBullseye ? '#FFD166' : '#38EF7D',
                 alpha: 1.0,
                 createdAtMs: now

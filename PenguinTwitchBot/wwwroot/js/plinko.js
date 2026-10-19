@@ -1251,7 +1251,7 @@
         // Must score > 0 to qualify for the leader crown!
         let leaderDropToken = null;
         let maxLandedScore = 0;
-        if (sessionState.isActive) {
+        if (sessionState.isActive || sessionState.endedAtMs) {
             for (let k = 0; k < activeTokens.length; k++) {
                 const tok = activeTokens[k];
                 if (tok.completed && (tok.score || 0) > maxLandedScore) {
@@ -1546,7 +1546,7 @@
 
                 sendCompletion(t.dropToken, landedBucketIdx);
 
-                if (sessionState.isActive && (t.score || 0) > maxLandedScore) {
+                if ((sessionState.isActive || sessionState.endedAtMs) && (t.score || 0) > maxLandedScore) {
                     maxLandedScore = t.score || 0;
                     leaderDropToken = t.dropToken;
                 }

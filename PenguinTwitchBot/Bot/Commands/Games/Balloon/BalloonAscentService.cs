@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using PenguinTwitchBot.Bot.Actions;
@@ -157,6 +158,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             try
             {
                 var now = DateTime.UtcNow;
+                var settings = await settingsService.GetSettingsAsync();
+                var bSettings = settings.Balloon;
+
                 if (_activeSession != null && _activeSession.EndsAtUtc > now)
                 {
                     var queued = new QueuedSessionRequest
@@ -166,15 +170,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                         TriggeredBy = triggeredBy
                     };
                     _sessionQueue.Enqueue(queued);
-                    var cur = GetCurrentSession()!;
-                    cur.IsQueued = true;
-                    cur.QueuePosition = _sessionQueue.Count;
-                    return cur;
+                    var queuedDuration = durationSeconds ?? bSettings.DefaultSessionDurationSeconds;
+                    return new DropGameSessionDto
+                    {
+                        GameType = "balloon",
+                        IsActive = false,
+                        IsQueued = true,
+                        QueuePosition = _sessionQueue.Count,
+                        TotalDurationSeconds = queuedDuration,
+                        RemainingSeconds = queuedDuration,
+                        TotalDrops = 0
+                    };
                 }
 
-                var settings = await settingsService.GetSettingsAsync();
-                var bSettings = settings.Balloon;
-                var duration = Math.Clamp(durationSeconds ?? 90, 10, 600);
+                var duration = Math.Clamp(durationSeconds ?? bSettings.DefaultSessionDurationSeconds, 10, 600);
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
                 var endsAt = now.AddSeconds(duration);
 
@@ -236,6 +245,49 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Balloon is active");
                 await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Balloon is active");
 
+                if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (bSettings.AnnounceSessionStatusInChat)
+                    {
+                        var template = bSettings.SessionStartChatMessageTemplate;
+                        if (!string.IsNullOrWhiteSpace(template))
+                        {
+                            var msg = template.Replace("{duration}", duration.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                            await ServiceBackbone.SendChatMessage(msg);
+                        }
+                    }
+                }
+
+                var startVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["Duration"] = duration.ToString(CultureInfo.InvariantCulture),
+                    ["Theme"] = theme.Name,
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "BalloonAscent"
+                };
+
+                var startEventArgs = new CommandEventArgs
+                {
+                    Command = "balloon",
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "balloon",
+                        DefaultCommandEventTypes.BalloonStart,
+                        startEventArgs,
+                        startVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire BalloonStart trigger");
+                }
+
                 return dto;
             }
             finally
@@ -246,6 +298,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
         public async Task<DropGameSessionDto?> StopSessionAsync(string? triggeredBy = null)
         {
+            DropGameSessionDto? dto = null;
             await _sessionLock.WaitAsync();
             try
             {
@@ -275,7 +328,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     NameFontSize = bSettings.NameFontSize
                 };
 
-                var dto = new DropGameSessionDto
+                dto = new DropGameSessionDto
                 {
                     GameType = "balloon",
                     IsActive = false,
@@ -305,13 +358,63 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Balloon is inactive");
                 await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Balloon is inactive");
 
-                await ProcessNextQueuedSessionAsync();
-                return dto;
+                if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (bSettings.AnnounceSessionStatusInChat)
+                    {
+                        var template = bSettings.SessionEndChatMessageTemplate;
+                        if (!string.IsNullOrWhiteSpace(template))
+                        {
+                            var msg = template
+                                .Replace("{count}", dto.TotalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{duration}", dto.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                            await ServiceBackbone.SendChatMessage(msg);
+                        }
+                    }
+                }
+
+                var endVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["User"] = triggeredBy ?? "System",
+                    ["Target"] = triggeredBy ?? "System",
+                    ["TotalDrops"] = dto.TotalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["total_drops"] = dto.TotalDrops.ToString(CultureInfo.InvariantCulture),
+                    ["Duration"] = dto.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
+                    ["TriggeredBy"] = triggeredBy ?? "System",
+                    ["Game"] = "BalloonAscent"
+                };
+
+                var endEventArgs = new CommandEventArgs
+                {
+                    Command = "balloon",
+                    Name = triggeredBy ?? "System",
+                    DisplayName = triggeredBy ?? "System"
+                };
+
+                try
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                        "balloon",
+                        DefaultCommandEventTypes.BalloonEnd,
+                        endEventArgs,
+                        endVariables);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to fire BalloonEnd trigger");
+                }
             }
             finally
             {
                 _sessionLock.Release();
             }
+
+            if (dto != null)
+            {
+                await ProcessNextQueuedSessionAsync();
+            }
+
+            return dto;
         }
 
         private async void OnSessionExpiredCallback(object? state)
@@ -328,7 +431,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
         private async Task ProcessNextQueuedSessionAsync()
         {
-            if (_sessionQueue.TryDequeue(out var next))
+            QueuedSessionRequest? next = null;
+            await _sessionLock.WaitAsync();
+            try
+            {
+                if (_activeSession != null && _activeSession.EndsAtUtc > DateTime.UtcNow) return;
+                if (_sessionQueue.TryDequeue(out var req))
+                {
+                    next = req;
+                }
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+
+            if (next != null)
             {
                 try
                 {
@@ -416,9 +534,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             BalloonAscentSimulationEngine.SimulateBalloonTrajectory(record, bSettings.PoppedScoreMode);
             dropRegistry.RegisterDrop(record);
 
-            if (_activeSession != null)
+            var currentSessionState = _activeSession;
+            if (currentSessionState != null && currentSessionState.EndsAtUtc > now)
             {
-                Interlocked.Increment(ref _activeSession.TotalDrops);
+                Interlocked.Increment(ref currentSessionState.TotalDrops);
+                var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
+                currentSessionState.UserDropCounts.AddOrUpdate(userKey, 1, (_, existing) => existing + 1);
             }
 
             var soundsDto = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
@@ -487,15 +608,48 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
         {
             var settings = await settingsService.GetSettingsAsync();
             var bSettings = settings.Balloon;
+            if (!bSettings.EnableHazards)
+            {
+                return new List<DropletInstanceDto>();
+            }
+
+            var requestedType = (request.HazardType ?? "Random").Trim();
+            var isRandom = requestedType.Equals("Random", StringComparison.OrdinalIgnoreCase);
+
+            if (!isRandom)
+            {
+                if (requestedType.Equals("DartPop", StringComparison.OrdinalIgnoreCase) && !bSettings.EnableDarts)
+                    return new List<DropletInstanceDto>();
+                if (requestedType.Equals("HeavyPush", StringComparison.OrdinalIgnoreCase) && !bSettings.EnableAnvils)
+                    return new List<DropletInstanceDto>();
+                if (requestedType.Equals("Nudge", StringComparison.OrdinalIgnoreCase) && !bSettings.EnableNudges)
+                    return new List<DropletInstanceDto>();
+                if (requestedType.Equals("WindGust", StringComparison.OrdinalIgnoreCase) && !bSettings.EnableWindGusts)
+                    return new List<DropletInstanceDto>();
+            }
+
             var now = DateTime.UtcNow;
 
             var count = Math.Clamp(request.Count, 1, 25);
             var (speedLabel, speedScale) = BalloonHazardPatternGenerator.ResolveHazardSpeed(request.SpeedPreset);
 
             var activeDrops = dropRegistry.GetActiveDrops(DropGameType.Balloon);
-            var targetDrop = !string.IsNullOrWhiteSpace(request.TargetDropToken)
-                ? activeDrops.FirstOrDefault(d => d.DropToken == request.TargetDropToken)
-                : activeDrops.OrderBy(_ => RandomNumberGenerator.GetInt32(0, 1000)).FirstOrDefault();
+            PendingDropRecord? targetDrop = null;
+            if (!string.IsNullOrWhiteSpace(request.TargetDropToken))
+            {
+                targetDrop = activeDrops.FirstOrDefault(d => d.DropToken == request.TargetDropToken);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.TargetUser))
+            {
+                var targetName = request.TargetUser.Trim();
+                targetDrop = activeDrops.FirstOrDefault(d =>
+                    d.Username.Equals(targetName, StringComparison.OrdinalIgnoreCase) ||
+                    d.DisplayName.Equals(targetName, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                targetDrop = activeDrops.OrderBy(_ => RandomNumberGenerator.GetInt32(0, 1000)).FirstOrDefault();
+            }
 
             var theme = DropGameMediaResolver.ResolveTheme(settings, null, bSettings.ActiveThemeId);
             var enabledTypes = new List<string>();
@@ -503,7 +657,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             if (bSettings.EnableAnvils) enabledTypes.Add("HeavyPush");
             if (bSettings.EnableNudges) enabledTypes.Add("Nudge");
             if (bSettings.EnableWindGusts) enabledTypes.Add("WindGust");
-            if (enabledTypes.Count == 0) enabledTypes.Add("Nudge");
+            if (enabledTypes.Count == 0)
+            {
+                return new List<DropletInstanceDto>();
+            }
 
             async Task<string> ResolveHazardImageAsync(string? typeEmote, string? themeUrl)
             {
@@ -533,9 +690,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             var instances = new List<DropletInstanceDto>();
             for (var i = 0; i < count; i++)
             {
-                var actualType = request.HazardType.Equals("Random", StringComparison.OrdinalIgnoreCase)
+                var actualType = isRandom
                     ? enabledTypes[RandomNumberGenerator.GetInt32(enabledTypes.Count)]
-                    : request.HazardType;
+                    : requestedType;
 
                 var (sizeLabel, sizeScale, radius, mass) = BalloonHazardPatternGenerator.ResolveHazardPhysics(actualType, request.SizePreset);
                 var hazardImg = typeImages.TryGetValue(actualType, out var imgUrl) ? imgUrl : "";
@@ -688,11 +845,64 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             if (command == null) return;
 
             var cmdName = command.CommandProperties.CommandName;
+            var settings = await settingsService.GetSettingsAsync();
+            var bSettings = settings.Balloon;
 
             if (cmdName.Equals("balloon", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("float", StringComparison.OrdinalIgnoreCase) ||
                 cmdName.Equals("ascent", StringComparison.OrdinalIgnoreCase))
             {
+                var firstArg = e.Args.Count > 0 ? e.Args[0] : (e.Arg ?? "").Trim();
+
+                if (e.IsModOrHigher() && firstArg.Equals("start", StringComparison.OrdinalIgnoreCase))
+                {
+                    int? customDuration = null;
+                    if (e.Args.Count > 1 && int.TryParse(e.Args[1], out var parsedDuration))
+                    {
+                        customDuration = parsedDuration;
+                    }
+                    await StartSessionAsync(customDuration, triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (e.IsModOrHigher() && firstArg.Equals("stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    await StopSessionAsync(triggeredBy: e.DisplayName);
+                    return;
+                }
+
+                if (bSettings.SessionModeEnabled)
+                {
+                    var session = GetCurrentSession();
+                    if (session == null)
+                    {
+                        if (bSettings.AutoStartOnCommand)
+                        {
+                            var started = await StartSessionAsync(bSettings.DefaultSessionDurationSeconds, triggeredBy: e.DisplayName);
+                            if (started.IsQueued)
+                            {
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+
+                    var state = _activeSession;
+                    if (state != null)
+                    {
+                        var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                        if (bSettings.MaxDropsPerUserPerSession > 0 &&
+                            state.UserDropCounts.TryGetValue(userKey, out var count) &&
+                            count >= bSettings.MaxDropsPerUserPerSession)
+                        {
+                            return;
+                        }
+                    }
+                }
+
                 var emote = e.Arg?.Trim();
                 await TriggerBalloonAscentAsync(e, emote, allowDirectUrlOrPath: false);
             }

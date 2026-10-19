@@ -112,7 +112,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     // Authorized client with secret key: directly trust the client's rendered outcome and score
                     if (notification.Score.HasValue)
                     {
-                        record.Score = notification.Score.Value;
+                        record.Score = Math.Clamp(notification.Score.Value, 0, 100);
                         record.IsBullseye = notification.IsBullseye ?? false;
                         record.IsWin = notification.IsWin ?? false;
                         record.IsHit = notification.IsHit ?? false;

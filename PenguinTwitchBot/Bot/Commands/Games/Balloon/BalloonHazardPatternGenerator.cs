@@ -57,8 +57,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             if (pattern.Equals("Targeted", StringComparison.OrdinalIgnoreCase) && targetDrop != null)
             {
                 var elapsedSeconds = Math.Max(0.0, (now - targetDrop.CreatedAtUtc).TotalSeconds);
-                var currentTick = Math.Clamp((int)Math.Round(elapsedSeconds * TickRateHz) + spawnTickOffset, 0, targetDrop.TotalTicks - 10);
-                var targetPoint = BalloonAscentSimulationEngine.GetBalloonPositionAtTick(targetDrop, Math.Min(targetDrop.TotalTicks - 5, currentTick + 20));
+                var maxTick = Math.Max(0, targetDrop.TotalTicks - 10);
+                var currentTick = Math.Clamp((int)Math.Round(elapsedSeconds * TickRateHz) + spawnTickOffset, 0, maxTick);
+                var targetPoint = BalloonAscentSimulationEngine.GetBalloonPositionAtTick(targetDrop, Math.Min(Math.Max(0, targetDrop.TotalTicks - 5), currentTick + 20));
 
                 var fromLeft = (index % 2 == 0) ? (targetPoint.X > 0.35) : (targetPoint.X < 0.65);
                 var startX = fromLeft ? Math.Max(0.04, targetPoint.X - 0.25) : Math.Min(0.96, targetPoint.X + 0.25);

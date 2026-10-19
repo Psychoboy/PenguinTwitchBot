@@ -2161,7 +2161,7 @@
         // Must land on target with score > 0 to qualify for the crown!
         let leaderDropToken = null;
         let maxLandedScore = 0;
-        if (sessionState.isActive) {
+        if (sessionState.isActive || sessionState.endedAtMs) {
             for (let k = 0; k < activeDrops.length; k++) {
                 const d = activeDrops[k];
                 if (d.completed && (d.isHit || d.isBullseye) && (d.score || 0) > maxLandedScore) {
@@ -2376,7 +2376,7 @@
                 }
 
                 // If this newly landed drop landed on target and beats previous high score, update leader
-                if (sessionState.isActive && (drop.isHit || drop.isBullseye) && (drop.score || 0) > maxLandedScore) {
+                if ((sessionState.isActive || sessionState.endedAtMs) && (drop.isHit || drop.isBullseye) && (drop.score || 0) > maxLandedScore) {
                     maxLandedScore = drop.score || 0;
                     leaderDropToken = drop.dropToken;
                 }

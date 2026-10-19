@@ -3003,6 +3003,159 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal("/images/cloud.png", theme.BalloonCloudPlatformImageUrl);
             Assert.Equal("/images/canopy.png", theme.BalloonCanopyImageUrl);
         }
+
+        [Fact]
+        public async Task BalloonAscentService_StopSessionAsync_SequentiallyStartsQueuedSession()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var service = CreateBalloonService(dropRegistry, settingsService);
+
+            // 1. Start active Balloon session 1 (50s)
+            var s1 = await service.StartSessionAsync(50, triggeredBy: "Streamer");
+            Assert.True(s1.IsActive);
+            Assert.False(s1.IsQueued);
+            Assert.Equal(0, service.GetQueuedSessionCount());
+
+            // 2. Start Balloon session 2 (30s) while session 1 is active -> should be queued
+            var s2 = await service.StartSessionAsync(30, triggeredBy: "Mod");
+            Assert.False(s2.IsActive);
+            Assert.True(s2.IsQueued);
+            Assert.Equal(1, s2.QueuePosition);
+            Assert.Equal(1, service.GetQueuedSessionCount());
+
+            // 3. Stop session 1 -> should promote queued session 2 sequentially without deadlocking
+            var stopped1 = await service.StopSessionAsync(triggeredBy: "Streamer");
+            Assert.NotNull(stopped1);
+            Assert.Equal(50, stopped1.TotalDurationSeconds);
+
+            var promoted = service.GetCurrentSession();
+            Assert.NotNull(promoted);
+            Assert.True(promoted.IsActive);
+            Assert.Equal(30, promoted.TotalDurationSeconds);
+            Assert.Equal(0, service.GetQueuedSessionCount());
+
+            // 4. Stop promoted session 2
+            var stopped2 = await service.StopSessionAsync(triggeredBy: "Streamer");
+            Assert.NotNull(stopped2);
+            Assert.Null(service.GetCurrentSession());
+        }
+
+        [Fact]
+        public async Task BalloonAscentService_SpawnHazardsAsync_EnforcesSettingsAndTargetUser()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+
+            settings.Balloon.EnableHazards = false;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var service = CreateBalloonService(dropRegistry, settingsService);
+
+            // 1. When EnableHazards is false, returns empty list
+            var disabledResult = await service.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+            {
+                Count = 5,
+                HazardType = "Random"
+            });
+            Assert.Empty(disabledResult);
+
+            // Re-enable hazards, but disable darts
+            settings.Balloon.EnableHazards = true;
+            settings.Balloon.EnableDarts = false;
+            await settingsService.SaveSettingsAsync(settings);
+
+            // 2. Explicit request for disabled hazard type returns empty list
+            var dartResult = await service.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+            {
+                Count = 3,
+                HazardType = "DartPop"
+            });
+            Assert.Empty(dartResult);
+
+            // Register active drop for targeting
+            var now = DateTime.UtcNow;
+            var targetRecord = new PendingDropRecord
+            {
+                DropToken = "target-token-123",
+                GameType = DropGameType.Balloon,
+                Username = "target_pilot",
+                DisplayName = "TargetPilot",
+                UserId = "target-user-id",
+                EventArgs = new CommandEventArgs { Command = "balloon", Name = "target_pilot", DisplayName = "TargetPilot", UserId = "target-user-id" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now.AddSeconds(-2),
+                ExpiresAtUtc = now.AddSeconds(60),
+                StartX = 0.40,
+                StartY = 0.94,
+                LandingY = 0.10,
+                TargetCenterX = 0.50,
+                TotalTicks = 180
+            };
+            dropRegistry.RegisterDrop(targetRecord);
+
+            // 3. TargetUser selects matching drop case-insensitively
+            var targetedResult = await service.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+            {
+                Count = 1,
+                HazardType = "Nudge",
+                Pattern = "Targeted",
+                TargetUser = "TARGET_PILOT"
+            });
+            Assert.NotEmpty(targetedResult);
+        }
+
+        [Theory]
+        [InlineData(150, 100)]
+        [InlineData(-25, 0)]
+        [InlineData(85, 85)]
+        public async Task DropGameCompleteHandler_Balloon_ClampsScoreToInclusive0To100(int reportedScore, int expectedScore)
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "clamp-token-" + reportedScore,
+                GameType = DropGameType.Balloon,
+                Username = "clamp_user",
+                DisplayName = "ClampUser",
+                UserId = "clamp-user-id",
+                EventArgs = new CommandEventArgs { Command = "balloon", Name = "clamp_user", DisplayName = "ClampUser", UserId = "clamp-user-id" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-6),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                Mock.Of<IParachuteDropService>(),
+                Mock.Of<IPlinkoDropService>(),
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object);
+
+            var notification = new DropGameCompleteNotification(
+                record.DropToken,
+                score: reportedScore,
+                isWin: true,
+                overlayKey: validKey);
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            Assert.Equal(expectedScore, record.Score);
+        }
     }
 }
 

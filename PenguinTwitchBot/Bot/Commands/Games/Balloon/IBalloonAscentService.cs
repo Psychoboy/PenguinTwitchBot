@@ -12,6 +12,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
         public string SpeedPreset { get; set; } = "Normal";
         public string SizePreset { get; set; } = "Medium";
         public string? TargetDropToken { get; set; }
+        public string? TargetUser { get; set; }
         public string? TriggeredBy { get; set; }
     }
 
