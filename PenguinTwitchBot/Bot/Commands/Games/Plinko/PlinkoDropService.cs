@@ -300,6 +300,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 var board = new
                 {
                     rowCount = Math.Clamp(settings.Plinko.RowCount, 5, 14),
+                    pegRadius = Math.Clamp(settings.Plinko.PegRadius, 4, 30),
                     durationSeconds = startDurationSeconds,
                     gravity = startGravity,
                     bounciness = startBounciness,
@@ -553,7 +554,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
             else
             {
-                startX = DropGameMath.RandomDouble(0.20, 0.80);
+                // All top-row pegs (0 through pegCols - 1) across the board are eligible for starting above,
+                // ensuring even distribution so every bucket (including first and last) can be landed in.
+                const int pegCols = 12;
+                var randomPegIndex = Random.Shared.Next(0, pegCols); // 0 through 11 inclusive
+                var pegCenterX = (randomPegIndex + 0.5) / pegCols;
+                var microOffset = DropGameMath.RandomDouble(-0.003, 0.003);
+                startX = Math.Clamp(pegCenterX + microOffset, 0.04, 0.96);
             }
 
             var dropToken = RandomNumberGenerator.GetHexString(64);
@@ -658,6 +665,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 board = new
                 {
                     rowCount = rows,
+                    pegRadius = Math.Clamp(plinkoSettings.PegRadius, 4, 30),
                     durationSeconds,
                     gravity,
                     bounciness,

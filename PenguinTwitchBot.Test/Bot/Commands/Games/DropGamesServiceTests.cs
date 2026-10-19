@@ -1509,7 +1509,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var record = registry.GetPendingDrop(token);
             Assert.NotNull(record);
             Assert.Equal(-1, record.BucketIndex);
-            Assert.InRange(record.StartX, 0.20, 0.80);
+            Assert.InRange(record.StartX, 0.02, 0.98);
             Assert.Equal(1.0, record.Gravity);
             Assert.Equal(0.75, record.Bounciness);
             Assert.Equal(1.0, record.Mass);

@@ -78,6 +78,7 @@
 
     let boardConfig = {
         rowCount: 8,
+        pegRadius: null,
         pegTransparency: 15,
         buckets: [
             { label: 'MISS', score: 0, isWin: false, color: '#64748B' },
@@ -340,6 +341,9 @@
 
             const b = msg.board;
             boardConfig.rowCount = b.rowCount || 8;
+            if (typeof b.pegRadius === 'number') {
+                boardConfig.pegRadius = Math.max(4, Math.min(30, b.pegRadius));
+            }
             if (typeof b.pegTransparency === 'number') {
                 boardConfig.pegTransparency = Math.max(0, Math.min(100, b.pegTransparency));
             }
@@ -366,7 +370,7 @@
                 playSound(currentTheme.dropSoundUrl, 0.45);
             }
 
-            let startNormX = 0.5;
+            let startNormX = null;
             if (b.physics && typeof b.physics.startX === 'number') {
                 startNormX = b.physics.startX;
             } else if (typeof b.startX === 'number') {
@@ -375,6 +379,14 @@
                 startNormX = b.waypoints[0].x;
             } else if (typeof b.winningBucketIndex === 'number' && boardConfig.buckets && boardConfig.buckets.length > 0) {
                 startNormX = (b.winningBucketIndex + 0.5) / boardConfig.buckets.length;
+            }
+
+            if (typeof startNormX !== 'number') {
+                // All top-row pegs across the board are eligible to guarantee natural bounce
+                const topCols = Math.max(7, Math.round(width / 160));
+                const chosenPeg = Math.floor(Math.random() * topCols);
+                const microOffset = (Math.random() - 0.5) * 0.006;
+                startNormX = Math.max(0.04, Math.min(0.96, (chosenPeg + 0.5) / topCols + microOffset));
             }
 
             let startNormY = (b.physics && typeof b.physics.startY === 'number') ? b.physics.startY : 0.04;
@@ -447,6 +459,9 @@
             if (s.theme) currentTheme = s.theme;
             if (msg.board) {
                 if (typeof msg.board.rowCount === 'number') boardConfig.rowCount = msg.board.rowCount;
+                if (typeof msg.board.pegRadius === 'number') {
+                    boardConfig.pegRadius = Math.max(4, Math.min(30, msg.board.pegRadius));
+                }
                 if (typeof msg.board.pegTransparency === 'number') {
                     boardConfig.pegTransparency = Math.max(0, Math.min(100, msg.board.pegTransparency));
                 }
@@ -513,7 +528,10 @@
         // Peg Grid
         const rows = boardConfig.rowCount || 8;
         const bucketH = Math.max(84, Math.round(0.09 * height));
-        const pegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const defaultPegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const pegRadius = (typeof boardConfig.pegRadius === 'number' && boardConfig.pegRadius > 0)
+            ? boardConfig.pegRadius
+            : defaultPegRadius;
         const pegColsCount = Math.max(7, Math.round(boardW / 160));
         const pegPitchX = boardW / pegColsCount;
         const rowTopY = 0.16 * height;
@@ -1173,7 +1191,10 @@
         const tokenLandingY = height - tokenRadius - 4;
         const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
         const bucketH = Math.max(84, Math.round(0.09 * height));
-        const pegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const defaultPegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const pegRadius = (typeof boardConfig.pegRadius === 'number' && boardConfig.pegRadius > 0)
+            ? boardConfig.pegRadius
+            : defaultPegRadius;
         const minDistPeg = tokenRadius + pegRadius;
         const minDistPegSq = minDistPeg * minDistPeg;
 
@@ -1255,13 +1276,13 @@
                 t.rotation += (t.spinSpeed || 5.0) * dtSub;
                 t.spinSpeed *= Math.max(0.0, 1.0 - 0.15 * dtSub);
 
-                // Side walls
+                // Side walls (PixelPlush elastic bounce parity)
                 if (t.px < padX + tokenRadius) {
                     t.px = padX + tokenRadius;
-                    if (t.vx < 0) t.vx = -t.vx * 0.80;
+                    if (t.vx < 0) t.vx = -t.vx * 0.95;
                 } else if (t.px > padX + boardW - tokenRadius) {
                     t.px = padX + boardW - tokenRadius;
-                    if (t.vx > 0) t.vx = -t.vx * 0.80;
+                    if (t.vx > 0) t.vx = -t.vx * 0.95;
                 }
 
                 // Collisions with Peg lattice (Matching PixelPlush geometry)
@@ -1289,26 +1310,26 @@
 
                             const vn = t.vx * nx + t.vy * ny;
                             if (vn < 0) {
-                                const rest = Math.max(0.35, Math.min(1.10, (t.bounciness || 0.8) * 1.05));
+                                const rest = Math.max(0.40, Math.min(1.15, (t.bounciness || 0.8) * 1.12));
                                 const impulse = -(1.0 + rest) * vn;
                                 t.vx += nx * impulse;
                                 t.vy += ny * impulse;
 
-                                // Tangential peg friction
+                                // Tangential peg friction (low friction allows natural direction changes)
                                 const tx = -ny;
                                 const ty = nx;
                                 const vt = t.vx * tx + t.vy * ty;
-                                const friction = 0.15;
+                                const friction = 0.04;
                                 t.vx -= tx * vt * friction;
                                 t.vy -= ty * vt * friction;
 
                                 t.spinSpeed = (t.spinSpeed || 0) * 0.7 + (vt / tokenRadius) * 2.5;
 
-                                // Prevent puck from balancing on top apex of peg
-                                if (ny < -0.90 && Math.abs(nx) < 0.35) {
+                                // Prevent puck from balancing on top apex of peg; provide lively left/right deflection
+                                if (ny < -0.85 && Math.abs(nx) < 0.40) {
                                     let sign = nx >= 0 ? 1 : -1;
-                                    if (Math.abs(nx) < 0.02) sign = (Math.random() < 0.5 ? 1 : -1);
-                                    t.vx += sign * (75 + Math.random() * 45) * (t.bounciness || 0.8);
+                                    if (Math.abs(nx) < 0.04) sign = (Math.random() < 0.5 ? 1 : -1);
+                                    t.vx += sign * (140 + Math.random() * 80) * (t.bounciness || 0.8);
                                     t.px += sign * 2.5;
                                 }
 
@@ -1371,11 +1392,11 @@
                 if (t.py >= tokenLandingY) {
                     t.py = tokenLandingY;
                     if (t.vy > 0) {
-                        t.vy = -t.vy * 0.25;
-                        if (Math.abs(t.vy) < 25) t.vy = 0;
+                        t.vy = -t.vy * 0.20;
+                        if (Math.abs(t.vy) < 30) t.vy = 0;
                     }
-                    t.vx *= Math.max(0.0, 1.0 - 0.5 * dtSub * 60);
-                    if (Math.abs(t.vx) < 5) t.vx = 0;
+                    t.vx *= Math.max(0.0, 1.0 - 0.85 * dtSub * 60);
+                    if (Math.abs(t.vx) < 8) t.vx = 0;
 
                     if (!t.floorTouchTime) {
                         t.floorTouchTime = now;
@@ -1446,46 +1467,36 @@
             t.progress = Math.max(0.0, Math.min(0.99, (t.y - startYNorm) / (landingYNorm - startYNorm)));
 
             const targetDurSec = (t.durationMs && t.durationMs > 0) ? (t.durationMs / 1000) : 4.0;
-            const isAtFloor = (t.py >= tokenLandingY - 6);
-            const isInBucket = (t.py >= bucketY);
+            const isAtFloor = (t.py >= tokenLandingY - 2);
 
-            if (isInBucket && !t.bucketEnterTime) {
-                t.bucketEnterTime = now;
-            }
             if (isAtFloor && !t.floorTouchTime) {
                 t.floorTouchTime = now;
             }
 
             // Settlement conditions:
-            // 1. Physically touched bottom floor and slowed down or settled
-            const isFloorSettled = isAtFloor && t.floorTouchTime && (
-                (now - t.floorTouchTime > 100 && Math.abs(t.vy) < 40 && Math.abs(t.vx) < 40) ||
-                (now - t.floorTouchTime > 500)
+            // The puck must be all the way on the ground (isAtFloor) and settled.
+            const isFloorSettled = isAtFloor && (
+                (Math.abs(t.vy) === 0 && Math.abs(t.vx) === 0) ||
+                (t.floorTouchTime && (now - t.floorTouchTime > 120) && Math.abs(t.vy) < 25 && Math.abs(t.vx) < 25) ||
+                (t.floorTouchTime && (now - t.floorTouchTime > 400))
             );
 
-            // 2. Resting inside a bucket (e.g. resting on top of other tokens in multi-drop crowd)
-            const isBucketSettled = isInBucket && (
-                (now - t.bucketEnterTime > 100 && Math.abs(t.vy) < 35 && Math.abs(t.vx) < 35) ||
-                (now - t.bucketEnterTime > 700)
-            );
-
-            // 3. Timeouts:
+            // Timeouts:
             // - In real gameplay (targetDurSec >= 2.2), NEVER complete prematurely while still in the peg field.
-            //   If targetDurSec has passed AND the token is already in or near the bucket area, allow completion.
+            //   If targetDurSec has passed AND the token is already at the floor, allow completion.
             // - In unit test runs (targetDurSec < 2.2), allow timeout completion so stepped mock frames pass deterministically.
             // - Emergency watchdog: 25 seconds of real elapsed time in case a token ever gets permanently trapped.
             const isTimedOut = (now - t.startTimeMs) >= (t.durationMs || 3500);
-            const isNearBucket = (t.py >= bucketY - tokenRadius);
             const isTestTimeout = isTimedOut && (targetDurSec < 2.2);
             const isEmergencyTimeout = (now - t.startTimeMs) >= 25000;
 
-            if (isFloorSettled || isBucketSettled || (isNearBucket && isTimedOut) || isTestTimeout || isEmergencyTimeout) {
+            if (isFloorSettled || (isAtFloor && isTimedOut) || isTestTimeout || isEmergencyTimeout) {
                 t.completed = true;
                 t.completedAtMs = now;
                 t.progress = 1.0;
                 t.vy = 0;
                 t.vx = 0;
-                t.py = Math.min(tokenLandingY, Math.max(bucketY + tokenRadius, t.py));
+                t.py = tokenLandingY;
 
                 const landedBucketIdx = Math.max(0, Math.min(cols - 1, Math.floor((t.px - padX) / slotW)));
                 const landedBucket = buckets[landedBucketIdx] || { label: 'MISS', score: 0, isWin: false };
