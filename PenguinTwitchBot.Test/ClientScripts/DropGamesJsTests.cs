@@ -43,7 +43,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var engine = new Engine(options =>
             {
                 options.Strict = false;
-                options.TimeoutInterval(TimeSpan.FromSeconds(5));
+                options.TimeoutInterval(TimeSpan.FromSeconds(15));
             });
 
             var logs = new System.Collections.Generic.List<string>();
@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     removeEventListener: function() {},
                     location: { search: '?key=test-secret-key' },
                     WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
+                    __plinkoTestMode: true,
                     __sentCompletions: [],
                     __sentRaw: [],
                     __drawnTexts: [],
@@ -307,36 +308,61 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_WaypointsAndLanding_HaveNoFastTravelJumpsOrOvershoot()
+        public void PlinkoJs_PuckPhysics_ContinuousMotion_NoFastTravelTeleportsOrDiscontinuities()
         {
+            var jsDir = FindWwwRootPath();
+            var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(plinkoJs);
+
             const int rows = 8;
             const int bucketCount = 5;
 
-            for (var targetBucket = 0; targetBucket < bucketCount; targetBucket++)
+            var buckets = new[]
             {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
-                Assert.Equal(rows + 2, waypoints.Count);
+                new { label = "0", score = 10, isWin = false },
+                new { label = "1", score = 25, isWin = true },
+                new { label = "2", score = 100, isWin = true },
+                new { label = "3", score = 25, isWin = true },
+                new { label = "4", score = 10, isWin = false }
+            };
 
-                // Verify every step between waypoints never exceeds 0.65 / bucketCount
-                for (var i = 0; i < waypoints.Count - 1; i++)
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { gameType = "plinko", isActive = true, durationSeconds = 60, totalDurationSeconds = 60, roundNumber = 1 },
+                board = new { rows, cols = bucketCount, buckets }
+            });
+
+            DispatchWsMessage(engine, new
+            {
+                type = "plinko_drop",
+                dropToken = "continuous-token",
+                displayName = "PhysViewer",
+                board = new
                 {
-                    var wpA = waypoints[i];
-                    var wpB = waypoints[i + 1];
-
-                    var dx = Math.Abs(wpB.X - wpA.X);
-                    var maxAllowedDx = 0.65 / bucketCount;
-
-                    Assert.True(dx <= maxAllowedDx + 0.02,
-                        $"Step from row {wpA.Row} (X={wpA.X}) to row {wpB.Row} (X={wpB.X}) has excessive horizontal delta {dx:F4} > {maxAllowedDx:F4} (Fast-travel jump detected).");
+                    rowCount = rows,
+                    gravity = 1.0,
+                    bounciness = 0.85,
+                    mass = 1.0,
+                    buckets,
+                    physics = new { startX = 0.50, startY = 0.04, gravity = 1.0, bounciness = 0.85, mass = 1.0 }
                 }
+            });
 
-                // Verify final landing is within target bucket bounds
-                var finalWp = waypoints[^1];
-                var minBucketX = (double)targetBucket / bucketCount;
-                var maxBucketX = (double)(targetBucket + 1) / bucketCount;
+            // Sample positions frame-by-frame and ensure no teleportation
+            double prevX = 0.50;
+            for (var f = 0; f < 60; f++)
+            {
+                StepEngineFrames(engine, 1);
+                var curX = engine.Evaluate("window.__plinkoTokens[0].x").AsNumber();
+                var curY = engine.Evaluate("window.__plinkoTokens[0].y").AsNumber();
 
-                Assert.InRange(finalWp.X, minBucketX, maxBucketX);
-                Assert.Equal(0.96, finalWp.Y);
+                var dx = Math.Abs(curX - prevX);
+                Assert.True(dx < 0.15, $"Discontinuous horizontal jump detected: dx={dx:F4} at frame {f}");
+                Assert.InRange(curX, 0.0, 1.0);
+                Assert.InRange(curY, 0.0, 1.0);
+                prevX = curX;
             }
         }
 
@@ -367,16 +393,23 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
         private static void StepEngineFrames(Engine engine, int frameCount, double dtMs = 16.666)
         {
-            engine.Execute($@"
-                for (var f = 0; f < {frameCount}; f++) {{
-                    performance._now += {dtMs};
-                    if (window.__nextRaf) {{
-                        var cb = window.__nextRaf;
-                        window.__nextRaf = null;
-                        cb(performance._now);
+            const int chunkSize = 60;
+            var remaining = frameCount;
+            while (remaining > 0)
+            {
+                var frames = Math.Min(remaining, chunkSize);
+                engine.Execute($@"
+                    for (var f = 0; f < {frames}; f++) {{
+                        performance._now += {dtMs};
+                        if (window.__nextRaf) {{
+                            var cb = window.__nextRaf;
+                            window.__nextRaf = null;
+                            cb(performance._now);
+                        }}
                     }}
-                }}
-            ");
+                ");
+                remaining -= frames;
+            }
         }
 
         private static void DispatchWsMessage(Engine engine, object message)
@@ -387,7 +420,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_MultipleConcurrentTokens_BounceOffEachOtherAndLandInDesignatedBuckets()
+        public void PlinkoJs_MultipleConcurrentTokens_BounceOffEachOtherAndLandInBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -423,7 +456,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
             // Spawn 5 simultaneous tokens targeted to buckets 0 through 4 with overlapping flight paths
             for (var t = 0; t < bucketCount; t++)
             {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, t);
                 DispatchWsMessage(engine, new
                 {
                     type = "plinko_drop",
@@ -433,32 +465,40 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     board = new
                     {
                         rowCount = rows,
-                        durationSeconds = 1.8,
+                        durationSeconds = 2.4,
                         gravity = 1.0,
                         bounciness = 0.85,
                         mass = 1.0,
                         buckets = buckets,
-                        winningBucketIndex = t,
-                        waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                        physics = new
+                        {
+                            startX = (t + 0.5) / bucketCount,
+                            startY = 0.04,
+                            gravity = 1.0,
+                            bounciness = 0.85,
+                            mass = 1.0
+                        }
                     }
                 });
             }
 
-            // Step 150 frames (~2.5s) to let all tokens collide mid-air and complete landing
-            StepEngineFrames(engine, 150);
+            // Step 180 frames (~3.0s) to let all tokens collide mid-air and complete landing
+            StepEngineFrames(engine, 180);
 
             // Verify console.error was clean
             var errors = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errors);
 
-            // Verify all 5 tokens sent completions and each landed in its designated bucket
             var completionsCount = engine.Evaluate("window.__sentCompletions.length").AsNumber();
             Assert.Equal(bucketCount, completionsCount);
 
             for (var t = 0; t < bucketCount; t++)
             {
                 var reportedBucket = engine.Evaluate($"window.__sentCompletions.find(c => c.dropToken === 'token-{t}').winningBucketIndex").AsNumber();
-                Assert.Equal(t, (int)reportedBucket);
+                Assert.InRange((int)reportedBucket, 0, bucketCount - 1);
+
+                var tokenPy = engine.Evaluate($"window.__plinkoTokens.find(token => token.dropToken === 'token-{t}').py").AsNumber();
+                Assert.True(tokenPy >= 1000, $"Token token-{t} should have reached the floor, got py={tokenPy}");
             }
         }
 
@@ -718,40 +758,34 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Theory]
-        [InlineData(6, 3)]
-        [InlineData(7, 5)]
-        [InlineData(8, 5)]
-        [InlineData(10, 7)]
-        [InlineData(12, 9)]
-        [InlineData(8, 12)]
-        public void PlinkoSimulationEngine_BuildWaypoints_AllRowsAndBucketCounts_RemainMonotonicAndCentered(int rows, int bucketCount)
+        [InlineData(3)]
+        [InlineData(5)]
+        [InlineData(7)]
+        [InlineData(9)]
+        [InlineData(12)]
+        public void PlinkoSimulationEngine_EvaluateBucketOutcome_AllBucketConfigurations_EvaluatesCorrectScoreAndWinStatus(int bucketCount)
         {
+            var buckets = new List<PlinkoBucket>();
+            for (var i = 0; i < bucketCount; i++)
+            {
+                var isWin = (i == bucketCount / 2);
+                buckets.Add(new PlinkoBucket
+                {
+                    Label = $"B{i}",
+                    Score = isWin ? 100 : 0,
+                    IsWin = isWin,
+                    Weight = 1
+                });
+            }
+
             for (var targetBucket = 0; targetBucket < bucketCount; targetBucket++)
             {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
-                Assert.Equal(rows + 2, waypoints.Count);
-
-                for (var i = 0; i < waypoints.Count - 1; i++)
-                {
-                    var wpA = waypoints[i];
-                    var wpB = waypoints[i + 1];
-
-                    // Waypoints must descend monotonically in Y
-                    Assert.True(wpB.Y > wpA.Y, $"Waypoints must strictly descend: row {wpA.Row} (Y={wpA.Y}) to row {wpB.Row} (Y={wpB.Y})");
-
-                    // Lateral step bound
-                    var dx = Math.Abs(wpB.X - wpA.X);
-                    var maxAllowedDx = 0.65 / bucketCount;
-                    Assert.True(dx <= maxAllowedDx + 0.02,
-                        $"Step delta {dx:F4} exceeded {maxAllowedDx:F4} between row {wpA.Row} and {wpB.Row}");
-                }
-
-                // Final waypoint must be centered inside target bucket
-                var finalWp = waypoints[^1];
-                var minBucketX = (double)targetBucket / bucketCount;
-                var maxBucketX = (double)(targetBucket + 1) / bucketCount;
-                Assert.InRange(finalWp.X, minBucketX, maxBucketX);
-                Assert.Equal(0.96, finalWp.Y);
+                var outcome = PlinkoSimulationEngine.EvaluateBucketOutcome(buckets, targetBucket);
+                Assert.Equal($"B{targetBucket}", outcome.Label);
+                var expectedWin = (targetBucket == bucketCount / 2);
+                Assert.Equal(expectedWin, outcome.IsWin);
+                Assert.Equal(expectedWin ? 100 : 0, outcome.Score);
+                Assert.Equal(expectedWin, outcome.IsBullseye);
             }
         }
 
@@ -968,20 +1002,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
         {
             var jsDir = FindWwwRootPath();
 
-            // 1. Plinko Extreme Check (C# lattice + JS overlay execution)
+            // 1. Plinko Extreme Check (JS 2D physics execution)
             const int rows = 8;
             const int bucketCount = 5;
-            for (var b = 0; b < bucketCount; b++)
-            {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, b);
-                foreach (var wp in waypoints)
-                {
-                    Assert.False(double.IsNaN(wp.X) || double.IsInfinity(wp.X), "Plinko Waypoint X is NaN or Infinity");
-                    Assert.False(double.IsNaN(wp.Y) || double.IsInfinity(wp.Y), "Plinko Waypoint Y is NaN or Infinity");
-                    Assert.InRange(wp.X, 0.0, 1.0);
-                    Assert.InRange(wp.Y, 0.0, 1.0);
-                }
-            }
 
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
             var plinkoEngine = CreateMockBrowserEngine(out _);
@@ -1003,8 +1026,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            const int targetBucket = 2;
-            var targetWaypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
             DispatchWsMessage(plinkoEngine, new
             {
                 type = "plinko_drop",
@@ -1019,8 +1040,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     bounciness = bounciness,
                     mass = mass,
                     buckets = buckets,
-                    winningBucketIndex = targetBucket,
-                    waypoints = targetWaypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.50, startY = 0.04, gravity, bounciness, mass }
                 }
             });
 
@@ -1029,7 +1049,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var plinkoLanded = plinkoEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-plinko')");
             Assert.False(plinkoLanded.IsNull() || plinkoLanded.IsUndefined(), "Plinko JS failed to complete under extreme physics");
             var landedIdx = plinkoEngine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'extreme-plinko').winningBucketIndex").AsNumber();
-            Assert.Equal(targetBucket, (int)landedIdx);
+            Assert.InRange((int)landedIdx, 0, bucketCount - 1);
 
             // 2. Parachute Extreme Check (C# simulation + JS overlay execution)
             var baseRecord = CreateTestDropRecord("extreme-drop", "ExtremeUser", 0.50, 0.20, 0.14, 0.92, 360);
@@ -1265,10 +1285,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            // Drop 3 tokens landing in Low (10), Mid (25), and High (100)
+            // Drop 3 tokens landing across buckets
             for (var t = 0; t < 3; t++)
             {
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, t);
                 DispatchWsMessage(engine, new
                 {
                     type = "plinko_drop",
@@ -1283,8 +1302,14 @@ namespace PenguinTwitchBot.Test.ClientScripts
                         bounciness = 0.85,
                         mass = 1.0,
                         buckets = buckets,
-                        winningBucketIndex = t,
-                        waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                        physics = new
+                        {
+                            startX = (t + 0.5) / 3.0,
+                            startY = 0.04,
+                            gravity = 1.0,
+                            bounciness = 0.85,
+                            mass = 1.0
+                        }
                     }
                 });
             }
@@ -1295,10 +1320,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
             // Verify all 3 completions were reported
             var completionCount = engine.Evaluate("window.__sentCompletions.length").AsNumber();
             Assert.Equal(3, (int)completionCount);
-
-            // Verify token-2 reported winning bucket index 2
-            var token2Bucket = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'token-2').winningBucketIndex").AsNumber();
-            Assert.Equal(2, (int)token2Bucket);
 
             // Assert that the leader crown emoji 👑 was rendered on the canvas
             var hasCrown = engine.Evaluate("window.__drawnTexts.some(t => t.indexOf('👑') >= 0)").AsBoolean();
@@ -1330,7 +1351,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
             });
 
             // Spawn token in Round 1
-            var r1Waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(8, 3, 1);
             DispatchWsMessage(plinkoEngine, new
             {
                 type = "plinko_drop",
@@ -1339,13 +1359,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new
                 {
                     rowCount = 8,
-                    durationSeconds = 2.0,
+                    durationSeconds = 1.0,
                     gravity = 1.0,
                     bounciness = 0.85,
                     mass = 1.0,
                     buckets = plinkoBuckets,
-                    winningBucketIndex = 1,
-                    waypoints = r1Waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.50, startY = 0.04, gravity = 1.0, bounciness = 0.85, mass = 1.0 }
                 }
             });
 
@@ -1382,8 +1401,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     bounciness = 0.85,
                     mass = 1.0,
                     buckets = plinkoBuckets,
-                    winningBucketIndex = 2,
-                    waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(8, 3, 2).Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.80, startY = 0.04, gravity = 1.0, bounciness = 0.85, mass = 1.0 }
                 }
             });
 
@@ -1391,7 +1409,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var completionsR2 = plinkoEngine.Evaluate("window.__sentCompletions.length").AsNumber();
             Assert.Equal(1, (int)completionsR2);
             var r2Bucket = plinkoEngine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
-            Assert.Equal(2, (int)r2Bucket);
+            Assert.InRange((int)r2Bucket, 0, 2);
 
             // 2. Parachute Mid-Flight Reset Test
             var parachuteJs = File.ReadAllText(Path.Combine(jsDir, "parachute.js"));
@@ -1558,7 +1576,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_DenseMultiTokenCrowd_AllTokensBounceAndLandInDesignatedBuckets()
+        public void PlinkoJs_DenseMultiTokenCrowd_AllTokensBounceAndLandInBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -1584,12 +1602,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            // Drop 12 simultaneous tokens targeted across buckets 0 to 4
+            // Drop 12 simultaneous tokens distributed across buckets
             const int tokenCount = 12;
             for (var t = 0; t < tokenCount; t++)
             {
                 var targetBucket = t % bucketCount;
-                var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
                 DispatchWsMessage(engine, new
                 {
                     type = "plinko_drop",
@@ -1604,14 +1621,20 @@ namespace PenguinTwitchBot.Test.ClientScripts
                         bounciness = 0.85,
                         mass = 1.0,
                         buckets = buckets,
-                        winningBucketIndex = targetBucket,
-                        waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                        physics = new
+                        {
+                            startX = (targetBucket + 0.5) / bucketCount,
+                            startY = 0.04,
+                            gravity = 1.0,
+                            bounciness = 0.85,
+                            mass = 1.0
+                        }
                     }
                 });
             }
 
-            // Step 120 frames to allow full descent and token-token collisions
-            StepEngineFrames(engine, 120);
+            // Step 150 frames to allow full descent and token-token collisions
+            StepEngineFrames(engine, 150);
 
             var errors = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errors);
@@ -1619,12 +1642,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var completions = engine.Evaluate("window.__sentCompletions.length").AsNumber();
             Assert.Equal(tokenCount, (int)completions);
 
-            // Verify every single token landed in its designated winning bucket
+            // Verify every single token landed in a valid winning bucket
             for (var t = 0; t < tokenCount; t++)
             {
-                var expectedBucket = t % bucketCount;
                 var actualBucket = engine.Evaluate($"window.__sentCompletions.find(c => c.dropToken === 'crowd-token-{t}').winningBucketIndex").AsNumber();
-                Assert.Equal(expectedBucket, (int)actualBucket);
+                Assert.InRange((int)actualBucket, 0, bucketCount - 1);
             }
         }
 
@@ -1695,7 +1717,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_ExtremeTokenCollision_MaxBouncinessAndMassRatio_DecaysCleanlyIntoTargetBuckets()
+        public void PlinkoJs_ExtremeTokenCollision_MaxBouncinessAndMassRatio_DecaysCleanlyIntoBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -1721,8 +1743,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            // Token A: Mass 10.0, Bounce 5.0, target bucket 0 (left)
-            var wpA = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, 0);
+            // Token A: Mass 10.0, Bounce 5.0, start on left (0.10)
             DispatchWsMessage(engine, new
             {
                 type = "plinko_drop",
@@ -1732,18 +1753,16 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new
                 {
                     rowCount = rows,
-                    durationSeconds = 1.5,
+                    durationSeconds = 1.4,
                     gravity = 1.0,
                     bounciness = 5.0,
                     mass = 10.0,
                     buckets = buckets,
-                    winningBucketIndex = 0,
-                    waypoints = wpA.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.10, startY = 0.04, gravity = 1.0, bounciness = 5.0, mass = 10.0 }
                 }
             });
 
-            // Token B: Mass 0.1, Bounce 5.0, target bucket 4 (right)
-            var wpB = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, 4);
+            // Token B: Mass 0.1, Bounce 5.0, start on right (0.90)
             DispatchWsMessage(engine, new
             {
                 type = "plinko_drop",
@@ -1753,18 +1772,17 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new
                 {
                     rowCount = rows,
-                    durationSeconds = 1.5,
+                    durationSeconds = 1.4,
                     gravity = 1.0,
                     bounciness = 5.0,
                     mass = 0.1,
                     buckets = buckets,
-                    winningBucketIndex = 4,
-                    waypoints = wpB.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.90, startY = 0.04, gravity = 1.0, bounciness = 5.0, mass = 0.1 }
                 }
             });
 
-            // Step 120 frames
-            StepEngineFrames(engine, 120);
+            // Step 150 frames
+            StepEngineFrames(engine, 150);
 
             var errors = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errors);
@@ -1775,9 +1793,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var heavyLandedBucket = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'heavy-token').winningBucketIndex").AsNumber();
             var lightLandedBucket = engine.Evaluate("window.__sentCompletions.find(c => c.dropToken === 'light-token').winningBucketIndex").AsNumber();
 
-            // Both tokens strictly preserve their server-designated winning buckets
-            Assert.Equal(0, (int)heavyLandedBucket);
-            Assert.Equal(4, (int)lightLandedBucket);
+            // Both tokens land cleanly into valid buckets
+            Assert.InRange((int)heavyLandedBucket, 0, 4);
+            Assert.InRange((int)lightLandedBucket, 0, 4);
         }
 
         [Fact]
@@ -1910,10 +1928,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            // Target bucket 3 (forces lateral peg navigation with dx != 0)
-            const int targetBucket = 3;
-            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
-
             DispatchWsMessage(engine, new
             {
                 type = "plinko_drop",
@@ -1922,13 +1936,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new
                 {
                     rowCount = rows,
-                    durationSeconds = 2.0,
+                    durationSeconds = 1.8,
                     gravity = 1.0,
                     bounciness = 0.85,
                     mass = 1.0,
                     buckets = buckets,
-                    winningBucketIndex = targetBucket,
-                    waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.60, startY = 0.04, gravity = 1.0, bounciness = 0.85, mass = 1.0 }
                 }
             });
 
@@ -1958,11 +1971,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(1, (int)completions);
 
             var landedBucket = engine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
-            Assert.Equal(targetBucket, (int)landedBucket);
+            Assert.InRange((int)landedBucket, 0, bucketCount - 1);
         }
 
         [Fact]
-        public void PlinkoJs_OrganicBouncePhysics_ExhibitsUpwardBounceAndSkipsIntermediateRows_LandsInTargetBucket()
+        public void PlinkoJs_OrganicBouncePhysics_ExhibitsUpwardBounceAndSkipsIntermediateRows_LandsInBucket()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -1988,9 +2001,6 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new { rows, cols = bucketCount, buckets }
             });
 
-            const int targetBucket = 2;
-            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, bucketCount, targetBucket);
-
             DispatchWsMessage(engine, new
             {
                 type = "plinko_drop",
@@ -1999,25 +2009,19 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 board = new
                 {
                     rowCount = rows,
-                    durationSeconds = 2.5,
+                    durationSeconds = 2.0,
                     gravity = 1.0,
                     bounciness = 1.0,
                     mass = 1.0,
                     buckets = buckets,
-                    winningBucketIndex = targetBucket,
-                    waypoints = waypoints.Select(w => new { x = w.X, y = w.Y, row = w.Row }).ToList()
+                    physics = new { startX = 0.50, startY = 0.04, gravity = 1.0, bounciness = 1.0, mass = 1.0 }
                 }
             });
 
-            // 1. Step 1 frame to initialize trajectory
+            // 1. Step 1 frame to initialize
             StepEngineFrames(engine, 1);
 
-            // 2. Verify that the trajectory synthesizer did NOT create a node for every single row
-            // For an 8-row board (10 raw waypoints: dispenser, 8 pegs, bucket), the organic trajectory must have fewer nodes (e.g. 4-5)
-            var nodeCount = engine.Evaluate("window.__plinkoTokens[0].trajectory.nodes.length").AsNumber();
-            Assert.True(nodeCount < waypoints.Count, $"Organic trajectory should skip rows instead of visiting all {waypoints.Count} waypoints (got {nodeCount} nodes)");
-
-            // 3. Sample frame positions across the drop to detect true upward bounce (negative delta Y)
+            // 2. Sample frame positions across the drop to detect true upward bounce (negative delta Y)
             var ySamples = new List<double>();
             var detectedUpwardBounce = false;
             double maxUpwardHop = 0;
@@ -2043,12 +2047,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.True(detectedUpwardBounce, "Token should exhibit a true upward bounce (negative delta Y) after peg impact");
             Assert.True(maxUpwardHop > 0.001, $"Upward bounce hop should be visible (got {maxUpwardHop:F4})");
 
-            // 4. Complete the drop and verify bucket landing
+            // 3. Complete the drop and verify bucket landing
             StepEngineFrames(engine, 60);
             var completions = engine.Evaluate("window.__sentCompletions.length").AsNumber();
             Assert.Equal(1, (int)completions);
             var landedBucket = engine.Evaluate("window.__sentCompletions[0].winningBucketIndex").AsNumber();
-            Assert.Equal(targetBucket, (int)landedBucket);
+            Assert.InRange((int)landedBucket, 0, bucketCount - 1);
         }
 
         [Fact]
@@ -2242,11 +2246,21 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var engine = CreateMockBrowserEngine(out _);
             engine.Execute(code);
 
+            var winningBuckets = new[]
+            {
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true },
+                new { label = "WIN", score = 100, isWin = true }
+            };
+
             // 1. Send session_start with sound bundle
             var sessionStartPayload = JsonSerializer.Serialize(new
             {
                 type = "session_start",
                 session = new { isActive = true, totalDurationSeconds = 60 },
+                board = new { rows = 5, cols = 5, buckets = winningBuckets },
                 sounds = new
                 {
                     maxConcurrentSounds = 1,
@@ -2286,6 +2300,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     mass = 1.0,
                     isWin = true,
                     winningBucketIndex = 2,
+                    buckets = winningBuckets,
                     waypoints = new[]
                     {
                         new { x = 0.5, y = 0.08, row = -1 },

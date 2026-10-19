@@ -60,8 +60,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 return validSizes[0];
             }
 
-            // Weighted selection matching PixelPlush distribution:
-            // Small (~25%), Medium (~50%), Large (~17%), Giant (~8%)
             var weights = validSizes.ToDictionary(
                 s => s,
                 s => s.ToLowerInvariant() switch
@@ -174,7 +172,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 }
             }
 
-            // Default TopRain (matching PixelPlush bouncing obstacles)
             {
                 var startX = DropGameMath.RandomDouble(0.06, 0.94);
                 var startY = -0.06;

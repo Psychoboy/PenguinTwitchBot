@@ -299,7 +299,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 var board = new
                 {
-                    rowCount = Math.Clamp(settings.Plinko.RowCount, 5, 14),
+                    rowCount = Math.Clamp(settings.Plinko.RowCount, 4, 14),
+                    pegRadius = Math.Clamp(settings.Plinko.PegRadius, 4, 30),
+                    puckRadius = Math.Clamp(settings.Plinko.PuckRadius, 10, 50),
+                    bucketHeight = Math.Clamp(settings.Plinko.BucketHeight, 60, 220),
                     durationSeconds = startDurationSeconds,
                     gravity = startGravity,
                     bounciness = startBounciness,
@@ -524,26 +527,58 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 ? plinkoSettings.Buckets
                 : PlinkoGameSettings.CreateDefaultBuckets();
 
-            var rows = Math.Clamp(plinkoSettings.RowCount, 5, 14);
+            var rows = Math.Clamp(plinkoSettings.RowCount, 4, 14);
             var gravity = Math.Clamp(plinkoSettings.Gravity, 0.1, 10.0);
             var bounciness = Math.Clamp(plinkoSettings.Bounciness, 0.1, 5.0);
             var mass = Math.Clamp(plinkoSettings.Mass, 0.1, 10.0);
             var durationSeconds = Math.Clamp(4.2 / Math.Pow(gravity, 0.25), 2.5, 7.0);
             var pegTransparency = Math.Clamp(plinkoSettings.PegTransparency, 0, 100);
 
-            int winningBucketIndex;
+            int bucketIndex = -1;
+            string bucketLabel = string.Empty;
+            int score = 0;
+            bool isWin = false;
+            bool isBullseye = false;
+            bool isHit = false;
+
+            double startX;
             if (forcedBucketIndex.HasValue)
             {
-                winningBucketIndex = Math.Clamp(forcedBucketIndex.Value, 0, buckets.Count - 1);
+                var clampedBucket = Math.Clamp(forcedBucketIndex.Value, 0, buckets.Count - 1);
+                startX = (clampedBucket + 0.5) / buckets.Count;
+                var outcome = PlinkoSimulationEngine.EvaluateBucketOutcome(buckets, clampedBucket);
+                bucketIndex = clampedBucket;
+                bucketLabel = outcome.Label;
+                score = outcome.Score;
+                isWin = outcome.IsWin;
+                isBullseye = outcome.IsBullseye;
+                isHit = outcome.IsWin;
             }
             else
             {
-                winningBucketIndex = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
-            }
+                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above,
+                // biased proportionally according to bucket weights so configured weights influence landing outcomes.
+                const int pegCols = 14;
+                const int topPegCount = pegCols - 1; // 13 pegs across top row
 
-            var winningBucket = buckets[winningBucketIndex];
-            var effectiveScore = winningBucket.IsWin ? winningBucket.Score : 0;
-            var waypoints = PlinkoSimulationEngine.BuildPlinkoWaypoints(rows, buckets.Count, winningBucketIndex, bounciness);
+                int pegIndex;
+                if (buckets != null && buckets.Count > 0)
+                {
+                    var weightedBucket = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
+                    var targetX = (weightedBucket + 0.5) / buckets.Count;
+                    var basePeg = (int)Math.Round((targetX * pegCols) - 1.0);
+                    var jitter = Random.Shared.Next(-1, 2); // -1, 0, or +1 natural spread
+                    pegIndex = Math.Clamp(basePeg + jitter, 0, topPegCount - 1);
+                }
+                else
+                {
+                    pegIndex = Random.Shared.Next(0, topPegCount);
+                }
+
+                var pegCenterX = (pegIndex + 1.0) / pegCols;
+                var microOffset = DropGameMath.RandomDouble(-0.003, 0.003);
+                startX = Math.Clamp(pegCenterX + microOffset, 0.06, 0.94);
+            }
 
             var dropToken = RandomNumberGenerator.GetHexString(64);
             var now = DateTime.UtcNow;
@@ -569,18 +604,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     ? now.AddMilliseconds(-100)
                     : now.AddSeconds(Math.Max(0.5, durationSeconds * 0.50)),
                 ExpiresAtUtc = now.AddSeconds(Math.Max(60.0, durationSeconds + 30.0)),
-                StartX = waypoints.First().X,
-                LandingX = waypoints.Last().X,
+                StartX = startX,
+                LandingX = startX,
                 TotalTicks = Math.Max(30, (int)Math.Round(durationSeconds * 60.0)),
                 Gravity = gravity,
                 Bounciness = bounciness,
                 Mass = mass,
-                Score = effectiveScore,
-                IsHit = winningBucket.IsWin,
-                IsBullseye = winningBucket.IsWin && winningBucket.Score >= buckets.Where(b => b.IsWin).Select(b => b.Score).DefaultIfEmpty(0).Max(),
-                IsWin = winningBucket.IsWin,
-                BucketIndex = winningBucketIndex,
-                BucketLabel = winningBucket.Label,
+                Score = score,
+                IsHit = isHit,
+                IsBullseye = isBullseye,
+                IsWin = isWin,
+                BucketIndex = bucketIndex,
+                BucketLabel = bucketLabel,
+                ForcedOutcome = forcedBucketIndex.HasValue,
                 Buckets = buckets.Select(b => new PlinkoBucket { Label = b.Label, Score = b.Score, IsWin = b.IsWin, Color = b.Color, Weight = b.Weight }).ToList()
             };
 
@@ -647,6 +683,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 board = new
                 {
                     rowCount = rows,
+                    pegRadius = Math.Clamp(plinkoSettings.PegRadius, 4, 30),
+                    puckRadius = Math.Clamp(plinkoSettings.PuckRadius, 10, 50),
+                    bucketHeight = Math.Clamp(plinkoSettings.BucketHeight, 60, 220),
                     durationSeconds,
                     gravity,
                     bounciness,
@@ -654,11 +693,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     nameFontSize = plinkoSettings.NameFontSize,
                     pegTransparency,
                     buckets,
-                    winningBucketIndex,
-                    winningBucketLabel = winningBucket.Label,
-                    score = effectiveScore,
-                    isWin = winningBucket.IsWin,
-                    waypoints
+                    physics = new
+                    {
+                        startX,
+                        startY = -0.06,
+                        gravity,
+                        bounciness,
+                        mass
+                    }
                 }
             };
 

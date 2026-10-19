@@ -1370,7 +1370,6 @@
         }
         ctx.rotate(currentRotation);
 
-        // Dynamic canopy deployment scale (PixelPlush deploys when falling, folds when moving upward or near ceiling)
         let targetCanopyScale = 1.0;
         if (drop.completed || drop.parachuteDestroyed) {
             targetCanopyScale = 0.0;
@@ -1665,7 +1664,6 @@
                 }
             } else {
                 // Apply dynamic 2D bouncy physics
-                // Gravity & clean kinematic integration (zero air friction, matching Matter.js in PixelPlush)
                 d.vy += (d.gravity || 0.32) * dtSec;
 
                 // Position integration
@@ -1730,7 +1728,7 @@
                     }
                 }
 
-                // 4. Elastic collision with falling parachutists (character figurine body only, matching original PixelPlush)
+                // 4. Elastic collision with falling parachutists
                 const rPx = Math.max(12, (d.radius || 0.028) * Math.min(width, height));
                 const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
                 const dPxX = d.x * width;
@@ -2251,7 +2249,7 @@
                 const decayVx = Math.pow(0.998, dtSec * 60);
                 drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
                 if (drop.vy < initialVy) {
-                    // Ballistic upward arc decelerates under gravity back to terminal glide (PixelPlush Matter.js physics)
+                    // Ballistic upward arc decelerates under gravity back to terminal glide
                     drop.vy = Math.min(initialVy, drop.vy + 1.20 * dtSec);
                 } else {
                     const decayVy = Math.pow(0.96, dtSec * 60);

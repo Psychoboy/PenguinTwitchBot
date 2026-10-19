@@ -610,16 +610,35 @@
                                     </MudSelect>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
-                                            <MudNumericField T="int" Label="Peg Rows (5 - 14)" Variant="Variant.Outlined"
-                                                             Min="5" Max="14"
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Rows (4 - 14)" Variant="Variant.Outlined"
+                                                             Min="4" Max="14"
+                                                             HelperText="Number of peg rows (default 4)."
                                                              @bind-Value="_settings.Plinko.RowCount" />
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Radius (4 - 30px)" Variant="Variant.Outlined"
+                                                             Min="4" Max="30" Step="1"
+                                                             HelperText="Collision & visual size (default 12px)."
+                                                             @bind-Value="_settings.Plinko.PegRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="int" Label="Peg Transparency Level (0 - 100%)" Variant="Variant.Outlined"
                                                              Min="0" Max="100" Step="5"
                                                              HelperText="100% = total visible, 0% = invisible (default 15%)."
                                                              @bind-Value="_settings.Plinko.PegTransparency" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Puck Radius (10 - 50px)" Variant="Variant.Outlined"
+                                                             Min="10" Max="50" Step="1"
+                                                             HelperText="Player token avatar size (default 36px)."
+                                                             @bind-Value="_settings.Plinko.PuckRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Bucket Divider Height (60 - 220px)" Variant="Variant.Outlined"
+                                                             Min="60" Max="220" Step="5"
+                                                             HelperText="Height of bottom slot dividers (default 120px)."
+                                                             @bind-Value="_settings.Plinko.BucketHeight" />
                                         </MudItem>
                                     </MudGrid>
 
