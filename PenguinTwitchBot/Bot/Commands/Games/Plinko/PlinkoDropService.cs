@@ -556,8 +556,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
             else
             {
-                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above,
-                // matching PixelPlush's 137px outer side margins and guaranteed top-peg bounces.
+                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above
                 const int pegCols = 14;
                 const int topPegCount = pegCols - 1; // 13 pegs across top row
                 var randomPegIndex = Random.Shared.Next(0, topPegCount); // 0 through 12 inclusive

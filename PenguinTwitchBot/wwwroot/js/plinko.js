@@ -1307,7 +1307,6 @@
                 t.rotation += (t.spinSpeed || 5.0) * dtSub;
                 t.spinSpeed *= Math.max(0.0, 1.0 - 0.15 * dtSub);
 
-                // Side walls (PixelPlush elastic bounce parity)
                 if (t.px < padX + tokenRadius) {
                     t.px = padX + tokenRadius;
                     if (t.vx < 0) t.vx = -t.vx * 0.95;
@@ -1316,7 +1315,6 @@
                     if (t.vx > 0) t.vx = -t.vx * 0.95;
                 }
 
-                // Collisions with Peg lattice (Matching PixelPlush geometry)
                 for (let r = 0; r < rows; r++) {
                     const rowY = rowTopY + r * rowPitchY;
                     if (Math.abs(t.py - rowY) > minDistPeg) continue;
