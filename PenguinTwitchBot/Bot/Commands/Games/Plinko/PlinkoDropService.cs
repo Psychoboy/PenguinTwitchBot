@@ -36,9 +36,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true
         };
-        private readonly ConcurrentQueue<QueuedSessionRequest> _sessionQueue = new();
-        private readonly SemaphoreSlim _sessionLock = new(1, 1);
-        private DropGameSessionState? _activeSession;
+        private readonly DropGameSessionManager _sessionManager = new(logger);
 
         private MediaUploadService? GetMediaUploadService()
         {
@@ -54,101 +52,31 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
         }
 
-        private sealed class QueuedSessionRequest
+        public DropGameSessionDto? GetCurrentSession() => _sessionManager.GetCurrentSessionDto("plinko");
+
+        public int GetQueuedSessionCount() => _sessionManager.QueuedCount;
+
+        public Task ClearSessionQueueAsync()
         {
-            public int? DurationSeconds { get; init; }
-            public string? ThemeOverrideId { get; init; }
-            public string? TriggeredBy { get; init; }
-            public DateTime EnqueuedAtUtc { get; init; } = DateTime.UtcNow;
-        }
-
-        private sealed class DropGameSessionState
-        {
-            public DateTime StartedAtUtc { get; init; }
-            public DateTime EndsAtUtc { get; set; }
-            public int TotalDurationSeconds { get; set; }
-            public string? ThemeIdOverride { get; set; }
-            public string? StartedBy { get; init; }
-            public ConcurrentDictionary<string, int> UserDropCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
-            public int TotalDrops;
-            public CancellationTokenSource Cts { get; } = new();
-            public Timer? ExpiryTimer { get; set; }
-        }
-
-        public DropGameSessionDto? GetCurrentSession()
-        {
-            var state = _activeSession;
-            if (state == null) return null;
-            var now = DateTime.UtcNow;
-            if (state.EndsAtUtc <= now) return null;
-
-            var remainingSec = Math.Max(0, (int)Math.Ceiling((state.EndsAtUtc - now).TotalSeconds));
-            return new DropGameSessionDto
-            {
-                GameType = "plinko",
-                IsActive = true,
-                TotalDurationSeconds = state.TotalDurationSeconds,
-                RemainingSeconds = remainingSec,
-                StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(state.EndsAtUtc).ToUnixTimeMilliseconds(),
-                TotalDrops = Volatile.Read(ref state.TotalDrops)
-            };
-        }
-
-        public int GetQueuedSessionCount() => _sessionQueue.Count;
-
-        public async Task ClearSessionQueueAsync()
-        {
-            await _sessionLock.WaitAsync();
-            try
-            {
-                while (_sessionQueue.TryDequeue(out _)) { }
-            }
-            finally
-            {
-                _sessionLock.Release();
-            }
-        }
-
-        private bool HasActiveTimedSession()
-        {
-            var state = _activeSession;
-            return state != null && state.EndsAtUtc > DateTime.UtcNow;
-        }
-
-        private int RemoveQueuedSessions()
-        {
-            _sessionLock.Wait();
-            try
-            {
-                var countRemoved = 0;
-                while (_sessionQueue.TryDequeue(out _))
-                {
-                    countRemoved++;
-                }
-                return countRemoved;
-            }
-            finally
-            {
-                _sessionLock.Release();
-            }
+            _sessionManager.RemoveQueuedSessions();
+            return Task.CompletedTask;
         }
 
         private async Task ProcessNextQueuedSessionAsync()
         {
             QueuedSessionRequest? next = null;
-            await _sessionLock.WaitAsync();
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
-                if (HasActiveTimedSession()) return;
-                if (_sessionQueue.TryDequeue(out var req))
+                if (_sessionManager.HasActiveTimedSession()) return;
+                if (_sessionManager.TryDequeueNextQueuedSession(out var req))
                 {
                     next = req;
                 }
             }
             finally
             {
-                _sessionLock.Release();
+                _sessionManager.SessionLock.Release();
             }
 
             if (next != null)
@@ -157,11 +85,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 {
                     logger.LogInformation("Starting queued Plinko session ({Duration}s, triggered by {User})",
                         next.DurationSeconds, next.TriggeredBy ?? "Queue");
-                    await StartSessionAsync(next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
+                    var dto = await StartSessionAsync(next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
+                    next.CompletionSource?.TrySetResult(dto);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to start queued Plinko session");
+                    next.CompletionSource?.TrySetException(ex);
                 }
             }
         }
@@ -178,20 +108,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             duration = Math.Clamp(duration, 5, 3600);
 
-            await _sessionLock.WaitAsync();
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
-                if (HasActiveTimedSession())
+                if (_sessionManager.HasActiveTimedSession())
                 {
-                    var queuedItem = new QueuedSessionRequest
-                    {
-                        DurationSeconds = duration,
-                        ThemeOverrideId = themeOverrideId,
-                        TriggeredBy = triggeredBy,
-                        EnqueuedAtUtc = DateTime.UtcNow
-                    };
-                    _sessionQueue.Enqueue(queuedItem);
-                    var queuePosition = _sessionQueue.Count;
+                    _sessionManager.EnqueueSession(duration, themeOverrideId, triggeredBy);
+                    var queuePosition = _sessionManager.QueuedCount;
 
                     logger.LogInformation("Enqueued Plinko session for {Duration}s (Triggered by {User}) behind active round. Queue position: {Position}",
                         duration, triggeredBy ?? "System", queuePosition);
@@ -223,55 +146,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     };
                 }
 
-                if (_activeSession != null)
-                {
-                    _activeSession.ExpiryTimer?.Dispose();
-                    _activeSession.Cts.Cancel();
-                    _activeSession.Cts.Dispose();
-                    _activeSession = null;
-                }
-
-                var now = DateTime.UtcNow;
-                var endsAt = now.AddSeconds(duration);
-
-                var state = new DropGameSessionState
-                {
-                    StartedAtUtc = now,
-                    EndsAtUtc = endsAt,
-                    TotalDurationSeconds = duration,
-                    ThemeIdOverride = themeOverrideId,
-                    StartedBy = triggeredBy
-                };
-
-                state.ExpiryTimer = new Timer(async _ =>
+                var session = _sessionManager.CreateAndSetActiveSession(duration, themeOverrideId, triggeredBy ?? "System", async state =>
                 {
                     try
                     {
-                        await StopSessionAsync(state, triggeredBy: "timer_expired");
+                        await StopSessionAsync("timer_expired");
                     }
                     catch (Exception ex)
                     {
                         logger.LogError(ex, "Error expiring session for Plinko");
                     }
-                }, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
+                });
 
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Plinko.ActiveThemeId);
-                _activeSession = state;
                 dropRegistry.ClearDropsForGame(DropGameType.Plinko);
                 dropRegistry.SetSessionActive(DropGameType.Plinko, true);
                 var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
 
-                var headerConfig = new DropGameHeaderConfigDto
-                {
-                    AutoAvoidOverlap = settings.Plinko.AutoAvoidOverlap,
-                    ShowBanner = settings.Plinko.ShowHeaderBanner,
-                    ShowTimer = settings.Plinko.ShowTimer,
-                    ShowCount = settings.Plinko.ShowTokenCount,
-                    ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
-                    Position = settings.Plinko.HeaderPosition,
-                    YOffset = settings.Plinko.HeaderCustomYOffset,
-                    NameFontSize = settings.Plinko.NameFontSize
-                };
+                var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Plinko);
 
                 var dto = new DropGameSessionDto
                 {
@@ -281,8 +173,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     QueuePosition = 0,
                     TotalDurationSeconds = duration,
                     RemainingSeconds = duration,
-                    StartedAtMs = new DateTimeOffset(now).ToUnixTimeMilliseconds(),
-                    EndsAtMs = new DateTimeOffset(endsAt).ToUnixTimeMilliseconds(),
+                    StartedAtMs = new DateTimeOffset(session.StartedAtUtc).ToUnixTimeMilliseconds(),
+                    EndsAtMs = new DateTimeOffset(session.EndsAtUtc).ToUnixTimeMilliseconds(),
                     TotalDrops = 0,
                     Theme = theme,
                     IsOtherGameActive = isOtherGameActive,
@@ -363,145 +255,120 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
             finally
             {
-                _sessionLock.Release();
+                _sessionManager.SessionLock.Release();
             }
         }
 
         public async Task<DropGameSessionDto?> StopSessionAsync(string? triggeredBy = null)
         {
-            var state = Interlocked.Exchange(ref _activeSession, null);
-            if (state == null)
-            {
-                var removedCount = RemoveQueuedSessions();
-                if (removedCount > 0)
-                {
-                    logger.LogInformation("Removed {Count} queued Plinko session(s) (Triggered by {User})", removedCount, triggeredBy ?? "System");
-                    return new DropGameSessionDto { GameType = "plinko", IsActive = false, RemainingSeconds = 0 };
-                }
-                return null;
-            }
-
-            return await FinalizeStoppedSessionAsync(state, triggeredBy);
-        }
-
-        private async Task<DropGameSessionDto?> StopSessionAsync(DropGameSessionState expectedState, string? triggeredBy = null)
-        {
-            ArgumentNullException.ThrowIfNull(expectedState);
-            if (Interlocked.CompareExchange(ref _activeSession, null, expectedState) != expectedState)
-            {
-                return null;
-            }
-
-            return await FinalizeStoppedSessionAsync(expectedState, triggeredBy);
-        }
-
-        private async Task<DropGameSessionDto> FinalizeStoppedSessionAsync(DropGameSessionState state, string? triggeredBy = null)
-        {
+            DropGameSessionDto? dto = null;
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
-                state.ExpiryTimer?.Dispose();
-                state.Cts.Cancel();
-                state.Cts.Dispose();
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Error disposing session timer/cts for Plinko");
-            }
-
-            dropRegistry.SetSessionActive(DropGameType.Plinko, false);
-            var totalDrops = Volatile.Read(ref state.TotalDrops);
-            var settings = await settingsService.GetSettingsAsync();
-            var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Plinko.ActiveThemeId);
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
-
-            var headerConfig = new DropGameHeaderConfigDto
-            {
-                AutoAvoidOverlap = settings.Plinko.AutoAvoidOverlap,
-                ShowBanner = settings.Plinko.ShowHeaderBanner,
-                ShowTimer = settings.Plinko.ShowTimer,
-                ShowCount = settings.Plinko.ShowTokenCount,
-                ShowFreePlayCounter = settings.Plinko.ShowFreePlayCounter,
-                Position = settings.Plinko.HeaderPosition,
-                YOffset = settings.Plinko.HeaderCustomYOffset,
-                NameFontSize = settings.Plinko.NameFontSize
-            };
-
-            var dto = new DropGameSessionDto
-            {
-                GameType = "plinko",
-                IsActive = false,
-                TotalDurationSeconds = state.TotalDurationSeconds,
-                RemainingSeconds = 0,
-                StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
-                TotalDrops = totalDrops,
-                Theme = theme,
-                IsOtherGameActive = isOtherGameActive,
-                HeaderConfig = headerConfig
-            };
-
-            var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(settings.Plinko, theme, GetMediaUploadService());
-            dto.Sounds = soundBundle;
-
-            var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
-
-            var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "plinko" }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Plinko is inactive");
-            await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Plinko is inactive");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
-            {
-                if (settings.Plinko.AnnounceSessionStatusInChat)
+                var state = _sessionManager.ExchangeStopSession();
+                if (state == null)
                 {
-                    var template = settings.Plinko.SessionEndChatMessageTemplate;
-                    if (!string.IsNullOrWhiteSpace(template))
+                    var removedCount = _sessionManager.RemoveQueuedSessions();
+                    if (removedCount > 0)
                     {
-                        var msg = template
-                            .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                            .Replace("{duration}", state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                        await ServiceBackbone.SendChatMessage(msg);
+                        logger.LogInformation("Removed {Count} queued Plinko session(s) (Triggered by {User})", removedCount, triggeredBy ?? "System");
+                        return new DropGameSessionDto { GameType = "plinko", IsActive = false, RemainingSeconds = 0 };
+                    }
+                    return null;
+                }
+
+                dropRegistry.SetSessionActive(DropGameType.Plinko, false);
+                var totalDrops = Volatile.Read(ref state.TotalDrops);
+                var settings = await settingsService.GetSettingsAsync();
+                var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Plinko.ActiveThemeId);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
+
+                var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Plinko);
+
+                dto = new DropGameSessionDto
+                {
+                    GameType = "plinko",
+                    IsActive = false,
+                    TotalDurationSeconds = state.TotalDurationSeconds,
+                    RemainingSeconds = 0,
+                    StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
+                    EndsAtMs = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeMilliseconds(),
+                    TotalDrops = totalDrops,
+                    Theme = theme,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
+                };
+
+                var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(settings.Plinko, theme, GetMediaUploadService());
+                dto.Sounds = soundBundle;
+
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
+
+                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "plinko" }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Plinko is inactive");
+                await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Plinko is inactive");
+
+                if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (settings.Plinko.AnnounceSessionStatusInChat)
+                    {
+                        var template = settings.Plinko.SessionEndChatMessageTemplate;
+                        if (!string.IsNullOrWhiteSpace(template))
+                        {
+                            var msg = template
+                                .Replace("{count}", totalDrops.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                                .Replace("{duration}", state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                            await ServiceBackbone.SendChatMessage(msg);
+                        }
+                    }
+                }
+
+                logger.LogInformation("Stopped Plinko session with {Drops} total drops (Triggered by {User})", totalDrops, triggeredBy ?? "System");
+
+                if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+                {
+                    var endVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["User"] = triggeredBy ?? "System",
+                        ["Target"] = triggeredBy ?? "System",
+                        ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                        ["total_drops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                        ["TotalTokens"] = totalDrops.ToString(CultureInfo.InvariantCulture),
+                        ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
+                        ["Theme"] = theme.Name,
+                        ["TriggeredBy"] = triggeredBy ?? "System",
+                        ["Game"] = "PlinkoBounce"
+                    };
+
+                    var endEventArgs = new CommandEventArgs
+                    {
+                        Command = "plinko",
+                        Name = triggeredBy ?? "System",
+                        DisplayName = triggeredBy ?? "System"
+                    };
+
+                    try
+                    {
+                        await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
+                            "plinko",
+                            DefaultCommandEventTypes.PlinkoEnd,
+                            endEventArgs,
+                            endVariables);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to fire PlinkoEnd trigger");
                     }
                 }
             }
-
-            logger.LogInformation("Stopped Plinko session with {Drops} total drops (Triggered by {User})", totalDrops, triggeredBy ?? "System");
-
-            if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            finally
             {
-                var endVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["User"] = triggeredBy ?? "System",
-                    ["Target"] = triggeredBy ?? "System",
-                    ["TotalDrops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
-                    ["total_drops"] = totalDrops.ToString(CultureInfo.InvariantCulture),
-                    ["TotalTokens"] = totalDrops.ToString(CultureInfo.InvariantCulture),
-                    ["Duration"] = state.TotalDurationSeconds.ToString(CultureInfo.InvariantCulture),
-                    ["Theme"] = theme.Name,
-                    ["TriggeredBy"] = triggeredBy ?? "System",
-                    ["Game"] = "PlinkoBounce"
-                };
+                _sessionManager.SessionLock.Release();
+            }
 
-                var endEventArgs = new CommandEventArgs
-                {
-                    Command = "plinko",
-                    Name = triggeredBy ?? "System",
-                    DisplayName = triggeredBy ?? "System"
-                };
-
-                try
-                {
-                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                        "plinko",
-                        DefaultCommandEventTypes.PlinkoEnd,
-                        endEventArgs,
-                        endVariables);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to fire PlinkoEnd trigger");
-                }
-
+            if (dto != null && !string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
+            {
                 await ProcessNextQueuedSessionAsync();
             }
 
@@ -625,25 +492,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             dropRegistry.RegisterDrop(record);
 
             var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
-            var headerConfig = new DropGameHeaderConfigDto
-            {
-                AutoAvoidOverlap = plinkoSettings.AutoAvoidOverlap,
-                ShowBanner = plinkoSettings.ShowHeaderBanner,
-                ShowTimer = plinkoSettings.ShowTimer,
-                ShowCount = plinkoSettings.ShowTokenCount,
-                ShowFreePlayCounter = plinkoSettings.ShowFreePlayCounter,
-                Position = plinkoSettings.HeaderPosition,
-                YOffset = plinkoSettings.HeaderCustomYOffset,
-                NameFontSize = plinkoSettings.NameFontSize
-            };
+            var headerConfig = DropGameHeaderConfigDto.FromSettings(plinkoSettings);
 
             DropGameSessionDto? activeSessionDto = null;
             var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
-            var state = _activeSession;
+            var state = _sessionManager.ActiveSession;
             if (state != null && state.EndsAtUtc > now)
             {
-                Interlocked.Increment(ref state.TotalDrops);
-                state.UserDropCounts.AddOrUpdate(userKey, 1, (_, current) => current + 1);
+                _sessionManager.RecordUserDrop(userKey);
                 var rem = Math.Max(0, (int)Math.Ceiling((state.EndsAtUtc - now).TotalSeconds));
                 activeSessionDto = new DropGameSessionDto
                 {
@@ -869,16 +725,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                         }
                     }
 
-                    var state = _activeSession;
-                    if (state != null)
+                    var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                    if (!_sessionManager.CanUserDrop(userKey, plinkoSettings.MaxDropsPerUserPerSession))
                     {
-                        var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
-                        if (plinkoSettings.MaxDropsPerUserPerSession > 0 &&
-                            state.UserDropCounts.TryGetValue(userKey, out var count) &&
-                            count >= plinkoSettings.MaxDropsPerUserPerSession)
-                        {
-                            return;
-                        }
+                        return;
                     }
                 }
 
@@ -898,10 +748,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             try
             {
                 dropRegistry.SetSessionActive(DropGameType.Plinko, false);
-                var s = Interlocked.Exchange(ref _activeSession, null);
-                s?.ExpiryTimer?.Dispose();
-                s?.Cts.Cancel();
-                s?.Cts.Dispose();
+                _sessionManager.Dispose();
             }
             catch { }
             return Task.CompletedTask;

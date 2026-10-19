@@ -37,9 +37,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true
         };
-        private readonly ConcurrentQueue<QueuedSessionRequest> _sessionQueue = new();
-        private readonly SemaphoreSlim _sessionLock = new(1, 1);
-        private DropGameSessionState? _activeSession;
+        private readonly DropGameSessionManager _sessionManager = new(logger);
 
         private MediaUploadService? GetMediaUploadService()
         {
@@ -53,30 +51,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             {
                 return null;
             }
-        }
-
-        private sealed class DropGameSessionState
-        {
-            public DateTime StartedAtUtc { get; init; }
-            public DateTime EndsAtUtc { get; set; }
-            public int TotalDurationSeconds { get; set; }
-            public string? ThemeIdOverride { get; set; }
-            public string? StartedBy { get; init; }
-            public ConcurrentDictionary<string, int> UserDropCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
-            public int TotalDrops;
-            public double? TargetCenterX { get; set; }
-            public double? TargetHalfWidth { get; set; }
-            public double? BullseyeHalfWidth { get; set; }
-            public CancellationTokenSource Cts { get; } = new();
-            public Timer? ExpiryTimer { get; set; }
-        }
-
-        private sealed class QueuedSessionRequest
-        {
-            public int? DurationSeconds { get; init; }
-            public string? ThemeOverrideId { get; init; }
-            public string? TriggeredBy { get; init; }
-            public TaskCompletionSource<DropGameSessionDto> CompletionSource { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         public override async Task Register()
@@ -94,10 +68,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             try
             {
                 dropRegistry.SetSessionActive(DropGameType.Balloon, false);
-                var s = Interlocked.Exchange(ref _activeSession, null);
-                s?.ExpiryTimer?.Dispose();
-                s?.Cts.Cancel();
-                s?.Cts.Dispose();
+                _sessionManager.Dispose();
             }
             catch { }
             return Task.CompletedTask;
@@ -115,37 +86,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             }
         }
 
-        public DropGameSessionDto? GetCurrentSession()
-        {
-            var state = _activeSession;
-            if (state == null) return null;
-            var now = DateTime.UtcNow;
-            if (state.EndsAtUtc <= now) return null;
+        public DropGameSessionDto? GetCurrentSession() => _sessionManager.GetCurrentSessionDto("balloon");
 
-            var remainingSec = Math.Max(0, (int)Math.Ceiling((state.EndsAtUtc - now).TotalSeconds));
-            return new DropGameSessionDto
-            {
-                GameType = "balloon",
-                IsActive = true,
-                TotalDurationSeconds = state.TotalDurationSeconds,
-                RemainingSeconds = remainingSec,
-                StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
-                EndsAtMs = new DateTimeOffset(state.EndsAtUtc).ToUnixTimeMilliseconds(),
-                TotalDrops = Volatile.Read(ref state.TotalDrops),
-                TargetCenterX = state.TargetCenterX,
-                TargetHalfWidth = state.TargetHalfWidth,
-                BullseyeHalfWidth = state.BullseyeHalfWidth
-            };
-        }
-
-        public int GetQueuedSessionCount() => _sessionQueue.Count;
+        public int GetQueuedSessionCount() => _sessionManager.QueuedCount;
 
         public Task ClearSessionQueueAsync()
         {
-            while (_sessionQueue.TryDequeue(out var req))
-            {
-                req.CompletionSource.TrySetCanceled();
-            }
+            _sessionManager.RemoveQueuedSessions();
             return Task.CompletedTask;
         }
 
@@ -154,29 +101,23 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             string? themeOverrideId = null,
             string? triggeredBy = null)
         {
-            await _sessionLock.WaitAsync();
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
                 var now = DateTime.UtcNow;
                 var settings = await settingsService.GetSettingsAsync();
                 var bSettings = settings.Balloon;
 
-                if (_activeSession != null && _activeSession.EndsAtUtc > now)
+                if (_sessionManager.HasActiveTimedSession())
                 {
-                    var queued = new QueuedSessionRequest
-                    {
-                        DurationSeconds = durationSeconds,
-                        ThemeOverrideId = themeOverrideId,
-                        TriggeredBy = triggeredBy
-                    };
-                    _sessionQueue.Enqueue(queued);
+                    _sessionManager.EnqueueSession(durationSeconds, themeOverrideId, triggeredBy);
                     var queuedDuration = durationSeconds ?? bSettings.DefaultSessionDurationSeconds;
                     return new DropGameSessionDto
                     {
                         GameType = "balloon",
                         IsActive = false,
                         IsQueued = true,
-                        QueuePosition = _sessionQueue.Count,
+                        QueuePosition = _sessionManager.QueuedCount,
                         TotalDurationSeconds = queuedDuration,
                         RemainingSeconds = queuedDuration,
                         TotalDrops = 0
@@ -185,37 +126,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
                 var duration = Math.Clamp(durationSeconds ?? bSettings.DefaultSessionDurationSeconds, 10, 600);
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
-                var endsAt = now.AddSeconds(duration);
 
                 var targetHalfWidth = Math.Clamp((bSettings.TargetWidthPercent / 100.0) / 2.0, 0.03, 0.40);
                 var targetCenterX = Math.Clamp(bSettings.TargetCenterX, targetHalfWidth, 1.0 - targetHalfWidth);
 
-                var session = new DropGameSessionState
+                var session = _sessionManager.CreateAndSetActiveSession(duration, theme.Id, triggeredBy ?? "System", async state =>
                 {
-                    StartedAtUtc = now,
-                    EndsAtUtc = endsAt,
-                    TotalDurationSeconds = duration,
-                    ThemeIdOverride = theme.Id,
-                    StartedBy = triggeredBy ?? "System",
-                    TargetCenterX = targetCenterX,
-                    TargetHalfWidth = targetHalfWidth,
-                    BullseyeHalfWidth = targetHalfWidth * 0.25
-                };
+                    try
+                    {
+                        await StopSessionAsync("Timer");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error handling Balloon session expiration");
+                    }
+                });
+                session.TargetCenterX = targetCenterX;
+                session.TargetHalfWidth = targetHalfWidth;
+                session.BullseyeHalfWidth = targetHalfWidth * 0.25;
 
-                session.ExpiryTimer = new Timer(OnSessionExpiredCallback, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
-                _activeSession = session;
-
-                var headerConfig = new DropGameHeaderConfigDto
-                {
-                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
-                    ShowBanner = bSettings.ShowHeaderBanner,
-                    ShowTimer = bSettings.ShowTimer,
-                    ShowCount = bSettings.ShowDropCount,
-                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
-                    Position = bSettings.HeaderPosition,
-                    YOffset = bSettings.HeaderCustomYOffset,
-                    NameFontSize = bSettings.NameFontSize
-                };
+                var headerConfig = DropGameHeaderConfigDto.FromSettings(bSettings);
 
                 dropRegistry.SetSessionActive(DropGameType.Balloon, true);
                 var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
@@ -292,41 +222,25 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             }
             finally
             {
-                _sessionLock.Release();
+                _sessionManager.SessionLock.Release();
             }
         }
 
         public async Task<DropGameSessionDto?> StopSessionAsync(string? triggeredBy = null)
         {
             DropGameSessionDto? dto = null;
-            await _sessionLock.WaitAsync();
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
-                if (_activeSession == null) return null;
-
-                var session = _activeSession;
-                _activeSession = null;
-                session.ExpiryTimer?.Dispose();
-                session.Cts.Cancel();
-                session.Cts.Dispose();
+                var session = _sessionManager.ExchangeStopSession();
+                if (session == null) return null;
 
                 dropRegistry.SetSessionActive(DropGameType.Balloon, false);
                 var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
 
                 var settings = await settingsService.GetSettingsAsync();
                 var bSettings = settings.Balloon;
-
-                var headerConfig = new DropGameHeaderConfigDto
-                {
-                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
-                    ShowBanner = bSettings.ShowHeaderBanner,
-                    ShowTimer = bSettings.ShowTimer,
-                    ShowCount = bSettings.ShowDropCount,
-                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
-                    Position = bSettings.HeaderPosition,
-                    YOffset = bSettings.HeaderCustomYOffset,
-                    NameFontSize = bSettings.NameFontSize
-                };
+                var headerConfig = DropGameHeaderConfigDto.FromSettings(bSettings);
 
                 dto = new DropGameSessionDto
                 {
@@ -406,7 +320,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             }
             finally
             {
-                _sessionLock.Release();
+                _sessionManager.SessionLock.Release();
             }
 
             if (dto != null)
@@ -417,33 +331,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             return dto;
         }
 
-        private async void OnSessionExpiredCallback(object? state)
-        {
-            try
-            {
-                await StopSessionAsync("Timer");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error handling Balloon session expiration");
-            }
-        }
-
         private async Task ProcessNextQueuedSessionAsync()
         {
             QueuedSessionRequest? next = null;
-            await _sessionLock.WaitAsync();
+            await _sessionManager.SessionLock.WaitAsync();
             try
             {
-                if (_activeSession != null && _activeSession.EndsAtUtc > DateTime.UtcNow) return;
-                if (_sessionQueue.TryDequeue(out var req))
+                if (_sessionManager.HasActiveTimedSession()) return;
+                if (_sessionManager.TryDequeueNextQueuedSession(out var req))
                 {
                     next = req;
                 }
             }
             finally
             {
-                _sessionLock.Release();
+                _sessionManager.SessionLock.Release();
             }
 
             if (next != null)
@@ -451,11 +353,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 try
                 {
                     var dto = await StartSessionAsync(next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
-                    next.CompletionSource.TrySetResult(dto);
+                    next.CompletionSource?.TrySetResult(dto);
                 }
                 catch (Exception ex)
                 {
-                    next.CompletionSource.TrySetException(ex);
+                    next.CompletionSource?.TrySetException(ex);
                 }
             }
         }
@@ -534,13 +436,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             BalloonAscentSimulationEngine.SimulateBalloonTrajectory(record, bSettings.PoppedScoreMode);
             dropRegistry.RegisterDrop(record);
 
-            var currentSessionState = _activeSession;
-            if (currentSessionState != null && currentSessionState.EndsAtUtc > now)
-            {
-                Interlocked.Increment(ref currentSessionState.TotalDrops);
-                var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
-                currentSessionState.UserDropCounts.AddOrUpdate(userKey, 1, (_, existing) => existing + 1);
-            }
+            var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
+            _sessionManager.RecordUserDrop(userKey);
 
             var soundsDto = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
 
@@ -571,17 +468,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     speed = bSettings.TargetSpeed,
                     alpha = bSettings.TargetAlpha
                 },
-                headerConfig = new DropGameHeaderConfigDto
-                {
-                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
-                    ShowBanner = bSettings.ShowHeaderBanner,
-                    ShowTimer = bSettings.ShowTimer,
-                    ShowCount = bSettings.ShowDropCount,
-                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
-                    Position = bSettings.HeaderPosition,
-                    YOffset = bSettings.HeaderCustomYOffset,
-                    NameFontSize = bSettings.NameFontSize
-                },
+                headerConfig = DropGameHeaderConfigDto.FromSettings(bSettings),
                 physics = new
                 {
                     buoyancy = bSettings.Buoyancy,
@@ -890,16 +777,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                         }
                     }
 
-                    var state = _activeSession;
-                    if (state != null)
+                    var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                    if (!_sessionManager.CanUserDrop(userKey, bSettings.MaxDropsPerUserPerSession, out _, out _))
                     {
-                        var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
-                        if (bSettings.MaxDropsPerUserPerSession > 0 &&
-                            state.UserDropCounts.TryGetValue(userKey, out var count) &&
-                            count >= bSettings.MaxDropsPerUserPerSession)
-                        {
-                            return;
-                        }
+                        return;
                     }
                 }
 

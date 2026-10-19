@@ -3156,6 +3156,132 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Equal(expectedScore, record.Score);
         }
+
+        [Fact]
+        public async Task DropGameSessionManager_LifecycleAndQueueing_WorksAsExpected()
+        {
+            var manager = new DropGameSessionManager(NullLogger.Instance);
+
+            Assert.Null(manager.ActiveSession);
+            Assert.False(manager.HasActiveTimedSession());
+            Assert.Equal(0, manager.QueuedCount);
+
+            var tcs = new TaskCompletionSource<bool>();
+            var session = manager.CreateAndSetActiveSession(60, "theme1", "UserA", state =>
+            {
+                tcs.TrySetResult(true);
+                return Task.CompletedTask;
+            });
+
+            Assert.NotNull(session);
+            Assert.True(manager.HasActiveTimedSession());
+            Assert.Equal("theme1", session.ThemeIdOverride);
+            Assert.Equal("UserA", session.StartedBy);
+            Assert.Equal(60, session.TotalDurationSeconds);
+
+            var dto = manager.GetCurrentSessionDto("test");
+            Assert.NotNull(dto);
+            Assert.True(dto.IsActive);
+            Assert.Equal("test", dto.GameType);
+
+            // Queueing
+            var req1 = manager.EnqueueSession(30, "theme2", "UserB");
+            var req2 = manager.EnqueueSession(45, "theme3", "UserC");
+            Assert.Equal(2, manager.QueuedCount);
+
+            Assert.True(manager.TryDequeueNextQueuedSession(out var next));
+            Assert.NotNull(next);
+            Assert.Equal("UserB", next.TriggeredBy);
+            Assert.Equal(1, manager.QueuedCount);
+
+            // User drop limits & drop recording
+            Assert.True(manager.CanUserDrop("User1", 2));
+            manager.RecordUserDrop("User1");
+            Assert.True(manager.CanUserDrop("User1", 2));
+            manager.RecordUserDrop("User1");
+            Assert.False(manager.CanUserDrop("User1", 2));
+            Assert.True(manager.CanUserDrop("User2", 2));
+
+            // Stop session
+            var stopped = manager.ExchangeStopSession();
+            Assert.NotNull(stopped);
+            Assert.Null(manager.ActiveSession);
+            Assert.False(manager.HasActiveTimedSession());
+
+            // Clear remaining queue
+            var removed = manager.RemoveQueuedSessions();
+            Assert.Equal(1, removed);
+            Assert.Equal(0, manager.QueuedCount);
+
+            manager.Dispose();
+        }
+
+        [Fact]
+        public void DropGameHeaderConfigDto_FromSettings_MapsCorrectly()
+        {
+            var pSettings = new ParachuteGameSettings
+            {
+                ShowHeaderBanner = true,
+                ShowTimer = true,
+                ShowDropCount = false,
+                ShowFreePlayCounter = true,
+                AutoAvoidOverlap = true,
+                HeaderPosition = "Bottom",
+                HeaderCustomYOffset = 42,
+                NameFontSize = 18
+            };
+            var pHeader = DropGameHeaderConfigDto.FromSettings(pSettings);
+            Assert.True(pHeader.ShowBanner);
+            Assert.True(pHeader.ShowTimer);
+            Assert.False(pHeader.ShowCount);
+            Assert.True(pHeader.ShowFreePlayCounter);
+            Assert.True(pHeader.AutoAvoidOverlap);
+            Assert.Equal("Bottom", pHeader.Position);
+            Assert.Equal(42, pHeader.YOffset);
+            Assert.Equal(18, pHeader.NameFontSize);
+
+            var plinkoSettings = new PlinkoGameSettings
+            {
+                ShowHeaderBanner = false,
+                ShowTimer = false,
+                ShowTokenCount = true,
+                ShowFreePlayCounter = false,
+                AutoAvoidOverlap = false,
+                HeaderPosition = "Top",
+                HeaderCustomYOffset = 10,
+                NameFontSize = 22
+            };
+            var plinkoHeader = DropGameHeaderConfigDto.FromSettings(plinkoSettings);
+            Assert.False(plinkoHeader.ShowBanner);
+            Assert.False(plinkoHeader.ShowTimer);
+            Assert.True(plinkoHeader.ShowCount);
+            Assert.False(plinkoHeader.ShowFreePlayCounter);
+            Assert.False(plinkoHeader.AutoAvoidOverlap);
+            Assert.Equal("Top", plinkoHeader.Position);
+            Assert.Equal(10, plinkoHeader.YOffset);
+            Assert.Equal(22, plinkoHeader.NameFontSize);
+
+            var bSettings = new BalloonAscentGameSettings
+            {
+                ShowHeaderBanner = true,
+                ShowTimer = true,
+                ShowDropCount = true,
+                ShowFreePlayCounter = true,
+                AutoAvoidOverlap = true,
+                HeaderPosition = "Top",
+                HeaderCustomYOffset = 15,
+                NameFontSize = 19
+            };
+            var bHeader = DropGameHeaderConfigDto.FromSettings(bSettings);
+            Assert.True(bHeader.ShowBanner);
+            Assert.True(bHeader.ShowTimer);
+            Assert.True(bHeader.ShowCount);
+            Assert.True(bHeader.ShowFreePlayCounter);
+            Assert.True(bHeader.AutoAvoidOverlap);
+            Assert.Equal("Top", bHeader.Position);
+            Assert.Equal(15, bHeader.YOffset);
+            Assert.Equal(19, bHeader.NameFontSize);
+        }
     }
 }
 

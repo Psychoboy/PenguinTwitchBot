@@ -129,6 +129,9 @@
     let otherDropsActiveUntilMs = 0;
 
     function getBannerX(bannerW) {
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.getBannerX) {
+            return DropGamesCommon.getBannerX(width, bannerW, headerConfig.position);
+        }
         const pos = (headerConfig.position || 'topcenter').toLowerCase();
         if (pos === 'topleft') return 24;
         if (pos === 'topright') return width - bannerW - 24;
@@ -1154,25 +1157,26 @@
                     }
                 } else {
                     // Winners who successfully landed on the cloud platform:
-                    if (sessionState.isActive) {
+                    if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateDropAlpha) {
+                        const alphaRes = DropGamesCommon.calculateDropAlpha(b.landedAtMs || now, now, sessionState, isLeader);
+                        dropAlpha = alphaRes.alpha;
+                        shouldRemove = alphaRes.shouldRemove;
+                    } else if (sessionState.isActive) {
                         if (isLeader) {
-                            // Leader stays fully 100% visible on the cloud throughout the round
                             dropAlpha = 1.0;
                             shouldRemove = false;
                         } else {
-                            // Other players dim slightly into background (0.40 opacity) so the leader stands out
                             const dimDelay = 3500;
                             const dimDuration = 2000;
                             if (elapsed > dimDelay) {
                                 const t = Math.min(1.0, (elapsed - dimDelay) / dimDuration);
-                                dropAlpha = 1.0 - (0.60 * t); // Dims to 0.40 opacity
+                                dropAlpha = 1.0 - (0.60 * t);
                             } else {
                                 dropAlpha = 1.0;
                             }
                             shouldRemove = false;
                         }
                     } else if (sessionState.endedAtMs) {
-                        // Post-round celebration then synchronized fade together
                         const postRoundAge = (now - sessionState.endedAtMs) / 1000;
                         if (postRoundAge > 6.0) {
                             shouldRemove = true;
@@ -1180,7 +1184,6 @@
                             dropAlpha = Math.max(0.0, 1.0 - ((postRoundAge - 3.5) / 2.5));
                         }
                     } else {
-                        // Non-timed single drop mode: generous 8.0s display then gentle fade over 2.5s
                         const lingerTime = 8000;
                         const fadeTime = 2500;
                         if (elapsed > lingerTime) {
@@ -1201,11 +1204,15 @@
         }
 
         // Draw in z-order: non-leaders first, and current winning leader LAST so it's always on top of others!
-        toDraw.sort((a, b) => {
-            if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
-            if (a.completed !== b.completed) return a.completed ? -1 : 1;
-            return (a.score || 0) - (b.score || 0);
-        });
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.sortDropsForDraw) {
+            DropGamesCommon.sortDropsForDraw(toDraw);
+        } else {
+            toDraw.sort((a, b) => {
+                if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
+                if (a.completed !== b.completed) return a.completed ? -1 : 1;
+                return (a.score || 0) - (b.score || 0);
+            });
+        }
 
         for (let i = 0; i < toDraw.length; i++) {
             const item = toDraw[i];
@@ -1701,6 +1708,19 @@
     }
 
     function drawScorePopups(dt, now) {
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawPopups) {
+            DropGamesCommon.updateAndDrawPopups(ctx, scorePopups, {
+                now,
+                dt,
+                width,
+                height,
+                maxAge: 2.5,
+                driftSpeed: 0.02 * (height || 1080),
+                isNormalized: true
+            });
+            return;
+        }
+
         for (let i = scorePopups.length - 1; i >= 0; i--) {
             const sp = scorePopups[i];
             const age = (now - sp.createdAtMs) / 1000;
@@ -1725,8 +1745,29 @@
     }
 
     function drawSessionBanner(now) {
-        // Auto-Avoid Overlap: When other game is active and autoAvoidOverlap is true,
-        // stack Balloon underneath (Row 2, +54px)
+        const hasActiveBalloon = activeBalloons.some(b => !b.completed || (now - (b.landedAtMs || now)) < 6000);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawSessionBanner) {
+            const res = DropGamesCommon.drawSessionBanner(ctx, {
+                now,
+                width,
+                headerConfig,
+                sessionState,
+                currentBannerY,
+                isOtherGameActive,
+                otherDropsActiveUntilMs,
+                hasActiveDrops: hasActiveBalloon,
+                itemPluralName: 'Balloons',
+                primaryColor: currentTheme?.primaryColor || '#38BDF8',
+                accentColor: currentTheme?.accentColor || '#FFE066'
+            });
+            currentBannerY = res.currentBannerY;
+            if (!sessionState.isActive && !hasActiveBalloon && activeBalloons.length === 0) {
+                sessionState.totalDrops = 0;
+            }
+            return;
+        }
+
+        // Fallback banner drawing
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
         if (headerConfig.autoAvoidOverlap !== false && (isOtherGameActive || now < otherDropsActiveUntilMs)) {
             targetY += 54;
@@ -1740,7 +1781,6 @@
                 if (ageSec <= 6.0) {
                     if (headerConfig.showBanner === false) return;
 
-                    // Flash completed round banner and fade out
                     const bannerW = Math.min(width * 0.72, 480);
                     const bannerH = 46;
                     const bannerX = getBannerX(bannerW);
@@ -1772,15 +1812,12 @@
                     ctx.restore();
                     return;
                 } else {
-                    // Round fanfare has ended: clear state so banner disappears cleanly
                     sessionState.endedAtMs = 0;
                     sessionState.totalDrops = 0;
                     return;
                 }
             }
 
-            // Free Play mode: only show while balloons are actively on screen
-            const hasActiveBalloon = activeBalloons.some(b => !b.completed || (now - (b.landedAtMs || now)) < 6000);
             if (hasActiveBalloon && sessionState.totalDrops > 0 && headerConfig.showFreePlayCounter !== false) {
                 ctx.save();
                 const pillW = 210;
@@ -1818,7 +1855,6 @@
         const showTimer = headerConfig.showTimer !== false;
         const showCount = headerConfig.showCount !== false;
 
-        // Dynamic banner width based on visible components
         let bannerW;
         if (showTimer && showCount) {
             bannerW = Math.min(width * 0.72, 480);
@@ -1843,7 +1879,6 @@
         const secs = remainingSec % 60;
         const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
-        // Semi-transparent pill backdrop
         ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
         ctx.strokeStyle = currentTheme?.primaryColor || '#38BDF8';
         ctx.lineWidth = 2;
@@ -1856,7 +1891,6 @@
         ctx.fill();
         ctx.stroke();
 
-        // Progress bar at bottom of pill
         const barW = (bannerW - 32) * progress;
         ctx.fillStyle = currentTheme?.accentColor || '#FFE066';
         ctx.beginPath();
@@ -1867,7 +1901,6 @@
         }
         ctx.fill();
 
-        // Banner text without emoji
         let bannerText = '';
         if (showTimer && showCount) {
             bannerText = `Round Ends: ${timeStr}  |  Balloons: ${sessionState.totalDrops}`;

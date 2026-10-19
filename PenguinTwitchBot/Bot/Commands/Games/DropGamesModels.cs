@@ -308,7 +308,30 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? BalloonWin { get; set; }
     }
 
-    public class BalloonAscentGameSettings
+    public interface IDropGameHeaderSettings
+    {
+        bool AutoAvoidOverlap { get; set; }
+        bool ShowHeaderBanner { get; set; }
+        bool ShowTimer { get; set; }
+        bool ShowItemCount { get; }
+        bool ShowFreePlayCounter { get; set; }
+        string HeaderPosition { get; set; }
+        int HeaderCustomYOffset { get; set; }
+        int NameFontSize { get; set; }
+    }
+
+    public interface IDropGameSessionSettings
+    {
+        bool SessionModeEnabled { get; set; }
+        bool AutoStartOnCommand { get; set; }
+        int DefaultSessionDurationSeconds { get; set; }
+        int MaxDropsPerUserPerSession { get; set; }
+        bool AnnounceSessionStatusInChat { get; set; }
+        string SessionStartChatMessageTemplate { get; set; }
+        string SessionEndChatMessageTemplate { get; set; }
+    }
+
+    public class BalloonAscentGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
@@ -377,6 +400,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowHeaderBanner { get; set; } = true;
         public bool ShowTimer { get; set; } = true;
         public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
@@ -396,7 +423,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         HalfScore = 2
     }
 
-    public class ParachuteGameSettings
+    public class ParachuteGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
@@ -473,6 +500,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowHeaderBanner { get; set; } = true;
         public bool ShowTimer { get; set; } = true;
         public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
@@ -485,7 +516,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         }
     }
 
-    public class PlinkoGameSettings
+    public class PlinkoGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
         private int _pegTransparency = 15;
 
@@ -558,6 +589,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowHeaderBanner { get; set; } = true;
         public bool ShowTimer { get; set; } = true;
         public bool ShowTokenCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowDropCount
+        {
+            get => ShowTokenCount;
+            set => ShowTokenCount = value;
+        }
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowTokenCount;
+
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
@@ -1024,6 +1066,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("nameFontSize")]
         public int NameFontSize { get; set; } = 18;
+
+        public static DropGameHeaderConfigDto FromSettings(IDropGameHeaderSettings settings)
+        {
+            ArgumentNullException.ThrowIfNull(settings);
+            return new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = settings.AutoAvoidOverlap,
+                ShowBanner = settings.ShowHeaderBanner,
+                ShowTimer = settings.ShowTimer,
+                ShowCount = settings.ShowItemCount,
+                ShowFreePlayCounter = settings.ShowFreePlayCounter,
+                Position = settings.HeaderPosition,
+                YOffset = settings.HeaderCustomYOffset,
+                NameFontSize = settings.NameFontSize
+            };
+        }
     }
 }
 
