@@ -102,6 +102,7 @@
     };
 
     let isOtherGameActive = false;
+    const activeOtherGames = new Set();
     let otherDropsActiveUntilMs = 0;
     let currentBannerY = 18;
 
@@ -167,6 +168,7 @@
     const pegRipples = [];
     const bucketHighlights = [];
     const confettiParticles = [];
+    const ambientParticles = [];
     const pendingCompletions = [];
 
     const overlayKey = new URLSearchParams(window.location.search).get('key') || '';
@@ -284,9 +286,23 @@
         }
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.isOtherGameActive;
+            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+                const g = msg.otherGame.toLowerCase();
+                if (msg.isOtherGameActive) {
+                    activeOtherGames.add(g);
+                } else {
+                    activeOtherGames.delete(g);
+                }
             }
+            if (Array.isArray(msg.activeGames)) {
+                activeOtherGames.clear();
+                msg.activeGames.forEach(g => {
+                    if (typeof g === 'string' && g.toLowerCase() !== 'plinko') {
+                        activeOtherGames.add(g.toLowerCase());
+                    }
+                });
+            }
+            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
             return;
         }
 
@@ -313,19 +329,28 @@
             return;
         }
 
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(g => {
+                if (typeof g === 'string' && g.toLowerCase() !== 'plinko') {
+                    activeOtherGames.add(g.toLowerCase());
+                }
+            });
+            isOtherGameActive = activeOtherGames.size > 0;
+        } else if (typeof msg.isOtherGameActive === 'boolean') {
+            isOtherGameActive = msg.isOtherGameActive;
+        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+            isOtherGameActive = msg.session.isOtherGameActive;
+        }
+
         if (msg.headerConfig) {
             applyHeaderConfig(msg.headerConfig);
         }
         if (msg.session) {
-            if (typeof msg.session.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.session.isOtherGameActive;
-            }
             if (msg.session.headerConfig) {
                 applyHeaderConfig(msg.session.headerConfig);
             }
-        }
-        if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
         }
 
         if (msg.sounds) {
@@ -459,6 +484,7 @@
             pegRipples.length = 0;
             bucketHighlights.length = 0;
             confettiParticles.length = 0;
+            ambientParticles.length = 0;
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 100;
@@ -1156,31 +1182,15 @@
             return;
         }
 
-        const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
-        let colors = ['#FFD166', '#FF8FA3', '#00B4D8', '#6BCB77', '#FFFFFF'];
-        if (season === 'halloween') {
-            colors = ['#FF7518', '#FFE066', '#39FF14', '#8338EC', '#FFFFFF'];
-        } else if (season === 'christmas') {
-            colors = ['#D90429', '#2B9348', '#FFD166', '#FFFFFF', '#007F5F'];
-        } else if (season === 'fall') {
-            colors = ['#E76F51', '#F4A261', '#E9C46A', '#D9480F', '#9B2226'];
-        } else if (season === 'winter') {
-            colors = ['#BAE6FD', '#E0F2FE', '#38BDF8', '#FFFFFF', '#FFD166'];
-        }
-
-        const count = (currentTheme && currentTheme.landingParticleDensity) ? Math.min(60, Math.round(currentTheme.landingParticleDensity * 0.85)) : 30;
-        for (let i = 0; i < count; i++) {
-            const angle = -Math.PI * 0.15 - Math.random() * Math.PI * 0.7;
-            const speed = 110 + Math.random() * 190;
-            confettiParticles.push({
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.spawnSeasonalBurst) {
+            const season = DropGamesCommon.getSeasonPreset ? DropGamesCommon.getSeasonPreset(currentTheme) : 'spring';
+            const count = (currentTheme && currentTheme.landingParticleDensity) ? Math.min(60, Math.round(currentTheme.landingParticleDensity * 0.85)) : 30;
+            DropGamesCommon.spawnSeasonalBurst(confettiParticles, {
                 x: xPx,
                 y: yPx,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                size: 4 + Math.random() * 5,
-                color: colors[i % colors.length],
-                life: 0,
-                maxLife: 0.9 + Math.random() * 0.4
+                season: season,
+                count: count,
+                isBullseye: true
             });
         }
     }
@@ -1200,8 +1210,15 @@
                 || now < boardConfig.visibleUntil;
 
             if (!isVisible) {
+                ambientParticles.length = 0;
+                confettiParticles.length = 0;
                 return;
             }
+
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.syncAmbientParticles && DropGamesCommon.updateAndDrawAmbientParticles) {
+            DropGamesCommon.syncAmbientParticles(ambientParticles, { width, height, currentTheme, isVisible: true });
+            DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambientParticles, { dtSec, width, height, currentTheme, isVisible: true });
+        }
 
         const fadeAlpha = (activeTokens.length > 0 || sessionState.isActive || (sessionState.endedAtMs && (now - sessionState.endedAtMs) < 6000))
             ? 1.0
@@ -1695,24 +1712,8 @@
         }
 
         // Update & draw confetti
-        for (let i = confettiParticles.length - 1; i >= 0; i--) {
-            const c = confettiParticles[i];
-            c.life += dtSec;
-            if (c.life >= c.maxLife) {
-                confettiParticles.splice(i, 1);
-                continue;
-            }
-            c.x += c.vx * dtSec;
-            c.y += c.vy * dtSec;
-            c.vy += 320 * dtSec;
-
-            ctx.save();
-            ctx.globalAlpha = 1.0 - (c.life / c.maxLife);
-            ctx.fillStyle = c.color;
-            ctx.beginPath();
-            ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawParticles) {
+            DropGamesCommon.updateAndDrawParticles(ctx, confettiParticles, { dt: dtSec, width, height, gravity: 60 });
         }
 
         // Update & draw bucket landing popups
@@ -1726,24 +1727,6 @@
                 yDriftPixels: 28,
                 font: '700 22px Fredoka, Rubik, sans-serif'
             });
-        } else {
-            for (let i = bucketHighlights.length - 1; i >= 0; i--) {
-                const h = bucketHighlights[i];
-                const age = (now - h.createdAt) / 1000;
-                if (age > 2.2) {
-                    bucketHighlights.splice(i, 1);
-                    continue;
-                }
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, 1.0 - Math.max(0, age - 1.2));
-                ctx.font = '700 22px Fredoka, Rubik, sans-serif';
-                ctx.fillStyle = h.color;
-                ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0,0,0,0.85)';
-                ctx.shadowBlur = 8;
-                ctx.fillText(h.text, h.x, h.y - age * 28);
-                ctx.restore();
-            }
         }
 
             drawSessionBanner(now);
@@ -1773,6 +1756,8 @@
                 headerConfig,
                 sessionState,
                 currentBannerY,
+                currentGame: 'plinko',
+                activeOtherGames,
                 isOtherGameActive,
                 otherDropsActiveUntilMs,
                 hasActiveDrops: hasActiveToken,
@@ -1788,11 +1773,14 @@
             return;
         }
 
-        // Auto-Avoid Overlap: When other game (Parachute) is active and autoAvoidOverlap is true,
-        // stack Plinko underneath (Row 2, +54px)
+        // Auto-Avoid Overlap: Stack based on active games
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
-        if (headerConfig.autoAvoidOverlap !== false && (isOtherGameActive || now < otherDropsActiveUntilMs)) {
-            targetY += 54;
+        if (headerConfig.autoAvoidOverlap !== false) {
+            let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
+                ? DropGamesCommon.calculateBannerStackSlot('plinko', activeOtherGames)
+                : (isOtherGameActive ? 1 : 0);
+            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;
         const bannerY = Math.round(currentBannerY);

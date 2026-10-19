@@ -149,6 +149,7 @@ public class HelpContentServiceTests
     [InlineData("parachute-game", "Parachute Drop Guide", 3)]
     [InlineData("plinko-game", "Plinko Bounce Guide", 3)]
     [InlineData("balloon-game", "Balloon Ascent Guide", 3)]
+    [InlineData("curling-game", "Curling / Shuffleboard Guide", 3)]
     [InlineData("game-themes", "Minigame Themes Guide", 2)]
     public async Task GetTopicAsync_StreamToolsTopics_ReturnValidTopicsAndContent(string topicId, string expectedTitle, int expectedTabCount)
     {

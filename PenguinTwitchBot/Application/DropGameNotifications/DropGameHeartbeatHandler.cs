@@ -31,6 +31,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
             {
                 "parachute" => DropGameType.Parachute,
                 "plinko" => DropGameType.Plinko,
+                "balloon" => DropGameType.Balloon,
+                "curling" => DropGameType.Curling,
                 _ => null
             };
 

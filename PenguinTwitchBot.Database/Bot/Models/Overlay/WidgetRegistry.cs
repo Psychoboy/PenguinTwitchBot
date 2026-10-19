@@ -31,6 +31,8 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("counter",   "Counters",  "/counter.html",    400,  160),
             new("parachute", "Parachute Drop", "/parachute.html", 1920, 1080),
             new("plinko",    "Plinko Bounce",  "/plinko.html",    800,  900),
+            new("balloon",   "Balloon Ascent", "/balloon.html",   1920, 1080),
+            new("curling",   "Curling & Shuffleboard", "/curling.html", 1920, 1080),
         ];
 
         public static WidgetDefinition? Find(string type) =>

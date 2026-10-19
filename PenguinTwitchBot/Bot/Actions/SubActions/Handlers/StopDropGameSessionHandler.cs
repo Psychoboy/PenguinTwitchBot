@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Balloon;
+using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Queues;
@@ -10,7 +12,9 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 {
     public class StopDropGameSessionHandler(
         IParachuteDropService parachuteDropService,
-        IPlinkoDropService plinkoDropService) : ISubActionHandler
+        IPlinkoDropService plinkoDropService,
+        IBalloonAscentService? balloonAscentService = null,
+        ICurlingGameService? curlingGameService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StopDropGameSession;
 
@@ -30,22 +34,44 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
 
             if (resolvedGame.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
-                context?.LogMessage(subActionIndex, "Stopping Parachute and Plinko sessions");
+                context?.LogMessage(subActionIndex, "Stopping all drop game sessions");
                 await parachuteDropService.ClearSessionQueueAsync();
                 await plinkoDropService.ClearSessionQueueAsync();
                 await parachuteDropService.StopSessionAsync(triggeredBy);
                 await plinkoDropService.StopSessionAsync(triggeredBy);
+                if (balloonAscentService != null)
+                {
+                    await balloonAscentService.ClearSessionQueueAsync();
+                    await balloonAscentService.StopSessionAsync(triggeredBy);
+                }
+                if (curlingGameService != null)
+                {
+                    await curlingGameService.ClearSessionQueueAsync();
+                    await curlingGameService.StopSessionAsync(triggeredBy);
+                }
             }
             else
             {
-                var gameType = resolvedGame.Equals("Plinko", StringComparison.OrdinalIgnoreCase)
-                    ? DropGameType.Plinko
-                    : DropGameType.Parachute;
+                var gameType = resolvedGame switch
+                {
+                    var g when g.Equals("Plinko", StringComparison.OrdinalIgnoreCase) => DropGameType.Plinko,
+                    var g when g.Equals("Balloon", StringComparison.OrdinalIgnoreCase) || g.Equals("BalloonAscent", StringComparison.OrdinalIgnoreCase) => DropGameType.Balloon,
+                    var g when g.Equals("Curling", StringComparison.OrdinalIgnoreCase) || g.Equals("Shuffleboard", StringComparison.OrdinalIgnoreCase) => DropGameType.Curling,
+                    _ => DropGameType.Parachute
+                };
 
                 context?.LogMessage(subActionIndex, $"Stopping {gameType} session");
                 if (gameType == DropGameType.Plinko)
                 {
                     await plinkoDropService.StopSessionAsync(triggeredBy);
+                }
+                else if (gameType == DropGameType.Balloon && balloonAscentService != null)
+                {
+                    await balloonAscentService.StopSessionAsync(triggeredBy);
+                }
+                else if (gameType == DropGameType.Curling && curlingGameService != null)
+                {
+                    await curlingGameService.StopSessionAsync(triggeredBy);
                 }
                 else
                 {

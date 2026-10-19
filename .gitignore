@@ -558,6 +558,7 @@ PenguinTwitchBot/wwwroot/media/*
 !PenguinTwitchBot/wwwroot/media/curling_sweep.wav
 !PenguinTwitchBot/wwwroot/media/curling_hit.wav
 !PenguinTwitchBot/wwwroot/media/curling_score.wav
+!PenguinTwitchBot/wwwroot/media/curling_win.wav
 PenguinTwitchBot/vetoed.txt
 PenguinTwitchBot/kokoro.onnx
 PenguinTwitchBot/Data/piper/*

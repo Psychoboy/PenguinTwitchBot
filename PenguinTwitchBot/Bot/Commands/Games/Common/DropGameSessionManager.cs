@@ -207,6 +207,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return true;
         }
 
+        /// <summary>
+        /// Evaluates whether the active session is currently within its final shot clock / last-call cutoff window.
+        /// Returns true if remaining session seconds are less than or equal to cutoffSeconds, protecting the round
+        /// from late-arriving throws and preventing anti-stall buzzer griefing.
+        /// </summary>
+        public bool IsWithinLastCallCutoff(int cutoffSeconds, out double remainingSeconds)
+        {
+            remainingSeconds = 0.0;
+            var state = _activeSession;
+            if (state == null || cutoffSeconds <= 0) return false;
+
+            remainingSeconds = (state.EndsAtUtc - DateTime.UtcNow).TotalSeconds;
+            return remainingSeconds <= cutoffSeconds;
+        }
+
         public void RecordUserDrop(string userId)
         {
             var state = _activeSession;

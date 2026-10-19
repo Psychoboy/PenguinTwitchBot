@@ -151,6 +151,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             return _activeSessions.TryGetValue(gameType, out var active) && active;
         }
 
+        public IReadOnlyList<DropGameType> GetActiveSessionTypes()
+        {
+            return _activeSessions.Where(kvp => kvp.Value).Select(kvp => kvp.Key).ToList();
+        }
+
         public void ClearDropsForGame(DropGameType gameType)
         {
             foreach (var kvp in _pendingDrops)

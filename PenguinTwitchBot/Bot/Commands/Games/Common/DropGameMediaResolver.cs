@@ -415,6 +415,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 BalloonWin = ResolveSound(settings.WinSound, theme.BalloonWinSound, mediaService)
             };
         }
+
+        public static DropGameSoundBundleDto ResolveCurlingSoundBundle(
+            CurlingGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.CurlingStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.CurlingEndSound, mediaService),
+                CurlingSlide = ResolveSound(settings.SlideSound, theme.CurlingSlideSound, mediaService),
+                CurlingSweep = ResolveSound(settings.SweepSound, theme.CurlingSweepSound, mediaService),
+                CurlingHit = ResolveSound(settings.HitSound, theme.CurlingHitSound, mediaService),
+                CurlingScore = ResolveSound(settings.ScoreSound, theme.CurlingScoreSound, mediaService),
+                CurlingWin = ResolveSound(settings.WinSound, theme.CurlingWinSound, mediaService)
+            };
+        }
     }
 }
 

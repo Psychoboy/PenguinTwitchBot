@@ -707,7 +707,7 @@
         if (!ctx) return;
         if (typeof ctx.roundRect === 'function') {
             ctx.roundRect(x, y, w, h, radii);
-        } else {
+        } else if (typeof ctx.rect === 'function') {
             ctx.rect(x, y, w, h);
         }
     }
@@ -717,6 +717,35 @@
         if (pos === 'topleft') return 24;
         if (pos === 'topright') return canvasWidth - bannerWidth - 24;
         return (canvasWidth - bannerWidth) / 2;
+    }
+
+    const MINIGAME_RANKS = {
+        parachute: 0,
+        plinko: 1,
+        balloon: 2,
+        curling: 3,
+        ufo: 4,
+        raceway: 5,
+        submarine: 6
+    };
+
+    function calculateBannerStackSlot(currentGame, activeOtherGames) {
+        if (!currentGame || !activeOtherGames) return 0;
+        const myRank = MINIGAME_RANKS[String(currentGame).toLowerCase()] ?? 99;
+        let slot = 0;
+        const games = (activeOtherGames instanceof Set)
+            ? Array.from(activeOtherGames)
+            : (Array.isArray(activeOtherGames) ? activeOtherGames : Object.keys(activeOtherGames));
+
+        for (let i = 0; i < games.length; i++) {
+            const g = String(games[i]).toLowerCase();
+            if (g === String(currentGame).toLowerCase()) continue;
+            const otherRank = MINIGAME_RANKS[g] ?? 99;
+            if (otherRank < myRank) {
+                slot++;
+            }
+        }
+        return slot;
     }
 
     function drawSessionBanner(ctx, options) {
@@ -731,8 +760,19 @@
         const accentColor = options.accentColor || '#FFE066';
 
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
-        if (headerConfig.autoAvoidOverlap !== false && (options.isOtherGameActive || (options.otherDropsActiveUntilMs && now < options.otherDropsActiveUntilMs))) {
-            targetY += 54;
+        if (headerConfig.autoAvoidOverlap !== false) {
+            let slot = 0;
+            if (options.currentGame && options.activeOtherGames) {
+                slot = calculateBannerStackSlot(options.currentGame, options.activeOtherGames);
+            } else if (options.isOtherGameActive) {
+                slot = 1;
+            }
+
+            if (options.otherDropsActiveUntilMs && now < options.otherDropsActiveUntilMs && slot === 0) {
+                slot = 1;
+            }
+
+            targetY += slot * 54;
         }
 
         let currentBannerY = typeof options.currentBannerY === 'number' ? options.currentBannerY : targetY;
@@ -984,6 +1024,501 @@
         });
     }
 
+    function drawCircularDecal(ctx, img, radius, options) {
+        const opts = options || {};
+        const innerRadius = radius || 16;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+        ctx.clip();
+
+        let drawn = false;
+        if (img && img.naturalWidth > 0) {
+            try {
+                ctx.drawImage(img, -innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
+                drawn = true;
+            } catch (_) {}
+        }
+
+        if (!drawn) {
+            if (opts.fallbackPenguin && typeof drawSeasonalDefaultPenguin === 'function') {
+                drawSeasonalDefaultPenguin(ctx, innerRadius, opts.themeId || 'default');
+            } else {
+                ctx.fillStyle = opts.userColor || '#3498db';
+                ctx.fillRect(-innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `bold ${Math.round(innerRadius * 1.1)}px 'Rubik', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const initial = (opts.displayName || 'P').charAt(0).toUpperCase();
+                ctx.fillText(initial, 0, 1);
+            }
+        }
+        ctx.restore();
+
+        if (opts.strokeBorder) {
+            ctx.beginPath();
+            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = opts.borderColor || 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = opts.borderWidth || 1.2;
+            ctx.stroke();
+        }
+    }
+
+    function drawInwardNametag(ctx, displayName, cx, cy, radius, stripPosition, options) {
+        ctx.save();
+        const opts = options || {};
+        const pos = (stripPosition || 'bottom').toLowerCase();
+
+        let labelX = cx;
+        let labelY = cy;
+        let textAlign = 'center';
+        let textBaseline = 'middle';
+
+        const offsetDist = radius + (opts.offsetDist || 16);
+
+        if (pos === 'top') {
+            labelX = cx;
+            labelY = cy + offsetDist;
+            textAlign = 'center';
+            textBaseline = 'top';
+        } else if (pos === 'left') {
+            labelX = cx + offsetDist;
+            labelY = cy;
+            textAlign = 'left';
+            textBaseline = 'middle';
+        } else if (pos === 'right') {
+            labelX = cx - offsetDist;
+            labelY = cy;
+            textAlign = 'right';
+            textBaseline = 'middle';
+        } else {
+            // Default: bottom
+            labelX = cx;
+            labelY = cy - offsetDist;
+            textAlign = 'center';
+            textBaseline = 'bottom';
+        }
+
+        const scoreText = (opts.completed && typeof opts.score === 'number') ? ` (${opts.score} pts)` : '';
+        const leaderCrown = opts.isLeader ? '👑 ' : '';
+        const displayText = `${leaderCrown}${displayName}${scoreText}`;
+
+        ctx.font = `bold ${opts.fontSize || 15}px 'Rubik', sans-serif`;
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = textBaseline;
+
+        let nameColor = opts.userColor || '#ffffff';
+        if (typeof brightenColor === 'function') {
+            nameColor = brightenColor(nameColor);
+        }
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        ctx.fillStyle = opts.isLeader ? '#FFD700' : nameColor;
+        ctx.fillText(displayText, labelX, labelY);
+        ctx.restore();
+    }
+
+    /**
+     * Resolves an isotropic 2D elastic collision between two circular bodies.
+     * Updates positions (anti-overlap separation) and velocity vectors in-place according to conservation of momentum.
+     *
+     * @param {Object} posA - { x: number, y: number }
+     * @param {Object} posB - { x: number, y: number }
+     * @param {Object} velA - { vx: number, vy: number }
+     * @param {Object} velB - { vx: number, vy: number }
+     * @param {number} radiusA - Radius of body A
+     * @param {number} radiusB - Radius of body B
+     * @param {Object} [options] - Optional collision parameters
+     * @param {number} [options.restitution=0.82] - Coefficient of restitution (0.0 = inelastic, 1.0 = perfectly elastic)
+     * @param {number} [options.massA=1.0] - Mass of body A
+     * @param {number} [options.massB=1.0] - Mass of body B
+     * @param {boolean} [options.separatePositions=true] - Whether to separate overlapping bodies
+     * @param {number} [options.separationPercent=0.50] - Ratio of separation applied to body A vs B
+     * @returns {Object} Collision result: { collided: boolean, separating: boolean, impulse: number, normal: { nx, ny }, overlap: number }
+     */
+    function resolveCircleCollision(posA, posB, velA, velB, radiusA, radiusB, options) {
+        if (!posA || !posB || !velA || !velB) return { collided: false, impulse: 0 };
+        const opts = options || {};
+        const rA = typeof radiusA === 'number' && radiusA > 0 ? radiusA : 10;
+        const rB = typeof radiusB === 'number' && radiusB > 0 ? radiusB : 10;
+        const minDist = rA + rB;
+
+        const dx = posB.x - posA.x;
+        const dy = posB.y - posA.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq >= minDist * minDist || distSq <= 0.00001) {
+            return { collided: false, impulse: 0 };
+        }
+
+        const dist = Math.sqrt(distSq);
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const separate = opts.separatePositions !== false;
+        if (separate) {
+            const sepFrac = typeof opts.separationPercent === 'number' ? opts.separationPercent : 0.50;
+            posA.x -= nx * overlap * sepFrac;
+            posA.y -= ny * overlap * sepFrac;
+            posB.x += nx * overlap * (1.0 - sepFrac);
+            posB.y += ny * overlap * (1.0 - sepFrac);
+        }
+
+        // Relative velocity along collision normal
+        const rvx = velB.vx - velA.vx;
+        const rvy = velB.vy - velA.vy;
+        const velAlongNormal = rvx * nx + rvy * ny;
+
+        // Do not resolve impulse if objects are already separating
+        if (velAlongNormal >= 0) {
+            return {
+                collided: true,
+                separating: true,
+                impulse: 0,
+                normal: { nx: nx, ny: ny },
+                overlap: overlap
+            };
+        }
+
+        const restitution = typeof opts.restitution === 'number' ? opts.restitution : 0.82;
+        const mA = typeof opts.massA === 'number' && opts.massA > 0 ? opts.massA : 1.0;
+        const mB = typeof opts.massB === 'number' && opts.massB > 0 ? opts.massB : 1.0;
+        const invMassA = 1.0 / mA;
+        const invMassB = 1.0 / mB;
+        const invMassSum = invMassA + invMassB;
+
+        const impulse = -(1.0 + restitution) * velAlongNormal / (invMassSum > 0 ? invMassSum : 1.0);
+
+        velA.vx -= impulse * invMassA * nx;
+        velA.vy -= impulse * invMassA * ny;
+        velB.vx += impulse * invMassB * nx;
+        velB.vy += impulse * invMassB * ny;
+
+        return {
+            collided: true,
+            separating: false,
+            impulse: impulse,
+            normal: { nx: nx, ny: ny },
+            overlap: overlap
+        };
+    }
+
+    function getSeasonPreset(theme) {
+        if (theme) {
+            if (typeof theme.seasonPreset === 'string' && theme.seasonPreset.length > 0) {
+                return theme.seasonPreset.toLowerCase();
+            }
+            if (typeof theme.id === 'string' && theme.id.length > 0) {
+                const idLower = theme.id.toLowerCase();
+                for (const s of ['spring', 'summer', 'fall', 'winter', 'halloween', 'christmas']) {
+                    if (idLower.includes(s)) return s;
+                }
+            }
+        }
+        return 'spring';
+    }
+
+    function syncAmbientParticles(ambientParticles, options) {
+        if (!ambientParticles || !Array.isArray(ambientParticles)) return;
+        const opts = options || {};
+        const width = typeof opts.width === 'number' ? opts.width : 1920;
+        const height = typeof opts.height === 'number' ? opts.height : 1080;
+        const currentTheme = opts.currentTheme;
+        const isVisible = opts.isVisible !== false;
+        const maxLimit = typeof opts.maxDensity === 'number' ? opts.maxDensity : 60;
+
+        const isEnabled = isVisible && currentTheme && currentTheme.enableBackgroundParticles !== false && currentTheme.particleType !== 'none';
+        const desired = isEnabled
+            ? Math.min(maxLimit, Math.max(0, currentTheme.particleDensity || 32))
+            : 0;
+
+        const pType = (currentTheme && currentTheme.particleType) || 'petals';
+
+        while (ambientParticles.length < desired) {
+            const isBat = pType === 'bats';
+            ambientParticles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: isBat ? (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 50) : (Math.random() - 0.5) * 30,
+                vy: isBat ? (Math.random() - 0.5) * 20 : (pType === 'bubbles' ? -(20 + Math.random() * 35) : (20 + Math.random() * 40)),
+                size: isBat ? (10 + Math.random() * 7) : (4 + Math.random() * 6),
+                angle: Math.random() * Math.PI * 2,
+                spin: isBat ? 0 : (Math.random() - 0.5) * 2.0,
+                alpha: 0.35 + Math.random() * 0.45
+            });
+        }
+        if (ambientParticles.length > desired) {
+            if (!isVisible) {
+                ambientParticles.length = 0;
+            } else {
+                ambientParticles.length = desired;
+            }
+        }
+    }
+
+    function updateAndDrawAmbientParticles(ctx, ambientParticles, options) {
+        if (!ctx || !ambientParticles || !Array.isArray(ambientParticles)) return;
+        const opts = options || {};
+        const dtSec = typeof opts.dtSec === 'number' ? opts.dtSec : 0.016;
+        const width = typeof opts.width === 'number' ? opts.width : 1920;
+        const height = typeof opts.height === 'number' ? opts.height : 1080;
+        const currentTheme = opts.currentTheme;
+        const isVisible = opts.isVisible !== false;
+
+        if (!isVisible) {
+            if (ambientParticles.length > 0) ambientParticles.length = 0;
+            return;
+        }
+        if (!ambientParticles.length || !currentTheme || currentTheme.enableBackgroundParticles === false || currentTheme.particleType === 'none') return;
+        const pType = currentTheme.particleType || 'petals';
+
+        ctx.save();
+        for (let i = 0; i < ambientParticles.length; i++) {
+            const p = ambientParticles[i];
+            p.x += p.vx * dtSec;
+            p.y += p.vy * dtSec;
+            p.angle += p.spin * dtSec;
+
+            if (pType === 'bats') {
+                p.y += Math.sin(p.x * 0.05) * 0.6;
+                if (p.x < -30) p.x = width + 25;
+                if (p.x > width + 30) p.x = -25;
+                if (p.y < 20) p.y = height * 0.6;
+                if (p.y > height * 0.75) p.y = 40;
+            } else {
+                if (p.y > height + 20) {
+                    p.y = -15;
+                    p.x = Math.random() * width;
+                }
+                if (p.x < -20) p.x = width + 15;
+                if (p.x > width + 20) p.x = -15;
+            }
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.globalAlpha = p.alpha;
+
+            if (pType === 'petals') {
+                ctx.fillStyle = currentTheme.secondaryColor || '#FFB7C5';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (pType === 'bubbles') {
+                ctx.strokeStyle = currentTheme.primaryColor || '#00B4D8';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size * 0.75, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (pType === 'leaves') {
+                ctx.fillStyle = (i % 2 === 0) ? (currentTheme.primaryColor || '#E76F51') : (currentTheme.accentColor || '#E9C46A');
+                ctx.beginPath();
+                ctx.moveTo(0, -p.size);
+                ctx.quadraticCurveTo(p.size, 0, 0, p.size);
+                ctx.quadraticCurveTo(-p.size, 0, 0, -p.size);
+                ctx.fill();
+            } else if (pType === 'bats') {
+                ctx.fillStyle = currentTheme.secondaryColor || '#7B2CBF';
+                const flap = Math.sin((p.x + (typeof performance !== 'undefined' ? performance.now() : Date.now()) * 0.02) * 0.4) * (p.size * 0.35);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size * 0.35, p.size * 0.22, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(-p.size * 0.2, 0);
+                ctx.quadraticCurveTo(-p.size * 0.7, -p.size * 0.7 - flap, -p.size * 1.2, -p.size * 0.2 - flap);
+                ctx.quadraticCurveTo(-p.size * 0.7, p.size * 0.2, -p.size * 0.2, 0);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(p.size * 0.2, 0);
+                ctx.quadraticCurveTo(p.size * 0.7, -p.size * 0.7 - flap, p.size * 1.2, -p.size * 0.2 - flap);
+                ctx.quadraticCurveTo(p.size * 0.7, p.size * 0.2, p.size * 0.2, 0);
+                ctx.fill();
+            } else if (pType === 'stars') {
+                ctx.fillStyle = currentTheme.accentColor || '#FFD166';
+                const s = p.size * 0.65;
+                ctx.beginPath();
+                ctx.moveTo(0, -s);
+                ctx.lineTo(s * 0.25, -s * 0.25);
+                ctx.lineTo(s, 0);
+                ctx.lineTo(s * 0.25, s * 0.25);
+                ctx.lineTo(0, s);
+                ctx.lineTo(-s * 0.25, s * 0.25);
+                ctx.lineTo(-s, 0);
+                ctx.lineTo(-s * 0.25, -s * 0.25);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // snow
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+        ctx.restore();
+    }
+
+    function spawnSeasonalBurst(particlesArray, options) {
+        if (!particlesArray || !Array.isArray(particlesArray)) return;
+        const opts = options || {};
+        const x = typeof opts.x === 'number' ? opts.x : 0;
+        const y = typeof opts.y === 'number' ? opts.y : 0;
+        const season = (opts.season || 'spring').toLowerCase();
+        const isBullseye = !!opts.isBullseye;
+        const isNormalized = !!opts.isNormalized;
+        const count = typeof opts.count === 'number' ? opts.count : (isBullseye ? 35 : 18);
+
+        let colors = opts.colors;
+        let type = opts.type || 'spark';
+        if (!colors) {
+            if (season === 'spring') {
+                colors = ['#FF8FA3', '#FFB7C5', '#FFE066', '#FFFFFF', '#FFCCD5'];
+                type = 'petal';
+            } else if (season === 'summer') {
+                colors = ['#FFD166', '#00B4D8', '#FF9F1C', '#FFFFFF', '#06D6A0'];
+                type = isBullseye ? 'confetti' : 'spark';
+            } else if (season === 'fall') {
+                colors = ['#E76F51', '#E9C46A', '#D90429', '#F4A261', '#9B2226'];
+                type = 'leaf';
+            } else if (season === 'winter') {
+                colors = ['#CAF0F8', '#90E0EF', '#00B4D8', '#FFFFFF', '#E0F2FE'];
+                type = 'snow';
+            } else if (season === 'halloween') {
+                colors = ['#39FF14', '#7B2CBF', '#FF7900', '#9D4EDD', '#240046'];
+                type = isBullseye ? 'spark' : 'confetti';
+            } else if (season === 'christmas') {
+                colors = ['#D90429', '#2B9348', '#FFD700', '#FFFFFF', '#55A630'];
+                type = isBullseye ? 'confetti' : 'spark';
+            } else {
+                colors = ['#FFD700', '#3498DB', '#2ECC71', '#E74C3C'];
+            }
+        }
+
+        const scale = isNormalized ? 0.001 : 1.0;
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const spd = (30 + Math.random() * (isBullseye ? 110 : 65)) * scale;
+            particlesArray.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * spd,
+                vy: Math.sin(angle) * spd - (isBullseye ? 25 : 10) * scale,
+                size: (3.5 + Math.random() * (isBullseye ? 5.5 : 3.5)),
+                color: colors[Math.floor(Math.random() * colors.length)],
+                alpha: 1.0,
+                decay: 0.018 + Math.random() * 0.022,
+                type: type,
+                rotation: Math.random() * Math.PI * 2,
+                rotSpeed: (Math.random() - 0.5) * 8.0,
+                isNormalized: isNormalized
+            });
+        }
+    }
+
+    function updateAndDrawParticles(ctx, particlesArray, options) {
+        if (!ctx || !particlesArray || !Array.isArray(particlesArray)) return;
+        const opts = options || {};
+        const dt = typeof opts.dt === 'number' ? opts.dt : 0.016;
+        const width = typeof opts.width === 'number' ? opts.width : 1920;
+        const height = typeof opts.height === 'number' ? opts.height : 1080;
+        const gravity = typeof opts.gravity === 'number' ? opts.gravity : 35;
+
+        for (let i = particlesArray.length - 1; i >= 0; i--) {
+            const p = particlesArray[i];
+            if (typeof p.maxLife === 'number' && p.maxLife > 0) {
+                p.life = (p.life || 0) + dt;
+                if (p.life >= p.maxLife) {
+                    particlesArray.splice(i, 1);
+                    continue;
+                }
+                p.alpha = 1.0 - (p.life / p.maxLife);
+            } else {
+                p.alpha -= (p.decay || 0.02);
+                if (p.alpha <= 0) {
+                    particlesArray.splice(i, 1);
+                    continue;
+                }
+            }
+
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += (p.gravity ?? (p.isNormalized ? gravity * 0.01 : gravity)) * dt;
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            const drawX = p.isNormalized ? p.x * width : p.x;
+            const drawY = p.isNormalized ? p.y * height : p.y;
+            ctx.translate(drawX, drawY);
+
+            const pType = p.type || p.shape || 'spark';
+            const rotSpeed = p.rotSpeed ?? p.spin ?? 2;
+
+            if (pType === 'confetti' || pType === 'rubber') {
+                p.rotation = (p.rotation || 0) + rotSpeed * dt;
+                ctx.rotate(p.rotation);
+                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+            } else if (pType === 'petal') {
+                p.rotation = (p.rotation || 0) + rotSpeed * dt;
+                ctx.rotate(p.rotation);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (pType === 'leaf') {
+                p.rotation = (p.rotation || 0) + rotSpeed * dt;
+                ctx.rotate(p.rotation);
+                ctx.beginPath();
+                ctx.moveTo(0, -p.size);
+                ctx.quadraticCurveTo(p.size * 0.8, 0, 0, p.size);
+                ctx.quadraticCurveTo(-p.size * 0.8, 0, 0, -p.size);
+                ctx.fill();
+            } else if (pType === 'candies') {
+                p.rotation = (p.rotation || 0) + rotSpeed * dt;
+                ctx.rotate(p.rotation);
+                const s = p.size;
+                ctx.fillStyle = '#FFE066';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.7, s);
+                ctx.lineTo(s * 0.7, s);
+                ctx.lineTo(s * 0.45, s * 0.25);
+                ctx.lineTo(-s * 0.45, s * 0.25);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#FF7518';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.45, s * 0.25);
+                ctx.lineTo(s * 0.45, s * 0.25);
+                ctx.lineTo(s * 0.22, -s * 0.45);
+                ctx.lineTo(-s * 0.22, -s * 0.45);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.22, -s * 0.45);
+                ctx.lineTo(s * 0.22, -s * 0.45);
+                ctx.lineTo(0, -s);
+                ctx.closePath();
+                ctx.fill();
+            } else if (pType === 'water') {
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size * 0.65, p.size * 1.15, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -999,7 +1534,17 @@
         drawSessionBanner: drawSessionBanner,
         updateAndDrawPopups: updateAndDrawPopups,
         calculateDropAlpha: calculateDropAlpha,
-        sortDropsForDraw: sortDropsForDraw
+        sortDropsForDraw: sortDropsForDraw,
+        drawCircularDecal: drawCircularDecal,
+        drawInwardNametag: drawInwardNametag,
+        resolveCircleCollision: resolveCircleCollision,
+        MINIGAME_RANKS: MINIGAME_RANKS,
+        calculateBannerStackSlot: calculateBannerStackSlot,
+        getSeasonPreset: getSeasonPreset,
+        syncAmbientParticles: syncAmbientParticles,
+        updateAndDrawAmbientParticles: updateAndDrawAmbientParticles,
+        spawnSeasonalBurst: spawnSeasonalBurst,
+        updateAndDrawParticles: updateAndDrawParticles
     };
 
     if (typeof module !== 'undefined' && module.exports) {

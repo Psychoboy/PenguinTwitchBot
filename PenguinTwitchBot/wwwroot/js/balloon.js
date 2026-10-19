@@ -126,6 +126,7 @@
     };
     let currentBannerY = 18;
     let isOtherGameActive = false;
+    const activeOtherGames = new Set();
     let otherDropsActiveUntilMs = 0;
 
     function getBannerX(bannerW) {
@@ -151,6 +152,7 @@
     let activeBalloons = [];
     let activeHazards = [];
     let particles = [];
+    let ambientParticles = [];
     let scorePopups = [];
     let currentTheme = null;
     let lastColSoundTime = 0;
@@ -271,9 +273,23 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.isOtherGameActive;
+            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+                const g = msg.otherGame.toLowerCase();
+                if (msg.isOtherGameActive) {
+                    activeOtherGames.add(g);
+                } else {
+                    activeOtherGames.delete(g);
+                }
             }
+            if (Array.isArray(msg.activeGames)) {
+                activeOtherGames.clear();
+                msg.activeGames.forEach(g => {
+                    if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
+                        activeOtherGames.add(g.toLowerCase());
+                    }
+                });
+            }
+            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
             return;
         }
 
@@ -289,10 +305,18 @@
             return;
         }
 
-        if (typeof msg.isOtherGameActive === 'boolean') {
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(g => {
+                if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
+                    activeOtherGames.add(g.toLowerCase());
+                }
+            });
+            isOtherGameActive = activeOtherGames.size > 0;
+        } else if (typeof msg.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.isOtherGameActive;
-        }
-        if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.session.isOtherGameActive;
         }
 
@@ -482,28 +506,22 @@
                 color: color || '#FF5555',
                 alpha: 1.0,
                 decay: 0.02 + Math.random() * 0.03,
-                type: 'rubber'
+                type: 'rubber',
+                isNormalized: true
             });
         }
     }
 
     function spawnWinConfetti(x, y) {
-        const colors = ['#FFD166', '#06D6A0', '#118AB2', '#EF476F', '#7B2CBF'];
-        for (let i = 0; i < 35; i++) {
-            const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
-            const spd = (0.12 + Math.random() * 0.28);
-            particles.push({
-                x: x,
-                y: y,
-                vx: Math.cos(angle) * spd,
-                vy: Math.sin(angle) * spd,
-                size: (5 + Math.random() * 7),
-                color: colors[Math.floor(Math.random() * colors.length)],
-                alpha: 1.0,
-                decay: 0.015 + Math.random() * 0.02,
-                type: 'confetti',
-                rotation: Math.random() * Math.PI,
-                rotSpeed: (Math.random() - 0.5) * 10
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.spawnSeasonalBurst) {
+            const season = DropGamesCommon.getSeasonPreset ? DropGamesCommon.getSeasonPreset(currentTheme) : 'summer';
+            DropGamesCommon.spawnSeasonalBurst(particles, {
+                x,
+                y,
+                season,
+                count: 35,
+                isBullseye: true,
+                isNormalized: true
             });
         }
     }
@@ -521,7 +539,8 @@
                 color: '#FEF08A',
                 alpha: 0.9,
                 decay: 0.04 + Math.random() * 0.04,
-                type: 'spark'
+                type: 'spark',
+                isNormalized: true
             });
         }
     }
@@ -542,6 +561,10 @@
                           now < targetCloud.visibleUntil;
 
         if (isVisible) {
+            if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.syncAmbientParticles && DropGamesCommon.updateAndDrawAmbientParticles) {
+                DropGamesCommon.syncAmbientParticles(ambientParticles, { width, height, currentTheme, isVisible: true });
+                DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambientParticles, { dtSec: dt, width, height, currentTheme, isVisible: true });
+            }
             updateTargetCloud(dt);
             drawTargetCloud();
             updateAndDrawHazards(dt, now);
@@ -549,6 +572,9 @@
             updateAndDrawParticles(dt);
             drawScorePopups(dt, now);
             drawSessionBanner(now);
+        } else {
+            ambientParticles.length = 0;
+            particles.length = 0;
         }
 
         requestAnimationFrame(render);
@@ -1677,33 +1703,8 @@
     }
 
     function updateAndDrawParticles(dt) {
-        for (let i = particles.length - 1; i >= 0; i--) {
-            const p = particles[i];
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.vy += 0.45 * dt; // gravity
-            p.alpha -= p.decay;
-
-            if (p.alpha <= 0) {
-                particles.splice(i, 1);
-                continue;
-            }
-
-            ctx.save();
-            ctx.globalAlpha = Math.max(0, p.alpha);
-            ctx.fillStyle = p.color;
-            ctx.translate(p.x * width, p.y * height);
-
-            if (p.type === 'confetti') {
-                p.rotation += (p.rotSpeed || 2) * dt;
-                ctx.rotate(p.rotation);
-                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-            } else {
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawParticles) {
+            DropGamesCommon.updateAndDrawParticles(ctx, particles, { dt, width, height, gravity: 45 });
         }
     }
 
@@ -1718,29 +1719,6 @@
                 driftSpeed: 0.02 * (height || 1080),
                 isNormalized: true
             });
-            return;
-        }
-
-        for (let i = scorePopups.length - 1; i >= 0; i--) {
-            const sp = scorePopups[i];
-            const age = (now - sp.createdAtMs) / 1000;
-            if (age > 2.5) {
-                scorePopups.splice(i, 1);
-                continue;
-            }
-
-            sp.y -= 0.02 * dt;
-            const alpha = Math.max(0, 1.0 - (age / 2.5));
-
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.font = 'bold 24px Fredoka, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = sp.color;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-            ctx.shadowBlur = 8;
-            ctx.fillText(sp.text, sp.x * width, sp.y * height);
-            ctx.restore();
         }
     }
 
@@ -1753,6 +1731,8 @@
                 headerConfig,
                 sessionState,
                 currentBannerY,
+                currentGame: 'balloon',
+                activeOtherGames,
                 isOtherGameActive,
                 otherDropsActiveUntilMs,
                 hasActiveDrops: hasActiveBalloon,
@@ -1769,8 +1749,12 @@
 
         // Fallback banner drawing
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
-        if (headerConfig.autoAvoidOverlap !== false && (isOtherGameActive || now < otherDropsActiveUntilMs)) {
-            targetY += 54;
+        if (headerConfig.autoAvoidOverlap !== false) {
+            let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
+                ? DropGamesCommon.calculateBannerStackSlot('balloon', activeOtherGames)
+                : (isOtherGameActive ? 1 : 0);
+            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;
         const bannerY = Math.round(currentBannerY);

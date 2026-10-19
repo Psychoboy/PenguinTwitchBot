@@ -10,6 +10,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
+using PenguinTwitchBot.Bot.Commands.Games.Curling;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.Shoutout;
@@ -409,6 +410,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 moduleName: "BalloonAscent",
                 isCore: false,
                 description: "Balloon Ascent stream overlay minigame with interactive debris hazards."
+            );
+            services.AddRuntimeFeatureService<ICurlingGameService, CurlingGameService>(
+                FeatureKeys.DropGames,
+                "Curling / Shuffleboard",
+                moduleName: "Curling",
+                isCore: false,
+                description: "Curling & Shuffleboard stream overlay minigame with dynamic ice conditions and edge strip layout."
             );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,

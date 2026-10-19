@@ -179,7 +179,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 dropRegistry.ClearDropsForGame(DropGameType.Parachute);
                 dropRegistry.SetSessionActive(DropGameType.Parachute, true);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "parachute", StringComparison.OrdinalIgnoreCase));
 
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Parachute);
 
@@ -199,18 +200,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     TargetHalfWidth = session.TargetHalfWidth,
                     BullseyeHalfWidth = session.BullseyeHalfWidth,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
                 var soundBundle = DropGameMediaResolver.ResolveParachuteSoundBundle(settings.Parachute, theme, GetMediaUploadService());
                 dto.Sounds = soundBundle;
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, headerConfig, sounds = soundBundle, isOtherGameActive, activeGames }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_start");
 
-                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "parachute" }, _jsonOptions);
-                await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is active");
-                await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Parachute is active");
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Parachute, "parachute", isOtherGameActive: true, activeGames: activeGames);
 
                 if (settings.Parachute.AnnounceSessionStatusInChat)
                 {
@@ -280,10 +280,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 }
 
                 dropRegistry.SetSessionActive(DropGameType.Parachute, false);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Count > 0;
                 var totalDrops = Volatile.Read(ref state.TotalDrops);
                 var settings = await settingsService.GetSettingsAsync();
                 var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Parachute.ActiveThemeId);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
 
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Parachute);
 
@@ -301,18 +302,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     TargetHalfWidth = state.TargetHalfWidth,
                     BullseyeHalfWidth = state.BullseyeHalfWidth,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
                 var soundBundle = DropGameMediaResolver.ResolveParachuteSoundBundle(settings.Parachute, theme, GetMediaUploadService());
                 dto.Sounds = soundBundle;
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle, isOtherGameActive, activeGames }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Parachute, wsPayload, "Parachute session_end");
 
-                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "parachute" }, _jsonOptions);
-                await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is inactive");
-                await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Parachute is inactive");
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Parachute, "parachute", isOtherGameActive: false, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -518,7 +518,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             dropRegistry.RegisterDrop(record);
 
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
+            var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+            var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "parachute", StringComparison.OrdinalIgnoreCase));
             var headerConfig = DropGameHeaderConfigDto.FromSettings(pSettings);
 
             DropGameSessionDto? activeSessionDto = null;
@@ -541,6 +542,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                     TargetHalfWidth = currentSessionState.TargetHalfWidth,
                     BullseyeHalfWidth = currentSessionState.BullseyeHalfWidth,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
             }
@@ -594,6 +596,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 nameFontSize = pSettings.NameFontSize,
                 session = activeSessionDto,
                 isOtherGameActive,
+                activeGames,
                 headerConfig,
                 sounds = soundBundle,
                 trajectory = trajectoryObj,
@@ -603,9 +606,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute drop");
 
-            var dropNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = durationSeconds + 6.0 }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Plinko, dropNotice, "Parachute drop active notice to Plinko");
-            await QueueWsMessageAsync(WsTopics.Balloon, dropNotice, "Parachute drop active notice to Balloon");
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Parachute, durationSeconds + 6.0);
 
             return dropToken;
         }
@@ -691,8 +692,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute droplets");
 
-            var dropletsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Plinko, dropletsNotice, "Parachute droplets active notice to Plinko");
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Parachute, durationSeconds: 8.0);
 
             return droplets;
         }
@@ -773,8 +773,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Parachute, json, "parachute rockets");
 
-            var rocketsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Plinko, rocketsNotice, "Parachute rockets active notice to Plinko");
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Parachute, durationSeconds: 8.0);
 
             return rockets;
         }

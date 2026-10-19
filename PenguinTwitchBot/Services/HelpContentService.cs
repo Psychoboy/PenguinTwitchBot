@@ -454,6 +454,15 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
             ]
         ),
+        ["curling-game"] = (
+            "Curling / Shuffleboard Guide",
+            Icons.Material.Filled.SportsHockey,
+            [
+                ("Curling Mechanics", Icons.Material.Filled.SportsHockey, "drop-games/curling.md"),
+                ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
         ["game-themes"] = (
             "Minigame Themes Guide",
             Icons.Material.Filled.Palette,
