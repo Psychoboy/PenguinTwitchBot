@@ -523,7 +523,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             dropRegistry.RegisterAllowedProxyUrl(characterImageUrl);
             dropRegistry.RegisterAllowedProxyUrl(theme.DefaultCharacterImageUrl);
 
-            var buckets = plinkoSettings.Buckets.Count > 0
+            var buckets = plinkoSettings.Buckets is { Count: > 0 }
                 ? plinkoSettings.Buckets
                 : PlinkoGameSettings.CreateDefaultBuckets();
 
@@ -562,7 +562,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 const int topPegCount = pegCols - 1; // 13 pegs across top row
 
                 int pegIndex;
-                if (buckets != null && buckets.Count > 0)
+                if (buckets.Count > 0)
                 {
                     var weightedBucket = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
                     var targetX = (weightedBucket + 0.5) / buckets.Count;
