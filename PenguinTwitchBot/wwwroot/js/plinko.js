@@ -1511,12 +1511,13 @@
             );
 
             // Timeouts:
-            // - In real gameplay (targetDurSec >= 2.2), NEVER complete prematurely while still in the peg field.
+            // - In real gameplay, NEVER complete prematurely while still in the peg field.
             //   If targetDurSec has passed AND the token is already at the floor, allow completion.
-            // - In unit test runs (targetDurSec < 2.2), allow timeout completion so stepped mock frames pass deterministically.
+            // - In unit test runs (window.__plinkoTestMode), allow timeout completion so stepped mock frames pass deterministically.
             // - Emergency watchdog: 25 seconds of real elapsed time in case a token ever gets permanently trapped.
             const isTimedOut = (now - t.startTimeMs) >= (t.durationMs || 3500);
-            const isTestTimeout = isTimedOut && (targetDurSec < 2.2);
+            const isTestMode = typeof window !== 'undefined' && Boolean(window.__plinkoTestMode);
+            const isTestTimeout = isTimedOut && isTestMode;
             const isEmergencyTimeout = (now - t.startTimeMs) >= 25000;
 
             if (isFloorSettled || (isAtFloor && isTimedOut) || isTestTimeout || isEmergencyTimeout) {

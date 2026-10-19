@@ -57,6 +57,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     removeEventListener: function() {},
                     location: { search: '?key=test-secret-key' },
                     WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
+                    __plinkoTestMode: true,
                     __sentCompletions: [],
                     __sentRaw: [],
                     __drawnTexts: [],
@@ -412,7 +413,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_MultipleConcurrentTokens_BounceOffEachOtherAndLandInDesignatedBuckets()
+        public void PlinkoJs_MultipleConcurrentTokens_BounceOffEachOtherAndLandInBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -457,7 +458,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     board = new
                     {
                         rowCount = rows,
-                        durationSeconds = 1.8,
+                        durationSeconds = 2.4,
                         gravity = 1.0,
                         bounciness = 0.85,
                         mass = 1.0,
@@ -474,8 +475,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 });
             }
 
-            // Step 150 frames (~2.5s) to let all tokens collide mid-air and complete landing
-            StepEngineFrames(engine, 150);
+            // Step 180 frames (~3.0s) to let all tokens collide mid-air and complete landing
+            StepEngineFrames(engine, 180);
 
             // Verify console.error was clean
             var errors = engine.Evaluate("console._errors.length").AsNumber();
@@ -488,6 +489,9 @@ namespace PenguinTwitchBot.Test.ClientScripts
             {
                 var reportedBucket = engine.Evaluate($"window.__sentCompletions.find(c => c.dropToken === 'token-{t}').winningBucketIndex").AsNumber();
                 Assert.InRange((int)reportedBucket, 0, bucketCount - 1);
+
+                var tokenPy = engine.Evaluate($"window.__plinkoTokens.find(token => token.dropToken === 'token-{t}').py").AsNumber();
+                Assert.True(tokenPy >= 1000, $"Token token-{t} should have reached the floor, got py={tokenPy}");
             }
         }
 
@@ -1565,7 +1569,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_DenseMultiTokenCrowd_AllTokensBounceAndLandInDesignatedBuckets()
+        public void PlinkoJs_DenseMultiTokenCrowd_AllTokensBounceAndLandInBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -1706,7 +1710,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_ExtremeTokenCollision_MaxBouncinessAndMassRatio_DecaysCleanlyIntoTargetBuckets()
+        public void PlinkoJs_ExtremeTokenCollision_MaxBouncinessAndMassRatio_DecaysCleanlyIntoBuckets()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));
@@ -1964,7 +1968,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
-        public void PlinkoJs_OrganicBouncePhysics_ExhibitsUpwardBounceAndSkipsIntermediateRows_LandsInTargetBucket()
+        public void PlinkoJs_OrganicBouncePhysics_ExhibitsUpwardBounceAndSkipsIntermediateRows_LandsInBucket()
         {
             var jsDir = FindWwwRootPath();
             var plinkoJs = File.ReadAllText(Path.Combine(jsDir, "plinko.js"));

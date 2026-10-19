@@ -808,6 +808,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
         public string BucketLabel { get; set; } = "";
+        public bool ForcedOutcome { get; init; }
         public string? RocketAttacker { get; set; }
 
         public List<ParachuteCollisionEventDto> Collisions { get; set; } = [];

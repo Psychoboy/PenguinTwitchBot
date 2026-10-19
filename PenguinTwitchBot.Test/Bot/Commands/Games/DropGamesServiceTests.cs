@@ -1299,6 +1299,142 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task DropGameCompleteHandler_Plinko_ForcedOutcome_PreservesRecordedOutcome()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "plinko-forced-token",
+                GameType = DropGameType.Plinko,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "plinko", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.10,
+                StartY = 0.04,
+                LandingY = 0.88,
+                BucketIndex = 0,
+                BucketLabel = "MISS",
+                Score = 0,
+                IsWin = false,
+                ForcedOutcome = true
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object);
+
+            // Client attempts to report bucket 2, but drop was forced to 0
+            var notification = new DropGameCompleteNotification("plinko-forced-token", winningBucketIndex: 2, overlayKey: validKey);
+            await handler.Handle(notification, CancellationToken.None);
+
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "plinko-forced-token" &&
+                r.BucketIndex == 0 &&
+                r.BucketLabel == "MISS" &&
+                !r.IsWin)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Plinko_UnresolvedOutcome_SkipsProcessingAndAcknowledges()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "plinko-unresolved-token",
+                GameType = DropGameType.Plinko,
+                Username = "testuser",
+                DisplayName = "TestUser",
+                UserId = "user-1",
+                EventArgs = new CommandEventArgs { Command = "plinko", Name = "testuser", DisplayName = "TestUser", UserId = "user-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-5),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddMinutes(1),
+                StartX = 0.50,
+                StartY = 0.04,
+                LandingY = 0.88,
+                BucketIndex = -1,
+                BucketLabel = string.Empty,
+                Score = 0,
+                IsWin = false
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object);
+
+            // Completion arrives without a reported winning bucket
+            var notification = new DropGameCompleteNotification("plinko-unresolved-token", winningBucketIndex: null, overlayKey: validKey);
+            await handler.Handle(notification, CancellationToken.None);
+
+            // Completion must be skipped so negative bucket index does not default to bucket 0
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.IsAny<PendingDropRecord>()), Times.Never);
+            Assert.Null(dropRegistry.GetPendingDrop("plinko-unresolved-token"));
+        }
+
+        [Fact]
+        public void PlinkoSimulationEngine_PickWeightedBucketIndex_BiasedTowardsHigherWeights()
+        {
+            Assert.Equal(0, PlinkoSimulationEngine.PickWeightedBucketIndex(null));
+            Assert.Equal(0, PlinkoSimulationEngine.PickWeightedBucketIndex([]));
+
+            var buckets = new List<PlinkoBucket>
+            {
+                new() { Label = "0", Weight = 1 },
+                new() { Label = "1", Weight = 1 },
+                new() { Label = "2", Weight = 1000 },
+                new() { Label = "3", Weight = 1 }
+            };
+
+            var counts = new int[4];
+            for (var i = 0; i < 200; i++)
+            {
+                var idx = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
+                counts[idx]++;
+            }
+
+            // Bucket 2 has > 99% of total weight, so it should be picked in the vast majority of iterations
+            Assert.True(counts[2] >= 180, $"Bucket 2 should have been picked overwhelmingly, got {counts[2]} out of 200");
+        }
+
+        [Fact]
         public async Task DropGameCompleteHandler_Plinko_UnauthorizedOrMissingKey_IgnoresReportedBucketIndex()
         {
             var dropRegistry = CreateDropRegistry();

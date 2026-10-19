@@ -21,5 +21,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             return (score, b.IsWin, b.Label, isBullseye);
         }
+
+        public static int PickWeightedBucketIndex(List<PlinkoBucket>? buckets)
+        {
+            if (buckets == null || buckets.Count == 0)
+            {
+                return 0;
+            }
+
+            var totalWeight = buckets.Sum(b => Math.Max(1, b.Weight));
+            var roll = Random.Shared.Next(0, totalWeight);
+            var cumulative = 0;
+            for (int i = 0; i < buckets.Count; i++)
+            {
+                cumulative += Math.Max(1, buckets[i].Weight);
+                if (roll < cumulative)
+                {
+                    return i;
+                }
+            }
+
+            return buckets.Count - 1;
+        }
     }
 }

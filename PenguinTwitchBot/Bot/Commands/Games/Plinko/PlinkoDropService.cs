@@ -556,11 +556,26 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
             else
             {
-                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above
+                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above,
+                // biased proportionally according to bucket weights so configured weights influence landing outcomes.
                 const int pegCols = 14;
                 const int topPegCount = pegCols - 1; // 13 pegs across top row
-                var randomPegIndex = Random.Shared.Next(0, topPegCount); // 0 through 12 inclusive
-                var pegCenterX = (randomPegIndex + 1.0) / pegCols;
+
+                int pegIndex;
+                if (buckets != null && buckets.Count > 0)
+                {
+                    var weightedBucket = PlinkoSimulationEngine.PickWeightedBucketIndex(buckets);
+                    var targetX = (weightedBucket + 0.5) / buckets.Count;
+                    var basePeg = (int)Math.Round((targetX * pegCols) - 1.0);
+                    var jitter = Random.Shared.Next(-1, 2); // -1, 0, or +1 natural spread
+                    pegIndex = Math.Clamp(basePeg + jitter, 0, topPegCount - 1);
+                }
+                else
+                {
+                    pegIndex = Random.Shared.Next(0, topPegCount);
+                }
+
+                var pegCenterX = (pegIndex + 1.0) / pegCols;
                 var microOffset = DropGameMath.RandomDouble(-0.003, 0.003);
                 startX = Math.Clamp(pegCenterX + microOffset, 0.06, 0.94);
             }
@@ -601,6 +616,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 IsWin = isWin,
                 BucketIndex = bucketIndex,
                 BucketLabel = bucketLabel,
+                ForcedOutcome = forcedBucketIndex.HasValue,
                 Buckets = buckets.Select(b => new PlinkoBucket { Label = b.Label, Score = b.Score, IsWin = b.IsWin, Color = b.Color, Weight = b.Weight }).ToList()
             };
 

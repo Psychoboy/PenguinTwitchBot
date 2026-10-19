@@ -72,7 +72,7 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
 
                     if (buckets != null && buckets.Count > 0)
                     {
-                        if (notification.WinningBucketIndex.HasValue)
+                        if (!record.ForcedOutcome && notification.WinningBucketIndex.HasValue)
                         {
                             // Authorized client with secret key: trust the client's final bucket landing directly
                             var idx = notification.WinningBucketIndex.Value;
@@ -80,6 +80,12 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                             {
                                 record.BucketIndex = idx;
                             }
+                        }
+
+                        if (record.BucketIndex < 0)
+                        {
+                            dropRegistry.AcknowledgeCompletion(notification.DropToken);
+                            return;
                         }
 
                         var selectedIdx = Math.Clamp(record.BucketIndex, 0, buckets.Count - 1);
@@ -91,6 +97,11 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                         record.IsHit = b.IsWin;
                         var maxWinScore = buckets.Where(x => x.IsWin).Select(x => x.Score).DefaultIfEmpty(0).Max();
                         record.IsBullseye = b.IsWin && b.Score >= maxWinScore;
+                    }
+                    else if (record.BucketIndex < 0)
+                    {
+                        dropRegistry.AcknowledgeCompletion(notification.DropToken);
+                        return;
                     }
 
                     await plinkoDropService.ProcessCompletionAsync(record);
