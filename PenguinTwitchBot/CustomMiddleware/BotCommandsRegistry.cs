@@ -9,6 +9,7 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
+using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Commands.Misc;
 using PenguinTwitchBot.Bot.Commands.PastyGames;
 using PenguinTwitchBot.Bot.Commands.Shoutout;
@@ -401,6 +402,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 moduleName: "PlinkoDrop",
                 isCore: false,
                 description: "Plinko Bounce stream overlay minigame."
+            );
+            services.AddRuntimeFeatureService<IBalloonAscentService, BalloonAscentService>(
+                FeatureKeys.DropGames,
+                "Balloon Ascent",
+                moduleName: "BalloonAscent",
+                isCore: false,
+                description: "Balloon Ascent stream overlay minigame with interactive debris hazards."
             );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,

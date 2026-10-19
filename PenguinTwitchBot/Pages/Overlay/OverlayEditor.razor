@@ -871,17 +871,17 @@
                 }
             }
 
-            @if (_selected.WidgetType is "parachute" or "plinko")
+            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon")
             {
                 <MudDivider Class="mb-3" />
-                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType == "parachute" ? "Parachute Drop" : "Plinko Bounce") Settings</b></MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType == "parachute" ? "Parachute Drop" : (_selected.WidgetType == "balloon" ? "Balloon Ascent" : "Plinko Bounce")) Settings</b></MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="display:block;">
-                    Configure seasonal themes (Spring, Summer, Fall, Winter), interactive droplets, prize buckets, and win actions in the Parachute &amp; Plinko settings page.
+                    Configure seasonal themes, interactive physics, mid-air hazards, and win actions in the settings page.
                 </MudText>
                 <MudButton FullWidth="true" Color="Color.Primary" Variant="Variant.Outlined" Class="mb-3"
                            StartIcon="@Icons.Material.Filled.Tune"
-                           Href="/dropgames">
-                    Open Parachute &amp; Plinko Settings
+                           Href="@(_selected.WidgetType == "parachute" ? "/games/parachute" : (_selected.WidgetType == "balloon" ? "/games/balloon" : "/games/plinko"))">
+                    Open Game Settings
                 </MudButton>
             }
 

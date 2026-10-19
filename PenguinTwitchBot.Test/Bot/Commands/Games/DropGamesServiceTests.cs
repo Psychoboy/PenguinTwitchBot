@@ -13,6 +13,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
+using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
@@ -114,6 +115,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 NullLogger<PlinkoDropService>.Instance);
         }
 
+        private BalloonAscentService CreateBalloonService(
+            IDropRegistry? dropRegistry = null,
+            IDropGamesSettingsService? settingsService = null)
+        {
+            return new BalloonAscentService(
+                _serviceBackbone.Object,
+                _commandHandler.Object,
+                _defaultCommandTriggerService.Object,
+                _scopeFactory.Object,
+                _emoteService.Object,
+                _webSocketMessenger.Object,
+                _dispatcher.Object,
+                settingsService ?? CreateSettingsService(),
+                dropRegistry ?? CreateDropRegistry(),
+                NullLogger<BalloonAscentService>.Instance);
+        }
+
         [Fact]
         public async Task GetSettingsAsync_InitializesFourStockSeasonalThemesAndDefaultPlinkoBuckets()
         {
@@ -167,8 +185,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 .Setup(m => m.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
                 .Callback<string, string>((topic, json) =>
                 {
-                    capturedTopic = topic;
-                    capturedJson = json;
+                    if (topic == WsTopics.Plinko)
+                    {
+                        capturedTopic = topic;
+                        capturedJson = json;
+                    }
                 })
                 .Returns(Task.CompletedTask);
 
@@ -1224,12 +1245,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var notification = new DropGameCompleteNotification("para-unauth-token", landingX: 0.50, overlayKey: "wrong-fake-key");
             await handler.Handle(notification, CancellationToken.None);
 
-            // Verified: server ignored forged 0.50 and preserved authoritative 0.10 landing (0 score)
-            parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "para-unauth-token" &&
-                r.LandingX == 0.10 &&
-                r.Score == 0 &&
-                !r.IsWin)), Times.Once);
+            // Verified: unauthorized completion returns early with no fallback, never processing completion
+            parachuteServiceMock.Verify(s => s.ProcessCompletionAsync(It.IsAny<PendingDropRecord>()), Times.Never);
         }
 
         [Fact]
@@ -1484,12 +1501,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var notification = new DropGameCompleteNotification("plinko-unauth-token", winningBucketIndex: 2, overlayKey: "bad-key");
             await handler.Handle(notification, CancellationToken.None);
 
-            // Verified: server ignored reported winning bucket 2 and preserved authoritative bucket 0 (MISS)
-            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
-                r.DropToken == "plinko-unauth-token" &&
-                r.BucketIndex == 0 &&
-                r.BucketLabel == "MISS" &&
-                !r.IsWin)), Times.Once);
+            // Verified: unauthorized completion returns early with no fallback, never processing completion
+            plinkoServiceMock.Verify(s => s.ProcessCompletionAsync(It.IsAny<PendingDropRecord>()), Times.Never);
         }
 
         [Fact]
@@ -2785,6 +2798,210 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             // MissedHeartbeatCount remains 0 and token was not pruned
             Assert.Equal(0, record.MissedHeartbeatCount);
             Assert.NotNull(dropRegistry.GetPendingDrop("unauth-drop-token"));
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Balloon_Authorized_TrustsClientOutcome()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "balloon-auth-token",
+                GameType = DropGameType.Balloon,
+                Username = "balloon_pilot",
+                DisplayName = "BalloonPilot",
+                UserId = "pilot-1",
+                EventArgs = new CommandEventArgs { Command = "balloon", Name = "balloon_pilot", DisplayName = "BalloonPilot", UserId = "pilot-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-8),
+                EarliestCompletionUtc = now.AddSeconds(-2),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object);
+
+            var notification = new DropGameCompleteNotification(
+                "balloon-auth-token",
+                landingX: 0.505,
+                score: 100,
+                isBullseye: true,
+                isWin: true,
+                isHit: true,
+                balloonPopped: false,
+                overlayKey: validKey);
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            balloonServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "balloon-auth-token" &&
+                r.Score == 100 &&
+                r.IsBullseye == true &&
+                r.IsWin == true &&
+                r.IsHit == true &&
+                r.BalloonPopped == false &&
+                r.LandingX == 0.505)), Times.Once);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Balloon_Unauthorized_ReturnsEarly()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "balloon-unauth-token",
+                GameType = DropGameType.Balloon,
+                Username = "balloon_attacker",
+                DisplayName = "BalloonAttacker",
+                UserId = "attacker-1",
+                EventArgs = new CommandEventArgs { Command = "balloon", Name = "balloon_attacker", DisplayName = "BalloonAttacker", UserId = "attacker-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-8),
+                EarliestCompletionUtc = now.AddSeconds(-2),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object);
+
+            var notification = new DropGameCompleteNotification(
+                "balloon-unauth-token",
+                landingX: 0.50,
+                score: 100,
+                isBullseye: true,
+                isWin: true,
+                overlayKey: "invalid-key");
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            balloonServiceMock.Verify(s => s.ProcessCompletionAsync(It.IsAny<PendingDropRecord>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task BalloonAscentService_SpawnHazardsAsync_ResolvesArchetypeSpecificImages()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+
+            settings.Balloon.DefaultDartEmote = "dart_emote";
+            settings.Balloon.DefaultAnvilEmote = "anvil_emote";
+            settings.Balloon.DefaultNudgeEmote = "nudge_emote";
+            settings.Balloon.DefaultWindGustEmote = "wind_emote";
+
+            var defaultTheme = settings.Themes.First(t => t.Id == settings.Balloon.ActiveThemeId);
+            defaultTheme.BalloonDartImageUrl = "https://example.com/dart.png";
+            defaultTheme.BalloonAnvilImageUrl = "https://example.com/anvil.png";
+            defaultTheme.BalloonNudgeImageUrl = "https://example.com/nudge.png";
+            defaultTheme.BalloonWindGustImageUrl = "https://example.com/wind.png";
+
+            await settingsService.SaveSettingsAsync(settings);
+
+            _emoteService.Setup(e => e.GetEmotesAsync())
+                .ReturnsAsync(new Dictionary<string, string>
+                {
+                    ["dart_emote"] = "https://cdn.example.com/dart_emote.png",
+                    ["anvil_emote"] = "https://cdn.example.com/anvil_emote.png"
+                });
+
+            var service = CreateBalloonService(dropRegistry, settingsService);
+
+            var dartHazards = await service.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+            {
+                Count = 2,
+                HazardType = "DartPop"
+            });
+
+            Assert.Equal(2, dartHazards.Count);
+            Assert.All(dartHazards, h =>
+            {
+                Assert.Equal("DartPop", h.HazardType);
+                Assert.Equal("https://cdn.example.com/dart_emote.png", h.ImageUrl);
+            });
+
+            var anvilHazards = await service.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+            {
+                Count = 2,
+                HazardType = "HeavyPush"
+            });
+
+            Assert.Equal(2, anvilHazards.Count);
+            Assert.All(anvilHazards, h =>
+            {
+                Assert.Equal("HeavyPush", h.HazardType);
+                Assert.Equal("https://cdn.example.com/anvil_emote.png", h.ImageUrl);
+            });
+        }
+
+        [Fact]
+        public void BalloonAscentSettings_And_Theme_SupportCloudSpeedAndHazardProperties()
+        {
+            var settings = new BalloonAscentGameSettings
+            {
+                TargetSpeed = 1.8,
+                DefaultDartEmote = "dart1",
+                DefaultAnvilEmote = "anvil1",
+                DefaultNudgeEmote = "nudge1",
+                DefaultWindGustEmote = "wind1"
+            };
+
+            Assert.Equal(1.8, settings.TargetSpeed);
+            Assert.Equal("dart1", settings.DefaultDartEmote);
+            Assert.Equal("anvil1", settings.DefaultAnvilEmote);
+            Assert.Equal("nudge1", settings.DefaultNudgeEmote);
+            Assert.Equal("wind1", settings.DefaultWindGustEmote);
+
+            var theme = new DropGameTheme
+            {
+                BalloonDartImageUrl = "/images/dart.png",
+                BalloonAnvilImageUrl = "/images/anvil.png",
+                BalloonNudgeImageUrl = "/images/nudge.png",
+                BalloonWindGustImageUrl = "/images/wind.png",
+                BalloonCloudPlatformImageUrl = "/images/cloud.png",
+                BalloonCanopyImageUrl = "/images/canopy.png"
+            };
+
+            Assert.Equal("/images/dart.png", theme.BalloonDartImageUrl);
+            Assert.Equal("/images/anvil.png", theme.BalloonAnvilImageUrl);
+            Assert.Equal("/images/nudge.png", theme.BalloonNudgeImageUrl);
+            Assert.Equal("/images/wind.png", theme.BalloonWindGustImageUrl);
+            Assert.Equal("/images/cloud.png", theme.BalloonCloudPlatformImageUrl);
+            Assert.Equal("/images/canopy.png", theme.BalloonCanopyImageUrl);
         }
     }
 }

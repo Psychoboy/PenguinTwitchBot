@@ -11,7 +11,8 @@
         overlay: 'overlay',
         events: 'events',
         parachute: 'parachute',
-        plinko: 'plinko'
+        plinko: 'plinko',
+        balloon: 'balloon'
     };
 
     function createWsSocket(clientName, topics, options) {

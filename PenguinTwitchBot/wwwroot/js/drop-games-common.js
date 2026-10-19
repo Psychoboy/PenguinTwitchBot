@@ -411,6 +411,7 @@
 
         return {
             getLoadedImage: getLoadedImage,
+            getImage: getLoadedImage,
             getImageCache: function () { return imageCache; },
             normalizeImageUrl: normalizeImageUrl
         };
@@ -603,6 +604,105 @@
         }
     }
 
+    /**
+     * Renders a high-visibility, dual-pass outlined chatter username tag with drop shadow,
+     * leader highlighting, optional counter-rotation, and luminance-boosted colors.
+     * 
+     * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+     * @param {Object} options
+     * @param {string} options.name - Chatter username / display name
+     * @param {string} [options.userColor='#FFFFFF'] - Chatter username color
+     * @param {number} [options.fontSize=18] - Desired font size (clamped 12-36)
+     * @param {number} [options.score=0] - Player's score
+     * @param {boolean} [options.completed=false] - Whether the drop/throw is completed
+     * @param {boolean} [options.isLeader=false] - Whether the player is the round/session leader
+     * @param {string} [options.position='below'] - 'below' (default) or 'above' relative to avatar center
+     * @param {number} [options.radius=24] - Avatar/token radius in pixels (used to calculate Y offset)
+     * @param {number} [options.x=0] - X anchor coordinate (default 0)
+     * @param {number} [options.y] - Explicit Y anchor coordinate (overrides position/radius calculation)
+     * @param {number} [options.rotation=0] - Current avatar rotation/tilt in radians (auto counter-rotates if provided)
+     * @param {boolean} [options.showCrown=true] - Whether to draw gold crown 👑 emoji for leader
+     */
+    function drawOutlinedName(ctx, options) {
+        if (!ctx || !options || !options.name) return;
+
+        const fontSize = Math.max(12, Math.min(36, typeof options.fontSize === 'number' ? options.fontSize : 18));
+        const strokeWidth = Math.max(4.5, fontSize * 0.26);
+        const isLeader = !!options.isLeader;
+        const completed = !!options.completed;
+        const score = typeof options.score === 'number' ? options.score : 0;
+
+        let label = options.name;
+        if (isLeader && completed) {
+            label = `${options.name} (${score} pts)`;
+        } else if (completed && score > 0) {
+            label = `${options.name} (${score})`;
+        }
+
+        const rotation = typeof options.rotation === 'number' ? options.rotation : 0;
+        const r = typeof options.radius === 'number' ? options.radius : 20;
+
+        let textY;
+        if (typeof options.y === 'number') {
+            textY = options.y;
+        } else if (options.position === 'above') {
+            textY = -r - fontSize * 0.7 - 2;
+        } else {
+            textY = r + fontSize + 2;
+        }
+
+        const textX = typeof options.x === 'number' ? options.x : 0;
+
+        ctx.save();
+
+        // Optional counter-rotation to keep username horizontal
+        if (rotation !== 0) {
+            ctx.rotate(-rotation);
+        }
+
+        ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+
+        // Draw Leader Crown if applicable
+        if (isLeader && completed && options.showCrown !== false) {
+            ctx.save();
+            ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 10;
+            const crownY = options.position === 'above' ? textY - fontSize * 0.9 : -r - fontSize * 0.7;
+            ctx.fillText('👑', textX, crownY);
+            ctx.restore();
+        }
+
+        // Pass 1: Dark drop shadow behind outline
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = Math.max(6, fontSize * 0.4);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth + 1.5;
+        ctx.strokeText(label, textX, textY);
+        ctx.restore();
+
+        // Pass 2: Razor-sharp crisp black contrast border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeText(label, textX, textY);
+
+        // Pass 3: Luminance-boosted vibrant color fill (preserves user's identity color)
+        const rawColor = options.userColor || options.textColor || '#FFFFFF';
+        const nameColor = brightenColor(rawColor);
+        ctx.fillStyle = nameColor;
+        ctx.fillText(label, textX, textY);
+
+        ctx.restore();
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -611,7 +711,8 @@
         loadAnimatedFrames: loadAnimatedFrames,
         createImageLoader: createImageLoader,
         brightenColor: brightenColor,
-        drawSeasonalDefaultPenguin: drawSeasonalDefaultPenguin
+        drawSeasonalDefaultPenguin: drawSeasonalDefaultPenguin,
+        drawOutlinedName: drawOutlinedName
     };
 
     if (typeof module !== 'undefined' && module.exports) {

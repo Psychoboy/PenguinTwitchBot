@@ -1,4 +1,5 @@
 using PenguinTwitchBot.Bot.Commands.Games;
+using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
@@ -13,13 +14,21 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IPlinkoDropService plinkoDropService,
         IDropGamesSettingsService settingsService,
         IOverlaySecurityService overlaySecurityService,
-        IFeatureRuntimeCoordinator featureRuntimeCoordinator)
+        IFeatureRuntimeCoordinator featureRuntimeCoordinator,
+        IBalloonAscentService? balloonAscentService = null)
         : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
         {
             if (!featureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
             {
+                return;
+            }
+
+            var isAuthorized = await overlaySecurityService.ValidateKeyAsync(notification.OverlayKey);
+            if (!isAuthorized)
+            {
+                // Strict authorization: reject unauthenticated completions immediately without fallback
                 return;
             }
 
@@ -30,14 +39,6 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
 
             try
             {
-                var isAuthorized = await overlaySecurityService.ValidateKeyAsync(notification.OverlayKey);
-
-                if (!isAuthorized)
-                {
-                    // Unauthorized client completion: discard client-reported outcome and fall back to authoritative server simulation
-                    notification.LandingX = null;
-                    notification.WinningBucketIndex = null;
-                }
 
                 if (record.GameType == DropGameType.Parachute)
                 {
@@ -105,6 +106,30 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     }
 
                     await plinkoDropService.ProcessCompletionAsync(record);
+                }
+                else if (record.GameType == DropGameType.Balloon)
+                {
+                    // Authorized client with secret key: directly trust the client's rendered outcome and score
+                    if (notification.Score.HasValue)
+                    {
+                        record.Score = notification.Score.Value;
+                        record.IsBullseye = notification.IsBullseye ?? false;
+                        record.IsWin = notification.IsWin ?? false;
+                        record.IsHit = notification.IsHit ?? false;
+                    }
+                    if (notification.LandingX.HasValue)
+                    {
+                        record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.05, 0.95), 4);
+                    }
+                    if (notification.BalloonPopped.HasValue)
+                    {
+                        record.BalloonPopped = notification.BalloonPopped.Value;
+                    }
+
+                    if (balloonAscentService != null)
+                    {
+                        await balloonAscentService.ProcessCompletionAsync(record);
+                    }
                 }
 
                 dropRegistry.AcknowledgeCompletion(notification.DropToken);

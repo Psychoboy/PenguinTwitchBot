@@ -74,6 +74,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         PlinkoDrop,
         StartDropGameSession,
         StopDropGameSession,
-        ParachuteRockets
+        ParachuteRockets,
+        BalloonAscent,
+        BalloonHazards
     }
 }

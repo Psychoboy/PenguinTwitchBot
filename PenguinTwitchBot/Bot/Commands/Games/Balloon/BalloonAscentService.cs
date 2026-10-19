@@ -1,0 +1,713 @@
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text.Json;
+using PenguinTwitchBot.Bot.Actions;
+using PenguinTwitchBot.Bot.Actions.Utilities;
+using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Bot.Services.Chat;
+using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Models.Commands;
+using PenguinTwitchBot.Services;
+
+namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
+{
+    public class BalloonAscentService(
+        IServiceBackbone serviceBackbone,
+        ICommandHandler commandHandler,
+        IDefaultCommandTriggerService defaultCommandTriggerService,
+        IServiceScopeFactory scopeFactory,
+        IEmoteService emoteService,
+        IWebSocketMessenger webSocketMessenger,
+        Application.Notifications.IPenguinDispatcher dispatcher,
+        IDropGamesSettingsService settingsService,
+        IDropRegistry dropRegistry,
+        ILogger<BalloonAscentService> logger,
+        IChatColorService? chatColorService = null,
+        MediaUploadService? mediaUploadService = null)
+        : BaseCommandService(serviceBackbone, commandHandler, "BalloonAscent", dispatcher), IHostedService, IBalloonAscentService
+    {
+        private readonly IChatColorService _chatColorService = chatColorService ?? new ChatColorService();
+        private readonly MediaUploadService? _mediaUploadService = mediaUploadService;
+        private readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true
+        };
+        private readonly ConcurrentQueue<QueuedSessionRequest> _sessionQueue = new();
+        private readonly SemaphoreSlim _sessionLock = new(1, 1);
+        private DropGameSessionState? _activeSession;
+
+        private MediaUploadService? GetMediaUploadService()
+        {
+            if (_mediaUploadService != null) return _mediaUploadService;
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                return scope.ServiceProvider.GetService<MediaUploadService>();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private sealed class DropGameSessionState
+        {
+            public DateTime StartedAtUtc { get; init; }
+            public DateTime EndsAtUtc { get; set; }
+            public int TotalDurationSeconds { get; set; }
+            public string? ThemeIdOverride { get; set; }
+            public string? StartedBy { get; init; }
+            public ConcurrentDictionary<string, int> UserDropCounts { get; } = new(StringComparer.OrdinalIgnoreCase);
+            public int TotalDrops;
+            public double? TargetCenterX { get; set; }
+            public double? TargetHalfWidth { get; set; }
+            public double? BullseyeHalfWidth { get; set; }
+            public CancellationTokenSource Cts { get; } = new();
+            public Timer? ExpiryTimer { get; set; }
+        }
+
+        private sealed class QueuedSessionRequest
+        {
+            public int? DurationSeconds { get; init; }
+            public string? ThemeOverrideId { get; init; }
+            public string? TriggeredBy { get; init; }
+            public TaskCompletionSource<DropGameSessionDto> CompletionSource { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public override async Task Register()
+        {
+            await RegisterDefaultCommand("balloon", this, ModuleName, Rank.Viewer, userCooldown: 10);
+            await RegisterDefaultCommand("float", this, ModuleName, Rank.Viewer, userCooldown: 10);
+            await RegisterDefaultCommand("ascent", this, ModuleName, Rank.Viewer, userCooldown: 10);
+            await RegisterDefaultCommand("balloonhazards", this, ModuleName, Rank.Moderator, userCooldown: 5);
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken) => Register();
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                dropRegistry.SetSessionActive(DropGameType.Balloon, false);
+                var s = Interlocked.Exchange(ref _activeSession, null);
+                s?.ExpiryTimer?.Dispose();
+                s?.Cts.Cancel();
+                s?.Cts.Dispose();
+            }
+            catch { }
+            return Task.CompletedTask;
+        }
+
+        private async Task QueueWsMessageAsync(string topic, string json, string description)
+        {
+            try
+            {
+                await webSocketMessenger.AddToQueue(topic, json);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to queue {Description} message to topic {Topic}", description, topic);
+            }
+        }
+
+        public DropGameSessionDto? GetCurrentSession()
+        {
+            var state = _activeSession;
+            if (state == null) return null;
+            var now = DateTime.UtcNow;
+            if (state.EndsAtUtc <= now) return null;
+
+            var remainingSec = Math.Max(0, (int)Math.Ceiling((state.EndsAtUtc - now).TotalSeconds));
+            return new DropGameSessionDto
+            {
+                GameType = "balloon",
+                IsActive = true,
+                TotalDurationSeconds = state.TotalDurationSeconds,
+                RemainingSeconds = remainingSec,
+                StartedAtMs = new DateTimeOffset(state.StartedAtUtc).ToUnixTimeMilliseconds(),
+                EndsAtMs = new DateTimeOffset(state.EndsAtUtc).ToUnixTimeMilliseconds(),
+                TotalDrops = Volatile.Read(ref state.TotalDrops),
+                TargetCenterX = state.TargetCenterX,
+                TargetHalfWidth = state.TargetHalfWidth,
+                BullseyeHalfWidth = state.BullseyeHalfWidth
+            };
+        }
+
+        public int GetQueuedSessionCount() => _sessionQueue.Count;
+
+        public Task ClearSessionQueueAsync()
+        {
+            while (_sessionQueue.TryDequeue(out var req))
+            {
+                req.CompletionSource.TrySetCanceled();
+            }
+            return Task.CompletedTask;
+        }
+
+        public async Task<DropGameSessionDto> StartSessionAsync(
+            int? durationSeconds = null,
+            string? themeOverrideId = null,
+            string? triggeredBy = null)
+        {
+            await _sessionLock.WaitAsync();
+            try
+            {
+                var now = DateTime.UtcNow;
+                if (_activeSession != null && _activeSession.EndsAtUtc > now)
+                {
+                    var queued = new QueuedSessionRequest
+                    {
+                        DurationSeconds = durationSeconds,
+                        ThemeOverrideId = themeOverrideId,
+                        TriggeredBy = triggeredBy
+                    };
+                    _sessionQueue.Enqueue(queued);
+                    var cur = GetCurrentSession()!;
+                    cur.IsQueued = true;
+                    cur.QueuePosition = _sessionQueue.Count;
+                    return cur;
+                }
+
+                var settings = await settingsService.GetSettingsAsync();
+                var bSettings = settings.Balloon;
+                var duration = Math.Clamp(durationSeconds ?? 90, 10, 600);
+                var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
+                var endsAt = now.AddSeconds(duration);
+
+                var targetHalfWidth = Math.Clamp((bSettings.TargetWidthPercent / 100.0) / 2.0, 0.03, 0.40);
+                var targetCenterX = Math.Clamp(bSettings.TargetCenterX, targetHalfWidth, 1.0 - targetHalfWidth);
+
+                var session = new DropGameSessionState
+                {
+                    StartedAtUtc = now,
+                    EndsAtUtc = endsAt,
+                    TotalDurationSeconds = duration,
+                    ThemeIdOverride = theme.Id,
+                    StartedBy = triggeredBy ?? "System",
+                    TargetCenterX = targetCenterX,
+                    TargetHalfWidth = targetHalfWidth,
+                    BullseyeHalfWidth = targetHalfWidth * 0.25
+                };
+
+                session.ExpiryTimer = new Timer(OnSessionExpiredCallback, null, TimeSpan.FromSeconds(duration), Timeout.InfiniteTimeSpan);
+                _activeSession = session;
+
+                var headerConfig = new DropGameHeaderConfigDto
+                {
+                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
+                    ShowBanner = bSettings.ShowHeaderBanner,
+                    ShowTimer = bSettings.ShowTimer,
+                    ShowCount = bSettings.ShowDropCount,
+                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
+                    Position = bSettings.HeaderPosition,
+                    YOffset = bSettings.HeaderCustomYOffset,
+                    NameFontSize = bSettings.NameFontSize
+                };
+
+                dropRegistry.SetSessionActive(DropGameType.Balloon, true);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+
+                var dto = GetCurrentSession()!;
+                dto.IsOtherGameActive = isOtherGameActive;
+                dto.HeaderConfig = headerConfig;
+                var wsPayload = JsonSerializer.Serialize(new
+                {
+                    type = "session_start",
+                    session = dto,
+                    theme = theme,
+                    headerConfig = headerConfig,
+                    isOtherGameActive = isOtherGameActive,
+                    target = new
+                    {
+                        centerX = targetCenterX,
+                        halfWidth = targetHalfWidth,
+                        speed = bSettings.TargetSpeed,
+                        alpha = bSettings.TargetAlpha
+                    }
+                }, _jsonOptions);
+
+                await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "Balloon session_start");
+
+                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "balloon" }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Balloon is active");
+                await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Balloon is active");
+
+                return dto;
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+
+        public async Task<DropGameSessionDto?> StopSessionAsync(string? triggeredBy = null)
+        {
+            await _sessionLock.WaitAsync();
+            try
+            {
+                if (_activeSession == null) return null;
+
+                var session = _activeSession;
+                _activeSession = null;
+                session.ExpiryTimer?.Dispose();
+                session.Cts.Cancel();
+                session.Cts.Dispose();
+
+                dropRegistry.SetSessionActive(DropGameType.Balloon, false);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+
+                var settings = await settingsService.GetSettingsAsync();
+                var bSettings = settings.Balloon;
+
+                var headerConfig = new DropGameHeaderConfigDto
+                {
+                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
+                    ShowBanner = bSettings.ShowHeaderBanner,
+                    ShowTimer = bSettings.ShowTimer,
+                    ShowCount = bSettings.ShowDropCount,
+                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
+                    Position = bSettings.HeaderPosition,
+                    YOffset = bSettings.HeaderCustomYOffset,
+                    NameFontSize = bSettings.NameFontSize
+                };
+
+                var dto = new DropGameSessionDto
+                {
+                    GameType = "balloon",
+                    IsActive = false,
+                    TotalDurationSeconds = session.TotalDurationSeconds,
+                    RemainingSeconds = 0,
+                    StartedAtMs = new DateTimeOffset(session.StartedAtUtc).ToUnixTimeMilliseconds(),
+                    EndsAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    TotalDrops = Volatile.Read(ref session.TotalDrops),
+                    TargetCenterX = session.TargetCenterX,
+                    TargetHalfWidth = session.TargetHalfWidth,
+                    BullseyeHalfWidth = session.BullseyeHalfWidth,
+                    IsOtherGameActive = isOtherGameActive,
+                    HeaderConfig = headerConfig
+                };
+
+                var wsPayload = JsonSerializer.Serialize(new
+                {
+                    type = "session_end",
+                    session = dto,
+                    headerConfig = headerConfig,
+                    isOtherGameActive = isOtherGameActive
+                }, _jsonOptions);
+
+                await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "Balloon session_end");
+
+                var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "balloon" }, _jsonOptions);
+                await QueueWsMessageAsync(WsTopics.Parachute, otherNotice, "Notify Parachute that Balloon is inactive");
+                await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Balloon is inactive");
+
+                await ProcessNextQueuedSessionAsync();
+                return dto;
+            }
+            finally
+            {
+                _sessionLock.Release();
+            }
+        }
+
+        private async void OnSessionExpiredCallback(object? state)
+        {
+            try
+            {
+                await StopSessionAsync("Timer");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error handling Balloon session expiration");
+            }
+        }
+
+        private async Task ProcessNextQueuedSessionAsync()
+        {
+            if (_sessionQueue.TryDequeue(out var next))
+            {
+                try
+                {
+                    var dto = await StartSessionAsync(next.DurationSeconds, next.ThemeOverrideId, next.TriggeredBy);
+                    next.CompletionSource.TrySetResult(dto);
+                }
+                catch (Exception ex)
+                {
+                    next.CompletionSource.TrySetException(ex);
+                }
+            }
+        }
+
+        public async Task<string> TriggerBalloonAscentAsync(
+            CommandEventArgs eventArgs,
+            string? emoteOrImage = null,
+            string? themeOverrideId = null,
+            double? forcedStartX = null,
+            bool skipMinimumDurationCheck = false,
+            bool allowDirectUrlOrPath = true,
+            double? forcedInitialVx = null,
+            double? forcedTargetCenterX = null)
+        {
+            dropRegistry.CleanupExpiredDrops();
+            var settings = await settingsService.GetSettingsAsync();
+            var bSettings = settings.Balloon;
+            var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, bSettings.ActiveThemeId);
+            var characterImageUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(emoteService, eventArgs, emoteOrImage, theme.DefaultCharacterImageUrl, allowDirectUrlOrPath);
+
+            var buoyancy = Math.Clamp(bSettings.Buoyancy, 0.1, 10.0);
+            var durationSeconds = Math.Clamp(5.8 / Math.Pow(buoyancy, 0.25), 3.2, 8.5);
+            var totalTicks = Math.Max(30, (int)Math.Round(durationSeconds * BalloonAscentSimulationEngine.TickRateHz));
+
+            var startX = forcedStartX.HasValue
+                ? Math.Clamp(forcedStartX.Value, 0.08, 0.92)
+                : DropGameMath.RandomDouble(0.10, 0.90);
+
+            var startY = BalloonAscentSimulationEngine.LaunchY; // 0.94
+            var landingY = BalloonAscentSimulationEngine.LandingY; // 0.10
+            var baseVy = (landingY - startY) / durationSeconds; // negative velocity upward
+
+            double initialVx = forcedInitialVx.HasValue
+                ? Math.Clamp(forcedInitialVx.Value, -BalloonAscentSimulationEngine.MaxVx, BalloonAscentSimulationEngine.MaxVx)
+                : DropGameMath.RandomDouble(-0.06, 0.06);
+
+            var targetHalfWidth = Math.Clamp((bSettings.TargetWidthPercent / 100.0) / 2.0, 0.03, 0.40);
+            var targetCenterX = forcedTargetCenterX.HasValue
+                ? Math.Clamp(forcedTargetCenterX.Value, targetHalfWidth, 1.0 - targetHalfWidth)
+                : Math.Clamp(bSettings.TargetCenterX, targetHalfWidth, 1.0 - targetHalfWidth);
+
+            var dropToken = Guid.NewGuid().ToString("N");
+            var now = DateTime.UtcNow;
+
+            var userColor = !string.IsNullOrWhiteSpace(eventArgs.Color) && eventArgs.Color.StartsWith('#')
+                ? eventArgs.Color
+                : _chatColorService.GetOrAssignColor(
+                    !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : (string.IsNullOrWhiteSpace(eventArgs.Name) ? "viewer" : eventArgs.Name),
+                    eventArgs.Color);
+
+            var record = new PendingDropRecord
+            {
+                DropToken = dropToken,
+                GameType = DropGameType.Balloon,
+                Username = eventArgs.Name,
+                DisplayName = eventArgs.DisplayName,
+                UserId = eventArgs.UserId,
+                UserColor = userColor,
+                EventArgs = eventArgs,
+                Theme = theme,
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now.AddSeconds(durationSeconds * 0.5),
+                ExpiresAtUtc = now.AddSeconds(durationSeconds + 15.0),
+                StartX = Math.Round(startX, 4),
+                StartY = Math.Round(startY, 4),
+                LandingY = Math.Round(landingY, 4),
+                InitialVx = Math.Round(initialVx, 4),
+                InitialVy = Math.Round(baseVy, 4),
+                TotalTicks = totalTicks,
+                TargetCenterX = Math.Round(targetCenterX, 4),
+                TargetHalfWidth = Math.Round(targetHalfWidth, 4),
+                Bounciness = bSettings.Bounciness,
+                Mass = bSettings.Mass
+            };
+
+            BalloonAscentSimulationEngine.SimulateBalloonTrajectory(record, bSettings.PoppedScoreMode);
+            dropRegistry.RegisterDrop(record);
+
+            if (_activeSession != null)
+            {
+                Interlocked.Increment(ref _activeSession.TotalDrops);
+            }
+
+            var soundsDto = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
+
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+
+            var wsMessage = new
+            {
+                type = "balloon_drop",
+                dropToken = record.DropToken,
+                user = record.DisplayName,
+                userColor = record.UserColor,
+                nameFontSize = bSettings.NameFontSize,
+                characterImageUrl = characterImageUrl,
+                balloonCanopyImageUrl = theme.BalloonCanopyImageUrl,
+                cloudPlatformImageUrl = theme.BalloonCloudPlatformImageUrl,
+                startX = record.StartX,
+                startY = record.StartY,
+                landingY = record.LandingY,
+                initialVx = record.InitialVx,
+                initialVy = record.InitialVy,
+                durationSeconds = durationSeconds,
+                totalTicks = record.TotalTicks,
+                isOtherGameActive,
+                target = new
+                {
+                    centerX = record.TargetCenterX,
+                    halfWidth = record.TargetHalfWidth,
+                    speed = bSettings.TargetSpeed,
+                    alpha = bSettings.TargetAlpha
+                },
+                headerConfig = new DropGameHeaderConfigDto
+                {
+                    AutoAvoidOverlap = bSettings.AutoAvoidOverlap,
+                    ShowBanner = bSettings.ShowHeaderBanner,
+                    ShowTimer = bSettings.ShowTimer,
+                    ShowCount = bSettings.ShowDropCount,
+                    ShowFreePlayCounter = bSettings.ShowFreePlayCounter,
+                    Position = bSettings.HeaderPosition,
+                    YOffset = bSettings.HeaderCustomYOffset,
+                    NameFontSize = bSettings.NameFontSize
+                },
+                physics = new
+                {
+                    buoyancy = bSettings.Buoyancy,
+                    bounciness = bSettings.Bounciness,
+                    mass = bSettings.Mass,
+                    swayAmount = bSettings.SwayAmount
+                },
+                theme = theme,
+                sounds = soundsDto
+            };
+
+            var json = JsonSerializer.Serialize(wsMessage, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Balloon, json, "balloon drop");
+
+            // Also notify Parachute and Plinko to prevent overlay collisions
+            var dropNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = durationSeconds + 6.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Parachute, dropNotice, "Balloon drop active notice to Parachute");
+            await QueueWsMessageAsync(WsTopics.Plinko, dropNotice, "Balloon drop active notice to Plinko");
+
+            return dropToken;
+        }
+
+        public async Task<List<DropletInstanceDto>> SpawnHazardsAsync(BalloonHazardSpawnRequest request)
+        {
+            var settings = await settingsService.GetSettingsAsync();
+            var bSettings = settings.Balloon;
+            var now = DateTime.UtcNow;
+
+            var count = Math.Clamp(request.Count, 1, 25);
+            var (speedLabel, speedScale) = BalloonHazardPatternGenerator.ResolveHazardSpeed(request.SpeedPreset);
+
+            var activeDrops = dropRegistry.GetActiveDrops(DropGameType.Balloon);
+            var targetDrop = !string.IsNullOrWhiteSpace(request.TargetDropToken)
+                ? activeDrops.FirstOrDefault(d => d.DropToken == request.TargetDropToken)
+                : activeDrops.OrderBy(_ => RandomNumberGenerator.GetInt32(0, 1000)).FirstOrDefault();
+
+            var theme = DropGameMediaResolver.ResolveTheme(settings, null, bSettings.ActiveThemeId);
+            var enabledTypes = new List<string>();
+            if (bSettings.EnableDarts) enabledTypes.Add("DartPop");
+            if (bSettings.EnableAnvils) enabledTypes.Add("HeavyPush");
+            if (bSettings.EnableNudges) enabledTypes.Add("Nudge");
+            if (bSettings.EnableWindGusts) enabledTypes.Add("WindGust");
+            if (enabledTypes.Count == 0) enabledTypes.Add("Nudge");
+
+            async Task<string> ResolveHazardImageAsync(string? typeEmote, string? themeUrl)
+            {
+                var candidate = !string.IsNullOrWhiteSpace(request.EmoteOrImage)
+                    ? request.EmoteOrImage
+                    : (!string.IsNullOrWhiteSpace(typeEmote)
+                        ? typeEmote
+                        : (!string.IsNullOrWhiteSpace(themeUrl)
+                            ? themeUrl
+                            : (!string.IsNullOrWhiteSpace(bSettings.DefaultHazardEmote)
+                                ? bSettings.DefaultHazardEmote
+                                : theme.BalloonDebrisImageUrl)));
+
+                if (string.IsNullOrWhiteSpace(candidate)) return "";
+                var res = await DropGameMediaResolver.ResolveMediaUrlsAsync(emoteService, null, candidate, null, true);
+                return res.Count > 0 ? res[0] : "";
+            }
+
+            var typeImages = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["DartPop"] = await ResolveHazardImageAsync(bSettings.DefaultDartEmote, theme.BalloonDartImageUrl),
+                ["HeavyPush"] = await ResolveHazardImageAsync(bSettings.DefaultAnvilEmote, theme.BalloonAnvilImageUrl),
+                ["WindGust"] = await ResolveHazardImageAsync(bSettings.DefaultWindGustEmote, theme.BalloonWindGustImageUrl),
+                ["Nudge"] = await ResolveHazardImageAsync(bSettings.DefaultNudgeEmote, theme.BalloonNudgeImageUrl)
+            };
+
+            var instances = new List<DropletInstanceDto>();
+            for (var i = 0; i < count; i++)
+            {
+                var actualType = request.HazardType.Equals("Random", StringComparison.OrdinalIgnoreCase)
+                    ? enabledTypes[RandomNumberGenerator.GetInt32(enabledTypes.Count)]
+                    : request.HazardType;
+
+                var (sizeLabel, sizeScale, radius, mass) = BalloonHazardPatternGenerator.ResolveHazardPhysics(actualType, request.SizePreset);
+                var hazardImg = typeImages.TryGetValue(actualType, out var imgUrl) ? imgUrl : "";
+
+                var offset = i * 4;
+                var (startX, startY, vx, vy, gravity) = BalloonHazardPatternGenerator.CalculateTrajectory(
+                    request.Pattern,
+                    actualType,
+                    i,
+                    speedScale,
+                    targetDrop,
+                    now,
+                    offset);
+
+                instances.Add(new DropletInstanceDto
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    SpawnTickOffset = offset,
+                    StartX = Math.Round(startX, 4),
+                    StartY = Math.Round(startY, 4),
+                    Vx = Math.Round(vx, 4),
+                    Vy = Math.Round(vy, 4),
+                    Gravity = Math.Round(gravity, 4),
+                    Radius = Math.Round(radius, 4),
+                    Mass = Math.Round(mass, 4),
+                    SizeScale = Math.Round(sizeScale, 4),
+                    SpeedScale = Math.Round(speedScale, 4),
+                    SizeLabel = sizeLabel,
+                    SpeedLabel = speedLabel,
+                    ImageUrl = hazardImg,
+                    TargetDropToken = targetDrop?.DropToken,
+                    HazardType = actualType
+                });
+            }
+
+            var wsPayload = JsonSerializer.Serialize(new
+            {
+                type = "balloon_hazards",
+                hazards = instances
+            }, _jsonOptions);
+
+            await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "balloon hazards");
+
+            var hazardsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
+            await QueueWsMessageAsync(WsTopics.Parachute, hazardsNotice, "Balloon hazards notice to Parachute");
+            await QueueWsMessageAsync(WsTopics.Plinko, hazardsNotice, "Balloon hazards notice to Plinko");
+
+            return instances;
+        }
+
+        public async Task ProcessCompletionAsync(PendingDropRecord record)
+        {
+            var settings = await settingsService.GetSettingsAsync();
+            var bSettings = settings.Balloon;
+
+            var actionVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["User"] = record.Username,
+                ["DisplayName"] = record.DisplayName,
+                ["UserId"] = record.UserId,
+                ["Score"] = record.Score.ToString(),
+                ["IsWin"] = record.IsWin.ToString().ToLowerInvariant(),
+                ["IsBullseye"] = record.IsBullseye.ToString().ToLowerInvariant(),
+                ["IsHit"] = record.IsHit.ToString().ToLowerInvariant(),
+                ["BalloonPopped"] = record.BalloonPopped.ToString().ToLowerInvariant(),
+                ["LandingX"] = record.LandingX.ToString("F4")
+            };
+
+            // Trigger DefaultCommand events
+            try
+            {
+                if (record.IsBullseye)
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonBullseye, record.EventArgs, actionVars);
+                }
+                else if (record.IsWin)
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonWin, record.EventArgs, actionVars);
+                }
+                else if (record.BalloonPopped)
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonPopped, record.EventArgs, actionVars);
+                }
+                else
+                {
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonLose, record.EventArgs, actionVars);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to fire Balloon DefaultCommandEvent for {User}", record.DisplayName);
+            }
+
+            // Enqueue Win / Bullseye Action if configured
+            var actionToRun = (record.IsBullseye && !string.IsNullOrWhiteSpace(bSettings.BullseyeActionName))
+                ? bSettings.BullseyeActionName
+                : (record.IsWin ? bSettings.WinActionName : "");
+
+            if (!string.IsNullOrWhiteSpace(actionToRun))
+            {
+                try
+                {
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
+                    var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
+
+                    var allActions = await actionManagement.GetAllActionsAsync();
+                    var targetAction = allActions.FirstOrDefault(a =>
+                        a.Enabled && a.Name.Equals(actionToRun.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                    if (targetAction != null)
+                    {
+                        var mergedVars = CommandEventArgsConverter.ToDictionary(record.EventArgs);
+                        foreach (var kvp in actionVars)
+                        {
+                            mergedVars[kvp.Key] = kvp.Value;
+                        }
+                        await actionRunner.EnqueueAction(mergedVars, targetAction);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to enqueue Balloon action {Action} for {User}", actionToRun, record.DisplayName);
+                }
+            }
+
+            // Announce in chat
+            if (bSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
+            {
+                try
+                {
+                    var bullseyeStr = record.IsBullseye ? " GOLDEN BULLSEYE!" : "";
+                    var msg = (bSettings.WinChatMessageTemplate ?? "{user} reached the cloud platform with {score} pts!{bullseye}")
+                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
+                        .Replace("{score}", record.Score.ToString(), StringComparison.OrdinalIgnoreCase)
+                        .Replace("{bullseye}", bullseyeStr, StringComparison.OrdinalIgnoreCase);
+
+                    await ServiceBackbone.SendChatMessage(msg);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send Balloon win chat message for {User}", record.DisplayName);
+                }
+            }
+        }
+
+        public override async Task OnCommand(object? sender, CommandEventArgs e)
+        {
+            var command = CommandHandler.GetCommand(e.Command);
+            if (command == null) return;
+
+            var cmdName = command.CommandProperties.CommandName;
+
+            if (cmdName.Equals("balloon", StringComparison.OrdinalIgnoreCase) ||
+                cmdName.Equals("float", StringComparison.OrdinalIgnoreCase) ||
+                cmdName.Equals("ascent", StringComparison.OrdinalIgnoreCase))
+            {
+                var emote = e.Arg?.Trim();
+                await TriggerBalloonAscentAsync(e, emote, allowDirectUrlOrPath: false);
+            }
+            else if (cmdName.Equals("balloonhazards", StringComparison.OrdinalIgnoreCase))
+            {
+                var req = new BalloonHazardSpawnRequest
+                {
+                    HazardType = "Random",
+                    Count = 6,
+                    EmoteOrImage = e.Arg?.Trim(),
+                    TriggeredBy = e.DisplayName
+                };
+                await SpawnHazardsAsync(req);
+            }
+        }
+    }
+}
+

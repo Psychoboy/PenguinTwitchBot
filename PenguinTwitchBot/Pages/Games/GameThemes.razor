@@ -1,0 +1,523 @@
+@page "/games/themes"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<GameThemes> Logger
+
+<PageTitle>Minigame Themes & Assets</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Minigame Themes & Assets</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Customize seasonal visuals, custom sprites, particle systems, and audio overrides for Balloon Ascent, Parachute Drop, and Plinko.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetStockSeasonalThemes">
+                    Restore Stock Themes
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Themes
+                </MudButton>
+                <HelpButton Topic="drop-games" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudGrid Spacing="4">
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="pa-4" Outlined="true">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                            <MudText Typo="Typo.h6">Themes</MudText>
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add" OnClick="CreateCustomTheme">
+                                New Theme
+                            </MudButton>
+                        </MudStack>
+
+                        <MudList T="DropGameTheme" SelectedValue="_selectedTheme" SelectedValueChanged="OnSelectedThemeChanged">
+                            @foreach (var theme in _settings.Themes)
+                            {
+                                <MudListItem Value="@theme">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <span style="display:inline-block; width:16px; height:16px; border-radius:50%; background:@theme.PrimaryColor; border:2px solid @theme.SecondaryColor;"></span>
+                                            <MudText>@theme.Name</MudText>
+                                        </MudStack>
+                                        @if (theme.IsStock)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined">Stock</MudChip>
+                                        }
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                        </MudList>
+
+                        <MudDivider Class="my-3" />
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" FullWidth="true"
+                                   OnClick="ResetStockSeasonalThemes">
+                            Restore Default Stock Themes
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    @if (_selectedTheme != null)
+                    {
+                        <MudPaper Class="pa-4" Outlined="true">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                                <MudText Typo="Typo.h6">Editing Theme: @_selectedTheme.Name (@_selectedTheme.Id)</MudText>
+                                @if (!_selectedTheme.IsStock)
+                                {
+                                    <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                               StartIcon="@Icons.Material.Filled.Delete"
+                                               OnClick="DeleteSelectedCustomTheme">
+                                        Delete Theme
+                                    </MudButton>
+                                }
+                            </MudStack>
+
+                            <MudGrid Spacing="3">
+                                <MudItem xs="12" sm="6">
+                                    <MudTextField T="string" Label="Theme Display Name" Variant="Variant.Outlined"
+                                                  @bind-Value="_selectedTheme.Name" />
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudSelect T="string" Label="Seasonal Style" Variant="Variant.Outlined"
+                                               @bind-Value="_selectedTheme.SeasonPreset">
+                                        <MudSelectItem Value="@("spring")">Spring (Cherry Blossoms)</MudSelectItem>
+                                        <MudSelectItem Value="@("summer")">Summer (Tropical Pool Party)</MudSelectItem>
+                                        <MudSelectItem Value="@("fall")">Fall (Autumn Leaf Pile)</MudSelectItem>
+                                        <MudSelectItem Value="@("winter")">Winter (Snowy Frost)</MudSelectItem>
+                                        <MudSelectItem Value="@("halloween")">Halloween (Spooky Cauldron)</MudSelectItem>
+                                        <MudSelectItem Value="@("christmas")">Christmas (Holiday Celebration)</MudSelectItem>
+                                    </MudSelect>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudPaper Outlined="true" Class="pa-3">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Seasonal Particle Systems</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.body2"><b>Background Ambient Particles</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_selectedTheme.EnableBackgroundParticles" Color="Color.Primary" />
+                                                    </MudStack>
+                                                    @if (_selectedTheme.EnableBackgroundParticles)
+                                                    {
+                                                        <MudGrid Spacing="2" Class="mt-1">
+                                                            <MudItem xs="7">
+                                                                <MudSelect T="string" Label="Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                           @bind-Value="_selectedTheme.ParticleType">
+                                                                    <MudSelectItem Value="@("petals")">Blossom Petals</MudSelectItem>
+                                                                    <MudSelectItem Value="@("bubbles")">Beach Bubbles</MudSelectItem>
+                                                                    <MudSelectItem Value="@("leaves")">Autumn Leaves</MudSelectItem>
+                                                                    <MudSelectItem Value="@("snow")">Snowflakes</MudSelectItem>
+                                                                    <MudSelectItem Value="@("stars")">Sparkle Stars</MudSelectItem>
+                                                                    <MudSelectItem Value="@("bats")">Spooky Bats</MudSelectItem>
+                                                                    <MudSelectItem Value="@("none")">None</MudSelectItem>
+                                                                </MudSelect>
+                                                            </MudItem>
+                                                            <MudItem xs="5">
+                                                                <MudNumericField T="int" Label="Density (5-80)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                 Min="5" Max="80"
+                                                                                 @bind-Value="_selectedTheme.ParticleDensity" />
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Background is clear (ambient particles turned off).</MudText>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.body2"><b>Landing Pad Impact Particles</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_selectedTheme.EnableLandingParticles" Color="Color.Success" />
+                                                    </MudStack>
+                                                    @if (_selectedTheme.EnableLandingParticles)
+                                                    {
+                                                        <MudGrid Spacing="2" Class="mt-1">
+                                                            <MudItem xs="7">
+                                                                <MudSelect T="string" Label="Type" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                           @bind-Value="_selectedTheme.LandingParticleType">
+                                                                    <MudSelectItem Value="@("leaves")">Autumn Leaves Burst</MudSelectItem>
+                                                                    <MudSelectItem Value="@("petals")">Cherry Petals Poof</MudSelectItem>
+                                                                    <MudSelectItem Value="@("snow")">Snow Powder Puff</MudSelectItem>
+                                                                    <MudSelectItem Value="@("splash")">Water Splash</MudSelectItem>
+                                                                    <MudSelectItem Value="@("candies")">Halloween Treats / Candies</MudSelectItem>
+                                                                    <MudSelectItem Value="@("confetti")">Holiday Sparkles & Confetti</MudSelectItem>
+                                                                    <MudSelectItem Value="@("none")">None</MudSelectItem>
+                                                                </MudSelect>
+                                                            </MudItem>
+                                                            <MudItem xs="5">
+                                                                <MudNumericField T="int" Label="Amount (10-70)" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                                                 Min="10" Max="70"
+                                                                                 @bind-Value="_selectedTheme.LandingParticleDensity" />
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Landing impact puff is turned off.</MudText>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <MudItem xs="6" sm="3">
+                                    <MudTextField T="string" Label="Primary Color" Variant="Variant.Outlined"
+                                                  @bind-Value="_selectedTheme.PrimaryColor" />
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudTextField T="string" Label="Secondary Color" Variant="Variant.Outlined"
+                                                  @bind-Value="_selectedTheme.SecondaryColor" />
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudTextField T="string" Label="Accent / Bullseye Color" Variant="Variant.Outlined"
+                                                  @bind-Value="_selectedTheme.AccentColor" />
+                                </MudItem>
+                                <MudItem xs="6" sm="3">
+                                    <MudTextField T="string" Label="Target Pad Color" Variant="Variant.Outlined"
+                                                  @bind-Value="_selectedTheme.TargetColor" />
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-2" />
+                                    <MudText Typo="Typo.subtitle1" Class="mb-1"><b>Custom Sprites & Media Overrides</b></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Leave blank to use built-in seasonal vector and canvas art automatically.</MudText>
+                                </MudItem>
+
+                                <!-- Group 1: Shared Sprites -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Shared Sprites & Emotes</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" md="6">
+                                                <MediaUrlPicker Label="Character Emotes / Images"
+                                                                @bind-Value="_selectedTheme.DefaultCharacterImageUrl"
+                                                                AllowMultiple="true"
+                                                                Placeholder="Type emote name (e.g. sptvShots) or image URL..."
+                                                                HelperText="Used when a viewer runs minigames without specifying an emote. Multiple items can be added to randomly pick one per turn." />
+                                            </MudItem>
+                                            <MudItem xs="12" md="6">
+                                                <MediaUrlPicker Label="Droplet / Debris Emotes / Images"
+                                                                @bind-Value="_selectedTheme.DefaultDropletImageUrl"
+                                                                AllowMultiple="true"
+                                                                Placeholder="Type emote name (e.g. sptv30k) or image URL..."
+                                                                HelperText="Used for interactive droplets & hazards when no custom emote is provided." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 2: Balloon Ascent Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Balloon Ascent Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Balloon Canopy Image"
+                                                                @bind-Value="_selectedTheme.BalloonCanopyImageUrl"
+                                                                HelperText="Optional custom balloon canopy sprite (overrides default seasonal balloon)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Cloud Platform Image"
+                                                                @bind-Value="_selectedTheme.BalloonCloudPlatformImageUrl"
+                                                                HelperText="Optional custom cloud landing platform sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Dart Hazard Image (Sharp / Pop)"
+                                                                @bind-Value="_selectedTheme.BalloonDartImageUrl"
+                                                                HelperText="Custom dart / puncturing projectile sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Anvil Hazard Image (Heavy Slam)"
+                                                                @bind-Value="_selectedTheme.BalloonAnvilImageUrl"
+                                                                HelperText="Custom heavy anvil / weight projectile sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Nudge Hazard Image (Light Bump)"
+                                                                @bind-Value="_selectedTheme.BalloonNudgeImageUrl"
+                                                                HelperText="Custom light bounce debris sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Wind Gust Hazard Image (Lateral Drift)"
+                                                                @bind-Value="_selectedTheme.BalloonWindGustImageUrl"
+                                                                HelperText="Custom crosswind / puff sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12">
+                                                <MediaUrlPicker Label="General / Fallback Hazard Image"
+                                                                @bind-Value="_selectedTheme.BalloonDebrisImageUrl"
+                                                                HelperText="Optional fallback debris sprite used if archetype-specific image is not configured." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 3: Parachute Drop Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Parachute Drop Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Parachute Canopy Image"
+                                                                @bind-Value="_selectedTheme.ParachuteCanopyImageUrl"
+                                                                HelperText="Optional custom parachute canopy sprite (overrides default seasonal canopy/chute)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Parachute Target Platform Image"
+                                                                @bind-Value="_selectedTheme.TargetPlatformImageUrl"
+                                                                HelperText="Optional custom landing platform image (overrides seasonal landing zone/cauldron/wreath)." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 4: Plinko Bounce Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Plinko Bounce Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Plinko Board Background Image"
+                                                                @bind-Value="_selectedTheme.PlinkoBoardBackgroundImageUrl"
+                                                                HelperText="Optional custom Plinko board background." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Plinko Peg Image"
+                                                                @bind-Value="_selectedTheme.PlinkoPegImageUrl"
+                                                                HelperText="Optional custom peg sprite (overrides seasonal round peg)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Plinko Winning Slot Trophy Image"
+                                                                @bind-Value="_selectedTheme.PlinkoWinningSlotImageUrl"
+                                                                HelperText="Optional custom winning bucket decoration (overrides seasonal pumpkin, jingle bell, lotus, etc.)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Plinko Slot Divider Image"
+                                                                @bind-Value="_selectedTheme.PlinkoDividerImageUrl"
+                                                                HelperText="Optional custom slot divider pillar (overrides seasonal candle, candy cane, bamboo, icicle)." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 5: Theme Audio & Sound Overrides -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Theme Audio & Sound Overrides</b></MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3">
+                                            Optionally customize or mute sounds specifically when this theme is active.
+                                        </MudText>
+
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Balloon Ascent Sounds</MudText>
+                                        <DropGameSoundEditor Title="Balloon Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.StartSound)" />
+                                        <DropGameSoundEditor Title="Balloon End Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.EndSound)" />
+                                        <DropGameSoundEditor Title="Balloon Launch Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonLaunchSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.LaunchSound)" />
+                                        <DropGameSoundEditor Title="Balloon Pop Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonPopSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.PopSound)" />
+                                        <DropGameSoundEditor Title="Balloon Heavy Impact / Bonk Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonBonkSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.BonkSound)" />
+                                        <DropGameSoundEditor Title="Balloon Light Nudge Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonNudgeSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.NudgeSound)" />
+                                        <DropGameSoundEditor Title="Balloon Win Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.BalloonWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.WinSound)" />
+
+                                        <MudDivider Class="my-3" />
+
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Parachute Sounds</MudText>
+                                        <DropGameSoundEditor Title="Parachute Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.StartSound)" />
+                                        <DropGameSoundEditor Title="Parachute End Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.EndSound)" />
+                                        <DropGameSoundEditor Title="Parachute Drop Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteDropSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.DropSound)" />
+                                        <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteFlapSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.ParachuteFlapSound)" />
+                                        <DropGameSoundEditor Title="Parachute Win Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.WinSound)" />
+                                        <DropGameSoundEditor Title="Parachute Rocket Launch Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteRocketLaunchSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.RocketLaunchSound)" />
+                                        <DropGameSoundEditor Title="Parachute Rocket Detonation Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteRocketExplodeSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.RocketExplodeSound)" />
+                                        <DropGameSoundEditor Title="Parachute Pop / Sabotage Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachutePopSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.ParachutePopSound)" />
+                                        <DropGameSoundEditor Title="Cannonball Splash Sound (Water Landing)"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteCannonballSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.CannonballSound)" />
+                                        <DropGameSoundEditor Title="Crash Splat Sound (Ground Landing)"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.ParachuteCrashLandSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.CrashLandSound)" />
+
+                                        <MudDivider Class="my-3" />
+
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mt-2 mb-2">Plinko Sounds</MudText>
+                                        <DropGameSoundEditor Title="Plinko Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.PlinkoStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.StartSound)" />
+                                        <DropGameSoundEditor Title="Plinko End Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.PlinkoEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.EndSound)" />
+                                        <DropGameSoundEditor Title="Plinko Drop Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.PlinkoDropSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.DropSound)" />
+                                        <DropGameSoundEditor Title="Plinko Win Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.PlinkoWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.WinSound)" />
+                                        <DropGameSoundEditor Title="Plinko Peg Collision Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.PlinkoPegCollisionSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Plinko.PegCollisionSound)" />
+                                    </MudPaper>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private DropGameTheme? _selectedTheme;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await SettingsService.GetSettingsAsync();
+        _selectedTheme = _settings.Themes.FirstOrDefault();
+    }
+
+    private void OnSelectedThemeChanged(DropGameTheme? theme)
+    {
+        _selectedTheme = theme;
+    }
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Theme settings saved!", Severity.Success);
+    }
+
+    private void CreateCustomTheme()
+    {
+        if (_settings == null) return;
+        var id = $"custom_{Guid.NewGuid().ToString("N")[..6]}";
+        var newTheme = new DropGameTheme
+        {
+            Id = id,
+            Name = $"Custom Theme {_settings.Themes.Count(t => !t.IsStock) + 1}",
+            IsStock = false,
+            SeasonPreset = "spring",
+            ParticleType = "stars",
+            PrimaryColor = "#A855F7",
+            SecondaryColor = "#EC4899",
+            AccentColor = "#FACC15",
+            TargetColor = "#22C55E",
+            TextColor = "#FFFFFF"
+        };
+        _settings.Themes.Add(newTheme);
+        _selectedTheme = newTheme;
+    }
+
+    private void DeleteSelectedCustomTheme()
+    {
+        if (_settings == null || _selectedTheme == null || _selectedTheme.IsStock) return;
+        var removedId = _selectedTheme.Id;
+        _settings.Themes.Remove(_selectedTheme);
+        if (_settings.Balloon.ActiveThemeId == removedId) _settings.Balloon.ActiveThemeId = "spring";
+        if (_settings.Parachute.ActiveThemeId == removedId) _settings.Parachute.ActiveThemeId = "spring";
+        if (_settings.Plinko.ActiveThemeId == removedId) _settings.Plinko.ActiveThemeId = "spring";
+        _selectedTheme = _settings.Themes.FirstOrDefault();
+    }
+
+    private void ResetStockSeasonalThemes()
+    {
+        if (_settings == null) return;
+        var defaults = DropGameTheme.CreateDefaultSeasonalThemes();
+        foreach (var def in defaults)
+        {
+            var idx = _settings.Themes.FindIndex(t => t.Id.Equals(def.Id, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+                _settings.Themes[idx] = def;
+            else
+                _settings.Themes.Insert(0, def);
+        }
+        _selectedTheme = _settings.Themes.FirstOrDefault();
+        Snackbar.Add("Restored stock seasonal and holiday themes (Spring, Summer, Fall, Winter, Halloween, Christmas).", Severity.Info);
+    }
+
+    private static string GetSoundFallbackInfo(DropGameSoundConfig? config)
+    {
+        if (config == null || !config.Enabled)
+        {
+            return "Disabled in overall settings";
+        }
+        var file = string.IsNullOrWhiteSpace(config.SoundFile) ? "(no file selected)" : config.SoundFile;
+        return $"Overall active: {file} at {config.Volume}% volume";
+    }
+}
+

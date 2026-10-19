@@ -69,10 +69,9 @@
         function updateBundle(bundle) {
             if (!bundle) return;
             currentBundle = bundle;
-            const keys = ['start', 'end', 'drop', 'win', 'pegCollision', 'rocketLaunch', 'rocketExplode', 'parachutePop', 'crashLand', 'cannonball'];
-            keys.forEach(function (k) {
+            Object.keys(bundle).forEach(function (k) {
                 const s = bundle[k];
-                if (s && s.enabled && s.url) {
+                if (s && typeof s === 'object' && s.enabled && s.url) {
                     preload(s.url);
                 }
             });
@@ -211,8 +210,371 @@
         };
     }
 
+    function createAudioEngine() {
+        let audioCtx = null;
+        function getContext() {
+            if (typeof window === 'undefined') return null;
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) return null;
+            if (!audioCtx) {
+                try { audioCtx = new AudioContextClass(); } catch (_) { }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                try { audioCtx.resume(); } catch (_) { }
+            }
+            return audioCtx;
+        }
+
+        function playProceduralChime(freq = 440, volume = 0.65) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const now = ctx.currentTime;
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(volume * 0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.36);
+            } catch (_) { }
+        }
+
+        function playBalloonLaunch(volume = 0.6) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.exponentialRampToValueAtTime(620, now + 0.3);
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.45, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.33);
+            } catch (_) { }
+        }
+
+        function playDartPop(volume = 0.75) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const bufferSize = Math.floor(ctx.sampleRate * 0.05);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1400, now);
+                filter.Q.setValueAtTime(2.0, now);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(volume * 0.7, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + 0.09);
+
+                const osc = ctx.createOscillator();
+                const oscGain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(450, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.07);
+                oscGain.gain.setValueAtTime(volume * 0.6, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+                osc.connect(oscGain);
+                oscGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } catch (_) { }
+        }
+
+        function playAnvilBonk(volume = 0.7) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                [180, 290, 420].forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = idx === 0 ? 'sine' : 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.frequency.exponentialRampToValueAtTime(freq * 0.75, now + 0.35);
+                    const v = volume * (idx === 0 ? 0.6 : 0.3);
+                    gain.gain.setValueAtTime(v, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                });
+            } catch (_) { }
+        }
+
+        function playNudgeBump(volume = 0.55) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.linearRampToValueAtTime(380, now + 0.04);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.22);
+                gain.gain.setValueAtTime(volume * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } catch (_) { }
+        }
+
+        function playWindGust(volume = 0.5) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const dur = 0.45;
+                const bufferSize = Math.floor(ctx.sampleRate * dur);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1);
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(320, now);
+                filter.frequency.exponentialRampToValueAtTime(750, now + 0.2);
+                filter.frequency.exponentialRampToValueAtTime(260, now + dur);
+                filter.Q.setValueAtTime(2.5, now);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.4, now + 0.12);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + dur + 0.02);
+            } catch (_) { }
+        }
+
+        function playCloudLanding(volume = 0.65) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const startTime = now + idx * 0.06;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.001, startTime);
+                    gain.gain.linearRampToValueAtTime(volume * 0.35, startTime + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.6);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.62);
+                });
+            } catch (_) { }
+        }
+
+        function playBullseyeFanfare(volume = 0.75) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const chord = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                chord.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const startTime = now + (idx < 3 ? idx * 0.05 : 0.22);
+                    osc.type = idx >= 3 ? 'triangle' : 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    gain.gain.setValueAtTime(0.001, startTime);
+                    gain.gain.linearRampToValueAtTime(volume * 0.38, startTime + 0.03);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.85);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.9);
+                });
+            } catch (_) { }
+        }
+
+        function playCurlingSlide(volume = 0.55) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const dur = 0.8;
+                const bufferSize = Math.floor(ctx.sampleRate * dur);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1);
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(650, now);
+                filter.frequency.linearRampToValueAtTime(450, now + dur);
+                filter.Q.setValueAtTime(1.5, now);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.35, now + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + dur + 0.02);
+
+                const osc = ctx.createOscillator();
+                const oscGain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(92, now);
+                osc.frequency.linearRampToValueAtTime(80, now + dur);
+                oscGain.gain.setValueAtTime(volume * 0.25, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                osc.connect(oscGain);
+                oscGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + dur + 0.02);
+            } catch (_) { }
+        }
+
+        function playCurlingSweep(volume = 0.5) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                [0, 0.18, 0.36].forEach((st) => {
+                    const dur = 0.14;
+                    const bufferSize = Math.floor(ctx.sampleRate * dur);
+                    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1);
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(1800, now + st);
+                    filter.Q.setValueAtTime(2.0, now + st);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0.001, now + st);
+                    gain.gain.linearRampToValueAtTime(volume * 0.3, now + st + 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + st + dur);
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    noise.start(now + st);
+                    noise.stop(now + st + dur + 0.01);
+                });
+            } catch (_) { }
+        }
+
+        function playCurlingHit(volume = 0.7) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const bufferSize = Math.floor(ctx.sampleRate * 0.03);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(volume * 0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+                noise.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + 0.06);
+
+                [340, 680].forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const oscGain = ctx.createGain();
+                    osc.type = idx === 0 ? 'sine' : 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    oscGain.gain.setValueAtTime(volume * (idx === 0 ? 0.5 : 0.25), now);
+                    oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+                    osc.connect(oscGain);
+                    oscGain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                });
+            } catch (_) { }
+        }
+
+        function playCurlingScore(volume = 0.65) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                [783.99, 1046.50].forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const st = now + idx * 0.12;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, st);
+                    gain.gain.setValueAtTime(0.001, st);
+                    gain.gain.linearRampToValueAtTime(volume * 0.35, st + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.55);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(st);
+                    osc.stop(st + 0.58);
+                });
+            } catch (_) { }
+        }
+
+        return {
+            playProceduralChime: playProceduralChime,
+            playBalloonLaunch: playBalloonLaunch,
+            playDartPop: playDartPop,
+            playAnvilBonk: playAnvilBonk,
+            playNudgeBump: playNudgeBump,
+            playWindGust: playWindGust,
+            playCloudLanding: playCloudLanding,
+            playBullseyeFanfare: playBullseyeFanfare,
+            playCurlingSlide: playCurlingSlide,
+            playCurlingSweep: playCurlingSweep,
+            playCurlingHit: playCurlingHit,
+            playCurlingScore: playCurlingScore
+        };
+    }
+
     const DropGamesAudio = {
-        createSoundManager: createSoundManager
+        createSoundManager: createSoundManager,
+        createAudioEngine: createAudioEngine
     };
 
     if (typeof module !== 'undefined' && module.exports) {

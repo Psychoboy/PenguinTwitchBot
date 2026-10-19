@@ -282,7 +282,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 _activeSession = state;
                 dropRegistry.ClearDropsForGame(DropGameType.Parachute);
                 dropRegistry.SetSessionActive(DropGameType.Parachute, true);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
 
                 var headerConfig = new DropGameHeaderConfigDto
                 {
@@ -323,6 +323,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = true, otherGame = "parachute" }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is active");
+                await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Parachute is active");
 
                 if (settings.Parachute.AnnounceSessionStatusInChat)
                 {
@@ -418,7 +419,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var totalDrops = Volatile.Read(ref state.TotalDrops);
             var settings = await settingsService.GetSettingsAsync();
             var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Parachute.ActiveThemeId);
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
 
             var headerConfig = new DropGameHeaderConfigDto
             {
@@ -457,6 +458,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var otherNotice = JsonSerializer.Serialize(new { type = "other_game_status", isOtherGameActive = false, otherGame = "parachute" }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, otherNotice, "Notify Plinko that Parachute is inactive");
+            await QueueWsMessageAsync(WsTopics.Balloon, otherNotice, "Notify Balloon that Parachute is inactive");
 
             if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
             {
@@ -654,7 +656,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             dropRegistry.RegisterDrop(record);
 
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko);
+            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Plinko) || dropRegistry.IsSessionActive(DropGameType.Balloon);
             var headerConfig = new DropGameHeaderConfigDto
             {
                 AutoAvoidOverlap = pSettings.AutoAvoidOverlap,
@@ -752,6 +754,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             var dropNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = durationSeconds + 6.0 }, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, dropNotice, "Parachute drop active notice to Plinko");
+            await QueueWsMessageAsync(WsTopics.Balloon, dropNotice, "Parachute drop active notice to Balloon");
 
             return dropToken;
         }

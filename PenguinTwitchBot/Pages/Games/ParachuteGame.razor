@@ -1,0 +1,948 @@
+@page "/games/parachute"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Commands.Games.Parachute
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IParachuteDropService ParachuteDropService
+@inject IActionManagementService ActionManagementService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<ParachuteGame> Logger
+
+<PageTitle>Parachute Drop</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Parachute Drop</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Customizable stream overlay minigame with seasonal themes, interactive droplets, rocket sabotage, and landing bullseye scoring.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/parachute.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Parachute Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+                <HelpButton Topic="drop-games" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: PARACHUTE DROP ================= -->
+                <MudTabPanel Text="Gameplay & Target">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Gameplay & Target Configuration</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Parachute.ActiveThemeId"
+                                               HelperText="Select a stock seasonal theme (Spring, Summer, Fall, Winter) or custom theme.">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Target Width (%)" Variant="Variant.Outlined"
+                                                             Min="5" Max="60" Step="1"
+                                                             @bind-Value="_settings.Parachute.TargetWidthPercent"
+                                                             HelperText="Width of landing platform (% of screen)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Target Position X (0.15 - 0.85)" Variant="Variant.Outlined"
+                                                             Min="0.15" Max="0.85" Step="0.05"
+                                                             @bind-Value="_settings.Parachute.TargetCenterX"
+                                                             HelperText="0.50 = Dead Center" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Gravity (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.Gravity"
+                                                             HelperText="1.0 = Standard fall speed (higher = faster)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Bounciness (0.1 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.05"
+                                                             @bind-Value="_settings.Parachute.Bounciness"
+                                                             HelperText="Wall & mid-air collision bounce elasticity" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Mass (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.Mass"
+                                                             HelperText="Higher mass resists droplet & mid-air knockback" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Win Action & Chat Announcement</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Direct Win Action (Optional)" Variant="Variant.Outlined"
+                                               Clearable="true"
+                                               @bind-Value="_settings.Parachute.WinActionName"
+                                               HelperText="Action executed immediately when a viewer lands a winning drop. Variables passed: %User%, %Score%, %IsBullseye%, %DropletHits%, %Theme%.">
+                                        <MudSelectItem Value="@("")">None (Use Default Command Triggers Only)</MudSelectItem>
+                                        @foreach (var actName in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudAlert Severity="Severity.Info" Dense="true">
+                                        You can also attach triggers in <b>Manage Actions &rarr; Add Trigger &rarr; Default Command &rarr; drop</b> for <b>Win (Target Hit)</b>, <b>Bullseye Hit</b>, or <b>Missed Target (Lose)</b>!
+                                    </MudAlert>
+
+                                    <MudSwitch T="bool" Color="Color.Success"
+                                               @bind-Value="_settings.Parachute.AnnounceWinsInChat"
+                                               Label="Send Chat Message on Win" />
+
+                                    @if (_settings.Parachute.AnnounceWinsInChat)
+                                    {
+                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
+                                                      @bind-Value="_settings.Parachute.WinChatMessageTemplate"
+                                                      HelperText="Placeholders: {user}, {score}, {bullseye}, {droplethits}" />
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderParachuteLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: INTERACTIVE DROPLETS ================= -->
+                <MudTabPanel Text="Interactive Droplets (!droplets)">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-2">Default Droplets Physics & Sub-Action Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                    Droplets physically collide with parachuting characters mid-air and alter their landing trajectory based on droplet size (mass) and speed (momentum). Can be triggered via <b>!droplets</b> or the <b>Parachute Droplets</b> Sub-Action!
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Default Droplet Count (1 - 30)" Variant="Variant.Outlined"
+                                                             Min="1" Max="30"
+                                                             @bind-Value="_settings.Parachute.DefaultDropletCount" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Knockback Force Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.DefaultKnockbackMultiplier"
+                                                             HelperText="1.0 = Standard push force on collision" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
+                                            <MudSelect T="string" Label="Default Droplet Size" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.DefaultDropletSize">
+                                                <MudSelectItem Value="@("Small")">Small (Light nudge)</MudSelectItem>
+                                                <MudSelectItem Value="@("Medium")">Medium (Standard)</MudSelectItem>
+                                                <MudSelectItem Value="@("Large")">Large (Heavy bump)</MudSelectItem>
+                                                <MudSelectItem Value="@("Giant")">Giant (Massive knockback)</MudSelectItem>
+                                                <MudSelectItem Value="@("Random")">Random Mix</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        @if (_settings.Parachute.DefaultDropletSize == "Random")
+                                        {
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Random Sizes Pool" MultiSelection="true"
+                                                           SelectedValues="_selectedRandomDropletSizes"
+                                                           SelectedValuesChanged="OnSelectedRandomDropletSizesChanged"
+                                                           Variant="Variant.Outlined"
+                                                           HelperText="Choose which sizes can be rolled when Random is selected">
+                                                    <MudSelectItem T="string" Value="@("Small")">Small (Light nudge)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Medium")">Medium (Standard)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Large")">Large (Heavy bump)</MudSelectItem>
+                                                    <MudSelectItem T="string" Value="@("Giant")">Giant (Massive knockback)</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                        }
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
+                                            <MudSelect T="string" Label="Default Droplet Speed" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.DefaultDropletSpeed">
+                                                <MudSelectItem Value="@("Slow")">Slow (0.6x)</MudSelectItem>
+                                                <MudSelectItem Value="@("Normal")">Normal (1.0x)</MudSelectItem>
+                                                <MudSelectItem Value="@("Fast")">Fast (1.6x)</MudSelectItem>
+                                                <MudSelectItem Value="@("Hyper")">Hyper (2.2x)</MudSelectItem>
+                                                <MudSelectItem Value="@("Random")">Random Mix</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="@(_settings.Parachute.DefaultDropletSize == "Random" ? 6 : 4)">
+                                            <MudSelect T="string" Label="Default Spawn Pattern" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.DefaultDropletPattern">
+                                                <MudSelectItem Value="@("Targeted")">Targeted (Intercepts active parachutists)</MudSelectItem>
+                                                <MudSelectItem Value="@("TopRain")">Top Rain (Falls from sky)</MudSelectItem>
+                                                <MudSelectItem Value="@("SideWind")">Side Wind (Diagonal crosswind)</MudSelectItem>
+                                                <MudSelectItem Value="@("Fountain")">Fountain (Arcs from sides)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Live Droplet Barrage Tester</MudText>
+                                <MudStack Spacing="2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.WaterDrop"
+                                               OnClick="TestDropletsNowAsync">
+                                        Fire Droplets Now (Uses Default Settings)
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Warning" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Bolt"
+                                               OnClick='() => TestCustomDropletsAsync("Giant", "Hyper", "Targeted", 4)'>
+                                        Fire Giant Hyper Targeted Barrage (4x)
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Info" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Grain"
+                                               OnClick='() => TestCustomDropletsAsync("Random", "Random", "SideWind", 12)'>
+                                        Fire Random Side-Wind Storm (12x)
+                                    </MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: SKY ROCKETS & SABOTAGE ================= -->
+                <MudTabPanel Text="Rockets & Sabotage">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-2">Sky Rockets & Parachute Sabotage Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                    Rockets are launched into the sky to push players mid-air. Direct hits on a parachute canopy destroy the canopy ("canopy kill"), triggering a high-speed comedic free-fall! Triggered exclusively via the <b>Parachute Rockets</b> Sub-Action for Channel Points, Bits, Action Groups, and stream events.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Parachute.EnableRockets"
+                                               Label="Enable Sky Rockets & Sabotage System" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="string" Label="Default Rocket Pattern" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.RocketLaunchPattern"
+                                                       HelperText="Targeted aims at active parachutists; Barrage spreads evenly; Random shoots chaotically">
+                                                <MudSelectItem Value="@("Targeted")">Targeted (Lead active players)</MudSelectItem>
+                                                <MudSelectItem Value="@("Barrage")">Barrage (Wide multi-rocket salvo)</MudSelectItem>
+                                                <MudSelectItem Value="@("Random")">Random (Unpredictable fireworks)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CrashLandingScoreMode" Label="Crash Landing Score Outcome" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Parachute.CrashLandingScoreMode"
+                                                       HelperText="How points are scored when a player crash-lands after parachute destruction">
+                                                <MudSelectItem Value="@CrashLandingScoreMode.PreserveScore">Preserve Score (Retains points at impact site + Cannonball splash)</MudSelectItem>
+                                                <MudSelectItem Value="@CrashLandingScoreMode.HalfScore">Half Score (50% points on impact)</MudSelectItem>
+                                                <MudSelectItem Value="@CrashLandingScoreMode.ZeroScore">Zero Score (0 points on crash landing)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Knockback Multiplier" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.1"
+                                                             @bind-Value="_settings.Parachute.RocketKnockbackMultiplier"
+                                                             HelperText="Force applied on explosive body knockback" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudSwitch T="bool" Color="Color.Error"
+                                                       @bind-Value="_settings.Parachute.DirectHitKillsParachute"
+                                                       Label="Direct Canopy Hit Kills Parachute" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Canopy Kill Chance (0.0 - 1.0)" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Parachute.CanopyKillChance"
+                                                             HelperText="1.0 = 100% kill chance on canopy hit" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Live Rocket & Sabotage Tester</MudText>
+                                <MudStack Spacing="3">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                               OnClick="TestSingleRocketAsync">
+                                        Fire Single Test Rocket
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Celebration"
+                                               OnClick="TestRocketBarrageAsync">
+                                        Fire Rocket Barrage (6 Rockets)
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.RocketLaunch"
+                                               OnClick="TestNormalParachuteDropWithRocketAsync">
+                                        Combo Test: Drop + Rocket Intercept
+                                    </MudButton>
+
+                                    <MudDivider Class="my-2" />
+                                    <MudAlert Severity="Severity.Info" Dense="true">
+                                        <b>SubAction Controlled:</b> Streamers can trigger rockets via <b>SubActions &rarr; Parachute Rockets</b>. You can customize rocket count, launch pattern, targeted player, or specific fuse times for interactive bits rewards or channel points redemptions!
+                                    </MudAlert>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: TIMED SESSION & OVERLAY HEADER ================= -->
+                <MudTabPanel Text="Session & Display">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Run timed drop rounds (e.g., 100 seconds). Controls when viewers can participate and how rounds start/stop.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Parachute.SessionModeEnabled"
+                                               Label="Enable Timed Session Mode (When disabled, drops run anytime in free-play mode)" />
+
+                                    @if (_settings.Parachute.SessionModeEnabled)
+                                    {
+                                        <div>
+                                            <MudSwitch T="bool" Color="Color.Secondary"
+                                                       @bind-Value="_settings.Parachute.AutoStartOnCommand"
+                                                       Label="Auto-start Round on Command (Starts round automatically when someone types !drop)" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block ml-3">
+                                                When off, rounds can only be started/stopped via SubActions, mod commands (!drop start [seconds]), or the button below.
+                                            </MudText>
+                                        </div>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Default Round Duration (Seconds)" Variant="Variant.Outlined"
+                                                                 Min="10" Max="600" Step="5"
+                                                                 @bind-Value="_settings.Parachute.DefaultSessionDurationSeconds"
+                                                                 HelperText="e.g. 100 seconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Max Drops Per User Per Round" Variant="Variant.Outlined"
+                                                                 Min="0" Max="50"
+                                                                 @bind-Value="_settings.Parachute.MaxDropsPerUserPerSession"
+                                                                 HelperText="0 = Unlimited drops during the round" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSwitch T="bool" Color="Color.Info"
+                                                   @bind-Value="_settings.Parachute.AnnounceSessionStatusInChat"
+                                                   Label="Announce Round Start & End in Chat" />
+
+                                        @if (_settings.Parachute.AnnounceSessionStatusInChat)
+                                        {
+                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Parachute.SessionStartChatMessageTemplate"
+                                                          HelperText="Placeholders: {duration}" />
+                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Parachute.SessionEndChatMessageTemplate"
+                                                          HelperText="Placeholders: {count}, {duration}" />
+                                        }
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Configure the appearance, position, and visibility of the round timer, drop counters, and free-play pills.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Parachute.ShowHeaderBanner"
+                                               Label="Show Header Banner (Displays round timer, active drops, and free-play pill on overlay)" />
+
+                                    @if (_settings.Parachute.ShowHeaderBanner)
+                                    {
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Header Banner Position" Variant="Variant.Outlined"
+                                                           @bind-Value="_settings.Parachute.HeaderPosition"
+                                                           HelperText="Choose where the timer and stats banner sits on the stream canvas">
+                                                    <MudSelectItem Value="@("TopCenter")">Top Center (Centered across top)</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopLeft")">Top Left (Corner)</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopRight")">Top Right (Corner)</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Header Y Offset (Pixels from Top)" Variant="Variant.Outlined"
+                                                                 Min="0" Max="200" Step="2"
+                                                                 @bind-Value="_settings.Parachute.HeaderCustomYOffset"
+                                                                 HelperText="Adjust vertical distance from top edge (default 18px)" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Parachute.ShowTimer"
+                                                           Label="Show Round Countdown Timer" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Parachute.ShowDropCount"
+                                                           Label="Show Active Parachutists Count" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Parachute.ShowFreePlayCounter"
+                                                           Label="Show Free-Play Badge (When not in round)" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderParachuteLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 5: AUDIO & SOUND EFFECTS ================= -->
+                <MudTabPanel Text="Audio & Sound Effects">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Parachute Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, drops, landing pads, rockets, and sabotage.</MudText>
+                                    </div>
+                                </MudStack>
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Parachute.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Parachute.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Parachute Drop round begins"
+                                                         SoundConfig="_settings.Parachute.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Parachute Drop round finishes"
+                                                         SoundConfig="_settings.Parachute.EndSound" />
+
+                                    <DropGameSoundEditor Title="Parachute Drop Sound"
+                                                         HelperText="Plays when a viewer drops from the sky"
+                                                         SoundConfig="_settings.Parachute.DropSound" />
+
+                                    <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                         HelperText="Plays when a falling character deploys their parachute canopy"
+                                                         SoundConfig="_settings.Parachute.ParachuteFlapSound" />
+
+                                    <DropGameSoundEditor Title="Landing Pad Win Sound"
+                                                         HelperText="Plays when a player successfully touches down on the target"
+                                                         SoundConfig="_settings.Parachute.WinSound" />
+
+                                    <DropGameSoundEditor Title="Rocket Launch Sound"
+                                                         HelperText="Plays when rockets fire up into the sky"
+                                                         SoundConfig="_settings.Parachute.RocketLaunchSound" />
+
+                                    <DropGameSoundEditor Title="Rocket Detonation Sound"
+                                                         HelperText="Plays when a rocket reaches fuse apex or explodes"
+                                                         SoundConfig="_settings.Parachute.RocketExplodeSound" />
+
+                                    <DropGameSoundEditor Title="Parachute Pop / Sabotage Sound"
+                                                         HelperText="Plays when a parachute canopy is destroyed"
+                                                         SoundConfig="_settings.Parachute.ParachutePopSound" />
+
+                                    <DropGameSoundEditor Title="Cannonball Splash Sound (Water Landing)"
+                                                         HelperText="Plays when a crash-landing player lands in the water pool"
+                                                         SoundConfig="_settings.Parachute.CannonballSound" />
+
+                                    <DropGameSoundEditor Title="Crash Splat Sound (Ground Landing)"
+                                                         HelperText="Plays when a crash-landing player impacts the floor"
+                                                         SoundConfig="_settings.Parachute.CrashLandSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderParachuteLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private List<string> _actionNames = [];
+    private string _testUsername = "PenguinViewer";
+    private string _testEmoteInput = "";
+    private string _overlayKey = "";
+    private IReadOnlyCollection<string> _selectedRandomDropletSizes = new HashSet<string>(["Small", "Medium", "Large", "Giant"]);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
+        _settings = await SettingsService.GetSettingsAsync();
+
+        if (_settings.Parachute.DefaultDropletRandomSizes == null || _settings.Parachute.DefaultDropletRandomSizes.Count == 0)
+        {
+            _settings.Parachute.DefaultDropletRandomSizes = ["Small", "Medium", "Large", "Giant"];
+        }
+        _selectedRandomDropletSizes = new HashSet<string>(_settings.Parachute.DefaultDropletRandomSizes, StringComparer.OrdinalIgnoreCase);
+
+        var actions = await ActionManagementService.GetAllActionsAsync();
+        _actionNames = actions
+            .Select(a => a.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private RenderFragment RenderParachuteLiveTester() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">Test Parachute Drop Live</MudText>
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
+                              @bind-Value="_testUsername" />
+                <MudTextField T="string" Label="Test Emote Code or Image URL (Optional)" Variant="Variant.Outlined"
+                              @bind-Value="_testEmoteInput"
+                              HelperText="Leave blank to test the active theme's default character sprite, or enter an emote code / image URL." />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Paragliding"
+                           OnClick="TestParachuteDropAsync">
+                    Launch Test Parachute Drop
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.GpsFixed"
+                           OnClick="TestParachuteBullseyeAsync">
+                    Launch Guaranteed Center (100 pts) Drop
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.WaterDrop"
+                           OnClick="TestComboDropAndDropletsAsync">
+                    Combo Test: Drop + Mid-Air Droplets Collision!
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.RocketLaunch"
+                           OnClick="TestNormalParachuteDropWithRocketAsync">
+                    Combo Test: Drop + Rocket Intercept
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.SportsKabaddi"
+                           OnClick="TestHeadOnPlayerBounceAsync">
+                    Test: Mid-Air 2-Player Head-On Collision Bounce!
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Waves"
+                           OnClick="TestUpwardFountainKnockupAsync">
+                    Test: Drop + Upward Fountain Knockup!
+                </MudButton>
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartParachuteSessionLiveAsync">
+                        Start Round (@(_settings?.Parachute.DefaultSessionDurationSeconds ?? 100)s)
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopParachuteSessionLiveAsync">
+                        Stop Round
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    };
+
+    private void OnSelectedRandomDropletSizesChanged(IReadOnlyCollection<string> values)
+    {
+        var list = values?.ToList() ?? [];
+        if (list.Count == 0)
+        {
+            list = ["Small", "Medium", "Large", "Giant"];
+        }
+        _selectedRandomDropletSizes = new HashSet<string>(list, StringComparer.OrdinalIgnoreCase);
+        if (_settings != null)
+        {
+            _settings.Parachute.DefaultDropletRandomSizes = list;
+        }
+    }
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Parachute Drop settings saved!", Severity.Success);
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Parachute Settings to Defaults",
+            "Are you sure you want to reset all Parachute Drop settings to defaults?",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Parachute = new ParachuteGameSettings();
+            _selectedRandomDropletSizes = new HashSet<string>(_settings.Parachute.DefaultDropletRandomSizes, StringComparer.OrdinalIgnoreCase);
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Parachute settings have been reset to default values!", Severity.Warning);
+        }
+    }
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_testUsername) ? "penguinviewer" : _testUsername.Trim().ToLowerInvariant(),
+        DisplayName = string.IsNullOrWhiteSpace(_testUsername) ? "PenguinViewer" : _testUsername.Trim(),
+        Arg = _testEmoteInput?.Trim() ?? "",
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task TestParachuteDropAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.TriggerParachuteDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched test Parachute Drop! Watch your /parachute.html overlay.", Severity.Info);
+    }
+
+    private async Task TestParachuteBullseyeAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            _testEmoteInput,
+            forcedStartX: targetCenter,
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched guaranteed 100 pts center Parachute Drop!", Severity.Success);
+    }
+
+    private async Task TestComboDropAndDropletsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var capturedEmote = _testEmoteInput;
+        var capturedUser = _testUsername;
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            capturedEmote,
+            forcedStartX: targetCenter,
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(900);
+                await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+                {
+                    Count = 6,
+                    SizePreset = "Large",
+                    SpeedPreset = "Fast",
+                    SpawnPattern = "Targeted",
+                    KnockbackMultiplier = 1.4,
+                    EmoteOrImage = capturedEmote,
+                    AllowDirectUrlOrPath = true,
+                    TriggeredByUser = capturedUser
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to spawn test droplets collision barrage");
+            }
+        });
+
+        Snackbar.Add("Launched Parachute Drop + Targeted Droplet Collision barrage!", Severity.Info);
+    }
+
+    private async Task TestDropletsNowAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+        {
+            Count = _settings.Parachute.DefaultDropletCount,
+            SizePreset = _settings.Parachute.DefaultDropletSize,
+            AllowedRandomSizes = _settings.Parachute.DefaultDropletRandomSizes,
+            SpeedPreset = _settings.Parachute.DefaultDropletSpeed,
+            SpawnPattern = _settings.Parachute.DefaultDropletPattern,
+            KnockbackMultiplier = _settings.Parachute.DefaultKnockbackMultiplier,
+            EmoteOrImage = _testEmoteInput,
+            AllowDirectUrlOrPath = true,
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add("Spawned interactive droplets on Parachute overlay!", Severity.Info);
+    }
+
+    private async Task TestCustomDropletsAsync(string size, string speed, string pattern, int count)
+    {
+        await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+        {
+            Count = count,
+            SizePreset = size,
+            SpeedPreset = speed,
+            SpawnPattern = pattern,
+            KnockbackMultiplier = 1.25,
+            EmoteOrImage = _testEmoteInput,
+            AllowDirectUrlOrPath = true,
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add($"Spawned {count}x {size}/{speed} ({pattern}) droplets!", Severity.Info);
+    }
+
+    private async Task TestSingleRocketAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+        {
+            Count = 1,
+            Pattern = "Targeted",
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add("Fired test rocket on Parachute overlay!", Severity.Info);
+    }
+
+    private async Task TestRocketBarrageAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+        {
+            Count = 6,
+            Pattern = "Barrage",
+            TriggeredByUser = _testUsername
+        });
+        Snackbar.Add("Fired 6x rocket barrage on Parachute overlay!", Severity.Info);
+    }
+
+    private async Task TestNormalParachuteDropWithRocketAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var token = await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            _testEmoteInput,
+            allowDirectUrlOrPath: true);
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(500);
+                    await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
+                    {
+                        Count = 1,
+                        Pattern = "Targeted",
+                        TargetUser = _testUsername,
+                        TriggeredByUser = _testUsername
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to fire test rocket intercept");
+                }
+            });
+        }
+
+        Snackbar.Add("Launched Parachute Drop + Rocket Intercept (Normal Settings)!", Severity.Info);
+    }
+
+    private async Task TestHeadOnPlayerBounceAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var p1Args = new CommandEventArgs
+        {
+            Name = "drop_alpha",
+            DisplayName = "DropAlpha",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_1"
+        };
+        var p2Args = new CommandEventArgs
+        {
+            Name = "drop_beta",
+            DisplayName = "DropBeta",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_2"
+        };
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p1Args,
+            _testEmoteInput,
+            forcedStartX: Math.Max(0.12, targetCenter - 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: 0.22,
+            forcedTargetCenterX: targetCenter);
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p2Args,
+            _testEmoteInput,
+            forcedStartX: Math.Min(0.88, targetCenter + 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: -0.22,
+            forcedTargetCenterX: targetCenter);
+
+        Snackbar.Add("Launched 2 parachuters on a mid-air head-on collision course! Watch them knock each other up and bounce!", Severity.Info);
+    }
+
+    private async Task TestUpwardFountainKnockupAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var capturedEmote = _testEmoteInput;
+        var capturedUser = _testUsername;
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            capturedEmote,
+            forcedStartX: targetCenter,
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedTargetCenterX: targetCenter);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(900);
+                await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+                {
+                    Count = 4,
+                    SizePreset = "Giant",
+                    SpeedPreset = "Fast",
+                    SpawnPattern = "Fountain",
+                    KnockbackMultiplier = 2.5,
+                    EmoteOrImage = capturedEmote,
+                    AllowDirectUrlOrPath = true,
+                    TriggeredByUser = capturedUser
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to spawn upward fountain droplets");
+            }
+        });
+
+        Snackbar.Add("Launched Parachute Drop + Upward Fountain Knockup barrage!", Severity.Info);
+    }
+
+    private async Task StartParachuteSessionLiveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var duration = _settings?.Parachute.DefaultSessionDurationSeconds ?? 100;
+        var result = await ParachuteDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Parachute Drop session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Parachute Drop session for {duration} seconds!", Severity.Success);
+        }
+    }
+
+    private async Task StopParachuteSessionLiveAsync()
+    {
+        var result = await ParachuteDropService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Parachute Drop session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Parachute Drop session to stop.", Severity.Info);
+        }
+    }
+}
+

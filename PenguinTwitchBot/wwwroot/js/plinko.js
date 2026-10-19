@@ -1580,9 +1580,10 @@
         }
 
         // Draw and clean up tokens
+        const toDraw = [];
         for (let i = activeTokens.length - 1; i >= 0; i--) {
             const t = activeTokens[i];
-            const isLeader = sessionState.isActive && t.completed && (t.score || 0) > 0 && t.dropToken === leaderDropToken;
+            const isLeader = (sessionState.isActive || sessionState.endedAtMs) && t.completed && (t.score || 0) > 0 && t.dropToken === leaderDropToken;
             let tokenAlpha = 1.0;
             let shouldRemove = false;
 
@@ -1626,6 +1627,26 @@
                 }
             }
 
+            if (shouldRemove) {
+                activeTokens.splice(i, 1);
+            } else {
+                toDraw.push({ token: t, tokenAlpha: tokenAlpha, isLeader: isLeader, score: t.score || 0, completed: t.completed });
+            }
+        }
+
+        // Draw in z-order: non-leaders first, and current winning leader LAST so it's always on top of others!
+        toDraw.sort((a, b) => {
+            if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
+            if (a.completed !== b.completed) return a.completed ? -1 : 1;
+            return (a.score || 0) - (b.score || 0);
+        });
+
+        for (let i = 0; i < toDraw.length; i++) {
+            const item = toDraw[i];
+            const t = item.token;
+            const tokenAlpha = item.tokenAlpha;
+            const isLeader = item.isLeader;
+
             // Draw token
             const tx = padX + t.x * boardW;
             const ty = t.y * height;
@@ -1650,60 +1671,21 @@
             }
             ctx.restore();
 
-            // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
-            const fontSize = Math.max(12, Math.min(36, t.nameFontSize || headerConfig.nameFontSize || 18));
-            ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
-            const label = isLeader && t.completed
-                ? `${t.displayName} (${t.score} pts)`
-                : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
-
-            const textY = -tokenRadius - fontSize * 0.7 - 2;
-            const strokeWidth = Math.max(4.5, fontSize * 0.26);
-
-            if (isLeader && t.completed) {
-                ctx.save();
-                ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.shadowColor = '#FFD700';
-                ctx.shadowBlur = 10;
-                ctx.fillText('👑', 0, textY - fontSize * 0.9);
-                ctx.restore();
+            if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawOutlinedName) {
+                const tokenTheme = t.theme || currentTheme || {};
+                DropGamesCommon.drawOutlinedName(ctx, {
+                    name: t.displayName,
+                    userColor: t.userColor || tokenTheme.textColor || currentTheme.textColor,
+                    fontSize: t.nameFontSize || headerConfig.nameFontSize,
+                    score: t.score,
+                    completed: t.completed,
+                    isLeader: isLeader,
+                    radius: tokenRadius,
+                    position: 'above'
+                });
             }
 
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.lineJoin = 'round';
-            ctx.miterLimit = 2;
-
-            // Dark drop shadow behind outline
-            ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            ctx.shadowBlur = Math.max(6, fontSize * 0.4);
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 2;
-
-            // Heavy dark contrast outline
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = strokeWidth + 1.5;
-            ctx.strokeText(label, 0, textY);
             ctx.restore();
-
-            // Razor-sharp crisp black contrast border
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeText(label, 0, textY);
-
-            const tokenTheme = t.theme || currentTheme || {};
-            const rawColor = isLeader ? '#FFD700' : (t.userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
-            const nameColor = isLeader ? '#FFD700' : brightenColor(rawColor);
-            ctx.fillStyle = nameColor;
-            ctx.fillText(label, 0, textY);
-
-            ctx.restore();
-
-            if (shouldRemove) {
-                activeTokens.splice(i, 1);
-            }
         }
 
         // Update & draw confetti

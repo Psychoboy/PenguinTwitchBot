@@ -2798,6 +2798,59 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("subactions_alert", (string)null);
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BalloonAscentType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThemeOverrideId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_balloon_ascent", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BalloonHazardsType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EmoteOrImage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("HazardType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SizePreset")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SpawnPattern")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SpeedPreset")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetUser")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_balloon_hazards", (string)null);
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.BreakType", b =>
                 {
                     b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");

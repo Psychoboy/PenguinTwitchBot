@@ -1480,56 +1480,19 @@
             }
         }
 
-        // Leader Crown above character
-        if (isSessionLeader && drop.completed) {
-            ctx.save();
-            ctx.font = '700 22px "Segoe UI Emoji", Fredoka, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = '#FFD700';
-            ctx.shadowBlur = 10;
-            ctx.fillText('👑', 0, -charRadius - 8);
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawOutlinedName) {
+            DropGamesCommon.drawOutlinedName(ctx, {
+                name: drop.displayName,
+                userColor: drop.userColor || theme.textColor,
+                fontSize: drop.nameFontSize || headerConfig.nameFontSize,
+                score: drop.score,
+                completed: drop.completed,
+                isLeader: isSessionLeader,
+                rotation: currentRotation,
+                radius: charRadius,
+                position: 'below'
+            });
         }
-
-        // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
-        ctx.rotate(-currentRotation); // Keep username horizontal for readability
-        const fontSize = Math.max(12, Math.min(36, drop.nameFontSize || headerConfig.nameFontSize || 18));
-        ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
-        const label = isSessionLeader && drop.completed
-            ? `${drop.displayName} (${drop.score} pts)`
-            : (drop.completed && drop.score > 0 ? `${drop.displayName} (${drop.score})` : drop.displayName);
-
-        const textY = charRadius + fontSize + 2;
-        const strokeWidth = Math.max(4.5, fontSize * 0.26);
-
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.lineJoin = 'round';
-        ctx.miterLimit = 2;
-
-        // Dark drop shadow behind outline
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-        ctx.shadowBlur = Math.max(6, fontSize * 0.4);
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 2;
-
-        // Heavy dark contrast outline
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = strokeWidth + 1.5;
-        ctx.strokeText(label, 0, textY);
-        ctx.restore();
-
-        // Razor-sharp crisp black contrast border
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = strokeWidth;
-        ctx.strokeText(label, 0, textY);
-
-        // High-contrast text fill: Gold for leader, otherwise vibrant brightened userColor (preserving identity)
-        const rawColor = isSessionLeader ? '#FFD700' : (drop.userColor || theme.textColor || '#FFFFFF');
-        const nameColor = isSessionLeader ? '#FFD700' : brightenColor(rawColor);
-        ctx.fillStyle = nameColor;
-        ctx.fillText(label, 0, textY);
 
         ctx.restore();
     }
@@ -2384,6 +2347,7 @@
         }
 
         // Draw and finalize parachutists
+        const toDraw = [];
         for (let i = activeDrops.length - 1; i >= 0; i--) {
             const drop = activeDrops[i];
 
@@ -2497,7 +2461,7 @@
                 }
             }
 
-            const isLeader = sessionState.isActive && drop.completed && (drop.isHit || drop.isBullseye) && drop.score > 0 && drop.dropToken === leaderDropToken;
+            const isLeader = (sessionState.isActive || sessionState.endedAtMs) && drop.completed && (drop.isHit || drop.isBullseye) && drop.score > 0 && drop.dropToken === leaderDropToken;
             let dropAlpha = 1.0;
             let shouldRemove = false;
 
@@ -2541,11 +2505,23 @@
                 }
             }
 
-            drawParachutist(drop, dropAlpha, isLeader, dtSec);
-
             if (shouldRemove) {
                 activeDrops.splice(i, 1);
+            } else {
+                toDraw.push({ drop: drop, dropAlpha: dropAlpha, isLeader: isLeader, score: drop.score || 0, completed: drop.completed });
             }
+        }
+
+        // Draw in z-order: non-leaders first, and current winning leader LAST so it's always on top of others!
+        toDraw.sort((a, b) => {
+            if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
+            if (a.completed !== b.completed) return a.completed ? -1 : 1;
+            return (a.score || 0) - (b.score || 0);
+        });
+
+        for (let i = 0; i < toDraw.length; i++) {
+            const item = toDraw[i];
+            drawParachutist(item.drop, item.dropAlpha, item.isLeader, dtSec);
         }
 
         if (showArena) {
