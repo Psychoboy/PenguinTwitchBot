@@ -386,12 +386,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         private int _pegTransparency = 15;
 
         public string ActiveThemeId { get; set; } = "spring";
-        public int RowCount { get; set; } = 8;
-        private int _pegRadius = 10;
+        public int RowCount { get; set; } = 4;
+        private int _pegRadius = 12;
         public int PegRadius
         {
             get => _pegRadius;
             set => _pegRadius = Math.Clamp(value, 4, 30);
+        }
+        private int _puckRadius = 36;
+        public int PuckRadius
+        {
+            get => _puckRadius;
+            set => _puckRadius = Math.Clamp(value, 10, 50);
+        }
+        private int _bucketHeight = 120;
+        public int BucketHeight
+        {
+            get => _bucketHeight;
+            set => _bucketHeight = Math.Clamp(value, 60, 220);
         }
         public double Gravity { get; set; } = 1.0;
         public double Bounciness { get; set; } = 0.75;

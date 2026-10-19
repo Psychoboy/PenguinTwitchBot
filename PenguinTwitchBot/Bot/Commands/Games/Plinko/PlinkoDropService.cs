@@ -299,8 +299,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
                 var board = new
                 {
-                    rowCount = Math.Clamp(settings.Plinko.RowCount, 5, 14),
+                    rowCount = Math.Clamp(settings.Plinko.RowCount, 4, 14),
                     pegRadius = Math.Clamp(settings.Plinko.PegRadius, 4, 30),
+                    puckRadius = Math.Clamp(settings.Plinko.PuckRadius, 10, 50),
+                    bucketHeight = Math.Clamp(settings.Plinko.BucketHeight, 60, 220),
                     durationSeconds = startDurationSeconds,
                     gravity = startGravity,
                     bounciness = startBounciness,
@@ -525,7 +527,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 ? plinkoSettings.Buckets
                 : PlinkoGameSettings.CreateDefaultBuckets();
 
-            var rows = Math.Clamp(plinkoSettings.RowCount, 5, 14);
+            var rows = Math.Clamp(plinkoSettings.RowCount, 4, 14);
             var gravity = Math.Clamp(plinkoSettings.Gravity, 0.1, 10.0);
             var bounciness = Math.Clamp(plinkoSettings.Bounciness, 0.1, 5.0);
             var mass = Math.Clamp(plinkoSettings.Mass, 0.1, 10.0);
@@ -554,13 +556,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             }
             else
             {
-                // All top-row pegs (0 through pegCols - 1) across the board are eligible for starting above,
-                // ensuring even distribution so every bucket (including first and last) can be landed in.
-                const int pegCols = 12;
-                var randomPegIndex = Random.Shared.Next(0, pegCols); // 0 through 11 inclusive
-                var pegCenterX = (randomPegIndex + 0.5) / pegCols;
+                // All top-row pegs (0 through topPegCount - 1) across the board are eligible for starting above,
+                // matching PixelPlush's 137px outer side margins and guaranteed top-peg bounces.
+                const int pegCols = 14;
+                const int topPegCount = pegCols - 1; // 13 pegs across top row
+                var randomPegIndex = Random.Shared.Next(0, topPegCount); // 0 through 12 inclusive
+                var pegCenterX = (randomPegIndex + 1.0) / pegCols;
                 var microOffset = DropGameMath.RandomDouble(-0.003, 0.003);
-                startX = Math.Clamp(pegCenterX + microOffset, 0.04, 0.96);
+                startX = Math.Clamp(pegCenterX + microOffset, 0.06, 0.94);
             }
 
             var dropToken = RandomNumberGenerator.GetHexString(64);
@@ -666,6 +669,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 {
                     rowCount = rows,
                     pegRadius = Math.Clamp(plinkoSettings.PegRadius, 4, 30),
+                    puckRadius = Math.Clamp(plinkoSettings.PuckRadius, 10, 50),
+                    bucketHeight = Math.Clamp(plinkoSettings.BucketHeight, 60, 220),
                     durationSeconds,
                     gravity,
                     bounciness,
@@ -676,7 +681,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     physics = new
                     {
                         startX,
-                        startY = 0.04,
+                        startY = -0.06,
                         gravity,
                         bounciness,
                         mass

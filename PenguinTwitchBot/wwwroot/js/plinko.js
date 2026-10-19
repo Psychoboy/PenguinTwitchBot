@@ -344,6 +344,14 @@
             if (typeof b.pegRadius === 'number') {
                 boardConfig.pegRadius = Math.max(4, Math.min(30, b.pegRadius));
             }
+            if (typeof b.puckRadius === 'number') {
+                boardConfig.puckRadius = Math.max(10, Math.min(50, b.puckRadius));
+            } else if (typeof b.tokenRadius === 'number') {
+                boardConfig.puckRadius = Math.max(10, Math.min(50, b.tokenRadius));
+            }
+            if (typeof b.bucketHeight === 'number') {
+                boardConfig.bucketHeight = Math.max(60, Math.min(220, b.bucketHeight));
+            }
             if (typeof b.pegTransparency === 'number') {
                 boardConfig.pegTransparency = Math.max(0, Math.min(100, b.pegTransparency));
             }
@@ -383,13 +391,14 @@
 
             if (typeof startNormX !== 'number') {
                 // All top-row pegs across the board are eligible to guarantee natural bounce
-                const topCols = Math.max(7, Math.round(width / 160));
-                const chosenPeg = Math.floor(Math.random() * topCols);
+                const topCols = Math.max(8, Math.round(width / 137));
+                const topPegCount = topCols - 1; // 13 pegs in row 0
+                const chosenPeg = Math.floor(Math.random() * topPegCount);
                 const microOffset = (Math.random() - 0.5) * 0.006;
-                startNormX = Math.max(0.04, Math.min(0.96, (chosenPeg + 0.5) / topCols + microOffset));
+                startNormX = Math.max(0.06, Math.min(0.94, (chosenPeg + 1.0) / topCols + microOffset));
             }
 
-            let startNormY = (b.physics && typeof b.physics.startY === 'number') ? b.physics.startY : 0.04;
+            let startNormY = (b.physics && typeof b.physics.startY === 'number') ? b.physics.startY : -0.06;
             const initPx = startNormX * width;
             const initPy = startNormY * height;
 
@@ -462,6 +471,14 @@
                 if (typeof msg.board.pegRadius === 'number') {
                     boardConfig.pegRadius = Math.max(4, Math.min(30, msg.board.pegRadius));
                 }
+                if (typeof msg.board.puckRadius === 'number') {
+                    boardConfig.puckRadius = Math.max(10, Math.min(50, msg.board.puckRadius));
+                } else if (typeof msg.board.tokenRadius === 'number') {
+                    boardConfig.puckRadius = Math.max(10, Math.min(50, msg.board.tokenRadius));
+                }
+                if (typeof msg.board.bucketHeight === 'number') {
+                    boardConfig.bucketHeight = Math.max(60, Math.min(220, msg.board.bucketHeight));
+                }
                 if (typeof msg.board.pegTransparency === 'number') {
                     boardConfig.pegTransparency = Math.max(0, Math.min(100, msg.board.pegTransparency));
                 }
@@ -526,16 +543,20 @@
 
 
         // Peg Grid
-        const rows = boardConfig.rowCount || 8;
-        const bucketH = Math.max(84, Math.round(0.09 * height));
-        const defaultPegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const rows = boardConfig.rowCount || 4;
+        const defaultBucketH = Math.max(100, Math.round(0.111 * height));
+        const bucketH = (typeof boardConfig.bucketHeight === 'number' && boardConfig.bucketHeight > 0)
+            ? boardConfig.bucketHeight
+            : defaultBucketH;
+        const defaultPegRadius = Math.max(8, Math.round(Math.min(width, height) * 0.012));
         const pegRadius = (typeof boardConfig.pegRadius === 'number' && boardConfig.pegRadius > 0)
             ? boardConfig.pegRadius
             : defaultPegRadius;
-        const pegColsCount = Math.max(7, Math.round(boardW / 160));
+        const pegColsCount = Math.max(8, Math.round(boardW / 137));
         const pegPitchX = boardW / pegColsCount;
-        const rowTopY = 0.16 * height;
-        const rowBottomY = height - bucketH - pegRadius * 2.2;
+        const rowTopY = 0.222 * height;
+        const bottomGap = Math.max(80, Math.round(height * 0.111));
+        const rowBottomY = height - bucketH - bottomGap;
         const rowPitchY = rows > 1 ? (rowBottomY - rowTopY) / (rows - 1) : 0;
         const pegImg = getLoadedImage(currentTheme.plinkoPegImageUrl);
         const pegTransparencyLevel = typeof boardConfig.pegTransparency === 'number'
@@ -550,12 +571,12 @@
             for (let r = 0; r < rows; r++) {
                 const rowY = rowTopY + r * rowPitchY;
                 const isOdd = (r % 2 === 1);
-                const countInRow = isOdd ? pegColsCount - 1 : pegColsCount;
+                const countInRow = isOdd ? pegColsCount - 2 : pegColsCount - 1;
 
                 for (let c = 0; c < countInRow; c++) {
                     const pegX = isOdd
-                        ? padX + (c + 1.0) * pegPitchX
-                        : padX + (c + 0.5) * pegPitchX;
+                        ? padX + (c + 1.5) * pegPitchX
+                        : padX + (c + 1.0) * pegPitchX;
 
                     if (pegImg) {
                         ctx.drawImage(pegImg, pegX - pegRadius, rowY - pegRadius, pegRadius * 2, pegRadius * 2);
@@ -578,7 +599,10 @@
         // Bottom Prize Buckets
         const buckets = boardConfig.buckets || [];
         if (buckets.length > 0) {
-            const bucketH = Math.max(84, Math.round(0.09 * height));
+            const defaultBucketH = Math.max(100, Math.round(0.111 * height));
+            const bucketH = (typeof boardConfig.bucketHeight === 'number' && boardConfig.bucketHeight > 0)
+                ? boardConfig.bucketHeight
+                : defaultBucketH;
             const bucketY = height - bucketH;
             const slotW = boardW / buckets.length;
             const season = ((currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
@@ -1187,11 +1211,17 @@
 
         const padX = 0;
         const boardW = width;
-        const tokenRadius = Math.max(14, Math.round(Math.min(width, height) * 0.022));
+        const defaultTokenRadius = Math.max(18, Math.round(Math.min(width, height) * 0.0333));
+        const tokenRadius = (typeof boardConfig.puckRadius === 'number' && boardConfig.puckRadius > 0)
+            ? boardConfig.puckRadius
+            : defaultTokenRadius;
         const tokenLandingY = height - tokenRadius - 4;
         const tokenLandingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
-        const bucketH = Math.max(84, Math.round(0.09 * height));
-        const defaultPegRadius = Math.max(7, Math.round(Math.min(width, height) * 0.009));
+        const defaultBucketH = Math.max(100, Math.round(0.111 * height));
+        const bucketH = (typeof boardConfig.bucketHeight === 'number' && boardConfig.bucketHeight > 0)
+            ? boardConfig.bucketHeight
+            : defaultBucketH;
+        const defaultPegRadius = Math.max(8, Math.round(Math.min(width, height) * 0.012));
         const pegRadius = (typeof boardConfig.pegRadius === 'number' && boardConfig.pegRadius > 0)
             ? boardConfig.pegRadius
             : defaultPegRadius;
@@ -1233,17 +1263,18 @@
 
         const subSteps = 4;
         const dtSub = Math.min(0.05, dtSec) / subSteps;
-        const rows = boardConfig.rowCount || 8;
+        const rows = boardConfig.rowCount || 4;
         const buckets = boardConfig.buckets || [];
         const cols = buckets.length ? buckets.length : 5;
-        const pegColsCount = Math.max(7, Math.round(boardW / 160));
+        const pegColsCount = Math.max(8, Math.round(boardW / 137));
         const pegPitchX = boardW / pegColsCount;
-        const rowTopY = 0.16 * height;
-        const rowBottomY = height - bucketH - pegRadius * 2.2;
+        const rowTopY = 0.222 * height;
+        const bottomGap = Math.max(80, Math.round(height * 0.111));
+        const rowBottomY = height - bucketH - bottomGap;
         const rowPitchY = rows > 1 ? (rowBottomY - rowTopY) / (rows - 1) : 0;
         const bucketY = height - bucketH;
         const slotW = boardW / cols;
-        const startYNorm = 0.04;
+        const startYNorm = -0.06;
         const landingYNorm = Math.round((tokenLandingY / height) * 10000) / 10000;
 
         for (let step = 0; step < subSteps; step++) {
@@ -1290,11 +1321,11 @@
                     const rowY = rowTopY + r * rowPitchY;
                     if (Math.abs(t.py - rowY) > minDistPeg) continue;
                     const isOdd = (r % 2 === 1);
-                    const countInRow = isOdd ? pegColsCount - 1 : pegColsCount;
+                    const countInRow = isOdd ? pegColsCount - 2 : pegColsCount - 1;
                     for (let c = 0; c < countInRow; c++) {
                         const pegX = isOdd
-                            ? padX + (c + 1.0) * pegPitchX
-                            : padX + (c + 0.5) * pegPitchX;
+                            ? padX + (c + 1.5) * pegPitchX
+                            : padX + (c + 1.0) * pegPitchX;
                         const dx = t.px - pegX;
                         const dy = t.py - rowY;
                         const distSq = dx * dx + dy * dy;
@@ -1499,7 +1530,9 @@
                 t.py = tokenLandingY;
 
                 const landedBucketIdx = Math.max(0, Math.min(cols - 1, Math.floor((t.px - padX) / slotW)));
-                const landedBucket = buckets[landedBucketIdx] || { label: 'MISS', score: 0, isWin: false };
+                const landedBucket = buckets.length > 0
+                    ? (buckets[landedBucketIdx] || { label: 'MISS', score: 0, isWin: false })
+                    : { label: t.winningBucketLabel || (t.isWin ? 'WIN' : 'MISS'), score: t.score || 0, isWin: t.isWin };
                 t.winningBucketIndex = landedBucketIdx;
                 t.winningBucketLabel = landedBucket.label;
                 t.score = landedBucket.score || 0;
