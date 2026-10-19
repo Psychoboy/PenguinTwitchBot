@@ -1199,6 +1199,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("isOtherGameActive")]
         public bool IsOtherGameActive { get; set; }
 
+        [JsonPropertyName("activeGames")]
+        public List<string> ActiveGames { get; set; } = [];
+
         [JsonPropertyName("headerConfig")]
         public DropGameHeaderConfigDto? HeaderConfig { get; set; }
 

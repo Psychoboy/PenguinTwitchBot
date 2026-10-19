@@ -116,6 +116,7 @@
     };
 
     let isOtherGameActive = false;
+    const activeOtherGames = new Set();
     let currentBannerY = 18;
 
     try {
@@ -163,28 +164,14 @@
 
 
     function syncAmbientParticles() {
-        const isEnabled = currentTheme && currentTheme.enableBackgroundParticles !== false && currentTheme.particleType !== 'none';
-        const desired = isEnabled
-            ? Math.min(80, Math.max(0, currentTheme.particleDensity || 35))
-            : 0;
-
-        const pType = (currentTheme && currentTheme.particleType) || 'petals';
-
-        while (ambientParticles.length < desired) {
-            const isBat = pType === 'bats';
-            ambientParticles.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                vx: isBat ? (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 55) : (Math.random() - 0.5) * 35,
-                vy: isBat ? (Math.random() - 0.5) * 20 : (pType === 'bubbles' ? -(25 + Math.random() * 45) : (25 + Math.random() * 45)),
-                size: isBat ? (10 + Math.random() * 8) : (5 + Math.random() * 8),
-                angle: Math.random() * Math.PI * 2,
-                spin: isBat ? 0 : (Math.random() - 0.5) * 2.2,
-                alpha: 0.45 + Math.random() * 0.45
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.syncAmbientParticles) {
+            DropGamesCommon.syncAmbientParticles(ambientParticles, {
+                width,
+                height,
+                currentTheme,
+                isVisible: true,
+                maxDensity: 80
             });
-        }
-        if (ambientParticles.length > desired) {
-            ambientParticles.length = desired;
         }
     }
 
@@ -300,138 +287,17 @@
             return;
         }
 
-        const season = (seasonPreset || (currentTheme && currentTheme.seasonPreset) || 'spring').toLowerCase();
-        const pType = ((currentTheme && currentTheme.landingParticleType) || season).toLowerCase();
-        const density = (currentTheme && currentTheme.landingParticleDensity) || 36;
-        const count = isBullseye ? Math.round(density * 1.4) : density;
-        const scale = isBullseye ? 1.45 : 1.1;
-
-        if (pType === 'candies' || season === 'halloween') {
-            // Halloween candy corn & green potion drops
-            const candyColors = ['#FF7518', '#FFE066', '#FFFFFF', '#8338EC', '#39FF14'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.12 - (Math.random() * Math.PI * 0.76);
-                const speed = (90 + Math.random() * 170) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 40,
-                    y: yPx + (Math.random() - 0.5) * 12,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 65,
-                    size: (5 + Math.random() * 6) * scale,
-                    color: candyColors[Math.floor(Math.random() * candyColors.length)],
-                    shape: i % 2 === 0 ? 'candies' : 'circle',
-                    rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 8,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.8 + Math.random() * 0.45
-                });
-            }
-        } else if (pType === 'confetti' || season === 'christmas') {
-            // Holiday star sparkles & red/green/gold confetti
-            const holidayColors = ['#D90429', '#2B9348', '#FFD166', '#FFFFFF', '#007F5F'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.1 - (Math.random() * Math.PI * 0.8);
-                const speed = (100 + Math.random() * 180) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 38,
-                    y: yPx + (Math.random() - 0.5) * 10,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 70,
-                    size: (5 + Math.random() * 5) * scale,
-                    color: holidayColors[Math.floor(Math.random() * holidayColors.length)],
-                    shape: 'confetti',
-                    rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 9,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.85 + Math.random() * 0.4
-                });
-            }
-        } else if (pType === 'fall' || pType === 'leaves' || season === 'fall') {
-            // Autumn leaf puff
-            const leafColors = ['#E76F51', '#F4A261', '#E9C46A', '#D9480F', '#8C3714', '#9B2226'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.7); // Fountains up and outward
-                const speed = (95 + Math.random() * 175) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 44,
-                    y: yPx + (Math.random() - 0.5) * 14,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 65,
-                    size: (6 + Math.random() * 7) * scale,
-                    color: leafColors[Math.floor(Math.random() * leafColors.length)],
-                    shape: 'leaf',
-                    rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 7,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.8 + Math.random() * 0.45
-                });
-            }
-        } else if (pType === 'spring' || pType === 'petals' || season === 'spring') {
-            // Cherry blossom petal burst
-            const petalColors = ['#FF8FA3', '#FFB7C5', '#FFF0F3', '#FF4D6D', '#FFCCD5'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.12 - (Math.random() * Math.PI * 0.76);
-                const speed = (85 + Math.random() * 160) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 36,
-                    y: yPx + (Math.random() - 0.5) * 10,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 55,
-                    size: (5 + Math.random() * 6) * scale,
-                    color: petalColors[Math.floor(Math.random() * petalColors.length)],
-                    shape: 'petal',
-                    rotation: Math.random() * Math.PI * 2,
-                    spin: (Math.random() - 0.5) * 6,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.75 + Math.random() * 0.4
-                });
-            }
-        } else if (pType === 'winter' || pType === 'snow' || season === 'winter') {
-            // Snow powder poof
-            const snowColors = ['#FFFFFF', '#E0F2FE', '#BAE6FD', '#F0F9FF'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.1 - (Math.random() * Math.PI * 0.8);
-                const speed = (70 + Math.random() * 150) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 40,
-                    y: yPx + (Math.random() - 0.5) * 12,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 55,
-                    size: (4 + Math.random() * 7) * scale,
-                    color: snowColors[Math.floor(Math.random() * snowColors.length)],
-                    shape: 'snow',
-                    rotation: 0,
-                    spin: 0,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.7 + Math.random() * 0.4
-                });
-            }
-        } else {
-            // Summer pool water splash
-            const waterColors = ['#00B4D8', '#48CAE4', '#90E0EF', '#CAF0F8', '#FFFFFF'];
-            for (let i = 0; i < count; i++) {
-                const angle = -Math.PI * 0.15 - (Math.random() * Math.PI * 0.7);
-                const speed = (95 + Math.random() * 190) * scale;
-                splashBursts.push({
-                    x: xPx + (Math.random() - 0.5) * 38,
-                    y: yPx + (Math.random() - 0.5) * 10,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed - 75,
-                    size: (4 + Math.random() * 6) * scale,
-                    color: waterColors[Math.floor(Math.random() * waterColors.length)],
-                    shape: 'water',
-                    rotation: 0,
-                    spin: 0,
-                    alpha: 1.0,
-                    life: 0,
-                    maxLife: 0.65 + Math.random() * 0.35
-                });
-            }
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.spawnSeasonalBurst) {
+            const season = (seasonPreset || (DropGamesCommon.getSeasonPreset ? DropGamesCommon.getSeasonPreset(currentTheme) : 'spring')).toLowerCase();
+            const density = (currentTheme && currentTheme.landingParticleDensity) || 36;
+            const count = isBullseye ? Math.round(density * 1.4) : density;
+            DropGamesCommon.spawnSeasonalBurst(splashBursts, {
+                x: xPx,
+                y: yPx,
+                season: season,
+                count: count,
+                isBullseye: isBullseye
+            });
         }
     }
 
@@ -584,9 +450,23 @@
         }
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.isOtherGameActive;
+            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+                const g = msg.otherGame.toLowerCase();
+                if (msg.isOtherGameActive) {
+                    activeOtherGames.add(g);
+                } else {
+                    activeOtherGames.delete(g);
+                }
             }
+            if (Array.isArray(msg.activeGames)) {
+                activeOtherGames.clear();
+                msg.activeGames.forEach(g => {
+                    if (typeof g === 'string' && g.toLowerCase() !== 'parachute') {
+                        activeOtherGames.add(g.toLowerCase());
+                    }
+                });
+            }
+            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
             return;
         }
 
@@ -595,19 +475,28 @@
             return;
         }
 
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(g => {
+                if (typeof g === 'string' && g.toLowerCase() !== 'parachute') {
+                    activeOtherGames.add(g.toLowerCase());
+                }
+            });
+            isOtherGameActive = activeOtherGames.size > 0;
+        } else if (typeof msg.isOtherGameActive === 'boolean') {
+            isOtherGameActive = msg.isOtherGameActive;
+        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+            isOtherGameActive = msg.session.isOtherGameActive;
+        }
+
         if (msg.headerConfig) {
             applyHeaderConfig(msg.headerConfig);
         }
         if (msg.session) {
-            if (typeof msg.session.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.session.isOtherGameActive;
-            }
             if (msg.session.headerConfig) {
                 applyHeaderConfig(msg.session.headerConfig);
             }
-        }
-        if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
         }
 
         if (msg.sounds) {
@@ -897,99 +786,15 @@
     });
 
     function drawAmbientParticles(dtSec) {
-        if (!ambientParticles.length || !currentTheme || currentTheme.enableBackgroundParticles === false || currentTheme.particleType === 'none') return;
-        const pType = currentTheme.particleType || 'petals';
-
-        ctx.save();
-        for (let i = 0; i < ambientParticles.length; i++) {
-            const p = ambientParticles[i];
-            p.x += p.vx * dtSec;
-            p.y += p.vy * dtSec;
-            p.angle += p.spin * dtSec;
-
-            if (pType === 'bats') {
-                // Wave flight path for bats
-                p.y += Math.sin(p.x * 0.05) * 0.8;
-                if (p.x < -30) p.x = width + 25;
-                if (p.x > width + 30) p.x = -25;
-                if (p.y < 20) p.y = height * 0.6;
-                if (p.y > height * 0.75) p.y = 40;
-            } else {
-                if (p.y > height + 20) {
-                    p.y = -15;
-                    p.x = Math.random() * width;
-                }
-                if (p.x < -20) p.x = width + 15;
-                if (p.x > width + 20) p.x = -15;
-            }
-
-            ctx.save();
-            ctx.translate(p.x, p.y);
-            ctx.rotate(p.angle);
-            ctx.globalAlpha = p.alpha;
-
-            if (pType === 'petals') {
-                ctx.fillStyle = currentTheme.secondaryColor || '#FFB7C5';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size, p.size * 0.58, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (pType === 'bubbles') {
-                ctx.strokeStyle = currentTheme.primaryColor || '#00B4D8';
-                ctx.lineWidth = 1.6;
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size * 0.75, 0, Math.PI * 2);
-                ctx.stroke();
-            } else if (pType === 'leaves') {
-                ctx.fillStyle = (i % 2 === 0) ? (currentTheme.primaryColor || '#E76F51') : (currentTheme.accentColor || '#E9C46A');
-                ctx.beginPath();
-                ctx.moveTo(0, -p.size);
-                ctx.quadraticCurveTo(p.size, 0, 0, p.size);
-                ctx.quadraticCurveTo(-p.size, 0, 0, -p.size);
-                ctx.fill();
-            } else if (pType === 'bats') {
-                // Spooky bat silhouette with flapping wings
-                ctx.fillStyle = currentTheme.secondaryColor || '#7B2CBF';
-                const flap = Math.sin((p.x + performance.now() * 0.02) * 0.4) * (p.size * 0.35);
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size * 0.35, p.size * 0.22, 0, 0, Math.PI * 2);
-                ctx.fill();
-                // Left wing
-                ctx.beginPath();
-                ctx.moveTo(-p.size * 0.2, 0);
-                ctx.quadraticCurveTo(-p.size * 0.7, -p.size * 0.7 - flap, -p.size * 1.2, -p.size * 0.2 - flap);
-                ctx.quadraticCurveTo(-p.size * 0.7, p.size * 0.2, -p.size * 0.2, 0);
-                ctx.fill();
-                // Right wing
-                ctx.beginPath();
-                ctx.moveTo(p.size * 0.2, 0);
-                ctx.quadraticCurveTo(p.size * 0.7, -p.size * 0.7 - flap, p.size * 1.2, -p.size * 0.2 - flap);
-                ctx.quadraticCurveTo(p.size * 0.7, p.size * 0.2, p.size * 0.2, 0);
-                ctx.fill();
-            } else if (pType === 'stars') {
-                // Golden star sparkle
-                ctx.fillStyle = currentTheme.accentColor || '#FFD166';
-                const s = p.size * 0.65;
-                ctx.beginPath();
-                ctx.moveTo(0, -s);
-                ctx.lineTo(s * 0.25, -s * 0.25);
-                ctx.lineTo(s, 0);
-                ctx.lineTo(s * 0.25, s * 0.25);
-                ctx.lineTo(0, s);
-                ctx.lineTo(-s * 0.25, s * 0.25);
-                ctx.lineTo(-s, 0);
-                ctx.lineTo(-s * 0.25, -s * 0.25);
-                ctx.closePath();
-                ctx.fill();
-            } else {
-                // snow
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawAmbientParticles) {
+            DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambientParticles, {
+                dtSec,
+                width,
+                height,
+                currentTheme,
+                isVisible: true
+            });
         }
-        ctx.restore();
     }
 
     function getPlatformMetrics() {
@@ -1579,8 +1384,11 @@
             || now < targetState.visibleUntil;
 
         if (showArena) {
+            syncAmbientParticles();
             drawAmbientParticles(dtSec);
             drawTargetPlatformBack();
+        } else {
+            ambientParticles.length = 0;
         }
 
         // Update & draw interactive droplets with bouncy physics & settling
@@ -2535,94 +2343,8 @@
         }
 
         // Update & draw splash/confetti bursts
-        for (let i = splashBursts.length - 1; i >= 0; i--) {
-            const b = splashBursts[i];
-            b.life += dtSec;
-            if (b.life >= b.maxLife) {
-                splashBursts.splice(i, 1);
-                continue;
-            }
-            b.x += b.vx * dtSec;
-            b.y += b.vy * dtSec;
-            b.vy += 100 * dtSec;
-            b.alpha = 1.0 - (b.life / b.maxLife);
-
-            ctx.save();
-            ctx.globalAlpha = Math.max(0, b.alpha);
-            ctx.translate(b.x, b.y);
-
-            if (b.shape === 'leaf') {
-                ctx.rotate(b.rotation || 0);
-                b.rotation += (b.spin || 2) * dtSec;
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.moveTo(0, -b.size);
-                ctx.quadraticCurveTo(b.size * 1.1, 0, 0, b.size);
-                ctx.quadraticCurveTo(-b.size * 1.1, 0, 0, -b.size);
-                ctx.fill();
-            } else if (b.shape === 'candies') {
-                // Halloween Candy Corn
-                ctx.rotate(b.rotation || 0);
-                b.rotation += (b.spin || 3) * dtSec;
-                const s = b.size;
-                // Yellow base
-                ctx.fillStyle = '#FFE066';
-                ctx.beginPath();
-                ctx.moveTo(-s * 0.7, s);
-                ctx.lineTo(s * 0.7, s);
-                ctx.lineTo(s * 0.45, s * 0.25);
-                ctx.lineTo(-s * 0.45, s * 0.25);
-                ctx.closePath();
-                ctx.fill();
-                // Orange center
-                ctx.fillStyle = '#FF7518';
-                ctx.beginPath();
-                ctx.moveTo(-s * 0.45, s * 0.25);
-                ctx.lineTo(s * 0.45, s * 0.25);
-                ctx.lineTo(s * 0.22, -s * 0.45);
-                ctx.lineTo(-s * 0.22, -s * 0.45);
-                ctx.closePath();
-                ctx.fill();
-                // White tip
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                ctx.moveTo(-s * 0.22, -s * 0.45);
-                ctx.lineTo(s * 0.22, -s * 0.45);
-                ctx.lineTo(0, -s);
-                ctx.closePath();
-                ctx.fill();
-            } else if (b.shape === 'confetti') {
-                // Holiday star sparkle or confetti ribbon
-                ctx.rotate(b.rotation || 0);
-                b.rotation += (b.spin || 3) * dtSec;
-                ctx.fillStyle = b.color;
-                ctx.fillRect(-b.size * 0.7, -b.size * 0.35, b.size * 1.4, b.size * 0.7);
-            } else if (b.shape === 'petal') {
-                ctx.rotate(b.rotation || 0);
-                b.rotation += (b.spin || 2) * dtSec;
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, b.size, b.size * 0.55, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (b.shape === 'snow') {
-                ctx.fillStyle = b.color;
-                ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-                ctx.shadowBlur = 6;
-                ctx.beginPath();
-                ctx.arc(0, 0, b.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (b.shape === 'water') {
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, b.size * 0.65, b.size * 1.15, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else {
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.arc(0, 0, b.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawParticles) {
+            DropGamesCommon.updateAndDrawParticles(ctx, splashBursts, { dt: dtSec, width, height, gravity: 100 });
         }
 
         // Update & draw landing score popups
@@ -2636,24 +2358,6 @@
                 yDriftPixels: 36,
                 font: '700 26px Fredoka, Rubik, sans-serif'
             });
-        } else {
-            for (let i = landingPopups.length - 1; i >= 0; i--) {
-                const pop = landingPopups[i];
-                const age = (now - pop.createdAt) / 1000;
-                if (age > 2.4) {
-                    landingPopups.splice(i, 1);
-                    continue;
-                }
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, 1.0 - Math.max(0, age - 1.4));
-                ctx.font = '700 26px Fredoka, Rubik, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0,0,0,0.85)';
-                ctx.shadowBlur = 8;
-                ctx.fillStyle = pop.color;
-                ctx.fillText(pop.text, pop.x, pop.y - age * 36);
-                ctx.restore();
-            }
         }
 
             drawSessionBanner(now);
@@ -2683,6 +2387,9 @@
                 headerConfig,
                 sessionState,
                 currentBannerY,
+                currentGame: 'parachute',
+                activeOtherGames,
+                isOtherGameActive,
                 hasActiveDrops: hasActiveDrop,
                 itemPluralName: 'Drops',
                 primaryColor: currentTheme.primaryColor || '#FF8FA3',
@@ -2696,7 +2403,13 @@
         }
 
         // Smooth vertical transition towards target Y
-        const targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
+        let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
+        if (headerConfig.autoAvoidOverlap !== false) {
+            let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
+                ? DropGamesCommon.calculateBannerStackSlot('parachute', activeOtherGames)
+                : (isOtherGameActive ? 1 : 0);
+            targetY += slot * 54;
+        }
         currentBannerY += (targetY - currentBannerY) * 0.15;
         const bannerY = Math.round(currentBannerY);
 

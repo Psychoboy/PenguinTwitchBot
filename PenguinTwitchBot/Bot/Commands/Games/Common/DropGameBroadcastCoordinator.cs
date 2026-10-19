@@ -30,15 +30,27 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         }
 
         /// <summary>
+        /// Returns the lowercased names of all drop games currently running an active timed session according to the registry.
+        /// </summary>
+        public static List<string> GetActiveGameNames(IDropRegistry registry)
+        {
+            ArgumentNullException.ThrowIfNull(registry);
+            return registry.GetActiveSessionTypes()
+                .Select(t => t.ToString().ToLowerInvariant())
+                .ToList();
+        }
+
+        /// <summary>
         /// Creates the JSON payload alerting other overlays whether another drop game is currently running a timed session.
         /// </summary>
-        public static string CreateOtherGameStatusPayload(bool isOtherGameActive, string otherGame)
+        public static string CreateOtherGameStatusPayload(bool isOtherGameActive, string otherGame, IReadOnlyList<string>? activeGames = null)
         {
             return JsonSerializer.Serialize(new
             {
                 type = "other_game_status",
                 isOtherGameActive,
-                otherGame
+                otherGame,
+                activeGames
             }, JsonOptions);
         }
 
@@ -52,6 +64,57 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 type = "other_drop_active",
                 durationSeconds
             }, JsonOptions);
+        }
+
+        /// <summary>
+        /// Asynchronously broadcasts a session status change (active/inactive) to all other minigame topics.
+        /// </summary>
+        public static async Task BroadcastOtherGameStatusAsync(
+            IWebSocketMessenger webSocketMessenger,
+            ILogger? logger,
+            string currentGameTopic,
+            string gameName,
+            bool isOtherGameActive,
+            IReadOnlyList<string>? activeGames = null)
+        {
+            ArgumentNullException.ThrowIfNull(webSocketMessenger);
+            var payload = CreateOtherGameStatusPayload(isOtherGameActive, gameName, activeGames);
+            var description = $"Notify other games {gameName} session {(isOtherGameActive ? "started" : "stopped")}";
+            foreach (var topic in GetOtherGameTopics(currentGameTopic))
+            {
+                try
+                {
+                    await webSocketMessenger.AddToQueue(topic, payload);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to queue {Description} message to topic {Topic}", description, topic);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously alerts all other minigame topics of active drop/slide movement to trigger auto-avoid positioning.
+        /// </summary>
+        public static async Task BroadcastOtherDropActiveAsync(
+            IWebSocketMessenger webSocketMessenger,
+            ILogger? logger,
+            string currentGameTopic,
+            double durationSeconds = 6.0)
+        {
+            ArgumentNullException.ThrowIfNull(webSocketMessenger);
+            var payload = CreateOtherDropActivePayload(durationSeconds);
+            foreach (var topic in GetOtherGameTopics(currentGameTopic))
+            {
+                try
+                {
+                    await webSocketMessenger.AddToQueue(topic, payload);
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Failed to queue other_drop_active message to topic {Topic}", topic);
+                }
+            }
         }
     }
 }

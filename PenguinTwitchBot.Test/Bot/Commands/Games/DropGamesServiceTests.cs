@@ -3235,6 +3235,71 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public void DropGameSessionManager_IsWithinLastCallCutoff_EvaluatesRemainingDurationCorrectly()
+        {
+            var manager = new DropGameSessionManager(NullLogger.Instance);
+
+            // No active session
+            Assert.False(manager.IsWithinLastCallCutoff(4, out _));
+
+            // Active session with 60 seconds remaining
+            var session = manager.CreateAndSetActiveSession(60, null, "UserA", _ => Task.CompletedTask);
+            Assert.False(manager.IsWithinLastCallCutoff(4, out var remaining1));
+            Assert.True(remaining1 > 50.0);
+
+            // Cutoff is 0 (disabled)
+            Assert.False(manager.IsWithinLastCallCutoff(0, out _));
+
+            // Set session near expiration (2 seconds remaining)
+            session.EndsAtUtc = DateTime.UtcNow.AddSeconds(2);
+            Assert.True(manager.IsWithinLastCallCutoff(4, out var remaining2));
+            Assert.True(remaining2 <= 4.0);
+
+            manager.Dispose();
+        }
+
+        [Fact]
+        public async Task DropGameBroadcastCoordinator_BroadcastMethods_RoutePayloadsToAllOtherTopics()
+        {
+            var mockWs = new Mock<IWebSocketMessenger>();
+            var queuedMessages = new List<(string Topic, string Json)>();
+            mockWs.Setup(x => x.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
+                  .Callback<string, string>((topic, json) => queuedMessages.Add((topic, json)))
+                  .Returns(Task.CompletedTask);
+
+            // Broadcast game status for curling -> should notify parachute, plinko, balloon
+            await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(
+                mockWs.Object, NullLogger.Instance, WsTopics.Curling, "curling", isOtherGameActive: true);
+
+            var topicsNotified = queuedMessages.Select(m => m.Topic).Distinct().ToList();
+            Assert.Contains(WsTopics.Parachute, topicsNotified);
+            Assert.Contains(WsTopics.Plinko, topicsNotified);
+            Assert.Contains(WsTopics.Balloon, topicsNotified);
+            Assert.DoesNotContain(WsTopics.Curling, topicsNotified);
+
+            var firstJson = queuedMessages[0].Json;
+            Assert.Contains("\"type\":\"other_game_status\"", firstJson);
+            Assert.Contains("\"isOtherGameActive\":true", firstJson);
+            Assert.Contains("\"otherGame\":\"curling\"", firstJson);
+
+            queuedMessages.Clear();
+
+            // Broadcast drop active for balloon -> should notify parachute, plinko, curling
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(
+                mockWs.Object, NullLogger.Instance, WsTopics.Balloon, durationSeconds: 8.5);
+
+            var dropTopics = queuedMessages.Select(m => m.Topic).Distinct().ToList();
+            Assert.Contains(WsTopics.Parachute, dropTopics);
+            Assert.Contains(WsTopics.Plinko, dropTopics);
+            Assert.Contains(WsTopics.Curling, dropTopics);
+            Assert.DoesNotContain(WsTopics.Balloon, dropTopics);
+
+            var dropJson = queuedMessages[0].Json;
+            Assert.Contains("\"type\":\"other_drop_active\"", dropJson);
+            Assert.Contains("\"durationSeconds\":8.5", dropJson);
+        }
+
+        [Fact]
         public void DropGameHeaderConfigDto_FromSettings_MapsCorrectly()
         {
             var pSettings = new ParachuteGameSettings
@@ -3515,6 +3580,65 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Null(registered);
 
             await service.StopSessionAsync("Cleanup");
+        }
+
+        [Fact]
+        public async Task MultiGameActiveList_TrackedAndBroadcastCorrectly()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+
+            var parachuteService = CreateParachuteService(settingsService, dropRegistry);
+            var plinkoService = CreatePlinkoService(settingsService, dropRegistry);
+            var curlingService = CreateCurlingService(dropRegistry, settingsService);
+
+            // 1. Start Parachute alone
+            var parachuteSession = await parachuteService.StartSessionAsync(60, triggeredBy: "Mod");
+            Assert.True(parachuteSession.IsActive);
+            Assert.False(parachuteSession.IsOtherGameActive);
+            Assert.Contains("parachute", parachuteSession.ActiveGames);
+            Assert.Single(parachuteSession.ActiveGames);
+
+            // 2. Start Plinko concurrently
+            var plinkoSession = await plinkoService.StartSessionAsync(60, triggeredBy: "Mod");
+            Assert.True(plinkoSession.IsActive);
+            Assert.True(plinkoSession.IsOtherGameActive);
+            Assert.Contains("parachute", plinkoSession.ActiveGames);
+            Assert.Contains("plinko", plinkoSession.ActiveGames);
+            Assert.Equal(2, plinkoSession.ActiveGames.Count);
+
+            // 3. Start Curling concurrently (3 games running simultaneously)
+            var curlingSession = await curlingService.StartSessionAsync(60, triggeredBy: "Mod");
+            Assert.True(curlingSession.IsActive);
+            Assert.True(curlingSession.IsOtherGameActive);
+            Assert.Contains("parachute", curlingSession.ActiveGames);
+            Assert.Contains("plinko", curlingSession.ActiveGames);
+            Assert.Contains("curling", curlingSession.ActiveGames);
+            Assert.Equal(3, curlingSession.ActiveGames.Count);
+
+            // Verify registry tracks all 3 session types
+            var activeTypes = dropRegistry.GetActiveSessionTypes();
+            Assert.Equal(3, activeTypes.Count);
+            Assert.Contains(DropGameType.Parachute, activeTypes);
+            Assert.Contains(DropGameType.Plinko, activeTypes);
+            Assert.Contains(DropGameType.Curling, activeTypes);
+
+            // 4. Stop Parachute, verify remaining active games
+            var stoppedParachute = await parachuteService.StopSessionAsync("Mod");
+            Assert.NotNull(stoppedParachute);
+            Assert.False(stoppedParachute.IsActive);
+            Assert.True(stoppedParachute.IsOtherGameActive);
+            Assert.DoesNotContain("parachute", stoppedParachute.ActiveGames);
+            Assert.Contains("plinko", stoppedParachute.ActiveGames);
+            Assert.Contains("curling", stoppedParachute.ActiveGames);
+
+            var remainingTypes = dropRegistry.GetActiveSessionTypes();
+            Assert.Equal(2, remainingTypes.Count);
+            Assert.DoesNotContain(DropGameType.Parachute, remainingTypes);
+
+            // Clean up
+            await plinkoService.StopSessionAsync("Cleanup");
+            await curlingService.StopSessionAsync("Cleanup");
         }
     }
 }

@@ -168,12 +168,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 });
 
                 dropRegistry.SetSessionActive(DropGameType.Curling, true);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) ||
-                                       dropRegistry.IsSessionActive(DropGameType.Plinko) ||
-                                       dropRegistry.IsSessionActive(DropGameType.Balloon);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "curling", StringComparison.OrdinalIgnoreCase));
 
                 var dto = GetCurrentSession()!;
                 dto.IsOtherGameActive = isOtherGameActive;
+                dto.ActiveGames = activeGames;
                 dto.HeaderConfig = headerConfig;
                 dto.Sounds = soundBundle;
 
@@ -192,6 +192,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     theme,
                     headerConfig,
                     isOtherGameActive,
+                    activeGames,
                     sounds = soundBundle,
                     condition = _currentSessionCondition.ToString(),
                     conditionLabel,
@@ -212,11 +213,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 await QueueWsMessageAsync(WsTopics.Curling, wsPayload, "Curling session start");
 
                 // Cross-game notification
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: true, "curling");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Curling))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Curling is active");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Curling, "curling", isOtherGameActive: true, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -284,9 +281,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 if (session == null) return null;
 
                 dropRegistry.SetSessionActive(DropGameType.Curling, false);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) ||
-                                       dropRegistry.IsSessionActive(DropGameType.Plinko) ||
-                                       dropRegistry.IsSessionActive(DropGameType.Balloon);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Count > 0;
 
                 var settings = await settingsService.GetSettingsAsync();
                 var cSettings = settings.Curling;
@@ -302,6 +298,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     EndsAtMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     TotalDrops = Volatile.Read(ref session.TotalDrops),
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
@@ -310,16 +307,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     type = "session_end",
                     session = dto,
                     headerConfig,
-                    isOtherGameActive
+                    isOtherGameActive,
+                    activeGames
                 }, _jsonOptions);
 
                 await QueueWsMessageAsync(WsTopics.Curling, wsPayload, "Curling session_end");
 
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: false, "curling");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Curling))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Curling is inactive");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Curling, "curling", isOtherGameActive: false, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -411,20 +405,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             var cSettings = settings.Curling;
 
             // Check Last Call Cutoff if session is active
-            var activeSession = _sessionManager.ActiveSession;
-            if (activeSession != null)
+            if (_sessionManager.IsWithinLastCallCutoff(cSettings.LastCallCutoffSeconds, out var remainingSec))
             {
-                var nowUtc = DateTime.UtcNow;
-                var remainingSec = (activeSession.EndsAtUtc - nowUtc).TotalSeconds;
-                if (remainingSec <= cSettings.LastCallCutoffSeconds)
-                {
-                    logger.LogInformation("Curling throw for {User} rejected due to Last Call cutoff ({Remaining:F1}s remaining)", eventArgs.DisplayName, remainingSec);
-                    return dropToken;
-                }
+                logger.LogInformation("Curling throw for {User} rejected due to Last Call cutoff ({Remaining:F1}s remaining)", eventArgs.DisplayName, remainingSec);
+                return dropToken;
             }
 
-            var condition = conditionOverride ?? (activeSession != null ? _currentSessionCondition : cSettings.IceCondition);
-            var targetDistance = targetDistanceOverride ?? (activeSession != null ? _currentSessionTargetDistance : cSettings.TargetDistancePercent);
+            var condition = conditionOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionCondition : cSettings.IceCondition);
+            var targetDistance = targetDistanceOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : cSettings.TargetDistancePercent);
 
             // Determine raw power (1-100)
             double rawPower;
@@ -537,11 +525,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             await QueueWsMessageAsync(WsTopics.Curling, wsPayload, $"curling slide for {record.DisplayName}");
 
             // Notify other games of drop activity
-            var notice = DropGameBroadcastCoordinator.CreateOtherDropActivePayload(durationSeconds: 6.0);
-            foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Curling))
-            {
-                await QueueWsMessageAsync(topic, notice, $"Curling drop notice to {topic}");
-            }
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Curling, durationSeconds: 6.0);
 
             return dropToken;
         }

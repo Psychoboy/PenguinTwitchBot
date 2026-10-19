@@ -152,236 +152,50 @@
     let currentTheme = null;
 
     function getSeasonPreset() {
-        if (currentTheme) {
-            if (typeof currentTheme.seasonPreset === 'string' && currentTheme.seasonPreset.length > 0) {
-                return currentTheme.seasonPreset.toLowerCase();
-            }
-            if (typeof currentTheme.id === 'string' && currentTheme.id.length > 0) {
-                const idLower = currentTheme.id.toLowerCase();
-                for (const s of ['spring', 'summer', 'fall', 'winter', 'halloween', 'christmas']) {
-                    if (idLower.includes(s)) return s;
-                }
-            }
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.getSeasonPreset) {
+            return DropGamesCommon.getSeasonPreset(currentTheme);
         }
         return 'spring';
     }
 
     function syncAmbientParticles(isBoardVisible) {
-        const isEnabled = isBoardVisible && currentTheme && currentTheme.enableBackgroundParticles !== false && currentTheme.particleType !== 'none';
-        const desired = isEnabled
-            ? Math.min(60, Math.max(0, currentTheme.particleDensity || 32))
-            : 0;
-
-        const pType = (currentTheme && currentTheme.particleType) || 'petals';
-
-        while (ambientParticles.length < desired) {
-            const isBat = pType === 'bats';
-            ambientParticles.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                vx: isBat ? (Math.random() < 0.5 ? -1 : 1) * (40 + Math.random() * 50) : (Math.random() - 0.5) * 30,
-                vy: isBat ? (Math.random() - 0.5) * 20 : (pType === 'bubbles' ? -(20 + Math.random() * 35) : (20 + Math.random() * 40)),
-                size: isBat ? (10 + Math.random() * 7) : (4 + Math.random() * 6),
-                angle: Math.random() * Math.PI * 2,
-                spin: isBat ? 0 : (Math.random() - 0.5) * 2.0,
-                alpha: 0.35 + Math.random() * 0.45
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.syncAmbientParticles) {
+            DropGamesCommon.syncAmbientParticles(ambientParticles, {
+                width,
+                height,
+                currentTheme,
+                isVisible: isBoardVisible,
+                maxDensity: 60
             });
-        }
-        if (ambientParticles.length > desired) {
-            if (!isBoardVisible) {
-                ambientParticles.length = 0;
-            } else {
-                ambientParticles.length = desired;
-            }
         }
     }
 
     function updateAndDrawAmbientParticles(dtSec, isBoardVisible) {
-        if (!isBoardVisible) {
-            if (ambientParticles.length > 0) ambientParticles.length = 0;
-            return;
-        }
-        if (!ambientParticles.length || !currentTheme || currentTheme.enableBackgroundParticles === false || currentTheme.particleType === 'none') return;
-        const pType = currentTheme.particleType || 'petals';
-
-        ctx.save();
-        for (let i = 0; i < ambientParticles.length; i++) {
-            const p = ambientParticles[i];
-            p.x += p.vx * dtSec;
-            p.y += p.vy * dtSec;
-            p.angle += p.spin * dtSec;
-
-            if (pType === 'bats') {
-                p.y += Math.sin(p.x * 0.05) * 0.6;
-                if (p.x < -30) p.x = width + 25;
-                if (p.x > width + 30) p.x = -25;
-                if (p.y < 20) p.y = height * 0.6;
-                if (p.y > height * 0.75) p.y = 40;
-            } else {
-                if (p.y > height + 20) {
-                    p.y = -15;
-                    p.x = Math.random() * width;
-                }
-                if (p.x < -20) p.x = width + 15;
-                if (p.x > width + 20) p.x = -15;
-            }
-
-            ctx.save();
-            ctx.translate(p.x, p.y);
-            ctx.rotate(p.angle);
-            ctx.globalAlpha = p.alpha;
-
-            if (pType === 'petals') {
-                ctx.fillStyle = currentTheme.secondaryColor || '#FFB7C5';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (pType === 'bubbles') {
-                ctx.strokeStyle = currentTheme.primaryColor || '#00B4D8';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size * 0.75, 0, Math.PI * 2);
-                ctx.stroke();
-            } else if (pType === 'leaves') {
-                ctx.fillStyle = (i % 2 === 0) ? (currentTheme.primaryColor || '#E76F51') : (currentTheme.accentColor || '#E9C46A');
-                ctx.beginPath();
-                ctx.moveTo(0, -p.size);
-                ctx.quadraticCurveTo(p.size, 0, 0, p.size);
-                ctx.quadraticCurveTo(-p.size, 0, 0, -p.size);
-                ctx.fill();
-            } else if (pType === 'bats') {
-                ctx.fillStyle = currentTheme.secondaryColor || '#7B2CBF';
-                const flap = Math.sin((p.x + performance.now() * 0.02) * 0.4) * (p.size * 0.35);
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size * 0.35, p.size * 0.22, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(-p.size * 0.2, 0);
-                ctx.quadraticCurveTo(-p.size * 0.7, -p.size * 0.7 - flap, -p.size * 1.2, -p.size * 0.2 - flap);
-                ctx.quadraticCurveTo(-p.size * 0.7, p.size * 0.2, -p.size * 0.2, 0);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(p.size * 0.2, 0);
-                ctx.quadraticCurveTo(p.size * 0.7, -p.size * 0.7 - flap, p.size * 1.2, -p.size * 0.2 - flap);
-                ctx.quadraticCurveTo(p.size * 0.7, p.size * 0.2, p.size * 0.2, 0);
-                ctx.fill();
-            } else if (pType === 'stars') {
-                ctx.fillStyle = currentTheme.accentColor || '#FFD166';
-                const s = p.size * 0.65;
-                ctx.beginPath();
-                ctx.moveTo(0, -s);
-                ctx.lineTo(s * 0.25, -s * 0.25);
-                ctx.lineTo(s, 0);
-                ctx.lineTo(s * 0.25, s * 0.25);
-                ctx.lineTo(0, s);
-                ctx.lineTo(-s * 0.25, s * 0.25);
-                ctx.lineTo(-s, 0);
-                ctx.lineTo(-s * 0.25, -s * 0.25);
-                ctx.closePath();
-                ctx.fill();
-            } else {
-                // snow
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
-        }
-        ctx.restore();
-    }
-
-    function spawnSeasonalBurst(x, y, season, count, isBullseye) {
-        let colors;
-        let type = 'spark';
-        if (season === 'spring') {
-            colors = ['#FF8FA3', '#FFB7C5', '#FFE066', '#FFFFFF', '#FFCCD5'];
-            type = 'petal';
-        } else if (season === 'summer') {
-            colors = ['#FFD166', '#00B4D8', '#FF9F1C', '#FFFFFF', '#06D6A0'];
-            type = isBullseye ? 'confetti' : 'spark';
-        } else if (season === 'fall') {
-            colors = ['#E76F51', '#E9C46A', '#D90429', '#F4A261', '#9B2226'];
-            type = 'leaf';
-        } else if (season === 'winter') {
-            colors = ['#CAF0F8', '#90E0EF', '#00B4D8', '#FFFFFF', '#E0F2FE'];
-            type = 'snow';
-        } else if (season === 'halloween') {
-            colors = ['#39FF14', '#7B2CBF', '#FF7900', '#9D4EDD', '#240046'];
-            type = isBullseye ? 'spark' : 'confetti';
-        } else if (season === 'christmas') {
-            colors = ['#D90429', '#2B9348', '#FFD700', '#FFFFFF', '#55A630'];
-            type = isBullseye ? 'confetti' : 'spark';
-        } else {
-            colors = ['#FFD700', '#3498DB', '#2ECC71', '#E74C3C'];
-        }
-
-        const total = count || (isBullseye ? 35 : 18);
-        for (let i = 0; i < total; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const spd = (30 + Math.random() * (isBullseye ? 110 : 65));
-            particles.push({
-                x: x,
-                y: y,
-                vx: Math.cos(angle) * spd,
-                vy: Math.sin(angle) * spd - (isBullseye ? 25 : 10),
-                size: (3.5 + Math.random() * (isBullseye ? 5.5 : 3.5)),
-                color: colors[Math.floor(Math.random() * colors.length)],
-                alpha: 1.0,
-                decay: 0.018 + Math.random() * 0.022,
-                type: type,
-                rotation: Math.random() * Math.PI * 2,
-                rotSpeed: (Math.random() - 0.5) * 8.0
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawAmbientParticles) {
+            DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambientParticles, {
+                dtSec,
+                width,
+                height,
+                currentTheme,
+                isVisible: isBoardVisible
             });
         }
     }
 
+    function spawnSeasonalBurst(x, y, season, count, isBullseye) {
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.spawnSeasonalBurst) {
+            DropGamesCommon.spawnSeasonalBurst(particles, { x, y, season, count, isBullseye });
+        }
+    }
+
     function updateAndDrawParticles(dt) {
-        for (let i = particles.length - 1; i >= 0; i--) {
-            const p = particles[i];
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.vy += 35 * dt; // gravity
-            p.alpha -= p.decay;
-
-            if (p.alpha <= 0) {
-                particles.splice(i, 1);
-                continue;
-            }
-
-            ctx.save();
-            ctx.globalAlpha = Math.max(0, p.alpha);
-            ctx.fillStyle = p.color;
-            ctx.translate(p.x, p.y);
-
-            if (p.type === 'confetti') {
-                p.rotation += (p.rotSpeed || 2) * dt;
-                ctx.rotate(p.rotation);
-                ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-            } else if (p.type === 'petal') {
-                p.rotation += (p.rotSpeed || 2) * dt;
-                ctx.rotate(p.rotation);
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (p.type === 'leaf') {
-                p.rotation += (p.rotSpeed || 2) * dt;
-                ctx.rotate(p.rotation);
-                ctx.beginPath();
-                ctx.moveTo(0, -p.size);
-                ctx.quadraticCurveTo(p.size * 0.8, 0, 0, p.size);
-                ctx.quadraticCurveTo(-p.size * 0.8, 0, 0, -p.size);
-                ctx.fill();
-            } else {
-                ctx.beginPath();
-                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.restore();
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawParticles) {
+            DropGamesCommon.updateAndDrawParticles(ctx, particles, { dt, width, height, gravity: 35 });
         }
     }
 
     let isOtherGameActive = false;
+    const activeOtherGames = new Set();
     let otherDropsActiveUntilMs = 0;
     let currentBannerY = 18;
     let lastCollisionSoundMs = 0;
@@ -514,9 +328,23 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.isOtherGameActive === 'boolean') {
-                isOtherGameActive = msg.isOtherGameActive;
+            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+                const g = msg.otherGame.toLowerCase();
+                if (msg.isOtherGameActive) {
+                    activeOtherGames.add(g);
+                } else {
+                    activeOtherGames.delete(g);
+                }
             }
+            if (Array.isArray(msg.activeGames)) {
+                activeOtherGames.clear();
+                msg.activeGames.forEach(g => {
+                    if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
+                        activeOtherGames.add(g.toLowerCase());
+                    }
+                });
+            }
+            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
             return;
         }
 
@@ -532,10 +360,18 @@
             return;
         }
 
-        if (typeof msg.isOtherGameActive === 'boolean') {
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(g => {
+                if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
+                    activeOtherGames.add(g.toLowerCase());
+                }
+            });
+            isOtherGameActive = activeOtherGames.size > 0;
+        } else if (typeof msg.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.isOtherGameActive;
-        }
-        if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
             isOtherGameActive = msg.session.isOtherGameActive;
         }
 
@@ -945,81 +781,71 @@
                 // Positions in pixel canvas space
                 const posA = getStoneCanvasCoords(a, m);
                 const posB = getStoneCanvasCoords(b, m);
-                const dx = posB.x - posA.x;
-                const dy = posB.y - posA.y;
-                const distSq = dx * dx + dy * dy;
                 const rA = a.radius || m.stoneRadius;
                 const rB = b.radius || m.stoneRadius;
-                const minDist = rA + rB;
 
-                if (distSq < minDist * minDist && distSq > 0.0001) {
-                    const dist = Math.sqrt(distSq);
-                    const overlap = minDist - dist;
+                // Convert (speedU, speedV) to pixel/sec (vx, vy)
+                let vAx, vAy, vBx, vBy;
+                if (m.isHorizontal) {
+                    vAx = a.speedU * m.length;
+                    vAy = a.speedV * m.breadth;
+                    vBx = b.speedU * m.length;
+                    vBy = b.speedV * m.breadth;
+                } else {
+                    vAx = a.speedV * m.breadth;
+                    vAy = a.speedU * m.length;
+                    vBx = b.speedV * m.breadth;
+                    vBy = b.speedU * m.length;
+                }
 
-                    // Collision normal
-                    const nx = dx / dist;
-                    const ny = dy / dist;
+                const velA = { vx: vAx, vy: vAy };
+                const velB = { vx: vBx, vy: vBy };
 
-                    // Separate positions proportionally
-                    if (m.isHorizontal) {
-                        a.u -= (nx * overlap * 0.5) / m.length;
-                        a.v -= (ny * overlap * 0.5) / m.breadth;
-                        b.u += (nx * overlap * 0.5) / m.length;
-                        b.v += (ny * overlap * 0.5) / m.breadth;
-                    } else {
-                        a.v -= (nx * overlap * 0.5) / m.breadth;
-                        a.u -= (ny * overlap * 0.5) / m.length;
-                        b.v += (nx * overlap * 0.5) / m.breadth;
-                        b.u += (ny * overlap * 0.5) / m.length;
+                const result = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.resolveCircleCollision)
+                    ? DropGamesCommon.resolveCircleCollision(posA, posB, velA, velB, rA, rB, { restitution: 0.82 })
+                    : null;
+
+                if (result && result.collided) {
+                    // Update normalized stone coordinates if separated
+                    if (result.overlap > 0 && result.normal) {
+                        const nx = result.normal.nx;
+                        const ny = result.normal.ny;
+                        const sep = result.overlap * 0.5;
+                        if (m.isHorizontal) {
+                            a.u -= (nx * sep) / m.length;
+                            a.v -= (ny * sep) / m.breadth;
+                            b.u += (nx * sep) / m.length;
+                            b.v += (ny * sep) / m.breadth;
+                        } else {
+                            a.v -= (nx * sep) / m.breadth;
+                            a.u -= (ny * sep) / m.length;
+                            b.v += (nx * sep) / m.breadth;
+                            b.u += (ny * sep) / m.length;
+                        }
                     }
 
-                    // Convert (speedU, speedV) to pixel/sec (vx, vy)
-                    let vAx, vAy, vBx, vBy;
-                    if (m.isHorizontal) {
-                        vAx = a.speedU * m.length;
-                        vAy = a.speedV * m.breadth;
-                        vBx = b.speedU * m.length;
-                        vBy = b.speedV * m.breadth;
-                    } else {
-                        vAx = a.speedV * m.breadth;
-                        vAy = a.speedU * m.length;
-                        vBx = b.speedV * m.breadth;
-                        vBy = b.speedU * m.length;
-                    }
-
-                    // Relative velocity along collision normal
-                    const rvx = vBx - vAx;
-                    const rvy = vBy - vAy;
-                    const velAlongNormal = rvx * nx + rvy * ny;
-
-                    // Do not resolve if velocities are separating
-                    if (velAlongNormal < 0) {
-                        const restitution = 0.82;
-                        const impulse = -(1 + restitution) * velAlongNormal / 2.0;
-
-                        vAx -= impulse * nx;
-                        vAy -= impulse * ny;
-                        vBx += impulse * nx;
-                        vBy += impulse * ny;
-
+                    if (!result.separating) {
                         // Convert back to (speedU, speedV)
                         if (m.isHorizontal) {
-                            a.speedU = vAx / m.length;
-                            a.speedV = vAy / m.breadth;
-                            b.speedU = vBx / m.length;
-                            b.speedV = vBy / m.breadth;
+                            a.speedU = velA.vx / m.length;
+                            a.speedV = velA.vy / m.breadth;
+                            b.speedU = velB.vx / m.length;
+                            b.speedV = velB.vy / m.breadth;
                         } else {
-                            a.speedV = vAx / m.breadth;
-                            a.speedU = vAy / m.length;
-                            b.speedV = vBx / m.breadth;
-                            b.speedU = vBy / m.length;
+                            a.speedV = velA.vx / m.breadth;
+                            a.speedU = velA.vy / m.length;
+                            b.speedV = velB.vx / m.breadth;
+                            b.speedU = velB.vy / m.length;
                         }
 
                         // Sound effect (rate limited)
                         const now = performance.now();
                         if (now - lastCollisionSoundMs > 120) {
                             lastCollisionSoundMs = now;
-                            playSound({ enabled: true }, 'hit');
+                            const bundle = (soundBundleManager && typeof soundBundleManager.getBundle === 'function')
+                                ? soundBundleManager.getBundle()
+                                : (sessionState.sounds || null);
+                            playSound(bundle?.hit || { enabled: true }, 'hit');
                         }
                     }
                 }
@@ -1036,6 +862,8 @@
                 headerConfig,
                 sessionState,
                 currentBannerY,
+                currentGame: 'curling',
+                activeOtherGames,
                 isOtherGameActive,
                 otherDropsActiveUntilMs,
                 hasActiveDrops: hasActiveStones,
@@ -1054,8 +882,12 @@
 
         // Fallback banner drawing
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
-        if (headerConfig.autoAvoidOverlap !== false && (isOtherGameActive || now < otherDropsActiveUntilMs)) {
-            targetY += 54;
+        if (headerConfig.autoAvoidOverlap !== false) {
+            let slot = (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateBannerStackSlot)
+                ? DropGamesCommon.calculateBannerStackSlot('curling', activeOtherGames)
+                : (isOtherGameActive ? 1 : 0);
+            if (now < otherDropsActiveUntilMs && slot === 0) slot = 1;
+            targetY += slot * 54;
         }
         currentBannerY += (targetY - currentBannerY) * 0.15;
     }

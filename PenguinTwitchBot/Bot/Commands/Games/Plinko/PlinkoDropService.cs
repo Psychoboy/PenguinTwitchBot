@@ -161,7 +161,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, settings.Plinko.ActiveThemeId);
                 dropRegistry.ClearDropsForGame(DropGameType.Plinko);
                 dropRegistry.SetSessionActive(DropGameType.Plinko, true);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "plinko", StringComparison.OrdinalIgnoreCase));
 
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Plinko);
 
@@ -178,6 +179,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     TotalDrops = 0,
                     Theme = theme,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
@@ -203,14 +205,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     buckets = (settings.Plinko.Buckets.Count > 0 ? settings.Plinko.Buckets : PlinkoGameSettings.CreateDefaultBuckets())
                 };
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig, sounds = soundBundle }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_start", session = dto, board, headerConfig, sounds = soundBundle, isOtherGameActive, activeGames }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_start");
 
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: true, "plinko");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Plinko))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Plinko is active");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Plinko, "plinko", isOtherGameActive: true, activeGames: activeGames);
 
                 if (settings.Plinko.AnnounceSessionStatusInChat)
                 {
@@ -280,10 +278,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 }
 
                 dropRegistry.SetSessionActive(DropGameType.Plinko, false);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Count > 0;
                 var totalDrops = Volatile.Read(ref state.TotalDrops);
                 var settings = await settingsService.GetSettingsAsync();
                 var theme = DropGameMediaResolver.ResolveTheme(settings, state.ThemeIdOverride, settings.Plinko.ActiveThemeId);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
 
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(settings.Plinko);
 
@@ -298,20 +297,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     TotalDrops = totalDrops,
                     Theme = theme,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
                 var soundBundle = DropGameMediaResolver.ResolvePlinkoSoundBundle(settings.Plinko, theme, GetMediaUploadService());
                 dto.Sounds = soundBundle;
 
-                var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle }, _jsonOptions);
+                var wsPayload = JsonSerializer.Serialize(new { type = "session_end", session = dto, headerConfig, sounds = soundBundle, isOtherGameActive, activeGames }, _jsonOptions);
                 await QueueWsMessageAsync(WsTopics.Plinko, wsPayload, "Plinko session_end");
 
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: false, "plinko");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Plinko))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Plinko is inactive");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Plinko, "plinko", isOtherGameActive: false, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -569,11 +565,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
             var json = JsonSerializer.Serialize(payload, _jsonOptions);
             await QueueWsMessageAsync(WsTopics.Plinko, json, "plinko drop");
 
-            var dropNotice = DropGameBroadcastCoordinator.CreateOtherDropActivePayload(durationSeconds: 12.0);
-            foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Plinko))
-            {
-                await QueueWsMessageAsync(topic, dropNotice, $"Plinko drop active notice to {topic}");
-            }
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Plinko, durationSeconds: 12.0);
 
             return dropToken;
         }

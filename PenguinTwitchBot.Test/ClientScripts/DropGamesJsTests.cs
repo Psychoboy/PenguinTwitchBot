@@ -3287,5 +3287,251 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Contains("\"client-timer-token-456\"", sentJson);
             Assert.Contains("\"type\":\"pong\"", sentJson);
         }
+
+        [Fact]
+        public void DropGamesCommon_ResolveCircleCollision_ResolvesHeadOnCollision()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            var script = @"
+                var posA = { x: 100, y: 100 };
+                var posB = { x: 130, y: 100 };
+                var velA = { vx: 10, vy: 0 };
+                var velB = { vx: -10, vy: 0 };
+                var res = DropGamesCommon.resolveCircleCollision(posA, posB, velA, velB, 20, 20, { restitution: 0.8 });
+                ({
+                    collided: res.collided,
+                    separating: res.separating,
+                    impulse: res.impulse,
+                    velAvx: velA.vx,
+                    velBvx: velB.vx,
+                    finalDist: Math.hypot(posB.x - posA.x, posB.y - posA.y)
+                });
+            ";
+
+            var result = engine.Evaluate(script);
+            Assert.True(result.Get("collided").AsBoolean());
+            Assert.False(result.Get("separating").AsBoolean());
+            Assert.True(result.Get("impulse").AsNumber() > 0);
+            Assert.True(result.Get("velAvx").AsNumber() < 0, "Body A should bounce leftward");
+            Assert.True(result.Get("velBvx").AsNumber() > 0, "Body B should bounce rightward");
+            Assert.True(result.Get("finalDist").AsNumber() >= 39.99, "Positions should be separated to avoid overlap");
+        }
+
+        [Fact]
+        public void DropGamesCommon_ResolveCircleCollision_SeparatingObjectsIgnored()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            var script = @"
+                var posA = { x: 100, y: 100 };
+                var posB = { x: 130, y: 100 };
+                var velA = { vx: -10, vy: 0 };
+                var velB = { vx: 10, vy: 0 };
+                var res = DropGamesCommon.resolveCircleCollision(posA, posB, velA, velB, 20, 20);
+                ({
+                    collided: res.collided,
+                    separating: res.separating,
+                    impulse: res.impulse,
+                    velAvx: velA.vx,
+                    velBvx: velB.vx
+                });
+            ";
+
+            var result = engine.Evaluate(script);
+            Assert.True(result.Get("collided").AsBoolean());
+            Assert.True(result.Get("separating").AsBoolean());
+            Assert.Equal(0, result.Get("impulse").AsNumber());
+            Assert.Equal(-10, result.Get("velAvx").AsNumber());
+            Assert.Equal(10, result.Get("velBvx").AsNumber());
+        }
+
+        [Fact]
+        public void CurlingJs_LoadsAndExecutesWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            var errorCount = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void DropGamesCommon_CalculateBannerStackSlot_CalculatesCorrectSlots()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            var script = @"
+                var res = {
+                    alone: DropGamesCommon.calculateBannerStackSlot('curling', []),
+                    fourAllParachute: DropGamesCommon.calculateBannerStackSlot('parachute', ['plinko', 'balloon', 'curling']),
+                    fourAllPlinko: DropGamesCommon.calculateBannerStackSlot('plinko', ['parachute', 'balloon', 'curling']),
+                    fourAllBalloon: DropGamesCommon.calculateBannerStackSlot('balloon', ['parachute', 'plinko', 'curling']),
+                    fourAllCurling: DropGamesCommon.calculateBannerStackSlot('curling', ['parachute', 'plinko', 'balloon']),
+                    noParachutePlinko: DropGamesCommon.calculateBannerStackSlot('plinko', ['balloon', 'curling']),
+                    noParachuteBalloon: DropGamesCommon.calculateBannerStackSlot('balloon', ['plinko', 'curling']),
+                    noParachuteCurling: DropGamesCommon.calculateBannerStackSlot('curling', ['plinko', 'balloon']),
+                    setSupport: DropGamesCommon.calculateBannerStackSlot('curling', new Set(['parachute', 'plinko'])),
+                    selfExcluded: DropGamesCommon.calculateBannerStackSlot('curling', ['curling', 'parachute'])
+                };
+                res;
+            ";
+
+            var result = engine.Evaluate(script);
+            Assert.Equal(0, result.Get("alone").AsNumber());
+            Assert.Equal(0, result.Get("fourAllParachute").AsNumber());
+            Assert.Equal(1, result.Get("fourAllPlinko").AsNumber());
+            Assert.Equal(2, result.Get("fourAllBalloon").AsNumber());
+            Assert.Equal(3, result.Get("fourAllCurling").AsNumber());
+            Assert.Equal(0, result.Get("noParachutePlinko").AsNumber());
+            Assert.Equal(1, result.Get("noParachuteBalloon").AsNumber());
+            Assert.Equal(2, result.Get("noParachuteCurling").AsNumber());
+            Assert.Equal(2, result.Get("setSupport").AsNumber());
+            Assert.Equal(1, result.Get("selfExcluded").AsNumber());
+        }
+
+        [Fact]
+        public void DropGamesCommon_DrawSessionBanner_MultiGameStacking_PositionsAccurately()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            var script = @"
+                var mockCtx = {
+                    save: function() {},
+                    restore: function() {},
+                    beginPath: function() {},
+                    fill: function() {},
+                    stroke: function() {},
+                    rect: function() {},
+                    roundRect: function() {},
+                    fillText: function() {},
+                    measureText: function() { return { width: 50 }; }
+                };
+
+                var banner0 = DropGamesCommon.drawSessionBanner(mockCtx, {
+                    now: 1000,
+                    width: 1920,
+                    currentGame: 'parachute',
+                    activeOtherGames: ['plinko', 'balloon', 'curling'],
+                    sessionState: { isActive: true, totalDrops: 5, remainingSeconds: 60 }
+                });
+
+                var banner1 = DropGamesCommon.drawSessionBanner(mockCtx, {
+                    now: 1000,
+                    width: 1920,
+                    currentGame: 'plinko',
+                    activeOtherGames: ['parachute', 'balloon', 'curling'],
+                    sessionState: { isActive: true, totalDrops: 5, remainingSeconds: 60 }
+                });
+
+                var banner2 = DropGamesCommon.drawSessionBanner(mockCtx, {
+                    now: 1000,
+                    width: 1920,
+                    currentGame: 'balloon',
+                    activeOtherGames: ['parachute', 'plinko', 'curling'],
+                    sessionState: { isActive: true, totalDrops: 5, remainingSeconds: 60 }
+                });
+
+                var banner3 = DropGamesCommon.drawSessionBanner(mockCtx, {
+                    now: 1000,
+                    width: 1920,
+                    currentGame: 'curling',
+                    activeOtherGames: ['parachute', 'plinko', 'balloon'],
+                    sessionState: { isActive: true, totalDrops: 5, remainingSeconds: 60 }
+                });
+
+                ({
+                    banner0Y: banner0.bannerY,
+                    banner1Y: banner1.bannerY,
+                    banner2Y: banner2.bannerY,
+                    banner3Y: banner3.bannerY
+                });
+            ";
+
+            var result = engine.Evaluate(script);
+            Assert.Equal(18, result.Get("banner0Y").AsNumber());
+            Assert.Equal(72, result.Get("banner1Y").AsNumber());
+            Assert.Equal(126, result.Get("banner2Y").AsNumber());
+            Assert.Equal(180, result.Get("banner3Y").AsNumber());
+        }
+
+        [Fact]
+        public void DropGamesCommon_SharedParticleSystems_AmbientAndSeasonalBursts_ExecuteAndClearCorrectly()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            var script = @"
+                var canvas = document.getElementById('plinko-canvas');
+                var ctx = canvas.getContext('2d');
+
+                // 1. getSeasonPreset
+                var presetFromProp = DropGamesCommon.getSeasonPreset({ seasonPreset: 'Halloween' });
+                var presetFromId = DropGamesCommon.getSeasonPreset({ id: 'custom-winter-theme' });
+                var presetDefault = DropGamesCommon.getSeasonPreset(null);
+
+                // 2. syncAmbientParticles & updateAndDrawAmbientParticles
+                var ambient = [];
+                var theme = {
+                    enableBackgroundParticles: true,
+                    particleType: 'petals',
+                    particleDensity: 25
+                };
+                DropGamesCommon.syncAmbientParticles(ambient, { width: 1920, height: 1080, currentTheme: theme, isVisible: true });
+                var countAfterSync = ambient.length;
+
+                DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambient, { dtSec: 0.016, width: 1920, height: 1080, currentTheme: theme, isVisible: true });
+
+                // When board becomes hidden (isVisible: false), ambient particles clear immediately
+                DropGamesCommon.updateAndDrawAmbientParticles(ctx, ambient, { dtSec: 0.016, width: 1920, height: 1080, currentTheme: theme, isVisible: false });
+                var countAfterHide = ambient.length;
+
+                // 3. spawnSeasonalBurst & updateAndDrawParticles (both pixel and normalized)
+                var burstPx = [];
+                DropGamesCommon.spawnSeasonalBurst(burstPx, { x: 500, y: 400, season: 'fall', count: 20, isBullseye: true });
+                var burstPxInitial = burstPx.length;
+                DropGamesCommon.updateAndDrawParticles(ctx, burstPx, { dt: 0.016, width: 1920, height: 1080, gravity: 45 });
+
+                var burstNorm = [];
+                DropGamesCommon.spawnSeasonalBurst(burstNorm, { x: 0.5, y: 0.2, season: 'christmas', count: 15, isBullseye: false, isNormalized: true });
+                var burstNormInitial = burstNorm.length;
+                DropGamesCommon.updateAndDrawParticles(ctx, burstNorm, { dt: 0.016, width: 1920, height: 1080, gravity: 0.45 });
+
+                // Step until particles decay and expire
+                for (var step = 0; step < 120; step++) {
+                    DropGamesCommon.updateAndDrawParticles(ctx, burstPx, { dt: 0.05, width: 1920, height: 1080 });
+                    DropGamesCommon.updateAndDrawParticles(ctx, burstNorm, { dt: 0.05, width: 1920, height: 1080 });
+                }
+
+                ({
+                    presetFromProp: presetFromProp,
+                    presetFromId: presetFromId,
+                    presetDefault: presetDefault,
+                    countAfterSync: countAfterSync,
+                    countAfterHide: countAfterHide,
+                    burstPxInitial: burstPxInitial,
+                    burstNormInitial: burstNormInitial,
+                    burstPxRemaining: burstPx.length,
+                    burstNormRemaining: burstNorm.length
+                });
+            ";
+
+            var result = engine.Evaluate(script);
+            Assert.Equal("halloween", result.Get("presetFromProp").AsString());
+            Assert.Equal("winter", result.Get("presetFromId").AsString());
+            Assert.Equal("spring", result.Get("presetDefault").AsString());
+            Assert.Equal(25, result.Get("countAfterSync").AsNumber());
+            Assert.Equal(0, result.Get("countAfterHide").AsNumber());
+            Assert.Equal(20, result.Get("burstPxInitial").AsNumber());
+            Assert.Equal(15, result.Get("burstNormInitial").AsNumber());
+            Assert.Equal(0, result.Get("burstPxRemaining").AsNumber());
+            Assert.Equal(0, result.Get("burstNormRemaining").AsNumber());
+        }
     }
 }

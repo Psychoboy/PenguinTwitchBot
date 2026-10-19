@@ -148,10 +148,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 var headerConfig = DropGameHeaderConfigDto.FromSettings(bSettings);
 
                 dropRegistry.SetSessionActive(DropGameType.Balloon, true);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "balloon", StringComparison.OrdinalIgnoreCase));
 
                 var dto = GetCurrentSession()!;
                 dto.IsOtherGameActive = isOtherGameActive;
+                dto.ActiveGames = activeGames;
                 dto.HeaderConfig = headerConfig;
                 var wsPayload = JsonSerializer.Serialize(new
                 {
@@ -160,6 +162,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     theme = theme,
                     headerConfig = headerConfig,
                     isOtherGameActive = isOtherGameActive,
+                    activeGames = activeGames,
                     target = new
                     {
                         centerX = targetCenterX,
@@ -171,11 +174,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
                 await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "Balloon session_start");
 
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: true, "balloon");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Balloon))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Balloon is active");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Balloon, "balloon", isOtherGameActive: true, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -238,7 +237,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 if (session == null) return null;
 
                 dropRegistry.SetSessionActive(DropGameType.Balloon, false);
-                var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+                var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+                var isOtherGameActive = activeGames.Count > 0;
 
                 var settings = await settingsService.GetSettingsAsync();
                 var bSettings = settings.Balloon;
@@ -257,6 +257,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     TargetHalfWidth = session.TargetHalfWidth,
                     BullseyeHalfWidth = session.BullseyeHalfWidth,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
 
@@ -265,16 +266,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                     type = "session_end",
                     session = dto,
                     headerConfig = headerConfig,
-                    isOtherGameActive = isOtherGameActive
+                    isOtherGameActive = isOtherGameActive,
+                    activeGames = activeGames
                 }, _jsonOptions);
 
                 await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "Balloon session_end");
 
-                var otherNotice = DropGameBroadcastCoordinator.CreateOtherGameStatusPayload(isOtherGameActive: false, "balloon");
-                foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Balloon))
-                {
-                    await QueueWsMessageAsync(topic, otherNotice, $"Notify {topic} that Balloon is inactive");
-                }
+                await DropGameBroadcastCoordinator.BroadcastOtherGameStatusAsync(webSocketMessenger, logger, WsTopics.Balloon, "balloon", isOtherGameActive: false, activeGames: activeGames);
 
                 if (!string.Equals(triggeredBy, "restart", StringComparison.OrdinalIgnoreCase))
                 {
@@ -488,11 +486,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             await QueueWsMessageAsync(WsTopics.Balloon, json, "balloon drop");
 
             // Also notify other minigame overlays to prevent visual collisions
-            var dropNotice = DropGameBroadcastCoordinator.CreateOtherDropActivePayload(durationSeconds + 6.0);
-            foreach (var topic in DropGameBroadcastCoordinator.GetOtherGameTopics(WsTopics.Balloon))
-            {
-                await QueueWsMessageAsync(topic, dropNotice, $"Balloon drop active notice to {topic}");
-            }
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Balloon, durationSeconds + 6.0);
 
             return dropToken;
         }
