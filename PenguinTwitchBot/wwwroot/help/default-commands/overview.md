@@ -8,6 +8,7 @@ PenguinTwitchBot includes built-in commands powering Twitch moderation, loyalty 
 | :--- | :--- | :--- | :--- |
 | **Points** | `!points`, `!addpoints`, `!removepoints`, `!setpoints`, `!addactivepoints` | Viewer / Streamer | Check, add, deduct, set balances, or award active chatters. |
 | **Games** | `!gamble`, `!slots`, `!heist`, `!ffa`, `!roulette`, `!defuse`, `!modspam` | Viewer | Interactive chat minigames wagering channel points. |
+| **Drop Games** | `!drop`, `!droplets`, `!plinko`, `!balloon`, `!hazards` | Viewer / Mod | Physics-based stream overlay minigames (Parachute, Plinko, Balloon Ascent). |
 | **Loyalty** | `!claim` | Viewer | Once-per-stream attendance bonus claim. |
 | **Giveaways** | `!enter`, `!entries`, `!open`, `!close`, `!draw`, `!resetdraw`, `!setprize` | Viewer / Streamer | Enter raffles, inspect tickets, manage drawings from chat. |
 | **Wheel** | `!showwheel`, `!hidewheel`, `!spinwheel`, `!join`, `!opennamewheel`, `!shownamewheel`, `!closenamewheel`, `!spinnamewheel` | Viewer / Streamer | Display, spin, and manage prize wheels and viewer name wheels. |

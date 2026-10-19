@@ -1251,7 +1251,7 @@
         // Must score > 0 to qualify for the leader crown!
         let leaderDropToken = null;
         let maxLandedScore = 0;
-        if (sessionState.isActive) {
+        if (sessionState.isActive || sessionState.endedAtMs) {
             for (let k = 0; k < activeTokens.length; k++) {
                 const tok = activeTokens[k];
                 if (tok.completed && (tok.score || 0) > maxLandedScore) {
@@ -1546,7 +1546,7 @@
 
                 sendCompletion(t.dropToken, landedBucketIdx);
 
-                if (sessionState.isActive && (t.score || 0) > maxLandedScore) {
+                if ((sessionState.isActive || sessionState.endedAtMs) && (t.score || 0) > maxLandedScore) {
                     maxLandedScore = t.score || 0;
                     leaderDropToken = t.dropToken;
                 }
@@ -1580,51 +1580,78 @@
         }
 
         // Draw and clean up tokens
+        const toDraw = [];
         for (let i = activeTokens.length - 1; i >= 0; i--) {
             const t = activeTokens[i];
-            const isLeader = sessionState.isActive && t.completed && (t.score || 0) > 0 && t.dropToken === leaderDropToken;
+            const isLeader = (sessionState.isActive || sessionState.endedAtMs) && t.completed && (t.score || 0) > 0 && t.dropToken === leaderDropToken;
             let tokenAlpha = 1.0;
             let shouldRemove = false;
 
             if (t.completed) {
-                const landedTime = now - t.completedAtMs;
-                if (sessionState.isActive) {
-                    if (isLeader) {
-                        // Highest score token stays visible until session ends
-                        tokenAlpha = 1.0;
-                        shouldRemove = false;
-                    } else {
-                        // Other players dim slightly into background (0.40 opacity) but do not vanish
-                        const dimDelay = 3500;
-                        const dimDuration = 2000;
-                        if (landedTime > dimDelay) {
-                            const prog = Math.min(1.0, (landedTime - dimDelay) / dimDuration);
-                            tokenAlpha = 1.0 - (0.60 * prog);
-                        } else {
-                            tokenAlpha = 1.0;
-                        }
-                        shouldRemove = false; // Stay visible throughout the active round!
-                    }
-                } else if (sessionState.endedAtMs) {
-                    // Post-round fanfare then fade
-                    const postRoundAge = (now - sessionState.endedAtMs) / 1000;
-                    if (postRoundAge > 6.0) {
-                        shouldRemove = true;
-                    } else if (postRoundAge > 3.5) {
-                        tokenAlpha = Math.max(0.0, 1.0 - ((postRoundAge - 3.5) / 2.5));
-                    }
+                if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.calculateDropAlpha) {
+                    const alphaRes = DropGamesCommon.calculateDropAlpha(t.completedAtMs || now, now, sessionState, isLeader);
+                    tokenAlpha = alphaRes.alpha;
+                    shouldRemove = alphaRes.shouldRemove;
                 } else {
-                    // Non-timed single drop mode: generous display time then fade
-                    const lingerTime = 8000;
-                    const fadeTime = 2500;
-                    if (landedTime > lingerTime) {
-                        tokenAlpha = Math.max(0.0, 1.0 - ((landedTime - lingerTime) / fadeTime));
-                        if (tokenAlpha <= 0.0) {
+                    const landedTime = now - t.completedAtMs;
+                    if (sessionState.isActive) {
+                        if (isLeader) {
+                            tokenAlpha = 1.0;
+                            shouldRemove = false;
+                        } else {
+                            const dimDelay = 3500;
+                            const dimDuration = 2000;
+                            if (landedTime > dimDelay) {
+                                const prog = Math.min(1.0, (landedTime - dimDelay) / dimDuration);
+                                tokenAlpha = 1.0 - (0.60 * prog);
+                            } else {
+                                tokenAlpha = 1.0;
+                            }
+                            shouldRemove = false;
+                        }
+                    } else if (sessionState.endedAtMs) {
+                        const postRoundAge = (now - sessionState.endedAtMs) / 1000;
+                        if (postRoundAge > 6.0) {
                             shouldRemove = true;
+                        } else if (postRoundAge > 3.5) {
+                            tokenAlpha = Math.max(0.0, 1.0 - ((postRoundAge - 3.5) / 2.5));
+                        }
+                    } else {
+                        const lingerTime = 8000;
+                        const fadeTime = 2500;
+                        if (landedTime > lingerTime) {
+                            tokenAlpha = Math.max(0.0, 1.0 - ((landedTime - lingerTime) / fadeTime));
+                            if (tokenAlpha <= 0.0) {
+                                shouldRemove = true;
+                            }
                         }
                     }
                 }
             }
+
+            if (shouldRemove) {
+                activeTokens.splice(i, 1);
+            } else {
+                toDraw.push({ token: t, tokenAlpha: tokenAlpha, isLeader: isLeader, score: t.score || 0, completed: t.completed });
+            }
+        }
+
+        // Draw in z-order: non-leaders first, and current winning leader LAST so it's always on top of others!
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.sortDropsForDraw) {
+            DropGamesCommon.sortDropsForDraw(toDraw);
+        } else {
+            toDraw.sort((a, b) => {
+                if (a.isLeader !== b.isLeader) return a.isLeader ? 1 : -1;
+                if (a.completed !== b.completed) return a.completed ? -1 : 1;
+                return (a.score || 0) - (b.score || 0);
+            });
+        }
+
+        for (let i = 0; i < toDraw.length; i++) {
+            const item = toDraw[i];
+            const t = item.token;
+            const tokenAlpha = item.tokenAlpha;
+            const isLeader = item.isLeader;
 
             // Draw token
             const tx = padX + t.x * boardW;
@@ -1650,60 +1677,21 @@
             }
             ctx.restore();
 
-            // High-visibility viewer name (no cramped pill box; heavy outline & drop shadow)
-            const fontSize = Math.max(12, Math.min(36, t.nameFontSize || headerConfig.nameFontSize || 18));
-            ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
-            const label = isLeader && t.completed
-                ? `${t.displayName} (${t.score} pts)`
-                : (t.completed && t.score > 0 ? `${t.displayName} (${t.score})` : t.displayName);
-
-            const textY = -tokenRadius - fontSize * 0.7 - 2;
-            const strokeWidth = Math.max(4.5, fontSize * 0.26);
-
-            if (isLeader && t.completed) {
-                ctx.save();
-                ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.shadowColor = '#FFD700';
-                ctx.shadowBlur = 10;
-                ctx.fillText('👑', 0, textY - fontSize * 0.9);
-                ctx.restore();
+            if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawOutlinedName) {
+                const tokenTheme = t.theme || currentTheme || {};
+                DropGamesCommon.drawOutlinedName(ctx, {
+                    name: t.displayName,
+                    userColor: t.userColor || tokenTheme.textColor || currentTheme.textColor,
+                    fontSize: t.nameFontSize || headerConfig.nameFontSize,
+                    score: t.score,
+                    completed: t.completed,
+                    isLeader: isLeader,
+                    radius: tokenRadius,
+                    position: 'above'
+                });
             }
 
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.lineJoin = 'round';
-            ctx.miterLimit = 2;
-
-            // Dark drop shadow behind outline
-            ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-            ctx.shadowBlur = Math.max(6, fontSize * 0.4);
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 2;
-
-            // Heavy dark contrast outline
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = strokeWidth + 1.5;
-            ctx.strokeText(label, 0, textY);
             ctx.restore();
-
-            // Razor-sharp crisp black contrast border
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = strokeWidth;
-            ctx.strokeText(label, 0, textY);
-
-            const tokenTheme = t.theme || currentTheme || {};
-            const rawColor = isLeader ? '#FFD700' : (t.userColor || tokenTheme.textColor || currentTheme.textColor || '#FFFFFF');
-            const nameColor = isLeader ? '#FFD700' : brightenColor(rawColor);
-            ctx.fillStyle = nameColor;
-            ctx.fillText(label, 0, textY);
-
-            ctx.restore();
-
-            if (shouldRemove) {
-                activeTokens.splice(i, 1);
-            }
         }
 
         // Update & draw confetti
@@ -1728,22 +1716,34 @@
         }
 
         // Update & draw bucket landing popups
-        for (let i = bucketHighlights.length - 1; i >= 0; i--) {
-            const h = bucketHighlights[i];
-            const age = (now - h.createdAt) / 1000;
-            if (age > 2.2) {
-                bucketHighlights.splice(i, 1);
-                continue;
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawPopups) {
+            DropGamesCommon.updateAndDrawPopups(ctx, bucketHighlights, {
+                now,
+                width,
+                height,
+                maxAge: 2.2,
+                fadeStart: 1.2,
+                yDriftPixels: 28,
+                font: '700 22px Fredoka, Rubik, sans-serif'
+            });
+        } else {
+            for (let i = bucketHighlights.length - 1; i >= 0; i--) {
+                const h = bucketHighlights[i];
+                const age = (now - h.createdAt) / 1000;
+                if (age > 2.2) {
+                    bucketHighlights.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1.0 - Math.max(0, age - 1.2));
+                ctx.font = '700 22px Fredoka, Rubik, sans-serif';
+                ctx.fillStyle = h.color;
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = 8;
+                ctx.fillText(h.text, h.x, h.y - age * 28);
+                ctx.restore();
             }
-            ctx.save();
-            ctx.globalAlpha = Math.max(0, 1.0 - Math.max(0, age - 1.2));
-            ctx.font = '700 22px Fredoka, Rubik, sans-serif';
-            ctx.fillStyle = h.color;
-            ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(0,0,0,0.85)';
-            ctx.shadowBlur = 8;
-            ctx.fillText(h.text, h.x, h.y - age * 28);
-            ctx.restore();
         }
 
             drawSessionBanner(now);
@@ -1755,6 +1755,9 @@
     }
 
     function getBannerX(bannerW) {
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.getBannerX) {
+            return DropGamesCommon.getBannerX(width, bannerW, headerConfig.position);
+        }
         const pos = (headerConfig.position || 'top-center').toLowerCase().replace(/[-_]/g, '');
         if (pos === 'topleft') return 24;
         if (pos === 'topright') return width - bannerW - 24;
@@ -1762,6 +1765,29 @@
     }
 
     function drawSessionBanner(now) {
+        const hasActiveToken = activeTokens.some(t => !t.completed || (now - t.completedAtMs) < 6000);
+        if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.drawSessionBanner) {
+            const res = DropGamesCommon.drawSessionBanner(ctx, {
+                now,
+                width,
+                headerConfig,
+                sessionState,
+                currentBannerY,
+                isOtherGameActive,
+                otherDropsActiveUntilMs,
+                hasActiveDrops: hasActiveToken,
+                itemPluralName: 'Tokens',
+                closedBannerText: `Round Closed! Total Tokens Dropped: ${sessionState.totalDrops}`,
+                primaryColor: currentTheme.primaryColor || '#FF8FA3',
+                accentColor: currentTheme.accentColor || '#FFE066'
+            });
+            currentBannerY = res.currentBannerY;
+            if (!sessionState.isActive && !hasActiveToken && activeTokens.length === 0) {
+                sessionState.totalDrops = 0;
+            }
+            return;
+        }
+
         // Auto-Avoid Overlap: When other game (Parachute) is active and autoAvoidOverlap is true,
         // stack Plinko underneath (Row 2, +54px)
         let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
@@ -1777,7 +1803,6 @@
                 if (ageSec <= 6.0) {
                     if (headerConfig.showBanner === false) return;
 
-                    // Flash completed round banner
                     const bannerW = Math.min(width * 0.72, 480);
                     const bannerH = 46;
                     const bannerX = getBannerX(bannerW);
@@ -1805,15 +1830,12 @@
                     ctx.restore();
                     return;
                 } else {
-                    // Round fanfare has ended: clear tokens and reset state so everything disappears cleanly
                     sessionState.endedAtMs = 0;
                     sessionState.totalDrops = 0;
                     return;
                 }
             }
 
-            // Free Play mode: only show while tokens are actively on screen!
-            const hasActiveToken = activeTokens.some(t => !t.completed || (now - t.completedAtMs) < 6000);
             if (hasActiveToken && sessionState.totalDrops > 0 && headerConfig.showFreePlayCounter !== false) {
                 ctx.save();
                 const pillW = 210;
@@ -1847,7 +1869,6 @@
         const showTimer = headerConfig.showTimer !== false;
         const showCount = headerConfig.showCount !== false;
 
-        // Dynamic banner width based on visible items
         let bannerW;
         if (showTimer && showCount) {
             bannerW = Math.min(width * 0.72, 480);
@@ -1872,7 +1893,6 @@
         const secs = remainingSec % 60;
         const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
-        // Semi-transparent pill backdrop
         ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
         ctx.strokeStyle = currentTheme.primaryColor || '#FF8FA3';
         ctx.lineWidth = 2;
@@ -1881,14 +1901,12 @@
         ctx.fill();
         ctx.stroke();
 
-        // Progress bar at bottom of pill
         const barW = (bannerW - 32) * progress;
         ctx.fillStyle = currentTheme.accentColor || '#FFE066';
         ctx.beginPath();
         ctx.roundRect(bannerX + 16, bannerY + bannerH - 8, barW, 4, 2);
         ctx.fill();
 
-        // Banner text
         let bannerText = '';
         if (showTimer && showCount) {
             bannerText = `Round Ends: ${timeStr}  |  Tokens: ${sessionState.totalDrops}`;

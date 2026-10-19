@@ -65,5 +65,15 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string PlinkoLose = "Plinko.Lose";
         public const string PlinkoEnd = "Plinko.End";
         public const string PlinkoEnded = "Plinko.End";
+
+        // Balloon Ascent events
+        public const string BalloonStart = "Balloon.Start";
+        public const string BalloonStarted = "Balloon.Start";
+        public const string BalloonWin = "Balloon.Win";
+        public const string BalloonBullseye = "Balloon.Bullseye";
+        public const string BalloonLose = "Balloon.Lose";
+        public const string BalloonEnd = "Balloon.End";
+        public const string BalloonEnded = "Balloon.End";
+        public const string BalloonPopped = "Balloon.Popped";
     }
 }

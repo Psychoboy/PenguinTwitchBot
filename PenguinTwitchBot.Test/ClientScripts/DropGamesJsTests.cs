@@ -106,6 +106,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                     rotate: function() {},
                                     scale: function() {},
                                     translate: function() {},
+                                    resetTransform: function() {},
                                     clip: function() {},
                                     createLinearGradient: function() { return { addColorStop: function() {} }; },
                                     createRadialGradient: function() { return { addColorStop: function() {} }; }
@@ -250,6 +251,66 @@ namespace PenguinTwitchBot.Test.ClientScripts
             // Verify console.error had 0 errors
             var errorCount = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void BalloonJs_LoadsAndExecutesWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var balloonJsPath = Path.Combine(jsDir, "balloon.js");
+            Assert.True(File.Exists(balloonJsPath), $"balloon.js not found at {balloonJsPath}");
+
+            var code = File.ReadAllText(balloonJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            var errorCount = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void DropGamesCommon_SharedCanvasHudAndHelpers_ValidateExecutionAndParity()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+
+            // 1. getBannerX positioning
+            var xCenter = engine.Evaluate("DropGamesCommon.getBannerX(1920, 480, 'top-center')").AsNumber();
+            Assert.Equal(720, xCenter); // (1920 - 480) / 2 = 720
+            var xLeft = engine.Evaluate("DropGamesCommon.getBannerX(1920, 480, 'top-left')").AsNumber();
+            Assert.Equal(24, xLeft);
+            var xRight = engine.Evaluate("DropGamesCommon.getBannerX(1920, 480, 'top-right')").AsNumber();
+            Assert.Equal(1920 - 480 - 24, xRight);
+
+            // 2. calculateDropAlpha
+            // Active session leader = 1.0
+            var leaderAlpha = engine.Evaluate("DropGamesCommon.calculateDropAlpha(1000, 10000, { isActive: true }, true).alpha").AsNumber();
+            Assert.Equal(1.0, leaderAlpha);
+
+            // Active session non-leader after 3.5s + 2.0s dims to 0.40
+            var dimmedAlpha = engine.Evaluate("DropGamesCommon.calculateDropAlpha(1000, 7000, { isActive: true }, false).alpha").AsNumber();
+            Assert.Equal(0.40, Math.Round(dimmedAlpha, 2));
+
+            // Post-round celebration after 6.0s -> shouldRemove = true
+            var postRoundRemove = engine.Evaluate("DropGamesCommon.calculateDropAlpha(1000, 10000, { isActive: false, endedAtMs: 2000 }, false).shouldRemove").AsBoolean();
+            Assert.True(postRoundRemove);
+
+            // 3. sortDropsForDraw
+            var sortedTokens = engine.Evaluate(@"
+                var items = [
+                    { score: 50, completed: true, isLeader: false },
+                    { score: 100, completed: true, isLeader: true },
+                    { score: 10, completed: false, isLeader: false }
+                ];
+                DropGamesCommon.sortDropsForDraw(items);
+                JSON.stringify(items);
+            ").AsString();
+
+            Assert.Contains(@"""isLeader"":true", sortedTokens);
+            // Leader must be at the end of the array (drawn on top)
+            var lastIsLeader = engine.Evaluate("items[items.length - 1].isLeader").AsBoolean();
+            Assert.True(lastIsLeader, "Winning leader must be sorted last so it is rendered on top of other drops");
         }
 
         [Theory]

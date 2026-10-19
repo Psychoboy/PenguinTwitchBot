@@ -416,14 +416,50 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             ]
         ),
         ["drop-games"] = (
-            "Parachute Drop & Plinko Bounce Guide",
+            "Drop Minigames Guide",
             Icons.Material.Filled.SportsEsports,
             [
                 ("Overview & Overlays", Icons.Material.Filled.Tv, "drop-games/overview.md"),
                 ("Parachute Drop", Icons.Material.Filled.Paragliding, "drop-games/parachute.md"),
                 ("Plinko Bounce", Icons.Material.Filled.Casino, "drop-games/plinko.md"),
+                ("Balloon Ascent", Icons.Material.Filled.Air, "drop-games/balloon.md"),
                 ("Themes & Emotes", Icons.Material.Filled.Palette, "drop-games/themes.md"),
                 ("Triggers & Sub-Actions", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
+        ["parachute-game"] = (
+            "Parachute Drop Guide",
+            Icons.Material.Filled.Paragliding,
+            [
+                ("Parachute Drop", Icons.Material.Filled.Paragliding, "drop-games/parachute.md"),
+                ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
+        ["plinko-game"] = (
+            "Plinko Bounce Guide",
+            Icons.Material.Filled.Casino,
+            [
+                ("Plinko Bounce", Icons.Material.Filled.Casino, "drop-games/plinko.md"),
+                ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
+        ["balloon-game"] = (
+            "Balloon Ascent Guide",
+            Icons.Material.Filled.Air,
+            [
+                ("Balloon Ascent", Icons.Material.Filled.Air, "drop-games/balloon.md"),
+                ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
+        ["game-themes"] = (
+            "Minigame Themes Guide",
+            Icons.Material.Filled.Palette,
+            [
+                ("Themes & Customization", Icons.Material.Filled.Palette, "drop-games/themes.md"),
+                ("Overlays & Media", Icons.Material.Filled.Tv, "drop-games/overview.md")
             ]
         )
     };

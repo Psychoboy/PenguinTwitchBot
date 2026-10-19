@@ -52,7 +52,7 @@
                 </MudStack>
             </MudPaper>
 
-            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer", "dropgames")">
+            <MudNavGroup Icon="@Icons.Material.Filled.LiveTv" Title="Stream Tools" Expanded="@GetGroupExpanded("streamTools", "raidhistory", "musicplayer", "playlists", "bannedsongs", "songcooldowns", "overlay/editor", "overlay/timer")">
                 <MudNavLink Icon="@Icons.Material.Filled.Groups" Href="/raidhistory" Match="NavLinkMatch.Prefix">Raid History</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.PlayCircle" Href="/musicplayer" Match="NavLinkMatch.Prefix" Target="_blank">Music Player</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.QueueMusic" Href="/playlists" Match="NavLinkMatch.Prefix">Playlists</MudNavLink>
@@ -60,11 +60,16 @@
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/songcooldowns" Match="NavLinkMatch.Prefix">Song Cooldowns</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Layers" Href="/overlay/editor" Match="NavLinkMatch.Prefix">Overlay Editor</MudNavLink>
                 <MudNavLink Icon="@Icons.Material.Filled.Timer" Href="/overlay/timer" Match="NavLinkMatch.Prefix">Stream Timer</MudNavLink>
-                @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
-                {
-                    <MudNavLink Icon="@Icons.Material.Filled.Paragliding" Href="/dropgames" Match="NavLinkMatch.Prefix">Parachute & Plinko</MudNavLink>
-                }
             </MudNavGroup>
+            @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
+            {
+                <MudNavGroup Icon="@Icons.Material.Filled.SportsEsports" Title="Minigames" Expanded="@GetGroupExpanded("minigames", "games/balloon", "games/parachute", "games/plinko", "games/themes")">
+                    <MudNavLink Icon="@Icons.Material.Filled.Air" Href="/games/balloon" Match="NavLinkMatch.Prefix">Balloon Ascent</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Paragliding" Href="/games/parachute" Match="NavLinkMatch.Prefix">Parachute Drop</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Grain" Href="/games/plinko" Match="NavLinkMatch.Prefix">Plinko Bounce</MudNavLink>
+                    <MudNavLink Icon="@Icons.Material.Filled.Palette" Href="/games/themes" Match="NavLinkMatch.Prefix">Themes & Assets</MudNavLink>
+                </MudNavGroup>
+            }
             <MudNavGroup Icon="@Icons.Material.Filled.Code" Title="Commands" Expanded="@GetGroupExpanded("commands", "commands/default", "commands/aliases", "commands/cooldowns", "commands/external", "actions/commands", "actions/keywords", "actions/audiocommands")">
                 <MudNavLink Icon="@Icons.Material.Filled.Code" Href="/commands/default" Match="NavLinkMatch.Prefix">Default Commands</MudNavLink>
                 @if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.Alias))
@@ -333,7 +338,10 @@
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.DropGames))
         {
-            links.Add(CreateQuickLink("Parachute & Plinko Games", "/dropgames", Icons.Material.Filled.Paragliding, "Stream Tools", "parachute drop droplets plinko minigames"));
+            links.Add(CreateQuickLink("Balloon Ascent", "/games/balloon", Icons.Material.Filled.Air, "Minigames", "balloon ascent minigames"));
+            links.Add(CreateQuickLink("Parachute Drop", "/games/parachute", Icons.Material.Filled.Paragliding, "Minigames", "parachute drop droplets minigames"));
+            links.Add(CreateQuickLink("Plinko Bounce", "/games/plinko", Icons.Material.Filled.Grain, "Minigames", "plinko bounce minigames"));
+            links.Add(CreateQuickLink("Minigame Themes", "/games/themes", Icons.Material.Filled.Palette, "Minigames", "themes skins assets minigames"));
         }
 
         if (FeatureRuntimeCoordinator.IsEnabled(FeatureKeys.AutoTimer))

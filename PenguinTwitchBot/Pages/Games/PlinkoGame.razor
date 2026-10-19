@@ -1,0 +1,569 @@
+@page "/games/plinko"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Commands.Games.Plinko
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IPlinkoDropService PlinkoDropService
+@inject IActionManagementService ActionManagementService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<PlinkoGame> Logger
+
+<PageTitle>Plinko Bounce</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Plinko Bounce</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Peg board drop game with dynamic physics, customizable prize buckets, sound effects, and win actions.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/plinko.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Plinko Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+                <HelpButton Topic="plinko-game" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: BOARD & PRIZE BUCKETS ================= -->
+                <MudTabPanel Text="Board & Buckets">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Plinko Board & Win Settings</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Plinko.ActiveThemeId">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Rows (4 - 14)" Variant="Variant.Outlined"
+                                                             Min="4" Max="14"
+                                                             HelperText="Number of peg rows (default 4)."
+                                                             @bind-Value="_settings.Plinko.RowCount" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Radius (4 - 30px)" Variant="Variant.Outlined"
+                                                             Min="4" Max="30" Step="1"
+                                                             HelperText="Collision & visual size (default 12px)."
+                                                             @bind-Value="_settings.Plinko.PegRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Transparency Level (0 - 100%)" Variant="Variant.Outlined"
+                                                             Min="0" Max="100" Step="5"
+                                                             HelperText="100% = total visible, 0% = invisible (default 15%)."
+                                                             @bind-Value="_settings.Plinko.PegTransparency" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Puck Radius (10 - 50px)" Variant="Variant.Outlined"
+                                                             Min="10" Max="50" Step="1"
+                                                             HelperText="Player token avatar size (default 36px)."
+                                                             @bind-Value="_settings.Plinko.PuckRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Bucket Divider Height (60 - 220px)" Variant="Variant.Outlined"
+                                                             Min="60" Max="220" Step="5"
+                                                             HelperText="Height of bottom slot dividers (default 120px)."
+                                                             @bind-Value="_settings.Plinko.BucketHeight" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Gravity (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Plinko.Gravity"
+                                                             HelperText="1.0 = Standard fall speed (higher = faster)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Bounciness (0.1 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.05"
+                                                             @bind-Value="_settings.Plinko.Bounciness"
+                                                             HelperText="Peg bounce height & token collision elasticity" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Mass (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Plinko.Mass"
+                                                             HelperText="Token weight during mid-air collisions" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudSelect T="string" Label="Direct Win Action (Optional)" Variant="Variant.Outlined"
+                                               Clearable="true"
+                                               @bind-Value="_settings.Plinko.WinActionName"
+                                               HelperText="Action executed when a token lands in a winning bucket. Variables: %User%, %Score%, %BucketLabel%, %BucketIndex%, %Theme%.">
+                                        <MudSelectItem Value="@("")">None (Use Default Command Triggers Only)</MudSelectItem>
+                                        @foreach (var actName in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSwitch T="bool" Color="Color.Success"
+                                               @bind-Value="_settings.Plinko.AnnounceWinsInChat"
+                                               Label="Send Chat Message on Winning Bucket" />
+
+                                    @if (_settings.Plinko.AnnounceWinsInChat)
+                                    {
+                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
+                                                      @bind-Value="_settings.Plinko.WinChatMessageTemplate"
+                                                      HelperText="Placeholders: {user}, {score}, {bucket}" />
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                                    <MudText Typo="Typo.h6">Prize Buckets (@_settings.Plinko.Buckets.Count)</MudText>
+                                    <MudStack Row="true" Spacing="2">
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="ResetPlinkoBuckets">
+                                            Reset Default Buckets
+                                        </MudButton>
+                                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Add" OnClick="AddPlinkoBucket">
+                                            Add Bucket
+                                        </MudButton>
+                                    </MudStack>
+                                </MudStack>
+
+                                @{
+                                    var totalWeight = Math.Max(1, _settings.Plinko.Buckets.Sum(b => Math.Max(1, b.Weight)));
+                                }
+                                <MudStack Spacing="2">
+                                    @for (var i = 0; i < _settings.Plinko.Buckets.Count; i++)
+                                    {
+                                        var idx = i;
+                                        var bucket = _settings.Plinko.Buckets[idx];
+                                        var pct = (Math.Max(1, bucket.Weight) * 100.0 / totalWeight).ToString("F1");
+                                        <MudPaper @key="bucket" Class="pa-3" Outlined="true">
+                                            <MudGrid Spacing="2">
+                                                <MudItem xs="12" sm="3">
+                                                    <MudTextField T="string" Label="Bucket Label" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                                  @bind-Value="bucket.Label" />
+                                                </MudItem>
+                                                <MudItem xs="6" sm="2">
+                                                    <MudNumericField T="int" Label="Score" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                                     @bind-Value="bucket.Score" />
+                                                </MudItem>
+                                                <MudItem xs="6" sm="2">
+                                                    <MudNumericField T="int" Label="@($"Weight ({pct}%)")" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                                     Min="1" Max="1000"
+                                                                     @bind-Value="bucket.Weight" />
+                                                </MudItem>
+                                                <MudItem xs="6" sm="2">
+                                                    <MudTextField T="string" Label="Color" Margin="Margin.Dense" Variant="Variant.Outlined"
+                                                                  @bind-Value="bucket.Color" />
+                                                </MudItem>
+                                                <MudItem xs="4" sm="2">
+                                                    <MudSwitch T="bool" Color="Color.Success"
+                                                               Value="bucket.IsWin"
+                                                               ValueChanged="@((bool val) => OnBucketWinToggled(bucket, val))"
+                                                               Label="Win" />
+                                                </MudItem>
+                                                <MudItem xs="2" sm="1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                                   Disabled="@(_settings.Plinko.Buckets.Count <= 2)"
+                                                                   OnClick="@(() => _settings.Plinko.Buckets.RemoveAt(idx))" />
+                                                </MudItem>
+                                            </MudGrid>
+                                        </MudPaper>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderPlinkoLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: TIMED SESSION & OVERLAY DISPLAY ================= -->
+                <MudTabPanel Text="Session & Display">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Run timed Plinko rounds (e.g., 100 seconds). Controls when viewers can participate and how rounds start/stop.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Plinko.SessionModeEnabled"
+                                               Label="Enable Timed Session Mode (When disabled, drops run anytime in free-play mode)" />
+
+                                    @if (_settings.Plinko.SessionModeEnabled)
+                                    {
+                                        <div>
+                                            <MudSwitch T="bool" Color="Color.Secondary"
+                                                       @bind-Value="_settings.Plinko.AutoStartOnCommand"
+                                                       Label="Auto-start Round on Command (Starts round automatically when someone types !plinko)" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block ml-3">
+                                                When off, rounds can only be started/stopped via SubActions, mod commands (!plinko start [seconds]), or the button below.
+                                            </MudText>
+                                        </div>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Default Round Duration (Seconds)" Variant="Variant.Outlined"
+                                                                 Min="10" Max="600" Step="5"
+                                                                 @bind-Value="_settings.Plinko.DefaultSessionDurationSeconds"
+                                                                 HelperText="e.g. 100 seconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Max Drops Per User Per Round" Variant="Variant.Outlined"
+                                                                 Min="0" Max="50"
+                                                                 @bind-Value="_settings.Plinko.MaxDropsPerUserPerSession"
+                                                                 HelperText="0 = Unlimited drops during the round" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSwitch T="bool" Color="Color.Info"
+                                                   @bind-Value="_settings.Plinko.AnnounceSessionStatusInChat"
+                                                   Label="Announce Round Start & End in Chat" />
+
+                                        @if (_settings.Plinko.AnnounceSessionStatusInChat)
+                                        {
+                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Plinko.SessionStartChatMessageTemplate"
+                                                          HelperText="Placeholders: {duration}" />
+                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Plinko.SessionEndChatMessageTemplate"
+                                                          HelperText="Placeholders: {count}, {duration}" />
+                                        }
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Configure the appearance, position, and visibility of the round timer, token counters, and free-play pills.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Plinko.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner (Master display toggle for round banner)" />
+
+                                    <MudSwitch T="bool" Color="Color.Secondary"
+                                               @bind-Value="_settings.Plinko.AutoAvoidOverlap"
+                                               Label="Auto-Avoid Overlap with Parachute (Automatically stacks headers vertically when both games run simultaneously)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Plinko.HeaderPosition">
+                                                <MudSelectItem Value="@("TopCenter")">Top Center (Default)</MudSelectItem>
+                                                <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Vertical Y Offset (Pixels)" Variant="Variant.Outlined"
+                                                             Min="0" Max="500" Step="2"
+                                                             @bind-Value="_settings.Plinko.HeaderCustomYOffset"
+                                                             HelperText="Default: 18 px" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Name Font Size (Pixels)" Variant="Variant.Outlined"
+                                                             Min="12" Max="36" Step="1"
+                                                             @bind-Value="_settings.Plinko.NameFontSize"
+                                                             HelperText="Default: 18 px (12 - 36 px)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary">Component Visibility</MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowTimer"
+                                               Label="Show Round Countdown Timer (Round Ends: mm:ss)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowTokenCount"
+                                               Label="Show Tokens Counter (Tokens: N)" />
+
+                                    <MudSwitch T="bool" Color="Color.Info"
+                                               @bind-Value="_settings.Plinko.ShowFreePlayCounter"
+                                               Label="Show Free-Play Counter Pill (during non-session drops)" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderPlinkoLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: AUDIO & SOUND EFFECTS ================= -->
+                <MudTabPanel Text="Audio & Sound Effects">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Plinko Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, drops, peg collisions, and winning buckets.</MudText>
+                                    </div>
+                                </MudStack>
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Plinko.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Plinko.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Plinko round begins"
+                                                         SoundConfig="_settings.Plinko.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Plinko round finishes"
+                                                         SoundConfig="_settings.Plinko.EndSound" />
+
+                                    <DropGameSoundEditor Title="Token Drop Sound"
+                                                         HelperText="Plays when a viewer drops a Plinko token into the board"
+                                                         SoundConfig="_settings.Plinko.DropSound" />
+
+                                    <DropGameSoundEditor Title="Winning Bucket Sound"
+                                                         HelperText="Plays when a token lands into any winning bucket"
+                                                         SoundConfig="_settings.Plinko.WinSound" />
+
+                                    <DropGameSoundEditor Title="Peg Collision Bounce Sound"
+                                                         HelperText="Plays when a Plinko token bounces off a board peg"
+                                                         SoundConfig="_settings.Plinko.PegCollisionSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderPlinkoLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private List<string> _actionNames = [];
+    private string _testUsername = "PenguinViewer";
+    private string _testEmoteInput = "";
+    private string _overlayKey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
+        _settings = await SettingsService.GetSettingsAsync();
+
+        var actions = await ActionManagementService.GetAllActionsAsync();
+        _actionNames = actions
+            .Select(a => a.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private RenderFragment RenderPlinkoLiveTester() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">Test Plinko Bounce Live</MudText>
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
+                              @bind-Value="_testUsername" />
+                <MudTextField T="string" Label="Test Emote Code or Image URL (Optional)" Variant="Variant.Outlined"
+                              @bind-Value="_testEmoteInput" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Apps"
+                           OnClick="TestPlinkoDropAsync">
+                    Launch Test Plinko Token (Weighted Random)
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.EmojiEvents"
+                           OnClick="TestPlinkoJackpotAsync">
+                    Launch Guaranteed Winning Bucket Token
+                </MudButton>
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartPlinkoSessionLiveAsync">
+                        Start Round (@(_settings?.Plinko.DefaultSessionDurationSeconds ?? 100)s)
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopPlinkoSessionLiveAsync">
+                        Stop Round
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    };
+
+    private void AddPlinkoBucket()
+    {
+        _settings?.Plinko.Buckets.Add(new PlinkoBucket
+        {
+            Label = "100 PTS",
+            Score = 100,
+            IsWin = true,
+            Color = "#3B82F6",
+            Weight = 15
+        });
+    }
+
+    private void OnBucketWinToggled(PlinkoBucket bucket, bool isWin)
+    {
+        bucket.IsWin = isWin;
+    }
+
+    private void ResetPlinkoBuckets()
+    {
+        if (_settings == null) return;
+        _settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
+    }
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Plinko Bounce settings saved!", Severity.Success);
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Plinko Settings to Defaults",
+            "Are you sure you want to reset all Plinko settings to defaults? Your custom bucket configurations will be reset.",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Plinko = new PlinkoGameSettings();
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Plinko settings have been reset to default values!", Severity.Warning);
+        }
+    }
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_testUsername) ? "penguinviewer" : _testUsername.Trim().ToLowerInvariant(),
+        DisplayName = string.IsNullOrWhiteSpace(_testUsername) ? "PenguinViewer" : _testUsername.Trim(),
+        Arg = _testEmoteInput?.Trim() ?? "",
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task TestPlinkoDropAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched test Plinko token! Watch your /plinko.html overlay.", Severity.Info);
+    }
+
+    private async Task TestPlinkoJackpotAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        var bestWinIdx = _settings.Plinko.Buckets
+            .Select((b, idx) => (b, idx))
+            .Where(x => x.b.IsWin)
+            .OrderByDescending(x => x.b.Score)
+            .Select(x => (int?)x.idx)
+            .FirstOrDefault();
+
+        if (!bestWinIdx.HasValue)
+        {
+            Snackbar.Add("No winning buckets are currently configured in Plinko settings.", Severity.Warning);
+            return;
+        }
+
+        await PlinkoDropService.TriggerPlinkoDropAsync(BuildTestEventArgs(), _testEmoteInput, forcedBucketIndex: bestWinIdx.Value, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched guaranteed Winning Bucket Plinko token!", Severity.Success);
+    }
+
+    private async Task StartPlinkoSessionLiveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var duration = _settings?.Plinko.DefaultSessionDurationSeconds ?? 100;
+        var result = await PlinkoDropService.StartSessionAsync(duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Plinko Bounce session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Plinko Bounce session for {duration} seconds!", Severity.Success);
+        }
+    }
+
+    private async Task StopPlinkoSessionLiveAsync()
+    {
+        var result = await PlinkoDropService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Plinko Bounce session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Plinko Bounce session to stop.", Severity.Info);
+        }
+    }
+}
+

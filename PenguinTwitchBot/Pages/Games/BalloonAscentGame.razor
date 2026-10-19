@@ -1,0 +1,694 @@
+@page "/games/balloon"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Balloon
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IBalloonAscentService BalloonAscentService
+@inject IActionManagementService ActionManagementService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<BalloonAscentGame> Logger
+
+<PageTitle>Balloon Ascent</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Balloon Ascent</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Vertical ascent minigame with rising balloons, dynamic mid-air hazards (nudges, heavy pushes, wind gusts, darts), cloud landing platform, and secure client scoring.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/balloon.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Balloon Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+                <HelpButton Topic="balloon-game" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: CLOUD PLATFORM & ASCENT PHYSICS ================= -->
+                <MudTabPanel Text="Cloud Platform & Physics">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Cloud Platform & Flight Settings</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Balloon.ActiveThemeId"
+                                               HelperText="Select a stock seasonal theme (Spring, Summer, Fall, Winter, etc.) or custom theme.">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="3">
+                                            <MudNumericField T="double" Label="Cloud Width (%)" Variant="Variant.Outlined"
+                                                             Min="5" Max="60" Step="1"
+                                                             @bind-Value="_settings.Balloon.TargetWidthPercent"
+                                                             HelperText="Width of the top landing cloud platform (% of screen width)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudNumericField T="double" Label="Cloud Center X (0.15 - 0.85)" Variant="Variant.Outlined"
+                                                             Min="0.15" Max="0.85" Step="0.05"
+                                                             @bind-Value="_settings.Balloon.TargetCenterX"
+                                                             HelperText="0.50 = Dead Center horizontally" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudNumericField T="double" Label="Cloud Speed (0.0 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="5.0" Step="0.1"
+                                                             @bind-Value="_settings.Balloon.TargetSpeed"
+                                                             HelperText="Oscillation speed (0.0 = Stationary, 0.5 = Default gradual drift, 1.0+ = Faster)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="3">
+                                            <MudNumericField T="double" Label="Cloud Opacity / Alpha (0.1 - 1.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Balloon.TargetAlpha"
+                                                             HelperText="Transparency of the cloud platform (1.0 = Fully opaque, 0.7 = Semi-transparent)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Buoyancy / Rise Speed (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Balloon.Buoyancy"
+                                                             HelperText="1.0 = Standard rise speed (higher = faster vertical ascent)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Natural Sway Amount (0.0 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="5.0" Step="0.1"
+                                                             @bind-Value="_settings.Balloon.SwayAmount"
+                                                             HelperText="Natural pendulum wobble / drift during rise" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Bounciness (0.1 - 5.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="5.0" Step="0.05"
+                                                             @bind-Value="_settings.Balloon.Bounciness"
+                                                             HelperText="Elasticity when colliding with side walls or other balloons" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Mass (0.1 - 10.0)" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="10.0" Step="0.1"
+                                                             @bind-Value="_settings.Balloon.Mass"
+                                                             HelperText="Higher mass resists downward hazard knockbacks" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Win Actions & Chat Announcements</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Direct Win Action (Optional)" Variant="Variant.Outlined"
+                                               Clearable="true"
+                                               @bind-Value="_settings.Balloon.WinActionName"
+                                               HelperText="Action executed when a viewer touches the cloud landing platform. Variables: %User%, %Score%, %IsBullseye%, %BalloonPopped%, %Theme%.">
+                                        <MudSelectItem Value="@("")">None (Use Default Command Triggers Only)</MudSelectItem>
+                                        @foreach (var actName in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSelect T="string" Label="Direct Golden Bullseye Action (Optional)" Variant="Variant.Outlined"
+                                               Clearable="true"
+                                               @bind-Value="_settings.Balloon.BullseyeActionName"
+                                               HelperText="Action executed specifically on center bullseye touch.">
+                                        <MudSelectItem Value="@("")">None</MudSelectItem>
+                                        @foreach (var actName in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudAlert Severity="Severity.Info" Dense="true">
+                                        You can also attach triggers in <b>Manage Actions &rarr; Add Trigger &rarr; Default Command &rarr; balloon</b> for <b>Win (Target Hit)</b>, <b>Bullseye Hit</b>, <b>Balloon Popped</b>, or <b>Missed Target (Lose)</b>!
+                                    </MudAlert>
+
+                                    <MudSwitch T="bool" Color="Color.Success"
+                                               @bind-Value="_settings.Balloon.AnnounceWinsInChat"
+                                               Label="Send Chat Message on Win" />
+
+                                    @if (_settings.Balloon.AnnounceWinsInChat)
+                                    {
+                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
+                                                      @bind-Value="_settings.Balloon.WinChatMessageTemplate"
+                                                      HelperText="Placeholders: {user}, {score}, {bullseye}" />
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: HAZARDS & SABOTAGE ================= -->
+                <MudTabPanel Text="Hazards & Sabotage">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Falling Debris & Hazard Mechanics</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                                    Hazards drop from the sky or fly laterally to disrupt rising balloons. Different debris types produce distinct physics effects without instantly popping the balloon unless a sharp Dart is involved.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Balloon.EnableHazards"
+                                               Label="Enable Mid-Air Hazards & Debris" />
+
+                                    @if (_settings.Balloon.EnableHazards)
+                                    {
+                                        <MediaUrlPicker Label="Default Hazard Emote or Image"
+                                                        @bind-Value="_settings.Balloon.DefaultHazardEmote"
+                                                        Placeholder="e.g. Kappa, dart, anvil, or image URL..."
+                                                        HelperText="Emote or custom image displayed for falling hazards (overrides default debris icon)." />
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.subtitle2"><b>Darts (Sharp / Pop)</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_settings.Balloon.EnableDarts" Color="Color.Error" />
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Punctures balloon on contact, sending player into freefall.</MudText>
+                                                    @if (_settings.Balloon.EnableDarts)
+                                                    {
+                                                        <MudNumericField T="double" Label="Pop Chance (0.0 - 1.0)" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2"
+                                                                         Min="0.0" Max="1.0" Step="0.05"
+                                                                         @bind-Value="_settings.Balloon.DartPopChance"
+                                                                         HelperText="1.0 = 100% pop probability" />
+                                                        <div class="mt-2">
+                                                            <MediaUrlPicker Label="Dart Emote / Image"
+                                                                            @bind-Value="_settings.Balloon.DefaultDartEmote"
+                                                                            Placeholder="e.g. dart, needle, or URL..."
+                                                                            HelperText="Emote or custom image for sharp dart hazards." />
+                                                        </div>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.subtitle2"><b>Anvils (Heavy Push)</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_settings.Balloon.EnableAnvils" Color="Color.Warning" />
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Heavy weight slams balloon downward without popping it.</MudText>
+                                                    @if (_settings.Balloon.EnableAnvils)
+                                                    {
+                                                        <MudNumericField T="double" Label="Push Force Multiplier" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-2"
+                                                                         Min="0.1" Max="5.0" Step="0.1"
+                                                                         @bind-Value="_settings.Balloon.AnvilKnockbackMultiplier"
+                                                                         HelperText="Downward impulse force" />
+                                                        <div class="mt-2">
+                                                            <MediaUrlPicker Label="Anvil / Weight Emote / Image"
+                                                                            @bind-Value="_settings.Balloon.DefaultAnvilEmote"
+                                                                            Placeholder="e.g. anvil, weight, or URL..."
+                                                                            HelperText="Emote or custom image for heavy falling weights." />
+                                                        </div>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.subtitle2"><b>Nudges (Light Bump)</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_settings.Balloon.EnableNudges" Color="Color.Info" />
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Light debris creates elastic bounce and slight altitude dip.</MudText>
+                                                    @if (_settings.Balloon.EnableNudges)
+                                                    {
+                                                        <div class="mt-2">
+                                                            <MediaUrlPicker Label="Nudge Emote / Image"
+                                                                            @bind-Value="_settings.Balloon.DefaultNudgeEmote"
+                                                                            Placeholder="e.g. droplet, ball, or URL..."
+                                                                            HelperText="Emote or custom image for bouncy bump debris." />
+                                                        </div>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6">
+                                                <MudCard Outlined="true" Class="pa-3">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                        <MudText Typo="Typo.subtitle2"><b>Wind Gusts (Lateral Drift)</b></MudText>
+                                                        <MudSwitch T="bool" @bind-Value="_settings.Balloon.EnableWindGusts" Color="Color.Secondary" />
+                                                    </MudStack>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Crosswind gust pushes the balloon horizontally left or right.</MudText>
+                                                    @if (_settings.Balloon.EnableWindGusts)
+                                                    {
+                                                        <div class="mt-2">
+                                                            <MediaUrlPicker Label="Wind Gust Emote / Image"
+                                                                            @bind-Value="_settings.Balloon.DefaultWindGustEmote"
+                                                                            Placeholder="e.g. wind, cloud, or URL..."
+                                                                            HelperText="Emote or custom image for crosswind gusts." />
+                                                        </div>
+                                                    }
+                                                </MudCard>
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSelect T="CrashLandingScoreMode" Label="Popped Balloon Score Outcome" Variant="Variant.Outlined"
+                                                   @bind-Value="_settings.Balloon.PoppedScoreMode"
+                                                   HelperText="Score awarded when a balloon is popped by a sharp hazard">
+                                            <MudSelectItem Value="@CrashLandingScoreMode.ZeroScore">Zero Score (0 pts on puncture)</MudSelectItem>
+                                            <MudSelectItem Value="@CrashLandingScoreMode.HalfScore">Half Score (50% points of reached altitude)</MudSelectItem>
+                                            <MudSelectItem Value="@CrashLandingScoreMode.PreserveScore">Preserve Score (Score based on altitude attained)</MudSelectItem>
+                                        </MudSelect>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: TIMED SESSION & OVERLAY HEADER ================= -->
+                <MudTabPanel Text="Session & Display">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Run timed Balloon Ascent rounds (e.g. 100 seconds). Controls when viewers can participate and how rounds start and stop.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Balloon.SessionModeEnabled"
+                                               Label="Enable Timed Session Mode (When off, balloons launch anytime in free-play mode)" />
+
+                                    @if (_settings.Balloon.SessionModeEnabled)
+                                    {
+                                        <div>
+                                            <MudSwitch T="bool" Color="Color.Secondary"
+                                                       @bind-Value="_settings.Balloon.AutoStartOnCommand"
+                                                       Label="Auto-start Round on Command (Starts round automatically when someone types !balloon)" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block ml-3">
+                                                When off, rounds can only be started/stopped via SubActions, mod commands (!balloon start [seconds]), or the button on this page.
+                                            </MudText>
+                                        </div>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Default Round Duration (Seconds)" Variant="Variant.Outlined"
+                                                                 Min="10" Max="600" Step="5"
+                                                                 @bind-Value="_settings.Balloon.DefaultSessionDurationSeconds"
+                                                                 HelperText="e.g. 100 seconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Max Ascents Per User Per Round" Variant="Variant.Outlined"
+                                                                 Min="0" Max="50"
+                                                                 @bind-Value="_settings.Balloon.MaxDropsPerUserPerSession"
+                                                                 HelperText="0 = Unlimited ascents during the round" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSwitch T="bool" Color="Color.Info"
+                                                   @bind-Value="_settings.Balloon.AnnounceSessionStatusInChat"
+                                                   Label="Announce Round Start & End in Chat" />
+
+                                        @if (_settings.Balloon.AnnounceSessionStatusInChat)
+                                        {
+                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Balloon.SessionStartChatMessageTemplate"
+                                                          HelperText="Placeholders: {duration}" />
+                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Balloon.SessionEndChatMessageTemplate"
+                                                          HelperText="Placeholders: {count}, {duration}" />
+                                        }
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Balloon.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner" />
+
+                                    @if (_settings.Balloon.ShowHeaderBanner)
+                                    {
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                           @bind-Value="_settings.Balloon.HeaderPosition">
+                                                    <MudSelectItem Value="@("TopCenter")">Top Center</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Header Y Offset (px)" Variant="Variant.Outlined"
+                                                                 Min="0" Max="200" Step="2"
+                                                                 @bind-Value="_settings.Balloon.HeaderCustomYOffset" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Balloon.ShowTimer"
+                                                           Label="Show Round Timer" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Balloon.ShowDropCount"
+                                                           Label="Show Balloon Count" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Balloon.ShowFreePlayCounter"
+                                                           Label="Show Free-Play Pill" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
+                <MudTabPanel Text="Audio & Sound Effects">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Balloon Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, balloon launches, hazard impacts, and cloud landings.</MudText>
+                                    </div>
+                                </MudStack>
+
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Balloon.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Balloon.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Balloon Ascent round begins"
+                                                         SoundConfig="_settings.Balloon.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Balloon Ascent round finishes"
+                                                         SoundConfig="_settings.Balloon.EndSound" />
+
+                                    <DropGameSoundEditor Title="Balloon Launch Sound"
+                                                         HelperText="Plays when a balloon is launched into the sky"
+                                                         SoundConfig="_settings.Balloon.LaunchSound" />
+
+                                    <DropGameSoundEditor Title="Balloon Pop Sound"
+                                                         HelperText="Plays when a sharp hazard punctures a balloon"
+                                                         SoundConfig="_settings.Balloon.PopSound" />
+
+                                    <DropGameSoundEditor Title="Heavy Impact / Bonk Sound"
+                                                         HelperText="Plays when a heavy anvil debris strikes a balloon"
+                                                         SoundConfig="_settings.Balloon.BonkSound" />
+
+                                    <DropGameSoundEditor Title="Light Nudge Sound"
+                                                         HelperText="Plays when light debris bounces off a balloon"
+                                                         SoundConfig="_settings.Balloon.NudgeSound" />
+
+                                    <DropGameSoundEditor Title="Cloud Landing Win Sound"
+                                                         HelperText="Plays when a balloon reaches the cloud landing platform"
+                                                         SoundConfig="_settings.Balloon.WinSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private List<string> _actionNames = [];
+    private string _testUsername = "PenguinViewer";
+    private string _testEmoteInput = "";
+    private string _overlayKey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
+
+        _settings = await SettingsService.GetSettingsAsync();
+
+        var actions = await ActionManagementService.GetAllActionsAsync();
+        _actionNames = actions
+            .Select(a => a.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private RenderFragment RenderLiveTester() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">Live Balloon Ascent Tester</MudText>
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
+                              @bind-Value="_testUsername" />
+                <MudTextField T="string" Label="Test Emote Code or Image URL (Optional)" Variant="Variant.Outlined"
+                              @bind-Value="_testEmoteInput"
+                              HelperText="Leave blank to test theme default character, or enter emote code / image URL." />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Air"
+                           OnClick="TestBalloonAscentAsync">
+                    Launch Test Balloon Ascent
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.GpsFixed"
+                           OnClick="TestGuaranteedBullseyeAscentAsync">
+                    Launch Guaranteed Center (100 pts) Ascent
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Warning"
+                           OnClick="TestHazardWaveAsync">
+                    Spawn Random Hazard Wave (6 Debris)
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Error" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.CrisisAlert"
+                           OnClick="TestBalloonWithDartInterceptAsync">
+                    Combo Test: Balloon Ascent + Dart Intercept
+                </MudButton>
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartBalloonSessionLiveAsync">
+                        Start Round (@(_settings?.Balloon.DefaultSessionDurationSeconds ?? 100)s)
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopBalloonSessionLiveAsync">
+                        Stop Round
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    };
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_testUsername) ? "penguinviewer" : _testUsername.Trim().ToLowerInvariant(),
+        DisplayName = string.IsNullOrWhiteSpace(_testUsername) ? "PenguinViewer" : _testUsername.Trim(),
+        Arg = _testEmoteInput?.Trim() ?? "",
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Balloon Ascent settings saved!", Severity.Success);
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Balloon Settings to Defaults",
+            "Are you sure you want to reset all Balloon Ascent settings to defaults?",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Balloon = new BalloonAscentGameSettings();
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Balloon Ascent settings have been reset to default values!", Severity.Warning);
+        }
+    }
+
+    private async Task TestBalloonAscentAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await BalloonAscentService.TriggerBalloonAscentAsync(BuildTestEventArgs(), _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched test Balloon Ascent! Watch your /balloon.html overlay.", Severity.Info);
+    }
+
+    private async Task TestGuaranteedBullseyeAscentAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        var targetCenter = BalloonAscentService.GetCurrentSession()?.TargetCenterX ?? _settings.Balloon.TargetCenterX;
+        await BalloonAscentService.TriggerBalloonAscentAsync(
+            BuildTestEventArgs(),
+            _testEmoteInput,
+            forcedStartX: targetCenter,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: 0.0,
+            forcedTargetCenterX: targetCenter);
+        Snackbar.Add("Launched guaranteed 100 pts center Balloon Ascent!", Severity.Success);
+    }
+
+    private async Task TestHazardWaveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+        {
+            Pattern = "TopRain",
+            HazardType = "Random",
+            Count = 6,
+            EmoteOrImage = _settings?.Balloon.DefaultHazardEmote,
+            TriggeredBy = _testUsername
+        });
+        Snackbar.Add("Spawned 6x hazard wave on Balloon overlay!", Severity.Info);
+    }
+
+    private async Task TestBalloonWithDartInterceptAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var token = await BalloonAscentService.TriggerBalloonAscentAsync(
+            BuildTestEventArgs(),
+            _testEmoteInput,
+            allowDirectUrlOrPath: true);
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(600);
+                    await BalloonAscentService.SpawnHazardsAsync(new BalloonHazardSpawnRequest
+                    {
+                        Pattern = "Targeted",
+                        HazardType = "DartPop",
+                        Count = 2,
+                        TargetDropToken = token,
+                        TriggeredBy = _testUsername
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to spawn test dart intercept");
+                }
+            });
+        }
+
+        Snackbar.Add("Launched Balloon Ascent + Dart Intercept combo!", Severity.Info);
+    }
+
+    private async Task StartBalloonSessionLiveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var duration = _settings?.Balloon.DefaultSessionDurationSeconds ?? 100;
+        var result = await BalloonAscentService.StartSessionAsync(duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Balloon Ascent session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Balloon Ascent session for {duration} seconds!", Severity.Success);
+        }
+    }
+
+    private async Task StopBalloonSessionLiveAsync()
+    {
+        var result = await BalloonAscentService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Balloon Ascent session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Balloon Ascent session to stop.", Severity.Info);
+        }
+    }
+}
+

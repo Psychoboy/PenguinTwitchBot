@@ -411,6 +411,7 @@
 
         return {
             getLoadedImage: getLoadedImage,
+            getImage: getLoadedImage,
             getImageCache: function () { return imageCache; },
             normalizeImageUrl: normalizeImageUrl
         };
@@ -603,6 +604,386 @@
         }
     }
 
+    /**
+     * Renders a high-visibility, dual-pass outlined chatter username tag with drop shadow,
+     * leader highlighting, optional counter-rotation, and luminance-boosted colors.
+     * 
+     * @param {CanvasRenderingContext2D} ctx - Canvas 2D context
+     * @param {Object} options
+     * @param {string} options.name - Chatter username / display name
+     * @param {string} [options.userColor='#FFFFFF'] - Chatter username color
+     * @param {number} [options.fontSize=18] - Desired font size (clamped 12-36)
+     * @param {number} [options.score=0] - Player's score
+     * @param {boolean} [options.completed=false] - Whether the drop/throw is completed
+     * @param {boolean} [options.isLeader=false] - Whether the player is the round/session leader
+     * @param {string} [options.position='below'] - 'below' (default) or 'above' relative to avatar center
+     * @param {number} [options.radius=24] - Avatar/token radius in pixels (used to calculate Y offset)
+     * @param {number} [options.x=0] - X anchor coordinate (default 0)
+     * @param {number} [options.y] - Explicit Y anchor coordinate (overrides position/radius calculation)
+     * @param {number} [options.rotation=0] - Current avatar rotation/tilt in radians (auto counter-rotates if provided)
+     * @param {boolean} [options.showCrown=true] - Whether to draw gold crown 👑 emoji for leader
+     */
+    function drawOutlinedName(ctx, options) {
+        if (!ctx || !options || !options.name) return;
+
+        const fontSize = Math.max(12, Math.min(36, typeof options.fontSize === 'number' ? options.fontSize : 18));
+        const strokeWidth = Math.max(4.5, fontSize * 0.26);
+        const isLeader = !!options.isLeader;
+        const completed = !!options.completed;
+        const score = typeof options.score === 'number' ? options.score : 0;
+
+        let label = options.name;
+        if (isLeader && completed) {
+            label = `${options.name} (${score} pts)`;
+        } else if (completed && score > 0) {
+            label = `${options.name} (${score})`;
+        }
+
+        const rotation = typeof options.rotation === 'number' ? options.rotation : 0;
+        const r = typeof options.radius === 'number' ? options.radius : 20;
+
+        let textY;
+        if (typeof options.y === 'number') {
+            textY = options.y;
+        } else if (options.position === 'above') {
+            textY = -r - fontSize * 0.7 - 2;
+        } else {
+            textY = r + fontSize + 2;
+        }
+
+        const textX = typeof options.x === 'number' ? options.x : 0;
+
+        ctx.save();
+
+        // Optional counter-rotation to keep username horizontal
+        if (rotation !== 0) {
+            ctx.rotate(-rotation);
+        }
+
+        ctx.font = `900 ${fontSize}px Fredoka, Rubik, "Segoe UI", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.miterLimit = 2;
+
+        // Draw Leader Crown if applicable
+        if (isLeader && completed && options.showCrown !== false) {
+            ctx.save();
+            ctx.font = `700 ${fontSize + 4}px "Segoe UI Emoji", Fredoka, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 10;
+            const crownY = options.position === 'above' ? textY - fontSize * 0.9 : -r - fontSize * 0.7;
+            ctx.fillText('👑', textX, crownY);
+            ctx.restore();
+        }
+
+        // Pass 1: Dark drop shadow behind outline
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        ctx.shadowBlur = Math.max(6, fontSize * 0.4);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 2;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth + 1.5;
+        ctx.strokeText(label, textX, textY);
+        ctx.restore();
+
+        // Pass 2: Razor-sharp crisp black contrast border
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = strokeWidth;
+        ctx.strokeText(label, textX, textY);
+
+        // Pass 3: Luminance-boosted vibrant color fill (preserves user's identity color)
+        const rawColor = options.userColor || options.textColor || '#FFFFFF';
+        const nameColor = brightenColor(rawColor);
+        ctx.fillStyle = nameColor;
+        ctx.fillText(label, textX, textY);
+
+        ctx.restore();
+    }
+
+    function drawRoundRect(ctx, x, y, w, h, radii) {
+        if (!ctx) return;
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x, y, w, h, radii);
+        } else {
+            ctx.rect(x, y, w, h);
+        }
+    }
+
+    function getBannerX(canvasWidth, bannerWidth, position) {
+        const pos = (position || 'top-center').toLowerCase().replace(/[-_]/g, '');
+        if (pos === 'topleft') return 24;
+        if (pos === 'topright') return canvasWidth - bannerWidth - 24;
+        return (canvasWidth - bannerWidth) / 2;
+    }
+
+    function drawSessionBanner(ctx, options) {
+        if (!ctx || !options) return { currentBannerY: 18, bannerY: 18 };
+
+        const now = typeof options.now === 'number' ? options.now : Date.now();
+        const width = typeof options.width === 'number' ? options.width : 1920;
+        const headerConfig = options.headerConfig || {};
+        const sessionState = options.sessionState || { isActive: false, totalDrops: 0 };
+        const itemPluralName = options.itemPluralName || 'Drops';
+        const primaryColor = options.primaryColor || '#60A5FA';
+        const accentColor = options.accentColor || '#FFE066';
+
+        let targetY = typeof headerConfig.yOffset === 'number' ? headerConfig.yOffset : 18;
+        if (headerConfig.autoAvoidOverlap !== false && (options.isOtherGameActive || (options.otherDropsActiveUntilMs && now < options.otherDropsActiveUntilMs))) {
+            targetY += 54;
+        }
+
+        let currentBannerY = typeof options.currentBannerY === 'number' ? options.currentBannerY : targetY;
+        currentBannerY += (targetY - currentBannerY) * 0.15;
+        const bannerY = Math.round(currentBannerY);
+
+        if (!sessionState.isActive) {
+            if (sessionState.endedAtMs) {
+                const ageSec = (now - sessionState.endedAtMs) / 1000;
+                if (ageSec <= 6.0) {
+                    if (headerConfig.showBanner !== false) {
+                        const bannerW = Math.min(width * 0.72, 480);
+                        const bannerH = 46;
+                        const bannerX = getBannerX(width, bannerW, headerConfig.position);
+                        const bannerCenterX = bannerX + bannerW / 2;
+
+                        ctx.save();
+                        const alpha = Math.max(0, 1.0 - (ageSec / 6.0));
+                        ctx.globalAlpha = alpha;
+
+                        ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+                        ctx.strokeStyle = '#10B981';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        drawRoundRect(ctx, bannerX, bannerY, bannerW, bannerH, 23);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.font = '700 17px Fredoka, Rubik, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#34D399';
+                        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                        ctx.shadowBlur = 6;
+                        const closedText = options.closedBannerText || `Round Closed! Total ${itemPluralName}: ${sessionState.totalDrops}`;
+                        ctx.fillText(closedText, bannerCenterX, bannerY + bannerH / 2);
+                        ctx.restore();
+                    }
+                    return { currentBannerY, bannerY };
+                } else {
+                    sessionState.endedAtMs = 0;
+                    sessionState.totalDrops = 0;
+                    return { currentBannerY, bannerY };
+                }
+            }
+
+            // Free Play mode
+            const hasActiveDrops = !!options.hasActiveDrops;
+            if (hasActiveDrops && sessionState.totalDrops > 0 && headerConfig.showFreePlayCounter !== false) {
+                ctx.save();
+                const pillW = 210;
+                const pillH = 38;
+                const pillX = getBannerX(width, pillW, headerConfig.position);
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+                ctx.strokeStyle = primaryColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                drawRoundRect(ctx, pillX, bannerY, pillW, pillH, 19);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.font = '700 16px Fredoka, Rubik, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.shadowColor = 'rgba(0,0,0,0.85)';
+                ctx.shadowBlur = 6;
+                ctx.fillText(`${itemPluralName}: ${sessionState.totalDrops}`, pillX + pillW / 2, bannerY + pillH / 2);
+                ctx.restore();
+            } else if (!hasActiveDrops && options.clearsFreePlayWhenInactive) {
+                sessionState.totalDrops = 0;
+            }
+            return { currentBannerY, bannerY };
+        }
+
+        if (headerConfig.showBanner === false) {
+            return { currentBannerY, bannerY };
+        }
+
+        const showTimer = headerConfig.showTimer !== false;
+        const showCount = headerConfig.showCount !== false;
+
+        let bannerW;
+        if (showTimer && showCount) {
+            bannerW = Math.min(width * 0.72, 480);
+        } else if (showTimer) {
+            bannerW = Math.min(width * 0.45, 270);
+        } else if (showCount) {
+            bannerW = Math.min(width * 0.40, 230);
+        } else {
+            bannerW = Math.min(width * 0.35, 180);
+        }
+
+        const bannerH = 46;
+        const bannerX = getBannerX(width, bannerW, headerConfig.position);
+        const bannerCenterX = bannerX + bannerW / 2;
+
+        ctx.save();
+        const remainingSec = Math.max(0, Math.ceil(((sessionState.endsAtMs || 0) - now) / 1000));
+        const totalSec = Math.max(1, sessionState.totalDurationSeconds || 60);
+        const progress = Math.max(0, Math.min(1, remainingSec / totalSec));
+
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeStr = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+        // Semi-transparent pill backdrop
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        drawRoundRect(ctx, bannerX, bannerY, bannerW, bannerH, 23);
+        ctx.fill();
+        ctx.stroke();
+
+        // Progress bar at bottom of pill
+        const barW = (bannerW - 32) * progress;
+        ctx.fillStyle = accentColor;
+        ctx.beginPath();
+        drawRoundRect(ctx, bannerX + 16, bannerY + bannerH - 8, barW, 4, 2);
+        ctx.fill();
+
+        let bannerText = '';
+        if (showTimer && showCount) {
+            bannerText = `Round Ends: ${timeStr}  |  ${itemPluralName}: ${sessionState.totalDrops}`;
+        } else if (showTimer) {
+            bannerText = `Round Ends: ${timeStr}`;
+        } else if (showCount) {
+            bannerText = `${itemPluralName}: ${sessionState.totalDrops}`;
+        }
+
+        if (bannerText) {
+            ctx.font = '700 17px Fredoka, Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.shadowColor = 'rgba(0,0,0,0.85)';
+            ctx.shadowBlur = 6;
+            ctx.fillText(bannerText, bannerCenterX, bannerY + bannerH / 2 - 2);
+        }
+        ctx.restore();
+
+        return { currentBannerY, bannerY };
+    }
+
+    function updateAndDrawPopups(ctx, popups, options) {
+        if (!ctx || !Array.isArray(popups) || popups.length === 0) return;
+
+        const opt = options || {};
+        const now = typeof opt.now === 'number' ? opt.now : Date.now();
+        const dt = typeof opt.dt === 'number' ? opt.dt : 0.016;
+        const width = typeof opt.width === 'number' ? opt.width : 1920;
+        const height = typeof opt.height === 'number' ? opt.height : 1080;
+        const maxAge = typeof opt.maxAge === 'number' ? opt.maxAge : 2.4;
+        const fadeStart = typeof opt.fadeStart === 'number' ? opt.fadeStart : 1.2;
+        const isNormalized = !!opt.isNormalized;
+        const font = opt.font || '700 24px Fredoka, Rubik, sans-serif';
+
+        for (let i = popups.length - 1; i >= 0; i--) {
+            const p = popups[i];
+            const createdTime = p.createdAtMs || p.createdAt || now;
+            const age = (now - createdTime) / 1000;
+            if (age > maxAge) {
+                popups.splice(i, 1);
+                continue;
+            }
+
+            // Apply upward drift if dt is provided and driftSpeed is configured
+            if (typeof p.y === 'number' && typeof opt.driftSpeed === 'number') {
+                if (isNormalized) {
+                    p.y -= (opt.driftSpeed / height) * dt;
+                } else {
+                    p.y -= opt.driftSpeed * dt;
+                }
+            }
+
+            let alpha;
+            if (typeof opt.calculateAlpha === 'function') {
+                alpha = opt.calculateAlpha(age, maxAge);
+            } else if (age <= fadeStart) {
+                alpha = 1.0;
+            } else {
+                alpha = Math.max(0, 1.0 - ((age - fadeStart) / (maxAge - fadeStart)));
+            }
+
+            const px = isNormalized ? p.x * width : p.x;
+            const py = isNormalized ? p.y * height : (opt.driftSpeed ? p.y : p.y - age * (opt.yDriftPixels || 32));
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.font = font;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = p.color || '#FFE066';
+            ctx.shadowColor = 'rgba(0,0,0,0.85)';
+            ctx.shadowBlur = 8;
+            ctx.fillText(p.text || '', px, py);
+            ctx.restore();
+        }
+    }
+
+    function calculateDropAlpha(landedAtMs, now, sessionState, isLeader, options) {
+        const elapsed = now - (landedAtMs || now);
+        const sState = sessionState || {};
+
+        if (sState.isActive) {
+            if (isLeader) {
+                return { alpha: 1.0, shouldRemove: false };
+            }
+            const dimDelay = (options && options.dimDelay) || 3500;
+            const dimDuration = (options && options.dimDuration) || 2000;
+            const minAlpha = (options && typeof options.minAlpha === 'number') ? options.minAlpha : 0.40;
+
+            if (elapsed > dimDelay) {
+                const t = Math.min(1.0, (elapsed - dimDelay) / dimDuration);
+                return { alpha: 1.0 - ((1.0 - minAlpha) * t), shouldRemove: false };
+            }
+            return { alpha: 1.0, shouldRemove: false };
+        }
+
+        if (sState.endedAtMs) {
+            const postRoundAge = (now - sState.endedAtMs) / 1000;
+            if (postRoundAge > 6.0) {
+                return { alpha: 0.0, shouldRemove: true };
+            }
+            if (postRoundAge > 3.5) {
+                return { alpha: Math.max(0.0, 1.0 - ((postRoundAge - 3.5) / 2.5)), shouldRemove: false };
+            }
+            return { alpha: 1.0, shouldRemove: false };
+        }
+
+        // Single drop / free play mode
+        const lingerTime = (options && options.lingerTime) || 8000;
+        const fadeTime = (options && options.fadeTime) || 2500;
+        if (elapsed > lingerTime) {
+            const alpha = Math.max(0.0, 1.0 - ((elapsed - lingerTime) / fadeTime));
+            return { alpha: alpha, shouldRemove: alpha <= 0.0 };
+        }
+        return { alpha: 1.0, shouldRemove: false };
+    }
+
+    function sortDropsForDraw(items) {
+        if (!Array.isArray(items)) return items;
+        return items.sort((a, b) => {
+            if (!!a.isLeader !== !!b.isLeader) return a.isLeader ? 1 : -1;
+            if (!!a.completed !== !!b.completed) return a.completed ? -1 : 1;
+            return (a.score || 0) - (b.score || 0);
+        });
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -611,7 +992,14 @@
         loadAnimatedFrames: loadAnimatedFrames,
         createImageLoader: createImageLoader,
         brightenColor: brightenColor,
-        drawSeasonalDefaultPenguin: drawSeasonalDefaultPenguin
+        drawSeasonalDefaultPenguin: drawSeasonalDefaultPenguin,
+        drawOutlinedName: drawOutlinedName,
+        drawRoundRect: drawRoundRect,
+        getBannerX: getBannerX,
+        drawSessionBanner: drawSessionBanner,
+        updateAndDrawPopups: updateAndDrawPopups,
+        calculateDropAlpha: calculateDropAlpha,
+        sortDropsForDraw: sortDropsForDraw
     };
 
     if (typeof module !== 'undefined' && module.exports) {

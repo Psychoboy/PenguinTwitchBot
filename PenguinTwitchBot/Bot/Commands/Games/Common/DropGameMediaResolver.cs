@@ -397,6 +397,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 PegCollision = ResolveSound(settings.PegCollisionSound, theme.PlinkoPegCollisionSound, mediaService)
             };
         }
+
+        public static DropGameSoundBundleDto ResolveBalloonSoundBundle(
+            BalloonAscentGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.BalloonStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.BalloonEndSound, mediaService),
+                BalloonLaunch = ResolveSound(settings.LaunchSound, theme.BalloonLaunchSound, mediaService),
+                BalloonPop = ResolveSound(settings.PopSound, theme.BalloonPopSound, mediaService),
+                BalloonBonk = ResolveSound(settings.BonkSound, theme.BalloonBonkSound, mediaService),
+                BalloonNudge = ResolveSound(settings.NudgeSound, theme.BalloonNudgeSound, mediaService),
+                BalloonWin = ResolveSound(settings.WinSound, theme.BalloonWinSound, mediaService)
+            };
+        }
     }
 }
 

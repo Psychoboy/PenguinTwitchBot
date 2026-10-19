@@ -1,26 +1,34 @@
-# Parachute Drop & Plinko Bounce Overview
+# Stream Drop Minigames Overview
 
-The **Parachute Drop & Plinko Bounce** system provides interactive, physics-driven minigames for your stream overlays. Viewers can drop characters into the stream using chat commands (such as `!drop` or `!plinko`), Channel Point rewards, or automated bot actions.
+The **Stream Drop Minigames** system provides interactive, physics-driven games for your broadcast overlays: **Parachute Drop**, **Plinko Bounce**, and **Balloon Ascent**. Viewers can launch characters, tokens, and balloons into the stream using chat commands (such as `!drop`, `!plinko`, or `!balloon`), Channel Point rewards, or automated bot actions.
 
 ## Stream Overlay Widgets
 
-Both minigames run on transparent HTML5 canvas overlays designed for OBS Studio and stream production suites:
+All minigames run on high-performance, transparent HTML5 canvas overlays designed for OBS Studio and stream production suites:
 
 - **Parachute Drop Overlay**: `/parachute.html` (recommended 1920×1080 transparent Browser Source)
 - **Plinko Bounce Overlay**: `/plinko.html` (recommended 1920×1080 transparent Browser Source)
+- **Balloon Ascent Overlay**: `/balloon.html` (recommended 1920×1080 transparent Browser Source)
 
-Both overlays automatically connect to the bot's WebSocket server and render entity movement at a smooth 60 FPS.
+Each overlay automatically connects to the bot's WebSocket server and renders entity movement, collisions, and particle effects at a smooth 60 FPS.
+
+## Unified Canvas HUD & Visual Parity
+
+All drop games share a unified, clean HUD system:
+- **Session Header Banners**: Display formatted `mins:secs` countdown timers, real-time drop counters, and leader highlights.
+- **Smart Auto-Avoid Overlap**: When multiple games run simultaneously on stream, headers intelligently shift down to prevent visual overlap.
+- **Configurable Target Opacity**: Adjust target platform opacity (`TargetAlpha`) to avoid obscuring gameplay during broadcasts.
+- **Z-Order Stacking**: Winning leaders and active entities stay visually on top of lingering landed drops.
 
 ## Independent Per-Game Queues
 
 To keep chat engaged without collisions between different games:
-- **Concurrent Play**: Parachute Drop and Plinko Bounce can run simultaneously on stream at the same time without interfering with each other.
-- **Sequential Queuing**: If a viewer or command starts a new round of Parachute Drop while one is already active, the new drop cleanly enqueues behind it. As soon as the active round finishes or lands, the next queued session begins automatically. Plinko rounds queue independently in the same manner.
+- **Concurrent Play**: Parachute Drop, Plinko Bounce, and Balloon Ascent can run concurrently on stream without interfering with each other.
+- **Sequential Queuing**: If a viewer or command starts a new round of a minigame while one is already active, the new request cleanly enqueues behind it. As soon as the active round concludes, the next queued session begins automatically. Each game manages its queue independently without cross-game blocking.
 
 ## Tamper-Proof Security
 
-All scores, landings, and win distributions are verified by the server:
-- Every drop receives a single-use random `dropToken`.
-- When an entity lands on stream, the browser overlay sends the completion token back to the server for authoritative validation.
-- Unregistered tokens, duplicated tokens, and modified landing coordinates are rejected, ensuring that points and win triggers cannot be forged.
-
+All scores, landings, and win distributions are verified server-side:
+- Every drop receives a single-use cryptographically random `dropToken`.
+- When an entity reaches its target or lands on stream, the browser overlay sends the completion token back to the server for authoritative validation.
+- Unregistered tokens, duplicated tokens, and out-of-range coordinates are rejected, ensuring that points, leaderboard standings, and win triggers cannot be forged.

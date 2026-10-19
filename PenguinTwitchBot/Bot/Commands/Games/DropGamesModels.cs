@@ -6,13 +6,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
     public enum DropGameType
     {
         Parachute,
-        Plinko
+        Plinko,
+        Balloon
     }
 
     public class DropGamesSettings
     {
         public ParachuteGameSettings Parachute { get; set; } = new();
         public PlinkoGameSettings Plinko { get; set; } = new();
+        public BalloonAscentGameSettings Balloon { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
     }
 
@@ -48,6 +50,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string PlinkoPegImageUrl { get; set; } = "";
         public string PlinkoWinningSlotImageUrl { get; set; } = "";
         public string PlinkoDividerImageUrl { get; set; } = "";
+        public string BalloonCanopyImageUrl { get; set; } = "";
+        public string BalloonCloudPlatformImageUrl { get; set; } = "";
+        public string BalloonDebrisImageUrl { get; set; } = "";
+        public string BalloonDartImageUrl { get; set; } = "";
+        public string BalloonAnvilImageUrl { get; set; } = "";
+        public string BalloonNudgeImageUrl { get; set; } = "";
+        public string BalloonWindGustImageUrl { get; set; } = "";
 
         // Parachute Sound Overrides
         public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
@@ -67,6 +76,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride PlinkoDropSound { get; set; } = new();
         public DropGameSoundOverride PlinkoWinSound { get; set; } = new();
         public DropGameSoundOverride PlinkoPegCollisionSound { get; set; } = new();
+
+        // Balloon Sound Overrides
+        public DropGameSoundOverride BalloonStartSound { get; set; } = new();
+        public DropGameSoundOverride BalloonEndSound { get; set; } = new();
+        public DropGameSoundOverride BalloonLaunchSound { get; set; } = new();
+        public DropGameSoundOverride BalloonPopSound { get; set; } = new();
+        public DropGameSoundOverride BalloonBonkSound { get; set; } = new();
+        public DropGameSoundOverride BalloonNudgeSound { get; set; } = new();
+        public DropGameSoundOverride BalloonWinSound { get; set; } = new();
 
         // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
@@ -283,6 +301,119 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? ParachutePop { get; set; }
         public DropGameEffectiveSoundDto? CrashLand { get; set; }
         public DropGameEffectiveSoundDto? Cannonball { get; set; }
+        public DropGameEffectiveSoundDto? BalloonLaunch { get; set; }
+        public DropGameEffectiveSoundDto? BalloonPop { get; set; }
+        public DropGameEffectiveSoundDto? BalloonBonk { get; set; }
+        public DropGameEffectiveSoundDto? BalloonNudge { get; set; }
+        public DropGameEffectiveSoundDto? BalloonWin { get; set; }
+    }
+
+    public interface IDropGameHeaderSettings
+    {
+        bool AutoAvoidOverlap { get; set; }
+        bool ShowHeaderBanner { get; set; }
+        bool ShowTimer { get; set; }
+        bool ShowItemCount { get; }
+        bool ShowFreePlayCounter { get; set; }
+        string HeaderPosition { get; set; }
+        int HeaderCustomYOffset { get; set; }
+        int NameFontSize { get; set; }
+    }
+
+    public interface IDropGameSessionSettings
+    {
+        bool SessionModeEnabled { get; set; }
+        bool AutoStartOnCommand { get; set; }
+        int DefaultSessionDurationSeconds { get; set; }
+        int MaxDropsPerUserPerSession { get; set; }
+        bool AnnounceSessionStatusInChat { get; set; }
+        string SessionStartChatMessageTemplate { get; set; }
+        string SessionEndChatMessageTemplate { get; set; }
+    }
+
+    public class BalloonAscentGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
+    {
+        public string ActiveThemeId { get; set; } = "spring";
+        public double TargetCenterX { get; set; } = 0.50;
+        public double TargetWidthPercent { get; set; } = 18.0;
+        public double TargetSpeed { get; set; } = 0.5;
+
+        private double _targetAlpha = 1.0;
+        public double TargetAlpha
+        {
+            get => _targetAlpha;
+            set => _targetAlpha = Math.Clamp(value, 0.05, 1.0);
+        }
+
+        public double Buoyancy { get; set; } = 1.0;
+        public double Bounciness { get; set; } = 0.85;
+        public double Mass { get; set; } = 1.0;
+        public double SwayAmount { get; set; } = 1.0;
+
+        private int _maxConcurrentSounds = 2;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
+        }
+
+        // Sound Effects (Default enabled)
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
+        public DropGameSoundConfig LaunchSound { get; set; } = new() { Enabled = true, AudioFile = "/media/balloon_launch.wav", Volume = 60 };
+        public DropGameSoundConfig PopSound { get; set; } = new() { Enabled = true, AudioFile = "/media/balloon_pop.wav", Volume = 70 };
+        public DropGameSoundConfig BonkSound { get; set; } = new() { Enabled = true, AudioFile = "/media/balloon_anvil.wav", Volume = 65 };
+        public DropGameSoundConfig NudgeSound { get; set; } = new() { Enabled = true, AudioFile = "/media/balloon_nudge.wav", Volume = 55 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/balloon_win.wav", Volume = 70 };
+
+        // Hazard Settings
+        public bool EnableHazards { get; set; } = true;
+        public bool EnableDarts { get; set; } = true;
+        public double DartPopChance { get; set; } = 1.0;
+        public bool EnableAnvils { get; set; } = true;
+        public double AnvilKnockbackMultiplier { get; set; } = 1.0;
+        public bool EnableNudges { get; set; } = true;
+        public bool EnableWindGusts { get; set; } = true;
+        public string DefaultHazardEmote { get; set; } = "";
+        public string DefaultDartEmote { get; set; } = "";
+        public string DefaultAnvilEmote { get; set; } = "";
+        public string DefaultNudgeEmote { get; set; } = "";
+        public string DefaultWindGustEmote { get; set; } = "";
+        public CrashLandingScoreMode PoppedScoreMode { get; set; } = CrashLandingScoreMode.ZeroScore;
+
+        public string WinActionName { get; set; } = "";
+        public string BullseyeActionName { get; set; } = "";
+        public bool AnnounceWinsInChat { get; set; } = true;
+        public string WinChatMessageTemplate { get; set; } = "{user} reached the cloud platform with {score} pts!{bullseye}";
+
+        // Timed Session / Round settings
+        public bool SessionModeEnabled { get; set; } = false;
+        public bool AutoStartOnCommand { get; set; } = true;
+        public int DefaultSessionDurationSeconds { get; set; } = 100;
+        public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public bool AnnounceSessionStatusInChat { get; set; } = true;
+        public string SessionStartChatMessageTemplate { get; set; } = "Balloon Ascent is now OPEN for {duration}s! Type !balloon [emote] to join!";
+        public string SessionEndChatMessageTemplate { get; set; } = "Balloon Ascent round is now CLOSED! {count} total balloons launched!";
+
+        // Overlay Header & Display settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
+        public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
     }
 
     public enum CrashLandingScoreMode
@@ -292,7 +423,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         HalfScore = 2
     }
 
-    public class ParachuteGameSettings
+    public class ParachuteGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
         public string ActiveThemeId { get; set; } = "spring";
         public double TargetCenterX { get; set; } = 0.50;
@@ -369,6 +500,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowHeaderBanner { get; set; } = true;
         public bool ShowTimer { get; set; } = true;
         public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
@@ -381,7 +516,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         }
     }
 
-    public class PlinkoGameSettings
+    public class PlinkoGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
     {
         private int _pegTransparency = 15;
 
@@ -454,6 +589,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool ShowHeaderBanner { get; set; } = true;
         public bool ShowTimer { get; set; } = true;
         public bool ShowTokenCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowDropCount
+        {
+            get => ShowTokenCount;
+            set => ShowTokenCount = value;
+        }
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowTokenCount;
+
         public bool ShowFreePlayCounter { get; set; } = true;
         public string HeaderPosition { get; set; } = "TopCenter"; // TopCenter, TopLeft, TopRight
         public int HeaderCustomYOffset { get; set; } = 18;
@@ -545,6 +691,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("targetDropToken")]
         public string? TargetDropToken { get; set; }
+
+        [JsonPropertyName("hazardType")]
+        public string HazardType { get; set; } = "Nudge";
     }
 
     public class RocketFireRequest
@@ -738,6 +887,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("crashLanded")]
         public bool CrashLanded { get; set; }
 
+        [JsonPropertyName("score")]
+        public int? Score { get; set; }
+
+        [JsonPropertyName("isBullseye")]
+        public bool? IsBullseye { get; set; }
+
+        [JsonPropertyName("isWin")]
+        public bool? IsWin { get; set; }
+
+        [JsonPropertyName("isHit")]
+        public bool? IsHit { get; set; }
+
+        [JsonPropertyName("balloonPopped")]
+        public bool BalloonPopped { get; set; }
+
         [JsonPropertyName("overlayKey")]
         public string? OverlayKey { get; set; }
     }
@@ -804,6 +968,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int DropletHitCount { get; set; }
         public int RocketHitCount { get; set; }
         public bool ParachuteDestroyed { get; set; }
+        public bool BalloonPopped { get; set; }
         public int FreeFallStartTick { get; set; }
         public CrashLandingScoreMode CrashLandingScoreMode { get; set; } = CrashLandingScoreMode.PreserveScore;
         public int BucketIndex { get; set; }
@@ -901,6 +1066,22 @@ namespace PenguinTwitchBot.Bot.Commands.Games
 
         [JsonPropertyName("nameFontSize")]
         public int NameFontSize { get; set; } = 18;
+
+        public static DropGameHeaderConfigDto FromSettings(IDropGameHeaderSettings settings)
+        {
+            ArgumentNullException.ThrowIfNull(settings);
+            return new DropGameHeaderConfigDto
+            {
+                AutoAvoidOverlap = settings.AutoAvoidOverlap,
+                ShowBanner = settings.ShowHeaderBanner,
+                ShowTimer = settings.ShowTimer,
+                ShowCount = settings.ShowItemCount,
+                ShowFreePlayCounter = settings.ShowFreePlayCounter,
+                Position = settings.HeaderPosition,
+                YOffset = settings.HeaderCustomYOffset,
+                NameFontSize = settings.NameFontSize
+            };
+        }
     }
 }
 
