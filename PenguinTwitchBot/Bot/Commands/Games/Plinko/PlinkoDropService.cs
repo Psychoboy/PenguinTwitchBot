@@ -491,7 +491,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             dropRegistry.RegisterDrop(record);
 
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Balloon);
+            var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+            var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "plinko", StringComparison.OrdinalIgnoreCase));
             var headerConfig = DropGameHeaderConfigDto.FromSettings(plinkoSettings);
 
             DropGameSessionDto? activeSessionDto = null;
@@ -512,6 +513,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     TotalDrops = Volatile.Read(ref state.TotalDrops),
                     Theme = theme,
                     IsOtherGameActive = isOtherGameActive,
+                    ActiveGames = activeGames,
                     HeaderConfig = headerConfig
                 };
             }
@@ -537,6 +539,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 nameFontSize = plinkoSettings.NameFontSize,
                 session = activeSessionDto,
                 isOtherGameActive,
+                activeGames,
                 headerConfig,
                 board = new
                 {

@@ -1704,7 +1704,7 @@
 
     function updateAndDrawParticles(dt) {
         if (typeof DropGamesCommon !== 'undefined' && DropGamesCommon.updateAndDrawParticles) {
-            DropGamesCommon.updateAndDrawParticles(ctx, particles, { dt, width, height, gravity: 0.45 });
+            DropGamesCommon.updateAndDrawParticles(ctx, particles, { dt, width, height, gravity: 45 });
         }
     }
 

@@ -443,7 +443,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
             var soundsDto = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
 
-            var isOtherGameActive = dropRegistry.IsSessionActive(DropGameType.Parachute) || dropRegistry.IsSessionActive(DropGameType.Plinko);
+            var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+            var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "balloon", StringComparison.OrdinalIgnoreCase));
 
             var wsMessage = new
             {
@@ -463,6 +464,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 durationSeconds = durationSeconds,
                 totalTicks = record.TotalTicks,
                 isOtherGameActive,
+                activeGames,
                 target = new
                 {
                     centerX = record.TargetCenterX,
@@ -623,9 +625,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
             await QueueWsMessageAsync(WsTopics.Balloon, wsPayload, "balloon hazards");
 
-            var hazardsNotice = JsonSerializer.Serialize(new { type = "other_drop_active", durationSeconds = 8.0 }, _jsonOptions);
-            await QueueWsMessageAsync(WsTopics.Parachute, hazardsNotice, "Balloon hazards notice to Parachute");
-            await QueueWsMessageAsync(WsTopics.Plinko, hazardsNotice, "Balloon hazards notice to Plinko");
+            await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Balloon, durationSeconds: 8.0);
 
             return instances;
         }
