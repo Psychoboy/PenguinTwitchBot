@@ -56,10 +56,14 @@
         (async () => {
             const params = new URLSearchParams(window.location.search);
             const layoutName = params.get('layout') || '';
+            const overlayKey = params.get('key') || '';
             const cacheBust = Date.now().toString();
             const apiUrl = new URL('/api/overlay/config', window.location.origin);
             if (layoutName) {
                 apiUrl.searchParams.set('layout', layoutName);
+            }
+            if (overlayKey) {
+                apiUrl.searchParams.set('key', overlayKey);
             }
             apiUrl.searchParams.set('_cb', cacheBust);
 
@@ -89,7 +93,7 @@
 
                 for (const w of enabledWidgets) {
                     const iframe = document.createElement('iframe');
-                    iframe.src = withCacheBust(w.sourcePath, cacheBust);
+                    iframe.src = withCacheBustAndKey(w.sourcePath, cacheBust, overlayKey);
                     iframe.className = 'overlay-widget';
                     iframe.style.left   = w.x + 'px';
                     iframe.style.top    = w.y + 'px';
@@ -113,9 +117,12 @@
             el.style.display = 'block';
         }
 
-        function withCacheBust(sourcePath, cacheBust) {
+        function withCacheBustAndKey(sourcePath, cacheBust, key) {
             const url = new URL(sourcePath, window.location.origin);
             url.searchParams.set('_cb', cacheBust);
+            if (key) {
+                url.searchParams.set('key', key);
+            }
             return url.origin === window.location.origin
                 ? url.pathname + url.search + url.hash
                 : url.toString();

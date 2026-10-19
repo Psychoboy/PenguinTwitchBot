@@ -460,12 +460,17 @@
     }
 
     // WebSocket connection & completions queue
+    const overlayKey = new URLSearchParams(window.location.search).get('key') || '';
     const pendingCompletions = [];
     const socket = window.createWsSocket('parachute', [window.WS_TOPICS.parachute]);
 
     function sendCompletion(token, landingX, parachuteDestroyed = false) {
         if (!token) return;
-        const payload = { dropToken: token };
+        // View-Only mode: without the authorized overlay key, do not send completion packets
+        if (!overlayKey) {
+            return;
+        }
+        const payload = { dropToken: token, overlayKey: overlayKey };
         if (typeof landingX === 'number' && !isNaN(landingX)) {
             payload.landingX = Math.round(landingX * 10000) / 10000;
         }
@@ -481,15 +486,20 @@
         }
         if (!pendingCompletions.some(p => p.token === token)) {
             pendingCompletions.push({ token, landingX, parachuteDestroyed });
+            ensureHeartbeat();
         }
     }
 
     function flushPendingCompletions() {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        if (!overlayKey) {
+            pendingCompletions.length = 0;
+            return;
+        }
         while (pendingCompletions.length > 0) {
             const item = pendingCompletions.shift();
             try {
-                const payload = { dropToken: item.token };
+                const payload = { dropToken: item.token, overlayKey: overlayKey };
                 if (typeof item.landingX === 'number') payload.landingX = item.landingX;
                 if (item.parachuteDestroyed) {
                     payload.parachuteDestroyed = true;
@@ -518,10 +528,51 @@
         window.wsStatusShow(true);
     }
 
+    let heartbeatInterval = null;
+
+    function sendHeartbeat() {
+        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
+        const activeTokens = Array.isArray(activeDrops)
+            ? activeDrops.filter(d => d && d.dropToken && !d.completed).map(d => d.dropToken)
+            : [];
+        const completingTokens = Array.isArray(pendingCompletions)
+            ? pendingCompletions.filter(c => c && c.token).map(c => c.token)
+            : [];
+
+        if (activeTokens.length === 0 && completingTokens.length === 0) {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+            return;
+        }
+
+        try {
+            socket.send(JSON.stringify({
+                type: 'pong',
+                game: 'parachute',
+                activeTokens: activeTokens,
+                completingTokens: completingTokens,
+                overlayKey: overlayKey
+            }));
+        } catch (_) {}
+    }
+
+    function ensureHeartbeat() {
+        if (heartbeatInterval || !overlayKey) return;
+        heartbeatInterval = setInterval(sendHeartbeat, 5000);
+    }
+
     socket.addEventListener('message', function (event) {
         if (!event.data || typeof event.data !== 'string') return;
         if (event.data === 'ping') {
-            socket.send('pong');
+            const hasDrops = (Array.isArray(activeDrops) && activeDrops.some(d => d && d.dropToken && !d.completed)) ||
+                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
+            if (overlayKey && hasDrops) {
+                sendHeartbeat();
+            } else {
+                socket.send('pong');
+            }
             return;
         }
         if (!event.data.startsWith('{')) return;
@@ -633,6 +684,9 @@
                 isBullseye: !!p.isBullseye,
                 isWin: !!p.isWin,
                 dropletHits: 0,
+                rocketHits: 0,
+                parachuteDestroyed: false,
+                pendingParachuteDestroyed: false,
                 keyframes: p.keyframes || [],
                 collisions: Array.isArray(p.collisions) ? p.collisions : [],
                 triggeredCollisionTicks: new Set(),
@@ -640,6 +694,7 @@
                 completed: false,
                 landedAtMs: 0
             });
+            ensureHeartbeat();
         } else if (msg.type === 'parachute_droplets') {
             if (msg.theme) {
                 currentTheme = msg.theme;
@@ -669,6 +724,7 @@
                         sizeLabel: d.sizeLabel || 'Medium',
                         speedLabel: d.speedLabel || 'Normal',
                         imageUrl: d.imageUrl || '',
+                        targetDropToken: d.targetDropToken,
                         rotation: Math.random() * Math.PI * 2,
                         angularVel: ((Math.random() - 0.5) * 5.0 + (d.vx || 0) * 8.0) * speedMultiplier,
                         restitution: 0.82,
@@ -722,7 +778,12 @@
                         fuseTimeMs: nowMs + ((r.spawnTickOffset || 0) + (r.fuseTicks || 48)) * DT * 1000,
                         color: r.color || '#FF3366',
                         trailType: r.trailType || 'sparks',
-                        targetDropToken: r.targetDropToken,
+                        targetDropToken: r.targetDropToken || null,
+                        pattern: r.pattern || (r.targetDropToken ? 'Targeted' : 'Random'),
+                        isTargeted: r.isTargeted || r.pattern === 'Targeted' || !!r.targetDropToken,
+                        knockbackMultiplier: typeof r.knockbackMultiplier === 'number' ? r.knockbackMultiplier : 1.0,
+                        canopyKillChance: typeof r.canopyKillChance === 'number' ? r.canopyKillChance : 1.0,
+                        directHitKillsParachute: r.directHitKillsParachute !== undefined ? r.directHitKillsParachute : true,
                         sparks: [],
                         hasLaunched: false
                     });
@@ -1309,14 +1370,54 @@
         }
         ctx.rotate(currentRotation);
 
+        let targetCanopyScale = 1.0;
+        if (drop.completed || drop.parachuteDestroyed) {
+            targetCanopyScale = 0.0;
+        } else if (drop.y < 0.08 || (typeof drop.vy === 'number' && drop.vy < 0)) {
+            // Fold canopy shut when near ceiling OR when knocked upward against gravity!
+            targetCanopyScale = 0.0;
+        } else if (drop.y < 0.14) {
+            targetCanopyScale = Math.min(1.0, Math.max(0.0, (drop.y - 0.08) / 0.06));
+        } else {
+            targetCanopyScale = 1.0;
+        }
+
+        if (drop.canopyScale === undefined) {
+            drop.canopyScale = (drop.y >= 0.10) ? 1.0 : 0.0;
+        }
+
+        const prevCanopyScale = drop.canopyScale;
+        drop.canopyScale += (targetCanopyScale - drop.canopyScale) * Math.min(1.0, 14.0 * dtSec);
+
+        // Parachute flap/open sound when opening from closed state
+        if (prevCanopyScale < 0.05 && drop.canopyScale >= 0.05 && !drop.completed && !drop.parachuteDestroyed) {
+            const flapBundle = (drop.sounds && drop.sounds.parachuteFlap) || (SoundManager.getBundle() && SoundManager.getBundle().parachuteFlap);
+            if (flapBundle) {
+                SoundManager.play(flapBundle, 'parachuteFlap', true);
+            } else if ((drop.theme && drop.theme.parachuteFlapSoundUrl) || (currentTheme && currentTheme.parachuteFlapSoundUrl)) {
+                playSound((drop.theme && drop.theme.parachuteFlapSoundUrl) || currentTheme.parachuteFlapSoundUrl, 0.65);
+            } else {
+                const popBundle = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                if (popBundle) {
+                    SoundManager.play(popBundle, 'parachutePop', true);
+                } else if ((drop.theme && drop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                    playSound((drop.theme && drop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.65);
+                }
+            }
+        }
+
         // Suspension cords from canopy to character
-        if (!drop.completed && !drop.parachuteDestroyed) {
+        if (!drop.completed && !drop.parachuteDestroyed && drop.canopyScale > 0.02) {
+            const cScale = drop.canopyScale;
+            const scaledCanopyRadius = canopyRadius * cScale;
+            const scaledCanopyOffsetY = canopyOffsetY * cScale;
+
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = Math.max(1, 2 * cScale);
             const cordOffsets = [-0.88, -0.42, 0.42, 0.88];
             for (let i = 0; i < cordOffsets.length; i++) {
                 ctx.beginPath();
-                ctx.moveTo(cordOffsets[i] * canopyRadius, canopyOffsetY);
+                ctx.moveTo(cordOffsets[i] * scaledCanopyRadius, scaledCanopyOffsetY);
                 ctx.lineTo(cordOffsets[i] * charRadius * 0.45, -charRadius * 0.5);
                 ctx.stroke();
             }
@@ -1324,30 +1425,30 @@
             // Parachute canopy
             const customCanopy = getLoadedImage(theme.parachuteCanopyImageUrl);
             if (customCanopy) {
-                ctx.drawImage(customCanopy, -canopyRadius, canopyOffsetY - canopyRadius * 0.9, canopyRadius * 2, canopyRadius * 1.1);
+                ctx.drawImage(customCanopy, -scaledCanopyRadius, scaledCanopyOffsetY - scaledCanopyRadius * 0.9, scaledCanopyRadius * 2, scaledCanopyRadius * 1.1);
             } else {
                 ctx.save();
                 ctx.shadowColor = 'rgba(0,0,0,0.35)';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 10 * cScale;
 
                 // Outer dome
                 ctx.fillStyle = theme.primaryColor || '#FF8FA3';
                 ctx.beginPath();
-                ctx.arc(0, canopyOffsetY, canopyRadius, Math.PI, 0, false);
+                ctx.arc(0, scaledCanopyOffsetY, scaledCanopyRadius, Math.PI, 0, false);
                 ctx.closePath();
                 ctx.fill();
 
                 // Center stripe panel
                 ctx.fillStyle = theme.secondaryColor || '#FFB7C5';
                 ctx.beginPath();
-                ctx.ellipse(0, canopyOffsetY, canopyRadius * 0.48, canopyRadius, 0, Math.PI, 0, false);
+                ctx.ellipse(0, scaledCanopyOffsetY, scaledCanopyRadius * 0.48, scaledCanopyRadius, 0, Math.PI, 0, false);
                 ctx.closePath();
                 ctx.fill();
 
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 2.5 * cScale;
                 ctx.strokeStyle = '#FFFFFF';
                 ctx.beginPath();
-                ctx.arc(0, canopyOffsetY, canopyRadius, Math.PI, 0, false);
+                ctx.arc(0, scaledCanopyOffsetY, scaledCanopyRadius, Math.PI, 0, false);
                 ctx.stroke();
                 ctx.restore();
             }
@@ -1527,6 +1628,26 @@
             if (!d.spawned) {
                 d.spawned = true;
                 d.spawnActualTime = now;
+                if (d.targetDropToken) {
+                    const targetDrop = activeDrops.find(function (drop) {
+                        return drop.dropToken === d.targetDropToken && !drop.completed;
+                    });
+                    if (targetDrop && targetDrop.y < (targetDrop.landingY || 0.90) - 0.08) {
+                        // Dynamically adjust horizontal velocity to intercept target drop based on live canvas position
+                        const g = d.gravity || 0.27;
+                        const a = 0.5 * g;
+                        const b = (d.vy || 0.12) - (targetDrop.vy || 0.12);
+                        const c = (d.startY !== undefined ? d.startY : d.y) - targetDrop.y;
+                        const disc = b * b - 4 * a * c;
+                        if (disc > 0) {
+                            const tMeet = (-b + Math.sqrt(disc)) / (2 * a);
+                            if (tMeet > 0.30 && tMeet < 5.0) {
+                                const predictedDropX = Math.max(0.06, Math.min(0.94, targetDrop.x + (targetDrop.vx || 0) * tMeet));
+                                d.vx = Math.max(-0.45, Math.min(0.45, (predictedDropX - d.x) / tMeet));
+                            }
+                        }
+                    }
+                }
             }
 
             const r = d.radius || 0.028;
@@ -1543,7 +1664,6 @@
                 }
             } else {
                 // Apply dynamic 2D bouncy physics
-                // Gravity & clean kinematic integration (zero air friction, matching Matter.js in PixelPlush)
                 d.vy += (d.gravity || 0.32) * dtSec;
 
                 // Position integration
@@ -1608,81 +1728,33 @@
                     }
                 }
 
-                // 4. Elastic collision with falling parachutists and landed parachutists
+                // 4. Elastic collision with falling parachutists
                 const rPx = Math.max(12, (d.radius || 0.028) * Math.min(width, height));
                 const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
-                const canopyRadiusPx = charRadiusPx * 1.65;
-                const canopyOffsetYPx = -charRadiusPx * 2.1;
                 const dPxX = d.x * width;
                 const dPxY = d.y * height;
 
                 for (let j = 0; j < activeDrops.length; j++) {
                     const drop = activeDrops[j];
-                    if (!drop || (drop.completed && (now - drop.landedAtMs) > 12000)) continue;
+                    if (!drop || drop.completed) continue;
 
-                    // Test against canopy (only if falling)
-                    if (!drop.completed) {
-                        const canPxX = drop.x * width;
-                        const canPxY = drop.y * height + canopyOffsetYPx;
-                        const canMinDist = canopyRadiusPx + rPx;
-                        const canDx = dPxX - canPxX;
-                        const canDy = dPxY - canPxY;
-                        const canDistSq = canDx * canDx + canDy * canDy;
-                        if (canDistSq < canMinDist * canMinDist && canDistSq > 0.0001) {
-                            const dist = Math.sqrt(canDistSq);
-                            const nx = canDx / dist;
-                            const ny = canDy / dist;
-                            d.x = (canPxX + nx * canMinDist) / width;
-                            d.y = (canPxY + ny * canMinDist) / height;
-
-                            const MAX_DROP_VX = 0.55;
-                            const relVx = d.vx - (drop.vx || 0);
-                            const relVy = d.vy - (drop.vy || 0.12);
-                            const vDot = relVx * nx + relVy * ny;
-                            if (vDot < 0) {
-                                const impulse = -(1 + (d.restitution || 1.0)) * vDot;
-                                d.vx -= impulse * nx * 0.4;
-                                d.vy -= impulse * ny * 0.4;
-                                d.angularVel = (Math.random() - 0.5) * 10.0;
-                                d.hitCount = (d.hitCount || 0) + 1;
-
-                                const hasServerCollisions = Array.isArray(drop.collisions) && drop.collisions.length > 0;
-                                const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
-                                if (canKnock) {
-                                    drop.lastDropletHitTime = now;
-                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
-                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
-                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
-                                    drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
-                                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
-                                }
-
-                                if (currentTheme.dropletHitSoundUrl && (!d.lastSfxTime || (now - d.lastSfxTime) > 180)) {
-                                    playSound(currentTheme.dropletHitSoundUrl, 0.35);
-                                    d.lastSfxTime = now;
-                                }
-                            }
-                        }
-                    }
-
-                    // Test against player character body (both falling and landed)
+                    // Test against player character body (figurine only)
                     const bodyPxX = drop.x * width;
                     const bodyPxY = drop.y * height;
                     const bodyMinDist = charRadiusPx + rPx;
-                    const bDx = dPxX - bodyPxX;
-                    const bDy = dPxY - bodyPxY;
+                    const bDx = bodyPxX - dPxX;
+                    const bDy = bodyPxY - dPxY;
                     const bDistSq = bDx * bDx + bDy * bDy;
                     if (bDistSq < bodyMinDist * bodyMinDist && bDistSq > 0.0001) {
                         const dist = Math.sqrt(bDistSq);
                         const nx = bDx / dist;
                         const ny = bDy / dist;
-                        d.x = (bodyPxX + nx * bodyMinDist) / width;
-                        d.y = (bodyPxY + ny * bodyMinDist) / height;
+                        d.x = (bodyPxX - nx * bodyMinDist) / width;
+                        d.y = (bodyPxY - ny * bodyMinDist) / height;
 
-                        const MAX_DROP_VX = 0.55;
-                        const relVx = d.vx - (drop.vx || 0);
-                        const relVy = d.vy - (drop.vy || 0.12);
+                        const MAX_DROP_VX = 0.65;
+                        const relVx = (drop.vx || 0) - d.vx;
+                        const relVy = (drop.vy || 0.12) - d.vy;
                         const vDot = relVx * nx + relVy * ny;
                         if (vDot < 0) {
                             const impulse = -(1 + (d.restitution || 1.0)) * vDot;
@@ -1696,11 +1768,12 @@
                                 const canKnock = (!drop.lastDropletHitTime || (now - drop.lastDropletHitTime) > 140) && !hasServerCollisions;
                                 if (canKnock) {
                                     drop.lastDropletHitTime = now;
-                                    const massFactor = 1.0 / Math.max(0.2, drop.mass || 1.0);
-                                    const bounceScale = Math.max(0.1, Math.min(1.5, drop.bounciness || 0.85)) / 0.85;
-                                    const deltaVx = Math.max(-0.35, Math.min(0.35, nx * impulse * 0.50 * massFactor * bounceScale));
+                                    const massFactor = Math.max(0.5, Math.min(6.0, (d.mass || 3.2) / Math.max(0.2, drop.mass || 1.0)));
+                                    const bounceScale = Math.max(0.1, Math.min(2.5, drop.bounciness || 0.85)) / 0.85;
+                                    const deltaVx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, nx * impulse * 0.85 * massFactor * bounceScale));
+                                    const deltaVy = Math.max(-0.25, Math.min(0.40, ny * impulse * 0.65 * massFactor * bounceScale));
                                     drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + deltaVx));
-                                    drop.vy = Math.max(0.04, Math.min(0.45, (drop.vy || 0.12) + ny * impulse * 0.15 * massFactor * bounceScale));
+                                    drop.vy = Math.max(-0.15, Math.min(0.55, (drop.vy || 0.12) + deltaVy));
                                     drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
                                 }
                             }
@@ -1762,6 +1835,63 @@
 
             if (!r.hasLaunched) {
                 r.hasLaunched = true;
+                if (r.isTargeted || r.targetDropToken) {
+                    let targetDrop = null;
+                    if (r.targetDropToken) {
+                        targetDrop = activeDrops.find(function (d) {
+                            return d.dropToken === r.targetDropToken && !d.completed;
+                        });
+                        if (targetDrop && targetDrop.y >= ((targetDrop.landingY || 0.90) - 0.05)) {
+                            targetDrop = null;
+                        }
+                    }
+                    if (!targetDrop) {
+                        // User request: Targeted targets ANY active parachutist randomly (not closest),
+                        // excluding any that are too close to ground or would cause an almost-horizontal launch angle.
+                        const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                        const canopyOffsetY = (charRadiusPx * 2.1) / Math.max(1, height);
+                        const midAirDrops = activeDrops.filter(function (d) {
+                            return !d.completed && d.y < ((d.landingY || 0.90) - 0.06);
+                        });
+
+                        if (midAirDrops.length > 0) {
+                            // Filter candidates that have sufficient vertical climb distance (dy >= 0.16)
+                            // and a steep enough trajectory (dx / dy <= 1.4) to avoid launching almost horizontally.
+                            const steepCandidates = midAirDrops.filter(function (d) {
+                                const canopyY = d.y - canopyOffsetY;
+                                const dy = r.startY - canopyY;
+                                const dx = Math.abs(d.x - r.startX);
+                                return dy >= 0.16 && (dx / Math.max(0.01, dy)) <= 1.4;
+                            });
+
+                            const pool = steepCandidates.length > 0 ? steepCandidates : midAirDrops;
+                            targetDrop = pool[Math.floor(Math.random() * pool.length)];
+                            r.targetDropToken = targetDrop.dropToken;
+                        }
+                    }
+
+                    if (targetDrop && targetDrop.y < (targetDrop.landingY || 0.90) - 0.05) {
+                        // Dynamically adjust rocket lead interception using live canvas coordinates and closing speed
+                        const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                        const canopyOffsetY = (charRadiusPx * 2.1) / Math.max(1, height);
+                        const canopyY = targetDrop.y - canopyOffsetY;
+                        const dy = Math.max(0.08, Math.abs(r.startY - canopyY));
+                        const vAscent = Math.max(0.45, Math.abs(r.vy || -0.65));
+                        const vDescent = Math.max(0.04, targetDrop.vy || 0.12);
+                        const leadSec = Math.max(0.40, Math.min(1.25, dy / (vAscent + vDescent)));
+
+                        const predictedTargetX = Math.max(0.06, Math.min(0.94, targetDrop.x + (targetDrop.vx || 0) * leadSec));
+                        const predictedTargetY = Math.max(0.02, Math.min((targetDrop.landingY || 0.90) - 0.04, (targetDrop.y - canopyOffsetY) + (targetDrop.vy || 0.12) * leadSec));
+
+                        const accelY = (r.accelerationY !== undefined && r.accelerationY !== null) ? r.accelerationY : 0.04;
+                        r.targetX = predictedTargetX;
+                        r.targetY = predictedTargetY;
+                        r.vx = (predictedTargetX - r.startX) / leadSec;
+                        r.vy = ((predictedTargetY - r.startY) - (0.5 * accelY * leadSec * leadSec)) / leadSec;
+                        r.fuseTimeMs = now + (leadSec + 0.45) * 1000;
+                    }
+                }
+
                 const launchBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketLaunch;
                 if (launchBundle) {
                     SoundManager.play(launchBundle, 'rocketLaunch', false);
@@ -1769,6 +1899,9 @@
                     playSound(currentTheme.rocketLaunchSoundUrl, 0.60);
                 }
             }
+
+            const prevX = r.x;
+            const prevY = r.y;
 
             // Kinematic flight
             r.vy += (r.accelerationY || 0.04) * dtSec;
@@ -1863,9 +1996,123 @@
 
             ctx.restore();
 
-            // Check detonation condition (fuse reached, hit target ceiling/vicinity, or reached upward apex)
+            // Continuous collision check against active mid-air parachutists
+            let rocketCollided = false;
+            const prevRPxX = prevX * width;
+            const prevRPxY = prevY * height;
+
+            for (let j = 0; j < activeDrops.length; j++) {
+                const drop = activeDrops[j];
+                if (!drop || drop.completed) continue;
+
+                const charRadiusPx = Math.max(24, Math.min(width, height) * 0.032);
+                const bodyPxX = drop.x * width;
+                const bodyPxY = drop.y * height;
+                const canopyOffsetYPx = -charRadiusPx * 2.1;
+                const canopyPxX = bodyPxX;
+                const canopyPxY = bodyPxY + canopyOffsetYPx;
+                const canopyRadiusPx = charRadiusPx * 1.65;
+                const rocketRadiusPx = Math.max(14, Math.min(width, height) * 0.018);
+
+                const segDx = rPxX - prevRPxX;
+                const segDy = rPxY - prevRPxY;
+                const segLenSq = segDx * segDx + segDy * segDy;
+
+                // 1. Canopy collision check
+                const canopyActive = !drop.parachuteDestroyed && (drop.canopyScale === undefined || drop.canopyScale > 0.15);
+                let hitCanopy = false;
+                if (canopyActive) {
+                    const minCanopyDist = canopyRadiusPx + rocketRadiusPx;
+                    let cDistSq;
+                    if (segLenSq > 0.001) {
+                        const t = Math.max(0, Math.min(1, ((canopyPxX - prevRPxX) * segDx + (canopyPxY - prevRPxY) * segDy) / segLenSq));
+                        const projX = prevRPxX + t * segDx;
+                        const projY = prevRPxY + t * segDy;
+                        const cEx = canopyPxX - projX;
+                        const cEy = canopyPxY - projY;
+                        cDistSq = cEx * cEx + cEy * cEy;
+                    } else {
+                        const cEx = canopyPxX - rPxX;
+                        const cEy = canopyPxY - rPxY;
+                        cDistSq = cEx * cEx + cEy * cEy;
+                    }
+                    hitCanopy = cDistSq <= (minCanopyDist * minCanopyDist);
+                }
+
+                // 2. Body figurine collision check
+                let hitBody = false;
+                if (!hitCanopy) {
+                    const minBodyDist = charRadiusPx + rocketRadiusPx;
+                    let bDistSq;
+                    if (segLenSq > 0.001) {
+                        const t = Math.max(0, Math.min(1, ((bodyPxX - prevRPxX) * segDx + (bodyPxY - prevRPxY) * segDy) / segLenSq));
+                        const projX = prevRPxX + t * segDx;
+                        const projY = prevRPxY + t * segDy;
+                        const bEx = bodyPxX - projX;
+                        const bEy = bodyPxY - projY;
+                        bDistSq = bEx * bEx + bEy * bEy;
+                    } else {
+                        const bEx = bodyPxX - rPxX;
+                        const bEy = bodyPxY - rPxY;
+                        bDistSq = bEx * bEx + bEy * bEy;
+                    }
+                    hitBody = bDistSq <= (minBodyDist * minBodyDist);
+                }
+
+                if (hitCanopy || hitBody) {
+                    rocketCollided = true;
+                    spawnRocketExplosion(rPxX, rPxY, r.color, 45);
+                    const explodeBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketExplode;
+                    if (explodeBundle) {
+                        SoundManager.play(explodeBundle, 'rocketExplode', false);
+                    } else if (currentTheme && currentTheme.rocketExplodeSoundUrl) {
+                        playSound(currentTheme.rocketExplodeSoundUrl, 0.70);
+                    }
+
+                    const knockback = typeof r.knockbackMultiplier === 'number' ? r.knockbackMultiplier : 1.0;
+                    const directHitKills = r.directHitKillsParachute !== undefined ? r.directHitKillsParachute : true;
+                    const shouldKill = drop.pendingParachuteDestroyed ||
+                        (hitCanopy && (typeof r.canopyKillChance === 'number' ? (Math.random() < r.canopyKillChance) : true)) ||
+                        (hitBody && directHitKills && (typeof r.canopyKillChance === 'number' ? (Math.random() < r.canopyKillChance) : true));
+
+                    if (shouldKill && !drop.parachuteDestroyed) {
+                        drop.parachuteDestroyed = true;
+                        drop.pendingParachuteDestroyed = false;
+                        drop.canopyPopped = true;
+                        spawnCanopyFragments(bodyPxX, canopyPxY, drop.theme || currentTheme);
+                        const popBundle = (drop.sounds && drop.sounds.parachutePop) || (SoundManager.getBundle() && SoundManager.getBundle().parachutePop);
+                        if (popBundle) {
+                            SoundManager.play(popBundle, 'parachutePop', true);
+                        } else if ((drop.theme && drop.theme.parachutePopSoundUrl) || (currentTheme && currentTheme.parachutePopSoundUrl)) {
+                            playSound((drop.theme && drop.theme.parachutePopSoundUrl) || currentTheme.parachutePopSoundUrl, 0.70);
+                        }
+                    }
+
+                    // Apply directional impulse and knockback
+                    const pushDirX = Math.abs(r.vx) > 0.05 ? Math.sign(r.vx) : (Math.random() > 0.5 ? 1 : -1);
+                    const deltaVx = Math.max(-0.45, Math.min(0.45, (pushDirX * 0.18 + r.vx * 0.15) * knockback));
+                    const deltaVy = Math.max(-0.20, Math.min(0.35, 0.08 * knockback));
+                    drop.vx = Math.max(-0.65, Math.min(0.65, (drop.vx || 0) + deltaVx));
+                    drop.vy = Math.max(0.04, Math.min(0.60, (drop.vy || 0.12) + deltaVy));
+                    drop.tiltAngle = Math.max(-0.65, Math.min(0.65, drop.vx * 2.2));
+                    drop.rocketHits = (drop.rocketHits || 0) + 1;
+
+                    activeRockets.splice(i, 1);
+                    break;
+                }
+            }
+
+            if (rocketCollided) continue;
+
+            // Check generic detonation condition:
+            // For targeted rockets: explode on timeout, reaching ceiling, or downward apex fall.
+            // For non-targeted rockets: also explode when ascending past target apex (targetY).
+            const isTargetedRocket = r.isTargeted || !!r.targetDropToken;
             const targetY = (r.targetY !== undefined && r.targetY !== null) ? r.targetY : 0.10;
-            const shouldExplode = (now >= r.fuseTimeMs) || (r.y <= targetY) || (r.y <= 0.04) || (r.vy >= 0 && r.y < 0.85);
+            const shouldExplode = (now >= r.fuseTimeMs) ||
+                (!isTargetedRocket && r.y <= targetY) ||
+                (r.y <= 0.04) ||
+                (r.vy >= 0 && r.y < 0.85);
             if (shouldExplode) {
                 spawnRocketExplosion(rPxX, rPxY, r.color, 45);
                 const explodeBundle = SoundManager.getBundle() && SoundManager.getBundle().rocketExplode;
@@ -1878,7 +2125,9 @@
                 // If this rocket detonated near an active parachutist canopy whose parachute was destroyed
                 if (r.targetDropToken) {
                     const targetDrop = activeDrops.find(d => d.dropToken === r.targetDropToken);
-                    if (targetDrop && targetDrop.parachuteDestroyed && !targetDrop.canopyPopped) {
+                    if (targetDrop && (targetDrop.parachuteDestroyed || targetDrop.pendingParachuteDestroyed) && !targetDrop.canopyPopped) {
+                        targetDrop.parachuteDestroyed = true;
+                        targetDrop.pendingParachuteDestroyed = false;
                         targetDrop.canopyPopped = true;
                         const charRadius = Math.max(24, Math.min(width, height) * 0.032);
                         spawnCanopyFragments(targetDrop.x * width, targetDrop.y * height - charRadius * 2.1, targetDrop.theme || currentTheme);
@@ -1976,6 +2225,9 @@
 
             // Clamp velocity within physical readable limits
             const MAX_DROP_VX = 0.55;
+            const MAX_DROP_VY = 0.45;
+            const initialVy = drop.initialVy || 0.12;
+
             if (drop.parachuteDestroyed) {
                 // High-speed comedic free-fall! Terminal velocity vy = 0.98, gravity = 1.10
                 drop.vy = Math.min(0.98, (drop.vy || 0.12) + 1.10 * dtSec);
@@ -1996,14 +2248,22 @@
             } else {
                 const decayVx = Math.pow(0.998, dtSec * 60);
                 drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) * decayVx));
-                const initialVy = drop.initialVy || 0.12;
-                const decayVy = Math.pow(0.96, dtSec * 60);
-                drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+                if (drop.vy < initialVy) {
+                    // Ballistic upward arc decelerates under gravity back to terminal glide
+                    drop.vy = Math.min(initialVy, drop.vy + 1.20 * dtSec);
+                } else {
+                    const decayVy = Math.pow(0.96, dtSec * 60);
+                    drop.vy = Math.max(0.04, Math.min(0.45, initialVy + ((drop.vy || initialVy) - initialVy) * decayVy));
+                }
             }
 
             // Move along current velocity vector (no sinusoidal sway)
             drop.x += drop.vx * dtSec;
             drop.y += drop.vy * dtSec;
+            if (drop.y < 0.04) {
+                drop.y = 0.04;
+                drop.vy = Math.max(0.0, drop.vy);
+            }
 
             // Clean bounce off left / right screen borders with configurable bounciness
             const wallRestitution = Math.max(0.15, Math.min(2.5, (drop.bounciness || 0.85) * 1.05));
@@ -2036,7 +2296,7 @@
                     } else {
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dx > 0 ? -1 : 1) * Math.max(0.04, Math.abs(drop.vx) * 0.95 * (drop.bounciness || 0.85)))); // Bounced over lip into the pool!
                     }
-                    drop.vy = Math.max(0.04, drop.vy * Math.max(0.25, Math.min(1.0, 0.65 * (drop.bounciness || 0.85))));
+                    drop.vy = Math.max(-0.65, drop.vy * Math.max(0.25, Math.min(1.0, 0.65 * (drop.bounciness || 0.85))));
                     if (currentTheme.dropletHitSoundUrl && (!drop.lastWallSfx || (now - drop.lastWallSfx) > 200)) {
                         playSound(currentTheme.dropletHitSoundUrl, 0.4);
                         drop.lastWallSfx = now;
@@ -2057,7 +2317,7 @@
                         drop.triggeredCollisionIndices.add(c);
                         drop.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (drop.vx || 0) + (col.deltaVx || 0)));
                         const maxAllowedVy = drop.parachuteDestroyed ? 0.98 : 0.45;
-                        drop.vy = Math.max(0.04, Math.min(maxAllowedVy, (drop.vy || initialVy) + (col.deltaVy || 0)));
+                        drop.vy = Math.max(-1.20, Math.min(maxAllowedVy, (drop.vy || initialVy) + (col.deltaVy || 0)));
                         drop.tiltAngle = (col.deltaVx >= 0 ? 1 : -1) * 0.35;
                     }
                 }
@@ -2100,16 +2360,16 @@
                     const vDot = rvx * nx + rvy * ny;
 
                     if (vDot < 0) {
-                        const MAX_DROP_VX = 0.55;
-                        const eBounce = Math.max(0.1, Math.min(5.0, ((dropA.bounciness || 0.85) + (dropB.bounciness || 0.85)) * 0.5));
+                        const MAX_DROP_VX = 0.65;
+                        const eBounce = Math.max(0.5, Math.min(2.0, ((dropA.bounciness || 0.85) + (dropB.bounciness || 0.85)) * 0.5));
                         const mA = Math.max(0.1, dropA.mass || 1.0);
                         const mB = Math.max(0.1, dropB.mass || 1.0);
                         const totalMass = mA + mB;
-                        const impulse = Math.max(0.01, -(1 + eBounce) * vDot);
+                        const impulse = -(1 + eBounce) * vDot;
                         dropA.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropA.vx || 0) + nx * impulse * (mB / totalMass)));
-                        dropA.vy = Math.max(0.04, Math.min(0.45, (dropA.vy || 0.12) + ny * impulse * (mB / totalMass) * 0.4));
+                        dropA.vy = Math.max(-0.95, Math.min(0.55, (dropA.vy || 0.12) + ny * impulse * (mB / totalMass)));
                         dropB.vx = Math.max(-MAX_DROP_VX, Math.min(MAX_DROP_VX, (dropB.vx || 0) - nx * impulse * (mA / totalMass)));
-                        dropB.vy = Math.max(0.04, Math.min(0.45, (dropB.vy || 0.12) - ny * impulse * (mA / totalMass) * 0.4));
+                        dropB.vy = Math.max(-0.95, Math.min(0.55, (dropB.vy || 0.12) - ny * impulse * (mA / totalMass)));
 
                         if (currentTheme.dropletHitSoundUrl && (!dropA.lastBounceSfx || (now - dropA.lastBounceSfx) > 150)) {
                             playSound(currentTheme.dropletHitSoundUrl, 0.45);

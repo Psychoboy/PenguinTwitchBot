@@ -28,6 +28,7 @@ using PenguinTwitchBot.Bot.Commands.Fishing;
 using PenguinTwitchBot.Bot.Features;
 using PenguinTwitchBot.TwitchApi.EventSub.Websockets.Client;
 using PenguinTwitchBot.Services;
+using PenguinTwitchBot.Bot.Overlay;
 
 namespace PenguinTwitchBot.CustomMiddleware
 {
@@ -384,6 +385,7 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Wheeled game service for managing wheel game interactions and rewards."
             );
+            services.AddSingleton<IOverlaySecurityService, OverlaySecurityService>();
             services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
             services.AddSingleton<IDropRegistry, DropRegistry>();
             services.AddRuntimeFeatureService<IParachuteDropService, ParachuteDropService>(

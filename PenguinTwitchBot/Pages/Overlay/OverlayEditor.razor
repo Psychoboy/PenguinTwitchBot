@@ -13,6 +13,7 @@
 @inject IJSRuntime JS
 @inject PenguinTwitchBot.Bot.Notifications.IWebSocketMessenger WebSocketMessenger
 @inject ICounterService CounterService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @implements IAsyncDisposable
 
 <PageTitle>Overlay Editor</PageTitle>
@@ -101,10 +102,16 @@
                         Preview
                     </MudButton>
                 </MudTooltip>
-                <MudTooltip Text="Copy OBS browser source URL to clipboard - save first!">
+                <MudTooltip Text="Copy OBS browser source URL to clipboard">
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
                                    Variant="Variant.Outlined"
                                    OnClick="CopyUrl" Class="ml-1" />
+                </MudTooltip>
+                <MudTooltip Text="Regenerate overlay security key (invalidates old URLs)">
+                    <MudIconButton Icon="@Icons.Material.Filled.Key"
+                                   Color="Color.Warning"
+                                   Variant="Variant.Outlined"
+                                   OnClick="RegenerateKeyAsync" Class="ml-1" />
                 </MudTooltip>
 
                 <MudDivider Vertical="true" Class="mx-2" />
@@ -1008,11 +1015,20 @@
     private double _wheelOldScale;
     private double _wheelNewScale;
     private DotNetObjectReference<OverlayEditor>? _dotNetRef;
+    private string _overlayKey = "";
     // ---- Lifecycle ----
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshLayouts();
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch
+        {
+            _overlayKey = "";
+        }
         try
         {
             var counters = await CounterService.GetAllCountersAsync();
@@ -1449,15 +1465,30 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
     private async Task OpenPreview()
     {
         var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
-        await JS.InvokeVoidAsync("open", $"/overlay.html?layout={Uri.EscapeDataString(name)}", "_blank");
+        var keyParam = !string.IsNullOrWhiteSpace(_overlayKey) ? $"&key={Uri.EscapeDataString(_overlayKey)}" : "";
+        await JS.InvokeVoidAsync("open", $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}", "_blank");
     }
 
     private async Task CopyUrl()
     {
         var name = _layouts.FirstOrDefault(l => l.Id == _currentLayoutId)?.Name ?? "";
-        var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}";
+        var keyParam = !string.IsNullOrWhiteSpace(_overlayKey) ? $"&key={Uri.EscapeDataString(_overlayKey)}" : "";
+        var url = Navigation.BaseUri.TrimEnd('/') + $"/overlay.html?layout={Uri.EscapeDataString(name)}{keyParam}";
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
-        Snackbar.Add("URL copied to clipboard!", Severity.Info);
+        Snackbar.Add("OBS URL copied to clipboard!", Severity.Info);
+    }
+
+    private async Task RegenerateKeyAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.RegenerateOverlayKeyAsync();
+            Snackbar.Add("Generated a new overlay security key! Please update your OBS browser source URL.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to regenerate key: {ex.Message}", Severity.Error);
+        }
     }
 
     private static string GetWidgetColor(string type) => type switch

@@ -9,6 +9,7 @@
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.Components
 @inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IParachuteDropService ParachuteDropService
 @inject IPlinkoDropService PlinkoDropService
 @inject IActionManagementService ActionManagementService
@@ -33,11 +34,11 @@
                     Reset to Defaults
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="/parachute.html" Target="_blank">
+                           Href="@($"/parachute.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
                     Open Parachute Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.OpenInNew"
-                           Href="/plinko.html" Target="_blank">
+                           Href="@($"/plinko.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
                     Open Plinko Overlay
                 </MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
@@ -280,6 +281,10 @@
                                                          HelperText="Plays when a viewer drops a parachute into the game"
                                                          SoundConfig="_settings.Parachute.DropSound" />
 
+                                    <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                         HelperText="Plays when a parachute canopy opens after dropping"
+                                                         SoundConfig="_settings.Parachute.ParachuteFlapSound" />
+
                                     <DropGameSoundEditor Title="Target Platform Win Sound"
                                                          HelperText="Plays when a player successfully lands on the target platform"
                                                          SoundConfig="_settings.Parachute.WinSound" />
@@ -339,6 +344,18 @@
                                                StartIcon="@Icons.Material.Filled.RocketLaunch"
                                                OnClick="TestNormalParachuteDropWithRocketAsync">
                                         Combo Test: Drop + Rocket Intercept
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.SportsKabaddi"
+                                               OnClick="TestHeadOnPlayerBounceAsync">
+                                        Test: Mid-Air 2-Player Head-On Collision Bounce!
+                                    </MudButton>
+
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Waves"
+                                               OnClick="TestUpwardFountainKnockupAsync">
+                                        Test: Drop + Upward Fountain Knockup!
                                     </MudButton>
 
                                     <MudDivider Class="my-2" />
@@ -593,16 +610,35 @@
                                     </MudSelect>
 
                                     <MudGrid>
-                                        <MudItem xs="12" sm="6">
-                                            <MudNumericField T="int" Label="Peg Rows (5 - 14)" Variant="Variant.Outlined"
-                                                             Min="5" Max="14"
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Rows (4 - 14)" Variant="Variant.Outlined"
+                                                             Min="4" Max="14"
+                                                             HelperText="Number of peg rows (default 4)."
                                                              @bind-Value="_settings.Plinko.RowCount" />
                                         </MudItem>
-                                        <MudItem xs="12" sm="6">
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Peg Radius (4 - 30px)" Variant="Variant.Outlined"
+                                                             Min="4" Max="30" Step="1"
+                                                             HelperText="Collision & visual size (default 12px)."
+                                                             @bind-Value="_settings.Plinko.PegRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
                                             <MudNumericField T="int" Label="Peg Transparency Level (0 - 100%)" Variant="Variant.Outlined"
                                                              Min="0" Max="100" Step="5"
                                                              HelperText="100% = total visible, 0% = invisible (default 15%)."
                                                              @bind-Value="_settings.Plinko.PegTransparency" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Puck Radius (10 - 50px)" Variant="Variant.Outlined"
+                                                             Min="10" Max="50" Step="1"
+                                                             HelperText="Player token avatar size (default 36px)."
+                                                             @bind-Value="_settings.Plinko.PuckRadius" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int" Label="Bucket Divider Height (60 - 220px)" Variant="Variant.Outlined"
+                                                             Min="60" Max="220" Step="5"
+                                                             HelperText="Height of bottom slot dividers (default 120px)."
+                                                             @bind-Value="_settings.Plinko.BucketHeight" />
                                         </MudItem>
                                     </MudGrid>
 
@@ -1166,6 +1202,10 @@
                                                                      IsThemeOverride="true"
                                                                      SoundOverride="_selectedTheme.ParachuteDropSound"
                                                                      FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.DropSound)" />
+                                                <DropGameSoundEditor Title="Parachute Flap / Open Sound"
+                                                                     IsThemeOverride="true"
+                                                                     SoundOverride="_selectedTheme.ParachuteFlapSound"
+                                                                     FallbackInfo="@GetSoundFallbackInfo(_settings.Parachute.ParachuteFlapSound)" />
                                                 <DropGameSoundEditor Title="Parachute Win Sound"
                                                                      IsThemeOverride="true"
                                                                      SoundOverride="_selectedTheme.ParachuteWinSound"
@@ -1233,10 +1273,19 @@
     private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
+    private string _overlayKey = "";
     private IReadOnlyCollection<string> _selectedRandomDropletSizes = new HashSet<string>(["Small", "Medium", "Large", "Giant"]);
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
         _settings = await SettingsService.GetSettingsAsync();
         _selectedTheme = _settings.Themes.FirstOrDefault();
 
@@ -1518,7 +1567,7 @@
                     await ParachuteDropService.FireRocketsAsync(new RocketFireRequest
                     {
                         Count = 1,
-                        Pattern = _settings?.Parachute.RocketLaunchPattern ?? "Targeted",
+                        Pattern = "Targeted",
                         TargetUser = _testUsername,
                         TriggeredByUser = _testUsername
                     });
@@ -1531,6 +1580,95 @@
         }
 
         Snackbar.Add("Launched Parachute Drop + Rocket Intercept (Normal Settings)!", Severity.Info);
+    }
+
+    private async Task TestHeadOnPlayerBounceAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var p1Args = new CommandEventArgs
+        {
+            Name = "drop_alpha",
+            DisplayName = "DropAlpha",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_1"
+        };
+        var p2Args = new CommandEventArgs
+        {
+            Name = "drop_beta",
+            DisplayName = "DropBeta",
+            Arg = _testEmoteInput?.Trim() ?? "",
+            IsBroadcaster = true,
+            UserId = "test_player_2"
+        };
+
+        // Launch Player 1 from left of center moving rightward
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p1Args,
+            _testEmoteInput,
+            forcedStartX: Math.Max(0.12, targetCenter - 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: 0.22,
+            forcedTargetCenterX: targetCenter);
+
+        // Launch Player 2 from right of center moving leftward
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            p2Args,
+            _testEmoteInput,
+            forcedStartX: Math.Min(0.88, targetCenter + 0.16),
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedInitialVx: -0.22,
+            forcedTargetCenterX: targetCenter);
+
+        Snackbar.Add("Launched 2 parachuters on a mid-air head-on collision course! Watch them knock each other up and bounce!", Severity.Info);
+    }
+
+    private async Task TestUpwardFountainKnockupAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+
+        var targetCenter = ParachuteDropService.GetCurrentSession()?.TargetCenterX ?? _settings.Parachute.TargetCenterX;
+        var capturedEmote = _testEmoteInput;
+        var capturedUser = _testUsername;
+
+        await ParachuteDropService.TriggerParachuteDropAsync(
+            BuildTestEventArgs(),
+            capturedEmote,
+            forcedStartX: targetCenter,
+            forcedWindAccelX: 0.0,
+            allowDirectUrlOrPath: true,
+            forcedTargetCenterX: targetCenter);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(900);
+                await ParachuteDropService.SpawnDropletsAsync(new DropletSpawnRequest
+                {
+                    Count = 4,
+                    SizePreset = "Giant",
+                    SpeedPreset = "Fast",
+                    SpawnPattern = "Fountain",
+                    KnockbackMultiplier = 2.5,
+                    EmoteOrImage = capturedEmote,
+                    AllowDirectUrlOrPath = true,
+                    TriggeredByUser = capturedUser
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to spawn upward fountain droplets");
+            }
+        });
+
+        Snackbar.Add("Launched Parachute Drop + Upward Fountain Knockup barrage!", Severity.Info);
     }
 
     private async Task TestPlinkoDropAsync()

@@ -31,10 +31,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             return normalized.ToLowerInvariant() switch
             {
-                "small" => ("Small", 0.60, 0.018, 0.50),
-                "large" => ("Large", 1.50, 0.042, 1.80),
-                "giant" => ("Giant", 2.00, 0.058, 2.80),
-                _ => ("Medium", 1.00, 0.028, 1.00)
+                "small" => ("Small", 0.60, 0.018, 1.80),
+                "large" => ("Large", 1.50, 0.042, 5.50),
+                "giant" => ("Giant", 2.00, 0.058, 8.50),
+                _ => ("Medium", 1.00, 0.028, 3.20)
             };
         }
 
@@ -60,8 +60,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 return validSizes[0];
             }
 
-            // Weighted selection matching PixelPlush distribution:
-            // Small (~25%), Medium (~50%), Large (~17%), Giant (~8%)
             var weights = validSizes.ToDictionary(
                 s => s,
                 s => s.ToLowerInvariant() switch
@@ -124,7 +122,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
                 var fromLeft = (index % 2 == 0) ? (targetPoint.X > 0.35) : (targetPoint.X < 0.65);
                 var startX = fromLeft ? Math.Max(0.04, targetPoint.X - 0.28) : Math.Min(0.96, targetPoint.X + 0.28);
-                var startY = Math.Max(0.04, targetPoint.Y - 0.22);
+                var yOffset = (index % 3 == 0) ? -0.06 : ((index % 3 == 1) ? 0.08 : -0.18);
+                var startY = Math.Clamp(targetPoint.Y + yOffset, 0.04, 0.88);
 
                 var interceptTime = 24.0 * Dt / Math.Max(0.6, speedScale);
                 var vx = (targetPoint.X - startX) / interceptTime;
@@ -146,16 +145,33 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
             if (pattern.Equals("Fountain", StringComparison.OrdinalIgnoreCase))
             {
-                var fromLeft = index % 2 == 0;
-                var startX = fromLeft ? DropGameMath.RandomDouble(0.08, 0.25) : DropGameMath.RandomDouble(0.75, 0.92);
-                var startY = 0.85;
-                var vx = (fromLeft ? 1.0 : -1.0) * DropGameMath.RandomDouble(0.22, 0.40) * speedScale;
-                var vy = -DropGameMath.RandomDouble(0.55, 0.78) * speedScale;
-                var gravity = 0.52 * speedScale;
-                return (startX, startY, vx, vy, gravity);
+                if (targetDrop != null)
+                {
+                    var elapsedSeconds = Math.Max(0.0, (now - targetDrop.CreatedAtUtc).TotalSeconds);
+                    var currentTick = Math.Clamp((int)Math.Round(elapsedSeconds * TickRateHz) + spawnTickOffset, 0, targetDrop.TotalTicks - 10);
+                    var targetPoint = ParachuteSimulationEngine.GetParachutePositionAtTick(targetDrop, Math.Min(targetDrop.TotalTicks - 5, currentTick + 16));
+
+                    // Direct upward geyser targeted right underneath the falling player
+                    var startX = Math.Clamp(targetPoint.X + (index % 2 == 0 ? -0.015 : 0.015), 0.06, 0.94);
+                    var startY = 0.94;
+                    var interceptTime = 16.0 * Dt / Math.Max(0.6, speedScale);
+                    var vx = (targetPoint.X - startX) / interceptTime;
+                    var vy = -DropGameMath.RandomDouble(0.85, 1.15) * speedScale;
+                    var gravity = 0.38 * speedScale;
+                    return (startX, startY, vx, vy, gravity);
+                }
+                else
+                {
+                    var fromLeft = index % 2 == 0;
+                    var startX = fromLeft ? DropGameMath.RandomDouble(0.12, 0.35) : DropGameMath.RandomDouble(0.65, 0.88);
+                    var startY = 0.88;
+                    var vx = (fromLeft ? 1.0 : -1.0) * DropGameMath.RandomDouble(0.15, 0.30) * speedScale;
+                    var vy = -DropGameMath.RandomDouble(0.75, 1.05) * speedScale;
+                    var gravity = 0.42 * speedScale;
+                    return (startX, startY, vx, vy, gravity);
+                }
             }
 
-            // Default TopRain (matching PixelPlush bouncing obstacles)
             {
                 var startX = DropGameMath.RandomDouble(0.06, 0.94);
                 var startY = -0.06;
