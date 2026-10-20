@@ -157,7 +157,9 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddScoped<Bot.Commands.IActionCommandService, Bot.Commands.ActionCommandService>();
             services.AddScoped<Bot.Commands.IActionKeywordService, Bot.Commands.ActionKeywordService>();
             services.AddScoped<Bot.Services.ICounterService, Bot.Services.CounterService>();
-            services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache, Bot.Commands.Actions.ActionKeywordCache>();
+            services.AddSingleton<Bot.Commands.Actions.ActionKeywordCache>();
+            services.AddSingleton<Bot.Commands.Actions.IActionKeywordCache>(x => x.GetRequiredService<Bot.Commands.Actions.ActionKeywordCache>());
+            services.AddHostedService(x => x.GetRequiredService<Bot.Commands.Actions.ActionKeywordCache>());
             services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.CommandTriggerVariableResolver>();
             services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.DefaultCommandTriggerVariableResolver>();
             services.AddSingleton<Bot.Actions.Variables.Triggers.ITriggerVariableResolver, Bot.Actions.Variables.Triggers.TwitchEventTriggerVariableResolver>();

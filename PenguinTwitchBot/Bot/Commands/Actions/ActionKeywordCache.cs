@@ -35,12 +35,15 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
         }
     }
 
-    public class ActionKeywordCache : IActionKeywordCache
+    public class ActionKeywordCache : IActionKeywordCache, IHostedService
     {
         private readonly SemaphoreSlim _keywordLock = new(1, 1);
         private List<KeywordWithCompiledRegex> _cachedKeywords = new();
-        private DateTime _lastCacheUpdate = DateTime.MinValue;
-        private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(1);
+        private long _cacheVersion;
+        private long _loadedVersion = -1;
+        private long _failedVersion = -1;
+        private DateTime _retryAfterUtc = DateTime.MinValue;
+        private readonly TimeSpan _loadFailureRetryDelay = TimeSpan.FromMinutes(1);
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<ActionKeywordCache> _logger;
 
@@ -57,10 +60,11 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
             await _keywordLock.WaitAsync();
             try
             {
-                // Reload cache if expired
-                if (DateTime.UtcNow - _lastCacheUpdate > _cacheExpiration)
+                var cacheVersion = Volatile.Read(ref _cacheVersion);
+                if (_loadedVersion != cacheVersion &&
+                    (_failedVersion != cacheVersion || DateTime.UtcNow >= _retryAfterUtc))
                 {
-                    await ReloadKeywordsCacheAsync();
+                    await ReloadKeywordsCacheAsync(cacheVersion);
                 }
 
                 return _cachedKeywords;
@@ -71,7 +75,14 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
             }
         }
 
-        private async Task ReloadKeywordsCacheAsync()
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            await GetKeywordsAsync();
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        private async Task ReloadKeywordsCacheAsync(long cacheVersion)
         {
             try
             {
@@ -80,23 +91,22 @@ namespace PenguinTwitchBot.Bot.Commands.Actions
 
                 var keywords = await actionKeywordService.GetAllEnabledAsync();
                 _cachedKeywords = keywords.Select(k => new KeywordWithCompiledRegex(k)).ToList();
+                _loadedVersion = cacheVersion;
+                _failedVersion = -1;
 
                 _logger.LogInformation("Reloaded {Count} keywords into cache", _cachedKeywords.Count);
             }
             catch (Exception ex)
             {
+                _failedVersion = cacheVersion;
+                _retryAfterUtc = DateTime.UtcNow + _loadFailureRetryDelay;
                 _logger.LogError(ex, "Error reloading keywords cache");
-            }
-            finally
-            {
-                // Always update the timestamp, even on error, to prevent continuous reload attempts
-                _lastCacheUpdate = DateTime.UtcNow;
             }
         }
 
         public void InvalidateCache()
         {
-            _lastCacheUpdate = DateTime.MinValue;
+            Interlocked.Increment(ref _cacheVersion);
             _logger.LogInformation("Keyword cache invalidated");
         }
     }
