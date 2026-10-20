@@ -914,7 +914,7 @@
                 const groundSpd = Math.hypot(ball.speedU, ball.speedV);
                 const maxCaptureSpeed = 0.065 * (ball.cupCaptureSpeedMultiplier || boardConfig.cupCaptureSpeedMultiplier || 1.0);
 
-                if (distToCupPx <= captureRadiusPx && groundSpd <= maxCaptureSpeed) {
+                if (!ball.isLipOut && distToCupPx <= captureRadiusPx && groundSpd <= maxCaptureSpeed) {
                     ball.isSunk = true;
                     ball.sinkScale = 0.72;
                     ball.u = m.effectiveTargetRatio;

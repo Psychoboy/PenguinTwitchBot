@@ -3669,5 +3669,47 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var golfSlot = engine.Evaluate("DropGamesCommon.calculateBannerStackSlot('golf', ['parachute', 'plinko', 'balloon', 'curling'])").AsNumber();
             Assert.Equal(4, golfSlot);
         }
+
+        [Fact]
+        public void GolfJs_LipOutCannotSinkOnFollowingFrame()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(golfJsPath));
+
+            var result = engine.Evaluate(@"
+                var metrics = window.GolfEngine.getTrackMetrics();
+                var ball = {
+                    dropToken: 'golf-lipout-regression',
+                    u: metrics.effectiveTargetRatio,
+                    v: 0,
+                    speedU: 0.01,
+                    speedV: 0,
+                    angle: 0,
+                    drag: 0.22,
+                    heightZ: 0,
+                    vz: 0,
+                    gravityZ: 2.6,
+                    bounceCount: 0,
+                    maxBounces: 0,
+                    radius: metrics.ballRadius,
+                    sinkScale: 1,
+                    isSunk: false,
+                    isLipOut: true,
+                    completed: false,
+                    strokeNumber: 1,
+                    strokePenaltyPoints: 10,
+                    isReversed: false,
+                    startAxisPosition: metrics.effectiveTargetRatio
+                };
+                window.GolfEngine.activeBalls.push(ball);
+                window.GolfEngine.stepPhysics(0.016, metrics);
+                ({ isSunk: ball.isSunk, completed: ball.completed });
+            ");
+
+            Assert.False(result.Get("isSunk").AsBoolean());
+            Assert.False(result.Get("completed").AsBoolean());
+        }
     }
 }
