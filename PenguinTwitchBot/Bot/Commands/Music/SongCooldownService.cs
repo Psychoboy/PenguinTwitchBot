@@ -23,11 +23,17 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             await using var scope = scopeFactory.CreateAsyncScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var enabled = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingEnabled)).FirstOrDefault()?.IntSetting == 1;
-            var minutes = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingMinutes)).FirstOrDefault()?.IntSetting ?? 60;
-            var msgEnabled = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingMessageEnabled)).FirstOrDefault()?.IntSetting == 1;
-            var msg = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingMessage)).FirstOrDefault()?.StringSetting;
-            var exempt = (await unitOfWork.Settings.GetAsync(x => x.Name == SettingExemptSkippedVetoed)).FirstOrDefault()?.IntSetting == 1;
+            string[] names = [SettingEnabled, SettingMinutes, SettingMessageEnabled, SettingMessage, SettingExemptSkippedVetoed];
+            var rows = (await unitOfWork.Settings.GetAsync(x => names.Contains(x.Name)))
+                .GroupBy(x => x.Name)
+                .ToDictionary(g => g.Key, g => g.First());
+            Setting? Row(string name) => rows.GetValueOrDefault(name);
+
+            var enabled = Row(SettingEnabled)?.IntSetting == 1;
+            var minutes = Row(SettingMinutes)?.IntSetting ?? 60;
+            var msgEnabled = Row(SettingMessageEnabled)?.IntSetting == 1;
+            var msg = Row(SettingMessage)?.StringSetting;
+            var exempt = Row(SettingExemptSkippedVetoed)?.IntSetting == 1;
 
             if (string.IsNullOrWhiteSpace(msg))
             {

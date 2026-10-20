@@ -1155,20 +1155,22 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await ServiceBackbone.ResponseWithMessage(e, "You already have your quota(30) of songs in the queue.");
                 throw new SkipCooldownException();
             }
-            var searchResult = await GetSongId(e.Arg);
+            var searchResult = await ResolveVideoIdAsync(e.Arg);
             if (string.IsNullOrWhiteSpace(searchResult))
             {
                 await ServiceBackbone.ResponseWithMessage(e, "Could not get or had an issue finding your song request");
                 throw new SkipCooldownException();
             }
-            var bannedSong = await _bannedSongService.GetBannedSongAsync(searchResult);
+            var bannedTask = _bannedSongService.GetBannedSongAsync(searchResult);
+            var settingsTask = _songCooldownService.GetSettingsAsync();
+            var bannedSong = await bannedTask;
+            var cooldownSettings = await settingsTask;
             if (bannedSong != null)
             {
                 await _bannedSongService.RaiseBannedSongRequestedAsync(bannedSong, e.DisplayName, e.Arg);
                 throw new SkipCooldownException();
             }
 
-            var cooldownSettings = await _songCooldownService.GetSettingsAsync();
             if (cooldownSettings.Enabled)
             {
                 var activeCooldown = await _songCooldownService.GetActiveCooldownAsync(searchResult);
@@ -1272,17 +1274,48 @@ namespace PenguinTwitchBot.Bot.Commands.Music
             return await SongRequestMetrics.IncrementSongCount(song);
         }
 
+        private async Task<string?> ResolveVideoIdAsync(string input)
+        {
+            var id = YouTubeUrlHelper.ExtractVideoId(input);
+            if (id == null) return await GetSongId(input);
+
+            // A bare 11-character word could be a title rather than an id.
+            if (input.Trim().Length == 11 && !await VideoExistsAsync(id))
+            {
+                return await GetSongId(input);
+            }
+            return id;
+        }
+
+        private async Task<bool> VideoExistsAsync(string videoId)
+        {
+            try
+            {
+                var request = _youtubeService.Videos.List("id");
+                request.Id = videoId;
+                var response = await request.ExecuteAsync();
+                return response?.Items?.Count > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Video existence check failed for {VideoId}", videoId);
+                return true;
+            }
+        }
+
+        // Shared so TCP/TLS connections are reused; a new client per request is slow on high-latency links.
+        private static readonly HttpClient SearchClient = new() { Timeout = TimeSpan.FromSeconds(15) };
+
         private static async Task<string> GetSongId(string searchTerm)
         {
-            var client = new HttpClient();
-            var httpRequest = new HttpRequestMessage()
+            try
             {
-                RequestUri = new Uri(string.Format("https://decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm))),
-                Method = HttpMethod.Get
-            };
-            var searchResponse = await client.SendAsync(httpRequest);
-            var searchResult = await searchResponse.Content.ReadAsStringAsync();
-            return searchResult;
+                return await SearchClient.GetStringAsync(string.Format("https://decapi.me/youtube/videoid?search={0}", Uri.EscapeDataString(searchTerm)));
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return string.Empty;
+            }
         }
 
         private async Task<Song?> GetSong(string youtubeId, string? displayName = null, bool sendChatResponse = true)
@@ -1367,10 +1400,11 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await db.SaveChangesAsync();
                 return;
             }
+            var existingItems = (await db.SongRequestViewItems.Find(x => x.Id > 0).ToListAsync()).ToDictionary(x => x.Id);
             foreach (var request in requests)
             {
                 bool newRecord = false;
-                var item = await db.SongRequestViewItems.Find(x => x.Id == id).FirstOrDefaultAsync();
+                var item = existingItems.GetValueOrDefault(id);
                 if (item == null)
                 {
                     item = new SongRequestViewItem
