@@ -733,7 +733,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 lock (pState)
                 {
                     // Still the latest unfinished stroke (player hasn't shot again or finished) => round is abandoned
-                    if (ReferenceEquals(pState.DeferredOutcomeRecord, record))
+                    if (ReferenceEquals(pState.DeferredOutcomeRecord, record) &&
+                        string.Equals(pState.LastDropToken, record.DropToken, StringComparison.Ordinal))
                     {
                         pState.DeferredOutcomeRecord = null;
                         pState.FinalizedDropTokens.Add(record.DropToken);

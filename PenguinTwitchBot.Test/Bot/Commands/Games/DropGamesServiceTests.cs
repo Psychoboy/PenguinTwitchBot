@@ -3749,12 +3749,12 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             UserId = "golfer-1"
         };
 
-        private static PendingDropRecord CreateGolfOutcomeRecord(CommandEventArgs args, int strokeNumber, bool isWin, bool isBullseye = false)
+        private static PendingDropRecord CreateGolfOutcomeRecord(CommandEventArgs args, int strokeNumber, bool isWin, bool isBullseye = false, string? dropToken = null)
         {
             var now = DateTime.UtcNow;
             return new PendingDropRecord
             {
-                DropToken = Guid.NewGuid().ToString("N"),
+                DropToken = dropToken ?? Guid.NewGuid().ToString("N"),
                 GameType = DropGameType.Golf,
                 Username = args.Name,
                 DisplayName = args.DisplayName,
@@ -3771,7 +3771,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             };
         }
 
-        private async Task<GolfGameService> CreateMultiStrokeGolfServiceAsync(int maxStrokes, CommandEventArgs args)
+        private async Task<GolfGameService> CreateMultiStrokeGolfServiceAsync(int maxStrokes, CommandEventArgs args, Action<string>? onFirstShotStarted = null)
         {
             var settingsService = CreateSettingsService();
             var settings = await settingsService.GetSettingsAsync();
@@ -3786,7 +3786,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
 
             // First shot registers the player's round state (multi-stroke tracking); it is intentionally never completed
-            await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            var firstDropToken = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            onFirstShotStarted?.Invoke(firstDropToken);
             return golfService;
         }
 
@@ -3886,10 +3887,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task GolfGameService_MultiStroke_FreePlay_IdleFinalizedRound_DiscardsDuplicateAndStartsNewHole()
         {
             var args = CreateGolfArgs();
-            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
             golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(100);
 
-            var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true);
+            var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken);
             await golfService.ProcessCompletionAsync(record);
             await Task.Delay(600);
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
@@ -3907,10 +3909,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         public async Task GolfGameService_MultiStroke_FreePlay_FiresDeferredOutcomeAfterIdleTimeout()
         {
             var args = CreateGolfArgs();
-            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
             golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(100);
 
-            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken));
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
 
             for (var i = 0; i < 40; i++)
@@ -3931,22 +3934,25 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public async Task GolfGameService_MultiStroke_FreePlay_FollowUpStrokeCancelsIdleOutcomeOfEarlierStroke()
+        public async Task GolfGameService_MultiStroke_FreePlay_FollowUpShotStartCancelsIdleOutcomeOfEarlierStroke()
         {
             var args = CreateGolfArgs();
-            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
             golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(250);
 
-            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
-            // Player shoots again before idle timeout; stroke 2 (still not final) replaces stroke 1
-            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 2, isWin: false));
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken));
+            // Starting stroke 2 must invalidate stroke 1's idle timer before stroke 2 completes.
+            var secondDropToken = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
 
-            await Task.Delay(150);
-            // Stroke 1's timer has not fired anything; the idle timer for stroke 1 must never produce a Win
-            await Task.Delay(700);
-
+            await Task.Delay(350);
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
-            // Stroke 2's own idle timer fires its outcome exactly once
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+
+            // Once stroke 2 completes, its unchanged deferred outcome still finalizes after idle.
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 2, isWin: false, dropToken: secondDropToken));
+            await Task.Delay(700);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
             VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Once());
         }
 
