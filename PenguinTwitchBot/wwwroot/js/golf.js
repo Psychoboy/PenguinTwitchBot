@@ -248,132 +248,26 @@
     }
 
     // WebSocket connection & completion queue
-    const pendingCompletions = [];
     const socket = (typeof window !== 'undefined' && typeof window.createWsSocket === 'function' && window.WS_TOPICS)
         ? window.createWsSocket('golf', [window.WS_TOPICS.golf || 'golf'])
         : null;
 
-    function sendCompletion(payload) {
-        if (!payload || !payload.dropToken || !overlayKey) return;
-
-        const ordered = {
-            dropToken: payload.dropToken,
-            score: payload.score,
-            baseScore: payload.baseScore,
-            strokeNumber: payload.strokeNumber,
-            strokePenalty: payload.strokePenalty,
-            startAxisPosition: payload.startAxisPosition,
-            isLipOut: payload.isLipOut,
-            isBullseye: payload.isBullseye,
-            isWin: payload.isWin,
-            isHit: payload.isHit,
-            landingX: payload.landingX,
-            overlayKey: overlayKey
-        };
-
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(ordered));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.dropToken === payload.dropToken)) {
-            pendingCompletions.push(ordered);
-            ensureHeartbeat();
-        }
-    }
-
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                item.overlayKey = overlayKey;
-                socket.send(JSON.stringify(item));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokens = Array.isArray(activeBalls)
+    // Shared completion queue + heartbeat + socket wiring (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'golf',
+        socket: socket,
+        overlayKey: overlayKey,
+        fields: ['dropToken', 'score', 'baseScore', 'strokeNumber', 'strokePenalty', 'startAxisPosition', 'isLipOut', 'isBullseye', 'isWin', 'isHit', 'landingX'],
+        getActiveTokens: () => Array.isArray(activeBalls)
             ? activeBalls.filter(b => b && b.dropToken && !b.completed).map(b => b.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.dropToken).map(c => c.dropToken)
-            : [];
-
-        if (activeTokens.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'golf',
-                activeTokens: activeTokens,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    if (socket) {
-        socket.addEventListener('open', function () {
-            if (typeof window.wsStatusShow === 'function') {
-                window.wsStatusShow(true);
-            }
-            flushPendingCompletions();
-        });
-        socket.addEventListener('close', function () {
-            if (typeof window.wsStatusShow === 'function') {
-                window.wsStatusShow(false);
-            }
-        });
-        if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-
-        socket.addEventListener('message', function (event) {
-            if (!event.data || typeof event.data !== 'string') return;
-            if (event.data === 'ping') {
-                const hasActive = (Array.isArray(activeBalls) && activeBalls.some(b => b && b.dropToken && !b.completed)) ||
-                                  (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-                if (overlayKey && hasActive) {
-                    sendHeartbeat();
-                } else {
-                    socket.send('pong');
-                }
-                return;
-            }
-            if (!event.data.startsWith('{')) return;
-            let msg;
-            try {
-                msg = JSON.parse(event.data);
-            } catch (_) {
-                return;
-            }
-            handleWsMessage(msg);
-        });
-    }
+            : []
+    });
+    const pendingCompletions = completionChannel.pending;
+    const sendCompletion = completionChannel.send;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+    completionChannel.attach(msg => handleWsMessage(msg));
 
     function getTrackMetrics() {
         const thicknessRatio = Math.max(0.10, Math.min(0.25, (boardConfig.trackThicknessPercent || 14.0) / 100));

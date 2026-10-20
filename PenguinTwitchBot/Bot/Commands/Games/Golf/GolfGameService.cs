@@ -16,25 +16,6 @@ using PenguinTwitchBot.Services;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 {
-    public sealed class PlayerGolfRoundState
-    {
-        public int StrokesUsed { get; set; }
-        public double CurrentAxisPos { get; set; } = 0.05;
-        public bool IsSunk { get; set; }
-        public bool IsInFlight { get; set; }
-        public int CurrentScore { get; set; }
-        public string LastDropToken { get; set; } = "";
-
-        /// <summary>
-        /// Most recent completed stroke that did not end the player's round (not sunk, strokes remaining).
-        /// Its win/lose outcome is deferred and fired only if the round ends (session stop) without a further stroke.
-        /// </summary>
-        public PendingDropRecord? DeferredOutcomeRecord { get; set; }
-
-        /// <summary>Drop tokens whose outcome has already been fired (or discarded); late/duplicate completions for them are ignored.</summary>
-        public HashSet<string> FinalizedDropTokens { get; } = new(StringComparer.Ordinal);
-    }
-
     public class GolfGameService(
         IServiceBackbone serviceBackbone,
         ICommandHandler commandHandler,
@@ -493,7 +474,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 gSettings.DefaultPowerMax);
 
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, gSettings.ActiveThemeId);
-            var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : (eventArgs.Name ?? "viewer");
+            var userKey = DropGameUserKey.Resolve(eventArgs.UserId, eventArgs.Name);
 
             // Determine direction and reverse
             var isReversed = gSettings.SlideDirection is CurlingSlideDirection.RightToLeft or CurlingSlideDirection.BottomToTop;
@@ -691,7 +672,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             // (sunk, or all strokes used). Earlier strokes are deferred until the round ends.
             if (maxStrokes > 1)
             {
-                var userKey = !string.IsNullOrWhiteSpace(record.UserId) ? record.UserId : record.Username;
+                var userKey = DropGameUserKey.Resolve(record.UserId, record.Username);
 
                 // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
                 if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
@@ -907,7 +888,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     return;
                 }
 
-                var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
                 var maxStrokes = Math.Clamp(gSettings.MaxStrokesPerPlayer, 1, 5);
 
                 if (gSettings.SessionModeEnabled)

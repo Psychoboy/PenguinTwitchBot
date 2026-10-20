@@ -438,7 +438,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
             BalloonAscentSimulationEngine.SimulateBalloonTrajectory(record, bSettings.PoppedScoreMode);
             dropRegistry.RegisterDrop(record);
 
-            var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
+            var userKey = DropGameUserKey.Resolve(eventArgs.UserId, record.Username);
             _sessionManager.RecordUserDrop(userKey);
 
             var soundsDto = DropGameMediaResolver.ResolveBalloonSoundBundle(bSettings, theme, GetMediaUploadService());
@@ -777,7 +777,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                         }
                     }
 
-                    var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                    var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
                     if (!_sessionManager.CanUserDrop(userKey, bSettings.MaxDropsPerUserPerSession, out _, out _))
                     {
                         return;

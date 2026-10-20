@@ -169,121 +169,34 @@
     const bucketHighlights = [];
     const confettiParticles = [];
     const ambientParticles = [];
-    const pendingCompletions = [];
 
     const overlayKey = new URLSearchParams(window.location.search).get('key') || '';
     const socket = window.createWsSocket('plinko', [window.WS_TOPICS.plinko]);
 
+    // Shared completion queue + heartbeat + socket wiring (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'plinko',
+        socket: socket,
+        overlayKey: overlayKey,
+        getActiveTokens: () => Array.isArray(activeTokens)
+            ? activeTokens.filter(t => t && t.dropToken && !t.completed).map(t => t.dropToken)
+            : []
+    });
+    const pendingCompletions = completionChannel.pending;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+
     function sendCompletion(token, winningBucketIndex) {
         if (!token) return;
-        // View-Only mode: without the authorized overlay key, do not send completion packets
-        if (!overlayKey) {
-            return;
-        }
-        const payload = { dropToken: token, overlayKey: overlayKey };
+        const payload = { dropToken: token };
         if (typeof winningBucketIndex === 'number') {
             payload.winningBucketIndex = winningBucketIndex;
         }
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(payload));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.token === token)) {
-            pendingCompletions.push({ token, winningBucketIndex });
-            ensureHeartbeat();
-        }
+        completionChannel.send(payload);
     }
 
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                const payload = { dropToken: item.token, overlayKey: overlayKey };
-                if (typeof item.winningBucketIndex === 'number') payload.winningBucketIndex = item.winningBucketIndex;
-                socket.send(JSON.stringify(payload));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    socket.addEventListener('open', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-        flushPendingCompletions();
-    });
-    socket.addEventListener('close', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(false);
-        }
-    });
-    if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-        window.wsStatusShow(true);
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokensList = Array.isArray(activeTokens)
-            ? activeTokens.filter(t => t && t.dropToken && !t.completed).map(t => t.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.token).map(c => c.token)
-            : [];
-
-        if (activeTokensList.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'plinko',
-                activeTokens: activeTokensList,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    socket.addEventListener('message', function (event) {
-        if (!event.data || typeof event.data !== 'string') return;
-        if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeTokens) && activeTokens.some(t => t && t.dropToken && !t.completed)) ||
-                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-            if (overlayKey && hasDrops) {
-                sendHeartbeat();
-            } else {
-                socket.send('pong');
-            }
-            return;
-        }
-        if (!event.data.startsWith('{')) return;
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (_) {
-            return;
-        }
+    completionChannel.attach(function (msg) {
 
         if (msg.type === 'other_game_status') {
             if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {

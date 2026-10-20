@@ -202,128 +202,24 @@
     let lastCollisionSoundMs = 0;
 
     // WebSocket connection & completions queue
-    const pendingCompletions = [];
     const socket = window.createWsSocket('curling', [window.WS_TOPICS.curling]);
 
-    function sendCompletion(payload) {
-        if (!payload || !payload.dropToken) return;
-        if (!overlayKey) {
-            return;
-        }
-        payload.overlayKey = overlayKey;
-
-        // Ensure key ordering puts dropToken first to match server check
-        const ordered = {
-            dropToken: payload.dropToken,
-            score: payload.score,
-            isBullseye: payload.isBullseye,
-            isWin: payload.isWin,
-            isHit: payload.isHit,
-            landingX: payload.landingX,
-            overlayKey: payload.overlayKey
-        };
-
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(ordered));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.dropToken === payload.dropToken)) {
-            pendingCompletions.push(ordered);
-            ensureHeartbeat();
-        }
-    }
-
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                item.overlayKey = overlayKey;
-                socket.send(JSON.stringify(item));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    socket.addEventListener('open', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-        flushPendingCompletions();
-    });
-    socket.addEventListener('close', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(false);
-        }
-    });
-    if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-        window.wsStatusShow(true);
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokens = Array.isArray(activeStones)
+    // Shared completion queue + heartbeat (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'curling',
+        socket: socket,
+        overlayKey: overlayKey,
+        fields: ['dropToken', 'score', 'isBullseye', 'isWin', 'isHit', 'landingX'],
+        getActiveTokens: () => Array.isArray(activeStones)
             ? activeStones.filter(s => s && s.dropToken && !s.completed).map(s => s.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.dropToken).map(c => c.dropToken)
-            : [];
-
-        if (activeTokens.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'curling',
-                activeTokens: activeTokens,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    socket.addEventListener('message', function (event) {
-        if (!event.data || typeof event.data !== 'string') return;
-        if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeStones) && activeStones.some(s => s && s.dropToken && !s.completed)) ||
-                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-            if (overlayKey && hasDrops) {
-                sendHeartbeat();
-            } else {
-                socket.send('pong');
-            }
-            return;
-        }
-        if (!event.data.startsWith('{')) return;
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (_) {
-            return;
-        }
-        handleWsMessage(msg);
+            : []
     });
+    const pendingCompletions = completionChannel.pending;
+    const sendCompletion = completionChannel.send;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+    completionChannel.attach(msg => handleWsMessage(msg));
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;
@@ -547,21 +443,7 @@
             : rawPower;
 
         // Deterministic per-dropToken PRNG so every overlay instance produces identical dispersion/outcome
-        const rand = (function (seedStr) {
-            let h = 2166136261 >>> 0;
-            const s = String(seedStr || '');
-            for (let i = 0; i < s.length; i++) {
-                h ^= s.charCodeAt(i);
-                h = Math.imul(h, 16777619) >>> 0;
-            }
-            return function () {
-                h = (h + 0x6D2B79F5) >>> 0;
-                let t = h;
-                t = Math.imul(t ^ (t >>> 15), t | 1);
-                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-            };
-        })(msg.dropToken);
+        const rand = DropGamesCommon.createSeededRandom(msg.dropToken);
 
         let dragMult = 1.0;
         if (boardConfig.condition === 'Slick') dragMult = 0.78;

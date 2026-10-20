@@ -157,117 +157,23 @@
     let currentTheme = null;
     let lastColSoundTime = 0;
     // WebSocket connection & completions queue
-    const pendingCompletions = [];
     const socket = window.createWsSocket('balloon', [window.WS_TOPICS.balloon]);
 
-    function sendCompletion(payload) {
-        if (!payload || !payload.dropToken) return;
-        // View-Only mode: without the authorized overlay key, do not send completion packets
-        if (!overlayKey) {
-            return;
-        }
-        payload.overlayKey = overlayKey;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(payload));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.dropToken === payload.dropToken)) {
-            pendingCompletions.push(payload);
-            ensureHeartbeat();
-        }
-    }
-
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                item.overlayKey = overlayKey;
-                socket.send(JSON.stringify(item));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    socket.addEventListener('open', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-        flushPendingCompletions();
-    });
-    socket.addEventListener('close', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(false);
-        }
-    });
-    if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-        window.wsStatusShow(true);
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokens = Array.isArray(activeBalloons)
+    // Shared completion queue + heartbeat + socket wiring (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'balloon',
+        socket: socket,
+        overlayKey: overlayKey,
+        getActiveTokens: () => Array.isArray(activeBalloons)
             ? activeBalloons.filter(b => b && b.dropToken && !b.completed).map(b => b.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.dropToken).map(c => c.dropToken)
-            : [];
-
-        if (activeTokens.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'balloon',
-                activeTokens: activeTokens,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    socket.addEventListener('message', function (event) {
-        if (!event.data || typeof event.data !== 'string') return;
-        if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeBalloons) && activeBalloons.some(b => b && b.dropToken && !b.completed)) ||
-                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-            if (overlayKey && hasDrops) {
-                sendHeartbeat();
-            } else {
-                socket.send('pong');
-            }
-            return;
-        }
-        if (!event.data.startsWith('{')) return;
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (_) {
-            return;
-        }
-        handleWsMessage(msg);
+            : []
     });
+    const pendingCompletions = completionChannel.pending;
+    const sendCompletion = completionChannel.send;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+    completionChannel.attach(msg => handleWsMessage(msg));
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;

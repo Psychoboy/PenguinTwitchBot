@@ -1791,6 +1791,156 @@
         ctx.restore();
     }
 
+    /**
+     * Shared completion queue + heartbeat used by drop-style overlays (curling, golf, ...).
+     * opts: { game, socket, overlayKey, fields: [payload keys sent to the server, dropToken first],
+     *         getActiveTokens: () => string[] of in-flight drop tokens }
+     * Completions are sent immediately when the socket is open, otherwise queued and flushed on reconnect.
+     */
+    function createCompletionChannel(opts) {
+        const game = opts.game;
+        const socket = opts.socket || null;
+        const overlayKey = opts.overlayKey || '';
+        const fields = Array.isArray(opts.fields) ? opts.fields : null;
+        const getActiveTokens = typeof opts.getActiveTokens === 'function' ? opts.getActiveTokens : () => [];
+        const pending = [];
+        let heartbeatInterval = null;
+
+        function isOpen() {
+            return !!socket && socket.readyState === WebSocket.OPEN;
+        }
+
+        function send(payload) {
+            if (!payload || !payload.dropToken || !overlayKey) return;
+
+            // With `fields`, send exactly those keys in that order (dropToken first); otherwise send the payload as built.
+            const ordered = {};
+            if (fields) {
+                fields.forEach(function (f) { ordered[f] = payload[f]; });
+            } else {
+                Object.keys(payload).forEach(function (k) { ordered[k] = payload[k]; });
+            }
+            ordered.overlayKey = overlayKey;
+
+            if (isOpen()) {
+                try {
+                    socket.send(JSON.stringify(ordered));
+                    return;
+                } catch (_) {}
+            }
+            if (!pending.some(function (p) { return p.dropToken === payload.dropToken; })) {
+                pending.push(ordered);
+                ensureHeartbeat();
+            }
+        }
+
+        function flush() {
+            if (!isOpen()) return;
+            if (!overlayKey) {
+                pending.length = 0;
+                return;
+            }
+            while (pending.length > 0) {
+                const item = pending.shift();
+                try {
+                    item.overlayKey = overlayKey;
+                    socket.send(JSON.stringify(item));
+                } catch (_) {
+                    pending.unshift(item);
+                    break;
+                }
+            }
+        }
+
+        function sendHeartbeat() {
+            if (!overlayKey || !isOpen()) return;
+            const activeTokens = getActiveTokens() || [];
+            const completingTokens = pending.filter(function (c) { return c && c.dropToken; }).map(function (c) { return c.dropToken; });
+
+            if (activeTokens.length === 0 && completingTokens.length === 0) {
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+                return;
+            }
+
+            try {
+                socket.send(JSON.stringify({
+                    type: 'pong',
+                    game: game,
+                    activeTokens: activeTokens,
+                    completingTokens: completingTokens,
+                    overlayKey: overlayKey
+                }));
+            } catch (_) {}
+        }
+
+        function ensureHeartbeat() {
+            if (heartbeatInterval || !overlayKey) return;
+            heartbeatInterval = setInterval(sendHeartbeat, 5000);
+        }
+
+        /** Wires socket open/close status, keep-alive ping handling and JSON message dispatch. */
+        function attach(onMessage) {
+            if (!socket) return;
+            const showStatus = function (connected) {
+                if (typeof window !== 'undefined' && typeof window.wsStatusShow === 'function') {
+                    window.wsStatusShow(connected);
+                }
+            };
+            socket.addEventListener('open', function () {
+                showStatus(true);
+                flush();
+            });
+            socket.addEventListener('close', function () {
+                showStatus(false);
+            });
+            if (socket.readyState === WebSocket.OPEN) {
+                showStatus(true);
+            }
+            socket.addEventListener('message', function (event) {
+                if (!event.data || typeof event.data !== 'string') return;
+                if (event.data === 'ping') {
+                    const hasDrops = (getActiveTokens() || []).length > 0 || pending.length > 0;
+                    if (overlayKey && hasDrops) {
+                        sendHeartbeat();
+                    } else {
+                        socket.send('pong');
+                    }
+                    return;
+                }
+                if (!event.data.startsWith('{')) return;
+                let msg;
+                try {
+                    msg = JSON.parse(event.data);
+                } catch (_) {
+                    return;
+                }
+                onMessage(msg);
+            });
+        }
+
+        return { pending: pending, send: send, flush: flush, sendHeartbeat: sendHeartbeat, ensureHeartbeat: ensureHeartbeat, attach: attach };
+    }
+
+    /** Deterministic 0..1 PRNG (mulberry32 over an FNV-1a string hash) so every overlay instance replays a shot identically. */
+    function createSeededRandom(seedStr) {
+        let h = 2166136261 >>> 0;
+        const s = String(seedStr || '');
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        return function () {
+            h = (h + 0x6D2B79F5) >>> 0;
+            let t = h;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -1818,7 +1968,9 @@
         spawnSeasonalBurst: spawnSeasonalBurst,
         updateAndDrawParticles: updateAndDrawParticles,
         drawGolfGreen: drawGolfGreen,
-        drawGolfBall: drawGolfBall
+        drawGolfBall: drawGolfBall,
+        createCompletionChannel: createCompletionChannel,
+        createSeededRandom: createSeededRandom
     };
 
     if (typeof module !== 'undefined' && module.exports) {

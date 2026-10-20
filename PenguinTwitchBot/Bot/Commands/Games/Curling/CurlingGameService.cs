@@ -460,7 +460,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             dropRegistry.RegisterDrop(record);
 
             // Track drop in active session if present
-            var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
+            var userKey = DropGameUserKey.Resolve(eventArgs.UserId, record.Username);
             _sessionManager.RecordUserDrop(userKey);
 
             // Resolve decal / emote and avatar (fallbackToEventArgsArg: false because ParsePowerAndEmoteAsync already extracted emoteToken)
@@ -682,7 +682,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                         }
                     }
 
-                    var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                    var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
                     if (!_sessionManager.CanUserDrop(userKey, cSettings.MaxDropsPerUserPerSession, out _, out _))
                     {
                         return;

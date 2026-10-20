@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 {
     public static class GolfSimulationEngine
     {
-        public const double TickRateHz = 60.0;
+        public const double TickRateHz = SlideShotPhysics.TickRateHz;
         public const double Dt = 1.0 / TickRateHz;
 
         // Geometric radii normalized relative to the primary fairway axis length [0.0, 1.0]
@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         public const double GreenRadius = 0.125;        // Putting green outer boundary (95 pts at lip -> 10 pts at edge)
 
         // Baseline turf deceleration on a standard green
-        public const double BaseTurfDecel = 0.22;
+        public const double BaseTurfDecel = SlideShotPhysics.BaseDecel;
 
         // Baseline max speed at which the cup can capture a rolling ball without lipping out
         public const double BaseMaxCaptureSpeed = 0.070;
@@ -35,37 +35,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         /// Calculates the effective swing power applying streamer variance and bounds clamping.
         /// </summary>
         public static double CalculateEffectivePower(double rawPower, double variancePercent, Random? rng = null)
-        {
-            if (!double.IsFinite(rawPower))
-            {
-                rawPower = 75.0;
-            }
-            var clampedRaw = Math.Clamp(rawPower, 1.0, 100.0);
-            if (variancePercent <= 0.0) return clampedRaw;
-
-            var r = rng ?? Random.Shared;
-            var delta = (r.NextDouble() * 2.0 - 1.0) * variancePercent;
-            return Math.Clamp(clampedRaw + delta, 1.0, 100.0);
-        }
+            => SlideShotPhysics.CalculateEffectivePower(rawPower, variancePercent, rng);
 
         /// <summary>
         /// Converts an effective swing power (1-100) into initial launch speed.
         /// Calibrated so that power ~78 lands right at the standard pin (~84%) on a Standard Green.
         /// </summary>
         public static double PowerToInitialSpeed(double effectivePower, double dragMultiplier)
-        {
-            var powerFraction = Math.Clamp(effectivePower / 100.0, 0.01, 1.0);
-            return Math.Round(powerFraction * 0.76, 4);
-        }
+            => SlideShotPhysics.PowerToInitialSpeed(effectivePower);
 
         /// <summary>
         /// Deterministically computes total shot travel distance (carry + bounce + roll) from initial launch speed and turf drag.
         /// </summary>
         public static double CalculateShotDistance(double initialSpeed, double dragMultiplier)
-        {
-            var decel = Math.Max(0.01, BaseTurfDecel * dragMultiplier);
-            return (initialSpeed * initialSpeed) / (2.0 * decel);
-        }
+            => SlideShotPhysics.CalculateTravelDistance(initialSpeed, dragMultiplier);
 
         /// <summary>
         /// Simulates a golf chip or putt trajectory (including 2.5D parabolic flight height Z, turf bounces,
@@ -95,21 +78,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var rawTravelDist = CalculateShotDistance(v0, dragMultiplier);
 
             var isHorizontal = settings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
-            var isReversed = isReversedOverride ?? (settings.SlideDirection is CurlingSlideDirection.RightToLeft or CurlingSlideDirection.BottomToTop);
-            if (!isReversedOverride.HasValue && settings.SlideDirection == CurlingSlideDirection.Alternating)
-            {
-                isReversed = (record.DropToken.GetHashCode() & 1) == 1;
-            }
+            var isReversed = SlideShotPhysics.ResolveIsReversed(settings.SlideDirection, record.DropToken, isReversedOverride);
 
-            var normalizedTarget = settings.SlideDirection == CurlingSlideDirection.CenterTarget
-                ? 0.50
-                : Math.Clamp(targetDistancePercent / 100.0, 0.50, 0.95);
-            if (isReversed)
-            {
-                normalizedTarget = 1.0 - normalizedTarget;
-            }
+            var normalizedTarget = SlideShotPhysics.ResolveNormalizedTarget(settings.SlideDirection, targetDistancePercent, isReversed);
 
-            var defaultTeePos = isReversed ? 0.95 : 0.05;
+            var defaultTeePos = SlideShotPhysics.DefaultTeePosition(isReversed);
             var startPos = startAxisPosOverride.HasValue
                 ? Math.Clamp(startAxisPosOverride.Value, 0.02, 0.98)
                 : defaultTeePos;
@@ -224,12 +197,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
                 record.Keyframes =
                 [
-                    CreatePoint(0, startPos, startLateral, 0.0, v0 * directionSign, 0.0, isHorizontal),
-                    CreatePoint(apex1Tick, posApex1, midLateral, peakHeight1, v0 * 0.82 * directionSign, 0.0, isHorizontal),
-                    CreatePoint(bounce1Tick, posBounce1, lateralOffset, 0.0, v0 * 0.58 * directionSign, -peakHeight1 * 2.0, isHorizontal),
-                    CreatePoint(apex2Tick, posApex2, lateralOffset, peakHeight2, v0 * 0.44 * directionSign, 0.0, isHorizontal),
-                    CreatePoint(bounce2Tick, posBounce2, lateralOffset, 0.0, v0 * 0.32 * directionSign, -peakHeight2 * 2.0, isHorizontal),
-                    CreatePoint(totalTicks, restPos, lateralOffset, 0.0, 0.0, 0.0, isHorizontal)
+                    SlideShotPhysics.CreatePoint(0, startPos, startLateral, 0.0, v0 * directionSign, 0.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(apex1Tick, posApex1, midLateral, peakHeight1, v0 * 0.82 * directionSign, 0.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(bounce1Tick, posBounce1, lateralOffset, 0.0, v0 * 0.58 * directionSign, -peakHeight1 * 2.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(apex2Tick, posApex2, lateralOffset, peakHeight2, v0 * 0.44 * directionSign, 0.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(bounce2Tick, posBounce2, lateralOffset, 0.0, v0 * 0.32 * directionSign, -peakHeight2 * 2.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(totalTicks, restPos, lateralOffset, 0.0, 0.0, 0.0, isHorizontal)
                 ];
             }
             else
@@ -237,8 +210,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 // Smooth ground putt
                 record.Keyframes =
                 [
-                    CreatePoint(0, startPos, 0.50, 0.0, v0 * directionSign, 0.0, isHorizontal),
-                    CreatePoint(totalTicks, restPos, lateralOffset, 0.0, 0.0, 0.0, isHorizontal)
+                    SlideShotPhysics.CreatePoint(0, startPos, 0.50, 0.0, v0 * directionSign, 0.0, isHorizontal),
+                    SlideShotPhysics.CreatePoint(totalTicks, restPos, lateralOffset, 0.0, 0.0, 0.0, isHorizontal)
                 ];
             }
 
@@ -256,27 +229,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             record.IsBullseye = isBullseye;
             record.IsWin = isWin;
             record.IsHit = isWin;
-        }
-
-        private static ParachuteTrajectoryPointDto CreatePoint(
-            int tick,
-            double axisPos,
-            double lateralPos,
-            double heightZ,
-            double vAxis,
-            double vz,
-            bool isHorizontal)
-        {
-            return new ParachuteTrajectoryPointDto
-            {
-                Tick = tick,
-                X = isHorizontal ? axisPos : lateralPos,
-                Y = isHorizontal ? lateralPos : axisPos,
-                Z = heightZ,
-                Vx = isHorizontal ? vAxis : 0.0,
-                Vy = isHorizontal ? 0.0 : vAxis,
-                Vz = vz
-            };
         }
 
         /// <summary>
