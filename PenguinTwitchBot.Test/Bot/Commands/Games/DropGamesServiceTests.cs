@@ -2433,6 +2433,78 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task BalloonProcessCompletionAsync_OnBullseye_FiresBothBullseyeAndWinTriggers()
+        {
+            var balloonSut = CreateBalloonService();
+            var firedEvents = new List<string>();
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                    "balloon",
+                    It.IsAny<string>(),
+                    It.IsAny<CommandEventArgs>(),
+                    It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((_, eventType, _, _) => firedEvents.Add(eventType))
+                .Returns(Task.CompletedTask);
+
+            await balloonSut.ProcessCompletionAsync(new PendingDropRecord
+            {
+                DropToken = "balloon-bullseye-win-token",
+                GameType = DropGameType.Balloon,
+                Username = "winner1",
+                DisplayName = "Winner1",
+                UserId = "2001",
+                EventArgs = new CommandEventArgs { Command = "balloon", Name = "winner1", DisplayName = "Winner1", UserId = "2001" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(1),
+                Score = 100,
+                IsBullseye = true,
+                IsWin = true,
+                IsHit = true
+            });
+
+            Assert.Contains(DefaultCommandEventTypes.BalloonBullseye, firedEvents);
+            Assert.Contains(DefaultCommandEventTypes.BalloonWin, firedEvents);
+            Assert.DoesNotContain(DefaultCommandEventTypes.BalloonLose, firedEvents);
+        }
+
+        [Fact]
+        public async Task CurlingProcessCompletionAsync_OnBullseye_FiresBothBullseyeAndWinTriggers()
+        {
+            var curlingSut = CreateCurlingService();
+            var firedEvents = new List<string>();
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                    "curl",
+                    It.IsAny<string>(),
+                    It.IsAny<CommandEventArgs>(),
+                    It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((_, eventType, _, _) => firedEvents.Add(eventType))
+                .Returns(Task.CompletedTask);
+
+            await curlingSut.ProcessCompletionAsync(new PendingDropRecord
+            {
+                DropToken = "curling-bullseye-win-token",
+                GameType = DropGameType.Curling,
+                Username = "winner1",
+                DisplayName = "Winner1",
+                UserId = "2001",
+                EventArgs = new CommandEventArgs { Command = "curl", Name = "winner1", DisplayName = "Winner1", UserId = "2001" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = DateTime.UtcNow,
+                EarliestCompletionUtc = DateTime.UtcNow,
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(1),
+                Score = 100,
+                IsBullseye = true,
+                IsWin = true,
+                IsHit = true
+            });
+
+            Assert.Contains(DefaultCommandEventTypes.CurlingBullseye, firedEvents);
+            Assert.Contains(DefaultCommandEventTypes.CurlingWin, firedEvents);
+            Assert.DoesNotContain(DefaultCommandEventTypes.CurlingLose, firedEvents);
+        }
+
+        [Fact]
         public async Task DropServices_RespectConfigurableGravityBouncinessAndMass()
         {
             var registry = CreateDropRegistry();
