@@ -38,10 +38,32 @@ public class ManagePointsHandlerTests
             ["UserId"] = "user-1",
             ["Score"] = "12"
         };
+        _pointsSystem.AddPointsByUserId("user-1", 7, 24).Returns(24);
 
         await _handler.ExecuteAsync(subAction, variables);
 
         await _pointsSystem.Received(1).AddPointsByUserId("user-1", 7, 24);
+    }
+
+    [Fact]
+    public async Task Add_ReportsFailureWhenPointsSystemReturnsNonPositiveBalance()
+    {
+        var subAction = new ManagePointsType
+        {
+            PointTypeName = "Coins",
+            Operation = "Add",
+            TargetUser = "%UserId%",
+            Amount = "5"
+        };
+        var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["UserId"] = "user-1"
+        };
+        _pointsSystem.AddPointsByUserId("user-1", 7, 5).Returns(0);
+
+        var exception = await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
+
+        Assert.Contains("Could not add 5 points to viewer.", exception.Message);
     }
 
     [Fact]
@@ -115,5 +137,30 @@ public class ManagePointsHandlerTests
 
         await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
         await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+    }
+
+    [Theory]
+    [InlineData("Add")]
+    [InlineData("Remove")]
+    [InlineData("AddActive")]
+    public async Task Operations_RejectZeroAmount(string operation)
+    {
+        var subAction = new ManagePointsType
+        {
+            PointTypeName = "Coins",
+            Operation = operation,
+            TargetUser = "%UserId%",
+            Amount = "0"
+        };
+        var variables = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["UserId"] = "user-1"
+        };
+
+        await Assert.ThrowsAsync<SubActionUserFacingException>(() => _handler.ExecuteAsync(subAction, variables));
+
+        await _pointsSystem.DidNotReceive().AddPointsByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().RemovePointsFromUserByUserId(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<long>());
+        await _pointsSystem.DidNotReceive().AddPointsToActiveUsers(Arg.Any<int>(), Arg.Any<long>());
     }
 }

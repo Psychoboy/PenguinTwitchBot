@@ -111,7 +111,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Cancel</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave)" OnClick="Save">Create Link</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave || _isSaving)" OnClick="Save">Create Link</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -136,6 +136,7 @@
     private bool _createNewAction = true;
     private bool _addPointsSubAction = true;
     private bool _addMessageSubAction = true;
+    private bool _isSaving;
 
     private bool CanSave =>
         _outcomes.Any(item => item.DefaultCommandEventType == _selectedEventType) &&
@@ -178,7 +179,9 @@
                              selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true;
         _addPointsSubAction = isScoreOutcome;
         _addMessageSubAction = isScoreOutcome;
-        _amountExpression = isScoreOutcome ? "%Score%" : "1";
+        _amountExpression = selectedOutcome.DefaultCommandEventType == DefaultCommandEventTypes.PlinkoWin
+            ? "1"
+            : isScoreOutcome ? "%Score%" : "1";
         _messageTemplate = GetSuggestedMessage(selectedOutcome.DefaultCommandEventType ?? string.Empty);
     }
 
@@ -273,6 +276,20 @@
     }
 
     private async Task Save()
+    {
+        if (_isSaving) return;
+        _isSaving = true;
+        try
+        {
+            await SaveCoreAsync();
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private async Task SaveCoreAsync()
     {
         _error = string.Empty;
         var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);

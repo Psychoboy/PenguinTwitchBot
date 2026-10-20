@@ -52,7 +52,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             switch (operation)
             {
                 case ManagePointsOperation.Add:
-                    await pointsSystem.AddPointsByUserId(targetViewer.UserId, pointTypeId, amount);
+                    if (await pointsSystem.AddPointsByUserId(targetViewer.UserId, pointTypeId, amount) <= 0)
+                        throw new SubActionUserFacingException(subAction, "Could not add {1} points to {0}.", targetViewer.Username, amount);
                     break;
                 case ManagePointsOperation.Remove:
                     if (!await pointsSystem.RemovePointsFromUserByUserId(targetViewer.UserId, pointTypeId, amount))
