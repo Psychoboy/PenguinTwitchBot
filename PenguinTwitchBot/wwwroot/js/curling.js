@@ -122,6 +122,7 @@
         conditionLabel: 'Normal Ice',
         targetDistancePercent: 78.0,    // 70% - 92%
         enableShuffleboardKitchenPenalty: true,
+        powerVariancePercent: 3.0,
         visibleUntil: 0
     };
 
@@ -375,8 +376,8 @@
             isOtherGameActive = msg.session.isOtherGameActive;
         }
 
-        if (msg.type === 'session_start' && msg.session) {
-            const s = msg.session;
+        if (msg.type === 'session_start') {
+            const s = msg.session || {};
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 90;
@@ -403,6 +404,7 @@
             if (typeof msg.conditionLabel === 'string') boardConfig.conditionLabel = msg.conditionLabel;
             if (typeof msg.targetDistancePercent === 'number') boardConfig.targetDistancePercent = msg.targetDistancePercent;
             if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
+            if (typeof msg.powerVariancePercent === 'number') boardConfig.powerVariancePercent = msg.powerVariancePercent;
 
             boardConfig.visibleUntil = performance.now() + sessionState.totalDurationSeconds * 1000 + 6000;
 
@@ -522,6 +524,7 @@
         if (typeof msg.showBoardBorders === 'boolean') boardConfig.showBoardBorders = msg.showBoardBorders;
         if (typeof msg.targetAlpha === 'number') boardConfig.targetAlpha = msg.targetAlpha;
         if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
+        if (typeof msg.powerVariancePercent === 'number') boardConfig.powerVariancePercent = msg.powerVariancePercent;
         if (msg.theme) currentTheme = msg.theme;
         if (msg.sounds) {
             sessionState.sounds = msg.sounds;
@@ -534,10 +537,22 @@
 
         // Calculate initial slide velocity along slide axis matching server physics calibration
         const rawPower = typeof msg.power === 'number' ? msg.power : 75;
+        const variancePct = (typeof msg.powerVariancePercent === 'number')
+            ? msg.powerVariancePercent
+            : (typeof boardConfig.powerVariancePercent === 'number' ? boardConfig.powerVariancePercent : 3.0);
+
+        // Apply power variance (if variancePct <= 0, e.g. guaranteed button test shot, keep raw power exact)
+        const variedPower = variancePct > 0
+            ? Math.max(1.0, Math.min(100.0, rawPower + (Math.random() * 2.0 - 1.0) * variancePct))
+            : rawPower;
+
         let dragMult = 1.0;
         if (boardConfig.condition === 'Slick') dragMult = 0.78;
         else if (boardConfig.condition === 'HeavyFrost') dragMult = 1.28;
         else if (boardConfig.condition === 'CrossDrift') dragMult = 1.05;
+
+        // Pebbled ice friction jitter: micro-textures on ice sheet slightly alter deceleration per stone
+        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (Math.random() * 0.04 - 0.02)) : 1.0;
 
         const isReversed = (typeof msg.isReversed === 'boolean')
             ? msg.isReversed
@@ -547,18 +562,21 @@
 
         // Max cross-axis offset so stone never clips over the edges of the track
         const maxV = Math.max(0.06, 0.46 - (m.stoneRadius / m.breadth));
-        // Stagger spawn vertically (if top/bottom strip) or horizontally (if left/right strip)
-        const spawnOffsetV = (Math.random() * 2.0 - 1.0) * (maxV * 0.70);
+        // Stagger spawn: if variancePct <= 0, center directly along 0.0. Otherwise triangular distribution clustering near center delivery line.
+        const spawnOffsetV = variancePct > 0
+            ? ((Math.random() + Math.random()) - 1.0) * (maxV * 0.35)
+            : 0.0;
 
-        // Gentle curling drift across the sheet (+ dynamic condition drift)
-        const curlDirection = (Math.random() > 0.5 ? 1 : -1);
-        const naturalCurlSpeed = curlDirection * (0.0025 + Math.random() * 0.0035);
-        const driftSpeed = (boardConfig.condition === 'CrossDrift') ? (Math.random() * 0.012 - 0.006) : 0.0;
+        // Authentic in-turn / out-turn curl across the sheet (+ dynamic condition drift)
+        // If variance is 0 (guaranteed shot), no curl or drift occurs.
+        const curlDirection = variancePct > 0 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0020 + Math.random() * 0.0035) : 0.0;
+        const driftSpeed = (variancePct > 0 && boardConfig.condition === 'CrossDrift') ? (Math.random() * 0.012 - 0.006) : 0.0;
 
         const startU = isReversed ? 0.95 : 0.05;
         const baseDecel = 0.22;
-        const decel = Math.max(0.01, baseDecel * dragMult);
-        const powerFraction = Math.max(0.01, Math.min(1.0, rawPower / 100.0));
+        const decel = Math.max(0.01, baseDecel * dragMult * pebbleFrictionJitter);
+        const powerFraction = Math.max(0.01, Math.min(1.0, variedPower / 100.0));
         const initialSpeed = powerFraction * 0.76;
         const directionSign = isReversed ? -1.0 : 1.0;
 
@@ -569,7 +587,9 @@
             userColor: msg.userColor || '#3498db',
             decalUrl: msg.decalUrl || '',
             power: rawPower,
+            variedPower: variedPower,
             isReversed: isReversed,
+            curlDirection: curlDirection,
 
             // Physics state along slide axis (u: 0.0 to 1.0) and cross axis (v: -0.5 to +0.5 from center)
             u: startU,
@@ -580,7 +600,7 @@
 
             // Rendering state
             angle: 0.0,
-            spinSpeed: (Math.random() > 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.03),
+            spinSpeed: variancePct > 0 ? (curlDirection || 1) * (0.02 + Math.random() * 0.02) : 0.0,
             radius: m.stoneRadius,
             completed: false,
             score: null,
@@ -923,8 +943,11 @@
                     stone.speedU = Math.min(0, stone.speedU + stone.drag * dt);
                 }
 
-                // Lateral damping
+                // Lateral damping & authentic late-curl hook as stone slows down on pebbled ice
                 stone.speedV *= Math.pow(0.96, dt * 60);
+                if (stone.curlDirection && Math.abs(stone.speedU) < 0.22 && Math.abs(stone.speedU) > 0.005) {
+                    stone.speedV += stone.curlDirection * 0.0006 * dt;
+                }
 
                 // Rail bounce damping (staggered pucks bounce off rails)
                 const railLimit = Math.max(0.06, 0.48 - (stone.radius / m.breadth));
@@ -1747,5 +1770,23 @@
 
     // Start rendering loop
     requestAnimationFrame(render);
+
+    // Export CurlingEngine for unit testing
+    const CurlingEngine = {
+        boardConfig: boardConfig,
+        sessionState: sessionState,
+        activeStones: activeStones,
+        handleCurlingSlide: handleCurlingSlide,
+        handleWsMessage: handleWsMessage,
+        evaluateStoneOutcome: evaluateStoneOutcome,
+        getTrackMetrics: getTrackMetrics
+    };
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = CurlingEngine;
+    }
+    if (typeof global !== 'undefined') {
+        global.CurlingEngine = CurlingEngine;
+    }
 
 })(typeof window !== 'undefined' ? window : this);

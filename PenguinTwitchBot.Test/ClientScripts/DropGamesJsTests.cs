@@ -56,7 +56,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     addEventListener: function() {},
                     removeEventListener: function() {},
                     location: { search: '?key=test-secret-key' },
-                    WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
+                    WS_TOPICS: { parachute: 'parachute', plinko: 'plinko', balloon: 'balloon', curling: 'curling', golf: 'golf' },
                     __plinkoTestMode: true,
                     __sentCompletions: [],
                     __sentRaw: [],
@@ -3361,6 +3361,86 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var errorCount = engine.Evaluate("console._errors.length").AsNumber();
             Assert.Equal(0, errorCount);
+        }
+
+        [Fact]
+        public void CurlingJs_PowerVarianceAndGuaranteedStraightShot_BehavesAsExpected()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // 1. Session start with powerVariancePercent: 4.0
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { totalDurationSeconds = 60 },
+                powerVariancePercent = 4.0,
+                condition = "Normal",
+                stripPosition = "Bottom",
+                slideDirection = "LeftToRight",
+                targetDistancePercent = 80.0
+            });
+
+            var boardVariance = engine.Evaluate("window.CurlingEngine.boardConfig.powerVariancePercent").AsNumber();
+            Assert.Equal(4.0, boardVariance);
+
+            // 2. Dispatch multiple curling slides with raw power 75.0 and variance active
+            for (var i = 0; i < 5; i++)
+            {
+                DispatchWsMessage(engine, new
+                {
+                    type = "curling_slide",
+                    dropToken = $"var-stone-{i}",
+                    username = $"player{i}",
+                    power = 75.0,
+                    powerVariancePercent = 4.0,
+                    condition = "Normal"
+                });
+            }
+
+            var stonesCount = engine.Evaluate("window.CurlingEngine.activeStones.length").AsNumber();
+            Assert.Equal(5, stonesCount);
+
+            // Check that active stones have variance in variedPower (within [71.0, 79.0])
+            var minPower = engine.Evaluate("Math.min(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
+            var maxPower = engine.Evaluate("Math.max(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
+            Assert.True(minPower >= 71.0 && maxPower <= 79.0);
+
+            // Check that curlDirection was assigned (+1 or -1) for varied stones
+            var curlDirs = engine.Evaluate("window.CurlingEngine.activeStones.map(s => Math.abs(s.curlDirection))").AsArray();
+            Assert.All(curlDirs, d => Assert.Equal(1, d.AsNumber()));
+
+            // 3. Dispatch guaranteed button test shot (powerVariancePercent = 0.0)
+            DispatchWsMessage(engine, new
+            {
+                type = "curling_slide",
+                dropToken = "guaranteed-stone-1",
+                username = "admin_test",
+                power = 78.5,
+                powerVariancePercent = 0.0,
+                condition = "Normal"
+            });
+
+            var guaranteedStone = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1')");
+            Assert.NotNull(guaranteedStone);
+
+            // Guaranteed stone must have exact power, zero lateral spawn offset, zero curl direction, and zero lateral speed
+            var guaranteedVariedPower = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').variedPower").AsNumber();
+            var guaranteedOffsetV = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').v").AsNumber();
+            var guaranteedCurlDir = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').curlDirection").AsNumber();
+            var guaranteedSpeedV = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').speedV").AsNumber();
+
+            Assert.Equal(78.5, guaranteedVariedPower);
+            Assert.Equal(0.0, guaranteedOffsetV);
+            Assert.Equal(0, guaranteedCurlDir);
+            Assert.Equal(0.0, guaranteedSpeedV);
         }
 
         [Fact]

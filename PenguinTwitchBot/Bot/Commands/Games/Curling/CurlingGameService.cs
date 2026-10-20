@@ -207,7 +207,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                     collisionMode = cSettings.CollisionMode.ToString(),
                     lastCallCutoffSeconds = cSettings.LastCallCutoffSeconds,
                     targetAlpha = cSettings.TargetAlpha,
-                    trackThicknessPercent = cSettings.TrackThicknessPercent
+                    trackThicknessPercent = cSettings.TrackThicknessPercent,
+                    powerVariancePercent = cSettings.PowerVariancePercent
                 }, _jsonOptions);
 
                 await QueueWsMessageAsync(WsTopics.Curling, wsPayload, "Curling session start");
@@ -519,6 +520,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 showBoardBorders = cSettings.ShowBoardBorders,
                 targetAlpha = cSettings.TargetAlpha,
                 trackThicknessPercent = cSettings.TrackThicknessPercent,
+                powerVariancePercent = cSettings.PowerVariancePercent,
                 keyframes = record.Keyframes,
                 restX = record.LandingX,
                 restY = isHorizontal ? 0.50 : record.LandingX,

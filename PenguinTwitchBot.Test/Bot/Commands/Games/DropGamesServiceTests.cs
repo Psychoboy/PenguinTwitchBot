@@ -4086,6 +4086,47 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                     It.Is<string>(json => json.Contains("\"type\":\"golf_shot\"") && json.Contains("\"decalUrl\":\"\""))),
                 Times.Once);
         }
+
+        [Fact]
+        public async Task CurlingGameService_StartSessionAndSlide_IncludesPowerVariancePercentInPayload()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Curling.PowerVariancePercent = 4.5;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var curlingService = CreateCurlingService(dropRegistry, settingsService);
+
+            // 1. Session start payload includes powerVariancePercent: 4.5
+            var session = await curlingService.StartSessionAsync(60, triggeredBy: "ModUser");
+            Assert.NotNull(session);
+
+            _webSocketMessenger.Verify(
+                w => w.AddToQueue(
+                    WsTopics.Curling,
+                    It.Is<string>(json => json.Contains("\"type\":\"session_start\"") && json.Contains("\"powerVariancePercent\":4.5"))),
+                Times.Once);
+
+            // 2. Curling slide payload includes powerVariancePercent: 4.5
+            var args = new CommandEventArgs
+            {
+                Command = "curl",
+                Name = "curler_variance_test",
+                DisplayName = "CurlerVarianceTest",
+                UserId = "user-curl-var-1",
+                Args = ["80"]
+            };
+
+            var token = await curlingService.TriggerCurlingSlideAsync(args, power: 80.0);
+            Assert.False(string.IsNullOrWhiteSpace(token));
+
+            _webSocketMessenger.Verify(
+                w => w.AddToQueue(
+                    WsTopics.Curling,
+                    It.Is<string>(json => json.Contains("\"type\":\"curling_slide\"") && json.Contains("\"powerVariancePercent\":4.5"))),
+                Times.Once);
+        }
     }
 }
 
