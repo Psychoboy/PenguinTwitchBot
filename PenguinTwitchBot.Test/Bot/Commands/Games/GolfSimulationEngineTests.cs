@@ -7,81 +7,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 {
     public class GolfSimulationEngineTests
     {
-        [Theory]
-        // Sunk in the cup -> 100 pts, bullseye, win
-        [InlineData(0.84, 0.84, 1, 10, false, 100, 100, 0, true, true)]
-        // Sunk in the cup on stroke 2 with 10 pt penalty -> 100 base, 10 penalty, 90 final
-        [InlineData(0.84, 0.84, 2, 10, false, 100, 90, 10, true, true)]
-        // Sunk in the cup on stroke 3 with 15 pt penalty -> 100 base, 30 penalty, 70 final
-        [InlineData(0.84, 0.84, 3, 15, false, 100, 70, 30, true, true)]
-        // Lip-out resting inside cup radius (e.g. at 0.845 when isLipOut = true) -> 95 base pts, not bullseye
-        [InlineData(0.845, 0.84, 1, 10, true, 95, 95, 0, false, true)]
-        // Right outside the cup lip edge (0.84 + 0.0145) -> 95 base pts
-        [InlineData(0.8545, 0.84, 1, 10, false, 95, 95, 0, false, true)]
-        // Outer fringe of putting green (0.84 + 0.125) -> 10 base pts
-        [InlineData(0.965, 0.84, 1, 10, false, 10, 10, 0, false, true)]
-        // Off the green (short on fairway at 0.50) -> 0 pts
-        [InlineData(0.50, 0.84, 1, 10, false, 0, 0, 0, false, false)]
-        public void CalculateScore_OptionBProximityAndStrokePenalty_ReturnsExpectedValues(
-            double restPos,
-            double targetPos,
-            int strokeNumber,
-            int strokePenaltyPoints,
-            bool isLipOut,
-            int expectedBaseScore,
-            int expectedFinalScore,
-            int expectedPenalty,
-            bool expectedBullseye,
-            bool expectedWin)
-        {
-            var (baseScore, finalScore, penalty, isBullseye, isWin) = GolfSimulationEngine.CalculateScore(
-                restPos,
-                targetPos,
-                strokeNumber,
-                strokePenaltyPoints,
-                isLipOut);
-
-            Assert.Equal(expectedBaseScore, baseScore);
-            Assert.Equal(expectedFinalScore, finalScore);
-            Assert.Equal(expectedPenalty, penalty);
-            Assert.Equal(expectedBullseye, isBullseye);
-            Assert.Equal(expectedWin, isWin);
-        }
-
-        [Fact]
-        public void CalculateScore_ProximityOnGreen_ScalesSmoothlyBetween10And95()
-        {
-            var (nearCupScore, _, _, nearBullseye, nearWin) = GolfSimulationEngine.CalculateScore(
-                restPos: 0.84 + 0.025,
-                targetPos: 0.84,
-                strokeNumber: 1,
-                strokePenaltyPoints: 10);
-
-            var (midGreenScore, _, _, midBullseye, midWin) = GolfSimulationEngine.CalculateScore(
-                restPos: 0.84 + 0.070,
-                targetPos: 0.84,
-                strokeNumber: 1,
-                strokePenaltyPoints: 10);
-
-            var (fringeScore, _, _, fringeBullseye, fringeWin) = GolfSimulationEngine.CalculateScore(
-                restPos: 0.84 + 0.120,
-                targetPos: 0.84,
-                strokeNumber: 1,
-                strokePenaltyPoints: 10);
-
-            Assert.InRange(nearCupScore, 80, 95);
-            Assert.InRange(midGreenScore, 40, 75);
-            Assert.InRange(fringeScore, 10, 30);
-            Assert.True(nearCupScore > midGreenScore);
-            Assert.True(midGreenScore > fringeScore);
-            Assert.False(nearBullseye);
-            Assert.False(midBullseye);
-            Assert.False(fringeBullseye);
-            Assert.True(nearWin);
-            Assert.True(midWin);
-            Assert.True(fringeWin);
-        }
-
         [Fact]
         public void SimulateGolfShot_ChipShot_HasParabolicFlightArcAndGroundRoll()
         {
@@ -140,7 +65,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public void SimulateGolfShot_PopulatesPendingDropRecordWithFlightAndScoring()
+        public void SimulateGolfShot_PopulatesFlightWithoutAuthoritativeOutcome()
         {
             var settings = new GolfGameSettings
             {
@@ -166,6 +91,10 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.True(record.TotalTicks > 0);
             Assert.True(record.LandingX > 0.05);
             Assert.Equal(2, record.StrokeNumber);
+            Assert.Equal(0, record.Score);
+            Assert.Equal(0, record.BaseScore);
+            Assert.False(record.IsWin);
+            Assert.False(record.IsBullseye);
         }
 
         [Fact]

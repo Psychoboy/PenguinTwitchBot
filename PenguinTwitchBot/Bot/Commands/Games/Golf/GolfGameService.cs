@@ -223,7 +223,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     powerVariancePercent = gSettings.PowerVariancePercent,
                     cupCaptureSpeedMultiplier = gSettings.CupCaptureSpeedMultiplier,
                     maxStrokesPerPlayer = gSettings.MaxStrokesPerPlayer,
-                    strokePenaltyPoints = gSettings.StrokePenaltyPoints
+                    strokePenaltyPoints = gSettings.StrokePenaltyPoints,
+                    maxScore = gSettings.MaxScore
                 }, _jsonOptions);
 
                 await QueueWsMessageAsync(WsTopics.Golf, wsPayload, "Golf session start");
@@ -538,37 +539,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 Username = eventArgs.Name ?? "viewer",
                 DisplayName = eventArgs.DisplayName ?? eventArgs.Name ?? "Viewer",
                 UserId = eventArgs.UserId ?? "",
+                StrokeNumber = strokeNumber,
                 EventArgs = eventArgs,
                 Theme = theme,
+                StartAxisPosition = startAxisOverride ?? (isReversed ? 0.95 : 0.05),
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = now.AddSeconds(0.8),
                 ExpiresAtUtc = now.AddSeconds(90.0)
             };
-
-            // Simulate deterministic flight arc, bounce, roll, cup capture/lip-out, and proximity + penalty score
-            GolfSimulationEngine.SimulateGolfShot(
-                record,
-                gSettings,
-                rawPower,
-                condition,
-                targetDistance,
-                strokeNumber: strokeNumber,
-                startAxisPosOverride: startAxisOverride,
-                isReversedOverride: isReversed);
-
-            if (maxStrokes > 1 && _playerRoundStates.TryGetValue(userKey, out var updatedState))
-            {
-                var isHorizontalAxis = gSettings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
-                var restAxis = record.Keyframes.Count > 0
-                    ? (isHorizontalAxis ? record.Keyframes[^1].X : record.Keyframes[^1].Y)
-                    : record.LandingX;
-                lock (updatedState)
-                {
-                    updatedState.CurrentAxisPos = restAxis;
-                    updatedState.IsSunk = record.IsBullseye;
-                    updatedState.CurrentScore = record.Score;
-                }
-            }
 
             // Register in server drop registry
             dropRegistry.RegisterDrop(record);
@@ -610,8 +588,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
             var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "golf", StringComparison.OrdinalIgnoreCase));
 
-            var isHorizontal = gSettings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
-
             var wsPayload = JsonSerializer.Serialize(new
             {
                 type = "golf_shot",
@@ -642,17 +618,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 strokeNumber = record.StrokeNumber,
                 maxStrokesPerPlayer = maxStrokes,
                 strokePenaltyPoints = gSettings.StrokePenaltyPoints,
-                baseScore = record.BaseScore,
-                strokePenalty = record.StrokePenalty,
+                maxScore = gSettings.MaxScore,
                 startAxisPosition = record.StartAxisPosition,
-                isLipOut = record.IsLipOut,
-                keyframes = record.Keyframes,
-                restX = record.LandingX,
-                restY = isHorizontal ? 0.50 : record.LandingX,
-                totalTicks = record.TotalTicks,
-                score = record.Score,
-                isBullseye = record.IsBullseye,
-                isWin = record.IsWin
             }, _jsonOptions);
 
             await QueueWsMessageAsync(WsTopics.Golf, wsPayload, $"golf shot for {record.DisplayName}");
@@ -685,6 +652,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     if (roundState.FinalizedDropTokens.Contains(record.DropToken))
                     {
                         return;
+                    }
+
+                    if (string.Equals(roundState.LastDropToken, record.DropToken, StringComparison.Ordinal))
+                    {
+                        roundState.CurrentAxisPos = Math.Clamp(record.LandingX, 0.01, 0.99);
+                        roundState.IsSunk = record.IsBullseye;
+                        roundState.CurrentScore = record.Score;
                     }
                 }
 
@@ -786,7 +760,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("golf", DefaultCommandEventTypes.GolfBullseye, record.EventArgs, actionVars);
                 }
-                else if (record.IsWin)
+
+                if (record.IsWin)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("golf", DefaultCommandEventTypes.GolfWin, record.EventArgs, actionVars);
                 }

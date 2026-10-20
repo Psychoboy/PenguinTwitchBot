@@ -121,7 +121,7 @@
 
                                     <MudText Typo="Typo.h6" Class="mb-1">Stroke Mode, Scoring & Collisions</MudText>
                                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
-                                        Closest-to-the-Pin Scoring: Sinking in the cup awards <b>100 pts</b> (Bullseye / Hole-in-One on Stroke 1). Resting on the green awards <b>10 to 95 pts</b> scaled by proximity to the pin. Resting off the green awards <b>0 pts</b>.
+                                        Closest-to-the-Pin Scoring: Sinking awards up to <b>@_settings.Golf.MaxScore pts</b>. Green scores scale with proximity down to <b>1 pt</b> at the fringe; off-green scores are <b>0 pts</b>.
                                     </MudText>
 
                                     <MudGrid>
@@ -137,6 +137,12 @@
                                                              Disabled="@(_settings.Golf.MaxStrokesPerPlayer <= 1)"
                                                              @bind-Value="_settings.Golf.StrokePenaltyPoints"
                                                              HelperText="Deducted per extra stroke after Stroke 1 in Multi-Stroke mode (default 10)." />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Maximum Base Score" Variant="Variant.Outlined"
+                                                             Min="1" Max="1000" Step="1"
+                                                             @bind-Value="_settings.Golf.MaxScore"
+                                                             HelperText="Cup value; green edge stays 1 point. Stroke penalties cannot reduce the final score below 0." />
                                         </MudItem>
                                         <MudItem xs="12" sm="4">
                                             <MudSelect T="CurlingCollisionMode" Label="Ground Ball Collision" Variant="Variant.Outlined"

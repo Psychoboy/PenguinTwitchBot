@@ -225,23 +225,7 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'curling', msg);
             return;
         }
 
@@ -257,20 +241,8 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'curling', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start') {
             const s = msg.session || {};
@@ -325,78 +297,12 @@
     }
 
     function getTrackMetrics() {
-        const thicknessRatio = Math.max(0.10, Math.min(0.25, (boardConfig.trackThicknessPercent || 14.0) / 100));
-        const pos = (boardConfig.stripPosition || 'Bottom').toLowerCase();
-        let trackX, trackY, trackW, trackH;
-        let isHorizontal = true;
-
-        if (pos === 'top') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        } else if (pos === 'left') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else if (pos === 'right') {
-            trackX = width * (1.0 - thicknessRatio);
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else {
-            // Default: Bottom
-            trackX = 0;
-            trackY = height * (1.0 - thicknessRatio);
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        }
-
-        const trackLength = isHorizontal ? trackW : trackH;
-        const trackBreadth = isHorizontal ? trackH : trackW;
+        const metrics = DropGamesCommon.getStripMetrics(width, height, boardConfig, 78.0);
         // Comfortable radius within lane breadth allowing vertical/horizontal staggering
-        const stoneRadius = Math.max(14, Math.min(36, trackBreadth * 0.32));
-
-        const isReversed = (typeof boardConfig.isReversed === 'boolean')
-            ? boardConfig.isReversed
-            : (boardConfig.slideDirection === 'RightToLeft' || boardConfig.slideDirection === 'BottomToTop');
-
-        let targetDistRatio = Math.max(0.50, Math.min(0.95, (boardConfig.targetDistancePercent || 78.0) / 100));
-        if (boardConfig.slideDirection === 'CenterTarget') {
-            targetDistRatio = 0.50;
-        }
-
-        const effectiveTargetRatio = isReversed ? (1.0 - targetDistRatio) : targetDistRatio;
-        let targetCenterX, targetCenterY;
-
-        if (isHorizontal) {
-            targetCenterX = trackX + trackW * effectiveTargetRatio;
-            targetCenterY = trackY + trackH * 0.50;
-        } else {
-            targetCenterX = trackX + trackW * 0.50;
-            targetCenterY = trackY + trackH * effectiveTargetRatio;
-        }
-
+        const stoneRadius = Math.max(14, Math.min(36, metrics.breadth * 0.32));
         return {
-            x: trackX,
-            y: trackY,
-            w: trackW,
-            h: trackH,
-            length: trackLength,
-            breadth: trackBreadth,
-            isHorizontal: isHorizontal,
-            stoneRadius: stoneRadius,
-            targetCenterX: targetCenterX,
-            targetCenterY: targetCenterY,
-            targetDistRatio: targetDistRatio,
-            effectiveTargetRatio: effectiveTargetRatio,
-            isReversed: isReversed,
-            pos: pos
+            ...metrics,
+            stoneRadius: stoneRadius
         };
     }
 

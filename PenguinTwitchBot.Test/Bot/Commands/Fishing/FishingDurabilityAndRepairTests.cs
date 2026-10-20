@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Fishing
             var services = new ServiceCollection();
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddLogging(builder => builder.AddConsole());
+            services.AddLogging(builder => builder.AddConsole().AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None));
 
             _serviceProvider = services.BuildServiceProvider();
             _scopeFactory = _serviceProvider.GetRequiredService<IServiceScopeFactory>();

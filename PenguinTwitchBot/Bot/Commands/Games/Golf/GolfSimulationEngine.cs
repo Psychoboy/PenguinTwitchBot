@@ -8,10 +8,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         public const double Dt = 1.0 / TickRateHz;
 
         // Geometric radii normalized relative to the primary fairway axis length [0.0, 1.0]
-        public const double CupRadius = 0.014;          // Center sunken cup (100 pts base)
+        public const double CupRadius = 0.014;          // Center sunken cup
         public const double InnerRingRadius = 0.048;    // Visual inner ring guide (~75 pts)
         public const double MiddleRingRadius = 0.082;   // Visual middle ring guide (~50 pts)
-        public const double GreenRadius = 0.125;        // Putting green outer boundary (95 pts at lip -> 10 pts at edge)
+        public const double GreenRadius = 0.125;        // Putting green outer boundary
 
         // Baseline turf deceleration on a standard green
         public const double BaseTurfDecel = SlideShotPhysics.BaseDecel;
@@ -51,8 +51,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             => SlideShotPhysics.CalculateTravelDistance(initialSpeed, dragMultiplier);
 
         /// <summary>
-        /// Simulates a golf chip or putt trajectory (including 2.5D parabolic flight height Z, turf bounces,
-        /// roll-out, cup capture / lip-out physics, and Option B proximity + stroke penalty scoring).
+        /// Simulates a golf chip or putt trajectory for headless physics tests. Runtime outcomes are client-authoritative.
         /// </summary>
         public static void SimulateGolfShot(
             PendingDropRecord record,
@@ -216,59 +215,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             }
 
             record.LandingX = isHorizontal ? restPos : lateralOffset;
-            var (baseScore, finalScore, penalty, isBullseye, isWin) = CalculateScore(
-                restPos,
-                normalizedTarget,
-                strokeNumber,
-                settings.StrokePenaltyPoints,
-                isLipOut);
-
-            record.BaseScore = baseScore;
-            record.StrokePenalty = penalty;
-            record.Score = finalScore;
-            record.IsBullseye = isBullseye;
-            record.IsWin = isWin;
-            record.IsHit = isWin;
-        }
-
-        /// <summary>
-        /// Evaluates Option B ("Closest-to-the-Pin" continuous proximity scoring + multi-stroke penalty deduction).
-        /// - Sunk in the Cup (delta <= CupRadius and not lip-out): 100 base pts (Bullseye / Hole-in-One on Stroke 1).
-        /// - Resting on Putting Green (CupRadius < delta <= GreenRadius): 10 to 95 base pts scaled linearly by proximity to the pin.
-        /// - Off the Green (delta > GreenRadius): 0 pts.
-        /// - Multi-Stroke Penalty: FinalScore = max(0, BaseScore - (strokeNumber - 1) * strokePenaltyPoints).
-        /// </summary>
-        public static (int BaseScore, int FinalScore, int Penalty, bool IsBullseye, bool IsWin) CalculateScore(
-            double restPos,
-            double targetPos,
-            int strokeNumber = 1,
-            int strokePenaltyPoints = 10,
-            bool isLipOut = false)
-        {
-            strokeNumber = Math.Max(1, strokeNumber);
-            strokePenaltyPoints = Math.Max(0, strokePenaltyPoints);
-            var penalty = (strokeNumber - 1) * strokePenaltyPoints;
-
-            var delta = Math.Round(Math.Abs(restPos - targetPos), 6);
-
-            if (!isLipOut && delta <= CupRadius)
-            {
-                var baseCupScore = 100;
-                var finalCupScore = Math.Max(0, baseCupScore - penalty);
-                return (baseCupScore, finalCupScore, penalty, true, true);
-            }
-
-            if (delta <= GreenRadius)
-            {
-                var effectiveDelta = Math.Max(CupRadius, delta);
-                var t = Math.Clamp((effectiveDelta - CupRadius) / (GreenRadius - CupRadius), 0.0, 1.0);
-                var baseGreenScore = (int)Math.Round(95.0 - t * 85.0);
-                baseGreenScore = Math.Clamp(baseGreenScore, 10, 95);
-                var finalGreenScore = Math.Max(0, baseGreenScore - penalty);
-                return (baseGreenScore, finalGreenScore, penalty, false, finalGreenScore > 0);
-            }
-
-            return (0, 0, penalty, false, false);
         }
     }
 }

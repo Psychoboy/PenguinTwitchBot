@@ -719,6 +719,101 @@
         return (canvasWidth - bannerWidth) / 2;
     }
 
+    function getStripMetrics(canvasWidth, canvasHeight, config, defaultTargetDistancePercent) {
+        const settings = config || {};
+        const thicknessRatio = Math.max(0.10, Math.min(0.25, (settings.trackThicknessPercent || 14.0) / 100));
+        const pos = (settings.stripPosition || 'Bottom').toLowerCase();
+        let x = 0;
+        let y = 0;
+        let w = canvasWidth;
+        let h = canvasHeight * thicknessRatio;
+        let isHorizontal = true;
+
+        if (pos === 'top') {
+            h = canvasHeight * thicknessRatio;
+        } else if (pos === 'left') {
+            w = canvasWidth * thicknessRatio;
+            h = canvasHeight;
+            isHorizontal = false;
+        } else if (pos === 'right') {
+            x = canvasWidth * (1.0 - thicknessRatio);
+            w = canvasWidth * thicknessRatio;
+            h = canvasHeight;
+            isHorizontal = false;
+        } else {
+            y = canvasHeight * (1.0 - thicknessRatio);
+        }
+
+        const length = isHorizontal ? w : h;
+        const breadth = isHorizontal ? h : w;
+        const isReversed = typeof settings.isReversed === 'boolean'
+            ? settings.isReversed
+            : (settings.slideDirection === 'RightToLeft' || settings.slideDirection === 'BottomToTop');
+        let targetDistRatio = Math.max(0.50, Math.min(0.95,
+            (settings.targetDistancePercent || defaultTargetDistancePercent || 84.0) / 100));
+        if (settings.slideDirection === 'CenterTarget') targetDistRatio = 0.50;
+
+        const effectiveTargetRatio = isReversed ? 1.0 - targetDistRatio : targetDistRatio;
+        const targetCenterX = isHorizontal ? x + w * effectiveTargetRatio : x + w * 0.50;
+        const targetCenterY = isHorizontal ? y + h * 0.50 : y + h * effectiveTargetRatio;
+
+        return {
+            x: x,
+            y: y,
+            w: w,
+            h: h,
+            length: length,
+            breadth: breadth,
+            isHorizontal: isHorizontal,
+            targetCenterX: targetCenterX,
+            targetCenterY: targetCenterY,
+            targetDistRatio: targetDistRatio,
+            effectiveTargetRatio: effectiveTargetRatio,
+            isReversed: isReversed,
+            pos: pos
+        };
+    }
+
+    function updateActiveGameStateFromMessage(activeOtherGames, currentGame, msg) {
+        if (!(activeOtherGames instanceof Set) || !msg || typeof msg !== 'object') return null;
+        const game = String(currentGame || '').toLowerCase();
+
+        if (msg.type === 'other_game_status' && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+            const otherGame = msg.otherGame.toLowerCase();
+            if (msg.isOtherGameActive) activeOtherGames.add(otherGame);
+            else activeOtherGames.delete(otherGame);
+        }
+
+        if (msg.type === 'other_game_status' && Array.isArray(msg.activeGames)) {
+            activeOtherGames.clear();
+            msg.activeGames.forEach(function (activeGame) {
+                if (typeof activeGame === 'string' && activeGame.toLowerCase() !== game) {
+                    activeOtherGames.add(activeGame.toLowerCase());
+                }
+            });
+        }
+
+        if (msg.type === 'other_game_status') {
+            return activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+        }
+
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(function (activeGame) {
+                if (typeof activeGame === 'string' && activeGame.toLowerCase() !== game) {
+                    activeOtherGames.add(activeGame.toLowerCase());
+                }
+            });
+            return activeOtherGames.size > 0;
+        }
+        if (typeof msg.isOtherGameActive === 'boolean') return msg.isOtherGameActive;
+        if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+            return msg.session.isOtherGameActive;
+        }
+        return null;
+    }
+
     const MINIGAME_RANKS = {
         parachute: 0,
         plinko: 1,
@@ -1953,6 +2048,8 @@
         drawOutlinedName: drawOutlinedName,
         drawRoundRect: drawRoundRect,
         getBannerX: getBannerX,
+        getStripMetrics: getStripMetrics,
+        updateActiveGameStateFromMessage: updateActiveGameStateFromMessage,
         drawSessionBanner: drawSessionBanner,
         updateAndDrawPopups: updateAndDrawPopups,
         calculateDropAlpha: calculateDropAlpha,

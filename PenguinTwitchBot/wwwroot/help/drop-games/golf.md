@@ -28,11 +28,11 @@
 
 ## Closest-to-the-Pin Scoring & Cup Capture
 
-1. **Sunk in the Cup (`100 pts` Base Score)**:
-   - Balls that cross the cup within the capture radius at a controlled putt/roll speed drop into the hole (`IsBullseye = true`).
+1. **Sunk in the Cup (Configurable Maximum Base Score; default `100`)**:
+   - Balls that cross the cup within the capture radius at a controlled putt/roll speed drop into the hole (`IsBullseye = true`) and receive the configured maximum base score.
    - **Lip-Out Physics**: Hitting the cup way too fast (`> MaxCaptureSpeed`) causes the ball to catch the rim, deflect at a slight angle, and roll past!
-2. **Resting on the Putting Green (`10 – 95 pts` Base Score)**:
-   - Balls that stop on the putting green outside the cup earn continuous proximity points from **95 pts** right on the lip of the cup down to **10 pts** on the outer fringe.
+2. **Resting on the Putting Green (Base Score from maximum down to `1`)**:
+   - Balls that stop on the green outside the cup earn continuous proximity points, scaling from the configured maximum near the cup down to **1 pt** on the outer fringe.
 3. **Off the Green (`0 pts`)**:
    - Shots that stop short on the invisible fairway or roll off the back of the green score `0 pts`.
 
@@ -47,4 +47,5 @@
   - Typing `!golf [power]` again putts or chips from that exact spot toward the flag!
   - **Stroke Penalty (`StrokePenaltyPoints`, Default `10`)**: Each stroke after the first deducts `StrokePenaltyPoints` from the final score when the ball is holed or when the stroke limit is reached:
     $$\text{Final Score} = \max(0,\; \text{BaseScore} - (\text{StrokesUsed} - 1) \times \text{StrokePenaltyPoints})$$
+   - **Maximum Base Score (`MaxScore`, Default `100`)**: Configure the cup's maximum base score from `1` to `1000`. Green proximity scales to `1` at the fringe; stroke penalties never lower the final score below `0`.
 

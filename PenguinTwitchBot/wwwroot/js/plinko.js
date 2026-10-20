@@ -199,23 +199,7 @@
     completionChannel.attach(function (msg) {
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'plinko') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'plinko', msg);
             return;
         }
 
@@ -242,20 +226,8 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'plinko') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'plinko', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.headerConfig) {
             applyHeaderConfig(msg.headerConfig);

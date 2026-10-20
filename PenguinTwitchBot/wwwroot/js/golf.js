@@ -129,6 +129,7 @@
         cupCaptureSpeedMultiplier: 1.0,
         maxStrokesPerPlayer: 1,
         strokePenaltyPoints: 10,
+        maxScore: 100,
         visibleUntil: 0
     };
 
@@ -205,9 +206,10 @@
     }
 
     // Calculate Option B Closest-to-the-Pin score + multi-stroke penalty
-    function calculateGolfScore(distFromPinPx, greenRadiusPx, cupRadiusPx, isSunk, strokeNumber, strokePenaltyPoints) {
+    function calculateGolfScore(distFromPinPx, greenRadiusPx, cupRadiusPx, isSunk, strokeNumber, strokePenaltyPoints, maxScore) {
         const stroke = Math.max(1, strokeNumber || 1);
         const penaltyPerStroke = Math.max(0, typeof strokePenaltyPoints === 'number' ? strokePenaltyPoints : 10);
+        const scoreCap = Math.max(1, Math.min(1000, typeof maxScore === 'number' ? maxScore : 100));
         const strokePenalty = (stroke - 1) * penaltyPerStroke;
 
         let baseScore = 0;
@@ -216,14 +218,14 @@
         let isHit = false;
 
         if (isSunk) {
-            baseScore = 100;
+            baseScore = scoreCap;
             isBullseye = true;
             isWin = true;
             isHit = true;
         } else if (distFromPinPx <= greenRadiusPx) {
             const usableSpan = Math.max(1, greenRadiusPx - cupRadiusPx);
             const t = Math.max(0, Math.min(1, (distFromPinPx - cupRadiusPx) / usableSpan));
-            baseScore = Math.max(10, Math.min(95, Math.round(95 - t * 85)));
+            baseScore = Math.max(1, Math.min(scoreCap, Math.round(scoreCap - t * (scoreCap - 1))));
             isBullseye = false;
             isWin = true;
             isHit = true;
@@ -270,81 +272,16 @@
     completionChannel.attach(msg => handleWsMessage(msg));
 
     function getTrackMetrics() {
-        const thicknessRatio = Math.max(0.10, Math.min(0.25, (boardConfig.trackThicknessPercent || 14.0) / 100));
-        const pos = (boardConfig.stripPosition || 'Bottom').toLowerCase();
-        let trackX, trackY, trackW, trackH;
-        let isHorizontal = true;
-
-        if (pos === 'top') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        } else if (pos === 'left') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else if (pos === 'right') {
-            trackX = width * (1.0 - thicknessRatio);
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else {
-            trackX = 0;
-            trackY = height * (1.0 - thicknessRatio);
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        }
-
-        const trackLength = isHorizontal ? trackW : trackH;
-        const trackBreadth = isHorizontal ? trackH : trackW;
-        const ballRadius = Math.max(11, Math.min(24, trackBreadth * 0.22));
+        const metrics = DropGamesCommon.getStripMetrics(width, height, boardConfig, 84.0);
+        const ballRadius = Math.max(11, Math.min(24, metrics.breadth * 0.22));
         // Compact putting green matching Curling house footprint (~42% of strip breadth radius)
-        const greenRadius = Math.max(36, Math.min(trackBreadth * 0.44, ballRadius * 3.2));
+        const greenRadius = Math.max(36, Math.min(metrics.breadth * 0.44, ballRadius * 3.2));
         const cupRadius = Math.max(6, Math.min(13, ballRadius * 0.65));
-
-        const isReversed = (typeof boardConfig.isReversed === 'boolean')
-            ? boardConfig.isReversed
-            : (boardConfig.slideDirection === 'RightToLeft' || boardConfig.slideDirection === 'BottomToTop');
-
-        let targetDistRatio = Math.max(0.50, Math.min(0.95, (boardConfig.targetDistancePercent || 84.0) / 100));
-        if (boardConfig.slideDirection === 'CenterTarget') {
-            targetDistRatio = 0.50;
-        }
-
-        const effectiveTargetRatio = isReversed ? (1.0 - targetDistRatio) : targetDistRatio;
-        let targetCenterX, targetCenterY;
-
-        if (isHorizontal) {
-            targetCenterX = trackX + trackW * effectiveTargetRatio;
-            targetCenterY = trackY + trackH * 0.50;
-        } else {
-            targetCenterX = trackX + trackW * 0.50;
-            targetCenterY = trackY + trackH * effectiveTargetRatio;
-        }
-
         return {
-            x: trackX,
-            y: trackY,
-            w: trackW,
-            h: trackH,
-            length: trackLength,
-            breadth: trackBreadth,
-            isHorizontal: isHorizontal,
+            ...metrics,
             ballRadius: ballRadius,
             greenRadius: greenRadius,
-            cupRadius: cupRadius,
-            targetCenterX: targetCenterX,
-            targetCenterY: targetCenterY,
-            targetDistRatio: targetDistRatio,
-            effectiveTargetRatio: effectiveTargetRatio,
-            isReversed: isReversed,
-            pos: pos
+            cupRadius: cupRadius
         };
     }
 
@@ -364,23 +301,7 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'golf') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'golf', msg);
             return;
         }
 
@@ -390,20 +311,8 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'golf') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'golf', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
@@ -435,6 +344,7 @@
             if (typeof msg.cupCaptureSpeedMultiplier === 'number') boardConfig.cupCaptureSpeedMultiplier = msg.cupCaptureSpeedMultiplier;
             if (typeof msg.maxStrokesPerPlayer === 'number') boardConfig.maxStrokesPerPlayer = msg.maxStrokesPerPlayer;
             if (typeof msg.strokePenaltyPoints === 'number') boardConfig.strokePenaltyPoints = msg.strokePenaltyPoints;
+            if (typeof msg.maxScore === 'number') boardConfig.maxScore = msg.maxScore;
 
             boardConfig.visibleUntil = nowMs() + sessionState.totalDurationSeconds * 1000 + 6000;
 
@@ -478,6 +388,7 @@
         if (typeof msg.targetAlpha === 'number') boardConfig.targetAlpha = msg.targetAlpha;
         if (typeof msg.maxStrokesPerPlayer === 'number') boardConfig.maxStrokesPerPlayer = msg.maxStrokesPerPlayer;
         if (typeof msg.strokePenaltyPoints === 'number') boardConfig.strokePenaltyPoints = msg.strokePenaltyPoints;
+        if (typeof msg.maxScore === 'number') boardConfig.maxScore = msg.maxScore;
         if (msg.theme) currentTheme = msg.theme;
         if (msg.sounds) {
             sessionState.sounds = msg.sounds;
@@ -603,6 +514,7 @@
             strokeNumber: strokeNumber,
             maxStrokesPerPlayer: maxStrokes,
             strokePenaltyPoints: strokePenaltyPoints,
+            maxScore: typeof msg.maxScore === 'number' ? msg.maxScore : (boardConfig.maxScore || 100),
             startAxisPosition: isReversed ? (1.0 - startU) : startU,
             isReversed: isReversed,
             directionSign: directionSign,
@@ -691,7 +603,8 @@
             m.cupRadius,
             ball.isSunk,
             ball.strokeNumber,
-            ball.strokePenaltyPoints
+            ball.strokePenaltyPoints,
+            ball.maxScore
         );
 
         ball.score = outcome.score;
@@ -925,7 +838,7 @@
                 } else if (!ball.isLipOut && distToCupPx <= rimRadiusPx && groundSpd > maxCaptureSpeed && groundSpd <= maxCaptureSpeed * 2.6) {
                     // Lip-out rim deflection when rolling across the cup too fast!
                     ball.isLipOut = true;
-                    ball.speedU *= 0.48;
+                    ball.speedU *= 0.72;
                     ball.speedV += (ball.v >= 0 ? 1 : -1) * 0.042;
                     playSound(sessionState.sounds?.golfLipOut || sessionState.sounds?.lipOut || { enabled: true }, 'lipout');
                     scorePopups.push({

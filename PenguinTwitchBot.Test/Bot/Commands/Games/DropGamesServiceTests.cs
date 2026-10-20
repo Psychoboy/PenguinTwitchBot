@@ -3850,7 +3850,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, isBullseye: true));
 
             VerifyGolfEvent(DefaultCommandEventTypes.GolfBullseye, Times.Once());
-            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
         }
 
         [Fact]
@@ -3988,6 +3989,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             settings.Golf.StrokePenaltyPoints = 10;
             settings.Golf.PowerVariancePercent = 0.0;
             await settingsService.SaveSettingsAsync(settings);
+            Assert.Equal(3, (await settingsService.GetSettingsAsync()).Golf.MaxStrokesPerPlayer);
 
             var golfService = CreateGolfService(dropRegistry, settingsService);
 
@@ -4007,7 +4009,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             Assert.Equal(0.05, record1.StartAxisPosition);
             Assert.False(record1.IsBullseye);
 
-            // Complete Stroke 1 -> since Stroke 1 < MaxStrokes (3) and not in the cup, ball stays at rest for Stroke 2
+            // The authorized overlay reports where Stroke 1 came to rest; the server tracks that client result for Stroke 2.
+            record1.LandingX = 0.40;
             await golfService.ProcessCompletionAsync(record1);
             dropRegistry.AcknowledgeCompletion(token1);
 
@@ -4016,7 +4019,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var record2 = dropRegistry.GetPendingDrop(token2);
             Assert.NotNull(record2);
             Assert.Equal(2, record2.StrokeNumber);
-            Assert.Equal(record1.LandingX, record2.StartAxisPosition, 3);
+            Assert.Equal(0.40, record2.StartAxisPosition, 3);
         }
 
         [Fact]
@@ -4064,17 +4067,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 curlingServiceMock.Object,
                 golfServiceMock.Object);
 
-            // Client reports sinking in the cup (baseScore = 100) on Stroke 2 (penalty = 10 -> finalScore = 90)
+            // Authorized client reports a configurable score above the former 100-point server clamp.
             var notification = new DropGameCompleteNotification(
                 "golf-auth-token",
                 landingX: 0.840,
-                score: 90,
+                score: 240,
                 isBullseye: true,
                 isWin: true,
                 isHit: true,
                 overlayKey: validKey,
                 strokeNumber: 2,
-                baseScore: 100,
+                baseScore: 250,
                 strokePenalty: 10,
                 isLipOut: false);
 
@@ -4082,9 +4085,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             golfServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
                 r.DropToken == "golf-auth-token" &&
-                r.BaseScore == 100 &&
+                r.BaseScore == 250 &&
                 r.StrokePenalty == 10 &&
-                r.Score == 90 &&
+                r.Score == 240 &&
                 r.IsBullseye == true &&
                 r.IsWin == true)), Times.Once);
         }

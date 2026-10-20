@@ -670,6 +670,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             set => _strokePenaltyPoints = Math.Clamp(value, 0, 50);
         }
 
+        private int _maxScore = 100;
+        public int MaxScore
+        {
+            get => _maxScore;
+            set => _maxScore = Math.Clamp(value, 1, 1000);
+        }
+
         // Physics & Anti-Griefing
         public CurlingCollisionMode CollisionMode { get; set; } = CurlingCollisionMode.LockOnRest;
         public int LastCallCutoffSeconds { get; set; } = 4;

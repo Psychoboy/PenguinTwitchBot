@@ -179,23 +179,7 @@
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'balloon', msg);
             return;
         }
 
@@ -211,20 +195,8 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'balloon', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
@@ -261,7 +233,7 @@
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
             sessionState.endedAtMs = performance.now();
-            targetCloud.visibleUntil = Math.max(targetCloud.visibleUntil, performance.now() + 6000);
+            targetCloud.visibleUntil = performance.now() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (msg.session && msg.session.headerConfig) Object.assign(headerConfig, msg.session.headerConfig);
             playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
@@ -463,7 +435,7 @@
         const isVisible = activeBalloons.length > 0 ||
                           activeHazards.length > 0 ||
                           sessionState.isActive ||
-                          sessionState.endedAtMs > 0 ||
+                          (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
                           now < targetCloud.visibleUntil;
 
         if (isVisible) {
