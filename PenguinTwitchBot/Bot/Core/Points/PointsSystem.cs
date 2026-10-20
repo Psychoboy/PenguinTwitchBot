@@ -87,6 +87,60 @@ namespace PenguinTwitchBot.Bot.Core.Points
             }
         }
 
+        public async Task<long> SetPointsByUserId(string userId, int pointType, long points)
+        {
+            if (points < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(points), "Point balances cannot be negative.");
+            }
+
+            using var userLock = await UserLocks.AcquireAsync($"{userId}:{pointType}", CancellationToken.None);
+            var viewer = await viewerFeature.GetViewerByUserId(userId);
+            if (viewer == null)
+            {
+                logger.LogWarning("Viewer not found for user {userId}", userId);
+                return 0;
+            }
+
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
+            var previousPoints = userPoints?.Points ?? 0;
+            if (userPoints == null)
+            {
+                userPoints = new UserPoints
+                {
+                    UserId = userId,
+                    Username = viewer.Username,
+                    PointTypeId = pointType,
+                    Points = points
+                };
+                await db.UserPoints.AddAsync(userPoints);
+            }
+            else
+            {
+                userPoints.Username = viewer.Username;
+                userPoints.Points = points;
+                db.UserPoints.Update(userPoints);
+            }
+
+            await db.SaveChangesAsync();
+            try
+            {
+                var delta = points - previousPoints;
+                if (delta > 0)
+                    NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(delta);
+                else if (delta < 0)
+                    NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Dec(-delta);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating metrics for set points");
+            }
+
+            return points;
+        }
+
         public async Task<long> AddPointsByUsername(string username, int pointType, long points)
         {
             var viewer = await viewerFeature.GetViewerByUserName(username);
@@ -652,10 +706,10 @@ namespace PenguinTwitchBot.Bot.Core.Points
                     }
                 }
             }
-            viewerFeature.GetActiveViewers().Distinct().ToList().ForEach(async viewer =>
+            foreach (var viewer in activeViewers.Distinct(StringComparer.OrdinalIgnoreCase).ToList())
             {
                 await AddPointsByUsername(viewer, pointType, points);
-            });
+            }
         }
 
         public Task AddPointsToSubbedUsers(int pointType, long points)

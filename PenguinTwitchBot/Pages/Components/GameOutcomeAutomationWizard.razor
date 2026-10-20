@@ -1,0 +1,312 @@
+@using System.Text.Json
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.Triggers
+@using PenguinTwitchBot.Bot.Commands
+@using PenguinTwitchBot.Bot.Core.Points
+@using PenguinTwitchBot.Database.Bot.Actions
+@using PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using PenguinTwitchBot.Database.Bot.Models.Points
+@using MudBlazor
+@inject IActionManagementService ActionService
+@inject ICommandHandler CommandHandler
+@inject IPointsSystem PointsSystem
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Set Up @GameTitle Automation</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Choose an outcome and link an action, or create a points reward action.</MudText>
+            @if (_outcomes.Any(item => item.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true) &&
+                 _outcomes.Any(item => item.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    Choose Win for all successful results, including bullseyes; choose Bullseye for center-only rewards. To add a bullseye bonus, create a separate Bullseye action. Linking the same action to both events runs it twice on a bullseye.
+                </MudAlert>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+
+            <MudSelect T="string" Label="Outcome" Variant="Variant.Outlined" Value="_selectedEventType" ValueChanged="OnOutcomeChanged">
+                @foreach (var item in _outcomes)
+                {
+                    <MudSelectItem T="string" Value="@item.DefaultCommandEventType">@item.DisplayName</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSwitch T="bool" Color="Color.Primary" @bind-Value="_createNewAction" Label="Create a new action" />
+
+            @if (_createNewAction)
+            {
+                <MudTextField T="string" Label="New Action Name" Variant="Variant.Outlined" @bind-Value="_newActionName" Required="true" />
+                <MudSwitch T="bool" Color="Color.Secondary" @bind-Value="_addPointsSubAction" Label="Add a points operation" />
+
+                @if (_addPointsSubAction)
+                {
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Label="Point Type" Variant="Variant.Outlined" @bind-Value="_pointTypeName">
+                                @foreach (var pointType in _pointTypes)
+                                {
+                                    <MudSelectItem T="string" Value="@pointType.Name">@pointType.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="ManagePointsOperation" Label="Operation" Variant="Variant.Outlined" @bind-Value="_operation">
+                                @foreach (var operation in Enum.GetValues<ManagePointsOperation>())
+                                {
+                                    <MudSelectItem T="ManagePointsOperation" Value="@operation">@operation</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+                    @if (_operation != ManagePointsOperation.AddActive)
+                    {
+                        <MudTextField T="string" Label="Target User" Variant="Variant.Outlined" @bind-Value="_targetUser" HelperText="Defaults to the viewer who triggered the game outcome." />
+                    }
+                    <MudTextField T="string" Label="Amount or Formula" Variant="Variant.Outlined" @bind-Value="_amountExpression" HelperText="Examples: %Score%, 250, or $math(%Score% * 2)$" />
+                    <MudText Typo="Typo.caption" Color="@(_previewError ? Color.Error : Color.Secondary)">@GetAmountPreview()</MudText>
+                }
+            }
+            else
+            {
+                <MudSelect T="int?" Label="Existing Action" Variant="Variant.Outlined" @bind-Value="_selectedActionId">
+                    @foreach (var action in _actions.Where(action => action.Id.HasValue).OrderBy(action => action.Name))
+                    {
+                        <MudSelectItem T="int?" Value="@action.Id" Disabled="@(!action.Enabled)">@(action.Enabled ? action.Name : $"{action.Name} (Disabled)")</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
+            <MudAlert Severity="Severity.Info" Dense="true">
+                This creates a regular action trigger. You can add more sub-actions or edit the action in Manage Actions after setup.
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave)" OnClick="Save">Create Link</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter, EditorRequired] public string DefaultCommandName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string GameTitle { get; set; } = string.Empty;
+    [Parameter] public string? InitialEventType { get; set; }
+
+    private readonly List<TriggerItemInfo> _outcomes = [];
+    private List<ActionType> _actions = [];
+    private List<PointType> _pointTypes = [];
+    private string _selectedEventType = string.Empty;
+    private string _newActionName = string.Empty;
+    private string _pointTypeName = string.Empty;
+    private string _targetUser = "%UserId%";
+    private string _amountExpression = "%Score%";
+    private string _error = string.Empty;
+    private int? _selectedActionId;
+    private ManagePointsOperation _operation = ManagePointsOperation.Add;
+    private bool _createNewAction = true;
+    private bool _addPointsSubAction = true;
+
+    private bool CanSave =>
+        _outcomes.Any(item => item.DefaultCommandEventType == _selectedEventType) &&
+        (_createNewAction
+            ? !string.IsNullOrWhiteSpace(_newActionName) && (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _)))
+            : _selectedActionId.HasValue);
+
+    private bool _previewError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _outcomes.AddRange(TriggerCatalog.AllTriggers.Where(item =>
+            item.Type == TriggerTypes.DefaultCommand &&
+            string.Equals(item.DefaultCommandName, DefaultCommandName, StringComparison.OrdinalIgnoreCase)));
+        _actions = await ActionService.GetAllActionsAsync();
+        _pointTypes = (await PointsSystem.GetPointTypes()).OrderBy(pointType => pointType.Name).ToList();
+        _pointTypeName = _pointTypes.FirstOrDefault()?.Name ?? string.Empty;
+        _selectedEventType = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == InitialEventType)?.DefaultCommandEventType
+            ?? _outcomes.FirstOrDefault(item => item.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true)?.DefaultCommandEventType
+            ?? _outcomes.FirstOrDefault()?.DefaultCommandEventType
+            ?? string.Empty;
+        var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
+        UpdateOutcomeDefaults();
+    }
+
+    private void OnOutcomeChanged(string? eventType)
+    {
+        _selectedEventType = eventType ?? string.Empty;
+        UpdateOutcomeDefaults();
+    }
+
+    private void UpdateOutcomeDefaults()
+    {
+        var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
+        if (selectedOutcome == null) return;
+        _newActionName = $"{GameTitle} {selectedOutcome.DisplayName}";
+        var isScoreOutcome = selectedOutcome.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true ||
+                             selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true;
+        _addPointsSubAction = isScoreOutcome;
+        _amountExpression = isScoreOutcome ? "%Score%" : "1";
+    }
+
+    private bool TryEvaluateAmount(out long amount)
+    {
+        amount = 0;
+        var sampleVariables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Score"] = "100",
+            ["User"] = "PreviewViewer",
+            ["UserId"] = "preview-user"
+        };
+        var evaluated = PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ReplaceVariables(_amountExpression, sampleVariables);
+        if (!decimal.TryParse(evaluated, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var numeric) ||
+            numeric != decimal.Truncate(numeric) ||
+            numeric < long.MinValue || numeric > long.MaxValue)
+            return false;
+
+        amount = (long)numeric;
+        return _operation == ManagePointsOperation.Set ? amount >= 0 : amount > 0;
+    }
+
+    private string GetAmountPreview()
+    {
+        if (!_addPointsSubAction) return string.Empty;
+        _previewError = !TryEvaluateAmount(out var amount);
+        if (_previewError) return "Enter a valid whole-number formula; amount must be positive except Set may be zero.";
+        return $"Preview at Score = 100: {_operation} {amount:N0} {(_pointTypeName.Length == 0 ? "points" : _pointTypeName)}.";
+    }
+
+    private async Task Save()
+    {
+        _error = string.Empty;
+        var selectedOutcome = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == _selectedEventType);
+        if (selectedOutcome?.DefaultCommandEventType is not string eventType || selectedOutcome.DefaultCommandName is not string defaultCommandName)
+        {
+            _error = "Select a valid game outcome.";
+            return;
+        }
+
+        var defaultCommand = await CommandHandler.GetDefaultCommandByDefaultCommandName(defaultCommandName);
+        if (defaultCommand?.Id is not int defaultCommandId)
+        {
+            _error = $"The {defaultCommandName} default command is not available.";
+            return;
+        }
+
+        if (_createNewAction)
+        {
+            if (_actions.Any(action => action.Name.Equals(_newActionName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                _error = "An action with that name already exists. Choose another name or link the existing action.";
+                return;
+            }
+
+            var action = new ActionType
+            {
+                Name = _newActionName.Trim(),
+                Group = "Minigames",
+                Enabled = true,
+                QueueName = "Default",
+                SubActions = [],
+                CatchSubActions = [],
+                Triggers = [CreateTrigger(selectedOutcome, defaultCommandId)]
+            };
+
+            if (_addPointsSubAction)
+            {
+                var pointsSubAction = new ManagePointsType
+                {
+                    PointTypeName = _pointTypeName,
+                    Operation = _operation.ToString(),
+                    TargetUser = _targetUser,
+                    Amount = _amountExpression.Trim(),
+                    Text = $"{_operation} {_pointTypeName} points"
+                };
+                var validation = pointsSubAction.Validate(pointsSubAction.GetValues());
+                if (validation != null)
+                {
+                    _error = validation;
+                    return;
+                }
+                action.SubActions.Add(pointsSubAction);
+            }
+
+            var createdAction = await ActionService.CreateActionAsync(action);
+            MudDialog.Close(DialogResult.Ok(createdAction.Id));
+            return;
+        }
+
+        var selectedAction = _actions.FirstOrDefault(action => action.Id == _selectedActionId);
+        if (selectedAction?.Id is not int actionId)
+        {
+            _error = "Select an existing action.";
+            return;
+        }
+
+        var actionTriggers = await ActionService.GetTriggersForActionAsync(actionId);
+        var matchingTriggers = actionTriggers.Where(trigger => IsSameOutcome(trigger, defaultCommandName, eventType)).ToList();
+        if (matchingTriggers.Count > 1)
+        {
+            _error = "This action already has multiple matching triggers. Review them in Manage Actions before adding another.";
+            return;
+        }
+
+        if (matchingTriggers.Count == 1)
+        {
+            var existingTrigger = matchingTriggers[0];
+            if (existingTrigger.Enabled)
+            {
+                _error = "That action is already linked to this outcome.";
+                return;
+            }
+
+            existingTrigger.Enabled = true;
+            await ActionService.UpdateTriggerAsync(existingTrigger);
+            MudDialog.Close(DialogResult.Ok(actionId));
+            return;
+        }
+
+        var trigger = CreateTrigger(selectedOutcome, defaultCommandId);
+        trigger.ActionId = actionId;
+        await ActionService.CreateTriggerAsync(trigger);
+        MudDialog.Close(DialogResult.Ok(actionId));
+    }
+
+    private TriggerType CreateTrigger(TriggerItemInfo outcome, int defaultCommandId) => new()
+    {
+        Name = $"{GameTitle} {outcome.DisplayName}",
+        Type = TriggerTypes.DefaultCommand,
+        Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+        {
+            DefaultCommandName = outcome.DefaultCommandName!,
+            EventType = outcome.DefaultCommandEventType!
+        }),
+        DefaultCommandId = defaultCommandId,
+        Enabled = true
+    };
+
+    private static bool IsSameOutcome(TriggerType trigger, string commandName, string eventType)
+    {
+        if (trigger.Type != TriggerTypes.DefaultCommand) return false;
+        try
+        {
+            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
+            return config != null &&
+                   string.Equals(config.DefaultCommandName, commandName, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(config.EventType, eventType, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

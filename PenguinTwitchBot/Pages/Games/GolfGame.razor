@@ -11,7 +11,6 @@
 @inject IDropGamesSettingsService SettingsService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IGolfGameService GolfGameService
-@inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<GolfGame> Logger
@@ -238,34 +237,8 @@
 
                                     <MudDivider Class="my-2" />
 
-                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Actions</MudText>
-
-                                    <MudSelect T="string" Label="Hole-in-One / Cup Sunk Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.BullseyeActionName"
-                                               HelperText="Custom Action executed when a viewer sinks the ball in the cup (100 base pts)">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="On-Green Win Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.WinActionName"
-                                               HelperText="Custom Action executed when a ball scores points on the putting green or in the cup">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="Missed Green / Lose Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.LoseActionName"
-                                               HelperText="Custom Action executed when a ball misses the putting green (0 pts)">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Automations</MudText>
+                                    <GameOutcomeAutomationPanel DefaultCommandName="golf" GameTitle="Golf" />
 
                                     <MudDivider Class="my-2" />
 
@@ -468,7 +441,6 @@
 
 @code {
     private DropGamesSettings? _settings;
-    private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private int _testPower = 72;
@@ -487,13 +459,6 @@
 
         _settings = await SettingsService.GetSettingsAsync();
 
-        var actions = await ActionManagementService.GetAllActionsAsync();
-        _actionNames = actions
-            .Select(a => a.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private RenderFragment RenderLiveTester() => __builder =>

@@ -776,39 +776,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 logger.LogError(ex, "Failed to fire Golf DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Enqueue Win / Bullseye / Lose Action if configured
-            var actionToRun = (record.IsBullseye && !string.IsNullOrWhiteSpace(gSettings.BullseyeActionName))
-                ? gSettings.BullseyeActionName
-                : (record.IsWin ? gSettings.WinActionName : gSettings.LoseActionName);
-
-            if (!string.IsNullOrWhiteSpace(actionToRun))
-            {
-                try
-                {
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                    var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                    var allActions = await actionManagement.GetAllActionsAsync();
-                    var targetAction = allActions.FirstOrDefault(a =>
-                        a.Enabled && a.Name.Equals(actionToRun.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                    if (targetAction != null)
-                    {
-                        var mergedVars = CommandEventArgsConverter.ToDictionary(record.EventArgs);
-                        foreach (var kvp in actionVars)
-                        {
-                            mergedVars[kvp.Key] = kvp.Value;
-                        }
-                        await actionRunner.EnqueueAction(mergedVars, targetAction);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to enqueue Golf action {Action} for {User}", actionToRun, record.DisplayName);
-                }
-            }
-
             // Announce in chat
             if (gSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
             {

@@ -10,7 +10,6 @@
 @inject IDropGamesSettingsService SettingsService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IBalloonAscentService BalloonAscentService
-@inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<BalloonAscentGame> Logger
@@ -126,33 +125,9 @@
                             </MudPaper>
 
                             <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">Win Actions & Chat Announcements</MudText>
+                                <MudText Typo="Typo.h6" Class="mb-3">Outcome Automations & Chat Announcements</MudText>
                                 <MudStack Spacing="3">
-                                    <MudSelect T="string" Label="Direct Win Action (Optional)" Variant="Variant.Outlined"
-                                               Clearable="true"
-                                               @bind-Value="_settings.Balloon.WinActionName"
-                                               HelperText="Action executed when a viewer touches the cloud landing platform. Variables: %User%, %Score%, %IsBullseye%, %BalloonPopped%, %Theme%.">
-                                        <MudSelectItem Value="@("")">None (Use Default Command Triggers Only)</MudSelectItem>
-                                        @foreach (var actName in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="Direct Golden Bullseye Action (Optional)" Variant="Variant.Outlined"
-                                               Clearable="true"
-                                               @bind-Value="_settings.Balloon.BullseyeActionName"
-                                               HelperText="Action executed specifically on center bullseye touch.">
-                                        <MudSelectItem Value="@("")">None</MudSelectItem>
-                                        @foreach (var actName in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudAlert Severity="Severity.Info" Dense="true">
-                                        You can also attach triggers in <b>Manage Actions &rarr; Add Trigger &rarr; Default Command &rarr; balloon</b> for <b>Win (Target Hit)</b>, <b>Bullseye Hit</b>, <b>Balloon Popped</b>, or <b>Missed Target (Lose)</b>!
-                                    </MudAlert>
+                                    <GameOutcomeAutomationPanel DefaultCommandName="balloon" GameTitle="Balloon Ascent" />
 
                                     <MudSwitch T="bool" Color="Color.Success"
                                                @bind-Value="_settings.Balloon.AnnounceWinsInChat"
@@ -479,7 +454,6 @@
 
 @code {
     private DropGamesSettings? _settings;
-    private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private string _overlayKey = "";
@@ -497,13 +471,6 @@
 
         _settings = await SettingsService.GetSettingsAsync();
 
-        var actions = await ActionManagementService.GetAllActionsAsync();
-        _actionNames = actions
-            .Select(a => a.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private RenderFragment RenderLiveTester() => __builder =>

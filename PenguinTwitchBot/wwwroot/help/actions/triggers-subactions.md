@@ -8,6 +8,8 @@ Penguin Twitch Bot connects incoming channel events to automation pipelines usin
 
 Triggers define the circumstances that initiate an action:
 
+- **Game Outcomes**: Configure Win, Bullseye, Lose, Popped, and round lifecycle events from a game's **Outcome Automations** panel, or directly in Manage Actions. The game wizard creates regular actions and default-command trigger records; those triggers are the only outcome automation path.
+
 - **Twitch Events**: Follows, subscriptions, resubscriptions, gift subs, raids, cheers (Bits), channel point custom rewards, hype trains, and stream online/offline.
 - **Chat Commands & Keywords**: Custom prefixes, specific keywords detected in chat messages, or user-level filters (moderator, subscriber, VIP, broadcaster).
 - **Timer Groups**: Scheduled ticks from configured background timers.
@@ -42,6 +44,10 @@ Sub-actions are the modular building blocks executed when an action fires:
 
 ### Games & Economy
 - **Viewer Points**: Award, deduct, or check loyalty points for the triggering user or target (`%TargetPoints%`).
+- **Manage Points**: Add, Remove, Set, or Add Active for a selected point type. Add/Remove/Set target the triggering user by default; Add Active follows the points system's active-viewer policy. Amounts support variables such as `%Score%` and formulas such as `$math(%Score% * 2)$`. Remove leaves balances unchanged when the viewer has insufficient points; balances cannot become negative.
+- **Game Outcome Automations**: The game setup wizard creates regular editable actions linked to the selected outcome trigger. Add multiple Manage Points sub-actions for multiple currencies, or repeat setup to create separate linked actions. Same-action bindings to both Win and Bullseye can execute twice for bullseyes.
+- **Manage Points**: Add, Remove, Set, or Add Active for a selected point type. Add/Remove/Set target the triggering user by default; Add Active follows the points system's active-viewer policy. Amounts support variables such as `%Score%` and formulas such as `$math(%Score% * 2)$`. Remove leaves balances unchanged when the viewer has insufficient points; balances cannot become negative.
+- **Game Outcome Automations**: Set Up Automation on a minigame page creates a normal action and attaches it to the selected default-command outcome trigger. The action remains editable in [Manage Actions](/actions/manage), where additional sub-actions and point types can be added.
 - **Wheel Spin & Raffles**: Trigger giveaways, check raffle ticket counts, and draw winners.
 - **Fishing & Tournaments**: Mini-game actions that populate catch details (`%fish_name%`, `%fish_weight%`, `%fishing_tournament_name%`).
 

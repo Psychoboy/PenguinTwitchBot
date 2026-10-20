@@ -38,3 +38,7 @@ When a balloon is popped by a sharp hazard, scoring is handled by your configure
 - **Single Ascent**: Viewers launch balloons at any time (subject to user cooldowns).
 - **Timed Session / Round Mode**: A group countdown begins when the round opens. All viewers who launch within the window rise together. The player who docks closest to the bullseye is crowned the round leader with a golden crown highlight.
 
+## Outcome Automations
+
+Use **Outcome Automations** on the Balloon Ascent game page to link an existing action or create a new one for Win, Bullseye, Popped, Lose, or round events. Add a Manage Points sub-action for the selected point type; `%Score%` awards the score directly, and `$math(%Score% * 2)$` applies a multiplier. Edit the linked action in [Manage Actions](/actions/manage) to add more sub-actions or point types. Bullseye also fires Win, so linking the same action to both can award twice.
+

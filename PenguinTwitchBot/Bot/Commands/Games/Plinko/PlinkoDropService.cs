@@ -607,12 +607,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
             if (record.IsWin)
             {
-                if (!record.WinActionExecuted && !string.IsNullOrWhiteSpace(plinkoSettings.WinActionName))
-                {
-                    await EnqueueConfiguredWinActionAsync(plinkoSettings.WinActionName, record.EventArgs, variables);
-                    record.WinActionExecuted = true;
-                }
-
                 if (!record.WinChatAnnounced && plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
                 {
                     var template = plinkoSettings.WinChatMessageTemplate;
@@ -627,41 +621,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                     await ServiceBackbone.SendChatMessage(msg);
                     record.WinChatAnnounced = true;
                 }
-            }
-        }
-
-        private async Task EnqueueConfiguredWinActionAsync(
-            string actionName,
-            CommandEventArgs eventArgs,
-            Dictionary<string, string> gameVariables)
-        {
-            try
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                var allActions = await actionManagement.GetAllActionsAsync();
-                var targetAction = allActions.FirstOrDefault(a =>
-                    a.Enabled && a.Name.Equals(actionName.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                if (targetAction == null)
-                {
-                    logger.LogWarning("Configured DropGame win action '{ActionName}' was not found or is disabled.", actionName);
-                    return;
-                }
-
-                var actionVars = CommandEventArgsConverter.ToDictionary(eventArgs);
-                foreach (var kvp in gameVariables)
-                {
-                    actionVars[kvp.Key] = kvp.Value;
-                }
-
-                await actionRunner.EnqueueAction(actionVars, targetAction);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to enqueue win action '{ActionName}' for user {User}", actionName, eventArgs.DisplayName);
             }
         }
 

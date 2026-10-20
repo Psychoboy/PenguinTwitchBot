@@ -674,39 +674,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 logger.LogError(ex, "Failed to fire Balloon DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Enqueue Win / Bullseye Action if configured
-            var actionToRun = (record.IsBullseye && !string.IsNullOrWhiteSpace(bSettings.BullseyeActionName))
-                ? bSettings.BullseyeActionName
-                : (record.IsWin ? bSettings.WinActionName : "");
-
-            if (!string.IsNullOrWhiteSpace(actionToRun))
-            {
-                try
-                {
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                    var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                    var allActions = await actionManagement.GetAllActionsAsync();
-                    var targetAction = allActions.FirstOrDefault(a =>
-                        a.Enabled && a.Name.Equals(actionToRun.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                    if (targetAction != null)
-                    {
-                        var mergedVars = CommandEventArgsConverter.ToDictionary(record.EventArgs);
-                        foreach (var kvp in actionVars)
-                        {
-                            mergedVars[kvp.Key] = kvp.Value;
-                        }
-                        await actionRunner.EnqueueAction(mergedVars, targetAction);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to enqueue Balloon action {Action} for {User}", actionToRun, record.DisplayName);
-                }
-            }
-
             // Announce in chat
             if (bSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
             {

@@ -324,6 +324,54 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
         }
 
         [Fact]
+        public async Task SetPointsByUserId_ShouldSetBalanceAndPersist()
+        {
+            const string userId = "user1";
+            const int pointType = 2;
+            var userPoints = new UserPoints { UserId = userId, Username = "viewer", PointTypeId = pointType, Points = 30 };
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointType).Returns(userPoints);
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(new Viewer { UserId = userId, Username = "viewer" });
+
+            var result = await _pointsSystem.SetPointsByUserId(userId, pointType, 75);
+
+            Assert.Equal(75, result);
+            Assert.Equal(75, userPoints.Points);
+            _unitOfWorkMock.UserPoints.Received(1).Update(userPoints);
+            await _unitOfWorkMock.Received(1).SaveChangesAsync();
+        }
+
+        [Fact]
+        public async Task SetPointsByUserId_ShouldRejectNegativeBalance()
+        {
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => _pointsSystem.SetPointsByUserId("user1", 1, -1));
+            _unitOfWorkMock.UserPoints.DidNotReceiveWithAnyArgs().Update(default!);
+        }
+
+        [Fact]
+        public async Task AddPointsToActiveUsers_AwardsEveryActiveViewerBeforeReturning()
+        {
+            _viewerFeatureMock.GetActiveViewers().Returns(["viewer1", "viewer2"]);
+            _viewerFeatureMock.GetCurrentViewers().Returns([]);
+            _viewerFeatureMock.GetViewerByUserName(Arg.Any<string>()).Returns(call =>
+            {
+                var username = call.Arg<string>();
+                return new Viewer { UserId = username, Username = username };
+            });
+            _viewerFeatureMock.GetViewerByUserId(Arg.Any<string>()).Returns(call =>
+            {
+                var userId = call.Arg<string>();
+                return new Viewer { UserId = userId, Username = userId };
+            });
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(Arg.Any<string>(), 3).Returns((UserPoints?)null);
+
+            await _pointsSystem.AddPointsToActiveUsers(3, 8);
+
+            await _unitOfWorkMock.UserPoints.Received(1).AddAsync(Arg.Is<UserPoints>(points => points.UserId == "viewer1" && points.Points == 8));
+            await _unitOfWorkMock.UserPoints.Received(1).AddAsync(Arg.Is<UserPoints>(points => points.UserId == "viewer2" && points.Points == 8));
+            await _unitOfWorkMock.Received(2).SaveChangesAsync();
+        }
+
+        [Fact]
         public async Task RemovePointsFromUserByUsername_ShouldRemovePoints_WhenUserExistsAndSufficient()
         {
             // Arrange

@@ -10,7 +10,6 @@
 @inject IDropGamesSettingsService SettingsService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject ICurlingGameService CurlingGameService
-@inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<CurlingGame> Logger
@@ -233,34 +232,8 @@
 
                                     <MudDivider Class="my-2" />
 
-                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Actions</MudText>
-
-                                    <MudSelect T="string" Label="Bullseye Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Curling.BullseyeActionName"
-                                               HelperText="Custom Action executed when a stone hits a perfect button or apex bullseye">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="Win Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Curling.WinActionName"
-                                               HelperText="Custom Action executed when a stone scores points in the house">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="Lose Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Curling.LoseActionName"
-                                               HelperText="Custom Action executed when a stone misses the scoring zones">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Automations</MudText>
+                                    <GameOutcomeAutomationPanel DefaultCommandName="curl" GameTitle="Curling & Shuffleboard" />
 
                                     <MudDivider Class="my-2" />
 
@@ -463,7 +436,6 @@
 
 @code {
     private DropGamesSettings? _settings;
-    private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private int _testPower = 50;
@@ -482,13 +454,6 @@
 
         _settings = await SettingsService.GetSettingsAsync();
 
-        var actions = await ActionManagementService.GetAllActionsAsync();
-        _actionNames = actions
-            .Select(a => a.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private RenderFragment RenderLiveTester() => __builder =>

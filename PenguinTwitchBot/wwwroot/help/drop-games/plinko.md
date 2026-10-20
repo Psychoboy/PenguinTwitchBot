@@ -28,3 +28,7 @@ The bottom of the board contains customizable landing slots:
 
 - **Single Drop**: Viewers drop tokens whenever they use the command (subject to user cooldowns).
 - **Timed Session / Round Mode**: A group countdown begins when the round opens. All viewers who drop within the time window compete in the same round. The highest-scoring token is highlighted as the session leader.
+
+## Outcome Automations
+
+Use **Outcome Automations** on the Plinko game page to link an existing action or create a new one for winning buckets, losing buckets, or round events. Add a Manage Points sub-action for a point type; `%Score%` awards the bucket score directly, while `$math(%Score% * 2)$` applies a multiplier. Edit the linked action in [Manage Actions](/actions/manage) to add more sub-actions or point types.
