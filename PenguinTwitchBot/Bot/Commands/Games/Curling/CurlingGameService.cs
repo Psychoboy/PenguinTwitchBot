@@ -563,7 +563,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curl", DefaultCommandEventTypes.CurlingBullseye, record.EventArgs, actionVars);
                 }
-                else if (record.IsWin)
+
+                if (record.IsWin || record.IsBullseye)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curl", DefaultCommandEventTypes.CurlingWin, record.EventArgs, actionVars);
                 }

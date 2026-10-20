@@ -655,7 +655,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonBullseye, record.EventArgs, actionVars);
                 }
-                else if (record.IsWin)
+
+                if (record.IsWin || record.IsBullseye)
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("balloon", DefaultCommandEventTypes.BalloonWin, record.EventArgs, actionVars);
                 }
