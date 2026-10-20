@@ -3792,6 +3792,31 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void GolfJs_RightToLeftShot_StartsOnRightSide()
+        {
+            var jsDir = FindWwwRootPath();
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(Path.Combine(jsDir, "golf.js")));
+
+            DispatchWsMessage(engine, new
+            {
+                type = "golf_shot",
+                dropToken = "golf-rtl-token",
+                username = "golfer1",
+                power = 70.0,
+                stripPosition = "Bottom",
+                slideDirection = "RightToLeft",
+                isReversed = true,
+                startAxisPosition = 0.05,
+                powerVariancePercent = 0.0,
+                targetDistancePercent = 84.0
+            });
+
+            var startU = engine.Evaluate("window.GolfEngine.activeBalls[0].u").AsNumber();
+            Assert.Equal(0.95, startU, 3);
+        }
+
+        [Fact]
         public void GolfJs_MaxScoreScalesGreenAndStrokePenaltyFloorsAtZero()
         {
             var jsDir = FindWwwRootPath();

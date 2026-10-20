@@ -1400,7 +1400,7 @@ namespace PenguinTwitchBot.Bot.Commands.Music
                 await db.SaveChangesAsync();
                 return;
             }
-            var existingItems = (await db.SongRequestViewItems.Find(x => x.Id > 0).ToListAsync()).ToDictionary(x => x.Id);
+            var existingItems = (await db.SongRequestViewItems.Find(x => x.Id > 0).ToListAsync()).ToDictionary(x => x.Id!.Value);
             foreach (var request in requests)
             {
                 bool newRecord = false;
