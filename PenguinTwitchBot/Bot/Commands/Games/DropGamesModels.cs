@@ -1300,6 +1300,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public int BaseScore { get; set; }
         public int StrokeNumber { get; set; } = 1;
         public int StrokePenalty { get; set; }
+
+        /// <summary>Server-resolved launch power after variance (Curling); broadcast so all overlays simulate identically.</summary>
+        public double EffectivePower { get; set; }
         public double StartAxisPosition { get; set; } = 0.05;
         public bool IsLipOut { get; set; }
         public bool IsHit { get; set; }

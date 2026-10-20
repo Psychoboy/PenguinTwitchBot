@@ -254,7 +254,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 try
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                        "curling",
+                        "curl",
                         DefaultCommandEventTypes.CurlingStart,
                         startEventArgs,
                         startVariables);
@@ -351,7 +351,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 try
                 {
                     await defaultCommandTriggerService.TriggerDefaultCommandEventAsync(
-                        "curling",
+                        "curl",
                         DefaultCommandEventTypes.CurlingEnd,
                         endEventArgs,
                         endVariables);
@@ -503,6 +503,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 displayName = record.DisplayName,
                 userColor,
                 power = rawPower,
+                effectivePower = record.EffectivePower,
                 condition = condition.ToString(),
                 targetDistancePercent = targetDistance,
                 decalUrl,
@@ -560,15 +561,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             {
                 if (record.IsBullseye)
                 {
-                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curling", DefaultCommandEventTypes.CurlingBullseye, record.EventArgs, actionVars);
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curl", DefaultCommandEventTypes.CurlingBullseye, record.EventArgs, actionVars);
                 }
                 else if (record.IsWin)
                 {
-                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curling", DefaultCommandEventTypes.CurlingWin, record.EventArgs, actionVars);
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curl", DefaultCommandEventTypes.CurlingWin, record.EventArgs, actionVars);
                 }
                 else
                 {
-                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curling", DefaultCommandEventTypes.CurlingLose, record.EventArgs, actionVars);
+                    await defaultCommandTriggerService.TriggerDefaultCommandEventAsync("curl", DefaultCommandEventTypes.CurlingLose, record.EventArgs, actionVars);
                 }
             }
             catch (Exception ex)

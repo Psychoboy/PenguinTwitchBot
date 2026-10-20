@@ -3400,6 +3400,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     dropToken = $"var-stone-{i}",
                     username = $"player{i}",
                     power = 75.0,
+                    effectivePower = 76.25,
                     powerVariancePercent = 4.0,
                     condition = "Normal"
                 });
@@ -3408,10 +3409,21 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var stonesCount = engine.Evaluate("window.CurlingEngine.activeStones.length").AsNumber();
             Assert.Equal(5, stonesCount);
 
-            // Check that active stones have variance in variedPower (within [71.0, 79.0])
+            // Client must use the server-resolved effective power (no client-side resampling)
             var minPower = engine.Evaluate("Math.min(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
             var maxPower = engine.Evaluate("Math.max(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
-            Assert.True(minPower >= 71.0 && maxPower <= 79.0);
+            Assert.Equal(76.25, minPower);
+            Assert.Equal(76.25, maxPower);
+
+            // Same dropToken must yield identical lateral dispersion across overlay instances (seeded PRNG)
+            DispatchWsMessage(engine, new { type = "curling_slide", dropToken = "same-token", username = "a", power = 75.0, effectivePower = 75.0, powerVariancePercent = 4.0, condition = "Normal" });
+            DispatchWsMessage(engine, new { type = "curling_slide", dropToken = "same-token", username = "b", power = 75.0, effectivePower = 75.0, powerVariancePercent = 4.0, condition = "Normal" });
+            var sameV = engine.Evaluate("(function(){var a=window.CurlingEngine.activeStones.filter(s=>s.dropToken==='same-token');return a[0].v===a[1].v && a[0].speedV===a[1].speedV && a[0].drag===a[1].drag;})()").AsBoolean();
+            Assert.True(sameV);
+
+            // Different shots (different dropTokens) with the exact same power must still disperse differently
+            var distinct = engine.Evaluate("(function(){var a=window.CurlingEngine.activeStones.filter(s=>s.dropToken.indexOf('var-stone-')===0);var seen={};a.forEach(s=>{seen[s.v.toFixed(6)+'|'+s.speedV.toFixed(6)+'|'+s.drag.toFixed(6)]=1;});return Object.keys(seen).length;})()").AsNumber();
+            Assert.Equal(5, distinct);
 
             // Check that curlDirection was assigned (+1 or -1) for varied stones
             var curlDirs = engine.Evaluate("window.CurlingEngine.activeStones.map(s => Math.abs(s.curlDirection))").AsArray();

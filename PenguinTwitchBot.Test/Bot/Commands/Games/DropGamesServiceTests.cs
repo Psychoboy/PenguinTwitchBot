@@ -3864,6 +3864,46 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task GolfGameService_MultiStroke_InFlightShotCompletingAfterSessionStop_IsDiscarded()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.StartSessionAsync(60, triggeredBy: "test");
+            await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+
+            await golfService.StopSessionAsync("test");
+
+            // Shot was still in flight when the session stopped; its late completion must not fire anything
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: false));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_FreePlay_IdleFinalizedRound_DiscardsDuplicateAndStartsNewHole()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+            golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(100);
+
+            var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true);
+            await golfService.ProcessCompletionAsync(record);
+            await Task.Delay(600);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+
+            // Duplicate/late completion of the finalized stroke must not fire again
+            await golfService.ProcessCompletionAsync(record);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+
+            // A new shot starts again at stroke 1 (fresh hole at the tee)
+            var token = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            Assert.False(string.IsNullOrWhiteSpace(token));
+        }
+
+        [Fact]
         public async Task GolfGameService_MultiStroke_FreePlay_FiresDeferredOutcomeAfterIdleTimeout()
         {
             var args = CreateGolfArgs();

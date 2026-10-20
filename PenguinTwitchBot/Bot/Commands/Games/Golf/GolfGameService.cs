@@ -30,6 +30,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
         /// Its win/lose outcome is deferred and fired only if the round ends (session stop) without a further stroke.
         /// </summary>
         public PendingDropRecord? DeferredOutcomeRecord { get; set; }
+
+        /// <summary>Drop tokens whose outcome has already been fired (or discarded); late/duplicate completions for them are ignored.</summary>
+        public HashSet<string> FinalizedDropTokens { get; } = new(StringComparer.Ordinal);
     }
 
     public class GolfGameService(
@@ -689,9 +692,25 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
             if (maxStrokes > 1)
             {
                 var userKey = !string.IsNullOrWhiteSpace(record.UserId) ? record.UserId : record.Username;
-                var isFinalStroke = record.IsBullseye || record.StrokeNumber >= maxStrokes;
-                if (!isFinalStroke && _playerRoundStates.TryGetValue(userKey, out var pState))
+
+                // No round state means the round was already finalized (e.g. session stop cleared it): drop late completions
+                if (!_playerRoundStates.TryGetValue(userKey, out var roundState))
                 {
+                    return;
+                }
+
+                lock (roundState)
+                {
+                    if (roundState.FinalizedDropTokens.Contains(record.DropToken))
+                    {
+                        return;
+                    }
+                }
+
+                var isFinalStroke = record.IsBullseye || record.StrokeNumber >= maxStrokes;
+                if (!isFinalStroke)
+                {
+                    var pState = roundState;
                     var stored = false;
                     lock (pState)
                     {
@@ -710,12 +729,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     return;
                 }
 
-                if (_playerRoundStates.TryGetValue(userKey, out var finalState))
+                lock (roundState)
                 {
-                    lock (finalState)
-                    {
-                        finalState.DeferredOutcomeRecord = null;
-                    }
+                    roundState.DeferredOutcomeRecord = null;
+                    roundState.FinalizedDropTokens.Add(record.DropToken);
                 }
             }
 
@@ -738,6 +755,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                     if (ReferenceEquals(pState.DeferredOutcomeRecord, record))
                     {
                         pState.DeferredOutcomeRecord = null;
+                        pState.FinalizedDropTokens.Add(record.DropToken);
+                        // Round is over: next shot starts a brand new hole at the tee
+                        pState.StrokesUsed = 0;
+                        pState.IsSunk = false;
+                        pState.CurrentAxisPos = 0.05;
+                        pState.CurrentScore = 0;
                         shouldFire = true;
                     }
                 }

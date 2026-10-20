@@ -85,6 +85,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
 
             var dragMultiplier = ResolveIceDragMultiplier(condition);
             var effectivePower = CalculateEffectivePower(rawPower, settings.PowerVariancePercent, rng);
+            record.EffectivePower = effectivePower;
             var v0 = PowerToInitialSpeed(effectivePower, dragMultiplier);
             var decel = BaseFrictionDecel * dragMultiplier;
             var slideDist = CalculateSlideDistance(v0, dragMultiplier);

@@ -541,10 +541,27 @@
             ? msg.powerVariancePercent
             : (typeof boardConfig.powerVariancePercent === 'number' ? boardConfig.powerVariancePercent : 3.0);
 
-        // Apply power variance (if variancePct <= 0, e.g. guaranteed button test shot, keep raw power exact)
-        const variedPower = variancePct > 0
-            ? Math.max(1.0, Math.min(100.0, rawPower + (Math.random() * 2.0 - 1.0) * variancePct))
+        // Server-authoritative launch power (variance already applied server-side); no client resampling.
+        const variedPower = (typeof msg.effectivePower === 'number' && isFinite(msg.effectivePower))
+            ? msg.effectivePower
             : rawPower;
+
+        // Deterministic per-dropToken PRNG so every overlay instance produces identical dispersion/outcome
+        const rand = (function (seedStr) {
+            let h = 2166136261 >>> 0;
+            const s = String(seedStr || '');
+            for (let i = 0; i < s.length; i++) {
+                h ^= s.charCodeAt(i);
+                h = Math.imul(h, 16777619) >>> 0;
+            }
+            return function () {
+                h = (h + 0x6D2B79F5) >>> 0;
+                let t = h;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        })(msg.dropToken);
 
         let dragMult = 1.0;
         if (boardConfig.condition === 'Slick') dragMult = 0.78;
@@ -552,7 +569,7 @@
         else if (boardConfig.condition === 'CrossDrift') dragMult = 1.05;
 
         // Pebbled ice friction jitter: micro-textures on ice sheet slightly alter deceleration per stone
-        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (Math.random() * 0.04 - 0.02)) : 1.0;
+        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (rand() * 0.04 - 0.02)) : 1.0;
 
         const isReversed = (typeof msg.isReversed === 'boolean')
             ? msg.isReversed
@@ -564,14 +581,14 @@
         const maxV = Math.max(0.06, 0.46 - (m.stoneRadius / m.breadth));
         // Stagger spawn: if variancePct <= 0, center directly along 0.0. Otherwise triangular distribution clustering near center delivery line.
         const spawnOffsetV = variancePct > 0
-            ? ((Math.random() + Math.random()) - 1.0) * (maxV * 0.35)
+            ? ((rand() + rand()) - 1.0) * (maxV * 0.35)
             : 0.0;
 
         // Authentic in-turn / out-turn curl across the sheet (+ dynamic condition drift)
         // If variance is 0 (guaranteed shot), no curl or drift occurs.
-        const curlDirection = variancePct > 0 ? (Math.random() > 0.5 ? 1 : -1) : 0;
-        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0020 + Math.random() * 0.0035) : 0.0;
-        const driftSpeed = (variancePct > 0 && boardConfig.condition === 'CrossDrift') ? (Math.random() * 0.012 - 0.006) : 0.0;
+        const curlDirection = variancePct > 0 ? (rand() > 0.5 ? 1 : -1) : 0;
+        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0020 + rand() * 0.0035) : 0.0;
+        const driftSpeed = (variancePct > 0 && boardConfig.condition === 'CrossDrift') ? (rand() * 0.012 - 0.006) : 0.0;
 
         const startU = isReversed ? 0.95 : 0.05;
         const baseDecel = 0.22;
@@ -600,7 +617,7 @@
 
             // Rendering state
             angle: 0.0,
-            spinSpeed: variancePct > 0 ? (curlDirection || 1) * (0.02 + Math.random() * 0.02) : 0.0,
+            spinSpeed: variancePct > 0 ? (curlDirection || 1) * (0.02 + rand() * 0.02) : 0.0,
             radius: m.stoneRadius,
             completed: false,
             score: null,
@@ -615,7 +632,7 @@
 
         activeStones.push(newStone);
         ensureHeartbeat();
-        playSound(msg.sounds?.slide || { enabled: true }, 'slide');
+        playSound(msg.sounds?.curlingSlide || { enabled: true }, 'slide');
     }
 
     // Leader evaluation (with distance tie-break)
