@@ -10,7 +10,12 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         bool? isBullseye = null,
         bool? isWin = null,
         bool? isHit = null,
-        bool? balloonPopped = null) : Application.Notifications.INotification
+        bool? balloonPopped = null,
+        int? strokeNumber = null,
+        int? baseScore = null,
+        int? strokePenalty = null,
+        double? startAxisPosition = null,
+        bool? isLipOut = null) : Application.Notifications.INotification
     {
         public string DropToken { get; } = dropToken;
         public double? LandingX { get; set; } = landingX;
@@ -22,6 +27,11 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         public bool? IsWin { get; set; } = isWin;
         public bool? IsHit { get; set; } = isHit;
         public bool? BalloonPopped { get; set; } = balloonPopped;
+        public int? StrokeNumber { get; set; } = strokeNumber;
+        public int? BaseScore { get; set; } = baseScore;
+        public int? StrokePenalty { get; set; } = strokePenalty;
+        public double? StartAxisPosition { get; set; } = startAxisPosition;
+        public bool? IsLipOut { get; set; } = isLipOut;
     }
 }
 

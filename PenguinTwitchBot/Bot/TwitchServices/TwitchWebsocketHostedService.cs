@@ -342,9 +342,26 @@ namespace PenguinTwitchBot.Bot.TwitchServices
 
                 if (!isExplicitPath)
                 {
-                    var emoteFragment = !string.IsNullOrWhiteSpace(candidateEmoteText)
-                        ? fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl) && string.Equals(f.Text?.Trim(), candidateEmoteText, StringComparison.OrdinalIgnoreCase))
-                        : fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+                    ChatOverlayFragment? emoteFragment = null;
+                    if (ArgumentsAsList.Count > 0)
+                    {
+                        foreach (var argToken in ArgumentsAsList)
+                        {
+                            if (string.IsNullOrWhiteSpace(argToken)) continue;
+                            emoteFragment = fragments.FirstOrDefault(f =>
+                                f.Type == "emote" &&
+                                !string.IsNullOrWhiteSpace(f.EmoteUrl) &&
+                                string.Equals(f.Text?.Trim(), argToken.Trim(), StringComparison.OrdinalIgnoreCase));
+                            if (emoteFragment != null)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        emoteFragment = fragments.FirstOrDefault(f => f.Type == "emote" && !string.IsNullOrWhiteSpace(f.EmoteUrl));
+                    }
 
                     firstEmoteUrl = emoteFragment?.EmoteUrl;
                 }

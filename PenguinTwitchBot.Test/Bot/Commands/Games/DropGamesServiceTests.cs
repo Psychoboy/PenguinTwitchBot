@@ -15,6 +15,7 @@ using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Commands.Games.Curling;
+using PenguinTwitchBot.Bot.Commands.Games.Golf;
 using PenguinTwitchBot.Bot.Core;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
@@ -148,6 +149,23 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 settingsService ?? CreateSettingsService(),
                 dropRegistry ?? CreateDropRegistry(),
                 NullLogger<CurlingGameService>.Instance);
+        }
+
+        private GolfGameService CreateGolfService(
+            IDropRegistry? dropRegistry = null,
+            IDropGamesSettingsService? settingsService = null)
+        {
+            return new GolfGameService(
+                _serviceBackbone.Object,
+                _commandHandler.Object,
+                _defaultCommandTriggerService.Object,
+                _scopeFactory.Object,
+                _emoteService.Object,
+                _webSocketMessenger.Object,
+                _dispatcher.Object,
+                settingsService ?? CreateSettingsService(),
+                dropRegistry ?? CreateDropRegistry(),
+                NullLogger<GolfGameService>.Instance);
         }
 
         [Fact]
@@ -3639,6 +3657,524 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             // Clean up
             await plinkoService.StopSessionAsync("Cleanup");
             await curlingService.StopSessionAsync("Cleanup");
+        }
+
+        [Fact]
+        public async Task ParsePowerAndEmoteAsync_HandlesEmoteWithoutPower_AndPowerWithTypos()
+        {
+            _emoteService.Setup(x => x.GetEmotesAsync()).ReturnsAsync(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sptv318"] = "https://static-cdn.jtvnw.net/emoticons/v2/318/default/dark/3.0"
+            });
+
+            // Case 1: Viewer omits power and passes an alphanumeric emote (!golf sptv318)
+            var emoteOnlyArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                Arg = "sptv318",
+                Args = ["sptv318"],
+                EmoteUrl = "https://static-cdn.jtvnw.net/emoticons/v2/318/default/dark/3.0",
+                Fragments =
+                [
+                    new ChatOverlayFragment { Type = "text", Text = "!golf " },
+                    new ChatOverlayFragment { Type = "emote", Text = "sptv318", EmoteId = "318" }
+                ]
+            };
+
+            var (power1, emote1) = await DropGameMediaResolver.ParsePowerAndEmoteAsync(
+                _emoteService.Object,
+                emoteOnlyArgs,
+                explicitPower: null,
+                explicitEmote: null,
+                enableViewerPowerControl: true,
+                defaultPowerMin: 65,
+                defaultPowerMax: 85);
+            Assert.InRange(power1, 65.0, 85.0);
+            Assert.Equal("sptv318", emote1);
+
+            // Also verify ResolveCharacterOrEmoteUrlAsync resolves the native Twitch emote when emoteOrImageInput ("sptv318") is passed!
+            var resolvedUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(_emoteService.Object, emoteOnlyArgs, emote1, "/fallback.png");
+            Assert.Equal("https://static-cdn.jtvnw.net/emoticons/v2/318/default/dark/1.0", resolvedUrl);
+
+            // Case 2: Viewer provides power with a minor typo (75%) and an emote (!golf 75% sptv318)
+            var typoPowerArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                Arg = "75% sptv318",
+                Args = ["75%", "sptv318"]
+            };
+
+            var (power2, emote2) = await DropGameMediaResolver.ParsePowerAndEmoteAsync(
+                _emoteService.Object,
+                typoPowerArgs,
+                explicitPower: null,
+                explicitEmote: null,
+                enableViewerPowerControl: true,
+                defaultPowerMin: 65,
+                defaultPowerMax: 85);
+            Assert.Equal(75.0, power2);
+            Assert.Equal("sptv318", emote2);
+
+            // Case 3: Viewer reverses order (!golf sptv318 80)
+            var reversedArgs = new CommandEventArgs
+            {
+                Command = "golf",
+                Name = "viewer1",
+                DisplayName = "Viewer1",
+                Arg = "sptv318 80",
+                Args = ["sptv318", "80"]
+            };
+
+            var (power3, emote3) = await DropGameMediaResolver.ParsePowerAndEmoteAsync(
+                _emoteService.Object,
+                reversedArgs,
+                explicitPower: null,
+                explicitEmote: null,
+                enableViewerPowerControl: true,
+                defaultPowerMin: 65,
+                defaultPowerMax: 85);
+            Assert.Equal(80.0, power3);
+            Assert.Equal("sptv318", emote3);
+        }
+
+        private static CommandEventArgs CreateGolfArgs() => new()
+        {
+            Command = "golf",
+            Name = "golfer_multi",
+            DisplayName = "GolferMulti",
+            UserId = "golfer-1"
+        };
+
+        private static PendingDropRecord CreateGolfOutcomeRecord(CommandEventArgs args, int strokeNumber, bool isWin, bool isBullseye = false, string? dropToken = null)
+        {
+            var now = DateTime.UtcNow;
+            return new PendingDropRecord
+            {
+                DropToken = dropToken ?? Guid.NewGuid().ToString("N"),
+                GameType = DropGameType.Golf,
+                Username = args.Name,
+                DisplayName = args.DisplayName,
+                UserId = args.UserId,
+                StrokeNumber = strokeNumber,
+                IsWin = isWin || isBullseye,
+                IsBullseye = isBullseye,
+                Score = isWin || isBullseye ? 50 : 0,
+                EventArgs = args,
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now,
+                EarliestCompletionUtc = now,
+                ExpiresAtUtc = now.AddMinutes(1)
+            };
+        }
+
+        private async Task<GolfGameService> CreateMultiStrokeGolfServiceAsync(int maxStrokes, CommandEventArgs args, Action<string>? onFirstShotStarted = null)
+        {
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.MaxStrokesPerPlayer = maxStrokes;
+            settings.Golf.PowerVariancePercent = 0.0;
+            settings.Golf.WinActionName = "";
+            settings.Golf.LoseActionName = "";
+            settings.Golf.BullseyeActionName = "";
+            settings.Golf.AnnounceWinsInChat = false;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+
+            // First shot registers the player's round state (multi-stroke tracking); it is intentionally never completed
+            var firstDropToken = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            onFirstShotStarted?.Invoke(firstDropToken);
+            return golfService;
+        }
+
+        private void VerifyGolfEvent(string eventType, Times times)
+        {
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "golf",
+                eventType,
+                It.IsAny<CommandEventArgs>(),
+                It.IsAny<Dictionary<string, string>?>()), times);
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_NonFinalStroke_DefersWinOutcome()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfBullseye, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_NonFinalLoseStroke_AlsoDefersLoseOutcome()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: false));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_FinalStroke_FiresOnceAndDropsEarlierDeferredOutcome()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(2, args);
+            golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(150);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 2, isWin: false));
+
+            // Wait past the idle timeout: the stale stroke-1 win must NOT fire after the round already finished
+            await Task.Delay(500);
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Once());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_BullseyeWithStrokesLeft_FiresImmediately()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, isBullseye: true));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfBullseye, Times.Once());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_SingleStrokeMode_FiresOutcomeImmediately()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(1, args);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_InFlightShotCompletingAfterSessionStop_IsDiscarded()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.StartSessionAsync(60, triggeredBy: "test");
+            await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+
+            await golfService.StopSessionAsync("test");
+
+            // Shot was still in flight when the session stopped; its late completion must not fire anything
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: false));
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_FreePlay_IdleFinalizedRound_DiscardsDuplicateAndStartsNewHole()
+        {
+            var args = CreateGolfArgs();
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
+            golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(100);
+
+            var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken);
+            await golfService.ProcessCompletionAsync(record);
+            await Task.Delay(600);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+
+            // Duplicate/late completion of the finalized stroke must not fire again
+            await golfService.ProcessCompletionAsync(record);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+
+            // A new shot starts again at stroke 1 (fresh hole at the tee)
+            var token = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            Assert.False(string.IsNullOrWhiteSpace(token));
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_FreePlay_FiresDeferredOutcomeAfterIdleTimeout()
+        {
+            var args = CreateGolfArgs();
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
+            golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(100);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken));
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+
+            for (var i = 0; i < 40; i++)
+            {
+                await Task.Delay(50);
+                try
+                {
+                    VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+                    return;
+                }
+                catch (MockException)
+                {
+                    // keep waiting
+                }
+            }
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_FreePlay_FollowUpShotStartCancelsIdleOutcomeOfEarlierStroke()
+        {
+            var args = CreateGolfArgs();
+            var firstDropToken = "";
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args, token => firstDropToken = token);
+            golfService.FreePlayRoundIdleTimeout = TimeSpan.FromMilliseconds(250);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, dropToken: firstDropToken));
+            // Starting stroke 2 must invalidate stroke 1's idle timer before stroke 2 completes.
+            var secondDropToken = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+
+            await Task.Delay(350);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Never());
+
+            // Once stroke 2 completes, its unchanged deferred outcome still finalizes after idle.
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 2, isWin: false, dropToken: secondDropToken));
+            await Task.Delay(700);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfLose, Times.Once());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStroke_SessionStop_FlushesDeferredOutcome()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+
+            await golfService.StartSessionAsync(60, triggeredBy: "test");
+            // Re-register the player's state inside the session (session start clears round states)
+            await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+
+            await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+
+            // No idle timer in session mode: still nothing after a delay
+            await Task.Delay(300);
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Never());
+
+            await golfService.StopSessionAsync("test");
+
+            VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+        }
+
+        [Fact]
+        public async Task GolfGameService_MultiStrokeMode_ContinuesFromRestingBall_AndDeductsStrokePenalty()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Golf.MaxStrokesPerPlayer = 3;
+            settings.Golf.StrokePenaltyPoints = 10;
+            settings.Golf.PowerVariancePercent = 0.0;
+            await settingsService.SaveSettingsAsync(settings);
+            Assert.Equal(3, (await settingsService.GetSettingsAsync()).Golf.MaxStrokesPerPlayer);
+
+            var golfService = CreateGolfService(dropRegistry, settingsService);
+
+            var args = new CommandEventArgs
+            {
+                Command = "golf",
+                Name = "golfer_multi",
+                DisplayName = "GolferMulti",
+                UserId = "golfer-1"
+            };
+
+            // Stroke 1: Tee shot with low power (40) that stops short of the cup
+            var token1 = await golfService.TriggerGolfShotAsync(args, power: 40.0, conditionOverride: GolfGreenCondition.StandardGreen, targetDistanceOverride: 84.0);
+            var record1 = dropRegistry.GetPendingDrop(token1);
+            Assert.NotNull(record1);
+            Assert.Equal(1, record1.StrokeNumber);
+            Assert.Equal(0.05, record1.StartAxisPosition);
+            Assert.False(record1.IsBullseye);
+
+            // The authorized overlay reports where Stroke 1 came to rest; the server tracks that client result for Stroke 2.
+            record1.LandingX = 0.40;
+            await golfService.ProcessCompletionAsync(record1);
+            dropRegistry.AcknowledgeCompletion(token1);
+
+            // Stroke 2: Putt from resting position
+            var token2 = await golfService.TriggerGolfShotAsync(args, power: 35.0);
+            var record2 = dropRegistry.GetPendingDrop(token2);
+            Assert.NotNull(record2);
+            Assert.Equal(2, record2.StrokeNumber);
+            Assert.Equal(0.40, record2.StartAxisPosition, 3);
+        }
+
+        [Fact]
+        public async Task DropGameCompleteHandler_Golf_Authorized_AppliesReportedOutcomeAndStrokePenalty()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var parachuteServiceMock = new Mock<IParachuteDropService>();
+            var plinkoServiceMock = new Mock<IPlinkoDropService>();
+            var balloonServiceMock = new Mock<IBalloonAscentService>();
+            var curlingServiceMock = new Mock<ICurlingGameService>();
+            var golfServiceMock = new Mock<IGolfGameService>();
+            var coordinatorMock = new Mock<IFeatureRuntimeCoordinator>();
+            coordinatorMock.Setup(c => c.IsEnabled(FeatureKeys.DropGames)).Returns(true);
+            var securityService = CreateOverlaySecurityService();
+            var validKey = await securityService.GetOverlayKeyAsync();
+
+            var now = DateTime.UtcNow;
+            var record = new PendingDropRecord
+            {
+                DropToken = "golf-auth-token",
+                GameType = DropGameType.Golf,
+                Username = "golfer_1",
+                DisplayName = "Golfer1",
+                UserId = "user-golf-1",
+                StrokeNumber = 2,
+                StrokePenalty = 10,
+                EventArgs = new CommandEventArgs { Command = "golf", Name = "golfer_1", DisplayName = "Golfer1", UserId = "user-golf-1" },
+                Theme = new DropGameTheme(),
+                CreatedAtUtc = now.AddSeconds(-6),
+                EarliestCompletionUtc = now.AddSeconds(-1),
+                ExpiresAtUtc = now.AddSeconds(60)
+            };
+
+            dropRegistry.RegisterDrop(record);
+
+            var handler = new DropGameCompleteHandler(
+                dropRegistry,
+                parachuteServiceMock.Object,
+                plinkoServiceMock.Object,
+                settingsService,
+                securityService,
+                coordinatorMock.Object,
+                balloonServiceMock.Object,
+                curlingServiceMock.Object,
+                golfServiceMock.Object);
+
+            // Authorized client reports a configurable score above the former 100-point server clamp.
+            var notification = new DropGameCompleteNotification(
+                "golf-auth-token",
+                landingX: 0.840,
+                score: 240,
+                isBullseye: true,
+                isWin: true,
+                isHit: true,
+                overlayKey: validKey,
+                strokeNumber: 2,
+                baseScore: 250,
+                strokePenalty: 10,
+                isLipOut: false);
+
+            await handler.Handle(notification, CancellationToken.None);
+
+            golfServiceMock.Verify(s => s.ProcessCompletionAsync(It.Is<PendingDropRecord>(r =>
+                r.DropToken == "golf-auth-token" &&
+                r.BaseScore == 250 &&
+                r.StrokePenalty == 10 &&
+                r.Score == 240 &&
+                r.IsBullseye == true &&
+                r.IsWin == true)), Times.Once);
+        }
+
+        [Fact]
+        public async Task GolfGameService_ShotWithoutEmoteOrCustomImage_DoesNotFetchEmotes_AndUsesProceduralFallback()
+        {
+            var freshEmoteMock = new Mock<IEmoteService>();
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var golfService = new GolfGameService(
+                _serviceBackbone.Object,
+                _commandHandler.Object,
+                _defaultCommandTriggerService.Object,
+                _scopeFactory.Object,
+                freshEmoteMock.Object,
+                _webSocketMessenger.Object,
+                _dispatcher.Object,
+                settingsService,
+                dropRegistry,
+                NullLogger<GolfGameService>.Instance);
+
+            // Viewer types "!golf 75" (numeric power only, no emote, no custom theme image)
+            var args = new CommandEventArgs
+            {
+                Command = "golf",
+                Name = "golfer_no_emote",
+                DisplayName = "GolferNoEmote",
+                UserId = "user-no-emote-1",
+                Args = ["75"],
+                Arg = "75"
+            };
+
+            var token = await golfService.TriggerGolfShotAsync(args, allowDirectUrlOrPath: false);
+            Assert.False(string.IsNullOrWhiteSpace(token));
+
+            // Should NEVER call GetEmotesAsync or ResolveEmoteUrlAsync when no emote is provided and token is numeric power
+            freshEmoteMock.Verify(e => e.GetEmotesAsync(), Times.Never);
+            freshEmoteMock.Verify(e => e.ResolveEmoteUrlAsync(It.IsAny<string>()), Times.Never);
+
+            // Should broadcast golf_shot with empty decalUrl so the overlay renders the procedural SVG/Canvas golfer
+            _webSocketMessenger.Verify(
+                w => w.AddToQueue(
+                    WsTopics.Golf,
+                    It.Is<string>(json => json.Contains("\"type\":\"golf_shot\"") && json.Contains("\"decalUrl\":\"\""))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task CurlingGameService_StartSessionAndSlide_IncludesPowerVariancePercentInPayload()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Curling.PowerVariancePercent = 4.5;
+            await settingsService.SaveSettingsAsync(settings);
+
+            var curlingService = CreateCurlingService(dropRegistry, settingsService);
+
+            // 1. Session start payload includes powerVariancePercent: 4.5
+            var session = await curlingService.StartSessionAsync(60, triggeredBy: "ModUser");
+            Assert.NotNull(session);
+
+            _webSocketMessenger.Verify(
+                w => w.AddToQueue(
+                    WsTopics.Curling,
+                    It.Is<string>(json => json.Contains("\"type\":\"session_start\"") && json.Contains("\"powerVariancePercent\":4.5"))),
+                Times.Once);
+
+            // 2. Curling slide payload includes powerVariancePercent: 4.5
+            var args = new CommandEventArgs
+            {
+                Command = "curl",
+                Name = "curler_variance_test",
+                DisplayName = "CurlerVarianceTest",
+                UserId = "user-curl-var-1",
+                Args = ["80"]
+            };
+
+            var token = await curlingService.TriggerCurlingSlideAsync(args, power: 80.0);
+            Assert.False(string.IsNullOrWhiteSpace(token));
+
+            _webSocketMessenger.Verify(
+                w => w.AddToQueue(
+                    WsTopics.Curling,
+                    It.Is<string>(json => json.Contains("\"type\":\"curling_slide\"") && json.Contains("\"powerVariancePercent\":4.5"))),
+                Times.Once);
         }
     }
 }

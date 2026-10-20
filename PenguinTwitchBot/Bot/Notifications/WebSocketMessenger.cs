@@ -344,7 +344,12 @@ namespace PenguinTwitchBot.Bot.Notifications
                                 dropComplete.IsBullseye,
                                 dropComplete.IsWin,
                                 dropComplete.IsHit,
-                                dropComplete.BalloonPopped));
+                                dropComplete.BalloonPopped,
+                                dropComplete.StrokeNumber,
+                                dropComplete.BaseScore,
+                                dropComplete.StrokePenalty,
+                                dropComplete.StartAxisPosition,
+                                dropComplete.IsLipOut));
                     }
                     catch (JsonException)
                     {

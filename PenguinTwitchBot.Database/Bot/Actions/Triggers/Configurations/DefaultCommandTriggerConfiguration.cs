@@ -75,6 +75,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string BalloonEnd = "Balloon.End";
         public const string BalloonEnded = "Balloon.End";
         public const string BalloonPopped = "Balloon.Popped";
+        public const string BalloonPop = "Balloon.Popped";
 
         // Curling / Shuffleboard events
         public const string CurlingStart = "Curling.Start";
@@ -84,5 +85,14 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string CurlingLose = "Curling.Lose";
         public const string CurlingEnd = "Curling.End";
         public const string CurlingEnded = "Curling.End";
+
+        // Golf Chip & Putt events
+        public const string GolfStart = "Golf.Start";
+        public const string GolfStarted = "Golf.Start";
+        public const string GolfWin = "Golf.Win";
+        public const string GolfBullseye = "Golf.Bullseye";
+        public const string GolfLose = "Golf.Lose";
+        public const string GolfEnd = "Golf.End";
+        public const string GolfEnded = "Golf.End";
     }
 }

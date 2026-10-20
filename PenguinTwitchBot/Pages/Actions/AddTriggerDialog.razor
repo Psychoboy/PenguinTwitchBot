@@ -825,7 +825,7 @@
     {
         var supportedCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko"
+            "gamble", "defuse", "roll", "dice", "slot", "slots", "steal", "heist", "death", "spinwheel", "drop", "plinko", "balloon", "curl", "golf"
         };
 
         var supportedCommands = _defaultCommands
@@ -932,6 +932,31 @@
                 DefaultCommandEventTypes.PlinkoLose,
                 DefaultCommandEventTypes.PlinkoEnd
             },
+            "balloon" or "float" => new List<string>
+            {
+                DefaultCommandEventTypes.BalloonStart,
+                DefaultCommandEventTypes.BalloonBullseye,
+                DefaultCommandEventTypes.BalloonWin,
+                DefaultCommandEventTypes.BalloonLose,
+                DefaultCommandEventTypes.BalloonPopped,
+                DefaultCommandEventTypes.BalloonEnd
+            },
+            "curl" or "curling" or "slide" => new List<string>
+            {
+                DefaultCommandEventTypes.CurlingStart,
+                DefaultCommandEventTypes.CurlingBullseye,
+                DefaultCommandEventTypes.CurlingWin,
+                DefaultCommandEventTypes.CurlingLose,
+                DefaultCommandEventTypes.CurlingEnd
+            },
+            "golf" or "putt" or "chip" => new List<string>
+            {
+                DefaultCommandEventTypes.GolfStart,
+                DefaultCommandEventTypes.GolfBullseye,
+                DefaultCommandEventTypes.GolfWin,
+                DefaultCommandEventTypes.GolfLose,
+                DefaultCommandEventTypes.GolfEnd
+            },
             _ => new List<string>()
         };
     }
@@ -974,6 +999,22 @@
             DefaultCommandEventTypes.PlinkoWin => "Winning Bucket",
             DefaultCommandEventTypes.PlinkoLose => "Losing Bucket",
             DefaultCommandEventTypes.PlinkoEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.BalloonStart => "Round Started (Session Active)",
+            DefaultCommandEventTypes.BalloonWin => "Win (Sky Arch Hit)",
+            DefaultCommandEventTypes.BalloonBullseye => "Bullseye Hit (Center)",
+            DefaultCommandEventTypes.BalloonLose => "Missed Sky Arch (Lose)",
+            DefaultCommandEventTypes.BalloonPopped => "Popped by Hazard",
+            DefaultCommandEventTypes.BalloonEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.CurlingStart => "Round Started (Session Active)",
+            DefaultCommandEventTypes.CurlingWin => "Win (Inside House)",
+            DefaultCommandEventTypes.CurlingBullseye => "Bullseye Hit (Button)",
+            DefaultCommandEventTypes.CurlingLose => "Missed House / Gutter",
+            DefaultCommandEventTypes.CurlingEnd => "Round Ended (Session Closed)",
+            DefaultCommandEventTypes.GolfStart => "Round Started (Session Active)",
+            DefaultCommandEventTypes.GolfWin => "On the Green (Win)",
+            DefaultCommandEventTypes.GolfBullseye => "Sunk in Cup / Hole-in-One",
+            DefaultCommandEventTypes.GolfLose => "Off the Green (Miss)",
+            DefaultCommandEventTypes.GolfEnd => "Round Ended (Session Closed)",
             _ => eventType
         };
     }
@@ -1011,6 +1052,16 @@
             DefaultCommandEventTypes.PlinkoWin or DefaultCommandEventTypes.PlinkoLose =>
                 "%user%, %userid%, %bucket_index%, %multiplier%, %points_awarded%",
             DefaultCommandEventTypes.PlinkoEnd =>
+                "%user%, %TotalDrops%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.BalloonStart or DefaultCommandEventTypes.CurlingStart or DefaultCommandEventTypes.GolfStart =>
+                "%user%, %duration%, %theme%, %game%",
+            DefaultCommandEventTypes.BalloonBullseye or DefaultCommandEventTypes.BalloonWin or DefaultCommandEventTypes.BalloonLose or DefaultCommandEventTypes.BalloonPopped =>
+                "%user%, %userid%, %Score%, %IsBullseye%, %BalloonPopped%, %Theme%, %Game%",
+            DefaultCommandEventTypes.CurlingBullseye or DefaultCommandEventTypes.CurlingWin or DefaultCommandEventTypes.CurlingLose =>
+                "%user%, %userid%, %Score%, %Power%, %IsBullseye%, %DistanceFromCenter%, %Theme%, %Game%",
+            DefaultCommandEventTypes.GolfBullseye or DefaultCommandEventTypes.GolfWin or DefaultCommandEventTypes.GolfLose =>
+                "%user%, %userid%, %Score%, %BaseScore%, %StrokeNumber%, %StrokePenalty%, %Power%, %IsHoleInOne%, %IsLipOut%, %DistanceFromCenter%, %Theme%, %Game%",
+            DefaultCommandEventTypes.BalloonEnd or DefaultCommandEventTypes.CurlingEnd or DefaultCommandEventTypes.GolfEnd =>
                 "%user%, %TotalDrops%, %duration%, %theme%, %game%",
             _ => ""
         };

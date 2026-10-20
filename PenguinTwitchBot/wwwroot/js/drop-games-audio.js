@@ -556,6 +556,131 @@
             } catch (_) { }
         }
 
+        function playGolfStrike(volume = 0.65) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                // Crisp club impact transient + whoosh
+                const dur = 0.04;
+                const bufferSize = Math.floor(ctx.sampleRate * dur);
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.2));
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2200, now);
+                filter.Q.setValueAtTime(1.8, now);
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(volume * 0.7, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start(now);
+                noise.stop(now + dur + 0.01);
+
+                const osc = ctx.createOscillator();
+                const oscGain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(520, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+                oscGain.gain.setValueAtTime(volume * 0.55, now);
+                oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+                osc.connect(oscGain);
+                oscGain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.11);
+            } catch (_) { }
+        }
+
+        function playGolfBounce(volume = 0.45) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(175, now);
+                osc.frequency.exponentialRampToValueAtTime(65, now + 0.09);
+                gain.gain.setValueAtTime(volume * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.11);
+            } catch (_) { }
+        }
+
+        function playGolfCup(volume = 0.75) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                // Classic golf cup rattle (rapid hollow plastic/metal clinks)
+                [0, 0.055, 0.105].forEach((offset, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const st = now + offset;
+                    osc.type = idx === 1 ? 'triangle' : 'sine';
+                    osc.frequency.setValueAtTime(idx === 0 ? 690 : (idx === 1 ? 920 : 1180), st);
+                    osc.frequency.exponentialRampToValueAtTime(idx === 2 ? 780 : 480, st + 0.08);
+                    gain.gain.setValueAtTime(volume * (0.55 - idx * 0.1), st);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.09);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(st);
+                    osc.stop(st + 0.1);
+                });
+            } catch (_) { }
+        }
+
+        function playGolfLipOut(volume = 0.6) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.linearRampToValueAtTime(240, now + 0.22);
+                gain.gain.setValueAtTime(volume * 0.45, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } catch (_) { }
+        }
+
+        function playGolfWin(volume = 0.65) {
+            const ctx = getContext();
+            if (!ctx) return;
+            try {
+                const now = ctx.currentTime;
+                [659.25, 880.0, 1046.5].forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const st = now + idx * 0.09;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, st);
+                    gain.gain.setValueAtTime(0.001, st);
+                    gain.gain.linearRampToValueAtTime(volume * 0.35, st + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, st + 0.45);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(st);
+                    osc.stop(st + 0.48);
+                });
+            } catch (_) { }
+        }
+
         return {
             playProceduralChime: playProceduralChime,
             playBalloonLaunch: playBalloonLaunch,
@@ -568,7 +693,12 @@
             playCurlingSlide: playCurlingSlide,
             playCurlingSweep: playCurlingSweep,
             playCurlingHit: playCurlingHit,
-            playCurlingScore: playCurlingScore
+            playCurlingScore: playCurlingScore,
+            playGolfStrike: playGolfStrike,
+            playGolfBounce: playGolfBounce,
+            playGolfCup: playGolfCup,
+            playGolfLipOut: playGolfLipOut,
+            playGolfWin: playGolfWin
         };
     }
 

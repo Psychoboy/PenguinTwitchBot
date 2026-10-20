@@ -56,7 +56,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     addEventListener: function() {},
                     removeEventListener: function() {},
                     location: { search: '?key=test-secret-key' },
-                    WS_TOPICS: { parachute: 'parachute', plinko: 'plinko' },
+                    WS_TOPICS: { parachute: 'parachute', plinko: 'plinko', balloon: 'balloon', curling: 'curling', golf: 'golf' },
                     __plinkoTestMode: true,
                     __sentCompletions: [],
                     __sentRaw: [],
@@ -91,7 +91,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                                     quadraticCurveTo: function() {},
                                     bezierCurveTo: function() {},
                                     stroke: function() {},
-                                    fill: function() {},
+                                    fill: function() { window.__canvasFillCount = (window.__canvasFillCount || 0) + 1; },
                                     arc: function() {},
                                     ellipse: function() {},
                                     rect: function() {},
@@ -271,6 +271,42 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void BalloonJs_ManualSessionEnd_HidesCloudAfterGraceWithOtherGamesActive()
+        {
+            var jsDir = FindWwwRootPath();
+            var balloonJsPath = Path.Combine(jsDir, "balloon.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(balloonJsPath));
+
+            DispatchWsMessage(engine, new
+            {
+                type = "other_game_status",
+                otherGame = "plinko",
+                isOtherGameActive = true,
+                activeGames = new[] { "parachute", "plinko", "curling", "golf" }
+            });
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { totalDurationSeconds = 90, remainingSeconds = 90, totalDrops = 0 },
+                target = new { centerX = 0.5, halfWidth = 0.09, speed = 0.5 }
+            });
+            StepEngineFrames(engine, 1);
+            Assert.True(engine.Evaluate("window.__canvasFillCount").AsNumber() > 0);
+
+            DispatchWsMessage(engine, new
+            {
+                type = "session_end",
+                session = new { isActive = false, totalDrops = 0 }
+            });
+            StepEngineFrames(engine, 361);
+            var fillsAfterGrace = engine.Evaluate("window.__canvasFillCount").AsNumber();
+            StepEngineFrames(engine, 1);
+
+            Assert.Equal(fillsAfterGrace, engine.Evaluate("window.__canvasFillCount").AsNumber());
+        }
+
+        [Fact]
         public void DropGamesCommon_SharedCanvasHudAndHelpers_ValidateExecutionAndParity()
         {
             var engine = CreateMockBrowserEngine(out _);
@@ -311,6 +347,49 @@ namespace PenguinTwitchBot.Test.ClientScripts
             // Leader must be at the end of the array (drawn on top)
             var lastIsLeader = engine.Evaluate("items[items.length - 1].isLeader").AsBoolean();
             Assert.True(lastIsLeader, "Winning leader must be sorted last so it is rendered on top of other drops");
+        }
+
+        [Fact]
+        public void DropGamesCommon_SharedStripMetrics_PreservesPositionAndDirectionRules()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            var metrics = engine.Evaluate("DropGamesCommon.getStripMetrics(1920, 1080, { stripPosition: 'Left', trackThicknessPercent: 14, slideDirection: 'RightToLeft', targetDistancePercent: 78 }, 78)");
+
+            Assert.Equal(0, metrics.Get("x").AsNumber());
+            Assert.Equal(268.8, metrics.Get("w").AsNumber(), 3);
+            Assert.Equal(1080, metrics.Get("length").AsNumber());
+            Assert.Equal(268.8, metrics.Get("breadth").AsNumber(), 3);
+            Assert.False(metrics.Get("isHorizontal").AsBoolean());
+            Assert.True(metrics.Get("isReversed").AsBoolean());
+            Assert.Equal(0.22, metrics.Get("effectiveTargetRatio").AsNumber(), 3);
+            Assert.Equal(237.6, metrics.Get("targetCenterY").AsNumber(), 3);
+
+            var centered = engine.Evaluate("DropGamesCommon.getStripMetrics(1920, 1080, { stripPosition: 'Bottom', slideDirection: 'CenterTarget', targetDistancePercent: 84 }, 84)");
+            Assert.Equal(0.50, centered.Get("effectiveTargetRatio").AsNumber());
+        }
+
+        [Fact]
+        public void DropGamesCommon_UpdateActiveGameState_HandlesStatusAndSessionPayloads()
+        {
+            var engine = CreateMockBrowserEngine(out _);
+            var result = engine.Evaluate(@"
+                var activeGames = new Set();
+                var directStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeGames, 'plinko', {
+                    type: 'other_game_status', otherGame: 'golf', isOtherGameActive: true
+                });
+                var directTracked = activeGames.has('golf');
+                var sessionStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeGames, 'plinko', {
+                    type: 'session_update', activeGames: ['plinko', 'parachute']
+                });
+                ({ directStatus: directStatus, directTracked: directTracked, sessionStatus: sessionStatus,
+                   excludesSelf: !activeGames.has('plinko'), tracksOther: activeGames.has('parachute') });
+            ");
+
+            Assert.True(result.Get("directStatus").AsBoolean());
+            Assert.True(result.Get("directTracked").AsBoolean());
+            Assert.True(result.Get("sessionStatus").AsBoolean());
+            Assert.True(result.Get("excludesSelf").AsBoolean());
+            Assert.True(result.Get("tracksOther").AsBoolean());
         }
 
         [Theory]
@@ -3364,6 +3443,98 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void CurlingJs_PowerVarianceAndGuaranteedStraightShot_BehavesAsExpected()
+        {
+            var jsDir = FindWwwRootPath();
+            var curlingJsPath = Path.Combine(jsDir, "curling.js");
+            Assert.True(File.Exists(curlingJsPath), $"curling.js not found at {curlingJsPath}");
+
+            var code = File.ReadAllText(curlingJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // 1. Session start with powerVariancePercent: 4.0
+            DispatchWsMessage(engine, new
+            {
+                type = "session_start",
+                session = new { totalDurationSeconds = 60 },
+                powerVariancePercent = 4.0,
+                condition = "Normal",
+                stripPosition = "Bottom",
+                slideDirection = "LeftToRight",
+                targetDistancePercent = 80.0
+            });
+
+            var boardVariance = engine.Evaluate("window.CurlingEngine.boardConfig.powerVariancePercent").AsNumber();
+            Assert.Equal(4.0, boardVariance);
+
+            // 2. Dispatch multiple curling slides with raw power 75.0 and variance active
+            for (var i = 0; i < 5; i++)
+            {
+                DispatchWsMessage(engine, new
+                {
+                    type = "curling_slide",
+                    dropToken = $"var-stone-{i}",
+                    username = $"player{i}",
+                    power = 75.0,
+                    effectivePower = 76.25,
+                    powerVariancePercent = 4.0,
+                    condition = "Normal"
+                });
+            }
+
+            var stonesCount = engine.Evaluate("window.CurlingEngine.activeStones.length").AsNumber();
+            Assert.Equal(5, stonesCount);
+
+            // Client must use the server-resolved effective power (no client-side resampling)
+            var minPower = engine.Evaluate("Math.min(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
+            var maxPower = engine.Evaluate("Math.max(...window.CurlingEngine.activeStones.map(s => s.variedPower))").AsNumber();
+            Assert.Equal(76.25, minPower);
+            Assert.Equal(76.25, maxPower);
+
+            // Same dropToken must yield identical lateral dispersion across overlay instances (seeded PRNG)
+            DispatchWsMessage(engine, new { type = "curling_slide", dropToken = "same-token", username = "a", power = 75.0, effectivePower = 75.0, powerVariancePercent = 4.0, condition = "Normal" });
+            DispatchWsMessage(engine, new { type = "curling_slide", dropToken = "same-token", username = "b", power = 75.0, effectivePower = 75.0, powerVariancePercent = 4.0, condition = "Normal" });
+            var sameV = engine.Evaluate("(function(){var a=window.CurlingEngine.activeStones.filter(s=>s.dropToken==='same-token');return a[0].v===a[1].v && a[0].speedV===a[1].speedV && a[0].drag===a[1].drag;})()").AsBoolean();
+            Assert.True(sameV);
+
+            // Different shots (different dropTokens) with the exact same power must still disperse differently
+            var distinct = engine.Evaluate("(function(){var a=window.CurlingEngine.activeStones.filter(s=>s.dropToken.indexOf('var-stone-')===0);var seen={};a.forEach(s=>{seen[s.v.toFixed(6)+'|'+s.speedV.toFixed(6)+'|'+s.drag.toFixed(6)]=1;});return Object.keys(seen).length;})()").AsNumber();
+            Assert.Equal(5, distinct);
+
+            // Check that curlDirection was assigned (+1 or -1) for varied stones
+            var curlDirs = engine.Evaluate("window.CurlingEngine.activeStones.map(s => Math.abs(s.curlDirection))").AsArray();
+            Assert.All(curlDirs, d => Assert.Equal(1, d.AsNumber()));
+
+            // 3. Dispatch guaranteed button test shot (powerVariancePercent = 0.0)
+            DispatchWsMessage(engine, new
+            {
+                type = "curling_slide",
+                dropToken = "guaranteed-stone-1",
+                username = "admin_test",
+                power = 78.5,
+                powerVariancePercent = 0.0,
+                condition = "Normal"
+            });
+
+            var guaranteedStone = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1')");
+            Assert.NotNull(guaranteedStone);
+
+            // Guaranteed stone must have exact power, zero lateral spawn offset, zero curl direction, and zero lateral speed
+            var guaranteedVariedPower = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').variedPower").AsNumber();
+            var guaranteedOffsetV = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').v").AsNumber();
+            var guaranteedCurlDir = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').curlDirection").AsNumber();
+            var guaranteedSpeedV = engine.Evaluate("window.CurlingEngine.activeStones.find(s => s.dropToken === 'guaranteed-stone-1').speedV").AsNumber();
+
+            Assert.Equal(78.5, guaranteedVariedPower);
+            Assert.Equal(0.0, guaranteedOffsetV);
+            Assert.Equal(0, guaranteedCurlDir);
+            Assert.Equal(0.0, guaranteedSpeedV);
+        }
+
+        [Fact]
         public void DropGamesCommon_CalculateBannerStackSlot_CalculatesCorrectSlots()
         {
             var engine = CreateMockBrowserEngine(out _);
@@ -3532,6 +3703,172 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(15, result.Get("burstNormInitial").AsNumber());
             Assert.Equal(0, result.Get("burstPxRemaining").AsNumber());
             Assert.Equal(0, result.Get("burstNormRemaining").AsNumber());
+        }
+
+        [Fact]
+        public void GolfJs_LoadsAndExecutesShotSimulationWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            Assert.True(File.Exists(golfJsPath), $"golf.js not found at {golfJsPath}");
+
+            var code = File.ReadAllText(golfJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // Dispatch a golf_shot message and verify activeBalls spawns the golfer
+            DispatchWsMessage(engine, new
+            {
+                type = "golf_shot",
+                dropToken = "golf-js-token-1",
+                username = "golfer1",
+                displayName = "Golfer1",
+                power = 72.0,
+                condition = "StandardGreen",
+                targetDistancePercent = 84.0,
+                decalUrl = "",
+                strokeNumber = 1,
+                maxStrokesPerPlayer = 1,
+                strokePenaltyPoints = 10
+            });
+
+            var activeBallsCount = engine.Evaluate("window.GolfEngine.activeBalls.length").AsNumber();
+            Assert.Equal(1, activeBallsCount);
+
+            StepEngineFrames(engine, 280);
+
+            var errorCount = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errorCount);
+
+            var completionSent = engine.Evaluate("window.__sentCompletions.some(c => c.dropToken === 'golf-js-token-1')").AsBoolean();
+            Assert.True(completionSent, "Expected golf.js to complete the shot and send completion for golf-js-token-1");
+
+            var golfSlot = engine.Evaluate("DropGamesCommon.calculateBannerStackSlot('golf', ['parachute', 'plinko', 'balloon', 'curling'])").AsNumber();
+            Assert.Equal(4, golfSlot);
+        }
+
+        [Fact]
+        public void GolfJs_LipOutCannotSinkOnFollowingFrame()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(golfJsPath));
+
+            var result = engine.Evaluate(@"
+                var metrics = window.GolfEngine.getTrackMetrics();
+                var ball = {
+                    dropToken: 'golf-lipout-regression',
+                    u: metrics.effectiveTargetRatio,
+                    v: 0,
+                    speedU: 0.01,
+                    speedV: 0,
+                    angle: 0,
+                    drag: 0.22,
+                    heightZ: 0,
+                    vz: 0,
+                    gravityZ: 2.6,
+                    bounceCount: 0,
+                    maxBounces: 0,
+                    radius: metrics.ballRadius,
+                    sinkScale: 1,
+                    isSunk: false,
+                    isLipOut: true,
+                    completed: false,
+                    strokeNumber: 1,
+                    strokePenaltyPoints: 10,
+                    isReversed: false,
+                    startAxisPosition: metrics.effectiveTargetRatio
+                };
+                window.GolfEngine.activeBalls.push(ball);
+                window.GolfEngine.stepPhysics(0.016, metrics);
+                ({ isSunk: ball.isSunk, completed: ball.completed });
+            ");
+
+            Assert.False(result.Get("isSunk").AsBoolean());
+            Assert.False(result.Get("completed").AsBoolean());
+        }
+
+        [Fact]
+        public void GolfJs_MaxScoreScalesGreenAndStrokePenaltyFloorsAtZero()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(golfJsPath));
+
+            var result = engine.Evaluate(@"
+                var cup = window.GolfEngine.calculateGolfScore(0, 100, 10, true, 1, 10, 50);
+                var midGreen = window.GolfEngine.calculateGolfScore(55, 100, 10, false, 1, 10, 50);
+                var fringe = window.GolfEngine.calculateGolfScore(100, 100, 10, false, 1, 10, 50);
+                var overPenalty = window.GolfEngine.calculateGolfScore(0, 100, 10, true, 6, 15, 50);
+                ({ cup: cup, midGreen: midGreen, fringe: fringe, overPenalty: overPenalty });
+            ");
+
+            Assert.Equal(50, result.Get("cup").Get("baseScore").AsNumber());
+            Assert.Equal(50, result.Get("cup").Get("score").AsNumber());
+            Assert.Equal(26, result.Get("midGreen").Get("baseScore").AsNumber());
+            Assert.Equal(1, result.Get("fringe").Get("baseScore").AsNumber());
+            Assert.Equal(50, result.Get("overPenalty").Get("baseScore").AsNumber());
+            Assert.Equal(0, result.Get("overPenalty").Get("score").AsNumber());
+        }
+
+        [Fact]
+        public void GolfJs_LipOutRetainsEnoughMomentumToRollAwayFromCup()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            var engine = CreateMockBrowserEngine(out _);
+            engine.Execute(File.ReadAllText(golfJsPath));
+
+            var result = engine.Evaluate(@"
+                var metrics = window.GolfEngine.getTrackMetrics();
+                var ball = {
+                    dropToken: 'golf-lipout-momentum',
+                    u: metrics.effectiveTargetRatio - 17 / metrics.length,
+                    v: 0,
+                    speedU: 0.105,
+                    speedV: 0,
+                    angle: 0,
+                    drag: 0.22,
+                    heightZ: 0,
+                    vz: 0,
+                    gravityZ: 2.6,
+                    bounceCount: 0,
+                    maxBounces: 0,
+                    radius: metrics.ballRadius,
+                    sinkScale: 1,
+                    isSunk: false,
+                    isLipOut: false,
+                    completed: false,
+                    strokeNumber: 1,
+                    strokePenaltyPoints: 10,
+                    isReversed: false,
+                    startAxisPosition: metrics.effectiveTargetRatio - 17 / metrics.length
+                };
+                window.GolfEngine.activeBalls.push(ball);
+                for (var frame = 0; frame < 10 && !ball.isLipOut; frame++) {
+                    window.GolfEngine.stepPhysics(0.016, metrics);
+                }
+                var lipOutU = ball.u;
+                var lipOutV = ball.v;
+                for (var settleFrame = 0; settleFrame < 120 && !ball.completed; settleFrame++) {
+                    window.GolfEngine.stepPhysics(0.016, metrics);
+                }
+                ({ isLipOut: ball.isLipOut, isSunk: ball.isSunk, completed: ball.completed,
+                   travelAfterLipOutPx: Math.hypot((ball.u - lipOutU) * metrics.length, (ball.v - lipOutV) * metrics.breadth),
+                   minimumTravelPx: metrics.cupRadius * 1.5 });
+            ");
+
+            Assert.True(result.Get("isLipOut").AsBoolean());
+            Assert.False(result.Get("isSunk").AsBoolean());
+            Assert.True(result.Get("completed").AsBoolean());
+            var travelAfterLipOut = result.Get("travelAfterLipOutPx").AsNumber();
+            var minimumTravel = result.Get("minimumTravelPx").AsNumber();
+            Assert.True(travelAfterLipOut >= minimumTravel,
+                $"Lip-out traveled {travelAfterLipOut:F1}px; expected at least {minimumTravel:F1}px after rim contact.");
         }
     }
 }

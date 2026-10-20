@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "Start Drop Game Session",
-        description: "Starts a timed round/session for Parachute Drop or Plinko Bounce (e.g. 100 seconds)",
+        description: "Starts a timed round/session for Parachute, Plinko, Balloon Ascent, Curling, or Golf",
         icon: "mdi-timer-play",
         color: "Success",
         category: SubActionCategories.Minigames,
@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         /// <summary>
-        /// Minigame to start: "Parachute" or "Plinko".
+        /// Minigame to start: "Parachute", "Plinko", "Balloon", "Curling", or "Golf".
         /// </summary>
         public string GameType { get; set; } = "Parachute";
 
@@ -27,7 +27,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         public string DurationSeconds { get; set; } = "100";
 
         /// <summary>
-        /// Optional theme ID override for this session ("spring", "summer", "fall", "winter", or blank for default).
+        /// Optional theme ID override for this session ("spring", "summer", "fall", "winter", "halloween", "christmas", or blank for default).
         /// </summary>
         public string ThemeOverrideId { get; set; } = "";
 
@@ -44,7 +44,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     SelectOptions =
                     [
                         new SelectOption { Value = "Parachute", Name = "Parachute Drop (!drop)" },
-                        new SelectOption { Value = "Plinko", Name = "Plinko Bounce (!plinko)" }
+                        new SelectOption { Value = "Plinko", Name = "Plinko Bounce (!plinko)" },
+                        new SelectOption { Value = "Balloon", Name = "Balloon Ascent (!balloon)" },
+                        new SelectOption { Value = "Curling", Name = "Curling / Shuffleboard (!curl)" },
+                        new SelectOption { Value = "Golf", Name = "Golf Chip & Putt (!golf)" }
                     ]
                 },
                 new()
@@ -68,7 +71,9 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                         new SelectOption { Value = "spring", Name = "Spring (Cherry Blossoms)" },
                         new SelectOption { Value = "summer", Name = "Summer (Tropical Beach)" },
                         new SelectOption { Value = "fall", Name = "Fall (Autumn Harvest)" },
-                        new SelectOption { Value = "winter", Name = "Winter (Snowy Frost)" }
+                        new SelectOption { Value = "winter", Name = "Winter (Snowy Frost)" },
+                        new SelectOption { Value = "halloween", Name = "Halloween (Spooky Cauldron)" },
+                        new SelectOption { Value = "christmas", Name = "Christmas (Holiday Celebration)" }
                     ]
                 },
                 new()

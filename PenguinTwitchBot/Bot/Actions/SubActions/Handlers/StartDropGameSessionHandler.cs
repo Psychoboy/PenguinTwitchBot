@@ -4,6 +4,7 @@ using PenguinTwitchBot.Bot.Actions.Utilities;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Commands.Games.Curling;
+using PenguinTwitchBot.Bot.Commands.Games.Golf;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Queues;
@@ -15,7 +16,8 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
         IParachuteDropService parachuteDropService,
         IPlinkoDropService plinkoDropService,
         IBalloonAscentService? balloonAscentService = null,
-        ICurlingGameService? curlingGameService = null) : ISubActionHandler
+        ICurlingGameService? curlingGameService = null,
+        IGolfGameService? golfGameService = null) : ISubActionHandler
     {
         public SubActionTypes SupportedType => SubActionTypes.StartDropGameSession;
 
@@ -36,6 +38,7 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
                 var g when g.Equals("Plinko", StringComparison.OrdinalIgnoreCase) => DropGameType.Plinko,
                 var g when g.Equals("Balloon", StringComparison.OrdinalIgnoreCase) || g.Equals("BalloonAscent", StringComparison.OrdinalIgnoreCase) => DropGameType.Balloon,
                 var g when g.Equals("Curling", StringComparison.OrdinalIgnoreCase) || g.Equals("Shuffleboard", StringComparison.OrdinalIgnoreCase) => DropGameType.Curling,
+                var g when g.Equals("Golf", StringComparison.OrdinalIgnoreCase) || g.Equals("Chip", StringComparison.OrdinalIgnoreCase) || g.Equals("Putt", StringComparison.OrdinalIgnoreCase) => DropGameType.Golf,
                 _ => DropGameType.Parachute
             };
 
@@ -61,6 +64,10 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions.Handlers
             else if (gameType == DropGameType.Curling && curlingGameService != null)
             {
                 await curlingGameService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
+            }
+            else if (gameType == DropGameType.Golf && golfGameService != null)
+            {
+                await golfGameService.StartSessionAsync(durationSeconds, resolvedTheme, triggeredBy);
             }
             else
             {

@@ -157,139 +157,29 @@
     let currentTheme = null;
     let lastColSoundTime = 0;
     // WebSocket connection & completions queue
-    const pendingCompletions = [];
     const socket = window.createWsSocket('balloon', [window.WS_TOPICS.balloon]);
 
-    function sendCompletion(payload) {
-        if (!payload || !payload.dropToken) return;
-        // View-Only mode: without the authorized overlay key, do not send completion packets
-        if (!overlayKey) {
-            return;
-        }
-        payload.overlayKey = overlayKey;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(payload));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.dropToken === payload.dropToken)) {
-            pendingCompletions.push(payload);
-            ensureHeartbeat();
-        }
-    }
-
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                item.overlayKey = overlayKey;
-                socket.send(JSON.stringify(item));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    socket.addEventListener('open', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-        flushPendingCompletions();
-    });
-    socket.addEventListener('close', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(false);
-        }
-    });
-    if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-        window.wsStatusShow(true);
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokens = Array.isArray(activeBalloons)
+    // Shared completion queue + heartbeat + socket wiring (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'balloon',
+        socket: socket,
+        overlayKey: overlayKey,
+        getActiveTokens: () => Array.isArray(activeBalloons)
             ? activeBalloons.filter(b => b && b.dropToken && !b.completed).map(b => b.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.dropToken).map(c => c.dropToken)
-            : [];
-
-        if (activeTokens.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'balloon',
-                activeTokens: activeTokens,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    socket.addEventListener('message', function (event) {
-        if (!event.data || typeof event.data !== 'string') return;
-        if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeBalloons) && activeBalloons.some(b => b && b.dropToken && !b.completed)) ||
-                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-            if (overlayKey && hasDrops) {
-                sendHeartbeat();
-            } else {
-                socket.send('pong');
-            }
-            return;
-        }
-        if (!event.data.startsWith('{')) return;
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (_) {
-            return;
-        }
-        handleWsMessage(msg);
+            : []
     });
+    const pendingCompletions = completionChannel.pending;
+    const sendCompletion = completionChannel.send;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+    completionChannel.attach(msg => handleWsMessage(msg));
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'balloon', msg);
             return;
         }
 
@@ -305,20 +195,8 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'balloon') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'balloon', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
         if (msg.type === 'session_start' && msg.session) {
             const s = msg.session;
@@ -355,7 +233,7 @@
         } else if (msg.type === 'session_end') {
             sessionState.isActive = false;
             sessionState.endedAtMs = performance.now();
-            targetCloud.visibleUntil = Math.max(targetCloud.visibleUntil, performance.now() + 6000);
+            targetCloud.visibleUntil = performance.now() + 6000;
             if (msg.headerConfig) Object.assign(headerConfig, msg.headerConfig);
             else if (msg.session && msg.session.headerConfig) Object.assign(headerConfig, msg.session.headerConfig);
             playSound(msg.sounds?.end || { enabled: true }, 'chime', 380);
@@ -557,7 +435,7 @@
         const isVisible = activeBalloons.length > 0 ||
                           activeHazards.length > 0 ||
                           sessionState.isActive ||
-                          sessionState.endedAtMs > 0 ||
+                          (sessionState.endedAtMs > 0 && now - sessionState.endedAtMs < 6000) ||
                           now < targetCloud.visibleUntil;
 
         if (isVisible) {

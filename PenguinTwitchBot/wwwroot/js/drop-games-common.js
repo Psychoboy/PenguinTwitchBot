@@ -719,14 +719,110 @@
         return (canvasWidth - bannerWidth) / 2;
     }
 
+    function getStripMetrics(canvasWidth, canvasHeight, config, defaultTargetDistancePercent) {
+        const settings = config || {};
+        const thicknessRatio = Math.max(0.10, Math.min(0.25, (settings.trackThicknessPercent || 14.0) / 100));
+        const pos = (settings.stripPosition || 'Bottom').toLowerCase();
+        let x = 0;
+        let y = 0;
+        let w = canvasWidth;
+        let h = canvasHeight * thicknessRatio;
+        let isHorizontal = true;
+
+        if (pos === 'top') {
+            h = canvasHeight * thicknessRatio;
+        } else if (pos === 'left') {
+            w = canvasWidth * thicknessRatio;
+            h = canvasHeight;
+            isHorizontal = false;
+        } else if (pos === 'right') {
+            x = canvasWidth * (1.0 - thicknessRatio);
+            w = canvasWidth * thicknessRatio;
+            h = canvasHeight;
+            isHorizontal = false;
+        } else {
+            y = canvasHeight * (1.0 - thicknessRatio);
+        }
+
+        const length = isHorizontal ? w : h;
+        const breadth = isHorizontal ? h : w;
+        const isReversed = typeof settings.isReversed === 'boolean'
+            ? settings.isReversed
+            : (settings.slideDirection === 'RightToLeft' || settings.slideDirection === 'BottomToTop');
+        let targetDistRatio = Math.max(0.50, Math.min(0.95,
+            (settings.targetDistancePercent || defaultTargetDistancePercent || 84.0) / 100));
+        if (settings.slideDirection === 'CenterTarget') targetDistRatio = 0.50;
+
+        const effectiveTargetRatio = isReversed ? 1.0 - targetDistRatio : targetDistRatio;
+        const targetCenterX = isHorizontal ? x + w * effectiveTargetRatio : x + w * 0.50;
+        const targetCenterY = isHorizontal ? y + h * 0.50 : y + h * effectiveTargetRatio;
+
+        return {
+            x: x,
+            y: y,
+            w: w,
+            h: h,
+            length: length,
+            breadth: breadth,
+            isHorizontal: isHorizontal,
+            targetCenterX: targetCenterX,
+            targetCenterY: targetCenterY,
+            targetDistRatio: targetDistRatio,
+            effectiveTargetRatio: effectiveTargetRatio,
+            isReversed: isReversed,
+            pos: pos
+        };
+    }
+
+    function updateActiveGameStateFromMessage(activeOtherGames, currentGame, msg) {
+        if (!(activeOtherGames instanceof Set) || !msg || typeof msg !== 'object') return null;
+        const game = String(currentGame || '').toLowerCase();
+
+        if (msg.type === 'other_game_status' && typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
+            const otherGame = msg.otherGame.toLowerCase();
+            if (msg.isOtherGameActive) activeOtherGames.add(otherGame);
+            else activeOtherGames.delete(otherGame);
+        }
+
+        if (msg.type === 'other_game_status' && Array.isArray(msg.activeGames)) {
+            activeOtherGames.clear();
+            msg.activeGames.forEach(function (activeGame) {
+                if (typeof activeGame === 'string' && activeGame.toLowerCase() !== game) {
+                    activeOtherGames.add(activeGame.toLowerCase());
+                }
+            });
+        }
+
+        if (msg.type === 'other_game_status') {
+            return activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+        }
+
+        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
+        if (Array.isArray(activeList)) {
+            activeOtherGames.clear();
+            activeList.forEach(function (activeGame) {
+                if (typeof activeGame === 'string' && activeGame.toLowerCase() !== game) {
+                    activeOtherGames.add(activeGame.toLowerCase());
+                }
+            });
+            return activeOtherGames.size > 0;
+        }
+        if (typeof msg.isOtherGameActive === 'boolean') return msg.isOtherGameActive;
+        if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
+            return msg.session.isOtherGameActive;
+        }
+        return null;
+    }
+
     const MINIGAME_RANKS = {
         parachute: 0,
         plinko: 1,
         balloon: 2,
         curling: 3,
-        ufo: 4,
-        raceway: 5,
-        submarine: 6
+        golf: 4,
+        ufo: 5,
+        raceway: 6,
+        submarine: 7
     };
 
     function calculateBannerStackSlot(currentGame, activeOtherGames) {
@@ -1033,7 +1129,8 @@
         ctx.clip();
 
         let drawn = false;
-        if (img && img.naturalWidth > 0) {
+        const imgW = img ? (img.naturalWidth || img.width || 0) : 0;
+        if (img && imgW > 0) {
             try {
                 ctx.drawImage(img, -innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
                 drawn = true;
@@ -1519,6 +1616,426 @@
         }
     }
 
+    function drawGolfGreen(ctx, options) {
+        if (!ctx || !options) return;
+        const cx = typeof options.cx === 'number' ? options.cx : 0;
+        const cy = typeof options.cy === 'number' ? options.cy : 0;
+        const greenRadius = typeof options.greenRadius === 'number' && options.greenRadius > 0 ? options.greenRadius : 48;
+        const cupRadius = typeof options.cupRadius === 'number' && options.cupRadius > 0 ? options.cupRadius : Math.max(7, greenRadius * 0.20);
+        const alpha = typeof options.alpha === 'number' ? Math.max(0, Math.min(1, options.alpha)) : 0.45;
+        const theme = options.theme || {};
+        const season = getSeasonPreset(theme);
+        const greenImage = options.greenImage;
+        const flagImage = options.flagImage;
+        const now = typeof options.now === 'number' ? options.now : Date.now();
+
+        if (alpha <= 0.005) return;
+
+        let fringeCol = theme.secondaryColor || '#15803D';
+        let turfInner = '#4ADE80';
+        let turfMid = '#22C55E';
+        let turfOuter = '#16A34A';
+        let cupRimCol = '#E2E8F0';
+        let poleCol = '#F8FAFC';
+        let flagCol = theme.accentColor || '#EF4444';
+
+        if (season === 'spring') {
+            fringeCol = '#F472B6';
+            turfInner = '#6EE7B7';
+            turfMid = '#34D399';
+            turfOuter = '#10B981';
+            cupRimCol = '#FBCFE8';
+            flagCol = '#FB7185';
+        } else if (season === 'summer') {
+            fringeCol = '#FBBF24';
+            turfInner = '#86EFAC';
+            turfMid = '#22C55E';
+            turfOuter = '#15803D';
+            cupRimCol = '#38BDF8';
+            flagCol = '#FACC15';
+        } else if (season === 'fall') {
+            fringeCol = '#D97706';
+            turfInner = '#84CC16';
+            turfMid = '#4D7C0F';
+            turfOuter = '#3F6212';
+            cupRimCol = '#F59E0B';
+            flagCol = '#EA580C';
+        } else if (season === 'winter') {
+            fringeCol = '#7DD3FC';
+            turfInner = '#E0F2FE';
+            turfMid = '#BAE6FD';
+            turfOuter = '#38BDF8';
+            cupRimCol = '#FFFFFF';
+            flagCol = '#0284C7';
+        } else if (season === 'halloween') {
+            fringeCol = '#7E22CE';
+            turfInner = '#4ADE80';
+            turfMid = '#15803D';
+            turfOuter = '#3B0764';
+            cupRimCol = '#A3E635';
+            flagCol = '#F97316';
+        } else if (season === 'christmas') {
+            fringeCol = '#DC2626';
+            turfInner = '#22C55E';
+            turfMid = '#15803D';
+            turfOuter = '#14532D';
+            cupRimCol = '#FACC15';
+            flagCol = '#EF4444';
+        }
+
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Putting green surface (custom sprite or compact lush radial green + fringe)
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (greenImage && ((greenImage.naturalWidth || greenImage.width || 0) > 0)) {
+            ctx.drawImage(greenImage, -greenRadius * 1.15, -greenRadius * 1.15, greenRadius * 2.3, greenRadius * 2.3);
+        } else {
+            // Outer fringe collar
+            ctx.beginPath();
+            ctx.arc(0, 0, greenRadius * 1.08, 0, Math.PI * 2);
+            ctx.fillStyle = fringeCol;
+            ctx.fill();
+
+            // Inner putting surface
+            const grad = ctx.createRadialGradient(-greenRadius * 0.2, -greenRadius * 0.2, greenRadius * 0.1, 0, 0, greenRadius);
+            grad.addColorStop(0, turfInner);
+            grad.addColorStop(0.7, turfMid);
+            grad.addColorStop(1, turfOuter);
+            ctx.beginPath();
+            ctx.arc(0, 0, greenRadius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Subtle closest-to-the-pin yardage guide rings
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+            ctx.lineWidth = 1.25;
+            [0.38, 0.68, 1.0].forEach((ratio) => {
+                ctx.beginPath();
+                ctx.arc(0, 0, greenRadius * ratio, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+        ctx.restore();
+
+        // Sunken Cup (high visibility even when green is semi-transparent)
+        const cupAlpha = Math.min(1.0, Math.max(0.75, alpha * 1.65));
+        ctx.save();
+        ctx.globalAlpha = cupAlpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, cupRadius + 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = cupRimCol;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, cupRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#0F172A';
+        ctx.fill();
+
+        // Inner cup shadow rim
+        ctx.beginPath();
+        ctx.arc(0, 1.2, cupRadius * 0.82, 0, Math.PI * 2);
+        ctx.fillStyle = '#020617';
+        ctx.fill();
+
+        // Flagstick + Pennant
+        const poleHeight = Math.max(26, Math.min(48, greenRadius * 0.85));
+        if (flagImage && ((flagImage.naturalWidth || flagImage.width || 0) > 0)) {
+            ctx.drawImage(flagImage, -poleHeight * 0.35, -poleHeight, poleHeight * 0.9, poleHeight * 1.05);
+        } else {
+            // Flagpole shadow
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(poleHeight * 0.35, -poleHeight * 0.18);
+            ctx.stroke();
+
+            // Flagpole
+            ctx.strokeStyle = poleCol;
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -poleHeight);
+            ctx.stroke();
+
+            // Fluttering pennant flag
+            const wave = Math.sin(now * 0.005) * 2.5;
+            ctx.fillStyle = flagCol;
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(0, -poleHeight);
+            ctx.quadraticCurveTo(poleHeight * 0.25, -poleHeight + 4 + wave, poleHeight * 0.48, -poleHeight + 7 - wave * 0.5);
+            ctx.lineTo(0, -poleHeight + 15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.restore();
+    }
+
+    function drawGolfBall(ctx, options) {
+        if (!ctx || !options) return;
+        const x = typeof options.x === 'number' ? options.x : 0;
+        const y = typeof options.y === 'number' ? options.y : 0;
+        const radius = typeof options.radius === 'number' && options.radius > 0 ? options.radius : 15;
+        const heightZ = typeof options.heightZ === 'number' ? Math.max(0, options.heightZ) : 0;
+        const sinkScale = typeof options.sinkScale === 'number' ? Math.max(0.1, Math.min(1, options.sinkScale)) : 1.0;
+        const rotation = typeof options.rotation === 'number' ? options.rotation : 0;
+        const userColor = options.userColor || '#22C55E';
+        const avatarImg = options.avatarImg;
+        const ballImg = options.ballImg;
+        const themeId = options.themeId || 'default';
+        const displayName = options.displayName || 'Player';
+        const isLeader = !!options.isLeader;
+        const isHoleInOne = !!options.isHoleInOne;
+
+        // Perspective lift when ball is airborne (heightZ in [0..1])
+        const liftPx = heightZ * Math.max(36, radius * 3.2);
+        const visualScale = (1.0 + heightZ * 0.34) * sinkScale;
+        const drawR = radius * visualScale;
+
+        ctx.save();
+
+        // Ground shadow tracks directly on the turf (x, y), shrinking & softening with heightZ
+        const shadowScale = Math.max(0.45, 1.0 - heightZ * 0.45) * sinkScale;
+        const shadowAlpha = Math.max(0.18, 0.52 - heightZ * 0.28) * sinkScale;
+        ctx.save();
+        ctx.translate(x + heightZ * 6, y + 3 + heightZ * 4);
+        ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.95 * shadowScale, radius * 0.62 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Translate to elevated ball center
+        ctx.translate(x, y - liftPx);
+
+        // Leader / Hole-in-One golden aura
+        if (isLeader || isHoleInOne) {
+            ctx.save();
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 14;
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR + 2.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.save();
+        ctx.rotate(rotation);
+
+        if (ballImg && ((ballImg.naturalWidth || ballImg.width || 0) > 0)) {
+            ctx.drawImage(ballImg, -drawR, -drawR, drawR * 2, drawR * 2);
+        } else {
+            // 3D dimpled golf ball body
+            const ballGrad = ctx.createRadialGradient(-drawR * 0.3, -drawR * 0.3, drawR * 0.1, 0, 0, drawR);
+            ballGrad.addColorStop(0, '#FFFFFF');
+            ballGrad.addColorStop(0.72, '#F1F5F9');
+            ballGrad.addColorStop(1, '#CBD5E1');
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+            ctx.fillStyle = ballGrad;
+            ctx.fill();
+
+            // Subtle dimple texture dots around outer rim
+            ctx.fillStyle = 'rgba(100, 116, 139, 0.28)';
+            const dimpleAngles = [0, 0.9, 1.8, 2.7, 3.6, 4.5, 5.4];
+            for (let i = 0; i < dimpleAngles.length; i++) {
+                const a = dimpleAngles[i];
+                const dx = Math.cos(a) * (drawR * 0.78);
+                const dy = Math.sin(a) * (drawR * 0.78);
+                ctx.beginPath();
+                ctx.arc(dx, dy, Math.max(1.2, drawR * 0.09), 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Player color identification stripe ring
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR * 0.68, 0, Math.PI * 2);
+            ctx.strokeStyle = brightenColor(userColor);
+            ctx.lineWidth = Math.max(2.0, drawR * 0.15);
+            ctx.stroke();
+
+            // Crisp outer ball border
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.65)';
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // Center avatar / emote / penguin decal (kept upright so emotes are clearly readable)
+        drawCircularDecal(ctx, avatarImg, drawR * 0.64, {
+            fallbackPenguin: true,
+            themeId: themeId,
+            userColor: userColor,
+            displayName: displayName,
+            strokeBorder: true,
+            borderColor: 'rgba(255, 255, 255, 0.7)',
+            borderWidth: 1.1
+        });
+
+        ctx.restore();
+    }
+
+    /**
+     * Shared completion queue + heartbeat used by drop-style overlays (curling, golf, ...).
+     * opts: { game, socket, overlayKey, fields: [payload keys sent to the server, dropToken first],
+     *         getActiveTokens: () => string[] of in-flight drop tokens }
+     * Completions are sent immediately when the socket is open, otherwise queued and flushed on reconnect.
+     */
+    function createCompletionChannel(opts) {
+        const game = opts.game;
+        const socket = opts.socket || null;
+        const overlayKey = opts.overlayKey || '';
+        const fields = Array.isArray(opts.fields) ? opts.fields : null;
+        const getActiveTokens = typeof opts.getActiveTokens === 'function' ? opts.getActiveTokens : () => [];
+        const pending = [];
+        let heartbeatInterval = null;
+
+        function isOpen() {
+            return !!socket && socket.readyState === WebSocket.OPEN;
+        }
+
+        function send(payload) {
+            if (!payload || !payload.dropToken || !overlayKey) return;
+
+            // With `fields`, send exactly those keys in that order (dropToken first); otherwise send the payload as built.
+            const ordered = {};
+            if (fields) {
+                fields.forEach(function (f) { ordered[f] = payload[f]; });
+            } else {
+                Object.keys(payload).forEach(function (k) { ordered[k] = payload[k]; });
+            }
+            ordered.overlayKey = overlayKey;
+
+            if (isOpen()) {
+                try {
+                    socket.send(JSON.stringify(ordered));
+                    return;
+                } catch (_) {}
+            }
+            if (!pending.some(function (p) { return p.dropToken === payload.dropToken; })) {
+                pending.push(ordered);
+                ensureHeartbeat();
+            }
+        }
+
+        function flush() {
+            if (!isOpen()) return;
+            if (!overlayKey) {
+                pending.length = 0;
+                return;
+            }
+            while (pending.length > 0) {
+                const item = pending.shift();
+                try {
+                    item.overlayKey = overlayKey;
+                    socket.send(JSON.stringify(item));
+                } catch (_) {
+                    pending.unshift(item);
+                    break;
+                }
+            }
+        }
+
+        function sendHeartbeat() {
+            if (!overlayKey || !isOpen()) return;
+            const activeTokens = getActiveTokens() || [];
+            const completingTokens = pending.filter(function (c) { return c && c.dropToken; }).map(function (c) { return c.dropToken; });
+
+            if (activeTokens.length === 0 && completingTokens.length === 0) {
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+                return;
+            }
+
+            try {
+                socket.send(JSON.stringify({
+                    type: 'pong',
+                    game: game,
+                    activeTokens: activeTokens,
+                    completingTokens: completingTokens,
+                    overlayKey: overlayKey
+                }));
+            } catch (_) {}
+        }
+
+        function ensureHeartbeat() {
+            if (heartbeatInterval || !overlayKey) return;
+            heartbeatInterval = setInterval(sendHeartbeat, 5000);
+        }
+
+        /** Wires socket open/close status, keep-alive ping handling and JSON message dispatch. */
+        function attach(onMessage) {
+            if (!socket) return;
+            const showStatus = function (connected) {
+                if (typeof window !== 'undefined' && typeof window.wsStatusShow === 'function') {
+                    window.wsStatusShow(connected);
+                }
+            };
+            socket.addEventListener('open', function () {
+                showStatus(true);
+                flush();
+            });
+            socket.addEventListener('close', function () {
+                showStatus(false);
+            });
+            if (socket.readyState === WebSocket.OPEN) {
+                showStatus(true);
+            }
+            socket.addEventListener('message', function (event) {
+                if (!event.data || typeof event.data !== 'string') return;
+                if (event.data === 'ping') {
+                    const hasDrops = (getActiveTokens() || []).length > 0 || pending.length > 0;
+                    if (overlayKey && hasDrops) {
+                        sendHeartbeat();
+                    } else {
+                        socket.send('pong');
+                    }
+                    return;
+                }
+                if (!event.data.startsWith('{')) return;
+                let msg;
+                try {
+                    msg = JSON.parse(event.data);
+                } catch (_) {
+                    return;
+                }
+                onMessage(msg);
+            });
+        }
+
+        return { pending: pending, send: send, flush: flush, sendHeartbeat: sendHeartbeat, ensureHeartbeat: ensureHeartbeat, attach: attach };
+    }
+
+    /** Deterministic 0..1 PRNG (mulberry32 over an FNV-1a string hash) so every overlay instance replays a shot identically. */
+    function createSeededRandom(seedStr) {
+        let h = 2166136261 >>> 0;
+        const s = String(seedStr || '');
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        return function () {
+            h = (h + 0x6D2B79F5) >>> 0;
+            let t = h;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -1531,6 +2048,8 @@
         drawOutlinedName: drawOutlinedName,
         drawRoundRect: drawRoundRect,
         getBannerX: getBannerX,
+        getStripMetrics: getStripMetrics,
+        updateActiveGameStateFromMessage: updateActiveGameStateFromMessage,
         drawSessionBanner: drawSessionBanner,
         updateAndDrawPopups: updateAndDrawPopups,
         calculateDropAlpha: calculateDropAlpha,
@@ -1544,7 +2063,11 @@
         syncAmbientParticles: syncAmbientParticles,
         updateAndDrawAmbientParticles: updateAndDrawAmbientParticles,
         spawnSeasonalBurst: spawnSeasonalBurst,
-        updateAndDrawParticles: updateAndDrawParticles
+        updateAndDrawParticles: updateAndDrawParticles,
+        drawGolfGreen: drawGolfGreen,
+        drawGolfBall: drawGolfBall,
+        createCompletionChannel: createCompletionChannel,
+        createSeededRandom: createSeededRandom
     };
 
     if (typeof module !== 'undefined' && module.exports) {

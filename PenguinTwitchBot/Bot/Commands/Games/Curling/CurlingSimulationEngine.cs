@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
 {
     public static class CurlingSimulationEngine
     {
-        public const double TickRateHz = 60.0;
+        public const double TickRateHz = SlideShotPhysics.TickRateHz;
         public const double Dt = 1.0 / TickRateHz;
 
         // Geometric radii normalized relative to the primary slide axis length [0.0, 1.0]
@@ -14,7 +14,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
         public const double TwelveFootRadius = 0.125;    // 25 pt outer ring
 
         // Baseline friction deceleration on normal ice
-        public const double BaseFrictionDecel = 0.22;
+        public const double BaseFrictionDecel = SlideShotPhysics.BaseDecel;
 
         /// <summary>
         /// Maps an IceCondition to a friction drag multiplier.
@@ -32,41 +32,20 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
         /// Calculates the effective power applying streamer variance and bounds clamping.
         /// </summary>
         public static double CalculateEffectivePower(double rawPower, double variancePercent, Random? rng = null)
-        {
-            if (!double.IsFinite(rawPower))
-            {
-                rawPower = 75.0;
-            }
-            var clampedRaw = Math.Clamp(rawPower, 1.0, 100.0);
-            if (variancePercent <= 0.0) return clampedRaw;
-
-            var r = rng ?? Random.Shared;
-            var maxDelta = variancePercent;
-            var delta = (r.NextDouble() * 2.0 - 1.0) * maxDelta;
-            return Math.Clamp(clampedRaw + delta, 1.0, 100.0);
-        }
+            => SlideShotPhysics.CalculateEffectivePower(rawPower, variancePercent, rng);
 
         /// <summary>
         /// Converts an effective power (1-100) into initial launch speed.
         /// Calibrated so that power ~75-80 lands directly on standard target pin (~84%) on normal ice.
         /// </summary>
         public static double PowerToInitialSpeed(double effectivePower, double dragMultiplier)
-        {
-            // Initial velocity calibrated against drag:
-            // d = v^2 / (2 * a), where a = BaseFrictionDecel * dragMultiplier
-            // For power = 78 on normal ice (a = 0.22), target dist ~ 0.78 -> v ~ sqrt(2 * 0.22 * 0.78) ~ 0.586
-            var powerFraction = Math.Clamp(effectivePower / 100.0, 0.01, 1.0);
-            return Math.Round(powerFraction * 0.76, 4);
-        }
+            => SlideShotPhysics.PowerToInitialSpeed(effectivePower);
 
         /// <summary>
         /// Deterministically computes the total slide distance from initial launch speed and drag.
         /// </summary>
         public static double CalculateSlideDistance(double initialSpeed, double dragMultiplier)
-        {
-            var decel = Math.Max(0.01, BaseFrictionDecel * dragMultiplier);
-            return (initialSpeed * initialSpeed) / (2.0 * decel);
-        }
+            => SlideShotPhysics.CalculateTravelDistance(initialSpeed, dragMultiplier);
 
         /// <summary>
         /// Simulates a curling slide trajectory, populating keyframes, rest coordinates, score, and bullseye status.
@@ -85,19 +64,16 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
 
             var dragMultiplier = ResolveIceDragMultiplier(condition);
             var effectivePower = CalculateEffectivePower(rawPower, settings.PowerVariancePercent, rng);
+            record.EffectivePower = effectivePower;
             var v0 = PowerToInitialSpeed(effectivePower, dragMultiplier);
             var decel = BaseFrictionDecel * dragMultiplier;
             var slideDist = CalculateSlideDistance(v0, dragMultiplier);
 
             // Determine orientation: horizontal vs vertical
             var isHorizontal = settings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
-            var isReversed = isReversedOverride ?? (settings.SlideDirection is CurlingSlideDirection.RightToLeft or CurlingSlideDirection.BottomToTop);
-            if (!isReversedOverride.HasValue && settings.SlideDirection == CurlingSlideDirection.Alternating)
-            {
-                isReversed = (record.DropToken.GetHashCode() & 1) == 1;
-            }
+            var isReversed = SlideShotPhysics.ResolveIsReversed(settings.SlideDirection, record.DropToken, isReversedOverride);
 
-            var startPos = isReversed ? 0.95 : 0.05;
+            var startPos = SlideShotPhysics.DefaultTeePosition(isReversed);
             var directionSign = isReversed ? -1.0 : 1.0;
             var restPos = Math.Clamp(startPos + directionSign * slideDist, 0.02, 0.98);
 
@@ -115,33 +91,13 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             }
 
             // Target position normalized along slide axis
-            var normalizedTarget = settings.SlideDirection == CurlingSlideDirection.CenterTarget
-                ? 0.50
-                : Math.Clamp(targetDistancePercent / 100.0, 0.50, 0.95);
-            if (isReversed)
-            {
-                normalizedTarget = 1.0 - normalizedTarget;
-            }
+            var normalizedTarget = SlideShotPhysics.ResolveNormalizedTarget(settings.SlideDirection, targetDistancePercent, isReversed);
 
             // Keyframes for server/client synchronization
             record.Keyframes =
             [
-                new ParachuteTrajectoryPointDto
-                {
-                    Tick = 0,
-                    X = isHorizontal ? startPos : lateralOffset,
-                    Y = isHorizontal ? lateralOffset : startPos,
-                    Vx = isHorizontal ? v0 * directionSign : 0,
-                    Vy = isHorizontal ? 0 : v0 * directionSign
-                },
-                new ParachuteTrajectoryPointDto
-                {
-                    Tick = totalTicks,
-                    X = isHorizontal ? restPos : lateralOffset,
-                    Y = isHorizontal ? lateralOffset : restPos,
-                    Vx = 0,
-                    Vy = 0
-                }
+                SlideShotPhysics.CreatePoint(0, startPos, lateralOffset, 0.0, v0 * directionSign, 0.0, isHorizontal),
+                SlideShotPhysics.CreatePoint(totalTicks, restPos, lateralOffset, 0.0, 0.0, 0.0, isHorizontal)
             ];
 
             // Evaluate rest score and landing coordinates

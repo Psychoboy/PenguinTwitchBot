@@ -523,7 +523,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
             var headerConfig = DropGameHeaderConfigDto.FromSettings(pSettings);
 
             DropGameSessionDto? activeSessionDto = null;
-            var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
+            var userKey = DropGameUserKey.Resolve(eventArgs.UserId, record.Username);
             if (currentSessionState != null && currentSessionState.EndsAtUtc > now)
             {
                 _sessionManager.RecordUserDrop(userKey);
@@ -979,7 +979,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                                 }
                             }
 
-                            var userKey = !string.IsNullOrWhiteSpace(e.UserId) ? e.UserId : (e.Name ?? "viewer");
+                            var userKey = DropGameUserKey.Resolve(e.UserId, e.Name);
                             if (!_sessionManager.CanUserDrop(userKey, pSettings.MaxDropsPerUserPerSession))
                             {
                                 return;

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Models.Chat;
@@ -47,6 +48,230 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         private const int MaxMediaTokens = 10;
 
         /// <summary>
+        /// Best-effort parser for commands supporting optional `[power] [emote]` arguments (e.g. `!golf [power] [emote]`, `!curl [power] [emote]`).
+        /// Recognizes alphanumeric emotes (such as `sptv318`) when power is omitted, and tolerates minor typos on power numbers (such as `75%`, `75p`, `75!`).
+        /// </summary>
+        public static async Task<(double Power, string? EmoteToken)> ParsePowerAndEmoteAsync(
+            IEmoteService? emoteService,
+            CommandEventArgs? eventArgs,
+            double? explicitPower,
+            string? explicitEmote,
+            bool enableViewerPowerControl,
+            int defaultPowerMin,
+            int defaultPowerMax)
+        {
+            var tokens = new List<string>();
+            var usedExplicitAsTokens = false;
+            if (eventArgs?.Args != null && eventArgs.Args.Count > 0)
+            {
+                foreach (var arg in eventArgs.Args)
+                {
+                    var trimmed = arg?.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        tokens.Add(trimmed);
+                    }
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(eventArgs?.Arg))
+            {
+                var split = eventArgs.Arg.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                tokens.AddRange(split.Where(s => !string.IsNullOrWhiteSpace(s)));
+            }
+            else if (!string.IsNullOrWhiteSpace(explicitEmote) && !explicitPower.HasValue)
+            {
+                var split = explicitEmote.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                tokens.AddRange(split.Where(s => !string.IsNullOrWhiteSpace(s)));
+                usedExplicitAsTokens = true;
+            }
+
+            Dictionary<string, string>? cachedEmotes = null;
+            var hasLoadedCachedEmotes = false;
+
+            var powerFound = false;
+            var parsedPower = 0.0;
+            string? parsedEmoteToken = null;
+
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+
+                // Lazy-load cached emotes ONLY when a token starts with a digit AND contains letters (e.g. "4Head" vs "75p")
+                // and wasn't already matched in eventArgs.Fragments. Pure numbers ("75") or letter-prefixed tokens ("sptv318")
+                // never require fetching the emote dictionary here.
+                if (!hasLoadedCachedEmotes &&
+                    emoteService != null &&
+                    token.Length > 1 &&
+                    char.IsDigit(token[0]) &&
+                    token.Any(char.IsLetter) &&
+                    !IsFragmentOrPathEmote(token, eventArgs))
+                {
+                    hasLoadedCachedEmotes = true;
+                    try
+                    {
+                        cachedEmotes = await emoteService.GetEmotesAsync();
+                    }
+                    catch
+                    {
+                        // Ignore transient lookup error
+                    }
+                }
+
+                var isKnownEmote = IsKnownEmoteOrMediaToken(token, eventArgs, cachedEmotes);
+                var hasNativeEmoteOnSingleToken = tokens.Count == 1 && !string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl);
+
+                if (!powerFound && TryParseBestEffortPower(token, isKnownEmote, hasNativeEmoteOnSingleToken, out var p))
+                {
+                    parsedPower = p;
+                    powerFound = true;
+                    continue;
+                }
+
+                if (parsedEmoteToken == null)
+                {
+                    parsedEmoteToken = token;
+                }
+            }
+
+            var explicitTrimmed = explicitEmote?.Trim();
+            var isExplicitRawArgs = !string.IsNullOrWhiteSpace(explicitTrimmed) &&
+                (usedExplicitAsTokens ||
+                 string.Equals(explicitTrimmed, eventArgs?.Arg?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            var finalEmote = (!string.IsNullOrWhiteSpace(explicitTrimmed) && !isExplicitRawArgs)
+                ? explicitTrimmed
+                : parsedEmoteToken;
+
+            double finalPower;
+            if (explicitPower.HasValue)
+            {
+                finalPower = Math.Clamp(explicitPower.Value, 1.0, 100.0);
+            }
+            else if (enableViewerPowerControl && powerFound)
+            {
+                finalPower = Math.Clamp(parsedPower, 1.0, 100.0);
+            }
+            else
+            {
+                finalPower = GetRandomPowerInRange(defaultPowerMin, defaultPowerMax);
+            }
+
+            return (finalPower, finalEmote);
+        }
+
+        private static bool IsFragmentOrPathEmote(string token, CommandEventArgs? eventArgs)
+        {
+            if (IsAllowedPathOrUrl(token)) return true;
+            if (eventArgs?.Fragments != null)
+            {
+                return eventArgs.Fragments.Any(f =>
+                    string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Text?.Trim(), token, StringComparison.OrdinalIgnoreCase));
+            }
+            return false;
+        }
+
+        private static int GetRandomPowerInRange(int defaultMin, int defaultMax)
+        {
+            var min = Math.Clamp(defaultMin, 1, 100);
+            var max = Math.Clamp(defaultMax, 1, 100);
+            if (min > max)
+            {
+                (min, max) = (max, min);
+            }
+            return Random.Shared.Next(min, max + 1);
+        }
+
+        private static bool IsKnownEmoteOrMediaToken(
+            string token,
+            CommandEventArgs? eventArgs,
+            Dictionary<string, string>? cachedEmotes)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            if (IsAllowedPathOrUrl(token)) return true;
+
+            if (eventArgs?.Fragments != null)
+            {
+                var hasFragmentMatch = eventArgs.Fragments.Any(f =>
+                    string.Equals(f.Type, "emote", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Text?.Trim(), token, StringComparison.OrdinalIgnoreCase));
+                if (hasFragmentMatch)
+                {
+                    return true;
+                }
+            }
+
+            if (cachedEmotes != null)
+            {
+                if (cachedEmotes.ContainsKey(token) ||
+                    cachedEmotes.Keys.Any(k => k.Equals(token, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryParseBestEffortPower(
+            string token,
+            bool isKnownEmote,
+            bool hasNativeEmoteOnSingleToken,
+            out double power)
+        {
+            power = 0;
+            if (string.IsNullOrWhiteSpace(token) || isKnownEmote)
+            {
+                return false;
+            }
+
+            // 1. Exact integer 1..100 or exact decimal 1..100
+            if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out var exactVal) &&
+                exactVal is >= 1.0 and <= 100.0 &&
+                char.IsDigit(token[0]))
+            {
+                power = Math.Round(exactVal, 1);
+                return true;
+            }
+
+            // 2. Best-effort typo tolerance for tokens starting with digits (e.g. "75%", "75!", "75p", "75pts", "80s")
+            // Emotes like "sptv318" start with a letter and will never enter this branch.
+            if (!char.IsDigit(token[0]))
+            {
+                return false;
+            }
+
+            var idx = 0;
+            while (idx < token.Length && (char.IsDigit(token[idx]) || token[idx] == '.'))
+            {
+                idx++;
+            }
+
+            if (idx == 0) return false;
+
+            var numPart = token[..idx];
+            var suffix = token[idx..].Trim();
+
+            // If this is the only token and Twitch flagged an EmoteUrl on the message, only accept unambiguous power suffixes like "%" or "!"
+            if (hasNativeEmoteOnSingleToken && suffix.Any(char.IsLetter))
+            {
+                return false;
+            }
+
+            // Allow short typo/unit suffixes (e.g. "%", "!", "p", "pt", "pts", "pwr", "yd", "yds", "m", or a single accidental key press)
+            if (suffix.Length <= 3 &&
+                double.TryParse(numPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var prefixVal) &&
+                prefixVal is >= 1.0 and <= 100.0)
+            {
+                power = Math.Round(prefixVal, 1);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Resolves one or more media tokens (Twitch/BTTV/FFZ/7TV emote codes or image URLs/paths) into valid CDN URLs.
         /// Supports multi-image pools (e.g. "sptvShots, sptvLights, sptv30k").
         /// </summary>
@@ -55,7 +280,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             CommandEventArgs? eventArgs,
             string? emoteOrImageInput,
             string? fallbackInput,
-            bool allowDirectUrlOrPath = true)
+            bool allowDirectUrlOrPath = true,
+            bool fallbackToEventArgsArg = true)
         {
             // 1. Native Twitch emote fragment attached to CommandEventArgs when no explicit input is given
             if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl) && string.IsNullOrWhiteSpace(emoteOrImageInput))
@@ -64,7 +290,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             var primaryTokens = ParseMediaTokens(emoteOrImageInput);
-            if (primaryTokens.Count == 0)
+            if (primaryTokens.Count == 0 && fallbackToEventArgsArg)
             {
                 primaryTokens = ParseMediaTokens(eventArgs?.Arg);
             }
@@ -75,22 +301,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             }
 
             var resolved = new List<string>();
-            Dictionary<string, string>? cachedEmotes = null;
-            if (emoteService != null)
-            {
-                try
-                {
-                    cachedEmotes = await emoteService.GetEmotesAsync();
-                }
-                catch
-                {
-                    // Ignore transient error fetching cached dictionary
-                }
-            }
-
             var context = new ResolutionContext
             {
-                CachedEmotes = cachedEmotes,
                 Fragments = eventArgs?.Fragments
             };
 
@@ -106,9 +318,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 }
             }
 
-            // If primary tokens did not match a known emote/URL, check if Twitch provided a native EmoteUrl or emote fragment on the event
-            // Only select an event emote fallback when no explicit primary input was supplied.
-            if (resolved.Count == 0 && string.IsNullOrWhiteSpace(emoteOrImageInput))
+            // If primary tokens did not match a known emote/URL in the dictionary, check if Twitch provided a native EmoteUrl or emote fragment on the event
+            if (resolved.Count == 0)
             {
                 if (!string.IsNullOrWhiteSpace(eventArgs?.EmoteUrl))
                 {
@@ -155,6 +366,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
         private sealed class ResolutionContext
         {
             public Dictionary<string, string>? CachedEmotes { get; set; }
+            public bool HasLoadedCachedEmotes { get; set; }
             public List<ChatOverlayFragment>? Fragments { get; set; }
             public bool HasRefreshedLookup { get; set; }
         }
@@ -168,9 +380,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
             CommandEventArgs? eventArgs,
             string? emoteOrImageInput,
             string? fallbackUrl = null,
-            bool allowDirectUrlOrPath = true)
+            bool allowDirectUrlOrPath = true,
+            bool fallbackToEventArgsArg = true)
         {
-            var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath);
+            var urls = await ResolveMediaUrlsAsync(emoteService, eventArgs, emoteOrImageInput, fallbackUrl, allowDirectUrlOrPath, fallbackToEventArgsArg);
             if (urls.Count == 0) return "";
             if (urls.Count == 1) return urls[0];
             return urls[RandomNumberGenerator.GetInt32(urls.Count)];
@@ -227,11 +440,42 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 return allowDirectUrlOrPath ? token : null;
             }
 
-            // 3. Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService
+            // 3. Relative media path with image extension (e.g. "images/droplets/drop1.png")
+            if (allowDirectUrlOrPath && token.Contains('.') &&
+                (token.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                 token.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
+            {
+                return token.StartsWith('/') ? token : $"/{token}";
+            }
+
+            // Pure numeric tokens (e.g. power argument "75") are never emotes — skip emote dictionary lookup
+            if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
+            {
+                return null;
+            }
+
+            // 4. Emote lookup (Twitch native, BTTV, FFZ, 7TV) via IEmoteService (lazy-loaded only when needed)
             if (emoteService != null)
             {
                 try
                 {
+                    if (!context.HasLoadedCachedEmotes)
+                    {
+                        context.HasLoadedCachedEmotes = true;
+                        try
+                        {
+                            context.CachedEmotes = await emoteService.GetEmotesAsync();
+                        }
+                        catch
+                        {
+                            // Ignore transient error fetching cached dictionary
+                        }
+                    }
+
                     // Check cached dictionary first for exact or case-insensitive match
                     var emotes = context.CachedEmotes;
                     if (emotes != null)
@@ -272,18 +516,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 {
                     // Fallback on lookup failure
                 }
-            }
-
-            // 4. Relative media path with image extension (e.g. "images/droplets/drop1.png")
-            if (allowDirectUrlOrPath && token.Contains('.') &&
-                (token.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                 token.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                 token.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
-                 token.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
-                 token.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
-                 token.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)))
-            {
-                return token.StartsWith('/') ? token : $"/{token}";
             }
 
             // Do NOT return unresolved plain text names like "sptvShots" because the browser
@@ -431,6 +663,24 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 CurlingHit = ResolveSound(settings.HitSound, theme.CurlingHitSound, mediaService),
                 CurlingScore = ResolveSound(settings.ScoreSound, theme.CurlingScoreSound, mediaService),
                 CurlingWin = ResolveSound(settings.WinSound, theme.CurlingWinSound, mediaService)
+            };
+        }
+
+        public static DropGameSoundBundleDto ResolveGolfSoundBundle(
+            GolfGameSettings settings,
+            DropGameTheme theme,
+            MediaUploadService? mediaService)
+        {
+            return new DropGameSoundBundleDto
+            {
+                MaxConcurrentSounds = settings.MaxConcurrentSounds,
+                Start = ResolveSound(settings.StartSound, theme.GolfStartSound, mediaService),
+                End = ResolveSound(settings.EndSound, theme.GolfEndSound, mediaService),
+                GolfStrike = ResolveSound(settings.StrikeSound, theme.GolfStrikeSound, mediaService),
+                GolfBounce = ResolveSound(settings.BounceSound, theme.GolfBounceSound, mediaService),
+                GolfCup = ResolveSound(settings.CupSound, theme.GolfCupSound, mediaService),
+                GolfLipOut = ResolveSound(settings.LipOutSound, theme.GolfLipOutSound, mediaService),
+                GolfWin = ResolveSound(settings.WinSound, theme.GolfWinSound, mediaService)
             };
         }
     }

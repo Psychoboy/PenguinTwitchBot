@@ -85,6 +85,23 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             case "plinko":
                 ResolvePlinkoVariables(variables, source, category, eventType);
                 break;
+
+            case "balloon":
+            case "float":
+                ResolveBalloonVariables(variables, source, category, eventType);
+                break;
+
+            case "curl":
+            case "curling":
+            case "slide":
+                ResolveCurlingVariables(variables, source, category, eventType);
+                break;
+
+            case "golf":
+            case "putt":
+            case "chip":
+                ResolveGolfVariables(variables, source, category, eventType);
+                break;
         }
     }
 
@@ -124,6 +141,9 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             else if (nameLower.Contains("death")) commandName = "death";
             else if (nameLower.Contains("parachute") || nameLower.Contains("drop")) commandName = "drop";
             else if (nameLower.Contains("plinko")) commandName = "plinko";
+            else if (nameLower.Contains("balloon") || nameLower.Contains("float")) commandName = "balloon";
+            else if (nameLower.Contains("curl") || nameLower.Contains("slide")) commandName = "curl";
+            else if (nameLower.Contains("golf") || nameLower.Contains("putt") || nameLower.Contains("chip")) commandName = "golf";
         }
 
         if (string.IsNullOrEmpty(eventType) && !string.IsNullOrEmpty(commandName))
@@ -201,6 +221,47 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
                     eventType = DefaultCommandEventTypes.PlinkoStart;
                 else if (nameLower.Contains("end"))
                     eventType = DefaultCommandEventTypes.PlinkoEnd;
+            }
+            else if (nameLower.Contains("balloon") || nameLower.Contains("float"))
+            {
+                if (nameLower.Contains("bullseye"))
+                    eventType = DefaultCommandEventTypes.BalloonBullseye;
+                else if (nameLower.Contains("pop"))
+                    eventType = DefaultCommandEventTypes.BalloonPop;
+                else if (nameLower.Contains("win"))
+                    eventType = DefaultCommandEventTypes.BalloonWin;
+                else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
+                    eventType = DefaultCommandEventTypes.BalloonLose;
+                else if (nameLower.Contains("start"))
+                    eventType = DefaultCommandEventTypes.BalloonStart;
+                else if (nameLower.Contains("end"))
+                    eventType = DefaultCommandEventTypes.BalloonEnd;
+            }
+            else if (nameLower.Contains("curl") || nameLower.Contains("slide"))
+            {
+                if (nameLower.Contains("bullseye"))
+                    eventType = DefaultCommandEventTypes.CurlingBullseye;
+                else if (nameLower.Contains("win"))
+                    eventType = DefaultCommandEventTypes.CurlingWin;
+                else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
+                    eventType = DefaultCommandEventTypes.CurlingLose;
+                else if (nameLower.Contains("start"))
+                    eventType = DefaultCommandEventTypes.CurlingStart;
+                else if (nameLower.Contains("end"))
+                    eventType = DefaultCommandEventTypes.CurlingEnd;
+            }
+            else if (nameLower.Contains("golf") || nameLower.Contains("putt") || nameLower.Contains("chip"))
+            {
+                if (nameLower.Contains("bullseye") || nameLower.Contains("holeinone") || nameLower.Contains("cup"))
+                    eventType = DefaultCommandEventTypes.GolfBullseye;
+                else if (nameLower.Contains("win"))
+                    eventType = DefaultCommandEventTypes.GolfWin;
+                else if (nameLower.Contains("lose") || nameLower.Contains("miss"))
+                    eventType = DefaultCommandEventTypes.GolfLose;
+                else if (nameLower.Contains("start"))
+                    eventType = DefaultCommandEventTypes.GolfStart;
+                else if (nameLower.Contains("end"))
+                    eventType = DefaultCommandEventTypes.GolfEnd;
             }
         }
 
@@ -419,6 +480,104 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("BucketIndex", "Zero-based index of the Plinko bucket landed in", source, category, "2");
             variables.SetVariable("IsWin", "True if the Plinko bucket is marked as a winning bucket", source, category, "true");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+        }
+    }
+
+    private static void ResolveBalloonVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
+    {
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.BalloonStart, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.BalloonStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the balloon session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the balloon session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "BalloonAscent");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.BalloonEnd, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.BalloonEnded, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("TotalDrops", "Total number of balloons launched during the round", source, category, "28");
+            variables.SetVariable("Duration", "Total duration of the balloon session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the balloon session", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "BalloonAscent");
+        }
+        else
+        {
+            variables.SetVariable("Score", "Sky arch accuracy score achieved (0 - 100)", source, category, "100");
+            variables.SetVariable("IsWin", "True if the balloon landed in the sky arch target zone", source, category, "true");
+            variables.SetVariable("IsBullseye", "True if the balloon hit the center bullseye of the sky arch", source, category, "true");
+            variables.SetVariable("BalloonPopped", "True if the balloon was popped mid-air by falling hazards", source, category, "false");
+            variables.SetVariable("DistanceFromCenter", "Distance from the sky arch center in percentage points", source, category, "1.5");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Spring (Cherry Blossoms)");
+            variables.SetVariable("Game", "Game name", source, category, "BalloonAscent");
+        }
+    }
+
+    private static void ResolveCurlingVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
+    {
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.CurlingStart, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.CurlingStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the curling session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the curling session", source, category, "Winter (Snowflakes)");
+            variables.SetVariable("Game", "Game name", source, category, "Curling");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.CurlingEnd, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.CurlingEnded, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("TotalDrops", "Total number of curling stones slid during the round", source, category, "20");
+            variables.SetVariable("Duration", "Total duration of the curling session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the curling session", source, category, "Winter (Snowflakes)");
+            variables.SetVariable("Game", "Game name", source, category, "Curling");
+        }
+        else
+        {
+            variables.SetVariable("Score", "Curling house ring score achieved (-10 to 100)", source, category, "100");
+            variables.SetVariable("Power", "Launch power used for the slide (1 - 100)", source, category, "80");
+            variables.SetVariable("IsWin", "True if the stone stopped inside a scoring house ring", source, category, "true");
+            variables.SetVariable("IsBullseye", "True if the stone stopped dead-center on the button (100 pts)", source, category, "true");
+            variables.SetVariable("DistanceFromCenter", "Distance from the house center in percentage points", source, category, "0.8");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Winter (Snowflakes)");
+            variables.SetVariable("Game", "Game name", source, category, "Curling");
+        }
+    }
+
+    private static void ResolveGolfVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
+    {
+        if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.GolfStart, StringComparison.OrdinalIgnoreCase) ||
+                                  eventType.Equals(DefaultCommandEventTypes.GolfStarted, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("Duration", "Total duration of the golf session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the golf session", source, category, "Summer (Beach Party)");
+            variables.SetVariable("Game", "Game name", source, category, "Golf");
+        }
+        else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.GolfEnd, StringComparison.OrdinalIgnoreCase) ||
+                                       eventType.Equals(DefaultCommandEventTypes.GolfEnded, StringComparison.OrdinalIgnoreCase)))
+        {
+            variables.SetVariable("TotalDrops", "Total number of golf shots taken during the round", source, category, "24");
+            variables.SetVariable("Duration", "Total duration of the golf session in seconds", source, category, "100");
+            variables.SetVariable("TriggeredBy", "Username or system that started or stopped the session", source, category, "Broadcaster");
+            variables.SetVariable("Theme", "Active theme name of the golf session", source, category, "Summer (Beach Party)");
+            variables.SetVariable("Game", "Game name", source, category, "Golf");
+        }
+        else
+        {
+            variables.SetVariable("Score", "Final golf score after multi-stroke penalty (0 - 100)", source, category, "100");
+            variables.SetVariable("BaseScore", "Closest-to-the-pin base score before stroke penalty (0 - 100)", source, category, "100");
+            variables.SetVariable("StrokeNumber", "Stroke number used by the player on this hole", source, category, "1");
+            variables.SetVariable("StrokePenalty", "Points deducted for additional strokes", source, category, "0");
+            variables.SetVariable("Power", "Swing power used for the golf shot (1 - 100)", source, category, "84");
+            variables.SetVariable("IsWin", "True if the ball rested on the putting green or was sunk in the cup", source, category, "true");
+            variables.SetVariable("IsBullseye", "True if the ball was sunk in the cup", source, category, "true");
+            variables.SetVariable("IsHoleInOne", "True if the ball was sunk in the cup on stroke 1", source, category, "true");
+            variables.SetVariable("IsLipOut", "True if the ball hit the cup rim too fast and lipped out", source, category, "false");
+            variables.SetVariable("DistanceFromCenter", "Distance from the pin in percentage points", source, category, "0.4");
+            variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Summer (Beach Party)");
+            variables.SetVariable("Game", "Game name", source, category, "Golf");
         }
     }
 }

@@ -30,6 +30,31 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public void CalculateEffectivePower_WhenVarianceZero_ReturnsExactPower()
+        {
+            var rng = new Random(42);
+            for (int i = 0; i < 20; i++)
+            {
+                var effective = CurlingSimulationEngine.CalculateEffectivePower(78.5, 0.0, rng);
+                Assert.Equal(78.5, effective);
+            }
+        }
+
+        [Fact]
+        public void CalculateEffectivePower_VarianceProducesSpreadAcrossIdenticalRawInputs()
+        {
+            var rng = new Random(12345);
+            var results = new HashSet<double>();
+            for (int i = 0; i < 25; i++)
+            {
+                var effective = CurlingSimulationEngine.CalculateEffectivePower(80.0, 3.0, rng);
+                results.Add(Math.Round(effective, 4));
+            }
+            // 25 random throws should produce many distinct effective powers rather than collapsing to a single value
+            Assert.True(results.Count > 15, $"Expected spread in power, got {results.Count} unique values");
+        }
+
+        [Fact]
         public void PowerToInitialSpeed_ScalesWithPower()
         {
             var lowSpeed = CurlingSimulationEngine.PowerToInitialSpeed(50.0, 1.0);

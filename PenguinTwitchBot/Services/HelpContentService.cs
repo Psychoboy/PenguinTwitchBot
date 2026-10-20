@@ -423,6 +423,8 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Parachute Drop", Icons.Material.Filled.Paragliding, "drop-games/parachute.md"),
                 ("Plinko Bounce", Icons.Material.Filled.Casino, "drop-games/plinko.md"),
                 ("Balloon Ascent", Icons.Material.Filled.Air, "drop-games/balloon.md"),
+                ("Curling / Shuffleboard", Icons.Material.Filled.SportsHockey, "drop-games/curling.md"),
+                ("Golf (Chip & Putt)", Icons.Material.Filled.GolfCourse, "drop-games/golf.md"),
                 ("Themes & Emotes", Icons.Material.Filled.Palette, "drop-games/themes.md"),
                 ("Triggers & Sub-Actions", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
             ]
@@ -459,6 +461,15 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             Icons.Material.Filled.SportsHockey,
             [
                 ("Curling Mechanics", Icons.Material.Filled.SportsHockey, "drop-games/curling.md"),
+                ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
+                ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
+            ]
+        ),
+        ["golf-game"] = (
+            "Golf (Chip & Putt) Guide",
+            Icons.Material.Filled.GolfCourse,
+            [
+                ("Golf Mechanics", Icons.Material.Filled.GolfCourse, "drop-games/golf.md"),
                 ("Overlay & HUD", Icons.Material.Filled.Tv, "drop-games/overview.md"),
                 ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
             ]

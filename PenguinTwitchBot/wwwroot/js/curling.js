@@ -122,6 +122,7 @@
         conditionLabel: 'Normal Ice',
         targetDistancePercent: 78.0,    // 70% - 92%
         enableShuffleboardKitchenPenalty: true,
+        powerVariancePercent: 3.0,
         visibleUntil: 0
     };
 
@@ -201,150 +202,30 @@
     let lastCollisionSoundMs = 0;
 
     // WebSocket connection & completions queue
-    const pendingCompletions = [];
     const socket = window.createWsSocket('curling', [window.WS_TOPICS.curling]);
 
-    function sendCompletion(payload) {
-        if (!payload || !payload.dropToken) return;
-        if (!overlayKey) {
-            return;
-        }
-        payload.overlayKey = overlayKey;
-
-        // Ensure key ordering puts dropToken first to match server check
-        const ordered = {
-            dropToken: payload.dropToken,
-            score: payload.score,
-            isBullseye: payload.isBullseye,
-            isWin: payload.isWin,
-            isHit: payload.isHit,
-            landingX: payload.landingX,
-            overlayKey: payload.overlayKey
-        };
-
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(ordered));
-                return;
-            } catch (_) {}
-        }
-        if (!pendingCompletions.some(p => p.dropToken === payload.dropToken)) {
-            pendingCompletions.push(ordered);
-            ensureHeartbeat();
-        }
-    }
-
-    function flushPendingCompletions() {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        if (!overlayKey) {
-            pendingCompletions.length = 0;
-            return;
-        }
-        while (pendingCompletions.length > 0) {
-            const item = pendingCompletions.shift();
-            try {
-                item.overlayKey = overlayKey;
-                socket.send(JSON.stringify(item));
-            } catch (_) {
-                pendingCompletions.unshift(item);
-                break;
-            }
-        }
-    }
-
-    socket.addEventListener('open', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(true);
-        }
-        flushPendingCompletions();
-    });
-    socket.addEventListener('close', function () {
-        if (typeof window.wsStatusShow === 'function') {
-            window.wsStatusShow(false);
-        }
-    });
-    if (socket.readyState === WebSocket.OPEN && typeof window.wsStatusShow === 'function') {
-        window.wsStatusShow(true);
-    }
-
-    let heartbeatInterval = null;
-
-    function sendHeartbeat() {
-        if (!overlayKey || !socket || socket.readyState !== WebSocket.OPEN) return;
-        const activeTokens = Array.isArray(activeStones)
+    // Shared completion queue + heartbeat (see DropGamesCommon.createCompletionChannel)
+    const completionChannel = DropGamesCommon.createCompletionChannel({
+        game: 'curling',
+        socket: socket,
+        overlayKey: overlayKey,
+        fields: ['dropToken', 'score', 'isBullseye', 'isWin', 'isHit', 'landingX'],
+        getActiveTokens: () => Array.isArray(activeStones)
             ? activeStones.filter(s => s && s.dropToken && !s.completed).map(s => s.dropToken)
-            : [];
-        const completingTokens = Array.isArray(pendingCompletions)
-            ? pendingCompletions.filter(c => c && c.dropToken).map(c => c.dropToken)
-            : [];
-
-        if (activeTokens.length === 0 && completingTokens.length === 0) {
-            if (heartbeatInterval) {
-                clearInterval(heartbeatInterval);
-                heartbeatInterval = null;
-            }
-            return;
-        }
-
-        try {
-            socket.send(JSON.stringify({
-                type: 'pong',
-                game: 'curling',
-                activeTokens: activeTokens,
-                completingTokens: completingTokens,
-                overlayKey: overlayKey
-            }));
-        } catch (_) {}
-    }
-
-    function ensureHeartbeat() {
-        if (heartbeatInterval || !overlayKey) return;
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-    }
-
-    socket.addEventListener('message', function (event) {
-        if (!event.data || typeof event.data !== 'string') return;
-        if (event.data === 'ping') {
-            const hasDrops = (Array.isArray(activeStones) && activeStones.some(s => s && s.dropToken && !s.completed)) ||
-                             (Array.isArray(pendingCompletions) && pendingCompletions.length > 0);
-            if (overlayKey && hasDrops) {
-                sendHeartbeat();
-            } else {
-                socket.send('pong');
-            }
-            return;
-        }
-        if (!event.data.startsWith('{')) return;
-        let msg;
-        try {
-            msg = JSON.parse(event.data);
-        } catch (_) {
-            return;
-        }
-        handleWsMessage(msg);
+            : []
     });
+    const pendingCompletions = completionChannel.pending;
+    const sendCompletion = completionChannel.send;
+    const flushPendingCompletions = completionChannel.flush;
+    const sendHeartbeat = completionChannel.sendHeartbeat;
+    const ensureHeartbeat = completionChannel.ensureHeartbeat;
+    completionChannel.attach(msg => handleWsMessage(msg));
 
     function handleWsMessage(msg) {
         if (!msg || typeof msg !== 'object') return;
 
         if (msg.type === 'other_game_status') {
-            if (typeof msg.otherGame === 'string' && msg.otherGame.length > 0) {
-                const g = msg.otherGame.toLowerCase();
-                if (msg.isOtherGameActive) {
-                    activeOtherGames.add(g);
-                } else {
-                    activeOtherGames.delete(g);
-                }
-            }
-            if (Array.isArray(msg.activeGames)) {
-                activeOtherGames.clear();
-                msg.activeGames.forEach(g => {
-                    if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
-                        activeOtherGames.add(g.toLowerCase());
-                    }
-                });
-            }
-            isOtherGameActive = activeOtherGames.size > 0 || !!msg.isOtherGameActive;
+            isOtherGameActive = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'curling', msg);
             return;
         }
 
@@ -360,23 +241,11 @@
             return;
         }
 
-        const activeList = msg.activeGames || (msg.session && msg.session.activeGames);
-        if (Array.isArray(activeList)) {
-            activeOtherGames.clear();
-            activeList.forEach(g => {
-                if (typeof g === 'string' && g.toLowerCase() !== 'curling') {
-                    activeOtherGames.add(g.toLowerCase());
-                }
-            });
-            isOtherGameActive = activeOtherGames.size > 0;
-        } else if (typeof msg.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.isOtherGameActive;
-        } else if (msg.session && typeof msg.session.isOtherGameActive === 'boolean') {
-            isOtherGameActive = msg.session.isOtherGameActive;
-        }
+        const activeGameStatus = DropGamesCommon.updateActiveGameStateFromMessage(activeOtherGames, 'curling', msg);
+        if (activeGameStatus !== null) isOtherGameActive = activeGameStatus;
 
-        if (msg.type === 'session_start' && msg.session) {
-            const s = msg.session;
+        if (msg.type === 'session_start') {
+            const s = msg.session || {};
             sessionState.isActive = true;
             sessionState.endedAtMs = 0;
             sessionState.totalDurationSeconds = s.totalDurationSeconds || 90;
@@ -403,6 +272,7 @@
             if (typeof msg.conditionLabel === 'string') boardConfig.conditionLabel = msg.conditionLabel;
             if (typeof msg.targetDistancePercent === 'number') boardConfig.targetDistancePercent = msg.targetDistancePercent;
             if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
+            if (typeof msg.powerVariancePercent === 'number') boardConfig.powerVariancePercent = msg.powerVariancePercent;
 
             boardConfig.visibleUntil = performance.now() + sessionState.totalDurationSeconds * 1000 + 6000;
 
@@ -427,78 +297,12 @@
     }
 
     function getTrackMetrics() {
-        const thicknessRatio = Math.max(0.10, Math.min(0.25, (boardConfig.trackThicknessPercent || 14.0) / 100));
-        const pos = (boardConfig.stripPosition || 'Bottom').toLowerCase();
-        let trackX, trackY, trackW, trackH;
-        let isHorizontal = true;
-
-        if (pos === 'top') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        } else if (pos === 'left') {
-            trackX = 0;
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else if (pos === 'right') {
-            trackX = width * (1.0 - thicknessRatio);
-            trackY = 0;
-            trackW = width * thicknessRatio;
-            trackH = height;
-            isHorizontal = false;
-        } else {
-            // Default: Bottom
-            trackX = 0;
-            trackY = height * (1.0 - thicknessRatio);
-            trackW = width;
-            trackH = height * thicknessRatio;
-            isHorizontal = true;
-        }
-
-        const trackLength = isHorizontal ? trackW : trackH;
-        const trackBreadth = isHorizontal ? trackH : trackW;
+        const metrics = DropGamesCommon.getStripMetrics(width, height, boardConfig, 78.0);
         // Comfortable radius within lane breadth allowing vertical/horizontal staggering
-        const stoneRadius = Math.max(14, Math.min(36, trackBreadth * 0.32));
-
-        const isReversed = (typeof boardConfig.isReversed === 'boolean')
-            ? boardConfig.isReversed
-            : (boardConfig.slideDirection === 'RightToLeft' || boardConfig.slideDirection === 'BottomToTop');
-
-        let targetDistRatio = Math.max(0.50, Math.min(0.95, (boardConfig.targetDistancePercent || 78.0) / 100));
-        if (boardConfig.slideDirection === 'CenterTarget') {
-            targetDistRatio = 0.50;
-        }
-
-        const effectiveTargetRatio = isReversed ? (1.0 - targetDistRatio) : targetDistRatio;
-        let targetCenterX, targetCenterY;
-
-        if (isHorizontal) {
-            targetCenterX = trackX + trackW * effectiveTargetRatio;
-            targetCenterY = trackY + trackH * 0.50;
-        } else {
-            targetCenterX = trackX + trackW * 0.50;
-            targetCenterY = trackY + trackH * effectiveTargetRatio;
-        }
-
+        const stoneRadius = Math.max(14, Math.min(36, metrics.breadth * 0.32));
         return {
-            x: trackX,
-            y: trackY,
-            w: trackW,
-            h: trackH,
-            length: trackLength,
-            breadth: trackBreadth,
-            isHorizontal: isHorizontal,
-            stoneRadius: stoneRadius,
-            targetCenterX: targetCenterX,
-            targetCenterY: targetCenterY,
-            targetDistRatio: targetDistRatio,
-            effectiveTargetRatio: effectiveTargetRatio,
-            isReversed: isReversed,
-            pos: pos
+            ...metrics,
+            stoneRadius: stoneRadius
         };
     }
 
@@ -522,6 +326,7 @@
         if (typeof msg.showBoardBorders === 'boolean') boardConfig.showBoardBorders = msg.showBoardBorders;
         if (typeof msg.targetAlpha === 'number') boardConfig.targetAlpha = msg.targetAlpha;
         if (typeof msg.enableShuffleboardKitchenPenalty === 'boolean') boardConfig.enableShuffleboardKitchenPenalty = msg.enableShuffleboardKitchenPenalty;
+        if (typeof msg.powerVariancePercent === 'number') boardConfig.powerVariancePercent = msg.powerVariancePercent;
         if (msg.theme) currentTheme = msg.theme;
         if (msg.sounds) {
             sessionState.sounds = msg.sounds;
@@ -534,10 +339,25 @@
 
         // Calculate initial slide velocity along slide axis matching server physics calibration
         const rawPower = typeof msg.power === 'number' ? msg.power : 75;
+        const variancePct = (typeof msg.powerVariancePercent === 'number')
+            ? msg.powerVariancePercent
+            : (typeof boardConfig.powerVariancePercent === 'number' ? boardConfig.powerVariancePercent : 3.0);
+
+        // Server-authoritative launch power (variance already applied server-side); no client resampling.
+        const variedPower = (typeof msg.effectivePower === 'number' && isFinite(msg.effectivePower))
+            ? msg.effectivePower
+            : rawPower;
+
+        // Deterministic per-dropToken PRNG so every overlay instance produces identical dispersion/outcome
+        const rand = DropGamesCommon.createSeededRandom(msg.dropToken);
+
         let dragMult = 1.0;
         if (boardConfig.condition === 'Slick') dragMult = 0.78;
         else if (boardConfig.condition === 'HeavyFrost') dragMult = 1.28;
         else if (boardConfig.condition === 'CrossDrift') dragMult = 1.05;
+
+        // Pebbled ice friction jitter: micro-textures on ice sheet slightly alter deceleration per stone
+        const pebbleFrictionJitter = variancePct > 0 ? (1.0 + (rand() * 0.04 - 0.02)) : 1.0;
 
         const isReversed = (typeof msg.isReversed === 'boolean')
             ? msg.isReversed
@@ -547,18 +367,21 @@
 
         // Max cross-axis offset so stone never clips over the edges of the track
         const maxV = Math.max(0.06, 0.46 - (m.stoneRadius / m.breadth));
-        // Stagger spawn vertically (if top/bottom strip) or horizontally (if left/right strip)
-        const spawnOffsetV = (Math.random() * 2.0 - 1.0) * (maxV * 0.70);
+        // Stagger spawn: if variancePct <= 0, center directly along 0.0. Otherwise triangular distribution clustering near center delivery line.
+        const spawnOffsetV = variancePct > 0
+            ? ((rand() + rand()) - 1.0) * (maxV * 0.35)
+            : 0.0;
 
-        // Gentle curling drift across the sheet (+ dynamic condition drift)
-        const curlDirection = (Math.random() > 0.5 ? 1 : -1);
-        const naturalCurlSpeed = curlDirection * (0.0025 + Math.random() * 0.0035);
-        const driftSpeed = (boardConfig.condition === 'CrossDrift') ? (Math.random() * 0.012 - 0.006) : 0.0;
+        // Authentic in-turn / out-turn curl across the sheet (+ dynamic condition drift)
+        // If variance is 0 (guaranteed shot), no curl or drift occurs.
+        const curlDirection = variancePct > 0 ? (rand() > 0.5 ? 1 : -1) : 0;
+        const naturalCurlSpeed = variancePct > 0 ? curlDirection * (0.0020 + rand() * 0.0035) : 0.0;
+        const driftSpeed = (variancePct > 0 && boardConfig.condition === 'CrossDrift') ? (rand() * 0.012 - 0.006) : 0.0;
 
         const startU = isReversed ? 0.95 : 0.05;
         const baseDecel = 0.22;
-        const decel = Math.max(0.01, baseDecel * dragMult);
-        const powerFraction = Math.max(0.01, Math.min(1.0, rawPower / 100.0));
+        const decel = Math.max(0.01, baseDecel * dragMult * pebbleFrictionJitter);
+        const powerFraction = Math.max(0.01, Math.min(1.0, variedPower / 100.0));
         const initialSpeed = powerFraction * 0.76;
         const directionSign = isReversed ? -1.0 : 1.0;
 
@@ -569,7 +392,9 @@
             userColor: msg.userColor || '#3498db',
             decalUrl: msg.decalUrl || '',
             power: rawPower,
+            variedPower: variedPower,
             isReversed: isReversed,
+            curlDirection: curlDirection,
 
             // Physics state along slide axis (u: 0.0 to 1.0) and cross axis (v: -0.5 to +0.5 from center)
             u: startU,
@@ -580,7 +405,7 @@
 
             // Rendering state
             angle: 0.0,
-            spinSpeed: (Math.random() > 0.5 ? 1 : -1) * (0.02 + Math.random() * 0.03),
+            spinSpeed: variancePct > 0 ? (curlDirection || 1) * (0.02 + rand() * 0.02) : 0.0,
             radius: m.stoneRadius,
             completed: false,
             score: null,
@@ -589,9 +414,13 @@
             isLeader: false
         };
 
+        if (newStone.decalUrl) getLoadedImage(newStone.decalUrl);
+        if (currentTheme && currentTheme.curlingStoneImageUrl) getLoadedImage(currentTheme.curlingStoneImageUrl);
+        if (currentTheme && currentTheme.curlingHouseImageUrl) getLoadedImage(currentTheme.curlingHouseImageUrl);
+
         activeStones.push(newStone);
         ensureHeartbeat();
-        playSound(msg.sounds?.slide || { enabled: true }, 'slide');
+        playSound(msg.sounds?.curlingSlide || { enabled: true }, 'slide');
     }
 
     // Leader evaluation (with distance tie-break)
@@ -919,8 +748,11 @@
                     stone.speedU = Math.min(0, stone.speedU + stone.drag * dt);
                 }
 
-                // Lateral damping
+                // Lateral damping & authentic late-curl hook as stone slows down on pebbled ice
                 stone.speedV *= Math.pow(0.96, dt * 60);
+                if (stone.curlDirection && Math.abs(stone.speedU) < 0.22 && Math.abs(stone.speedU) > 0.005) {
+                    stone.speedV += stone.curlDirection * 0.0006 * dt;
+                }
 
                 // Rail bounce damping (staggered pucks bounce off rails)
                 const railLimit = Math.max(0.06, 0.48 - (stone.radius / m.breadth));
@@ -1743,5 +1575,23 @@
 
     // Start rendering loop
     requestAnimationFrame(render);
+
+    // Export CurlingEngine for unit testing
+    const CurlingEngine = {
+        boardConfig: boardConfig,
+        sessionState: sessionState,
+        activeStones: activeStones,
+        handleCurlingSlide: handleCurlingSlide,
+        handleWsMessage: handleWsMessage,
+        evaluateStoneOutcome: evaluateStoneOutcome,
+        getTrackMetrics: getTrackMetrics
+    };
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = CurlingEngine;
+    }
+    if (typeof global !== 'undefined') {
+        global.CurlingEngine = CurlingEngine;
+    }
 
 })(typeof window !== 'undefined' ? window : this);
