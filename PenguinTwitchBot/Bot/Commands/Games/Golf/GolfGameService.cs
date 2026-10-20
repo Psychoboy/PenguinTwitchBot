@@ -505,7 +505,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                         {
                             pState.StrokesUsed = 0;
                             pState.IsSunk = false;
-                            pState.CurrentAxisPos = isReversed ? 0.95 : 0.05;
+                            pState.CurrentAxisPos = 0.05;
                         }
                         else
                         {
@@ -519,7 +519,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                         // If previous shot went completely out-of-bounds (clamped to extreme edge), re-tee
                         if (pState.CurrentAxisPos is <= 0.025 or >= 0.975)
                         {
-                            startAxisOverride = isReversed ? 0.95 : 0.05;
+                            startAxisOverride = 0.05;
                         }
                         else
                         {
@@ -542,7 +542,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 StrokeNumber = strokeNumber,
                 EventArgs = eventArgs,
                 Theme = theme,
-                StartAxisPosition = startAxisOverride ?? (isReversed ? 0.95 : 0.05),
+                // Distance from the tee; the overlay mirrors it when reversed.
+                StartAxisPosition = startAxisOverride ?? 0.05,
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = now.AddSeconds(0.8),
                 ExpiresAtUtc = now.AddSeconds(90.0)
