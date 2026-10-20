@@ -437,6 +437,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 UserId = eventArgs.UserId ?? "",
                 EventArgs = eventArgs,
                 Theme = theme,
+                ConditionLabel = condition switch
+                {
+                    CurlingIceCondition.Slick => "Slick Ice",
+                    CurlingIceCondition.HeavyFrost => "Heavy Frost",
+                    CurlingIceCondition.CrossDrift => "Cross-Drift",
+                    _ => "Normal Ice"
+                },
+                TargetDistancePercent = targetDistance,
+                Power = rawPower,
                 CreatedAtUtc = now,
                 EarliestCompletionUtc = now.AddSeconds(1.0),
                 ExpiresAtUtc = now.AddSeconds(90.0)
@@ -541,9 +550,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var cSettings = settings.Curling;
-
             var actionVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.Username,
@@ -553,7 +559,14 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 ["IsWin"] = record.IsWin.ToString().ToLowerInvariant(),
                 ["IsBullseye"] = record.IsBullseye.ToString().ToLowerInvariant(),
                 ["IsHit"] = record.IsHit.ToString().ToLowerInvariant(),
-                ["LandingX"] = record.LandingX.ToString("F4")
+                ["LandingX"] = record.LandingX.ToString("F4"),
+                ["Condition"] = record.ConditionLabel,
+                ["IceCondition"] = record.ConditionLabel,
+                ["TargetDistance"] = record.TargetDistancePercent.ToString("F1", CultureInfo.InvariantCulture),
+                ["TargetDistancePercent"] = record.TargetDistancePercent.ToString("F1", CultureInfo.InvariantCulture),
+                ["Power"] = (record.EffectivePower > 0 ? record.EffectivePower : record.Power).ToString("F0", CultureInfo.InvariantCulture),
+                ["Theme"] = record.Theme.Name,
+                ["Game"] = "Curling"
             };
 
             // Trigger DefaultCommand events
@@ -578,24 +591,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 logger.LogError(ex, "Failed to fire Curling DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Announce in chat
-            if (cSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
-            {
-                try
-                {
-                    var bullseyeStr = record.IsBullseye ? " BUTTON BULLSEYE!" : "";
-                    var msg = (cSettings.WinChatMessageTemplate ?? "{user} landed on the button with {score} pts!{bullseye}")
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bullseye}", bullseyeStr, StringComparison.OrdinalIgnoreCase);
-
-                    await ServiceBackbone.SendChatMessage(msg);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send Curling win chat message for {User}", record.DisplayName);
-                }
-            }
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

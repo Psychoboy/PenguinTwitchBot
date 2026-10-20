@@ -447,10 +447,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var registry = CreateDropRegistry();
             var sut = CreateParachuteService(settingsService, registry);
 
-            var settings = await settingsService.GetSettingsAsync();
-            settings.Parachute.AnnounceWinsInChat = false;
-            await settingsService.SaveSettingsAsync(settings);
-
             // 1. Unknown/forged token is rejected
             var forgedResult = registry.TryConsumeDrop("0000000000000000000000000000000000000000000000000000000000000000", out _, out _);
             Assert.False(forgedResult);
@@ -503,8 +499,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var sut = CreatePlinkoService(settingsService, registry);
 
             var settings = await settingsService.GetSettingsAsync();
-            settings.Plinko.AnnounceWinsInChat = false;
-            await settingsService.SaveSettingsAsync(settings);
 
             var winBucketIndex = settings.Plinko.Buckets.FindIndex(b => b.IsWin);
             Assert.True(winBucketIndex >= 0);
@@ -552,7 +546,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             {
                 b.IsWin = b.Label == "WINNER";
             }
-            settings.Plinko.AnnounceWinsInChat = true;
             await settingsService1.SaveSettingsAsync(settings);
 
             Assert.NotNull(savedSetting);
@@ -1682,15 +1675,11 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
-        public async Task ProcessCompletionAsync_Parachute_TriggerOutcomeSendsChatAnnouncement()
+        public async Task ProcessCompletionAsync_Parachute_DoesNotSendChatWithoutMessageSubAction()
         {
             var settingsService = CreateSettingsService();
             var registry = CreateDropRegistry();
             var sut = CreateParachuteService(settingsService, registry);
-
-            var settings = await settingsService.GetSettingsAsync();
-            settings.Parachute.AnnounceWinsInChat = true;
-            await settingsService.SaveSettingsAsync(settings);
 
             var token = await sut.TriggerParachuteDropAsync(
                 new CommandEventArgs { Name = "dropwinner", DisplayName = "DropWinner", UserId = "6001" },
@@ -1706,21 +1695,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var ex = await Record.ExceptionAsync(() => sut.ProcessCompletionAsync(record));
             Assert.Null(ex);
 
-            // Win chat announcement should still execute
-            Assert.True(record.WinChatAnnounced);
-            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Once);
+            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
-        public async Task ProcessCompletionAsync_Plinko_TriggerOutcomeSendsChatAnnouncement()
+        public async Task ProcessCompletionAsync_Plinko_DoesNotSendChatWithoutMessageSubAction()
         {
             var settingsService = CreateSettingsService();
             var registry = CreateDropRegistry();
             var sut = CreatePlinkoService(settingsService, registry);
 
             var settings = await settingsService.GetSettingsAsync();
-            settings.Plinko.AnnounceWinsInChat = true;
-            await settingsService.SaveSettingsAsync(settings);
 
             var winIndex = settings.Plinko.Buckets.FindIndex(b => b.IsWin);
             var token = await sut.TriggerPlinkoDropAsync(
@@ -1736,9 +1721,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var ex = await Record.ExceptionAsync(() => sut.ProcessCompletionAsync(record));
             Assert.Null(ex);
 
-            // Win chat announcement should still execute
-            Assert.True(record.WinChatAnnounced);
-            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Once);
+            _serviceBackbone.Verify(x => x.SendChatMessage(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
@@ -2353,6 +2336,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var parachuteSut = CreateParachuteService(dropRegistry: registry);
 
             var firedEvents = new List<string>();
+            Dictionary<string, string>? outcomeVariables = null;
             _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
                 "drop",
                 It.IsAny<string>(),
@@ -2361,6 +2345,7 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((cmd, evt, args, vars) =>
                 {
                     firedEvents.Add(evt);
+                    outcomeVariables = vars;
                 })
                 .Returns(Task.CompletedTask);
 
@@ -2390,6 +2375,9 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Contains(DefaultCommandEventTypes.ParachuteBullseye, firedEvents);
             Assert.Contains(DefaultCommandEventTypes.ParachuteWin, firedEvents);
+            Assert.NotNull(outcomeVariables);
+            Assert.Equal("0.0", outcomeVariables["DistanceFromCenter"]);
+            Assert.Equal("0", outcomeVariables["DropletHits"]);
         }
 
         [Fact]
@@ -2397,12 +2385,17 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         {
             var balloonSut = CreateBalloonService();
             var firedEvents = new List<string>();
+            Dictionary<string, string>? outcomeVariables = null;
             _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
                     "balloon",
                     It.IsAny<string>(),
                     It.IsAny<CommandEventArgs>(),
                     It.IsAny<Dictionary<string, string>>()))
-                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((_, eventType, _, _) => firedEvents.Add(eventType))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((_, eventType, _, variables) =>
+                {
+                    firedEvents.Add(eventType);
+                    outcomeVariables = variables;
+                })
                 .Returns(Task.CompletedTask);
 
             await balloonSut.ProcessCompletionAsync(new PendingDropRecord
@@ -2420,12 +2413,16 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
                 Score = 100,
                 IsBullseye = true,
                 IsWin = true,
-                IsHit = true
+                IsHit = true,
+                LandingX = 0.44,
+                TargetCenterX = 0.50
             });
 
             Assert.Contains(DefaultCommandEventTypes.BalloonBullseye, firedEvents);
             Assert.Contains(DefaultCommandEventTypes.BalloonWin, firedEvents);
             Assert.DoesNotContain(DefaultCommandEventTypes.BalloonLose, firedEvents);
+            Assert.NotNull(outcomeVariables);
+            Assert.Equal("6.0", outcomeVariables["DistanceFromCenter"]);
         }
 
         [Fact]
@@ -3809,7 +3806,6 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             var settings = await settingsService.GetSettingsAsync();
             settings.Golf.MaxStrokesPerPlayer = maxStrokes;
             settings.Golf.PowerVariancePercent = 0.0;
-            settings.Golf.AnnounceWinsInChat = false;
             await settingsService.SaveSettingsAsync(settings);
 
             var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
@@ -3892,6 +3888,29 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
             await golfService.ProcessCompletionAsync(CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true));
 
             VerifyGolfEvent(DefaultCommandEventTypes.GolfWin, Times.Once());
+        }
+
+        [Fact]
+        public async Task GolfGameService_OutcomeIncludesStrokeAndShotContextAliases()
+        {
+            var args = CreateGolfArgs();
+            var golfService = await CreateMultiStrokeGolfServiceAsync(3, args);
+            var record = CreateGolfOutcomeRecord(args, strokeNumber: 1, isWin: true, isBullseye: true);
+            record.ConditionLabel = "Fast Links";
+            record.TargetDistancePercent = 84.0;
+
+            await golfService.ProcessCompletionAsync(record);
+
+            _defaultCommandTriggerService.Verify(x => x.TriggerDefaultCommandEventAsync(
+                "golf",
+                DefaultCommandEventTypes.GolfWin,
+                It.IsAny<CommandEventArgs>(),
+                It.Is<Dictionary<string, string>?>(variables =>
+                    variables != null &&
+                    variables["StrokeNumber"] == "1" &&
+                    variables["Strokes"] == "1" &&
+                    variables["GreenCondition"] == "Fast Links" &&
+                    variables["PinDistance"] == "84.0")), Times.Once());
         }
 
         [Fact]

@@ -52,6 +52,7 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: GREEN & FAIRWAY LAYOUT ================= -->
                 <MudTabPanel Text="Green & Strip Layout">
+                    <GameSessionMessageSettings Settings="_settings.Golf" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -240,18 +241,6 @@
                                     <MudText Typo="Typo.h6" Class="mb-1">Outcome Automations</MudText>
                                     <GameOutcomeAutomationPanel DefaultCommandName="golf" GameTitle="Golf" />
 
-                                    <MudDivider Class="my-2" />
-
-                                    <MudSwitch T="bool" Color="Color.Success"
-                                               @bind-Value="_settings.Golf.AnnounceWinsInChat"
-                                               Label="Send Chat Message on Score / Hole-Out" />
-
-                                    @if (_settings.Golf.AnnounceWinsInChat)
-                                    {
-                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
-                                                      @bind-Value="_settings.Golf.WinChatMessageTemplate"
-                                                      HelperText="Placeholders: {user}, {score}, {bullseye}, {strokes}" />
-                                    }
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -303,19 +292,6 @@
                                             </MudItem>
                                         </MudGrid>
 
-                                        <MudSwitch T="bool" Color="Color.Info"
-                                                   @bind-Value="_settings.Golf.AnnounceSessionStatusInChat"
-                                                   Label="Announce Round Start & End in Chat" />
-
-                                        @if (_settings.Golf.AnnounceSessionStatusInChat)
-                                        {
-                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Golf.SessionStartChatMessageTemplate"
-                                                          HelperText="Placeholders: {duration}, {theme}, {condition}, {distance}" />
-                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Golf.SessionEndChatMessageTemplate"
-                                                          HelperText="Placeholders: {count}, {duration}" />
-                                        }
                                     }
                                 </MudStack>
                             </MudPaper>

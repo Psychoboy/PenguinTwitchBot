@@ -575,9 +575,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var plinkoSettings = settings.Plinko;
-
             var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.DisplayName,
@@ -605,23 +602,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 record.DefaultCommandTriggerExecuted = true;
             }
 
-            if (record.IsWin)
-            {
-                if (!record.WinChatAnnounced && plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
-                {
-                    var template = plinkoSettings.WinChatMessageTemplate;
-                    if (record.Score <= 0 && template.Contains("({score} pts)", StringComparison.OrdinalIgnoreCase))
-                    {
-                        template = template.Replace("({score} pts)", "", StringComparison.OrdinalIgnoreCase).Replace("  ", " ").Trim();
-                    }
-                    var msg = template
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bucket}", record.BucketLabel, StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(msg);
-                    record.WinChatAnnounced = true;
-                }
-            }
         }
 
         private async Task QueueWsMessageAsync(string topic, string json, string description)

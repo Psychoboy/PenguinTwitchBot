@@ -51,6 +51,7 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: CLOUD PLATFORM & ASCENT PHYSICS ================= -->
                 <MudTabPanel Text="Cloud Platform & Physics">
+                    <GameSessionMessageSettings Settings="_settings.Balloon" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -125,21 +126,7 @@
                             </MudPaper>
 
                             <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-3">Outcome Automations & Chat Announcements</MudText>
-                                <MudStack Spacing="3">
-                                    <GameOutcomeAutomationPanel DefaultCommandName="balloon" GameTitle="Balloon Ascent" />
-
-                                    <MudSwitch T="bool" Color="Color.Success"
-                                               @bind-Value="_settings.Balloon.AnnounceWinsInChat"
-                                               Label="Send Chat Message on Win" />
-
-                                    @if (_settings.Balloon.AnnounceWinsInChat)
-                                    {
-                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
-                                                      @bind-Value="_settings.Balloon.WinChatMessageTemplate"
-                                                      HelperText="Placeholders: {user}, {score}, {bullseye}" />
-                                    }
-                                </MudStack>
+                                <GameOutcomeAutomationPanel DefaultCommandName="balloon" GameTitle="Balloon Ascent" />
                             </MudPaper>
                         </MudItem>
 
@@ -316,19 +303,6 @@
                                             </MudItem>
                                         </MudGrid>
 
-                                        <MudSwitch T="bool" Color="Color.Info"
-                                                   @bind-Value="_settings.Balloon.AnnounceSessionStatusInChat"
-                                                   Label="Announce Round Start & End in Chat" />
-
-                                        @if (_settings.Balloon.AnnounceSessionStatusInChat)
-                                        {
-                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Balloon.SessionStartChatMessageTemplate"
-                                                          HelperText="Placeholders: {duration}" />
-                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Balloon.SessionEndChatMessageTemplate"
-                                                          HelperText="Placeholders: {count}, {duration}" />
-                                        }
                                     }
                                 </MudStack>
                             </MudPaper>

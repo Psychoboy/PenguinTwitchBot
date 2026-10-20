@@ -51,6 +51,7 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: BOARD & PRIZE BUCKETS ================= -->
                 <MudTabPanel Text="Board & Buckets">
+                    <GameSessionMessageSettings Settings="_settings.Plinko" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -120,16 +121,6 @@
 
                                     <GameOutcomeAutomationPanel DefaultCommandName="plinko" GameTitle="Plinko Bounce" />
 
-                                    <MudSwitch T="bool" Color="Color.Success"
-                                               @bind-Value="_settings.Plinko.AnnounceWinsInChat"
-                                               Label="Send Chat Message on Winning Bucket" />
-
-                                    @if (_settings.Plinko.AnnounceWinsInChat)
-                                    {
-                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
-                                                      @bind-Value="_settings.Plinko.WinChatMessageTemplate"
-                                                      HelperText="Placeholders: {user}, {score}, {bucket}" />
-                                    }
                                 </MudStack>
                             </MudPaper>
 
@@ -240,19 +231,6 @@
                                             </MudItem>
                                         </MudGrid>
 
-                                        <MudSwitch T="bool" Color="Color.Info"
-                                                   @bind-Value="_settings.Plinko.AnnounceSessionStatusInChat"
-                                                   Label="Announce Round Start & End in Chat" />
-
-                                        @if (_settings.Plinko.AnnounceSessionStatusInChat)
-                                        {
-                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Plinko.SessionStartChatMessageTemplate"
-                                                          HelperText="Placeholders: {duration}" />
-                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Plinko.SessionEndChatMessageTemplate"
-                                                          HelperText="Placeholders: {count}, {duration}" />
-                                        }
                                     }
                                 </MudStack>
                             </MudPaper>

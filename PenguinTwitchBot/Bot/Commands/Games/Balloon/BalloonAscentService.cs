@@ -632,9 +632,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var bSettings = settings.Balloon;
-
             var actionVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.Username,
@@ -645,6 +642,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 ["IsBullseye"] = record.IsBullseye.ToString().ToLowerInvariant(),
                 ["IsHit"] = record.IsHit.ToString().ToLowerInvariant(),
                 ["BalloonPopped"] = record.BalloonPopped.ToString().ToLowerInvariant(),
+                ["DistanceFromCenter"] = (Math.Abs(record.LandingX - record.TargetCenterX) * 100.0).ToString("F1", CultureInfo.InvariantCulture),
                 ["LandingX"] = record.LandingX.ToString("F4")
             };
 
@@ -674,24 +672,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Balloon
                 logger.LogError(ex, "Failed to fire Balloon DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Announce in chat
-            if (bSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
-            {
-                try
-                {
-                    var bullseyeStr = record.IsBullseye ? " GOLDEN BULLSEYE!" : "";
-                    var msg = (bSettings.WinChatMessageTemplate ?? "{user} reached the cloud platform with {score} pts!{bullseye}")
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bullseye}", bullseyeStr, StringComparison.OrdinalIgnoreCase);
-
-                    await ServiceBackbone.SendChatMessage(msg);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send Balloon win chat message for {User}", record.DisplayName);
-                }
-            }
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

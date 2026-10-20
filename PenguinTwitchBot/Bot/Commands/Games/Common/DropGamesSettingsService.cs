@@ -143,13 +143,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
                 settings.Plinko.Buckets = PlinkoGameSettings.CreateDefaultBuckets();
             }
 
-            if (settings.Plinko.WinChatMessageTemplate == "🪙 {user}'s Plinko token landed in [{bucket}] ({score} pts)!" ||
-                settings.Plinko.WinChatMessageTemplate == "{user}'s Plinko token landed in [{bucket}] ({score} pts)!" ||
-                settings.Plinko.WinChatMessageTemplate == "🪙 {user}'s Plinko token landed in [{bucket}]!")
-            {
-                settings.Plinko.WinChatMessageTemplate = "{user}'s Plinko token landed in [{bucket}]!";
-            }
-
             foreach (var theme in settings.Themes)
             {
                 if (string.IsNullOrWhiteSpace(theme.LandingParticleType))

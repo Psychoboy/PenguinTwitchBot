@@ -1,6 +1,8 @@
 @using System.Text.Json
 @using PenguinTwitchBot.Bot.Actions
 @using PenguinTwitchBot.Bot.Actions.Triggers
+@using PenguinTwitchBot.Bot.Actions.Variables
+@using PenguinTwitchBot.Bot.Actions.Variables.Triggers
 @using PenguinTwitchBot.Bot.Commands
 @using PenguinTwitchBot.Bot.Core.Points
 @using PenguinTwitchBot.Database.Bot.Actions
@@ -9,6 +11,7 @@
 @using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
 @using PenguinTwitchBot.Database.Bot.Models.Points
 @using MudBlazor
+@inject IEnumerable<ITriggerVariableResolver> TriggerVariableResolvers
 @inject IActionManagementService ActionService
 @inject ICommandHandler CommandHandler
 @inject IPointsSystem PointsSystem
@@ -45,6 +48,7 @@
             {
                 <MudTextField T="string" Label="New Action Name" Variant="Variant.Outlined" @bind-Value="_newActionName" Required="true" />
                 <MudSwitch T="bool" Color="Color.Secondary" @bind-Value="_addPointsSubAction" Label="Add a points operation" />
+                <MudSwitch T="bool" Color="Color.Secondary" @bind-Value="_addMessageSubAction" Label="Add an outcome chat message" />
 
                 @if (_addPointsSubAction)
                 {
@@ -72,6 +76,22 @@
                     }
                     <MudTextField T="string" Label="Amount or Formula" Variant="Variant.Outlined" @bind-Value="_amountExpression" HelperText="Examples: %Score%, 250, or $math(%Score% * 2)$" />
                     <MudText Typo="Typo.caption" Color="@(_previewError ? Color.Error : Color.Secondary)">@GetAmountPreview()</MudText>
+                }
+                @if (_addMessageSubAction)
+                {
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudText Typo="Typo.subtitle2">Outcome Message</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="ResetMessageToSuggestedDefault">Use suggested default</MudButton>
+                    </MudStack>
+                    <MudTextField T="string" Label="Message" Variant="Variant.Outlined" Lines="3" @bind-Value="_messageTemplate" HelperText="Edit this game's suggested message for the new action; tokens use this event's outcome data." />
+                    <MudText Typo="Typo.caption">Available variables:</MudText>
+                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1">
+                        @foreach (var variable in GetOutcomeVariables())
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text" title="@variable.Description" OnClick="@(() => InsertMessageVariable(variable.Name))">%@variable.Name%</MudButton>
+                        }
+                    </MudStack>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Preview: @PreviewMessage()</MudText>
                 }
             }
             else
@@ -109,16 +129,20 @@
     private string _pointTypeName = string.Empty;
     private string _targetUser = "%UserId%";
     private string _amountExpression = "%Score%";
+    private string _messageTemplate = string.Empty;
     private string _error = string.Empty;
     private int? _selectedActionId;
     private ManagePointsOperation _operation = ManagePointsOperation.Add;
     private bool _createNewAction = true;
     private bool _addPointsSubAction = true;
+    private bool _addMessageSubAction = true;
 
     private bool CanSave =>
         _outcomes.Any(item => item.DefaultCommandEventType == _selectedEventType) &&
         (_createNewAction
-            ? !string.IsNullOrWhiteSpace(_newActionName) && (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _)))
+                        ? !string.IsNullOrWhiteSpace(_newActionName) &&
+                            (!_addPointsSubAction || (!string.IsNullOrWhiteSpace(_pointTypeName) && TryEvaluateAmount(out _))) &&
+                            (!_addMessageSubAction || !string.IsNullOrWhiteSpace(_messageTemplate))
             : _selectedActionId.HasValue);
 
     private bool _previewError;
@@ -153,7 +177,72 @@
         var isScoreOutcome = selectedOutcome.DefaultCommandEventType?.EndsWith(".Win", StringComparison.OrdinalIgnoreCase) == true ||
                              selectedOutcome.DefaultCommandEventType?.EndsWith(".Bullseye", StringComparison.OrdinalIgnoreCase) == true;
         _addPointsSubAction = isScoreOutcome;
+        _addMessageSubAction = isScoreOutcome;
         _amountExpression = isScoreOutcome ? "%Score%" : "1";
+        _messageTemplate = GetSuggestedMessage(selectedOutcome.DefaultCommandEventType ?? string.Empty);
+    }
+
+    private List<ActionVariableInfo> GetOutcomeVariables()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedEventType)) return [];
+
+        var trigger = new TriggerType
+        {
+            Name = $"{GameTitle} {_selectedEventType}",
+            Type = TriggerTypes.DefaultCommand,
+            Configuration = JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+            {
+                DefaultCommandName = DefaultCommandName,
+                EventType = _selectedEventType
+            })
+        };
+        var variables = new Dictionary<string, ActionVariableInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resolver in TriggerVariableResolvers.Where(resolver => resolver.CanHandle(trigger.Type)))
+        {
+            resolver.ResolveVariables(trigger, variables);
+        }
+
+        return variables.Values.Where(variable => variable.Category == "Triggers")
+            .OrderBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void InsertMessageVariable(string variableName)
+    {
+        var token = $"%{variableName}%";
+        _messageTemplate = string.IsNullOrWhiteSpace(_messageTemplate)
+            ? token
+            : $"{_messageTemplate.TrimEnd()} {token}";
+    }
+
+    private void ResetMessageToSuggestedDefault() => _messageTemplate = GetSuggestedMessage(_selectedEventType);
+
+    private string GetSuggestedMessage(string eventType) => eventType switch
+    {
+        DefaultCommandEventTypes.ParachuteBullseye => "%User% landed on the target with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+        DefaultCommandEventTypes.ParachuteWin => "%User% landed on the target with %Score% pts! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+        DefaultCommandEventTypes.ParachuteLose => "%User% missed the target (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+        DefaultCommandEventTypes.PlinkoWin => "%User%'s Plinko token landed in [%BucketLabel%]!",
+        DefaultCommandEventTypes.PlinkoLose => "%User%'s Plinko token landed in [%BucketLabel%] (%Score% pts)",
+        DefaultCommandEventTypes.BalloonBullseye => "%User% reached the cloud platform with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center)",
+        DefaultCommandEventTypes.BalloonWin => "%User% reached the cloud platform with %Score% pts! (%DistanceFromCenter% from center)",
+        DefaultCommandEventTypes.BalloonLose => "%User% missed the cloud platform with %Score% pts (%DistanceFromCenter% from center)",
+        DefaultCommandEventTypes.BalloonPopped => "%User%'s balloon popped (%DistanceFromCenter% from center, %Score% pts)",
+        DefaultCommandEventTypes.CurlingBullseye => "%User% landed on the button with %Score% pts! (bullseye on %IceCondition%, target %TargetDistance%%)",
+        DefaultCommandEventTypes.CurlingWin => "%User% landed on the button with %Score% pts! on %IceCondition% (target %TargetDistance%%)",
+        DefaultCommandEventTypes.CurlingLose => "%User% missed the button with %Score% pts on %IceCondition% (target %TargetDistance%%)",
+        DefaultCommandEventTypes.GolfBullseye => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (bullseye on %GreenCondition%, pin %PinDistance%%)",
+        DefaultCommandEventTypes.GolfWin => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (%GreenCondition%, pin %PinDistance%%)",
+        DefaultCommandEventTypes.GolfLose => "%User% missed the green with %Score% pts (%StrokeNumber% stroke(s), %GreenCondition%, pin %PinDistance%%)",
+        _ => "%User% completed the game with %Score% points."
+    };
+
+    private string PreviewMessage()
+    {
+        var sampleVariables = new System.Collections.Concurrent.ConcurrentDictionary<string, string>(
+            GetOutcomeVariables().ToDictionary(variable => variable.Name, variable => variable.ExampleValue ?? variable.Name, StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+        return PenguinTwitchBot.Bot.Actions.SubActions.VariableReplacer.ReplaceVariables(_messageTemplate, sampleVariables);
     }
 
     private bool TryEvaluateAmount(out long amount)
@@ -236,6 +325,16 @@
                     return;
                 }
                 action.SubActions.Add(pointsSubAction);
+            }
+
+            if (_addMessageSubAction)
+            {
+                action.SubActions.Add(new SendMessageType
+                {
+                    Text = _messageTemplate.Trim(),
+                    StreamOnly = false,
+                    Enabled = true
+                });
             }
 
             var createdAction = await ActionService.CreateActionAsync(action);

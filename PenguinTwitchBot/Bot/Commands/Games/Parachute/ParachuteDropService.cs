@@ -780,9 +780,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var pSettings = settings.Parachute;
-
             var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.DisplayName,
@@ -790,6 +787,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ["Score"] = record.Score.ToString(CultureInfo.InvariantCulture),
                 ["IsWin"] = record.IsWin ? "true" : "false",
                 ["IsBullseye"] = record.IsBullseye ? "true" : "false",
+                ["DistanceFromCenter"] = (Math.Abs(record.LandingX - record.TargetCenterX) * 100.0).ToString("F1", CultureInfo.InvariantCulture),
                 ["DropletHits"] = record.DropletHitCount.ToString(CultureInfo.InvariantCulture),
                 ["RocketHits"] = record.RocketHitCount.ToString(CultureInfo.InvariantCulture),
                 ["ParachuteDestroyed"] = record.ParachuteDestroyed ? "true" : "false",
@@ -858,21 +856,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 record.DefaultCommandTriggerExecuted = true;
             }
 
-            if (record.IsWin)
-            {
-                if (!record.WinChatAnnounced && pSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(pSettings.WinChatMessageTemplate))
-                {
-                    var bullseyeTag = record.IsBullseye ? " BULLSEYE!" : "";
-                    var msg = pSettings.WinChatMessageTemplate
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bullseye}", bullseyeTag, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{droplethits}", record.DropletHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{rockethits}", record.RocketHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(msg);
-                    record.WinChatAnnounced = true;
-                }
-            }
         }
 
         private async Task QueueWsMessageAsync(string topic, string json, string description)
