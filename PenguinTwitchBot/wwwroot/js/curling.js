@@ -589,6 +589,10 @@
             isLeader: false
         };
 
+        if (newStone.decalUrl) getLoadedImage(newStone.decalUrl);
+        if (currentTheme && currentTheme.curlingStoneImageUrl) getLoadedImage(currentTheme.curlingStoneImageUrl);
+        if (currentTheme && currentTheme.curlingHouseImageUrl) getLoadedImage(currentTheme.curlingHouseImageUrl);
+
         activeStones.push(newStone);
         ensureHeartbeat();
         playSound(msg.sounds?.slide || { enabled: true }, 'slide');

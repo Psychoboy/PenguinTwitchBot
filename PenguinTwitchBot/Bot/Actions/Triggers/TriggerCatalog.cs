@@ -439,6 +439,230 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "balloon-bullseye",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Bullseye",
+                Description = "Triggers when a balloon reaches the center bullseye of the sky arch",
+                Icon = Icons.Material.Filled.GpsFixed,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonBullseye
+            },
+            new()
+            {
+                Id = "balloon-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Win",
+                Description = "Triggers when a balloon reaches the sky arch target zone",
+                Icon = Icons.Material.Filled.Celebration,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonWin
+            },
+            new()
+            {
+                Id = "balloon-lose",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Miss",
+                Description = "Triggers when a balloon misses the sky arch target zone",
+                Icon = Icons.Material.Filled.Cancel,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonLose
+            },
+            new()
+            {
+                Id = "balloon-pop",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Popped",
+                Description = "Triggers when a balloon is popped mid-air by falling hazards",
+                Icon = Icons.Material.Filled.Dangerous,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonPop
+            },
+            new()
+            {
+                Id = "balloon-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Round Started",
+                Description = "Triggers when a timed balloon ascent session starts",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonStart
+            },
+            new()
+            {
+                Id = "balloon-end",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Balloon Ascent - Round Ended",
+                Description = "Triggers when a timed balloon ascent session concludes",
+                Icon = Icons.Material.Filled.FlagCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "balloon",
+                DefaultCommandEventType = DefaultCommandEventTypes.BalloonEnd
+            },
+            new()
+            {
+                Id = "curling-bullseye",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Curling - Bullseye (Button)",
+                Description = "Triggers when a curling stone stops dead-center on the button (100 pts)",
+                Icon = Icons.Material.Filled.GpsFixed,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "curl",
+                DefaultCommandEventType = DefaultCommandEventTypes.CurlingBullseye
+            },
+            new()
+            {
+                Id = "curling-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Curling - Win (In House)",
+                Description = "Triggers when a curling stone stops inside a scoring ring",
+                Icon = Icons.Material.Filled.SportsHockey,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "curl",
+                DefaultCommandEventType = DefaultCommandEventTypes.CurlingWin
+            },
+            new()
+            {
+                Id = "curling-lose",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Curling - Miss / Gutter",
+                Description = "Triggers when a curling stone misses the house or slides into the gutter",
+                Icon = Icons.Material.Filled.Cancel,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "curl",
+                DefaultCommandEventType = DefaultCommandEventTypes.CurlingLose
+            },
+            new()
+            {
+                Id = "curling-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Curling - Round Started",
+                Description = "Triggers when a timed curling session starts",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "curl",
+                DefaultCommandEventType = DefaultCommandEventTypes.CurlingStart
+            },
+            new()
+            {
+                Id = "curling-end",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Curling - Round Ended",
+                Description = "Triggers when a timed curling session concludes",
+                Icon = Icons.Material.Filled.FlagCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "curl",
+                DefaultCommandEventType = DefaultCommandEventTypes.CurlingEnd
+            },
+            new()
+            {
+                Id = "golf-holeinone",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Golf - Sunk in Cup / Hole-in-One",
+                Description = "Triggers when a golf shot is sunk directly into the cup (100 base score)",
+                Icon = Icons.Material.Filled.GolfCourse,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "golf",
+                DefaultCommandEventType = DefaultCommandEventTypes.GolfBullseye
+            },
+            new()
+            {
+                Id = "golf-win",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Golf - On the Green (Win)",
+                Description = "Triggers when a golf ball rests on the putting green or is sunk in the cup",
+                Icon = Icons.Material.Filled.Flag,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "golf",
+                DefaultCommandEventType = DefaultCommandEventTypes.GolfWin
+            },
+            new()
+            {
+                Id = "golf-lose",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Golf - Off the Green (Miss)",
+                Description = "Triggers when a golf ball misses the putting green (short or overshot)",
+                Icon = Icons.Material.Filled.Cancel,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "golf",
+                DefaultCommandEventType = DefaultCommandEventTypes.GolfLose
+            },
+            new()
+            {
+                Id = "golf-start",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Golf - Round Started",
+                Description = "Triggers when a timed golf session starts",
+                Icon = Icons.Material.Filled.PlayCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "golf",
+                DefaultCommandEventType = DefaultCommandEventTypes.GolfStart
+            },
+            new()
+            {
+                Id = "golf-end",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Golf - Round Ended",
+                Description = "Triggers when a timed golf session concludes",
+                Icon = Icons.Material.Filled.FlagCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "golf",
+                DefaultCommandEventType = DefaultCommandEventTypes.GolfEnd
+            },
+            new()
+            {
                 Id = "defuse-success",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

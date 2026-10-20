@@ -8,7 +8,8 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         Parachute,
         Plinko,
         Balloon,
-        Curling
+        Curling,
+        Golf
     }
 
     public class DropGamesSettings
@@ -17,6 +18,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public PlinkoGameSettings Plinko { get; set; } = new();
         public BalloonAscentGameSettings Balloon { get; set; } = new();
         public CurlingGameSettings Curling { get; set; } = new();
+        public GolfGameSettings Golf { get; set; } = new();
         public List<DropGameTheme> Themes { get; set; } = [];
     }
 
@@ -61,6 +63,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string BalloonWindGustImageUrl { get; set; } = "";
         public string CurlingStoneImageUrl { get; set; } = "";
         public string CurlingHouseImageUrl { get; set; } = "";
+        public string GolfBallImageUrl { get; set; } = "";
+        public string GolfFlagPinImageUrl { get; set; } = "";
+        public string GolfGreenImageUrl { get; set; } = "";
 
         // Parachute Sound Overrides
         public DropGameSoundOverride ParachuteStartSound { get; set; } = new();
@@ -98,6 +103,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundOverride CurlingHitSound { get; set; } = new();
         public DropGameSoundOverride CurlingScoreSound { get; set; } = new();
         public DropGameSoundOverride CurlingWinSound { get; set; } = new();
+
+        // Golf Sound Overrides
+        public DropGameSoundOverride GolfStartSound { get; set; } = new();
+        public DropGameSoundOverride GolfEndSound { get; set; } = new();
+        public DropGameSoundOverride GolfStrikeSound { get; set; } = new();
+        public DropGameSoundOverride GolfBounceSound { get; set; } = new();
+        public DropGameSoundOverride GolfCupSound { get; set; } = new();
+        public DropGameSoundOverride GolfLipOutSound { get; set; } = new();
+        public DropGameSoundOverride GolfWinSound { get; set; } = new();
 
         // Legacy sound properties for database JSON backward compatibility
         public string DropSoundUrl { get; set; } = "";
@@ -324,6 +338,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameEffectiveSoundDto? CurlingHit { get; set; }
         public DropGameEffectiveSoundDto? CurlingScore { get; set; }
         public DropGameEffectiveSoundDto? CurlingWin { get; set; }
+        public DropGameEffectiveSoundDto? GolfStrike { get; set; }
+        public DropGameEffectiveSoundDto? GolfBounce { get; set; }
+        public DropGameEffectiveSoundDto? GolfCup { get; set; }
+        public DropGameEffectiveSoundDto? GolfLipOut { get; set; }
+        public DropGameEffectiveSoundDto? GolfWin { get; set; }
     }
 
     public interface IDropGameHeaderSettings
@@ -559,6 +578,136 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool AnnounceSessionStatusInChat { get; set; } = true;
         public string SessionStartChatMessageTemplate { get; set; } = "Curling is now OPEN for {duration}s! Condition: {condition} | Target: {distance}m. Type !curl [power] [emote] to slide!";
         public string SessionEndChatMessageTemplate { get; set; } = "Curling round is now CLOSED! {count} total stones delivered!";
+
+        // Overlay Header & Display settings
+        public bool AutoAvoidOverlap { get; set; } = true;
+        public bool ShowHeaderBanner { get; set; } = true;
+        public bool ShowTimer { get; set; } = true;
+        public bool ShowDropCount { get; set; } = true;
+
+        [JsonIgnore]
+        public bool ShowItemCount => ShowDropCount;
+
+        public bool ShowFreePlayCounter { get; set; } = true;
+        public string HeaderPosition { get; set; } = "TopCenter";
+        public int HeaderCustomYOffset { get; set; } = 18;
+
+        private int _nameFontSize = 18;
+        public int NameFontSize
+        {
+            get => _nameFontSize;
+            set => _nameFontSize = Math.Clamp(value, 12, 36);
+        }
+    }
+
+    public enum GolfGreenCondition
+    {
+        StandardGreen = 0,
+        FastLinks = 1,
+        HeavyDew = 2,
+        CrossBreeze = 3
+    }
+
+    public enum GolfPinDistanceMode
+    {
+        Fixed = 0,
+        RandomizePerRound = 1
+    }
+
+    public class GolfGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings
+    {
+        public string ActiveThemeId { get; set; } = "spring";
+
+        // Strip Layout & Invisible Fairway
+        public CurlingStripPosition StripPosition { get; set; } = CurlingStripPosition.Bottom;
+        public CurlingSlideDirection SlideDirection { get; set; } = CurlingSlideDirection.LeftToRight;
+        public double TrackThicknessPercent { get; set; } = 14.0;
+
+        private double _boardAlpha = 0.0;
+        public double BoardAlpha
+        {
+            get => _boardAlpha;
+            set => _boardAlpha = Math.Clamp(value, 0.0, 1.0);
+        }
+
+        public bool ShowBoardBorders { get; set; } = false;
+
+        // Compact Putting Green & Pin Placement
+        public GolfPinDistanceMode TargetDistanceMode { get; set; } = GolfPinDistanceMode.Fixed;
+
+        private double _targetDistancePercent = 84.0;
+        public double TargetDistancePercent
+        {
+            get => _targetDistancePercent;
+            set => _targetDistancePercent = Math.Clamp(value, 60.0, 95.0);
+        }
+
+        private double _targetAlpha = 0.45;
+        public double TargetAlpha
+        {
+            get => _targetAlpha;
+            set => _targetAlpha = Math.Clamp(value, 0.05, 1.0);
+        }
+
+        // Dynamic Green Conditions & Swing Physics
+        public GolfGreenCondition GreenCondition { get; set; } = GolfGreenCondition.StandardGreen;
+        public bool EnableDynamicGreenConditions { get; set; } = true;
+        public double PowerVariancePercent { get; set; } = 3.0;
+        public double CupCaptureSpeedMultiplier { get; set; } = 1.0;
+
+        // Stroke Mode & Penalty Settings (1-Stroke Default vs. Multi-Stroke)
+        private int _maxStrokesPerPlayer = 1;
+        public int MaxStrokesPerPlayer
+        {
+            get => _maxStrokesPerPlayer;
+            set => _maxStrokesPerPlayer = Math.Clamp(value, 1, 5);
+        }
+
+        private int _strokePenaltyPoints = 10;
+        public int StrokePenaltyPoints
+        {
+            get => _strokePenaltyPoints;
+            set => _strokePenaltyPoints = Math.Clamp(value, 0, 50);
+        }
+
+        // Physics & Anti-Griefing
+        public CurlingCollisionMode CollisionMode { get; set; } = CurlingCollisionMode.LockOnRest;
+        public int LastCallCutoffSeconds { get; set; } = 4;
+        public bool EnableViewerPowerControl { get; set; } = true;
+        public int DefaultPowerMin { get; set; } = 65;
+        public int DefaultPowerMax { get; set; } = 85;
+
+        private int _maxConcurrentSounds = 2;
+        public int MaxConcurrentSounds
+        {
+            get => _maxConcurrentSounds;
+            set => _maxConcurrentSounds = Math.Clamp(value, 1, 5);
+        }
+
+        // Sound Effects (Default enabled)
+        public DropGameSoundConfig StartSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_start.wav", Volume = 65 };
+        public DropGameSoundConfig EndSound { get; set; } = new() { Enabled = true, AudioFile = "/media/round_end.wav", Volume = 65 };
+        public DropGameSoundConfig StrikeSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_strike.wav", Volume = 65 };
+        public DropGameSoundConfig BounceSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_bounce.wav", Volume = 55 };
+        public DropGameSoundConfig CupSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_cup.wav", Volume = 75 };
+        public DropGameSoundConfig LipOutSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_lipout.wav", Volume = 65 };
+        public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_win.wav", Volume = 70 };
+
+        // Win & Outcome Actions
+        public string WinActionName { get; set; } = "";
+        public string BullseyeActionName { get; set; } = "";
+        public string LoseActionName { get; set; } = "";
+        public bool AnnounceWinsInChat { get; set; } = true;
+        public string WinChatMessageTemplate { get; set; } = "{user} finished on the green with {score} pts ({strokes} stroke(s))!{bullseye}";
+
+        // Timed Session / Round settings
+        public bool SessionModeEnabled { get; set; } = false;
+        public bool AutoStartOnCommand { get; set; } = true;
+        public int DefaultSessionDurationSeconds { get; set; } = 90;
+        public int MaxDropsPerUserPerSession { get; set; } = 1; // 0 = unlimited
+        public bool AnnounceSessionStatusInChat { get; set; } = true;
+        public string SessionStartChatMessageTemplate { get; set; } = "Golf Chip & Putt is now OPEN for {duration}s! Green: {condition} | Pin: {distance}yd. Type !golf [power] [emote] to tee off!";
+        public string SessionEndChatMessageTemplate { get; set; } = "Golf round is now CLOSED! {count} total shots played!";
 
         // Overlay Header & Display settings
         public bool AutoAvoidOverlap { get; set; } = true;
@@ -941,11 +1090,17 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("y")]
         public double Y { get; set; }
 
+        [JsonPropertyName("z")]
+        public double Z { get; set; }
+
         [JsonPropertyName("vx")]
         public double Vx { get; set; }
 
         [JsonPropertyName("vy")]
         public double Vy { get; set; }
+
+        [JsonPropertyName("vz")]
+        public double Vz { get; set; }
     }
 
     public class ParachuteCollisionEventDto
@@ -1067,6 +1222,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         [JsonPropertyName("balloonPopped")]
         public bool BalloonPopped { get; set; }
 
+        [JsonPropertyName("isLipOut")]
+        public bool? IsLipOut { get; set; }
+
+        [JsonPropertyName("strokeNumber")]
+        public int? StrokeNumber { get; set; }
+
+        [JsonPropertyName("baseScore")]
+        public int? BaseScore { get; set; }
+
+        [JsonPropertyName("strokePenalty")]
+        public int? StrokePenalty { get; set; }
+
+        [JsonPropertyName("startAxisPosition")]
+        public double? StartAxisPosition { get; set; }
+
         [JsonPropertyName("overlayKey")]
         public string? OverlayKey { get; set; }
     }
@@ -1127,6 +1297,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         // Authoritative outcome (updated by server 60Hz simulation if droplets collide)
         public double LandingX { get; set; }
         public int Score { get; set; }
+        public int BaseScore { get; set; }
+        public int StrokeNumber { get; set; } = 1;
+        public int StrokePenalty { get; set; }
+        public double StartAxisPosition { get; set; } = 0.05;
+        public bool IsLipOut { get; set; }
         public bool IsHit { get; set; }
         public bool IsBullseye { get; set; }
         public bool IsWin { get; set; }

@@ -61,6 +61,10 @@ namespace PenguinTwitchBot.Pages.Components
                 ParachuteDropletsType droplets => $"Parachute Droplets: {droplets.Count}x {droplets.SizePreset} / {droplets.SpeedPreset} ({droplets.SpawnPattern})",
                 ParachuteRocketsType rockets => $"Sky Rockets: {rockets.Count}x ({rockets.Pattern}{(string.IsNullOrWhiteSpace(rockets.TargetUser) ? "" : $" -> {rockets.TargetUser}")})",
                 PlinkoDropType plinko => $"Plinko Bounce: {plinko.Username}{(string.IsNullOrWhiteSpace(plinko.EmoteOrImage) ? "" : $" ({plinko.EmoteOrImage})")}",
+                BalloonAscentType balloon => $"Balloon Ascent: {balloon.Username}{(string.IsNullOrWhiteSpace(balloon.EmoteOrImage) ? "" : $" ({balloon.EmoteOrImage})")}",
+                BalloonHazardsType bHazards => $"Balloon Hazards: {bHazards.Count}x {bHazards.SizePreset} / {bHazards.SpeedPreset} ({bHazards.SpawnPattern})",
+                CurlingSlideType curling => $"Curling Slide: {curling.Username} (Power: {curling.Power}{(string.IsNullOrWhiteSpace(curling.EmoteOrImage) ? "" : $", {curling.EmoteOrImage}")})",
+                GolfPuttType golf => $"Golf Shot: {golf.Username} (Power: {golf.Power}{(string.IsNullOrWhiteSpace(golf.EmoteOrImage) ? "" : $", {golf.EmoteOrImage}")})",
                 StartDropGameSessionType startSession => $"Start {startSession.GameType} Session ({startSession.DurationSeconds}s)",
                 StopDropGameSessionType stopSession => $"Stop {stopSession.GameType} Session",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"

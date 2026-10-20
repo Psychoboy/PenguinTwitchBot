@@ -17,7 +17,7 @@
             <div>
                 <MudText Typo="Typo.h4">Minigame Themes & Assets</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">
-                    Customize seasonal visuals, custom sprites, particle systems, and audio overrides for Balloon Ascent, Parachute Drop, and Plinko.
+                    Customize seasonal visuals, custom sprites, particle systems, and audio overrides for Balloon Ascent, Curling / Shuffleboard, Golf (Chip & Putt), Parachute Drop, and Plinko.
                 </MudText>
             </div>
             <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
@@ -276,7 +276,50 @@
                                     </MudPaper>
                                 </MudItem>
 
-                                <!-- Group 3: Parachute Drop Visuals -->
+                                <!-- Group 3: Curling / Shuffleboard Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Curling / Shuffleboard Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="Stone / Puck Image"
+                                                                @bind-Value="_selectedTheme.CurlingStoneImageUrl"
+                                                                HelperText="Optional custom granite stone or shuffleboard puck sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MediaUrlPicker Label="House / Target Rings Image"
+                                                                @bind-Value="_selectedTheme.CurlingHouseImageUrl"
+                                                                HelperText="Optional custom house target rings image." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 4: Golf (Chip & Putt) Visuals -->
+                                <MudItem xs="12">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Golf (Chip & Putt) Visuals</b></MudText>
+                                        <MudGrid Spacing="2">
+                                            <MudItem xs="12" sm="4">
+                                                <MediaUrlPicker Label="Golf Ball Image"
+                                                                @bind-Value="_selectedTheme.GolfBallImageUrl"
+                                                                HelperText="Optional custom golf ball sprite (overrides default dimpled ball / viewer emote decal)." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MediaUrlPicker Label="Flagstick / Pin Image"
+                                                                @bind-Value="_selectedTheme.GolfFlagPinImageUrl"
+                                                                HelperText="Optional custom flagstick sprite." />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MediaUrlPicker Label="Putting Green Image"
+                                                                @bind-Value="_selectedTheme.GolfGreenImageUrl"
+                                                                HelperText="Optional custom putting green surface image." />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <!-- Group 5: Parachute Drop Visuals -->
                                 <MudItem xs="12">
                                     <MudPaper Class="pa-3" Outlined="true">
                                         <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Parachute Drop Visuals</b></MudText>
@@ -295,7 +338,7 @@
                                     </MudPaper>
                                 </MudItem>
 
-                                <!-- Group 4: Plinko Bounce Visuals -->
+                                <!-- Group 6: Plinko Bounce Visuals -->
                                 <MudItem xs="12">
                                     <MudPaper Class="pa-3" Outlined="true">
                                         <MudText Typo="Typo.subtitle2" Class="mb-2"><b>Plinko Bounce Visuals</b></MudText>
@@ -324,7 +367,7 @@
                                     </MudPaper>
                                 </MudItem>
 
-                                <!-- Group 5: Theme Audio & Sound Overrides -->
+                                <!-- Group 7: Theme Audio & Sound Overrides -->
                                 <MudItem xs="12">
                                     <MudPaper Class="pa-3" Outlined="true">
                                         <MudText Typo="Typo.subtitle2" Class="mb-1"><b>Theme Audio & Sound Overrides</b></MudText>
@@ -361,6 +404,70 @@
                                                              IsThemeOverride="true"
                                                              SoundOverride="_selectedTheme.BalloonWinSound"
                                                              FallbackInfo="@GetSoundFallbackInfo(_settings.Balloon.WinSound)" />
+
+                                        <MudDivider Class="my-3" />
+
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Curling / Shuffleboard Sounds</MudText>
+                                        <DropGameSoundEditor Title="Curling Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.StartSound)" />
+                                        <DropGameSoundEditor Title="Curling End Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.EndSound)" />
+                                        <DropGameSoundEditor Title="Curling Stone Slide Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingSlideSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.SlideSound)" />
+                                        <DropGameSoundEditor Title="Curling Sweeping Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingSweepSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.SweepSound)" />
+                                        <DropGameSoundEditor Title="Curling Stone Hit Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingHitSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.HitSound)" />
+                                        <DropGameSoundEditor Title="Curling Score Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingScoreSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.ScoreSound)" />
+                                        <DropGameSoundEditor Title="Curling Bullseye / Win Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.CurlingWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Curling.WinSound)" />
+
+                                        <MudDivider Class="my-3" />
+
+                                        <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mt-2 mb-2">Golf (Chip & Putt) Sounds</MudText>
+                                        <DropGameSoundEditor Title="Golf Start Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfStartSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.StartSound)" />
+                                        <DropGameSoundEditor Title="Golf End Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfEndSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.EndSound)" />
+                                        <DropGameSoundEditor Title="Golf Club Strike Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfStrikeSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.StrikeSound)" />
+                                        <DropGameSoundEditor Title="Golf Turf Bounce Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfBounceSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.BounceSound)" />
+                                        <DropGameSoundEditor Title="Golf Cup Rattle Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfCupSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.CupSound)" />
+                                        <DropGameSoundEditor Title="Golf Rim Lip-Out Sound"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfLipOutSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.LipOutSound)" />
+                                        <DropGameSoundEditor Title="Golf Hole-in-One / Win Fanfare"
+                                                             IsThemeOverride="true"
+                                                             SoundOverride="_selectedTheme.GolfWinSound"
+                                                             FallbackInfo="@GetSoundFallbackInfo(_settings.Golf.WinSound)" />
 
                                         <MudDivider Class="my-3" />
 
@@ -489,6 +596,8 @@
         var removedId = _selectedTheme.Id;
         _settings.Themes.Remove(_selectedTheme);
         if (_settings.Balloon.ActiveThemeId == removedId) _settings.Balloon.ActiveThemeId = "spring";
+        if (_settings.Curling.ActiveThemeId == removedId) _settings.Curling.ActiveThemeId = "spring";
+        if (_settings.Golf.ActiveThemeId == removedId) _settings.Golf.ActiveThemeId = "spring";
         if (_settings.Parachute.ActiveThemeId == removedId) _settings.Parachute.ActiveThemeId = "spring";
         if (_settings.Plinko.ActiveThemeId == removedId) _settings.Plinko.ActiveThemeId = "spring";
         _selectedTheme = _settings.Themes.FirstOrDefault();

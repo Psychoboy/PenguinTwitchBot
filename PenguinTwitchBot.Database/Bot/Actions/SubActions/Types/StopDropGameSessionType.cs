@@ -4,7 +4,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 {
     [SubActionMetadata(
         displayName: "Stop Drop Game Session",
-        description: "Stops an active timed round/session for Parachute Drop or Plinko Bounce immediately",
+        description: "Stops an active timed round/session for Parachute, Plinko, Balloon Ascent, Curling, or Golf immediately",
         icon: "mdi-timer-stop",
         color: "Warning",
         category: SubActionCategories.Minigames,
@@ -17,7 +17,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         }
 
         /// <summary>
-        /// Minigame to stop: "Parachute", "Plinko", or "All".
+        /// Minigame to stop: "Parachute", "Plinko", "Balloon", "Curling", "Golf", or "All".
         /// </summary>
         public string GameType { get; set; } = "Parachute";
 
@@ -35,7 +35,10 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
                     [
                         new SelectOption { Value = "Parachute", Name = "Parachute Drop (!drop)" },
                         new SelectOption { Value = "Plinko", Name = "Plinko Bounce (!plinko)" },
-                        new SelectOption { Value = "All", Name = "Both Games" }
+                        new SelectOption { Value = "Balloon", Name = "Balloon Ascent (!balloon)" },
+                        new SelectOption { Value = "Curling", Name = "Curling / Shuffleboard (!curl)" },
+                        new SelectOption { Value = "Golf", Name = "Golf Chip & Putt (!golf)" },
+                        new SelectOption { Value = "All", Name = "All Drop Games" }
                     ]
                 },
                 new()

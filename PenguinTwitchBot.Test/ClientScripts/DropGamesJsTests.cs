@@ -3533,5 +3533,49 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(0, result.Get("burstPxRemaining").AsNumber());
             Assert.Equal(0, result.Get("burstNormRemaining").AsNumber());
         }
+
+        [Fact]
+        public void GolfJs_LoadsAndExecutesShotSimulationWithoutRuntimeErrors()
+        {
+            var jsDir = FindWwwRootPath();
+            var golfJsPath = Path.Combine(jsDir, "golf.js");
+            Assert.True(File.Exists(golfJsPath), $"golf.js not found at {golfJsPath}");
+
+            var code = File.ReadAllText(golfJsPath);
+            var engine = CreateMockBrowserEngine(out _);
+
+            var ex = Record.Exception(() => engine.Execute(code));
+            Assert.Null(ex);
+
+            // Dispatch a golf_shot message and verify activeBalls spawns the golfer
+            DispatchWsMessage(engine, new
+            {
+                type = "golf_shot",
+                dropToken = "golf-js-token-1",
+                username = "golfer1",
+                displayName = "Golfer1",
+                power = 72.0,
+                condition = "StandardGreen",
+                targetDistancePercent = 84.0,
+                decalUrl = "",
+                strokeNumber = 1,
+                maxStrokesPerPlayer = 1,
+                strokePenaltyPoints = 10
+            });
+
+            var activeBallsCount = engine.Evaluate("window.GolfEngine.activeBalls.length").AsNumber();
+            Assert.Equal(1, activeBallsCount);
+
+            StepEngineFrames(engine, 280);
+
+            var errorCount = engine.Evaluate("console._errors.length").AsNumber();
+            Assert.Equal(0, errorCount);
+
+            var completionSent = engine.Evaluate("window.__sentCompletions.some(c => c.dropToken === 'golf-js-token-1')").AsBoolean();
+            Assert.True(completionSent, "Expected golf.js to complete the shot and send completion for golf-js-token-1");
+
+            var golfSlot = engine.Evaluate("DropGamesCommon.calculateBannerStackSlot('golf', ['parachute', 'plinko', 'balloon', 'curling'])").AsNumber();
+            Assert.Equal(4, golfSlot);
+        }
     }
 }

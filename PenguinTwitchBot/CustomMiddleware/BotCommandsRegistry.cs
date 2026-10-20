@@ -418,6 +418,13 @@ namespace PenguinTwitchBot.CustomMiddleware
                 isCore: false,
                 description: "Curling & Shuffleboard stream overlay minigame with dynamic ice conditions and edge strip layout."
             );
+            services.AddRuntimeFeatureService<Bot.Commands.Games.Golf.IGolfGameService, Bot.Commands.Games.Golf.GolfGameService>(
+                FeatureKeys.DropGames,
+                "Golf (Chip & Putt)",
+                moduleName: "Golf",
+                isCore: false,
+                description: "Golf Chip & Putt stream overlay minigame with parabolic flight, closest-to-the-pin scoring, and 1-stroke or multi-stroke modes."
+            );
             services.AddRuntimeFeatureService<Bot.Core.Points.IPointsSystem, Bot.Core.Points.PointsSystem>(
                 FeatureKeys.PointsSystem,
                 "Points",

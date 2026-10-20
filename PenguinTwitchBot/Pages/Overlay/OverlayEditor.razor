@@ -871,16 +871,16 @@
                 }
             }
 
-            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling")
+            @if (_selected.WidgetType is "parachute" or "plinko" or "balloon" or "curling" or "golf")
             {
                 <MudDivider Class="mb-3" />
-                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType switch { "parachute" => "Parachute Drop", "balloon" => "Balloon Ascent", "curling" => "Curling & Shuffleboard", _ => "Plinko Bounce" }) Settings</b></MudText>
+                <MudText Typo="Typo.subtitle2" Class="mb-2"><b>@(_selected.WidgetType switch { "parachute" => "Parachute Drop", "balloon" => "Balloon Ascent", "curling" => "Curling & Shuffleboard", "golf" => "Golf (Chip & Putt)", _ => "Plinko Bounce" }) Settings</b></MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3" Style="display:block;">
                     Configure seasonal themes, interactive physics, mid-air hazards, and win actions in the settings page.
                 </MudText>
                 <MudButton FullWidth="true" Color="Color.Primary" Variant="Variant.Outlined" Class="mb-3"
                            StartIcon="@Icons.Material.Filled.Tune"
-                           Href="@(_selected.WidgetType switch { "parachute" => "/games/parachute", "balloon" => "/games/balloon", "curling" => "/games/curling", _ => "/games/plinko" })">
+                           Href="@(_selected.WidgetType switch { "parachute" => "/games/parachute", "balloon" => "/games/balloon", "curling" => "/games/curling", "golf" => "/games/golf", _ => "/games/plinko" })">
                     Open Game Settings
                 </MudButton>
             }
@@ -1506,6 +1506,7 @@ if (dict != null && dict.TryGetValue("alertChannel", out var channel) && !string
         "plinko"    => "#00897B",
         "balloon"   => "#E11D48",
         "curling"   => "#0284C7",
+        "golf"      => "#16A34A",
         _           => "#455A64"
     };
     // ---- Chat settings helpers ----

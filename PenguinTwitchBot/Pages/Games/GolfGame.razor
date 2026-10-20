@@ -1,0 +1,643 @@
+@page "/games/golf"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Commands.Games
+@using PenguinTwitchBot.Bot.Commands.Games.Golf
+@using PenguinTwitchBot.Bot.Commands.Games.Curling
+@using PenguinTwitchBot.Bot.Commands.Games.Common
+@using PenguinTwitchBot.Bot.Events.Chat
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IDropGamesSettingsService SettingsService
+@inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
+@inject IGolfGameService GolfGameService
+@inject IActionManagementService ActionManagementService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILogger<GolfGame> Logger
+
+<PageTitle>Golf (Chip & Putt)</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Golf (Chip & Putt)</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Non-intrusive edge strip golf minigame featuring an invisible fairway, parabolic chip flight arcs, compact putting green with cup capture & lip-out physics, and 1-stroke or multi-stroke play.
+                </MudText>
+            </div>
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                           OnClick="ResetSettingsToDefaultsAsync">
+                    Reset to Defaults
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.OpenInNew"
+                           Href="@($"/golf.html?key={Uri.EscapeDataString(_overlayKey)}")" Target="_blank">
+                    Open Golf Overlay
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           OnClick="SaveAllSettingsAsync">
+                    Save All Settings
+                </MudButton>
+                <HelpButton Topic="golf-game" />
+            </MudStack>
+        </MudStack>
+
+        @if (_settings == null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <!-- ================= TAB 1: GREEN & FAIRWAY LAYOUT ================= -->
+                <MudTabPanel Text="Green & Strip Layout">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Putting Green & Non-Intrusive Strip Layout</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSelect T="string" Label="Active Theme" Variant="Variant.Outlined"
+                                               @bind-Value="_settings.Golf.ActiveThemeId"
+                                               HelperText="Select a seasonal or custom theme for ball decals, turf puffs, and putting green colors.">
+                                        @foreach (var theme in _settings.Themes)
+                                        {
+                                            <MudSelectItem Value="@theme.Id">@theme.Name @(theme.IsStock ? "(Seasonal Stock)" : "(Custom)")</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingStripPosition" Label="Strip Position" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Golf.StripPosition"
+                                                       HelperText="Edge of the screen where the golf strip sits. Nametags automatically face inward.">
+                                                <MudSelectItem Value="CurlingStripPosition.Bottom">Bottom Strip (Default)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Top">Top Strip</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Left">Left Strip</MudSelectItem>
+                                                <MudSelectItem Value="CurlingStripPosition.Right">Right Strip</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="CurlingSlideDirection" Label="Shot Direction" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Golf.SlideDirection"
+                                                       HelperText="Direction from the tee box toward the putting green.">
+                                                <MudSelectItem Value="CurlingSlideDirection.LeftToRight">Left to Right</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.RightToLeft">Right to Left</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.TopToBottom">Top to Bottom</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.BottomToTop">Bottom to Top</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.Alternating">Alternating Ends</MudSelectItem>
+                                                <MudSelectItem Value="CurlingSlideDirection.CenterTarget">Center Putting Green</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Strip Thickness (%)" Variant="Variant.Outlined"
+                                                             Min="10.0" Max="25.0" Step="1.0"
+                                                             @bind-Value="_settings.Golf.TrackThicknessPercent"
+                                                             HelperText="Width / Height percentage of screen (10% - 25%, default 14%)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Fairway Transparency / Alpha" Variant="Variant.Outlined"
+                                                             Min="0.0" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Golf.BoardAlpha"
+                                                             HelperText="0.0 = 100% invisible fairway (default), 1.0 = solid turf strip" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="double" Label="Putting Green Opacity / Alpha" Variant="Variant.Outlined"
+                                                             Min="0.1" Max="1.0" Step="0.05"
+                                                             @bind-Value="_settings.Golf.TargetAlpha"
+                                                             HelperText="Opacity of the compact putting green & yardage rings (default 0.45)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Golf.ShowBoardBorders"
+                                               Label="Show 1px Strip Guide Rails (Off by default for a completely invisible fairway)" />
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Stroke Mode, Scoring & Collisions</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                                        Closest-to-the-Pin Scoring: Sinking in the cup awards <b>100 pts</b> (Bullseye / Hole-in-One on Stroke 1). Resting on the green awards <b>10 to 95 pts</b> scaled by proximity to the pin. Resting off the green awards <b>0 pts</b>.
+                                    </MudText>
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Max Strokes Per Player" Variant="Variant.Outlined"
+                                                             Min="1" Max="5" Step="1"
+                                                             @bind-Value="_settings.Golf.MaxStrokesPerPlayer"
+                                                             HelperText="1 = Single-Stroke Closest-to-Pin (default). 2–5 = Multi-Stroke Chip & Putt." />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Stroke Penalty (Points)" Variant="Variant.Outlined"
+                                                             Min="0" Max="50" Step="5"
+                                                             Disabled="@(_settings.Golf.MaxStrokesPerPlayer <= 1)"
+                                                             @bind-Value="_settings.Golf.StrokePenaltyPoints"
+                                                             HelperText="Deducted per extra stroke after Stroke 1 in Multi-Stroke mode (default 10)." />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudSelect T="CurlingCollisionMode" Label="Ground Ball Collision" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Golf.CollisionMode"
+                                                       HelperText="Airborne balls fly over resting balls. Controls ground roll collisions.">
+                                                <MudSelectItem Value="CurlingCollisionMode.LockOnRest">Lock On Rest (Anti-Griefing Protection)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingCollisionMode.NoCollision">No Collision (Ghosting)</MudSelectItem>
+                                                <MudSelectItem Value="CurlingCollisionMode.FullCollision">Full Elastic Collision</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 2: GREEN CONDITIONS & MECHANICS ================= -->
+                <MudTabPanel Text="Green Conditions & Power">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Dynamic Green & Wind Conditions</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Varying turf speeds and breeze conditions keep viewers engaged so a single memorized power number doesn't always hole out.
+                                </MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Golf.EnableDynamicGreenConditions"
+                                               Label="Enable Dynamic Green Conditions (Randomizes condition per round)" />
+
+                                    @if (!_settings.Golf.EnableDynamicGreenConditions)
+                                    {
+                                        <MudSelect T="GolfGreenCondition" Label="Static Green Condition" Variant="Variant.Outlined"
+                                                   @bind-Value="_settings.Golf.GreenCondition"
+                                                   HelperText="Condition applied to all shots when dynamic conditions are disabled.">
+                                            <MudSelectItem Value="GolfGreenCondition.StandardGreen">Standard Green (Normal Turf Roll)</MudSelectItem>
+                                            <MudSelectItem Value="GolfGreenCondition.FastLinks">Fast Links (-28% Turf Drag, Longer Roll)</MudSelectItem>
+                                            <MudSelectItem Value="GolfGreenCondition.HeavyDew">Heavy Dew (+25% Turf Drag, Softer Check)</MudSelectItem>
+                                            <MudSelectItem Value="GolfGreenCondition.CrossBreeze">Cross Breeze (Lateral Wind Drift While Airborne)</MudSelectItem>
+                                        </MudSelect>
+                                    }
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="GolfPinDistanceMode" Label="Pin Distance Mode" Variant="Variant.Outlined"
+                                                       @bind-Value="_settings.Golf.TargetDistanceMode"
+                                                       HelperText="Fixed pin distance or randomize putting green position between 70% and 92% each round.">
+                                                <MudSelectItem Value="GolfPinDistanceMode.Fixed">Fixed Pin Distance</MudSelectItem>
+                                                <MudSelectItem Value="GolfPinDistanceMode.RandomizePerRound">Randomize Per Round (70% - 92%)</MudSelectItem>
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="double" Label="Default Pin Distance (%)" Variant="Variant.Outlined"
+                                                             Min="60.0" Max="95.0" Step="1.0"
+                                                             @bind-Value="_settings.Golf.TargetDistancePercent"
+                                                             HelperText="Putting green pin distance from tee (% of strip length, default 84%)" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Viewer Controls & Power</MudText>
+
+                                    <MudSwitch T="bool" Color="Color.Secondary"
+                                               @bind-Value="_settings.Golf.EnableViewerPowerControl"
+                                               Label="Allow Viewers to Specify Manual Power (e.g. !golf 75, !golf 75 emote, or !golf emote)" />
+
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Default Min Power" Variant="Variant.Outlined"
+                                                             Min="1" Max="100"
+                                                             @bind-Value="_settings.Golf.DefaultPowerMin"
+                                                             HelperText="Used when viewer omits power on tee shot (default 62)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Default Max Power" Variant="Variant.Outlined"
+                                                             Min="1" Max="100"
+                                                             @bind-Value="_settings.Golf.DefaultPowerMax"
+                                                             HelperText="Used when viewer omits power on tee shot (default 82)" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="4">
+                                            <MudNumericField T="int" Label="Last Call Cutoff (Seconds)" Variant="Variant.Outlined"
+                                                             Min="0" Max="30"
+                                                             @bind-Value="_settings.Golf.LastCallCutoffSeconds"
+                                                             HelperText="Cut off new shots in final seconds of round so all balls finish" />
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Actions</MudText>
+
+                                    <MudSelect T="string" Label="Hole-in-One / Cup Sunk Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Golf.BullseyeActionName"
+                                               HelperText="Custom Action executed when a viewer sinks the ball in the cup (100 base pts)">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSelect T="string" Label="On-Green Win Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Golf.WinActionName"
+                                               HelperText="Custom Action executed when a ball scores points on the putting green or in the cup">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudSelect T="string" Label="Missed Green / Lose Action (Optional)" Variant="Variant.Outlined" Clearable="true"
+                                               @bind-Value="_settings.Golf.LoseActionName"
+                                               HelperText="Custom Action executed when a ball misses the putting green (0 pts)">
+                                        @foreach (var action in _actionNames)
+                                        {
+                                            <MudSelectItem Value="@action">@action</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudDivider Class="my-2" />
+
+                                    <MudSwitch T="bool" Color="Color.Success"
+                                               @bind-Value="_settings.Golf.AnnounceWinsInChat"
+                                               Label="Send Chat Message on Score / Hole-Out" />
+
+                                    @if (_settings.Golf.AnnounceWinsInChat)
+                                    {
+                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
+                                                      @bind-Value="_settings.Golf.WinChatMessageTemplate"
+                                                      HelperText="Placeholders: {user}, {score}, {bullseye}, {strokes}" />
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: SESSION & OVERLAY DISPLAY ================= -->
+                <MudTabPanel Text="Session & Display">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Timed Session / Round Mode</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                    Run timed Golf rounds (e.g. 90 seconds). Controls viewer participation and round announcements.
+                                </MudText>
+
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Golf.SessionModeEnabled"
+                                               Label="Enable Timed Session Mode (When off, golf shots run anytime in free-play mode)" />
+
+                                    @if (_settings.Golf.SessionModeEnabled)
+                                    {
+                                        <div>
+                                            <MudSwitch T="bool" Color="Color.Secondary"
+                                                       @bind-Value="_settings.Golf.AutoStartOnCommand"
+                                                       Label="Auto-start Round on Command (Starts round automatically when someone types !golf)" />
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block ml-3">
+                                                When off, rounds can only be started/stopped via SubActions, mod commands (!golf start [seconds]), or the button on this page.
+                                            </MudText>
+                                        </div>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Default Round Duration (Seconds)" Variant="Variant.Outlined"
+                                                                 Min="10" Max="600" Step="5"
+                                                                 @bind-Value="_settings.Golf.DefaultSessionDurationSeconds"
+                                                                 HelperText="e.g. 90 seconds" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Max Rounds / Balls Per User Per Session" Variant="Variant.Outlined"
+                                                                 Min="0" Max="50"
+                                                                 @bind-Value="_settings.Golf.MaxDropsPerUserPerSession"
+                                                                 HelperText="0 = Unlimited tee-offs during the session" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudSwitch T="bool" Color="Color.Info"
+                                                   @bind-Value="_settings.Golf.AnnounceSessionStatusInChat"
+                                                   Label="Announce Round Start & End in Chat" />
+
+                                        @if (_settings.Golf.AnnounceSessionStatusInChat)
+                                        {
+                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Golf.SessionStartChatMessageTemplate"
+                                                          HelperText="Placeholders: {duration}, {theme}, {condition}, {distance}" />
+                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                                                          @bind-Value="_settings.Golf.SessionEndChatMessageTemplate"
+                                                          HelperText="Placeholders: {count}, {duration}" />
+                                        }
+                                    }
+                                </MudStack>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Overlay Header & Display Settings</MudText>
+                                <MudStack Spacing="3">
+                                    <MudSwitch T="bool" Color="Color.Primary"
+                                               @bind-Value="_settings.Golf.ShowHeaderBanner"
+                                               Label="Show Overlay Header Banner" />
+
+                                    @if (_settings.Golf.ShowHeaderBanner)
+                                    {
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="6">
+                                                <MudSelect T="string" Label="Header Position" Variant="Variant.Outlined"
+                                                           @bind-Value="_settings.Golf.HeaderPosition">
+                                                    <MudSelectItem Value="@("TopCenter")">Top Center</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopLeft")">Top Left</MudSelectItem>
+                                                    <MudSelectItem Value="@("TopRight")">Top Right</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudNumericField T="int" Label="Header Y Offset (px)" Variant="Variant.Outlined"
+                                                                 Min="0" Max="200" Step="2"
+                                                                 @bind-Value="_settings.Golf.HeaderCustomYOffset" />
+                                            </MudItem>
+                                        </MudGrid>
+
+                                        <MudGrid>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Golf.ShowTimer"
+                                                           Label="Show Round Timer" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Golf.ShowDropCount"
+                                                           Label="Show Shot Count" />
+                                            </MudItem>
+                                            <MudItem xs="12" sm="4">
+                                                <MudSwitch T="bool" Color="Color.Secondary"
+                                                           @bind-Value="_settings.Golf.ShowFreePlayCounter"
+                                                           Label="Show Free-Play Pill" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    }
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
+                <MudTabPanel Text="Audio & Sound Effects">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Golf Audio & Sound Effects</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Configure optional sounds for round events, club strike, turf bounces, cup rattle, rim lip-outs, and hole-in-one fanfare.</MudText>
+                                    </div>
+                                </MudStack>
+
+                                <MudStack Spacing="2">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-2">
+                                        <MudText Typo="Typo.caption" Style="min-width: 170px;">
+                                            Max Concurrent Sounds: <b>@(_settings.Golf.MaxConcurrentSounds)</b>
+                                        </MudText>
+                                        <div style="flex: 1 1 auto;">
+                                            <MudSlider T="int"
+                                                       Min="1" Max="5" Step="1" ValueLabel="true"
+                                                       @bind-Value="_settings.Golf.MaxConcurrentSounds"
+                                                       Color="Color.Primary" />
+                                        </div>
+                                    </MudStack>
+
+                                    <DropGameSoundEditor Title="Round Start Sound"
+                                                         HelperText="Plays immediately when a Golf round begins"
+                                                         SoundConfig="_settings.Golf.StartSound" />
+
+                                    <DropGameSoundEditor Title="Round End Sound"
+                                                         HelperText="Plays immediately when a Golf round finishes"
+                                                         SoundConfig="_settings.Golf.EndSound" />
+
+                                    <DropGameSoundEditor Title="Club Strike / Putt Sound"
+                                                         HelperText="Plays when a golf ball is struck from the tee or putted"
+                                                         SoundConfig="_settings.Golf.StrikeSound" />
+
+                                    <DropGameSoundEditor Title="Turf Bounce / Thud Sound"
+                                                         HelperText="Plays when an airborne chip shot bounces on the turf"
+                                                         SoundConfig="_settings.Golf.BounceSound" />
+
+                                    <DropGameSoundEditor Title="Cup Rattle Sound"
+                                                         HelperText="Plays when the golf ball drops into the sunken cup"
+                                                         SoundConfig="_settings.Golf.CupSound" />
+
+                                    <DropGameSoundEditor Title="Rim Lip-Out Sound"
+                                                         HelperText="Plays when a fast shot catches the edge of the cup and lips out"
+                                                         SoundConfig="_settings.Golf.LipOutSound" />
+
+                                    <DropGameSoundEditor Title="Hole-in-One / Win Fanfare"
+                                                         HelperText="Plays when a viewer sinks a shot in the cup or scores on the green"
+                                                         SoundConfig="_settings.Golf.WinSound" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" md="5">
+                            @RenderLiveTester()
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private DropGamesSettings? _settings;
+    private List<string> _actionNames = [];
+    private string _testUsername = "PenguinViewer";
+    private string _testEmoteInput = "";
+    private int _testPower = 72;
+    private string _overlayKey = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _overlayKey = await OverlaySecurityService.GetOverlayKeyAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to fetch overlay security key.");
+        }
+
+        _settings = await SettingsService.GetSettingsAsync();
+
+        var actions = await ActionManagementService.GetAllActionsAsync();
+        _actionNames = actions
+            .Select(a => a.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private RenderFragment RenderLiveTester() => __builder =>
+    {
+        <MudPaper Class="pa-4" Outlined="true">
+            <MudText Typo="Typo.h6" Class="mb-3">Live Golf Tester</MudText>
+            <MudStack Spacing="3">
+                <MudTextField T="string" Label="Test Player Name" Variant="Variant.Outlined"
+                              @bind-Value="_testUsername" />
+                <MudNumericField T="int" Label="Swing Power (1 - 100)" Variant="Variant.Outlined"
+                                 Min="1" Max="100"
+                                 @bind-Value="_testPower"
+                                 HelperText="Power around ~70-74 chips onto the green near the pin under normal conditions" />
+                <MudTextField T="string" Label="Test Emote Code or Ball Image URL (Optional)" Variant="Variant.Outlined"
+                              @bind-Value="_testEmoteInput"
+                              HelperText="Leave blank for theme default golf ball, or enter emote code / image URL." />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.GolfCourse"
+                           OnClick="TestGolfShotAsync">
+                    Launch Test Golf Shot
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.EmojiEvents"
+                           OnClick="TestGuaranteedHoleInOneAsync">
+                    Launch Guaranteed Hole-in-One (100 pts)
+                </MudButton>
+
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Session Controls</MudText>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.PlayArrow"
+                               OnClick="StartGolfSessionLiveAsync">
+                        Start Round (@(_settings?.Golf.DefaultSessionDurationSeconds ?? 90)s)
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               OnClick="StopGolfSessionLiveAsync">
+                        Stop Round
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    };
+
+    private CommandEventArgs BuildTestEventArgs() => new()
+    {
+        Name = string.IsNullOrWhiteSpace(_testUsername) ? "penguinviewer" : _testUsername.Trim().ToLowerInvariant(),
+        DisplayName = string.IsNullOrWhiteSpace(_testUsername) ? "PenguinViewer" : _testUsername.Trim(),
+        Args = [_testPower.ToString()],
+        Arg = _testPower.ToString(),
+        IsBroadcaster = true,
+        FromOwnChannel = true
+    };
+
+    private async Task SaveAllSettingsAsync()
+    {
+        if (_settings == null) return;
+        await SettingsService.SaveSettingsAsync(_settings);
+        Snackbar.Add("Golf (Chip & Putt) settings saved!", Severity.Success);
+    }
+
+    private async Task ResetSettingsToDefaultsAsync()
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Reset Golf Settings to Defaults",
+            "Are you sure you want to reset all Golf (Chip & Putt) settings to defaults?",
+            yesText: "Reset to Defaults",
+            cancelText: "Cancel");
+
+        if (confirmed != true) return;
+
+        if (_settings != null)
+        {
+            _settings.Golf = new GolfGameSettings();
+            await SettingsService.SaveSettingsAsync(_settings);
+            Snackbar.Add("Golf settings have been reset to default values!", Severity.Warning);
+        }
+    }
+
+    private async Task TestGolfShotAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        await GolfGameService.TriggerGolfShotAsync(BuildTestEventArgs(), power: _testPower, emoteOrImage: _testEmoteInput, allowDirectUrlOrPath: true);
+        Snackbar.Add("Launched test golf shot! Watch your /golf.html overlay.", Severity.Info);
+    }
+
+    private async Task TestGuaranteedHoleInOneAsync()
+    {
+        if (_settings == null) return;
+        var savedVariance = _settings.Golf.PowerVariancePercent;
+        try
+        {
+            _settings.Golf.PowerVariancePercent = 0.0;
+            await SettingsService.SaveSettingsAsync(_settings);
+            var targetDist = _settings.Golf.SlideDirection == CurlingSlideDirection.CenterTarget
+                ? 50.0
+                : _settings.Golf.TargetDistancePercent;
+
+            // Under StandardGreen (friction = 0.22) from tee (0.05):
+            // total distance d = (0.76 * p / 100)^2 / (2 * 0.22) => p = 100 * sqrt(0.44 * d) / 0.76
+            var requiredDist = Math.Max(0.05, (targetDist / 100.0) - 0.05);
+            var perfectPower = Math.Clamp(100.0 * Math.Sqrt(0.44 * requiredDist) / 0.76, 1.0, 100.0);
+
+            await GolfGameService.TriggerGolfShotAsync(
+                BuildTestEventArgs(),
+                power: perfectPower,
+                emoteOrImage: _testEmoteInput,
+                allowDirectUrlOrPath: true,
+                conditionOverride: GolfGreenCondition.StandardGreen,
+                targetDistanceOverride: targetDist);
+            Snackbar.Add("Launched guaranteed Hole-in-One shot!", Severity.Success);
+        }
+        finally
+        {
+            if (_settings.Golf.PowerVariancePercent != savedVariance)
+            {
+                _settings.Golf.PowerVariancePercent = savedVariance;
+                await SettingsService.SaveSettingsAsync(_settings);
+            }
+        }
+    }
+
+    private async Task StartGolfSessionLiveAsync()
+    {
+        if (_settings != null) await SettingsService.SaveSettingsAsync(_settings);
+        var duration = _settings?.Golf.DefaultSessionDurationSeconds ?? 90;
+        var result = await GolfGameService.StartSessionAsync(duration, triggeredBy: "Dashboard");
+        if (result.IsQueued)
+        {
+            Snackbar.Add($"Queued Golf session (Position #{result.QueuePosition}) behind active game.", Severity.Info);
+        }
+        else
+        {
+            Snackbar.Add($"Started Golf (Chip & Putt) session for {duration} seconds!", Severity.Success);
+        }
+    }
+
+    private async Task StopGolfSessionLiveAsync()
+    {
+        var result = await GolfGameService.StopSessionAsync(triggeredBy: "Dashboard");
+        if (result != null)
+        {
+            Snackbar.Add("Stopped Golf session.", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("No active or queued Golf session to stop.", Severity.Info);
+        }
+    }
+}

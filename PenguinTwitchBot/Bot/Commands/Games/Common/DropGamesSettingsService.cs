@@ -111,6 +111,11 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Common
 
         public static void EnsureStockThemes(DropGamesSettings settings)
         {
+            settings.Parachute ??= new ParachuteGameSettings();
+            settings.Plinko ??= new PlinkoGameSettings();
+            settings.Balloon ??= new BalloonAscentGameSettings();
+            settings.Curling ??= new CurlingGameSettings();
+            settings.Golf ??= new GolfGameSettings();
             settings.Themes ??= [];
             if (settings.Themes.Count > 0)
             {

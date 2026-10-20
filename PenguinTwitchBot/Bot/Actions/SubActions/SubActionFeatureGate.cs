@@ -18,7 +18,12 @@ namespace PenguinTwitchBot.Bot.Actions.SubActions
                 [SubActionTypes.OpenAi] = FeatureKeys.OpenAI,
                 [SubActionTypes.ParachuteDrop] = FeatureKeys.DropGames,
                 [SubActionTypes.ParachuteDroplets] = FeatureKeys.DropGames,
+                [SubActionTypes.ParachuteRockets] = FeatureKeys.DropGames,
                 [SubActionTypes.PlinkoDrop] = FeatureKeys.DropGames,
+                [SubActionTypes.BalloonAscent] = FeatureKeys.DropGames,
+                [SubActionTypes.BalloonHazards] = FeatureKeys.DropGames,
+                [SubActionTypes.CurlingSlide] = FeatureKeys.DropGames,
+                [SubActionTypes.GolfPutt] = FeatureKeys.DropGames,
                 [SubActionTypes.StartDropGameSession] = FeatureKeys.DropGames,
                 [SubActionTypes.StopDropGameSession] = FeatureKeys.DropGames
             };

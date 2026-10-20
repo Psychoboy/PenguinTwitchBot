@@ -2,6 +2,7 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
 using PenguinTwitchBot.Bot.Commands.Games.Curling;
+using PenguinTwitchBot.Bot.Commands.Games.Golf;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Features;
@@ -17,7 +18,8 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
         IOverlaySecurityService overlaySecurityService,
         IFeatureRuntimeCoordinator featureRuntimeCoordinator,
         IBalloonAscentService? balloonAscentService = null,
-        ICurlingGameService? curlingGameService = null)
+        ICurlingGameService? curlingGameService = null,
+        IGolfGameService? golfGameService = null)
         : Notifications.INotificationHandler<DropGameCompleteNotification>
     {
         public async Task Handle(DropGameCompleteNotification notification, CancellationToken cancellationToken)
@@ -151,6 +153,46 @@ namespace PenguinTwitchBot.Application.DropGameNotifications
                     if (curlingGameService != null)
                     {
                         await curlingGameService.ProcessCompletionAsync(record);
+                    }
+                }
+                else if (record.GameType == DropGameType.Golf)
+                {
+                    // Authorized client with secret key: directly trust the client's rendered outcome and score
+                    if (notification.Score.HasValue)
+                    {
+                        record.Score = Math.Clamp(notification.Score.Value, 0, 100);
+                        record.IsBullseye = notification.IsBullseye ?? false;
+                        record.IsWin = notification.IsWin ?? false;
+                        record.IsHit = notification.IsHit ?? false;
+                    }
+                    if (notification.BaseScore.HasValue)
+                    {
+                        record.BaseScore = Math.Clamp(notification.BaseScore.Value, 0, 100);
+                    }
+                    if (notification.StrokeNumber.HasValue && notification.StrokeNumber.Value >= 1)
+                    {
+                        record.StrokeNumber = notification.StrokeNumber.Value;
+                    }
+                    if (notification.StrokePenalty.HasValue && notification.StrokePenalty.Value >= 0)
+                    {
+                        record.StrokePenalty = notification.StrokePenalty.Value;
+                    }
+                    if (notification.StartAxisPosition.HasValue)
+                    {
+                        record.StartAxisPosition = Math.Round(Math.Clamp(notification.StartAxisPosition.Value, 0.01, 0.99), 4);
+                    }
+                    if (notification.IsLipOut.HasValue)
+                    {
+                        record.IsLipOut = notification.IsLipOut.Value;
+                    }
+                    if (notification.LandingX.HasValue)
+                    {
+                        record.LandingX = Math.Round(Math.Clamp(notification.LandingX.Value, 0.01, 0.99), 4);
+                    }
+
+                    if (golfGameService != null)
+                    {
+                        await golfGameService.ProcessCompletionAsync(record);
                     }
                 }
 

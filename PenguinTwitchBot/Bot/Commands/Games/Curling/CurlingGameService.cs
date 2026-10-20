@@ -414,20 +414,15 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             var condition = conditionOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionCondition : cSettings.IceCondition);
             var targetDistance = targetDistanceOverride ?? (_sessionManager.ActiveSession != null ? _currentSessionTargetDistance : cSettings.TargetDistancePercent);
 
-            // Determine raw power (1-100)
-            double rawPower;
-            if (power.HasValue)
-            {
-                rawPower = Math.Clamp(power.Value, 1.0, 100.0);
-            }
-            else if (cSettings.EnableViewerPowerControl)
-            {
-                rawPower = ParsePowerFromArgs(eventArgs, cSettings.DefaultPowerMin, cSettings.DefaultPowerMax);
-            }
-            else
-            {
-                rawPower = GetRandomPower(cSettings.DefaultPowerMin, cSettings.DefaultPowerMax);
-            }
+            // Determine raw power (1-100) and emote token using shared best-effort parser
+            var (rawPower, emoteToken) = await DropGameMediaResolver.ParsePowerAndEmoteAsync(
+                emoteService,
+                eventArgs,
+                power,
+                emoteOrImage,
+                cSettings.EnableViewerPowerControl,
+                cSettings.DefaultPowerMin,
+                cSettings.DefaultPowerMax);
 
             var theme = DropGameMediaResolver.ResolveTheme(settings, themeOverrideId, cSettings.ActiveThemeId);
 
@@ -467,27 +462,35 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             var userKey = !string.IsNullOrWhiteSpace(eventArgs.UserId) ? eventArgs.UserId : record.Username;
             _sessionManager.RecordUserDrop(userKey);
 
-            // Resolve decal / emote and avatar
-            var decalUrl = "";
-            var emoteToken = ResolveEmoteTokenFromArgs(eventArgs, emoteOrImage);
-            if (!string.IsNullOrWhiteSpace(emoteToken))
+            // Resolve decal / emote and avatar (fallbackToEventArgsArg: false because ParsePowerAndEmoteAsync already extracted emoteToken)
+            var fallbackDecal = !string.IsNullOrWhiteSpace(theme.DefaultCharacterImageUrl)
+                ? theme.DefaultCharacterImageUrl
+                : theme.CurlingStoneImageUrl;
+            var decalUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
+                emoteService,
+                eventArgs,
+                emoteToken,
+                fallbackUrl: fallbackDecal,
+                allowDirectUrlOrPath: allowDirectUrlOrPath,
+                fallbackToEventArgsArg: false) ?? "";
+
+            if (string.IsNullOrWhiteSpace(decalUrl) && !string.IsNullOrWhiteSpace(fallbackDecal))
             {
-                decalUrl = await DropGameMediaResolver.ResolveCharacterOrEmoteUrlAsync(
-                    emoteService,
-                    eventArgs,
-                    emoteToken,
-                    fallbackUrl: theme.CurlingStoneImageUrl,
-                    allowDirectUrlOrPath: allowDirectUrlOrPath) ?? "";
+                decalUrl = fallbackDecal;
             }
 
-            if (string.IsNullOrWhiteSpace(decalUrl) && !string.IsNullOrWhiteSpace(theme.CurlingStoneImageUrl))
-            {
-                decalUrl = theme.CurlingStoneImageUrl;
-            }
+            dropRegistry.RegisterAllowedProxyUrl(decalUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.CurlingStoneImageUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.CurlingHouseImageUrl);
+            dropRegistry.RegisterAllowedProxyUrl(theme.DefaultCharacterImageUrl);
 
             var userColor = !string.IsNullOrWhiteSpace(eventArgs.Color) && eventArgs.Color.StartsWith('#')
                 ? eventArgs.Color
                 : _chatColorService.GetOrAssignColor(userKey, eventArgs.Color);
+
+            var soundBundle = DropGameMediaResolver.ResolveCurlingSoundBundle(cSettings, theme, _mediaUploadService);
+            var activeGames = DropGameBroadcastCoordinator.GetActiveGameNames(dropRegistry);
+            var isOtherGameActive = activeGames.Any(g => !string.Equals(g, "curling", StringComparison.OrdinalIgnoreCase));
 
             var isHorizontal = cSettings.StripPosition is CurlingStripPosition.Bottom or CurlingStripPosition.Top;
 
@@ -503,6 +506,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 targetDistancePercent = targetDistance,
                 decalUrl,
                 theme = theme,
+                sounds = soundBundle,
+                isOtherGameActive,
+                activeGames,
                 stripPosition = cSettings.StripPosition.ToString(),
                 slideDirection = cSettings.SlideDirection.ToString(),
                 isReversed,
@@ -528,59 +534,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             await DropGameBroadcastCoordinator.BroadcastOtherDropActiveAsync(webSocketMessenger, logger, WsTopics.Curling, durationSeconds: 6.0);
 
             return dropToken;
-        }
-
-        private static int GetRandomPower(int defaultMin, int defaultMax)
-        {
-            var min = Math.Clamp(defaultMin, 1, 100);
-            var max = Math.Clamp(defaultMax, 1, 100);
-            if (min > max)
-            {
-                (min, max) = (max, min);
-            }
-            return Random.Shared.Next(min, max + 1);
-        }
-
-        private static double ParsePowerFromArgs(CommandEventArgs e, int defaultMin, int defaultMax)
-        {
-            foreach (var arg in e.Args)
-            {
-                if (int.TryParse(arg, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed is >= 1 and <= 100)
-                {
-                    return parsed;
-                }
-            }
-
-            var rawArg = (e.Arg ?? "").Trim();
-            if (int.TryParse(rawArg, NumberStyles.Integer, CultureInfo.InvariantCulture, out var directParsed) && directParsed is >= 1 and <= 100)
-            {
-                return directParsed;
-            }
-
-            return GetRandomPower(defaultMin, defaultMax);
-        }
-
-        private static string? ResolveEmoteTokenFromArgs(CommandEventArgs e, string? explicitEmote)
-        {
-            if (!string.IsNullOrWhiteSpace(explicitEmote))
-            {
-                return explicitEmote.Trim();
-            }
-
-            foreach (var arg in e.Args)
-            {
-                var trimmed = arg.Trim();
-                if (int.TryParse(trimmed, out _)) continue; // skip power number
-                if (!string.IsNullOrWhiteSpace(trimmed)) return trimmed;
-            }
-
-            var single = (e.Arg ?? "").Trim();
-            if (!string.IsNullOrWhiteSpace(single) && !int.TryParse(single, out _))
-            {
-                return single;
-            }
-
-            return null;
         }
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)

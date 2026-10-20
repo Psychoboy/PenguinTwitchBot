@@ -724,9 +724,10 @@
         plinko: 1,
         balloon: 2,
         curling: 3,
-        ufo: 4,
-        raceway: 5,
-        submarine: 6
+        golf: 4,
+        ufo: 5,
+        raceway: 6,
+        submarine: 7
     };
 
     function calculateBannerStackSlot(currentGame, activeOtherGames) {
@@ -1033,7 +1034,8 @@
         ctx.clip();
 
         let drawn = false;
-        if (img && img.naturalWidth > 0) {
+        const imgW = img ? (img.naturalWidth || img.width || 0) : 0;
+        if (img && imgW > 0) {
             try {
                 ctx.drawImage(img, -innerRadius, -innerRadius, innerRadius * 2, innerRadius * 2);
                 drawn = true;
@@ -1519,6 +1521,276 @@
         }
     }
 
+    function drawGolfGreen(ctx, options) {
+        if (!ctx || !options) return;
+        const cx = typeof options.cx === 'number' ? options.cx : 0;
+        const cy = typeof options.cy === 'number' ? options.cy : 0;
+        const greenRadius = typeof options.greenRadius === 'number' && options.greenRadius > 0 ? options.greenRadius : 48;
+        const cupRadius = typeof options.cupRadius === 'number' && options.cupRadius > 0 ? options.cupRadius : Math.max(7, greenRadius * 0.20);
+        const alpha = typeof options.alpha === 'number' ? Math.max(0, Math.min(1, options.alpha)) : 0.45;
+        const theme = options.theme || {};
+        const season = getSeasonPreset(theme);
+        const greenImage = options.greenImage;
+        const flagImage = options.flagImage;
+        const now = typeof options.now === 'number' ? options.now : Date.now();
+
+        if (alpha <= 0.005) return;
+
+        let fringeCol = theme.secondaryColor || '#15803D';
+        let turfInner = '#4ADE80';
+        let turfMid = '#22C55E';
+        let turfOuter = '#16A34A';
+        let cupRimCol = '#E2E8F0';
+        let poleCol = '#F8FAFC';
+        let flagCol = theme.accentColor || '#EF4444';
+
+        if (season === 'spring') {
+            fringeCol = '#F472B6';
+            turfInner = '#6EE7B7';
+            turfMid = '#34D399';
+            turfOuter = '#10B981';
+            cupRimCol = '#FBCFE8';
+            flagCol = '#FB7185';
+        } else if (season === 'summer') {
+            fringeCol = '#FBBF24';
+            turfInner = '#86EFAC';
+            turfMid = '#22C55E';
+            turfOuter = '#15803D';
+            cupRimCol = '#38BDF8';
+            flagCol = '#FACC15';
+        } else if (season === 'fall') {
+            fringeCol = '#D97706';
+            turfInner = '#84CC16';
+            turfMid = '#4D7C0F';
+            turfOuter = '#3F6212';
+            cupRimCol = '#F59E0B';
+            flagCol = '#EA580C';
+        } else if (season === 'winter') {
+            fringeCol = '#7DD3FC';
+            turfInner = '#E0F2FE';
+            turfMid = '#BAE6FD';
+            turfOuter = '#38BDF8';
+            cupRimCol = '#FFFFFF';
+            flagCol = '#0284C7';
+        } else if (season === 'halloween') {
+            fringeCol = '#7E22CE';
+            turfInner = '#4ADE80';
+            turfMid = '#15803D';
+            turfOuter = '#3B0764';
+            cupRimCol = '#A3E635';
+            flagCol = '#F97316';
+        } else if (season === 'christmas') {
+            fringeCol = '#DC2626';
+            turfInner = '#22C55E';
+            turfMid = '#15803D';
+            turfOuter = '#14532D';
+            cupRimCol = '#FACC15';
+            flagCol = '#EF4444';
+        }
+
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Putting green surface (custom sprite or compact lush radial green + fringe)
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        if (greenImage && ((greenImage.naturalWidth || greenImage.width || 0) > 0)) {
+            ctx.drawImage(greenImage, -greenRadius * 1.15, -greenRadius * 1.15, greenRadius * 2.3, greenRadius * 2.3);
+        } else {
+            // Outer fringe collar
+            ctx.beginPath();
+            ctx.arc(0, 0, greenRadius * 1.08, 0, Math.PI * 2);
+            ctx.fillStyle = fringeCol;
+            ctx.fill();
+
+            // Inner putting surface
+            const grad = ctx.createRadialGradient(-greenRadius * 0.2, -greenRadius * 0.2, greenRadius * 0.1, 0, 0, greenRadius);
+            grad.addColorStop(0, turfInner);
+            grad.addColorStop(0.7, turfMid);
+            grad.addColorStop(1, turfOuter);
+            ctx.beginPath();
+            ctx.arc(0, 0, greenRadius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Subtle closest-to-the-pin yardage guide rings
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+            ctx.lineWidth = 1.25;
+            [0.38, 0.68, 1.0].forEach((ratio) => {
+                ctx.beginPath();
+                ctx.arc(0, 0, greenRadius * ratio, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+        }
+        ctx.restore();
+
+        // Sunken Cup (high visibility even when green is semi-transparent)
+        const cupAlpha = Math.min(1.0, Math.max(0.75, alpha * 1.65));
+        ctx.save();
+        ctx.globalAlpha = cupAlpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, cupRadius + 1.6, 0, Math.PI * 2);
+        ctx.fillStyle = cupRimCol;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, cupRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#0F172A';
+        ctx.fill();
+
+        // Inner cup shadow rim
+        ctx.beginPath();
+        ctx.arc(0, 1.2, cupRadius * 0.82, 0, Math.PI * 2);
+        ctx.fillStyle = '#020617';
+        ctx.fill();
+
+        // Flagstick + Pennant
+        const poleHeight = Math.max(26, Math.min(48, greenRadius * 0.85));
+        if (flagImage && ((flagImage.naturalWidth || flagImage.width || 0) > 0)) {
+            ctx.drawImage(flagImage, -poleHeight * 0.35, -poleHeight, poleHeight * 0.9, poleHeight * 1.05);
+        } else {
+            // Flagpole shadow
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(poleHeight * 0.35, -poleHeight * 0.18);
+            ctx.stroke();
+
+            // Flagpole
+            ctx.strokeStyle = poleCol;
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -poleHeight);
+            ctx.stroke();
+
+            // Fluttering pennant flag
+            const wave = Math.sin(now * 0.005) * 2.5;
+            ctx.fillStyle = flagCol;
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(0, -poleHeight);
+            ctx.quadraticCurveTo(poleHeight * 0.25, -poleHeight + 4 + wave, poleHeight * 0.48, -poleHeight + 7 - wave * 0.5);
+            ctx.lineTo(0, -poleHeight + 15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.restore();
+    }
+
+    function drawGolfBall(ctx, options) {
+        if (!ctx || !options) return;
+        const x = typeof options.x === 'number' ? options.x : 0;
+        const y = typeof options.y === 'number' ? options.y : 0;
+        const radius = typeof options.radius === 'number' && options.radius > 0 ? options.radius : 15;
+        const heightZ = typeof options.heightZ === 'number' ? Math.max(0, options.heightZ) : 0;
+        const sinkScale = typeof options.sinkScale === 'number' ? Math.max(0.1, Math.min(1, options.sinkScale)) : 1.0;
+        const rotation = typeof options.rotation === 'number' ? options.rotation : 0;
+        const userColor = options.userColor || '#22C55E';
+        const avatarImg = options.avatarImg;
+        const ballImg = options.ballImg;
+        const themeId = options.themeId || 'default';
+        const displayName = options.displayName || 'Player';
+        const isLeader = !!options.isLeader;
+        const isHoleInOne = !!options.isHoleInOne;
+
+        // Perspective lift when ball is airborne (heightZ in [0..1])
+        const liftPx = heightZ * Math.max(36, radius * 3.2);
+        const visualScale = (1.0 + heightZ * 0.34) * sinkScale;
+        const drawR = radius * visualScale;
+
+        ctx.save();
+
+        // Ground shadow tracks directly on the turf (x, y), shrinking & softening with heightZ
+        const shadowScale = Math.max(0.45, 1.0 - heightZ * 0.45) * sinkScale;
+        const shadowAlpha = Math.max(0.18, 0.52 - heightZ * 0.28) * sinkScale;
+        ctx.save();
+        ctx.translate(x + heightZ * 6, y + 3 + heightZ * 4);
+        ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.95 * shadowScale, radius * 0.62 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Translate to elevated ball center
+        ctx.translate(x, y - liftPx);
+
+        // Leader / Hole-in-One golden aura
+        if (isLeader || isHoleInOne) {
+            ctx.save();
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 14;
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR + 2.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.save();
+        ctx.rotate(rotation);
+
+        if (ballImg && ((ballImg.naturalWidth || ballImg.width || 0) > 0)) {
+            ctx.drawImage(ballImg, -drawR, -drawR, drawR * 2, drawR * 2);
+        } else {
+            // 3D dimpled golf ball body
+            const ballGrad = ctx.createRadialGradient(-drawR * 0.3, -drawR * 0.3, drawR * 0.1, 0, 0, drawR);
+            ballGrad.addColorStop(0, '#FFFFFF');
+            ballGrad.addColorStop(0.72, '#F1F5F9');
+            ballGrad.addColorStop(1, '#CBD5E1');
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+            ctx.fillStyle = ballGrad;
+            ctx.fill();
+
+            // Subtle dimple texture dots around outer rim
+            ctx.fillStyle = 'rgba(100, 116, 139, 0.28)';
+            const dimpleAngles = [0, 0.9, 1.8, 2.7, 3.6, 4.5, 5.4];
+            for (let i = 0; i < dimpleAngles.length; i++) {
+                const a = dimpleAngles[i];
+                const dx = Math.cos(a) * (drawR * 0.78);
+                const dy = Math.sin(a) * (drawR * 0.78);
+                ctx.beginPath();
+                ctx.arc(dx, dy, Math.max(1.2, drawR * 0.09), 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Player color identification stripe ring
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR * 0.68, 0, Math.PI * 2);
+            ctx.strokeStyle = brightenColor(userColor);
+            ctx.lineWidth = Math.max(2.0, drawR * 0.15);
+            ctx.stroke();
+
+            // Crisp outer ball border
+            ctx.beginPath();
+            ctx.arc(0, 0, drawR, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.65)';
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        // Center avatar / emote / penguin decal (kept upright so emotes are clearly readable)
+        drawCircularDecal(ctx, avatarImg, drawR * 0.64, {
+            fallbackPenguin: true,
+            themeId: themeId,
+            userColor: userColor,
+            displayName: displayName,
+            strokeBorder: true,
+            borderColor: 'rgba(255, 255, 255, 0.7)',
+            borderWidth: 1.1
+        });
+
+        ctx.restore();
+    }
+
     const DropGamesCommon = {
         normalizeImageUrl: normalizeImageUrl,
         detectMimeType: detectMimeType,
@@ -1544,7 +1816,9 @@
         syncAmbientParticles: syncAmbientParticles,
         updateAndDrawAmbientParticles: updateAndDrawAmbientParticles,
         spawnSeasonalBurst: spawnSeasonalBurst,
-        updateAndDrawParticles: updateAndDrawParticles
+        updateAndDrawParticles: updateAndDrawParticles,
+        drawGolfGreen: drawGolfGreen,
+        drawGolfBall: drawGolfBall
     };
 
     if (typeof module !== 'undefined' && module.exports) {
