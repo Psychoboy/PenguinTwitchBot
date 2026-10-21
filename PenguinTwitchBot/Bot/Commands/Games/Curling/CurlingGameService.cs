@@ -460,6 +460,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
             if (cSettings.SlideDirection == CurlingSlideDirection.CenterTarget)
             {
                 targetDistance = 50.0;
+                record.TargetDistancePercent = targetDistance;
             }
 
             // Calculate deterministic physics and rest coordinates

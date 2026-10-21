@@ -3573,6 +3573,31 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task CurlingGameService_CenterTarget_StoresEffectiveTargetDistanceOnPendingRecord()
+        {
+            var dropRegistry = CreateDropRegistry();
+            var settingsService = CreateSettingsService();
+            var settings = await settingsService.GetSettingsAsync();
+            settings.Curling.SlideDirection = CurlingSlideDirection.CenterTarget;
+            settings.Curling.TargetDistancePercent = 84.0;
+            await settingsService.SaveSettingsAsync(settings);
+            var service = CreateCurlingService(dropRegistry, settingsService);
+            var args = new CommandEventArgs
+            {
+                Command = "curl",
+                Name = "center_curler",
+                DisplayName = "CenterCurler",
+                UserId = "curler-center"
+            };
+
+            var token = await service.TriggerCurlingSlideAsync(args, power: 80.0);
+
+            var registered = dropRegistry.GetPendingDrop(token);
+            Assert.NotNull(registered);
+            Assert.Equal(50.0, registered.TargetDistancePercent);
+        }
+
+        [Fact]
         public async Task CurlingGameService_StartAndStopSession_ManagesActiveState()
         {
             var dropRegistry = CreateDropRegistry();
