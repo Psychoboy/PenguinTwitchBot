@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starship Expedition Event</title>
+    <link rel="stylesheet" href="/css/starship-overlay.css" />
+</head>
+<body data-starship-view="event">
+    <div id="ws-status" data-overlay="Starship Event">Disconnected</div>
+    <main id="starship-widget" class="event-widget" hidden>
+        <header class="widget-header">
+            <div class="identity">
+                <span id="event-kicker" class="eyebrow">CREW TRANSMISSION</span>
+                <h1 id="event-title">Starship Expedition</h1>
+            </div>
+            <span id="event-timer" class="countdown">--:--</span>
+        </header>
+        <p id="event-description" class="event-description"></p>
+        <div id="boarding-panel" class="boarding-panel" hidden>
+            <span class="section-label">BOARDING WINDOW</span>
+            <strong>Take your place aboard</strong>
+            <span>Join before takeoff with <b>!starship join</b></span>
+        </div>
+        <div id="event-panel" hidden>
+            <div id="choices" class="choices"></div>
+            <footer class="vote-footer">
+                <span id="event-sector"></span>
+                <span>Vote in chat: <b>!starship vote &lt;choice&gt;</b></span>
+            </footer>
+        </div>
+        <div id="result-panel" class="result-panel" hidden>
+            <span class="section-label">VOYAGE UPDATE</span>
+            <strong id="result-choice"></strong>
+            <span id="result-detail"></span>
+        </div>
+    </main>
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
+    <script src="/js/ws-status.js"></script>
+    <script src="/js/starship-overlay.js"></script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
@@ -104,6 +105,41 @@ public class StarshipExpeditionStateStoreTests
         };
 
         await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(snapshot));
+    }
+
+    [Fact]
+    public void OverlayProjection_ExposesVoteCountsWithoutViewerIdentifiers()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 1,
+            LegCount = 4,
+            Crew = [new StarshipCrewMemberSnapshot { UserId = "private-viewer-id" }],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "SignalDetected",
+                Title = "Unidentified Signal",
+                Sector = "Kepler Reach",
+                Choices = [
+                    new StarshipEventChoiceSnapshot { ChoiceId = "scan", Label = "Scan the signal" },
+                    new StarshipEventChoiceSnapshot { ChoiceId = "ignore", Label = "Continue on course" }
+                ],
+                Votes = [new StarshipEventVoteSnapshot { UserId = "private-viewer-id", ChoiceId = "scan" }]
+            }
+        };
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(snapshot);
+        var serialized = JsonSerializer.Serialize(projection);
+
+        Assert.Equal("EventOpen", projection.Status);
+        Assert.Equal(1, projection.CrewCount);
+        Assert.Equal(1, projection.CurrentEvent!.VoteCounts["scan"]);
+        Assert.Contains(projection.CurrentEvent.Choices, choice => choice.Label == "Scan the signal");
+        Assert.DoesNotContain("private-viewer-id", serialized, StringComparison.Ordinal);
     }
 
     private static StarshipExpeditionStateStore CreateStore(List<Setting> settingRows)

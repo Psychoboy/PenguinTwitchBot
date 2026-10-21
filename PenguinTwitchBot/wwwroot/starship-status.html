@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starship Expedition Status</title>
+    <link rel="stylesheet" href="/css/starship-overlay.css" />
+</head>
+<body data-starship-view="status">
+    <div id="ws-status" data-overlay="Starship Status">Disconnected</div>
+    <main id="starship-widget" class="status-widget">
+        <header class="widget-header">
+            <div class="identity">
+                <span class="eyebrow">FLIGHT OPERATIONS</span>
+                <h1>Starship Expedition</h1>
+            </div>
+            <span id="phase" class="phase">Awaiting</span>
+        </header>
+        <div class="status-main">
+            <div class="route-block">
+                <span class="section-label">CURRENT SECTOR</span>
+                <strong id="sector">No active voyage</strong>
+                <span id="route" class="route">Start a voyage to begin</span>
+            </div>
+            <div class="crew-block">
+                <strong id="crew-count">0</strong>
+                <span>CREW</span>
+            </div>
+        </div>
+        <div class="progress-track" aria-label="Voyage progress">
+            <span id="progress-fill"></span>
+        </div>
+        <footer class="status-footer">
+            <span id="leg-count">Leg 0 / 0</span>
+            <span id="timing">Awaiting launch</span>
+        </footer>
+    </main>
+    <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
+    <script src="/js/ws-client.js"></script>
+    <script src="/js/ws-status.js"></script>
+    <script src="/js/starship-overlay.js"></script>
+</body>
+</html>

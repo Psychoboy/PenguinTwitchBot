@@ -732,7 +732,11 @@ public sealed class StarshipExpeditionService(
         if (_snapshot == null) return;
         _snapshot.UpdatedAtUtc = _timeProvider.GetUtcNow();
         await stateStore.SaveAsync(_snapshot, cancellationToken);
-        var payload = JsonSerializer.Serialize(new { type = "expedition_state", snapshot = _snapshot }, JsonOptions);
+        var payload = JsonSerializer.Serialize(new
+        {
+            type = "expedition_state",
+            snapshot = StarshipExpeditionOverlaySnapshot.From(_snapshot)
+        }, JsonOptions);
         try
         {
             await webSocketMessenger.AddToQueue(WsTopics.Starship, payload);

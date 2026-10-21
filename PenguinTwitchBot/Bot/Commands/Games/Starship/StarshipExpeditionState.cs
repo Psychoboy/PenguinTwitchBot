@@ -85,3 +85,81 @@ public sealed class StarshipEventVoteSnapshot
     public string UserId { get; init; } = string.Empty;
     public string ChoiceId { get; init; } = string.Empty;
 }
+
+public sealed record StarshipExpeditionOverlaySnapshot(
+    string Status,
+    DateTimeOffset UpdatedAtUtc,
+    int CurrentLeg,
+    int LegCount,
+    string CurrentSector,
+    string CurrentRoute,
+    int CrewCount,
+    DateTimeOffset? BoardingClosesAtUtc,
+    DateTimeOffset? NextEventAtUtc,
+    StarshipOverlayEventSnapshot? CurrentEvent,
+    StarshipOverlayEventResult? LatestResult)
+{
+    public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return new StarshipExpeditionOverlaySnapshot(
+            snapshot.Status.ToString(),
+            snapshot.UpdatedAtUtc,
+            snapshot.CurrentLeg,
+            snapshot.LegCount,
+            snapshot.CurrentSector,
+            snapshot.CurrentRoute,
+            snapshot.Crew.Count,
+            snapshot.BoardingClosesAtUtc,
+            snapshot.NextEventAtUtc,
+            snapshot.CurrentEvent == null ? null : StarshipOverlayEventSnapshot.From(snapshot.CurrentEvent),
+            snapshot.CompletedEvents.LastOrDefault() is { } lastEvent ? StarshipOverlayEventResult.From(lastEvent) : null);
+    }
+}
+
+public sealed record StarshipOverlayEventSnapshot(
+    int Sequence,
+    string EventType,
+    string Title,
+    string Description,
+    string Sector,
+    DateTimeOffset ClosesAtUtc,
+    IReadOnlyList<StarshipOverlayChoice> Choices,
+    string DefaultChoiceId,
+    IReadOnlyDictionary<string, int> VoteCounts)
+{
+    public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent) => new(
+        expeditionEvent.Sequence,
+        expeditionEvent.EventType,
+        expeditionEvent.Title,
+        expeditionEvent.Description,
+        expeditionEvent.Sector,
+        expeditionEvent.ClosesAtUtc,
+        expeditionEvent.Choices.Select(choice => new StarshipOverlayChoice(choice.ChoiceId, choice.Label)).ToList(),
+        expeditionEvent.DefaultChoiceId,
+        expeditionEvent.Votes
+            .GroupBy(vote => vote.ChoiceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase));
+}
+
+public sealed record StarshipOverlayChoice(string ChoiceId, string Label);
+
+public sealed record StarshipOverlayEventResult(
+    int Sequence,
+    string Title,
+    string Sector,
+    string Choice,
+    DateTimeOffset? ResolvedAtUtc)
+{
+    public static StarshipOverlayEventResult From(StarshipExpeditionEventSnapshot expeditionEvent)
+    {
+        var choice = expeditionEvent.Choices.FirstOrDefault(option =>
+            string.Equals(option.ChoiceId, expeditionEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        return new StarshipOverlayEventResult(
+            expeditionEvent.Sequence,
+            expeditionEvent.Title,
+            expeditionEvent.Sector,
+            choice?.Label ?? expeditionEvent.ResolvedChoiceId ?? string.Empty,
+            expeditionEvent.ResolvedAtUtc);
+    }
+}

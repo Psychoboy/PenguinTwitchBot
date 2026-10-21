@@ -615,6 +615,8 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
 
             Assert.Contains(WidgetRegistry.All, w => w.Type == "parachute" && w.SourcePath == "/parachute.html");
             Assert.Contains(WidgetRegistry.All, w => w.Type == "plinko" && w.SourcePath == "/plinko.html");
+            Assert.Contains(WidgetRegistry.All, w => w.Type == "starship-status" && w.SourcePath == "/starship-status.html");
+            Assert.Contains(WidgetRegistry.All, w => w.Type == "starship-event" && w.SourcePath == "/starship-event.html");
         }
 
         [Fact]

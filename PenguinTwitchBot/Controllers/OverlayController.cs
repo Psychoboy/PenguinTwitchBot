@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
@@ -29,6 +30,7 @@ namespace PenguinTwitchBot.Controllers
             IStreamTimerService streamTimerService,
             ICounterService counterService,
             IDeathCounterService deathCounterService,
+            IStarshipExpeditionService starshipExpeditionService,
             ILogger<OverlayController> logger)
         {
             _unitOfWork = unitOfWork;
@@ -36,8 +38,11 @@ namespace PenguinTwitchBot.Controllers
             _streamTimerService = streamTimerService;
             _counterService = counterService;
             _deathCounterService = deathCounterService;
+            _starshipExpeditionService = starshipExpeditionService;
             _logger = logger;
         }
+
+        private readonly IStarshipExpeditionService _starshipExpeditionService;
 
         /// <summary>
         /// Returns the overlay layout config for the compositor page.
@@ -77,6 +82,15 @@ namespace PenguinTwitchBot.Controllers
                 .ToList();
 
             return Ok(new OverlayConfigResponse(overlayLayout.Name, overlayLayout.CanvasWidth, overlayLayout.CanvasHeight, widgets));
+        }
+
+        [AllowAnonymous]
+        [HttpGet("starship-state")]
+        public async Task<IActionResult> GetStarshipState()
+        {
+            var snapshot = await _starshipExpeditionService.GetSnapshotAsync();
+            var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot);
+            return Ok(new { type = "expedition_state", snapshot = state });
         }
 
         /// <summary>Returns all layouts (names + ids) for the editor UI.</summary>

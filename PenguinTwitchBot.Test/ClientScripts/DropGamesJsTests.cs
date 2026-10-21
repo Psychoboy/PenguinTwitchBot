@@ -215,6 +215,204 @@ namespace PenguinTwitchBot.Test.ClientScripts
             return engine;
         }
 
+        private static Engine CreateStarshipOverlayEngine(string view)
+        {
+            var engine = new Engine(options => options.TimeoutInterval(TimeSpan.FromSeconds(5)));
+            engine.Execute($@"
+                var __elements = {{}};
+                function __element() {{
+                    var element = {{ hidden: false, style: {{}}, dataset: {{}}, children: [],
+                        replaceChildren: function() {{ this.children = []; }},
+                        append: function() {{ this.children.push.apply(this.children, arguments); }},
+                        appendChild: function(child) {{ this.children.push(child); return child; }} }};
+                    Object.defineProperty(element, 'textContent', {{
+                        get: function() {{ return this._textContent || ''; }},
+                        set: function(value) {{ this._textContent = String(value); }}
+                    }});
+                    return element;
+                }}
+                var window = {{
+                    WS_TOPICS: {{ starship: 'starship' }},
+                    __handlers: {{}},
+                    __fetchCount: 0,
+                    createWsSocket: function(name, topics) {{
+                        window.__topics = topics;
+                        return {{ readyState: 1, send: function() {{}}, addEventListener: function(name, handler) {{ window.__handlers[name] = handler; }} }};
+                    }},
+                    setInterval: function(handler) {{ window.__renderTick = handler; return 1; }},
+                    wsStatusShow: function() {{}}
+                }};
+                var document = {{
+                    body: {{ dataset: {{ starshipView: '{view}' }} }},
+                    getElementById: function(id) {{ return __elements[id] || (__elements[id] = __element()); }},
+                    createElement: function() {{ return __element(); }}
+                }};
+                var WebSocket = {{ OPEN: 1 }};
+                var fetch = function() {{ window.__fetchCount++; return Promise.resolve({{ ok: true, json: function() {{ return Promise.resolve({{ type: 'expedition_state', snapshot: null }}); }} }}); }};
+            ");
+
+            var jsRoot = FindWwwRootPath();
+            engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-overlay.js")));
+            return engine;
+        }
+
+        private static void DispatchStarshipOverlayState(Engine engine, object snapshot)
+        {
+            var payload = JsonSerializer.Serialize(new { type = "expedition_state", snapshot });
+            var serializedPayload = JsonSerializer.Serialize(payload);
+            engine.Execute($"window.__handlers.message({{ data: {serializedPayload} }});");
+        }
+
+        [Fact]
+        public void StarshipStatusWidget_RendersBoardingAndVoyageProgress()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Boarding",
+                updatedAtUtc = DateTimeOffset.UtcNow.ToString("O"),
+                currentLeg = 0,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Uncharted",
+                crewCount = 3,
+                boardingClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(35).ToString("O"),
+                nextEventAtUtc = (string?)null,
+                currentEvent = (object?)null,
+                latestResult = (object?)null
+            });
+
+            Assert.Equal("Boarding", engine.Evaluate("document.getElementById('phase').textContent").AsString());
+            Assert.Equal("Kepler Reach", engine.Evaluate("document.getElementById('sector').textContent").AsString());
+            Assert.Equal("3", engine.Evaluate("document.getElementById('crew-count').textContent").AsString());
+            Assert.Equal("Leg 0 / 5", engine.Evaluate("document.getElementById('leg-count').textContent").AsString());
+            Assert.Contains("Takeoff in", engine.Evaluate("document.getElementById('timing').textContent").AsString());
+            Assert.Equal("starship", engine.Evaluate("window.__topics[0]").AsString());
+        }
+
+        [Fact]
+        public void StarshipEventWidget_RendersVoteCommandsThenCollapsesToResolution()
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            Assert.Equal(1, (int)engine.Evaluate("window.__fetchCount").AsNumber());
+            engine.Execute("window.__handlers.open();");
+            Assert.Equal(2, (int)engine.Evaluate("window.__fetchCount").AsNumber());
+            var updatedAt = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen",
+                updatedAtUtc = updatedAt.ToString("O"),
+                currentLeg = 0,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Uncharted",
+                crewCount = 2,
+                boardingClosesAtUtc = (string?)null,
+                nextEventAtUtc = (string?)null,
+                currentEvent = new
+                {
+                    sequence = 1,
+                    eventType = "RouteChoice",
+                    title = "Choose a Route",
+                    description = "The crew can take a direct route or detour through a survey area.",
+                    sector = "Kepler Reach",
+                    closesAtUtc = updatedAt.AddSeconds(40).ToString("O"),
+                    choices = new[]
+                    {
+                        new { choiceId = "direct", label = "Take the direct route" },
+                        new { choiceId = "detour", label = "Take the survey detour" }
+                    },
+                    defaultChoiceId = "direct",
+                    voteCounts = new Dictionary<string, int> { ["direct"] = 1, ["detour"] = 0 }
+                },
+                latestResult = (object?)null
+            });
+
+            Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+            Assert.Equal("Choose a Route", engine.Evaluate("document.getElementById('event-title').textContent").AsString());
+            Assert.Equal(2, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
+            Assert.Contains("!starship vote direct", engine.Evaluate("document.getElementById('choices').children[0].children[1].textContent").AsString());
+            Assert.Equal("1 vote", engine.Evaluate("document.getElementById('choices').children[0].children[2].textContent").AsString());
+
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Cruising",
+                updatedAtUtc = updatedAt.AddSeconds(1).ToString("O"),
+                currentLeg = 1,
+                legCount = 5,
+                currentSector = "Ternion Belt",
+                currentRoute = "Direct Route",
+                crewCount = 2,
+                boardingClosesAtUtc = (string?)null,
+                nextEventAtUtc = updatedAt.AddMinutes(10).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = new
+                {
+                    sequence = 1,
+                    title = "Choose a Route",
+                    sector = "Kepler Reach",
+                    choice = "Take the direct route",
+                    resolvedAtUtc = updatedAt.AddSeconds(1).ToString("O")
+                }
+            });
+
+            Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+            Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
+            Assert.True(engine.Evaluate("document.getElementById('event-panel').hidden").AsBoolean());
+
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen",
+                updatedAtUtc = updatedAt.ToString("O"),
+                currentLeg = 0,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Uncharted",
+                crewCount = 2,
+                boardingClosesAtUtc = (string?)null,
+                nextEventAtUtc = (string?)null,
+                currentEvent = new
+                {
+                    sequence = 1,
+                    eventType = "SignalDetected",
+                    title = "Stale Signal",
+                    description = "Old state",
+                    sector = "Kepler Reach",
+                    closesAtUtc = updatedAt.AddSeconds(40).ToString("O"),
+                    choices = new[] { new { choiceId = "scan", label = "Scan" } },
+                    defaultChoiceId = "scan",
+                    voteCounts = new Dictionary<string, int>()
+                },
+                latestResult = (object?)null
+            });
+            Assert.Equal("Choose a Route", engine.Evaluate("document.getElementById('event-title').textContent").AsString());
+            Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
+        }
+
+        [Fact]
+        public void WsClient_RegistersStarshipTopicAndSubscribesToIt()
+        {
+            var engine = new Engine();
+            engine.Execute(@"
+                var window = { location: { protocol: 'https:', host: 'overlay.test' } };
+                var URLSearchParams = function() {
+                    this.values = [];
+                    this.set = function(key, value) { this.values.push(key + '=' + value); };
+                    this.toString = function() { return this.values.join('&'); };
+                };
+                var ReconnectingWebSocket = function(uri) {
+                    window.__socketUri = uri;
+                    this.addEventListener = function() {};
+                    this.send = function() {};
+                };
+            ");
+            engine.Execute(File.ReadAllText(Path.Combine(FindWwwRootPath(), "ws-client.js")));
+            engine.Execute("window.createWsSocket('starship-test', [window.WS_TOPICS.starship]);");
+
+            Assert.Equal("starship", engine.Evaluate("window.WS_TOPICS.starship").AsString());
+            Assert.Contains("topics=starship", engine.Evaluate("window.__socketUri").AsString());
+        }
+
         [Fact]
         public void PlinkoJs_LoadsAndExecutesWithoutRuntimeErrors()
         {
