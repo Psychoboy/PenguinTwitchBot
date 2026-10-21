@@ -455,6 +455,39 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(99, Assert.Single(nextResult.CompletedEvents.Last().RewardOutcomes).EarnedAmount);
     }
 
+    [Fact]
+    public async Task StarterEvents_InvalidCandidateDoesNotDiscardValidStartersOrBlockSavedVersion()
+    {
+        var root = Directory.CreateTempSubdirectory("starship-starter-review-");
+        try
+        {
+            var source = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot", "help", "starship", "examples"));
+            var destination = Path.Combine(root.FullName, "help", "starship", "examples");
+            Directory.CreateDirectory(destination);
+            foreach (var fileName in StarshipStarterEvents.FileNames)
+            {
+                var document = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(source, fileName)))!;
+                if (fileName == "survey-cache.json") document["event"]!["description"] = "!invalid-command";
+                await File.WriteAllTextAsync(Path.Combine(destination, fileName), document.ToJsonString());
+            }
+            var environment = new Mock<IWebHostEnvironment>();
+            environment.SetupGet(instance => instance.WebRootPath).Returns(root.FullName);
+            var store = new StarshipExpeditionSettingsStore(_services.GetRequiredService<IServiceScopeFactory>(), environment.Object);
+
+            var settings = await store.LoadAsync();
+
+            Assert.Equal(7, settings.EventCatalog.Count);
+            Assert.Equal(5, settings.EventCatalog.Single(definition => definition.EventType == "courier-relay").SortOrder);
+            Assert.Equal(6, settings.EventCatalog.Single(definition => definition.EventType == "debris-crossing").SortOrder);
+            Assert.DoesNotContain(settings.EventCatalog, definition => definition.EventType == "survey-cache");
+            Assert.Equal(StarshipStarterEvents.CurrentVersion, (await store.LoadAsync()).StarterEventsVersion);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
     private StarshipExpeditionSettingsStore CreateStore()
     {
         var environment = new Mock<IWebHostEnvironment>();

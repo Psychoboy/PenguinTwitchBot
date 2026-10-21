@@ -1,3 +1,4 @@
+using System.Globalization;
 using PenguinTwitchBot.Database.Bot.Actions.SubActions.UI;
 
 namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
@@ -57,9 +58,16 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
 
         public string? Validate(Dictionary<string, object?> values)
         {
-            if (values.TryGetValue(nameof(DurationSeconds), out var duration) && string.IsNullOrWhiteSpace(duration as string))
+            var duration = values.TryGetValue(nameof(DurationSeconds), out var value) ? value as string : DurationSeconds;
+            duration = duration?.Trim();
+            if (string.IsNullOrWhiteSpace(duration))
             {
                 return "A show duration is required.";
+            }
+            if (!duration.Contains('%') && !duration.Contains('$') &&
+                (!int.TryParse(duration, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seconds) || seconds is < 1 or > 3600))
+            {
+                return "Show duration must be a whole number of seconds (1-3600).";
             }
             return null;
         }

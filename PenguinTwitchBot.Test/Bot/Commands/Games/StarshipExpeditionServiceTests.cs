@@ -483,6 +483,7 @@ public class StarshipExpeditionServiceTests
         var stateStore = new InMemoryStateStore();
         var service = CreateService(stateStore, settingsStore: settingsStore);
         var started = await service.StartExpeditionAsync("moderator", seed: 444);
+        Assert.Equal(started.ExpeditionId, StarshipExpeditionOverlaySnapshot.From(started).ExpeditionId);
         await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
         settings.DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors];
         settings.CustomSectors = ["New Sector One", "New Sector Two"];
@@ -1795,6 +1796,72 @@ public class StarshipExpeditionServiceTests
 
         Assert.Equal(expected, resolved.CompletedEvents.Last().RewardOutcomes.Single().LostAmount);
         Assert.Equal(1000 - expected, resolved.Crew.Single().UnbankedBalances.Single().Amount);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MultiCurrencyOutcome_CountsDistinctParticipantsAndFiresOneRiskTrigger(bool succeeds)
+    {
+        var snapshot = CreateSalvageFixture();
+        var profile = snapshot.RewardProfiles[0];
+        profile.SuccessChancePercent = succeeds ? 100 : 0;
+        profile.ConvertLegacyToTiers();
+        profile.Tiers[0].Rewards.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Minimum = 10, Maximum = 10 });
+        profile.LossRules.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Percent = 20, MaximumPerEvent = 100 });
+        snapshot.Crew[0].UnbankedBalances.Add(new() { PointTypeId = 3, PointTypeName = "Tokens", Amount = 50 });
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var fired = new List<(string EventType, Dictionary<string, string> Variables)>();
+        var triggers = new Mock<IDefaultCommandTriggerService>();
+        triggers.Setup(instance => instance.TriggerDefaultCommandEventAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, eventType, _, variables) => fired.Add((eventType, variables)))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(store, defaultCommandTriggerService: triggers.Object);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+
+        await service.AdvanceEventAsync();
+
+        Assert.Equal(succeeds ? "1" : "0", fired.Single(item => item.EventType == DefaultCommandEventTypes.StarshipEventResolved).Variables["RewardParticipantCount"]);
+        Assert.Equal("1", fired.Single(item => item.EventType == (succeeds ? DefaultCommandEventTypes.StarshipEventSucceeded : DefaultCommandEventTypes.StarshipEventFailed)).Variables["AffectedCount"]);
+        var risk = Assert.Single(fired, item => item.EventType == (succeeds ? DefaultCommandEventTypes.StarshipRiskSucceeded : DefaultCommandEventTypes.StarshipRiskFailed));
+        Assert.Equal(succeeds ? "20" : "0", risk.Variables["EarnedAmount"]);
+        Assert.Equal(succeeds ? "0" : "50", risk.Variables["LostAmount"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Settlement_FailedPayoutDoesNotBlockLaterUsersAndRetriesNextPass(bool throws)
+    {
+        var snapshot = CreateSalvageFixture();
+        snapshot.BankedPayouts.AddRange(
+        [
+            new() { OperationId = "first-operation", UserId = "first-user", PointTypeId = 2, Amount = 10 },
+            new() { OperationId = "second-operation", UserId = "second-user", PointTypeId = 2, Amount = 20 }
+        ]);
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var points = new Mock<IPointsSystem>();
+        var attempts = 0;
+        points.Setup(instance => instance.AddPointsByUserIdOnce("first-user", 2, 10, "first-operation")).Returns(() =>
+        {
+            attempts++;
+            return attempts == 1 && throws ? Task.FromException<bool>(new IOException("Payout unavailable")) : Task.FromResult(attempts > 1);
+        });
+        points.Setup(instance => instance.AddPointsByUserIdOnce("second-user", 2, 20, "second-operation")).ReturnsAsync(true);
+        var service = CreateService(store, pointsSystem: points.Object);
+
+        await service.ProcessDueTransitionAsync();
+        var firstPass = await service.GetSnapshotAsync();
+        Assert.False(firstPass!.BankedPayouts[0].IsPaid);
+        Assert.True(firstPass.BankedPayouts[1].IsPaid);
+        Assert.Equal(1, attempts);
+        await service.ProcessDueTransitionAsync();
+        Assert.All((await service.GetSnapshotAsync())!.BankedPayouts, payout => Assert.True(payout.IsPaid));
+        points.Verify(instance => instance.AddPointsByUserIdOnce("second-user", 2, 20, "second-operation"), Times.Once);
     }
 
     private static StarshipExpeditionService CreateService(

@@ -88,9 +88,10 @@ namespace PenguinTwitchBot.Controllers
         [HttpGet("starship-state")]
         public async Task<IActionResult> GetStarshipState()
         {
-            var snapshot = await _starshipExpeditionService.GetSnapshotAsync();
+            var cancellationToken = HttpContext.RequestAborted;
+            var snapshot = await _starshipExpeditionService.GetSnapshotAsync(cancellationToken);
             var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot);
-            var appearance = await _starshipExpeditionService.GetAppearanceAsync();
+            var appearance = await _starshipExpeditionService.GetAppearanceAsync(cancellationToken);
             return Ok(new { type = "expedition_state", snapshot = state, appearance });
         }
 

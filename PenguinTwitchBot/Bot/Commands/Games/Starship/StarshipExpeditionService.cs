@@ -682,14 +682,16 @@ public sealed class StarshipExpeditionService(
             resolvedVariables["VoteCount"] = resolvedEvent.Votes.Count.ToString(CultureInfo.InvariantCulture);
             resolvedVariables["Leg"] = resolvedEvent.Sequence.ToString(CultureInfo.InvariantCulture);
             resolvedVariables["Sector"] = resolvedEvent.Sector;
-            resolvedVariables["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0).ToString(CultureInfo.InvariantCulture);
+            resolvedVariables["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0)
+                .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
             resolvedVariables["Summary"] = StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent);
             await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, resolvedVariables);
 
             if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
             {
                 var outcomeVariables = StarshipEventVariables.ForOutcome(resolvedEvent);
-                outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0).ToString(CultureInfo.InvariantCulture);
+                outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
+                    .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
                 await FireTriggerAsync(
                     resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess
                         ? DefaultCommandEventTypes.StarshipEventSucceeded
@@ -698,9 +700,11 @@ public sealed class StarshipExpeditionService(
                     outcomeVariables);
             }
 
-            foreach (var outcome in resolvedEvent.RewardOutcomes.Where(outcome =>
-                         outcome.WasRiskyAction && outcome.Outcome is "Success" or "Failure"))
+            foreach (var userOutcomes in resolvedEvent.RewardOutcomes.Where(outcome =>
+                         outcome.WasRiskyAction && outcome.Outcome is "Success" or "Failure")
+                         .GroupBy(outcome => outcome.UserId, StringComparer.OrdinalIgnoreCase))
             {
+                var outcome = userOutcomes.First();
                 await FireTriggerAsync(
                     outcome.Outcome == "Success" ? DefaultCommandEventTypes.StarshipRiskSucceeded : DefaultCommandEventTypes.StarshipRiskFailed,
                     current,
@@ -710,8 +714,8 @@ public sealed class StarshipExpeditionService(
                         ["EventTitle"] = resolvedEvent.Title,
                         ["EventType"] = resolvedEvent.EventType,
                         ["PointType"] = outcome.PointTypeName,
-                        ["EarnedAmount"] = outcome.EarnedAmount.ToString(CultureInfo.InvariantCulture),
-                        ["LostAmount"] = outcome.LostAmount.ToString(CultureInfo.InvariantCulture),
+                        ["EarnedAmount"] = userOutcomes.Sum(item => item.EarnedAmount).ToString(CultureInfo.InvariantCulture),
+                        ["LostAmount"] = userOutcomes.Sum(item => item.LostAmount).ToString(CultureInfo.InvariantCulture),
                         ["Rarity"] = outcome.Rarity,
                         ["Choice"] = selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? string.Empty,
                         ["SuccessChancePercent"] = outcome.SuccessChancePercent.ToString(CultureInfo.InvariantCulture),
@@ -720,7 +724,7 @@ public sealed class StarshipExpeditionService(
                     new CommandEventArgs
                     {
                         Command = DefaultCommandName,
-                        Name = current.Crew.First(member => member.UserId == outcome.UserId).UserName,
+                        Name = current.Crew.First(member => string.Equals(member.UserId, outcome.UserId, StringComparison.OrdinalIgnoreCase)).UserName,
                         DisplayName = outcome.DisplayName,
                         UserId = outcome.UserId
                     });
@@ -746,6 +750,7 @@ public sealed class StarshipExpeditionService(
         await _payoutLock.WaitAsync(cancellationToken);
         try
         {
+            var failedOperations = new HashSet<string>(StringComparer.Ordinal);
             while (!cancellationToken.IsCancellationRequested)
             {
                 StarshipExpeditionSnapshot? snapshot;
@@ -753,7 +758,7 @@ public sealed class StarshipExpeditionService(
                 await _stateLock.WaitAsync(cancellationToken);
                 try
                 {
-                    payout = _snapshot?.BankedPayouts.FirstOrDefault(item => !item.IsPaid);
+                    payout = _snapshot?.BankedPayouts.FirstOrDefault(item => !item.IsPaid && !failedOperations.Contains(item.OperationId));
                     snapshot = _snapshot == null ? null : Clone(_snapshot);
                     if (payout != null)
                         payout = snapshot!.BankedPayouts.First(item => item.OperationId == payout.OperationId);
@@ -774,7 +779,8 @@ public sealed class StarshipExpeditionService(
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Failed to bank Starship payout {OperationId}; it will be retried", payout.OperationId);
-                    break;
+                    failedOperations.Add(payout.OperationId);
+                    continue;
                 }
 
                 StarshipExpeditionSnapshot? updatedSnapshot = null;

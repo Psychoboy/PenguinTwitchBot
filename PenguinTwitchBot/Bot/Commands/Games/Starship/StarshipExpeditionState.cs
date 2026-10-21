@@ -261,6 +261,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     IReadOnlyList<int> StationLegs,
     IReadOnlyList<StarshipOverlayTimelineEntry> Timeline)
 {
+    public Guid ExpeditionId { get; init; }
+
     public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -286,7 +288,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             snapshot.Ship,
             GetStationLegs(snapshot),
             snapshot.CompletedEvents.Select(item => new StarshipOverlayTimelineEntry(
-                item.Sequence, item.Title, item.OutcomeResult, item.OutcomeRarity, item.ObjectKind)).ToList());
+                item.Sequence, item.Title, item.OutcomeResult, item.OutcomeRarity, item.ObjectKind)).ToList())
+            { ExpeditionId = snapshot.ExpeditionId };
     }
 
     /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>

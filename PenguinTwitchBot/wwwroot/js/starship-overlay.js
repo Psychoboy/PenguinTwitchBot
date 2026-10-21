@@ -533,8 +533,10 @@
             renderRing(currentEvent);
             document.getElementById('event-description').hidden = currentEvent.stepNumber > 1;
             setTextAnimated('event-description', currentEvent.description);
+            const defaultIndex = (currentEvent.choices || []).findIndex(choice => choice.choiceId === currentEvent.defaultChoiceId);
+            const defaultChoice = defaultIndex >= 0 ? currentEvent.choices[defaultIndex] : null;
             setText('event-sector', ((currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : currentEvent.sector) +
-                ' · Default: ' + currentEvent.defaultChoiceId);
+                (defaultChoice ? ' · Default: ' + (defaultChoice.number ?? defaultIndex + 1) + ') ' + defaultChoice.label : ''));
             renderArt(objectSpec(currentEvent.objectKind, currentEvent.objectVariant, currentEvent.objectRoll, currentEvent.objectImages) || shipSpec(true), currentEvent.subject || '');
             renderChoices(currentEvent);
             renderStepInfo(currentEvent);

@@ -22,7 +22,17 @@ public static class StarshipStarterEvents
                 throw new InvalidDataException($"Invalid bundled Starship starter event {fileName}.", ex);
             }
             if (settings.EventCatalog.Any(definition => string.Equals(definition.EventType, starter.EventType, StringComparison.OrdinalIgnoreCase))) continue;
-            settings.EventCatalog.Add(starter with { SortOrder = nextOrder++ });
+            var candidate = starter with { SortOrder = nextOrder };
+            settings.EventCatalog.Add(candidate);
+            try
+            {
+                StarshipEventCatalog.Validate(settings.EventCatalog, settings);
+                nextOrder++;
+            }
+            catch (ArgumentException)
+            {
+                settings.EventCatalog.Remove(candidate);
+            }
         }
         settings.StarterEventsVersion = CurrentVersion;
         StarshipExpeditionSettings.NormalizeAndValidate(settings);

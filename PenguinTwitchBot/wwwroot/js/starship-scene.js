@@ -13,6 +13,7 @@
         let offsetMs = 0;
         let lastFeedId = 0;
         let seenFeed = false;
+        let expeditionId = null;
         let resultKey = '';
         let resultUntil = 0;
         let stepKey = '';
@@ -32,11 +33,18 @@
             const fresh = [];
             if (!snapshot) return fresh;
 
+            const nextExpeditionId = snapshot.expeditionId ?? null;
+            if (nextExpeditionId !== expeditionId) {
+                expeditionId = nextExpeditionId;
+                lastFeedId = 0;
+                seenFeed = false;
+            }
+
             const serverNow = parse(snapshot.serverNowUtc);
             if (serverNow) offsetMs = serverNow - Date.now();
 
             const latest = snapshot.latestResult;
-            const key = latest ? latest.sequence + ':' + latest.choice : '';
+            const key = latest ? latest.sequence + ':' + latest.choice + ':' + (latest.resolvedAtUtc || '') : '';
             if (key && key !== resultKey) {
                 resultKey = key;
                 const resolvedAt = parse(latest.resolvedAtUtc);

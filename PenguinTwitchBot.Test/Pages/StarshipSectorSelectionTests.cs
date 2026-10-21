@@ -22,31 +22,9 @@ public class StarshipSectorSelectionTests
     [Fact]
     public async Task SectorCheckboxes_UpdatePoolAndPreventSavingFewerThanTwoSectors()
     {
-        await using var context = new BunitContext();
-        context.JSInterop.Mode = JSRuntimeMode.Loose;
-        context.JSInterop.SetupModule("./js/starshipEditor.js");
-        context.Services.AddMudServices();
-        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-        context.ComponentFactories.AddStub<HelpButton>();
-        context.ComponentFactories.AddStub<PenguinTwitchBot.Shared.MediaUrlPicker>();
-        context.ComponentFactories.AddStub<PenguinTwitchBot.Pages.Components.GameOutcomeAutomationPanel>();
-        context.ComponentFactories.AddStub<StarshipRewardProfileEditor>();
         var settings = new StarshipExpeditionSettings();
         var store = new Mock<IStarshipExpeditionSettingsStore>();
-        store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
-        store.Setup(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var points = new Mock<IPointsSystem>();
-        points.Setup(instance => instance.GetPointTypes()).ReturnsAsync(new List<PointType>());
-        var actions = new Mock<IActionManagementService>();
-        actions.Setup(instance => instance.GetAllActionsAsync()).ReturnsAsync(new List<ActionType>());
-        var features = new Mock<IFeatureRuntimeCoordinator>();
-        features.Setup(instance => instance.IsEnabled(It.IsAny<string>())).Returns(true);
-        context.Services.AddSingleton(store.Object);
-        context.Services.AddSingleton(points.Object);
-        context.Services.AddSingleton(actions.Object);
-        context.Services.AddSingleton(features.Object);
-        context.Services.AddSingleton(Mock.Of<IStarshipExpeditionService>());
-        context.Render<MudPopoverProvider>();
+        await using var context = CreatePageContext(settings, store);
         var page = context.Render<StarshipExpeditionGame>();
 
         await page.WaitForAssertionAsync(() => Assert.Contains("5 available (minimum 2)", page.Markup));
@@ -83,5 +61,57 @@ public class StarshipSectorSelectionTests
         await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
         await page.WaitForAssertionAsync(() => Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
         Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
+    }
+
+    [Fact]
+    public async Task RemoveRewardProfile_ClearsCatalogReferencesCaseInsensitivelyWithImmutableUpdates()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var profile = new StarshipRewardProfile { Id = "review-profile", Name = "Review Profile", Tiers = [new() { Name = "Common" }] };
+        settings.RewardProfiles.Add(profile);
+        settings.EventRewardProfileIds["SignalDetected"] = profile.Id;
+        var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "SignalDetected");
+        settings.EventCatalog[index] = settings.EventCatalog[index] with { RewardProfileId = profile.Id };
+        await using var context = CreatePageContext(settings, new Mock<IStarshipExpeditionSettingsStore>());
+        var page = context.Render<StarshipExpeditionGame>();
+        await page.WaitForAssertionAsync(() => Assert.Contains("5 available (minimum 2)", page.Markup));
+        var original = settings.EventCatalog[index] with { RewardProfileId = "REVIEW-PROFILE" };
+        settings.EventCatalog[index] = original;
+        var panel = page.FindComponents<MudExpansionPanel>().Single(component => component.Instance.Text?.StartsWith("Review Profile", StringComparison.Ordinal) == true);
+
+        await panel.FindAll("button").Single(button => button.TextContent.Trim() == "Delete Profile").ClickAsync(new MouseEventArgs());
+
+        Assert.DoesNotContain(profile, settings.RewardProfiles);
+        Assert.Equal(string.Empty, settings.EventRewardProfileIds["SignalDetected"]);
+        Assert.Equal(original with { RewardProfileId = string.Empty }, settings.EventCatalog[index]);
+        Assert.Equal("REVIEW-PROFILE", original.RewardProfileId);
+    }
+
+    private static BunitContext CreatePageContext(StarshipExpeditionSettings settings, Mock<IStarshipExpeditionSettingsStore> store)
+    {
+        var context = new BunitContext();
+        context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.JSInterop.SetupModule("./js/starshipEditor.js");
+        context.Services.AddMudServices();
+        context.Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        context.ComponentFactories.AddStub<HelpButton>();
+        context.ComponentFactories.AddStub<PenguinTwitchBot.Shared.MediaUrlPicker>();
+        context.ComponentFactories.AddStub<PenguinTwitchBot.Pages.Components.GameOutcomeAutomationPanel>();
+        context.ComponentFactories.AddStub<StarshipRewardProfileEditor>();
+        store.Setup(instance => instance.LoadAsync(It.IsAny<CancellationToken>())).ReturnsAsync(settings);
+        store.Setup(instance => instance.SaveAsync(It.IsAny<StarshipExpeditionSettings>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var points = new Mock<IPointsSystem>();
+        points.Setup(instance => instance.GetPointTypes()).ReturnsAsync(new List<PointType>());
+        var actions = new Mock<IActionManagementService>();
+        actions.Setup(instance => instance.GetAllActionsAsync()).ReturnsAsync(new List<ActionType>());
+        var features = new Mock<IFeatureRuntimeCoordinator>();
+        features.Setup(instance => instance.IsEnabled(It.IsAny<string>())).Returns(true);
+        context.Services.AddSingleton(store.Object);
+        context.Services.AddSingleton(points.Object);
+        context.Services.AddSingleton(actions.Object);
+        context.Services.AddSingleton(features.Object);
+        context.Services.AddSingleton(Mock.Of<IStarshipExpeditionService>());
+        context.Render<MudPopoverProvider>();
+        return context;
     }
 }

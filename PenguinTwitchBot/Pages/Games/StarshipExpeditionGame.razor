@@ -715,6 +715,12 @@
         _settings.RewardProfiles.Remove(profile);
         foreach (var eventType in _settings.EventRewardProfileIds.Where(binding => binding.Value == profile.Id).Select(binding => binding.Key).ToList())
             _settings.EventRewardProfileIds[eventType] = string.Empty;
+        for (var index = 0; index < _settings.EventCatalog.Count; index++)
+        {
+            var definition = _settings.EventCatalog[index];
+            if (string.Equals(definition.RewardProfileId, profile.Id, StringComparison.OrdinalIgnoreCase))
+                _settings.EventCatalog[index] = definition with { RewardProfileId = string.Empty };
+        }
     }
 
     private string GetRewardProfilePreview(StarshipRewardProfile profile, bool useSnapshotPointName = false)

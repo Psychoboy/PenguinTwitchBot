@@ -507,7 +507,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         [Fact]
         public void StarshipArtCatalog_PreservesAllShipAndObjectVariants()
         {
-            var jsRoot = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot", "js");
+            var jsRoot = FindWwwRootPath();
             var engine = new Engine();
             engine.Execute("var window = {};");
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-art.js")));
@@ -720,6 +720,58 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var timing = engine.Evaluate("document.getElementById('timing').textContent").AsString();
             Assert.True(timing is "Takeoff in 00:35" or "Takeoff in 00:34", timing);
+        }
+
+        [Fact]
+        public void StarshipScene_NewVoyageResetsFeedAndNewResolutionTimeRefreshesResult()
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            engine.Execute(@"
+                var tracker = window.StarshipScene.createTracker();
+                var clock = Date.parse('2026-10-21T12:00:00Z');
+                function state(id, seconds, resolvedSeconds) {
+                    var stamp = new Date(clock + seconds * 1000).toISOString();
+                    return { expeditionId: id, status: 'Cruising', updatedAtUtc: stamp, serverNowUtc: stamp,
+                        activity: [], latestResult: { sequence: 2, choice: 'Recover', resolvedAtUtc: new Date(clock + resolvedSeconds * 1000).toISOString() } };
+                }
+                var first = state('voyage-one', 0, 0);
+                first.activity = [{ id: 20, atUtc: first.serverNowUtc, kind: 'CrewJoined' }];
+                window.__firstFeed = tracker.update(first).length;
+                window.__replayFeed = tracker.update(first).length;
+                var expired = state('voyage-one', 20, 0);
+                tracker.update(expired);
+                window.__expiredResult = tracker.derive(expired).eventVisible;
+                var second = state('voyage-two', 20, 20);
+                second.activity = [{ id: 1, atUtc: second.serverNowUtc, kind: 'CrewJoined' }];
+                window.__secondFeed = tracker.update(second).length;
+                window.__freshResult = tracker.derive(second).eventVisible;
+                window.__secondReplay = tracker.update(second).length;
+            ");
+            Assert.Equal(1, (int)engine.Evaluate("window.__firstFeed").AsNumber());
+            Assert.Equal(0, (int)engine.Evaluate("window.__replayFeed").AsNumber());
+            Assert.False(engine.Evaluate("window.__expiredResult").AsBoolean());
+            Assert.Equal(1, (int)engine.Evaluate("window.__secondFeed").AsNumber());
+            Assert.True(engine.Evaluate("window.__freshResult").AsBoolean());
+            Assert.Equal(0, (int)engine.Evaluate("window.__secondReplay").AsNumber());
+        }
+
+        [Theory]
+        [InlineData("recover", "Kepler Reach · Default: 2) Recover the cache")]
+        [InlineData("missing", "Kepler Reach")]
+        public void StarshipEventWidget_DefaultFooterUsesViewerChoiceOrOmitsSuffix(string defaultId, string expected)
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            var currentEvent = new
+            {
+                sequence = 2, eventType = "cache", title = "Cache", description = "A cache.", sector = "Kepler Reach",
+                openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
+                choices = new[] { new { choiceId = "pass", label = "Pass", number = 1 }, new { choiceId = "recover", label = "Recover the cache", number = 2 } },
+                defaultChoiceId = defaultId, voteCounts = new Dictionary<string, int>(), stepNumber = 1, path = Array.Empty<string>()
+            };
+            DispatchStarshipOverlayState(engine, StarshipAppearanceSnapshot(now, 0,
+                new { name = "Ship", hullStyle = "arrow", accentColor = "#66d0c2", variant = 0 }, currentEvent));
+            Assert.Equal(expected, engine.Evaluate("document.getElementById('event-sector').textContent").AsString());
         }
 
         [Fact]

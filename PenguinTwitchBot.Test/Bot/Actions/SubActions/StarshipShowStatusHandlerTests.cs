@@ -8,6 +8,31 @@ namespace PenguinTwitchBot.Test.Bot.Actions.SubActions
 {
     public class StarshipShowStatusHandlerTests
     {
+        [Theory]
+        [InlineData("1")]
+        [InlineData("3600")]
+        [InlineData(" 45 ")]
+        [InlineData("%Seconds%")]
+        [InlineData("$math(30 * 2)$")]
+        public void Validate_AcceptsBoundedLiteralsAndRuntimeExpressions(string duration)
+        {
+            Assert.Null(new StarshipShowStatusType().Validate(new() { [nameof(StarshipShowStatusType.DurationSeconds)] = duration }));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("  ")]
+        [InlineData("abc")]
+        [InlineData("0")]
+        [InlineData("-1")]
+        [InlineData("3601")]
+        [InlineData("1.5")]
+        public void Validate_RejectsBlankAndInvalidLiterals(string? duration)
+        {
+            Assert.NotNull(new StarshipShowStatusType().Validate(new() { [nameof(StarshipShowStatusType.DurationSeconds)] = duration }));
+        }
+
         [Fact]
         public async Task ExecuteAsync_ResolvesVariablesAndShowsStatusWidget()
         {
