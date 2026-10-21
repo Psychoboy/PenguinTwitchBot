@@ -30,7 +30,7 @@ namespace PenguinTwitchBot.Database.Bot.Models.Overlay
             new("timer",     "Timer",     "/timer.html",      420,  160),
             new("counter",   "Counters",  "/counter.html",    400,  160),
             new("parachute", "Parachute Drop", "/parachute.html", 1920, 1080),
-            new("plinko",    "Plinko Bounce",  "/plinko.html",    800,  900),
+            new("plinko",    "Plinko Bounce",  "/plinko.html",    1920,  1080),
             new("balloon",   "Balloon Ascent", "/balloon.html",   1920, 1080),
             new("curling",   "Curling & Shuffleboard", "/curling.html", 1920, 1080),
             new("golf",      "Golf (Chip & Putt)",     "/golf.html",    1920, 1080),

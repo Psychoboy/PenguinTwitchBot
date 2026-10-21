@@ -522,6 +522,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("Duration", "Total duration of the curling session in seconds", source, category, "100");
             variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
             variables.SetVariable("Theme", "Active theme name of the curling session", source, category, "Winter (Snowflakes)");
+            variables.SetVariable("Condition", "Ice condition used for the curling round", source, category, "Slick Ice");
+            variables.SetVariable("TargetDistance", "Target distance used for the curling round", source, category, "84.0");
             variables.SetVariable("Game", "Game name", source, category, "Curling");
         }
         else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.CurlingEnd, StringComparison.OrdinalIgnoreCase) ||
@@ -557,6 +559,8 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("Duration", "Total duration of the golf session in seconds", source, category, "100");
             variables.SetVariable("TriggeredBy", "Username or system that started the session", source, category, "Broadcaster");
             variables.SetVariable("Theme", "Active theme name of the golf session", source, category, "Summer (Beach Party)");
+            variables.SetVariable("Condition", "Green condition used for the golf round", source, category, "Fast Links");
+            variables.SetVariable("TargetDistance", "Pin distance used for the golf round", source, category, "84.0");
             variables.SetVariable("Game", "Game name", source, category, "Golf");
         }
         else if (eventType != null && (eventType.Equals(DefaultCommandEventTypes.GolfEnd, StringComparison.OrdinalIgnoreCase) ||
