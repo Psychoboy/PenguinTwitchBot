@@ -51,6 +51,10 @@ body {
     opacity: 0;
 }
 
+body[data-preview] #ws-status {
+    display: none;
+}
+
 #stage {
     position: absolute;
     top: 0;
@@ -60,6 +64,8 @@ body {
     transform: scale(var(--ui-scale, 1));
     transform-origin: top left;
     --ship-accent: var(--teal);
+    color: var(--text);
+    font-family: var(--font, 'Barlow Condensed', 'Arial Narrow', sans-serif);
 }
 
 #starship-widget {
@@ -68,7 +74,7 @@ body {
     height: 100%;
     overflow: hidden;
     border: 1px solid var(--panel-line);
-    border-radius: 7px;
+    border-radius: var(--radius, 7px);
     background-color: var(--panel);
     background-image: repeating-linear-gradient(0deg, transparent 0 23px, rgba(91, 173, 165, 0.055) 24px),
         repeating-linear-gradient(90deg, transparent 0 39px, rgba(91, 173, 165, 0.04) 40px);
@@ -776,6 +782,30 @@ h1 {
     0% { opacity: 0; transform: scale(0.4); filter: blur(4px); }
     60% { opacity: 1; transform: scale(1.25); filter: blur(0); }
     100% { transform: scale(1); }
+}
+
+.scene-object img,
+.ship-icon img,
+.ship-marker img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+#stage[data-chips='off'] .chip-row,
+#stage[data-votebars='off'] .vote-bar,
+#stage[data-odds='off'] .reward-disclosure,
+#stage[data-path='off'] #event-sector,
+#stage[data-routemap='off'] .route-map {
+    display: none !important;
+}
+
+#stage[data-animations='off'] *,
+#stage[data-animations='off'] *::before,
+#stage[data-animations='off'] *::after {
+    animation: none !important;
+    transition: none !important;
 }
 
 @keyframes panel-in {

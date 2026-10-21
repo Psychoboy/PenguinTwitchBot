@@ -90,7 +90,8 @@ namespace PenguinTwitchBot.Controllers
         {
             var snapshot = await _starshipExpeditionService.GetSnapshotAsync();
             var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot);
-            return Ok(new { type = "expedition_state", snapshot = state });
+            var appearance = await _starshipExpeditionService.GetAppearanceAsync();
+            return Ok(new { type = "expedition_state", snapshot = state, appearance });
         }
 
         /// <summary>Returns all layouts (names + ids) for the editor UI.</summary>

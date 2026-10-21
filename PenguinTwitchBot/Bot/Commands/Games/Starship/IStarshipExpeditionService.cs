@@ -20,4 +20,8 @@ public interface IStarshipExpeditionService
     Task<StarshipExpeditionSnapshot> ConfirmRiskActionAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default);
     /// <summary>Keeps the status widget visible for a period; returns null when there is no active voyage.</summary>
     Task<StarshipExpeditionSnapshot?> ShowStatusWidgetAsync(int durationSeconds, CancellationToken cancellationToken = default);
+    /// <summary>The saved overlay look, sent to the widgets with every state update.</summary>
+    Task<StarshipAppearanceSettings> GetAppearanceAsync(CancellationToken cancellationToken = default);
+    /// <summary>Reloads the saved look and pushes it to connected overlays immediately.</summary>
+    Task RefreshAppearanceAsync(CancellationToken cancellationToken = default);
 }

@@ -3,11 +3,14 @@
 @using PenguinTwitchBot.Bot.Commands.Games.Starship
 @using PenguinTwitchBot.Bot.Features
 @using PenguinTwitchBot.Pages.Components
+@using MudBlazor.Utilities
 @inject IStarshipExpeditionSettingsStore SettingsStore
 @inject IStarshipExpeditionService ExpeditionService
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
 
 <PageTitle>Starship Expedition</PageTitle>
 
@@ -292,6 +295,103 @@
                     </MudGrid>
                 </MudTabPanel>
 
+                <MudTabPanel Text="Appearance">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="6">
+                            <MudStack Spacing="3">
+                                <MudPaper Class="pa-4" Outlined="true">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                                        <MudText Typo="Typo.h6">Colours & Style</MudText>
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.RestartAlt" OnClick="ResetAppearance">Reset to defaults</MudButton>
+                                    </MudStack>
+                                    <MudGrid Spacing="2">
+                                        <MudItem xs="12" sm="6">@ColorField("Panel colour", _settings.Appearance.PanelColor, value => _settings.Appearance.PanelColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">@ColorField("Text colour", _settings.Appearance.TextColor, value => _settings.Appearance.TextColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">@ColorField("Secondary text", _settings.Appearance.MutedColor, value => _settings.Appearance.MutedColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">@ColorField("Accent colour", _settings.Appearance.AccentColor, value => _settings.Appearance.AccentColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">@ColorField("Highlight colour", _settings.Appearance.HighlightColor, value => _settings.Appearance.HighlightColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">@ColorField("Warning / failure colour", _settings.Appearance.WarningColor, value => _settings.Appearance.WarningColor = value)</MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText Typo="Typo.caption">Panel opacity: @_settings.Appearance.PanelOpacityPercent%</MudText>
+                                            <MudSlider T="int" Min="0" Max="100" @bind-Value="_settings.Appearance.PanelOpacityPercent" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText Typo="Typo.caption">Corner radius: @_settings.Appearance.CornerRadiusPx px</MudText>
+                                            <MudSlider T="int" Min="0" Max="24" @bind-Value="_settings.Appearance.CornerRadiusPx" />
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSelect T="string" Label="Font" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_settings.Appearance.FontFamily">
+                                                @foreach (var font in StarshipAppearanceSettings.FontFamilies)
+                                                {
+                                                    <MudSelectItem Value="@font">@font</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudSwitch T="bool" Color="Color.Primary" Label="Use each ship's own accent colour" @bind-Value="_settings.Appearance.UseShipAccent" />
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+
+                                <MudPaper Class="pa-4" Outlined="true">
+                                    <MudText Typo="Typo.h6" Class="mb-2">Show or hide</MudText>
+                                    <MudGrid Spacing="0">
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Animations" @bind-Value="_settings.Appearance.AnimationsEnabled" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Join toasts" @bind-Value="_settings.Appearance.ShowToasts" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Route map (status widget)" @bind-Value="_settings.Appearance.ShowRouteMap" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Effect chips on choices" @bind-Value="_settings.Appearance.ShowEffectChips" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Live vote bars" @bind-Value="_settings.Appearance.ShowVoteBars" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Odds and loss lines" @bind-Value="_settings.Appearance.ShowOddsPanel" /></MudItem>
+                                        <MudItem xs="12" sm="6"><MudSwitch T="bool" Color="Color.Primary" Label="Path / sector footer" @bind-Value="_settings.Appearance.ShowPath" /></MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+
+                                <MudPaper Class="pa-4" Outlined="true">
+                                    <MudText Typo="Typo.h6" Class="mb-1">Custom images</MudText>
+                                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                                        Pick images from the media library. They are mixed into the same pool as the built-in art; each voyage's ship and each event's object is chosen from the pool automatically. Turn the built-in art off to use only your images (a type with no images falls back to the built-in art).
+                                    </MudText>
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Use built-in ship art" @bind-Value="_settings.Appearance.UseBuiltInShipArt" />
+                                    <MediaUrlPicker Label="Ship images"
+                                                    AllowMultiple="true"
+                                                    Value="@JoinImages(_settings.Appearance.ShipImages)"
+                                                    ValueChanged="@((string? value) => _settings.Appearance.ShipImages = SplitImages(value))"
+                                                    HelperText="Side-on ship images work best (transparent PNG or WebP)." />
+                                    <MudDivider Class="my-3" />
+                                    <MudSwitch T="bool" Color="Color.Primary" Label="Use built-in event object art" @bind-Value="_settings.Appearance.UseBuiltInObjectArt" />
+                                    @foreach (var kind in StarshipAppearanceSettings.ObjectKinds)
+                                    {
+                                        var objectKind = kind;
+                                        <MediaUrlPicker Label="@(ObjectKindLabel(objectKind) + " images")"
+                                                        AllowMultiple="true"
+                                                        Value="@JoinImages(GetObjectImages(objectKind))"
+                                                        ValueChanged="@((string? value) => SetObjectImages(objectKind, value))" />
+                                    }
+                                </MudPaper>
+                            </MudStack>
+                        </MudItem>
+                        <MudItem xs="12" lg="6">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-1">Live preview</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Shows sample data with your unsaved changes. Save settings to apply them to your overlays; connected overlays update immediately.</MudText>
+                                <MudText Typo="Typo.caption">Status widget</MudText>
+                                <iframe class="starship-preview-frame" src="/starship-status.html?preview=1&sample=status" title="Status widget preview"
+                                        style="width:520px;height:180px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-3">
+                                    <MudText Typo="Typo.caption">Event widget</MudText>
+                                    <MudSelect T="string" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_eventSample" Style="max-width:200px">
+                                        <MudSelectItem Value="@("event")">Voting</MudSelectItem>
+                                        <MudSelectItem Value="@("result")">Result</MudSelectItem>
+                                        <MudSelectItem Value="@("end")">Voyage end</MudSelectItem>
+                                    </MudSelect>
+                                </MudStack>
+                                <iframe class="starship-preview-frame" src="@($"/starship-event.html?preview=1&sample={_eventSample}")" title="Event widget preview"
+                                        style="width:620px;height:360px;max-width:100%;border:1px dashed #666;background:#222;"></iframe>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
                 <MudTabPanel Text="Automation & Messages">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" lg="8">
@@ -319,6 +419,94 @@
     private bool _isLoading = true;
     private bool _isSaving;
     private bool _isOperating;
+    private string _eventSample = "event";
+    private IJSObjectReference? _editorModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        try
+        {
+            if (firstRender)
+            {
+                _editorModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/starshipEditor.js");
+                await _editorModule.InvokeVoidAsync("start");
+            }
+
+            if (_editorModule != null && _settings != null)
+                await _editorModule.InvokeVoidAsync("setAppearance", _settings.Appearance);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_editorModule == null) return;
+        try
+        {
+            await _editorModule.InvokeVoidAsync("stop");
+            await _editorModule.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private RenderFragment ColorField(string label, string value, Action<string> setValue) => __builder =>
+    {
+        <MudColorPicker Label="@label"
+                        Value="@ToMudColor(value)"
+                        ValueChanged="@((MudColor color) => setValue(color.ToString(MudColorOutputFormats.Hex)))"
+                        ShowAlpha="false"
+                        ShowModeSwitch="false"
+                        ColorPickerMode="ColorPickerMode.HEX"
+                        Variant="Variant.Outlined"
+                        Margin="Margin.Dense" />
+    };
+
+    private static MudColor ToMudColor(string value)
+    {
+        try
+        {
+            return new MudColor(value);
+        }
+        catch (Exception)
+        {
+            return new MudColor("#000000");
+        }
+    }
+
+    private static string JoinImages(IEnumerable<string>? urls) => string.Join(", ", urls ?? []);
+
+    private static List<string> SplitImages(string? value) =>
+        (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    private List<string> GetObjectImages(string kind) =>
+        _settings != null && _settings.Appearance.ObjectImages.TryGetValue(kind, out var urls) ? urls : [];
+
+    private void SetObjectImages(string kind, string? value)
+    {
+        if (_settings != null) _settings.Appearance.ObjectImages[kind] = SplitImages(value);
+    }
+
+    private static string ObjectKindLabel(string kind) => kind switch
+    {
+        "wreck" => "Derelict wreck",
+        "beacon" => "Signal beacon",
+        "debris" => "Debris field",
+        "station" => "Space station",
+        "fork" => "Route fork",
+        _ => kind
+    };
+
+    private void ResetAppearance()
+    {
+        if (_settings != null) _settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(new StarshipAppearanceSettings());
+    }
 
     private bool IsLive => _liveSnapshot?.Status is StarshipExpeditionStatus.Boarding or StarshipExpeditionStatus.Cruising or StarshipExpeditionStatus.EventOpen;
 
@@ -368,6 +556,7 @@
         {
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
             await SettingsStore.SaveAsync(_settings);
+            await ExpeditionService.RefreshAppearanceAsync();
             Snackbar.Add("Starship Expedition settings saved.", Severity.Success);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
@@ -432,6 +621,7 @@
         {
             _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
             await SettingsStore.SaveAsync(_settings);
+            await ExpeditionService.RefreshAppearanceAsync();
             _liveSnapshot = await ExpeditionService.StartExpeditionAsync("Streamer");
             Snackbar.Add("Starship Expedition started.", Severity.Success);
         }

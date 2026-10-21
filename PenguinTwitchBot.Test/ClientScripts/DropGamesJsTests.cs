@@ -425,6 +425,115 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("Pilot and 3 others joined the crew - 7 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
         }
 
+        private static object StarshipAppearanceSnapshot(DateTimeOffset now, int second, object ship, object? currentEvent = null) => new
+        {
+            status = currentEvent == null ? "Cruising" : "EventOpen",
+            updatedAtUtc = now.AddSeconds(second).ToString("O"),
+            serverNowUtc = now.AddSeconds(second).ToString("O"),
+            currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Direct Route", crewCount = 2,
+            statusForcedUntilUtc = now.AddMinutes(5).ToString("O"),
+            nextEventAtUtc = now.AddMinutes(10).ToString("O"),
+            currentEvent,
+            latestResult = (object?)null,
+            ship
+        };
+
+        [Fact]
+        public void StarshipOverlay_AppearanceEnvelopeSetsStyleVariablesAndSectionSwitches()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            var snapshot = StarshipAppearanceSnapshot(now, 0, new { name = "Odd", hullStyle = "arrow", accentColor = "#f4bd68", variant = 0 });
+            var payload = JsonSerializer.Serialize(new
+            {
+                type = "expedition_state",
+                snapshot,
+                appearance = new
+                {
+                    panelColor = "#102030", panelOpacityPercent = 50, textColor = "#ffffff", mutedColor = "not-a-colour",
+                    accentColor = "#112233", highlightColor = "#445566", warningColor = "#778899", useShipAccent = false,
+                    fontFamily = "Verdana", cornerRadiusPx = 12, animationsEnabled = false,
+                    showEffectChips = false, showVoteBars = false, showOddsPanel = false, showPath = false, showRouteMap = false, showToasts = false
+                }
+            });
+            engine.Execute($"window.__handlers.message({{ data: {JsonSerializer.Serialize(payload)} }});");
+
+            string Style(string name) => engine.Evaluate($"document.getElementById('stage').style['{name}']").AsString();
+            Assert.Equal("rgba(16, 32, 48, 0.5)", Style("--panel"));
+            Assert.Equal("#ffffff", Style("--text"));
+            Assert.Equal("#112233", Style("--teal"));
+            Assert.Equal("rgba(17, 34, 51, 0.42)", Style("--panel-line"));
+            Assert.Equal("#445566", Style("--amber"));
+            Assert.Equal("#778899", Style("--coral"));
+            Assert.Equal("12px", Style("--radius"));
+            Assert.Equal("'Verdana', 'Arial Narrow', sans-serif", Style("--font"));
+            Assert.Equal("#112233", Style("--ship-accent"));
+            Assert.True(engine.Evaluate("document.getElementById('stage').style['--muted'] === undefined").AsBoolean());
+            foreach (var (name, value) in new[] { ("animations", "off"), ("chips", "off"), ("votebars", "off"), ("odds", "off"), ("path", "off"), ("routemap", "off") })
+                Assert.Equal(value, engine.Evaluate($"document.getElementById('stage').dataset.{name}").AsString());
+        }
+
+        [Fact]
+        public void StarshipOverlay_PicksCustomShipImagesAndRejectsUnsafeAddresses()
+        {
+            var now = DateTimeOffset.UtcNow;
+            string IconMarkup(int variant, object appearance, params string[] unused)
+            {
+                var engine = CreateStarshipOverlayEngine("status");
+                var payload = JsonSerializer.Serialize(new
+                {
+                    type = "expedition_state",
+                    snapshot = StarshipAppearanceSnapshot(now, 0, new { name = "Odd", hullStyle = "scout", accentColor = "#f4bd68", variant }),
+                    appearance
+                });
+                engine.Execute($"window.__handlers.message({{ data: {JsonSerializer.Serialize(payload)} }});");
+                return engine.Evaluate("(function () { var icon = document.getElementById('ship-icon'); return icon.children.length ? 'IMG:' + icon.children[0].src + ':' + icon.children[0].className : icon.innerHTML; })()").AsString();
+            }
+
+            var customOnly = new { useBuiltInShipArt = false, shipImages = new[] { "/media/ship%20a.png", "https://cdn.example.com/b.webp" } };
+            Assert.Equal("IMG:/media/ship%20a.png:art-image", IconMarkup(0, customOnly));
+            Assert.Equal("IMG:https://cdn.example.com/b.webp:art-image", IconMarkup(1, customOnly));
+            Assert.Equal("IMG:/media/ship%20a.png:art-image", IconMarkup(2, customOnly));
+
+            var mixed = new { useBuiltInShipArt = true, shipImages = new[] { "/media/ship.png" } };
+            Assert.StartsWith("<svg", IconMarkup(0, mixed), StringComparison.Ordinal);
+            Assert.Equal("IMG:/media/ship.png:art-image", IconMarkup(1, mixed));
+
+            var unsafeOnly = new { useBuiltInShipArt = false, shipImages = new[] { "javascript:alert(1)", "//evil.example.com/x.png", "data:image/png;base64,AAAA", "/media/has space.png" } };
+            Assert.StartsWith("<svg", IconMarkup(0, unsafeOnly), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void StarshipOverlay_PicksCustomEventObjectImagesPerKindAndFallsBackToBuiltInArt()
+        {
+            var now = DateTimeOffset.UtcNow;
+            string ArtMarkup(string kind, object appearance)
+            {
+                var engine = CreateStarshipOverlayEngine("event");
+                var currentEvent = new
+                {
+                    sequence = 2, eventType = "X", title = "T", description = "D", sector = "Kepler Reach",
+                    openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
+                    subject = "the thing", objectKind = kind, objectVariant = 1, objectRoll = 7,
+                    choices = Array.Empty<object>(), defaultChoiceId = "x", voteCounts = new Dictionary<string, int>(),
+                    stepNumber = 1, path = Array.Empty<string>()
+                };
+                var payload = JsonSerializer.Serialize(new
+                {
+                    type = "expedition_state",
+                    snapshot = StarshipAppearanceSnapshot(now, 0, new { name = "S", hullStyle = "arrow", accentColor = "#66d0c2", variant = 0 }, currentEvent),
+                    appearance
+                });
+                engine.Execute($"window.__handlers.message({{ data: {JsonSerializer.Serialize(payload)} }});");
+                return engine.Evaluate("(function () { var art = document.getElementById('scene-object'); return art.children.length ? 'IMG:' + art.children[0].src : art.innerHTML.substring(0, 4); })()").AsString();
+            }
+
+            var wreckImages = new { useBuiltInObjectArt = false, objectImages = new Dictionary<string, string[]> { ["wreck"] = ["/media/w1.png", "/media/w2.png"] } };
+            Assert.Equal("IMG:/media/w2.png", ArtMarkup("wreck", wreckImages));
+            Assert.Equal("<svg", ArtMarkup("beacon", wreckImages));
+            Assert.Equal("<svg", ArtMarkup("wreck", new { useBuiltInObjectArt = true, objectImages = new Dictionary<string, string[]> { ["wreck"] = ["javascript:alert(1)"] } }));
+        }
+
         [Fact]
         public void StarshipStatusWidget_FadesWhileCruisingUnlessForcedVisible()
         {

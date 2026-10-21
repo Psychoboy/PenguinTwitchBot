@@ -1184,6 +1184,47 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task Appearance_IsSentWithStateAndRefreshPushesSavedChangesEvenWithoutAVoyage()
+    {
+        var broadcasts = new List<string>();
+        var settingsStore = new InMemorySettingsStore();
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore, broadcasts: broadcasts);
+
+        Assert.Equal("#66d0c2", (await service.GetAppearanceAsync()).AccentColor);
+        settingsStore.Settings.Appearance.AccentColor = "#8fb8ff";
+        settingsStore.Settings.Appearance.ShipImages = ["/media/ship.png"];
+        await service.RefreshAppearanceAsync();
+
+        Assert.Equal("#8fb8ff", (await service.GetAppearanceAsync()).AccentColor);
+        using (var idle = JsonDocument.Parse(Assert.Single(broadcasts)))
+        {
+            Assert.Equal(JsonValueKind.Null, idle.RootElement.GetProperty("snapshot").ValueKind);
+            Assert.Equal("#8fb8ff", idle.RootElement.GetProperty("appearance").GetProperty("accentColor").GetString());
+            Assert.Equal("/media/ship.png", idle.RootElement.GetProperty("appearance").GetProperty("shipImages")[0].GetString());
+        }
+
+        await service.StartExpeditionAsync("moderator", seed: 11);
+        using var started = JsonDocument.Parse(broadcasts[^1]);
+        Assert.Equal("Boarding", started.RootElement.GetProperty("snapshot").GetProperty("status").GetString());
+        Assert.Equal("#8fb8ff", started.RootElement.GetProperty("appearance").GetProperty("accentColor").GetString());
+        Assert.True(started.RootElement.GetProperty("snapshot").GetProperty("ship").GetProperty("variant").GetInt32() >= 0);
+    }
+
+    [Fact]
+    public async Task EventObjectRoll_IsDeterministicPerSeedAndSequence()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var settings = new StarshipExpeditionSettings { LegCount = 12 };
+        var first = service.BuildPreview(settings, seed: 909);
+        var second = service.BuildPreview(settings, seed: 909);
+
+        Assert.Equal(first.Select(item => item.ObjectRoll), second.Select(item => item.ObjectRoll));
+        Assert.True(first.Select(item => item.ObjectRoll).Distinct().Count() > 1);
+        Assert.Equal(StarshipExpeditionStory.GenerateShip(5).Variant, StarshipExpeditionStory.GenerateShip(5).Variant);
+        await Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task ActivityFeed_RecordsLifecycleWithIncreasingIdsAndServerTime()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
@@ -1456,7 +1497,8 @@ public class StarshipExpeditionServiceTests
         Mock<IServiceBackbone>? serviceBackboneMock = null,
         IDefaultCommandTriggerService? defaultCommandTriggerService = null,
         Mock<IViewerFeature>? viewerFeatureMock = null,
-        IPointsSystem? pointsSystem = null)
+        IPointsSystem? pointsSystem = null,
+        List<string>? broadcasts = null)
     {
         var serviceBackbone = serviceBackboneMock ?? new Mock<IServiceBackbone>();
         if (serviceBackboneMock == null)
@@ -1468,6 +1510,7 @@ public class StarshipExpeditionServiceTests
         }
         var webSocketMessenger = new Mock<IWebSocketMessenger>();
         webSocketMessenger.Setup(messenger => messenger.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string>((_, payload) => broadcasts?.Add(payload))
             .Returns(Task.CompletedTask);
 
         return new StarshipExpeditionService(

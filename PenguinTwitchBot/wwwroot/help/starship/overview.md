@@ -25,6 +25,17 @@ Choices that continue an event are used up once chosen. Each choice can change t
 
 Each event gets a generated subject (for example "the ISV Quiet Meridian" or "the Kestrel-7 beacon") that stays the same for the whole event. Every choice adds a short story beat that names the viewers who picked it, and the outcome ends with what the crew found or lost, so each voyage reads differently.
 
+## Appearance
+
+Open the **Appearance** tab on the Starship page to restyle both widgets. Everything defaults to the original look.
+
+- **Colours and style:** panel, text, accent, highlight and warning colours, panel opacity, corner radius and font. Tick *Use each ship's own accent colour* to keep the per-voyage ship colour, or untick it to use your accent everywhere.
+- **Show or hide:** animations, join toasts, the route map, effect chips, vote bars, the odds and loss lines and the path footer.
+- **Custom images:** pick ship images and per-object images (wreck, beacon, debris field, station, route fork) from the media library. They are mixed into the same pool as the built-in art, so each voyage's ship and each event's object is chosen automatically. Switch the built-in art off to use only your images; an object type with no images keeps its built-in art.
+- **Live preview:** the tab shows sample data with your unsaved changes. Press **Save Settings** to keep them - connected overlays in OBS update immediately, without changing their URLs.
+
+Images must be media-library files (a path starting with `/media/`) or an `http(s)` address.
+
 ## Success, rewards and losses
 
 - Success and rarity are rolled **once per event** from the voyage seed, so results are repeatable and cannot be changed by the overlay.

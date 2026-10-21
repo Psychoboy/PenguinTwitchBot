@@ -80,6 +80,7 @@ public sealed class StarshipExpeditionService(
     private readonly SemaphoreSlim _payoutLock = new(1, 1);
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private StarshipExpeditionSnapshot? _snapshot;
+    private StarshipAppearanceSettings? _appearance;
     private bool _hasLoaded;
     private CancellationTokenSource? _schedulerCancellation;
     private Task? _schedulerTask;
@@ -1115,6 +1116,7 @@ public sealed class StarshipExpeditionService(
             Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition.EventType),
             ObjectKind = StarshipExpeditionStory.GetObjectKind(definition.EventType),
             ObjectVariant = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-variant", StarshipExpeditionStory.ObjectVariantCount),
+            ObjectRoll = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-roll", int.MaxValue),
             SuccessStory = definition.SuccessStory,
             FailureStory = definition.FailureStory,
             Sector = snapshot.CurrentSector,
@@ -1507,10 +1509,16 @@ public sealed class StarshipExpeditionService(
         if (_snapshot == null) return;
         _snapshot.UpdatedAtUtc = _timeProvider.GetUtcNow();
         await stateStore.SaveAsync(_snapshot, cancellationToken);
+        await BroadcastLockedAsync(cancellationToken);
+    }
+
+    private async Task BroadcastLockedAsync(CancellationToken cancellationToken)
+    {
         var payload = JsonSerializer.Serialize(new
         {
             type = "expedition_state",
-            snapshot = StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow())
+            snapshot = _snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow()),
+            appearance = await ResolveAppearanceAsync(cancellationToken)
         }, JsonOptions);
         try
         {
@@ -1518,7 +1526,41 @@ public sealed class StarshipExpeditionService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed broadcasting Starship Expedition state {ExpeditionId}", _snapshot.ExpeditionId);
+            logger.LogError(ex, "Failed broadcasting Starship Expedition state {ExpeditionId}", _snapshot?.ExpeditionId);
+        }
+    }
+
+    private async Task<StarshipAppearanceSettings> ResolveAppearanceAsync(CancellationToken cancellationToken)
+    {
+        if (_appearance != null) return _appearance;
+        try
+        {
+            _appearance = (await settingsStore.LoadAsync(cancellationToken)).Appearance;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Could not load Starship overlay appearance; using defaults");
+            return new StarshipAppearanceSettings();
+        }
+
+        return _appearance;
+    }
+
+    public Task<StarshipAppearanceSettings> GetAppearanceAsync(CancellationToken cancellationToken = default) =>
+        ResolveAppearanceAsync(cancellationToken);
+
+    public async Task RefreshAppearanceAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureLoadedAsync(cancellationToken);
+        await _stateLock.WaitAsync(cancellationToken);
+        try
+        {
+            _appearance = null;
+            await BroadcastLockedAsync(cancellationToken);
+        }
+        finally
+        {
+            _stateLock.Release();
         }
     }
 

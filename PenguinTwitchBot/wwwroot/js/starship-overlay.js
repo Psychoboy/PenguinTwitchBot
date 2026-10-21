@@ -6,6 +6,15 @@
     const stage = document.getElementById('stage');
     const BASE_SIZE = view === 'event' ? { width: 620, height: 360 } : { width: 520, height: 180 };
     const DEFAULT_ACCENT = '#66d0c2';
+    const FONTS = ['Barlow Condensed', 'Arial Narrow', 'Segoe UI', 'Verdana', 'Georgia', 'Trebuchet MS', 'Impact', 'Courier New'];
+    const DEFAULT_APPEARANCE = {
+        panelColor: '#0a181d', panelOpacityPercent: 94, textColor: '#edf5ef', mutedColor: '#a8c1bd',
+        accentColor: DEFAULT_ACCENT, highlightColor: '#f4bd68', warningColor: '#ef866f', useShipAccent: true,
+        fontFamily: 'Barlow Condensed', cornerRadiusPx: 7, animationsEnabled: true,
+        showEffectChips: true, showVoteBars: true, showOddsPanel: true, showPath: true, showRouteMap: true, showToasts: true,
+        useBuiltInShipArt: true, shipImages: [], useBuiltInObjectArt: true, objectImages: {}
+    };
+    const previewMode = !!(window.location && /[?&]preview=/.test(window.location.search || ''));
     const TOAST_MS = 3500;
     const PULSE_MS = 700;
     let socket;
@@ -17,9 +26,59 @@
     let pulseUntil = 0;
     let routeSignature = '';
     let revealCounter = 0;
+    let appearance = Object.assign({}, DEFAULT_APPEARANCE);
     const tracker = window.StarshipScene.createTracker();
     const feedHandlers = [handleActivity];
-    window.StarshipOverlay = { onFeed: function (handler) { feedHandlers.push(handler); } };
+    window.StarshipOverlay = {
+        onFeed: function (handler) { feedHandlers.push(handler); },
+        applyEnvelope: function (message) { applyEnvelope(message); },
+        applyAppearance: function (value) { applyAppearance(value); }
+    };
+
+    function isHex(value) {
+        return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+    }
+
+    function hexToRgba(hex, alpha) {
+        return 'rgba(' + parseInt(hex.slice(1, 3), 16) + ', ' + parseInt(hex.slice(3, 5), 16) + ', ' + parseInt(hex.slice(5, 7), 16) + ', ' + alpha + ')';
+    }
+
+    function isSafeImageUrl(url) {
+        return typeof url === 'string' && url.length <= 500 && /^(https?:\/\/|\/(?!\/))[^\s"'<>\\]+$/.test(url);
+    }
+
+    // The streamer's saved look; anything invalid is ignored so a bad value can never break the overlay.
+    function applyAppearance(next) {
+        appearance = Object.assign({}, DEFAULT_APPEARANCE, next || {});
+        const a = appearance;
+        const panelAlpha = Math.min(100, Math.max(0, Number(a.panelOpacityPercent))) / 100;
+        if (isHex(a.panelColor)) setVar(stage, '--panel', hexToRgba(a.panelColor, Number.isFinite(panelAlpha) ? panelAlpha : 0.94));
+        if (isHex(a.textColor)) setVar(stage, '--text', a.textColor);
+        if (isHex(a.mutedColor)) setVar(stage, '--muted', a.mutedColor);
+        if (isHex(a.accentColor)) {
+            setVar(stage, '--teal', a.accentColor);
+            setVar(stage, '--panel-line', hexToRgba(a.accentColor, 0.42));
+        }
+        if (isHex(a.highlightColor)) setVar(stage, '--amber', a.highlightColor);
+        if (isHex(a.warningColor)) setVar(stage, '--coral', a.warningColor);
+        const radius = Number(a.cornerRadiusPx);
+        setVar(stage, '--radius', (Number.isFinite(radius) ? Math.min(24, Math.max(0, radius)) : 7) + 'px');
+        const font = FONTS.indexOf(a.fontFamily) >= 0 ? a.fontFamily : FONTS[0];
+        setVar(stage, '--font', "'" + font + "', 'Arial Narrow', sans-serif");
+        if (stage && stage.dataset) {
+            stage.dataset.animations = a.animationsEnabled === false ? 'off' : 'on';
+            stage.dataset.chips = a.showEffectChips === false ? 'off' : 'on';
+            stage.dataset.votebars = a.showVoteBars === false ? 'off' : 'on';
+            stage.dataset.odds = a.showOddsPanel === false ? 'off' : 'on';
+            stage.dataset.path = a.showPath === false ? 'off' : 'on';
+            stage.dataset.routemap = a.showRouteMap === false ? 'off' : 'on';
+        }
+        render();
+    }
+
+    function stableIndex(value, count) {
+        return count > 0 ? Math.abs(Math.trunc(Number(value) || 0)) % count : 0;
+    }
 
     function setVar(element, name, value) {
         if (!element) return;
@@ -45,6 +104,12 @@
     function pumpToast() {
         const toast = document.getElementById('starship-toast');
         if (!toast) return;
+        if (appearance.showToasts === false) {
+            toastQueue = [];
+            toast.hidden = true;
+            toastEndsAt = 0;
+            return;
+        }
         const nowMs = Date.now();
         if (toastEndsAt && nowMs >= toastEndsAt) {
             toast.hidden = true;
@@ -78,8 +143,52 @@
     }
 
     function getAccent() {
-        const accent = snapshot?.ship?.accentColor;
-        return typeof accent === 'string' && /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : DEFAULT_ACCENT;
+        const shipAccent = snapshot?.ship?.accentColor;
+        if (appearance.useShipAccent !== false && isHex(shipAccent)) return shipAccent;
+        return isHex(appearance.accentColor) ? appearance.accentColor : DEFAULT_ACCENT;
+    }
+
+    function setArt(element, spec) {
+        const key = spec ? (spec.image ? 'img:' + spec.image : 'svg:' + spec.svg) : '';
+        if (element.dataset.art === key) return;
+        element.dataset.art = key;
+        element.innerHTML = '';
+        if (spec && spec.image) {
+            const image = document.createElement('img');
+            image.className = 'art-image';
+            image.alt = '';
+            image.src = spec.image;
+            element.appendChild(image);
+        } else if (spec && spec.svg) {
+            element.innerHTML = spec.svg;
+        }
+    }
+
+    // Custom media-library images share a pool with the built-in art unless the streamer turned the built-in art off.
+    function shipSpec(large) {
+        const ship = snapshot?.ship;
+        if (!(ship && ship.name)) return null;
+        const images = (appearance.shipImages || []).filter(isSafeImageUrl);
+        const pool = (appearance.useBuiltInShipArt !== false || images.length === 0 ? [null] : []).concat(images);
+        const picked = pool[stableIndex(ship.variant, pool.length)];
+        if (picked) return { image: picked };
+        const svg = shipSvg(ship.hullStyle, getAccent());
+        return { svg: large ? svg.replace('viewBox="0 0 64 32"', 'viewBox="-4 -20 72 72"') : svg };
+    }
+
+    function objectSpec(kind, variant, roll) {
+        const images = ((appearance.objectImages || {})[kind] || []).filter(isSafeImageUrl);
+        if (images.length === 0) {
+            const svg = objectSvg(kind, variant, getAccent());
+            return svg ? { svg: svg } : null;
+        }
+
+        const pool = [];
+        if (appearance.useBuiltInObjectArt !== false && OBJECT_ART[kind]) {
+            for (let index = 0; index < OBJECT_ART[kind].length; index++) pool.push({ svg: objectSvg(kind, index, getAccent()) });
+        }
+        images.forEach(function (url) { pool.push({ image: url }); });
+        return pool[stableIndex(roll ?? variant, pool.length)];
     }
 
     function renderShip() {
@@ -87,9 +196,9 @@
         setVar(stage, '--ship-accent', accent);
         if (view === 'event') {
             const eventShip = document.getElementById('event-ship');
-            const hasEventShip = !!(snapshot?.ship && snapshot.ship.name);
-            eventShip.innerHTML = hasEventShip ? shipSvg(snapshot.ship.hullStyle, accent) : '';
-            eventShip.hidden = !hasEventShip;
+            const eventSpec = shipSpec(false);
+            setArt(eventShip, eventSpec);
+            eventShip.hidden = !eventSpec;
         }
         if (view !== 'status') return;
         const ship = snapshot?.ship;
@@ -97,11 +206,11 @@
         setText('ship-name', hasShip ? ship.name : 'Starship Expedition');
         const icon = document.getElementById('ship-icon');
         const marker = document.getElementById('ship-marker');
-        const markup = hasShip ? shipSvg(ship.hullStyle, accent) : '';
-        icon.innerHTML = markup;
-        icon.hidden = !hasShip;
-        marker.innerHTML = markup;
-        marker.hidden = !hasShip;
+        const spec = shipSpec(false);
+        setArt(icon, spec);
+        icon.hidden = !spec;
+        setArt(marker, spec);
+        marker.hidden = !spec;
     }
 
     function renderRouteMap(status, legCount, completed) {
@@ -133,6 +242,7 @@
 
     function applyEnvelope(message) {
         if (!message || message.type !== 'expedition_state') return;
+        if (message.appearance) applyAppearance(message.appearance);
         const incoming = message.snapshot;
         if (incoming && incoming.updatedAtUtc) {
             const receivedAt = Date.parse(incoming.updatedAtUtc);
@@ -298,18 +408,9 @@
         return '<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
     }
 
-    function renderArt(markup, caption) {
-        const art = document.getElementById('scene-object');
-        if (art.dataset.art !== markup) {
-            art.dataset.art = markup;
-            art.innerHTML = markup;
-        }
+    function renderArt(spec, caption) {
+        setArt(document.getElementById('scene-object'), spec);
         setText('scene-subject', caption);
-    }
-
-    function shipArt() {
-        const ship = snapshot?.ship;
-        return ship && ship.name ? shipSvg(ship.hullStyle, getAccent()).replace('viewBox="0 0 64 32"', 'viewBox="-4 -20 72 72"') : '';
     }
 
     function renderRing(currentEvent) {
@@ -437,8 +538,8 @@
             renderBankedAmounts(latest);
             renderResultLines(latest);
             renderTimeline(terminal ? snapshot.timeline : []);
-            const objectMarkup = !terminal && latest.objectKind ? objectSvg(latest.objectKind, latest.objectVariant, getAccent()) : '';
-            renderArt(objectMarkup || shipArt(), !terminal && latest.subject ? latest.subject : shipName);
+            const resultSpec = !terminal && latest.objectKind ? objectSpec(latest.objectKind, latest.objectVariant, latest.objectRoll) : null;
+            renderArt(resultSpec || shipSpec(true), !terminal && latest.subject ? latest.subject : shipName);
             return;
         }
 
@@ -455,7 +556,7 @@
             document.getElementById('ring-fg').style.strokeDashoffset = '0';
             document.getElementById('event-description').hidden = false;
             setText('event-description', 'Boarding is open. The expedition launches when it closes.');
-            renderArt(shipArt(), snapshot.ship?.name || '');
+            renderArt(shipSpec(true), snapshot.ship?.name || '');
         } else {
             const currentEvent = snapshot.currentEvent;
             if (!currentEvent) {
@@ -470,7 +571,7 @@
             setTextAnimated('event-description', currentEvent.description);
             setText('event-sector', ((currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : currentEvent.sector) +
                 ' · Default: ' + currentEvent.defaultChoiceId);
-            renderArt(objectSvg(currentEvent.objectKind, currentEvent.objectVariant, getAccent()) || shipArt(), currentEvent.subject || '');
+            renderArt(objectSpec(currentEvent.objectKind, currentEvent.objectVariant, currentEvent.objectRoll) || shipSpec(true), currentEvent.subject || '');
             renderChoices(currentEvent);
             renderStepInfo(currentEvent);
             renderRarityBadge(currentEvent);
@@ -513,7 +614,14 @@
     applyScale();
     if (typeof window.addEventListener === 'function') window.addEventListener('resize', applyScale);
     render();
-    loadInitialState();
-    connect();
+    if (previewMode) {
+        document.body.dataset.preview = 'true';
+        const script = document.createElement('script');
+        script.src = '/js/starship-preview.js';
+        document.body.appendChild(script);
+    } else {
+        loadInitialState();
+        connect();
+    }
     window.setInterval(render, 250);
 }());

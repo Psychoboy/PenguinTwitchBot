@@ -27,7 +27,8 @@ public static class StarshipExpeditionStory
     {
         Name = $"{ShipFirstNames[StableIndex(seed, 0, "ship-first", ShipFirstNames.Length)]} {ShipLastNames[StableIndex(seed, 0, "ship-last", ShipLastNames.Length)]}",
         HullStyle = HullStyles[StableIndex(seed, 0, "ship-hull", HullStyles.Length)],
-        AccentColor = AccentColors[StableIndex(seed, 0, "ship-accent", AccentColors.Length)]
+        AccentColor = AccentColors[StableIndex(seed, 0, "ship-accent", AccentColors.Length)],
+        Variant = StableIndex(seed, 0, "ship-variant", int.MaxValue)
     };
 
     public const int ObjectVariantCount = 3;

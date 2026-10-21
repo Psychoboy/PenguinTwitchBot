@@ -61,6 +61,8 @@ public sealed class StarshipShipSnapshot
     public string Name { get; init; } = string.Empty;
     public string HullStyle { get; init; } = string.Empty;
     public string AccentColor { get; init; } = string.Empty;
+    /// <summary>Large stable number used to pick among custom ship images.</summary>
+    public int Variant { get; init; }
 }
 
 public static class StarshipActivityKinds
@@ -106,6 +108,8 @@ public sealed class StarshipExpeditionEventSnapshot
     /// <summary>Kind of object the overlay draws (wreck, beacon, debris, station, fork) and which of its looks.</summary>
     public string ObjectKind { get; init; } = string.Empty;
     public int ObjectVariant { get; init; }
+    /// <summary>Large stable number used to pick among custom object images.</summary>
+    public int ObjectRoll { get; init; }
     public string SuccessStory { get; init; } = string.Empty;
     public string FailureStory { get; init; } = string.Empty;
     public string OutcomeStory { get; set; } = string.Empty;
@@ -302,6 +306,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             string.Empty,
             string.Empty,
             string.Empty,
+            0,
             0);
     }
 
@@ -330,7 +335,8 @@ public sealed record StarshipOverlayEventSnapshot(
     string Subject,
     string ObjectKind,
     int ObjectVariant,
-    DateTimeOffset OpenedAtUtc)
+    DateTimeOffset OpenedAtUtc,
+    int ObjectRoll)
 {
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
         expeditionEvent.Sequence,
@@ -360,7 +366,8 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.Subject,
         expeditionEvent.ObjectKind,
         expeditionEvent.ObjectVariant,
-        expeditionEvent.OpenedAtUtc);
+        expeditionEvent.OpenedAtUtc,
+        expeditionEvent.ObjectRoll);
 }
 
 public sealed record StarshipOverlayChoice(
@@ -426,7 +433,8 @@ public sealed record StarshipOverlayEventResult(
     string Story,
     string Subject,
     string ObjectKind,
-    int ObjectVariant)
+    int ObjectVariant,
+    int ObjectRoll)
 {
     public static StarshipOverlayEventResult From(
         StarshipExpeditionEventSnapshot expeditionEvent,
@@ -453,7 +461,8 @@ public sealed record StarshipOverlayEventResult(
             expeditionEvent.OutcomeStory,
             expeditionEvent.Subject,
             expeditionEvent.ObjectKind,
-            expeditionEvent.ObjectVariant);
+            expeditionEvent.ObjectVariant,
+            expeditionEvent.ObjectRoll);
     }
 }
 
