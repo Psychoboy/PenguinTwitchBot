@@ -2250,6 +2250,36 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games
         }
 
         [Fact]
+        public async Task CurlingAndGolfStartTriggersExposeTriggeredBy()
+        {
+            var settingsService = CreateSettingsService();
+            var curlingService = CreateCurlingService(CreateDropRegistry(), settingsService);
+            var golfService = CreateGolfService(CreateDropRegistry(), settingsService);
+            var startVariables = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+            _defaultCommandTriggerService.Setup(x => x.TriggerDefaultCommandEventAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CommandEventArgs>(),
+                    It.IsAny<Dictionary<string, string>>()))
+                .Callback<string, string, CommandEventArgs, Dictionary<string, string>?>((_, eventType, _, variables) =>
+                {
+                    if (variables != null && eventType is DefaultCommandEventTypes.CurlingStart or DefaultCommandEventTypes.GolfStart)
+                    {
+                        startVariables[eventType] = variables;
+                    }
+                })
+                .Returns(Task.CompletedTask);
+
+            await curlingService.StartSessionAsync(60, triggeredBy: "CurlingMod");
+            await golfService.StartSessionAsync(60, triggeredBy: "GolfMod");
+
+            Assert.Equal("CurlingMod", startVariables[DefaultCommandEventTypes.CurlingStart]["TriggeredBy"]);
+            Assert.Equal("CurlingMod", startVariables[DefaultCommandEventTypes.CurlingStart]["User"]);
+            Assert.Equal("GolfMod", startVariables[DefaultCommandEventTypes.GolfStart]["TriggeredBy"]);
+            Assert.Equal("GolfMod", startVariables[DefaultCommandEventTypes.GolfStart]["User"]);
+        }
+
+        [Fact]
         public async Task StartSessionAsync_WhenQueued_DoesNotFireStartTriggerUntilDequeued()
         {
             var parachuteSut = CreateParachuteService();

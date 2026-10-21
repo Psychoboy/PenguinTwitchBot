@@ -220,25 +220,40 @@
 
     private void ResetMessageToSuggestedDefault() => _messageTemplate = GetSuggestedMessage(_selectedEventType);
 
-    private string GetSuggestedMessage(string eventType) => eventType switch
+    private string GetSuggestedMessage(string eventType)
     {
-        DefaultCommandEventTypes.ParachuteBullseye => "%User% landed on the target with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
-        DefaultCommandEventTypes.ParachuteWin => "%User% landed on the target with %Score% pts! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
-        DefaultCommandEventTypes.ParachuteLose => "%User% missed the target (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
-        DefaultCommandEventTypes.PlinkoWin => "%User%'s Plinko token landed in [%BucketLabel%]!",
-        DefaultCommandEventTypes.PlinkoLose => "%User%'s Plinko token landed in [%BucketLabel%] (%Score% pts)",
-        DefaultCommandEventTypes.BalloonBullseye => "%User% reached the cloud platform with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center)",
-        DefaultCommandEventTypes.BalloonWin => "%User% reached the cloud platform with %Score% pts! (%DistanceFromCenter% from center)",
-        DefaultCommandEventTypes.BalloonLose => "%User% missed the cloud platform with %Score% pts (%DistanceFromCenter% from center)",
-        DefaultCommandEventTypes.BalloonPopped => "%User%'s balloon popped (%DistanceFromCenter% from center, %Score% pts)",
-        DefaultCommandEventTypes.CurlingBullseye => "%User% landed on the button with %Score% pts! (bullseye on %IceCondition%, target %TargetDistance%%)",
-        DefaultCommandEventTypes.CurlingWin => "%User% landed on the button with %Score% pts! on %IceCondition% (target %TargetDistance%%)",
-        DefaultCommandEventTypes.CurlingLose => "%User% missed the button with %Score% pts on %IceCondition% (target %TargetDistance%%)",
-        DefaultCommandEventTypes.GolfBullseye => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (bullseye on %GreenCondition%, pin %PinDistance%%)",
-        DefaultCommandEventTypes.GolfWin => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (%GreenCondition%, pin %PinDistance%%)",
-        DefaultCommandEventTypes.GolfLose => "%User% missed the green with %Score% pts (%StrokeNumber% stroke(s), %GreenCondition%, pin %PinDistance%%)",
-        _ => "%User% completed the game with %Score% points."
-    };
+        var outcomeName = _outcomes.FirstOrDefault(item => item.DefaultCommandEventType == eventType)?.DisplayName ?? GameTitle;
+        return eventType switch
+        {
+            DefaultCommandEventTypes.ParachuteBullseye => "%User% landed on the target with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+            DefaultCommandEventTypes.ParachuteWin => "%User% landed on the target with %Score% pts! (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+            DefaultCommandEventTypes.ParachuteLose => "%User% missed the target (%DistanceFromCenter% from center, %DropletHits% droplet hits)",
+            DefaultCommandEventTypes.ParachuteStart => "%TriggeredBy% started Parachute Drop for %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.ParachuteEnd => "Parachute Drop round ended: %TotalDrops% drops in %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.ParachuteRocketKill => "%Attacker%'s rocket took down %Victim%'s parachute (score %Score%).",
+            DefaultCommandEventTypes.PlinkoWin => "%User%'s Plinko token landed in [%BucketLabel%]!",
+            DefaultCommandEventTypes.PlinkoLose => "%User%'s Plinko token landed in [%BucketLabel%] (%Score% pts)",
+            DefaultCommandEventTypes.PlinkoStart => "%TriggeredBy% started Plinko Bounce for %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.PlinkoEnd => "Plinko Bounce round ended: %TotalTokens% tokens in %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.BalloonBullseye => "%User% reached the cloud platform with %Score% pts! BULLSEYE! (%DistanceFromCenter% from center)",
+            DefaultCommandEventTypes.BalloonWin => "%User% reached the cloud platform with %Score% pts! (%DistanceFromCenter% from center)",
+            DefaultCommandEventTypes.BalloonLose => "%User% missed the cloud platform with %Score% pts (%DistanceFromCenter% from center)",
+            DefaultCommandEventTypes.BalloonPopped => "%User%'s balloon popped (%DistanceFromCenter% from center, %Score% pts)",
+            DefaultCommandEventTypes.BalloonStart => "%TriggeredBy% started Balloon Ascent for %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.BalloonEnd => "Balloon Ascent round ended: %TotalDrops% launches in %Duration%s (%Theme%).",
+            DefaultCommandEventTypes.CurlingBullseye => "%User% landed on the button with %Score% pts! (bullseye on %IceCondition%, target %TargetDistance%%)",
+            DefaultCommandEventTypes.CurlingWin => "%User% landed on the button with %Score% pts! on %IceCondition% (target %TargetDistance%%)",
+            DefaultCommandEventTypes.CurlingLose => "%User% missed the button with %Score% pts on %IceCondition% (target %TargetDistance%%)",
+            DefaultCommandEventTypes.CurlingStart => "%TriggeredBy% started Curling on %Condition% (target %TargetDistance%%) for %Duration%s.",
+            DefaultCommandEventTypes.CurlingEnd => "Curling round ended: %TotalDrops% stones in %Duration%s.",
+            DefaultCommandEventTypes.GolfBullseye => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (bullseye on %GreenCondition%, pin %PinDistance%%)",
+            DefaultCommandEventTypes.GolfWin => "%User% finished on the green with %Score% pts (%StrokeNumber% stroke(s))! (%GreenCondition%, pin %PinDistance%%)",
+            DefaultCommandEventTypes.GolfLose => "%User% missed the green with %Score% pts (%StrokeNumber% stroke(s), %GreenCondition%, pin %PinDistance%%)",
+            DefaultCommandEventTypes.GolfStart => "%TriggeredBy% started Golf on %Condition% (pin %TargetDistance%%) for %Duration%s.",
+            DefaultCommandEventTypes.GolfEnd => "Golf round ended: %TotalDrops% shots in %Duration%s.",
+            _ => $"{outcomeName}."
+        };
+    }
 
     private string PreviewMessage()
     {

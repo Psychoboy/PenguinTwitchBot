@@ -237,6 +237,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Curling
                 var startVariables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["User"] = triggeredBy ?? "System",
+                    ["TriggeredBy"] = triggeredBy ?? "System",
                     ["Duration"] = duration.ToString(CultureInfo.InvariantCulture),
                     ["Theme"] = theme.Name,
                     ["Condition"] = conditionLabel,

@@ -125,6 +125,32 @@ namespace PenguinTwitchBot.Test.Bot.Actions
 
             Assert.Contains("IceCondition", curlingVariables.Keys);
             Assert.Contains("TargetDistancePercent", curlingVariables.Keys);
+
+            var golfStartVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "golf",
+                    EventType = DefaultCommandEventTypes.GolfStart
+                })
+            }, golfStartVariables);
+            Assert.Contains("Condition", golfStartVariables.Keys);
+            Assert.Contains("TargetDistance", golfStartVariables.Keys);
+
+            var curlingStartVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "curl",
+                    EventType = DefaultCommandEventTypes.CurlingStart
+                })
+            }, curlingStartVariables);
+            Assert.Contains("Condition", curlingStartVariables.Keys);
+            Assert.Contains("TargetDistance", curlingStartVariables.Keys);
         }
 
         [Fact]
