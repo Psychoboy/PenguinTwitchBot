@@ -99,6 +99,17 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
             throw new InvalidDataException("Starship expedition station or event timing settings are invalid.");
         if (!Enum.IsDefined(snapshot.Status))
             throw new InvalidDataException("Starship expedition status is invalid.");
+        if (snapshot.ShipSystems is { } shipSystems)
+        {
+            try
+            {
+                StarshipShipSystems.Validate(shipSystems);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new InvalidDataException("Persisted Starship ship rules are invalid.", ex);
+            }
+        }
         if (snapshot.Status == StarshipExpeditionStatus.Boarding && snapshot.BoardingClosesAtUtc == null)
             throw new InvalidDataException("Starship crew boarding must have a closing time.");
         if (snapshot.Crew == null)

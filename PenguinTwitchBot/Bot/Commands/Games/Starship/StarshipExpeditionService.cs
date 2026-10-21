@@ -373,6 +373,7 @@ public sealed class StarshipExpeditionService(
                 Seed = expeditionSeed,
                 StartedBy = startedBy?.Trim() ?? string.Empty,
                 Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
+                ShipSystems = StarshipShipSystems.Create(settings.ShipSystems),
                 Status = StarshipExpeditionStatus.Boarding,
                 StartedAtUtc = now,
                 UpdatedAtUtc = now,

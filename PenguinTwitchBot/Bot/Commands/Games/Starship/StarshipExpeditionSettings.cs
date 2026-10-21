@@ -43,6 +43,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
     public StarshipAppearanceSettings Appearance { get; set; } = new();
+    public StarshipShipSystemsSettings ShipSystems { get; set; } = new();
 
     public static StarshipExpeditionSettings NormalizeAndValidate(StarshipExpeditionSettings settings)
     {
@@ -68,6 +69,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         settings.SessionStartChatMessageTemplate ??= string.Empty;
         settings.SessionEndChatMessageTemplate ??= string.Empty;
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
+        settings.ShipSystems ??= new();
+        settings.ShipSystems.Validate();
         settings.CustomSectors ??= [];
         settings.DisabledBuiltInSectors ??= [];
         if (settings.DisabledBuiltInSectors.Any(name => name == null || !BuiltInSectors.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase)))

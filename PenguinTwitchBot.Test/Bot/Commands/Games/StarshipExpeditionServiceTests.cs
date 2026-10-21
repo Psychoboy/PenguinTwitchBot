@@ -513,6 +513,7 @@ public class StarshipExpeditionServiceTests
         var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
 
         var started = await service.StartExpeditionAsync("moderator", seed: 444);
+        settingsStore.Settings.ShipSystems.StationRepairAmount = 1;
         settingsStore.Settings.CustomSectors.Add("Changed After Start");
         settingsStore.Settings.RewardProfiles[0].SuccessChancePercent = 10;
         var current = await service.GetSnapshotAsync();
@@ -524,6 +525,9 @@ public class StarshipExpeditionServiceTests
         Assert.DoesNotContain("Changed After Start", current.SectorPool);
         Assert.Equal(62, Assert.Single(current.RewardProfiles).SuccessChancePercent);
         Assert.Equal(started.ExpeditionId, current.ExpeditionId);
+        Assert.Equal(100, current.ShipSystems!.Hull);
+        Assert.Equal(100, current.ShipSystems.Supplies);
+        Assert.Equal(30, current.ShipSystems.Rules.StationRepairAmount);
     }
 
     [Fact]

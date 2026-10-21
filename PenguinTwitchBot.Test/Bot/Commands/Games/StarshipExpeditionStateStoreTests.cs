@@ -11,6 +11,58 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 public class StarshipExpeditionStateStoreTests
 {
     [Fact]
+    public async Task ShipSystems_SaveReloadPreservesResourcesRulesBonusesAndAppliedOperations()
+    {
+        var rows = new List<Setting>();
+        var state = StarshipShipSystems.Create(new() { StartingHull = 60, StartingSupplies = 50 })!;
+        StarshipShipSystems.ApplyTravel(state, "leg-one");
+        StarshipShipSystems.ApplyStationChoice(state, "station-one", "continue");
+        var eventId = Guid.NewGuid();
+        StarshipShipSystems.BeginEvent(state, eventId, isStation: false);
+        var snapshot = new StarshipExpeditionSnapshot { ExpeditionId = Guid.NewGuid(), LegCount = 4, ShipSystems = state };
+
+        await CreateStore(rows).SaveAsync(snapshot);
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        var restored = loaded!.ShipSystems!;
+        Assert.Equal(60, restored.Hull);
+        Assert.Equal(45, restored.Supplies);
+        Assert.Equal(eventId, restored.ActiveBonusEventId);
+        Assert.Equal(10, restored.ActiveSuccessBonusPercent);
+        Assert.Equal(10, StarshipShipSystems.BeginEvent(restored, eventId, isStation: false));
+        Assert.Equal(StarshipShipEffectResult.AlreadyApplied, StarshipShipSystems.ApplyTravel(restored, "leg-one"));
+        Assert.Equal(45, restored.Supplies);
+        Assert.Equal(30, restored.Rules.StationRepairAmount);
+    }
+
+    [Fact]
+    public async Task ShipSystems_LegacySnapshotRemainsWithoutNewMechanics()
+    {
+        var rows = new List<Setting>();
+        var snapshot = new StarshipExpeditionSnapshot { ExpeditionId = Guid.NewGuid(), LegCount = 4 };
+        await CreateStore(rows).SaveAsync(snapshot);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(rows.Single().StringSetting!)!.AsObject();
+        json.Remove("shipSystems");
+        rows.Single().StringSetting = json.ToJsonString();
+
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        Assert.Null(loaded!.ShipSystems);
+    }
+
+    [Fact]
+    public async Task ShipSystems_SaveRejectsInvalidResourcesAndDuplicateOperations()
+    {
+        var state = StarshipShipSystems.Create(new())!;
+        var snapshot = new StarshipExpeditionSnapshot { ExpeditionId = Guid.NewGuid(), LegCount = 4, ShipSystems = state };
+        state.Hull = -1;
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore([]).SaveAsync(snapshot));
+        state.Hull = 100;
+        state.AppliedOperationIds.AddRange(["same", "same"]);
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore([]).SaveAsync(snapshot));
+    }
+
+    [Fact]
     public async Task SaveAndLoad_PreservesMissionSeedCrewAndOpenEvent()
     {
         var settingRows = new List<Setting>();

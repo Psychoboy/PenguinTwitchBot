@@ -57,6 +57,7 @@ public sealed class StarshipExpeditionSnapshot
     public List<StarshipActivityItem> ActivityFeed { get; init; } = [];
     public long NextActivityId { get; set; } = 1;
     public StarshipShipSnapshot Ship { get; init; } = new();
+    public StarshipShipSystemsSnapshot? ShipSystems { get; init; }
 }
 
 /// <summary>Look of the voyage's ship, generated once from the voyage seed.</summary>

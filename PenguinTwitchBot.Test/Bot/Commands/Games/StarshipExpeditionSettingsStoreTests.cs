@@ -54,6 +54,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             MaximumEventIntervalMinutes = 35,
             BoardingDurationSeconds = 45,
             ActiveCrewRewardsOnly = false,
+            ShipSystems = new() { StartingHull = 80, StartingSupplies = 60, TravelSuppliesCost = 4, StationRepairAmount = 25 },
             AnnounceSessionStatusInChat = false,
             SessionStartChatMessageTemplate = "Boarding {duration}s",
             SessionEndChatMessageTemplate = "Returned {count} in {duration}s",
@@ -86,6 +87,10 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(35, loaded.MaximumEventIntervalMinutes);
         Assert.Equal(45, loaded.BoardingDurationSeconds);
         Assert.False(loaded.ActiveCrewRewardsOnly);
+        Assert.Equal(80, loaded.ShipSystems.StartingHull);
+        Assert.Equal(60, loaded.ShipSystems.StartingSupplies);
+        Assert.Equal(4, loaded.ShipSystems.TravelSuppliesCost);
+        Assert.Equal(25, loaded.ShipSystems.StationRepairAmount);
         Assert.False(loaded.AnnounceSessionStatusInChat);
         Assert.Equal("Boarding {duration}s", loaded.SessionStartChatMessageTemplate);
         Assert.Equal("Returned {count} in {duration}s", loaded.SessionEndChatMessageTemplate);
