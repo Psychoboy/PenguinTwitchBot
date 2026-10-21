@@ -254,6 +254,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             var jsRoot = FindWwwRootPath();
             if (extraSetup.Length > 0) engine.Execute(extraSetup);
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-scene.js")));
+            engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-art.js")));
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-overlay.js")));
             return engine;
         }
@@ -501,6 +502,32 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var unsafeOnly = new { useBuiltInShipArt = false, shipImages = new[] { "javascript:alert(1)", "//evil.example.com/x.png", "data:image/png;base64,AAAA", "/media/has space.png" } };
             Assert.StartsWith("<svg", IconMarkup(0, unsafeOnly), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void StarshipArtCatalog_PreservesAllShipAndObjectVariants()
+        {
+            var jsRoot = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot", "js");
+            var engine = new Engine();
+            engine.Execute("var window = {};");
+            engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-art.js")));
+            var ships = new HashSet<string>();
+            foreach (var style in new[] { "arrow", "hauler", "scout", "cruiser" })
+                ships.Add(engine.Evaluate($"window.StarshipArt.shipSvg('{style}', '#66d0c2')").AsString());
+            Assert.Equal(4, ships.Count);
+            foreach (var kind in new[] { "wreck", "beacon", "debris", "station", "fork" })
+            {
+                Assert.Equal(3, (int)engine.Evaluate($"window.StarshipArt.variantCount('{kind}')").AsNumber());
+                var variants = Enumerable.Range(0, 3).Select(index => engine.Evaluate($"window.StarshipArt.objectSvg('{kind}', {index}, '#66d0c2')").AsString()).ToList();
+                Assert.Equal(3, variants.Distinct().Count());
+                Assert.All(variants, svg =>
+                {
+                    Assert.StartsWith("<svg", svg, StringComparison.Ordinal);
+                    Assert.DoesNotContain("%", svg);
+                });
+            }
+            Assert.Equal("", engine.Evaluate("window.StarshipArt.objectSvg('unknown', 0, '#66d0c2')").AsString());
+            Assert.Equal(0, (int)engine.Evaluate("window.StarshipArt.variantCount('unknown')").AsNumber());
         }
 
         [Fact]

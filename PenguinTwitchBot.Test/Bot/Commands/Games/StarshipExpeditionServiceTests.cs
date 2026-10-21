@@ -21,6 +21,31 @@ namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 public class StarshipExpeditionServiceTests
 {
     [Fact]
+    public void SharedOutcomeVariables_PreserveAggregateValuesWithoutScopeSpecificFields()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "custom-cache", Title = "Cache", Subject = "the Archive", OutcomeResult = "Success", OutcomeRarity = "Rare",
+            OutcomeStory = "The crew recovered the cache.", Path = [new() { Label = "Scan" }, new() { Label = "Recover" }],
+            RewardOutcomes =
+            [
+                new() { UserId = "pilot", PointTypeId = 2, PointTypeName = "Credits", EarnedAmount = 10 },
+                new() { UserId = "pilot", PointTypeId = 3, PointTypeName = "Tokens", EarnedAmount = 5, LostAmount = 2 }
+            ]
+        };
+        var variables = StarshipEventVariables.ForOutcome(expeditionEvent);
+        Assert.Equal("custom-cache", variables["EventType"]);
+        Assert.Equal("15", variables["RewardTotal"]);
+        Assert.Equal("2", variables["LostTotal"]);
+        Assert.Equal("Credits", variables["PointType"]);
+        Assert.Equal("Scan > Recover", variables["Path"]);
+        Assert.Equal(expeditionEvent.OutcomeStory, variables["Story"]);
+        Assert.False(variables.ContainsKey("AffectedCount"));
+        Assert.False(variables.ContainsKey("Summary"));
+        Assert.False(variables.ContainsKey("BankedTotal"));
+    }
+
+    [Fact]
     public async Task StartExpedition_OpensBoardingAndRejectsSecondActiveVoyage()
     {
         var stateStore = new InMemoryStateStore();

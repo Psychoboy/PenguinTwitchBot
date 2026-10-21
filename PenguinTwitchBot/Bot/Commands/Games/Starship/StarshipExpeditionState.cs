@@ -384,7 +384,7 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.StepNote,
         profile == null
             ? null
-            : Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent, 0, 100),
+            : StarshipRewardResolver.GetEffectiveSuccessChance(profile, expeditionEvent),
         expeditionEvent.RewardMultiplierPercent,
         expeditionEvent.RiskMultiplierPercent,
         expeditionEvent.Subject,

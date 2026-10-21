@@ -5,6 +5,19 @@ namespace PenguinTwitchBot.Test.Pages;
 
 public class StarshipEventEditingTests
 {
+    [Fact]
+    public void SharedEventDocument_PreservesExportShapeAndRejectsUnsupportedVersions()
+    {
+        var definition = StarshipEventCatalog.CreateDefaults()[0];
+        var json = StarshipEventDocument.Write(definition);
+        Assert.Equal(json, StarshipEventEditing.Export(definition));
+        var restored = StarshipEventDocument.Read(json);
+        Assert.Equal(definition.EventType, restored.EventType);
+        Assert.Equal(definition.Choices.Count, restored.Choices.Count);
+        Assert.Throws<InvalidDataException>(() => StarshipEventDocument.Read("{\"schemaVersion\":99,\"event\":" +
+            System.Text.Json.JsonSerializer.Serialize(definition, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }) + "}"));
+    }
+
     [Theory]
     [InlineData("courier-relay.json")]
     [InlineData("survey-cache.json")]

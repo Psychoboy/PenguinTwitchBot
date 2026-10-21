@@ -87,10 +87,10 @@
                 </MudStack></MudItem>
             }
             <MudItem xs="12" sm="6"><MudSelect T="string" Label="Subject Style" Variant="Variant.Outlined" @bind-Value="draft.SubjectStyle" @bind-Value:after="DraftChanged">
-                @foreach (var style in SubjectStyles) { <MudSelectItem T="string" Value="@style">@(style.Length == 0 ? "Default" : style)</MudSelectItem> }
+                @foreach (var style in StarshipEventCatalog.SubjectStyles) { <MudSelectItem T="string" Value="@style">@(style.Length == 0 ? "Default" : style)</MudSelectItem> }
             </MudSelect></MudItem>
             <MudItem xs="12" sm="6"><MudSelect T="string" Label="Object Art" Variant="Variant.Outlined" @bind-Value="draft.ObjectKind" @bind-Value:after="DraftChanged">
-                @foreach (var kind in ObjectKinds) { <MudSelectItem T="string" Value="@kind">@(kind.Length == 0 ? "Ship fallback" : kind)</MudSelectItem> }
+                @foreach (var kind in StarshipEventCatalog.ObjectKinds) { <MudSelectItem T="string" Value="@kind">@(kind.Length == 0 ? "Ship fallback" : kind)</MudSelectItem> }
             </MudSelect></MudItem>
             <MudItem xs="12"><MudTextField T="string" Label="Subject Names (one per line)" Variant="Variant.Outlined" Lines="3" Value="@string.Join('\n', draft.SubjectNames)" ValueChanged="SetSubjectNames" /></MudItem>
             <MudItem xs="12"><MediaUrlPicker Label="Event Images" AllowMultiple="true" Value="@string.Join(", ", draft.Images)" ValueChanged="SetImages" /></MudItem>
@@ -203,8 +203,6 @@
     [Parameter, EditorRequired] public StarshipExpeditionSettings Settings { get; set; } = default!;
     [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
     [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
-    private static readonly string[] SubjectStyles = ["", "ship", "signal", "hazard", "custom"];
-    private static readonly string[] ObjectKinds = ["", "wreck", "beacon", "debris", "station", "fork"];
     private StarshipEventDraft? _draft;
     private StarshipRewardProfile? _ownedProfile;
     private string? _originalId;
@@ -224,7 +222,7 @@
     private string InheritedBinding => Settings.EventRewardProfileIds.GetValueOrDefault(_originalId ?? "", "");
     private StarshipRewardProfile? CurrentProfile => _ownedProfile != null && _ownedProfile.Id == _draft?.RewardProfileId ? _ownedProfile :
         Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == (_draft?.RewardProfileId ?? InheritedBinding));
-    private static bool IsBuiltIn(string id) => StarshipEventCatalog.CreateDefaults().Any(definition => definition.EventType == id);
+    private static bool IsBuiltIn(string id) => StarshipEventCatalog.IsBuiltIn(id);
 
     private bool CanChangeDraft()
     {
@@ -245,19 +243,57 @@
         ValidateCurrent();
     }
 
-    private void OpenEvent(StarshipEventDefinition definition) { if (CanChangeDraft()) Begin(definition, definition.EventType); }
-    private void NewEvent() { if (CanChangeDraft()) Begin(StarshipEventEditing.NewEvent(Settings), null); }
-    private void DuplicateEvent(StarshipEventDefinition definition) { if (CanChangeDraft()) Begin(StarshipEventEditing.Duplicate(definition, Settings), null); }
-    private void DiscardDraft() { _draft = null; _ownedProfile = null; _dirty = false; _validationError = _operationError = ""; _preview = null; }
-    private void DraftChanged() { _dirty = true; _notice = ""; _preview = null; ValidateCurrent(); }
+    private void OpenEvent(StarshipEventDefinition definition)
+    {
+        if (CanChangeDraft()) Begin(definition, definition.EventType);
+    }
+
+    private void NewEvent()
+    {
+        if (CanChangeDraft()) Begin(StarshipEventEditing.NewEvent(Settings), null);
+    }
+
+    private void DuplicateEvent(StarshipEventDefinition definition)
+    {
+        if (CanChangeDraft()) Begin(StarshipEventEditing.Duplicate(definition, Settings), null);
+    }
+
+    private void DiscardDraft()
+    {
+        _draft = null;
+        _ownedProfile = null;
+        _dirty = false;
+        _validationError = _operationError = "";
+        _preview = null;
+    }
+
+    private void DraftChanged()
+    {
+        _dirty = true;
+        _notice = "";
+        _preview = null;
+        ValidateCurrent();
+    }
 
     private bool ValidateCurrent()
     {
         _validationError = "";
         if (_draft == null) return true;
-        try { StarshipEventEditing.ValidateDraft(Settings, _draft.ToDefinition(), _originalId, _ownedProfile); return true; }
-        catch (Exception ex) when (ex is ArgumentException or InvalidDataException) { _validationError = ex.Message; return false; }
-        catch (System.Text.Json.JsonException) { _validationError = "Complete the required event and reward fields."; return false; }
+        try
+        {
+            StarshipEventEditing.ValidateDraft(Settings, _draft.ToDefinition(), _originalId, _ownedProfile);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            _validationError = ex.Message;
+            return false;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _validationError = "Complete the required event and reward fields.";
+            return false;
+        }
     }
 
     public bool TryApplyDraft()
@@ -267,37 +303,99 @@
         var definition = _draft.ToDefinition();
         var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
         if (_ownedProfile != null) Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
-        if (index < 0) Settings.EventCatalog.Add(definition); else Settings.EventCatalog[index] = definition;
+        if (index < 0)
+            Settings.EventCatalog.Add(definition);
+        else
+            Settings.EventCatalog[index] = definition;
         Begin(definition, definition.EventType);
         _notice = "Event applied. Save Settings to persist changes.";
         return true;
     }
 
     private void ApplyDraft() => TryApplyDraft();
-    private void ToggleFilter(List<string> filter, string value, bool enabled) { filter.RemoveAll(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)); if (enabled) filter.Add(value); DraftChanged(); }
-    private void SetSubjectNames(string? value) { _draft!.SubjectNames = (value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); DraftChanged(); }
-    private void SetImages(string? value) { _draft!.Images = (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(); DraftChanged(); }
-    private void SetLoot(string tier, string? value) { if (string.IsNullOrWhiteSpace(value)) _draft!.LootByTier.Remove(tier); else _draft!.LootByTier[tier] = value; DraftChanged(); }
-    private void SetProfile(string? id) { _draft!.RewardProfileId = id ?? ""; if (_ownedProfile?.Id != id) _ownedProfile = null; DraftChanged(); }
+
+    private void ToggleFilter(List<string> filter, string value, bool enabled)
+    {
+        filter.RemoveAll(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        if (enabled) filter.Add(value);
+        DraftChanged();
+    }
+
+    private void SetSubjectNames(string? value)
+    {
+        _draft!.SubjectNames = (value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        DraftChanged();
+    }
+
+    private void SetImages(string? value)
+    {
+        _draft!.Images = (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        DraftChanged();
+    }
+
+    private void SetLoot(string tier, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            _draft!.LootByTier.Remove(tier);
+        else
+            _draft!.LootByTier[tier] = value;
+        DraftChanged();
+    }
+
+    private void SetProfile(string? id)
+    {
+        _draft!.RewardProfileId = id ?? "";
+        if (_ownedProfile?.Id != id) _ownedProfile = null;
+        DraftChanged();
+    }
+
     private void CreateOwnedProfile()
     {
-        _ownedProfile = new() { Id = Guid.NewGuid().ToString("N"), Name = _draft!.Title + " Rewards", Enabled = true,
-            Tiers = [new() { Id = "common", Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = PointTypes.Keys.FirstOrDefault(), Minimum = 5, Maximum = 10 }] }] };
+        _ownedProfile = new()
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = _draft!.Title + " Rewards",
+            Enabled = true,
+            Tiers =
+            [
+                new()
+                {
+                    Id = "common",
+                    Name = "Common",
+                    Weight = 1,
+                    Rewards = [new() { PointTypeId = PointTypes.Keys.FirstOrDefault(), Minimum = 5, Maximum = 10 }]
+                }
+            ]
+        };
         _draft.RewardProfileId = _ownedProfile.Id;
         DraftChanged();
     }
 
     private void AddChoice()
     {
-        if (_draft == null || _draft.Choices.Count >= 6) return;
+        if (_draft == null || _draft.Choices.Count >= StarshipEventCatalog.MaximumChoices) return;
         var id = "choice";
         for (var suffix = 2; _draft.Choices.Any(choice => choice.ChoiceId == id); suffix++) id = $"choice-{suffix}";
         _draft.Choices.Add(new() { ChoiceId = id, Label = $"Choice {_draft.Choices.Count + 1}" });
         _choiceIndex = _draft.Choices.Count - 1;
         DraftChanged();
     }
-    private void RemoveChoice(int index) { if (_draft!.Choices.Count <= 2) return; _draft.Choices.RemoveAt(index); _choiceIndex = Math.Min(index, _draft.Choices.Count - 1); DraftChanged(); }
-    private void MoveChoice(int index, int offset) { var target = index + offset; if (target < 0 || target >= _draft!.Choices.Count) return; (_draft.Choices[index], _draft.Choices[target]) = (_draft.Choices[target], _draft.Choices[index]); _choiceIndex = target; DraftChanged(); }
+    private void RemoveChoice(int index)
+    {
+        if (_draft!.Choices.Count <= 2) return;
+        _draft.Choices.RemoveAt(index);
+        _choiceIndex = Math.Min(index, _draft.Choices.Count - 1);
+        DraftChanged();
+    }
+
+    private void MoveChoice(int index, int offset)
+    {
+        var target = index + offset;
+        if (target < 0 || target >= _draft!.Choices.Count) return;
+        (_draft.Choices[index], _draft.Choices[target]) = (_draft.Choices[target], _draft.Choices[index]);
+        _choiceIndex = target;
+        DraftChanged();
+    }
     private static string ChoiceEffect(StarshipChoiceDraft choice) => StarshipExpeditionNarrative.DescribeEffects(new()
     {
         ContinuesEvent = choice.ContinuesEvent, RevealsRarity = choice.RevealsRarity, EndsWithoutReward = choice.EndsWithoutReward,
@@ -318,16 +416,27 @@
             _deleteId = null;
             _notice = "Event deleted. Save Settings to persist changes.";
         }
-        catch (ArgumentException ex) { _operationError = ex.Message; }
+        catch (ArgumentException ex)
+        {
+            _operationError = ex.Message;
+        }
     }
 
     private void Preview()
     {
         if (_draft == null || !ValidateCurrent()) return;
         var definition = _draft.ToDefinition();
-        _preview = new() { EventType = definition.EventType, Title = definition.Title, Subject = StarshipExpeditionStory.GenerateSubject(_sampleSeed, 2, definition),
-            Sector = Settings.GetEffectiveSectors().FirstOrDefault() ?? "Sector", Choices = definition.Choices, LootByTier = definition.LootByTier,
-            SuccessStory = definition.SuccessStory, FailureStory = definition.FailureStory };
+        _preview = new()
+        {
+            EventType = definition.EventType,
+            Title = definition.Title,
+            Subject = StarshipExpeditionStory.GenerateSubject(_sampleSeed, 2, definition),
+            Sector = Settings.GetEffectiveSectors().FirstOrDefault() ?? "Sector",
+            Choices = definition.Choices,
+            LootByTier = definition.LootByTier,
+            SuccessStory = definition.SuccessStory,
+            FailureStory = definition.FailureStory
+        };
         _preview.Description = RenderStory(definition.Description);
     }
     private string RenderStory(string template) => StarshipExpeditionStory.Render(template, _preview!, _sampleSeed, ["Viewer"], CurrentProfile?.GetTiers().FirstOrDefault(tier => tier.Enabled)?.Name);
@@ -340,8 +449,14 @@
     private void ImportJson()
     {
         if (!CanChangeDraft()) return;
-        try { Begin(StarshipEventEditing.Import(_json, Settings), null); }
-        catch (ArgumentException ex) { _operationError = ex.Message; }
+        try
+        {
+            Begin(StarshipEventEditing.Import(_json, Settings), null);
+        }
+        catch (ArgumentException ex)
+        {
+            _operationError = ex.Message;
+        }
     }
     private async Task ImportFileAsync(IBrowserFile file)
     {
@@ -353,6 +468,9 @@
             _json = await reader.ReadToEndAsync();
             ImportJson();
         }
-        catch (Exception ex) when (ex is IOException or ArgumentException) { _operationError = ex.Message; }
+        catch (Exception ex) when (ex is IOException or ArgumentException)
+        {
+            _operationError = ex.Message;
+        }
     }
 }

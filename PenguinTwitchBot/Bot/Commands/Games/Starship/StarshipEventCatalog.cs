@@ -6,6 +6,9 @@ public static partial class StarshipEventCatalog
 {
     public const int MaximumChoices = 6;
     public static IReadOnlyList<string> Routes { get; } = ["Uncharted", "Direct Route", "Survey Route"];
+    public static IReadOnlyList<string> SubjectStyles { get; } = ["", "ship", "signal", "hazard", "custom"];
+    public static IReadOnlyList<string> ObjectKinds { get; } = ["", .. StarshipAppearanceSettings.ObjectKinds];
+    private static readonly HashSet<string> BuiltInIds = CreateDefaults().Select(definition => definition.EventType).ToHashSet(StringComparer.Ordinal);
     private static readonly HashSet<string> Tokens = new(StringComparer.Ordinal)
         { "crew", "crewlist", "subject", "Subject", "loot", "rarity", "sector" };
 
@@ -43,6 +46,7 @@ public static partial class StarshipEventCatalog
     ];
 
     public static bool IsStructural(string eventType) => eventType is "RouteChoice" or "StationStop";
+    public static bool IsBuiltIn(string eventType) => BuiltInIds.Contains(eventType);
 
     public static StarshipEventDefinition Select(IReadOnlyList<StarshipEventDefinition> catalog,
         StarshipExpeditionSnapshot snapshot, int sequence)
@@ -73,11 +77,10 @@ public static partial class StarshipEventCatalog
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var defaults = CreateDefaults();
-        var builtInIds = defaults.Select(definition => definition.EventType).ToHashSet(StringComparer.Ordinal);
         foreach (var definition in catalog)
         {
             if (definition == null || string.IsNullOrWhiteSpace(definition.EventType) || definition.EventType.Length > 80 ||
-                !ids.Add(definition.EventType) || !builtInIds.Contains(definition.EventType) && !SlugPattern().IsMatch(definition.EventType))
+                !ids.Add(definition.EventType) || !IsBuiltIn(definition.EventType) && !SlugPattern().IsMatch(definition.EventType))
                 throw new ArgumentException("Event IDs must be unique slugs of 1-80 characters; built-in IDs are reserved.");
             ValidateText(definition.Title, 100, true, false);
             ValidateText(definition.Description, 1000, true);
@@ -111,20 +114,20 @@ public static partial class StarshipEventCatalog
             var binding = definition.RewardProfileId ?? settings.EventRewardProfileIds.GetValueOrDefault(definition.EventType, "");
             if (binding.Length > 0 && !settings.RewardProfiles.Any(profile => profile.Id == binding))
                 throw new ArgumentException($"{definition.Title}: the reward profile does not exist.");
-            if (!builtInIds.Contains(definition.EventType) && definition.Choices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
+            if (!IsBuiltIn(definition.EventType) && definition.Choices.Any(choice => choice.RevealsRarity) && binding.Length == 0)
                 throw new ArgumentException($"{definition.Title}: revealing rarity requires a reward profile.");
             if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route => !Routes.Contains(route, StringComparer.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
             if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !StarshipExpeditionSettings.BuiltInSectors.Concat(settings.CustomSectors).Contains(sector, StringComparer.OrdinalIgnoreCase)))
                 throw new ArgumentException($"{definition.Title}: unknown sector filter.");
-            if (definition.SubjectStyle is not ("" or "ship" or "signal" or "hazard" or "custom"))
+            if (!SubjectStyles.Contains(definition.SubjectStyle, StringComparer.Ordinal))
                 throw new ArgumentException($"{definition.Title}: unknown subject style.");
             if (definition.SubjectNames == null || definition.Images == null || definition.LootByTier == null)
                 throw new ArgumentException($"{definition.Title}: subject, image and loot lists cannot be null.");
             foreach (var name in definition.SubjectNames) ValidateText(name, 100, true, false);
             if (definition.SubjectStyle == "custom" && definition.SubjectNames.Count == 0)
                 throw new ArgumentException($"{definition.Title}: custom subject style requires names.");
-            if (definition.ObjectKind is not ("" or "wreck" or "beacon" or "debris" or "station" or "fork"))
+            if (!ObjectKinds.Contains(definition.ObjectKind, StringComparer.Ordinal))
                 throw new ArgumentException($"{definition.Title}: unknown object kind.");
             if (definition.Images.Count > 12 || definition.Images.Any(image => !IsImageUrl(image)))
                 throw new ArgumentException($"{definition.Title}: use at most 12 media-library or HTTP(S) images.");

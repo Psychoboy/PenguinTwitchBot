@@ -68,18 +68,16 @@ public static class StarshipEventEditing
         StarshipExpeditionSettings.NormalizeAndValidate(candidate);
     }
 
-    public static string Export(StarshipEventDefinition definition) => JsonSerializer.Serialize(new EventDocument(1, definition), JsonOptions);
+    public static string Export(StarshipEventDefinition definition) => StarshipEventDocument.Write(definition);
 
     public static StarshipEventDefinition Import(string json, StarshipExpeditionSettings settings)
     {
         if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumImportBytes) throw new ArgumentException("Event JSON exceeds 256 KB.");
         try
         {
-            var document = JsonSerializer.Deserialize<EventDocument>(json, JsonOptions);
-            if (document == null || document.SchemaVersion != 1 || document.Event == null)
-                throw new ArgumentException("Use a supported single-event JSON document (schemaVersion 1).");
-            ValidateShape(document.Event);
-            var imported = Duplicate(document.Event, settings);
+            var definition = StarshipEventDocument.Read(json);
+            ValidateShape(definition);
+            var imported = Duplicate(definition, settings);
             var validationSettings = Copy(settings);
             if (!string.IsNullOrEmpty(imported.RewardProfileId) && !validationSettings.RewardProfiles.Any(profile => profile.Id == imported.RewardProfileId))
                 validationSettings.RewardProfiles.Add(new StarshipRewardProfile { Id = imported.RewardProfileId, Name = "Imported profile reference" });
@@ -89,6 +87,10 @@ public static class StarshipEventEditing
         catch (JsonException ex)
         {
             throw new ArgumentException("Event JSON is malformed or contains unsupported fields.", ex);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new ArgumentException(ex.Message, ex);
         }
     }
 
@@ -100,5 +102,4 @@ public static class StarshipEventEditing
             throw new ArgumentException("Event lists and choices cannot be null.");
     }
 
-    private sealed record EventDocument(int SchemaVersion, StarshipEventDefinition Event);
 }

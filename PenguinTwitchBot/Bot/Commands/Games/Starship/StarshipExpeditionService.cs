@@ -536,8 +536,8 @@ public sealed class StarshipExpeditionService(
                 var balance = snapshot.Crew
                     .First(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase))
                     .UnbankedBalances.FirstOrDefault(item => item.PointTypeId == lossRule.PointTypeId)?.Amount ?? 0;
-                var riskPercent = CombinePercent(snapshot.CurrentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
-                var (proportionalLoss, maximumLoss) = ScaleRiskLoss(lossRule, balance, riskPercent);
+                var riskPercent = StarshipRewardResolver.CombinePercent(snapshot.CurrentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
+                var (proportionalLoss, maximumLoss) = StarshipRewardResolver.ScaleRiskLoss(lossRule, balance, riskPercent);
                 snapshot.CurrentEvent.PendingRiskConfirmations.Add(new StarshipRiskConfirmationSnapshot
                 {
                     UserId = userId,
@@ -547,8 +547,8 @@ public sealed class StarshipExpeditionService(
                     PointTypeName = rewardProfile.GetPointTypeName(lossRule.PointTypeId),
                     ExposedBalance = balance,
                     MaximumLoss = Math.Min(balance, Math.Min(proportionalLoss, maximumLoss)),
-                    SuccessChancePercent = GetEffectiveSuccessChance(rewardProfile, snapshot.CurrentEvent, choice),
-                    RewardMultiplierPercent = CombinePercent(snapshot.CurrentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent),
+                    SuccessChancePercent = StarshipRewardResolver.GetEffectiveSuccessChance(rewardProfile, snapshot.CurrentEvent, choice),
+                    RewardMultiplierPercent = StarshipRewardResolver.CombinePercent(snapshot.CurrentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent),
                     RevealedRarity = snapshot.CurrentEvent.RevealedRarity
                 });
             }
@@ -677,47 +677,25 @@ public sealed class StarshipExpeditionService(
             var selectedChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
                 string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
             await SendChatAnnouncementAsync(StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent));
-            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, new Dictionary<string, string>
-            {
-                ["EventTitle"] = resolvedEvent.Title,
-                ["EventType"] = resolvedEvent.EventType,
-                ["Choice"] = selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? string.Empty,
-                ["VoteCount"] = resolvedEvent.Votes.Count.ToString(CultureInfo.InvariantCulture),
-                ["Leg"] = resolvedEvent.Sequence.ToString(CultureInfo.InvariantCulture),
-                ["Sector"] = resolvedEvent.Sector,
-                ["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0).ToString(CultureInfo.InvariantCulture),
-                ["RewardTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
-                ["PointType"] = resolvedEvent.RewardOutcomes.FirstOrDefault()?.PointTypeName ?? string.Empty,
-                ["Outcome"] = resolvedEvent.OutcomeResult,
-                ["Rarity"] = resolvedEvent.OutcomeRarity,
-                ["Story"] = resolvedEvent.OutcomeStory,
-                ["Subject"] = resolvedEvent.Subject,
-                ["Path"] = StarshipExpeditionNarrative.FormatPath(resolvedEvent),
-                ["LostTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
-                ["Summary"] = StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent)
-            });
+            var resolvedVariables = StarshipEventVariables.ForOutcome(resolvedEvent);
+            resolvedVariables["Choice"] = selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? string.Empty;
+            resolvedVariables["VoteCount"] = resolvedEvent.Votes.Count.ToString(CultureInfo.InvariantCulture);
+            resolvedVariables["Leg"] = resolvedEvent.Sequence.ToString(CultureInfo.InvariantCulture);
+            resolvedVariables["Sector"] = resolvedEvent.Sector;
+            resolvedVariables["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0).ToString(CultureInfo.InvariantCulture);
+            resolvedVariables["Summary"] = StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent);
+            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, resolvedVariables);
 
             if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
             {
+                var outcomeVariables = StarshipEventVariables.ForOutcome(resolvedEvent);
+                outcomeVariables["AffectedCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0).ToString(CultureInfo.InvariantCulture);
                 await FireTriggerAsync(
                     resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess
                         ? DefaultCommandEventTypes.StarshipEventSucceeded
                         : DefaultCommandEventTypes.StarshipEventFailed,
                     current,
-                    new Dictionary<string, string>
-                    {
-                        ["EventTitle"] = resolvedEvent.Title,
-                        ["EventType"] = resolvedEvent.EventType,
-                        ["Outcome"] = resolvedEvent.OutcomeResult,
-                        ["Rarity"] = resolvedEvent.OutcomeRarity,
-                        ["Story"] = resolvedEvent.OutcomeStory,
-                        ["Subject"] = resolvedEvent.Subject,
-                        ["Path"] = StarshipExpeditionNarrative.FormatPath(resolvedEvent),
-                        ["PointType"] = resolvedEvent.RewardOutcomes.FirstOrDefault()?.PointTypeName ?? string.Empty,
-                        ["RewardTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
-                        ["LostTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
-                        ["AffectedCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0).ToString(CultureInfo.InvariantCulture)
-                    });
+                    outcomeVariables);
             }
 
             foreach (var outcome in resolvedEvent.RewardOutcomes.Where(outcome =>
@@ -1169,14 +1147,14 @@ public sealed class StarshipExpeditionService(
         });
         if (!string.IsNullOrEmpty(choice.GrantsFlag)) currentEvent.Flags.Add(choice.GrantsFlag);
         currentEvent.SuccessChanceModifierPercent += choice.SuccessChanceModifierPercent;
-        currentEvent.RewardMultiplierPercent = CombinePercent(currentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent);
-        currentEvent.RiskMultiplierPercent = CombinePercent(currentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
+        currentEvent.RewardMultiplierPercent = StarshipRewardResolver.CombinePercent(currentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent);
+        currentEvent.RiskMultiplierPercent = StarshipRewardResolver.CombinePercent(currentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
 
         var note = new List<string>();
         if (choice.RevealsRarity)
         {
             var profile = GetRewardProfile(snapshot, currentEvent.EventType);
-            if (profile != null && ChooseEventTier(snapshot, currentEvent, profile) is { } revealedTier)
+            if (profile != null && StarshipRewardResolver.ChooseEventTier(snapshot, currentEvent, profile) is { } revealedTier)
             {
                 currentEvent.RevealedRarity = revealedTier.Name;
                 currentEvent.RevealedRarityColor = revealedTier.Color;
@@ -1274,7 +1252,7 @@ public sealed class StarshipExpeditionService(
         resolvedEvent.EligibleRewardUserIds.AddRange(eligibleUserIds.Order(StringComparer.OrdinalIgnoreCase));
 
         if (profile != null)
-            ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
+            StarshipRewardResolver.ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
         resolvedEvent.OutcomeStory = StarshipExpeditionStory.BuildOutcomeStory(snapshot, resolvedEvent);
         if (profile != null)
             EnqueueRewardActions(snapshot, resolvedEvent, profile);
@@ -1314,221 +1292,6 @@ public sealed class StarshipExpeditionService(
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static void ApplyRewardProfile(
-        StarshipExpeditionSnapshot snapshot,
-        StarshipExpeditionEventSnapshot resolvedEvent,
-        StarshipRewardProfile profile,
-        IReadOnlySet<string> eligibleUserIds)
-    {
-        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
-            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
-        var committed = finalChoice?.IsRisky == true;
-        var offersCommit = resolvedEvent.ChoicePool.Concat(resolvedEvent.Choices).Any(choice => choice.IsRisky);
-        if (finalChoice?.EndsWithoutReward == true || (!committed && offersCommit))
-        {
-            resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomePassed;
-            return;
-        }
-
-        var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
-        var succeeded = GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
-            $"reward-success:{resolvedEvent.EventId:N}", 100) < chance;
-        var tier = ChooseEventTier(snapshot, resolvedEvent, profile);
-        var rarity = tier?.Name ?? string.Empty;
-        var rewardPercent = CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
-        var riskPercent = CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
-        resolvedEvent.OutcomeResult = succeeded ? StarshipExpeditionNarrative.OutcomeSuccess : StarshipExpeditionNarrative.OutcomeFailure;
-        resolvedEvent.OutcomeRarity = rarity;
-        resolvedEvent.OutcomeRarityColor = tier?.Color ?? string.Empty;
-
-        if (committed)
-        {
-            var voterIds = resolvedEvent.Votes
-                .Where(vote => string.Equals(vote.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase))
-                .Select(vote => vote.UserId)
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-            foreach (var voterId in voterIds)
-            {
-                var member = snapshot.Crew.FirstOrDefault(candidate =>
-                    string.Equals(candidate.UserId, voterId, StringComparison.OrdinalIgnoreCase));
-                if (member != null)
-                    ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, true, eligibleUserIds.Contains(member.UserId),
-                        succeeded, tier, chance, rewardPercent, riskPercent);
-            }
-            return;
-        }
-
-        foreach (var member in snapshot.Crew.Where(member => eligibleUserIds.Contains(member.UserId)))
-            ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, false, true,
-                succeeded, tier, chance, rewardPercent, riskPercent);
-    }
-
-    private static int GetEffectiveSuccessChance(
-        StarshipRewardProfile profile,
-        StarshipExpeditionEventSnapshot expeditionEvent,
-        StarshipEventChoiceSnapshot? choice) =>
-        Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent +
-                   (choice?.SuccessChanceModifierPercent ?? 0), 0, 100);
-
-    private static int CombinePercent(int first, int second) =>
-        Math.Clamp((int)((long)first * second / 100), 0, 1000);
-
-    private static void ApplyRewardToParticipant(
-        StarshipExpeditionSnapshot snapshot,
-        StarshipExpeditionEventSnapshot resolvedEvent,
-        StarshipRewardProfile profile,
-        StarshipCrewMemberSnapshot member,
-        bool isRisky,
-        bool isEligible,
-        bool succeeded,
-        StarshipRewardTier? tier,
-        int successChancePercent,
-        int rewardPercent,
-        int riskPercent)
-    {
-        var rarity = tier?.Name ?? string.Empty;
-        var primaryTypeId = profile.GetPrimaryPointTypeId();
-        if (isRisky && !isEligible)
-        {
-            if (primaryTypeId > 0)
-                resolvedEvent.RewardOutcomes.Add(new StarshipRewardOutcomeSnapshot
-                {
-                    UserId = member.UserId,
-                    DisplayName = member.DisplayName,
-                    PointTypeId = primaryTypeId,
-                    PointTypeName = profile.GetPointTypeName(primaryTypeId),
-                    Outcome = "Ineligible",
-                    WasRiskyAction = true,
-                    SuccessChancePercent = successChancePercent
-                });
-            return;
-        }
-
-        var typeIds = new List<int>();
-        if (succeeded)
-        {
-            if (tier != null) typeIds.AddRange(tier.Rewards.Select(reward => reward.PointTypeId));
-        }
-        else
-        {
-            typeIds.AddRange(profile.GetLossRules().Select(rule => rule.PointTypeId));
-        }
-
-        typeIds = typeIds.Where(id => id > 0).Distinct().ToList();
-        if (typeIds.Count == 0 && primaryTypeId > 0) typeIds.Add(primaryTypeId);
-
-        var rolledByType = new Dictionary<int, long>();
-        if (succeeded && isEligible && tier != null)
-        {
-            for (var index = 0; index < tier.Rewards.Count; index++)
-            {
-                var reward = tier.Rewards[index];
-                if (reward.PointTypeId <= 0) continue;
-                if (reward.ChancePercent < 100 && GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
-                        $"reward-chance:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}:{index}", 100) >= reward.ChancePercent)
-                    continue;
-                var range = checked((int)Math.Min(int.MaxValue, reward.Maximum - reward.Minimum + 1));
-                var amountKey = $"reward-amount:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}";
-                if (index > 0) amountKey += $":{index}";
-                var rolledAmount = reward.Minimum + GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence, amountKey, Math.Max(1, range));
-                rolledAmount = (long)((decimal)rolledAmount * rewardPercent / 100m);
-                rolledByType[reward.PointTypeId] = rolledByType.GetValueOrDefault(reward.PointTypeId) + rolledAmount;
-            }
-        }
-
-        foreach (var typeId in typeIds)
-        {
-            long earnedAmount = 0;
-            long lostAmount = 0;
-            var outcome = succeeded ? "Success" : "Failure";
-            var typeName = profile.GetPointTypeName(typeId);
-
-            var currentBalance = member.UnbankedBalances.FirstOrDefault(balance => balance.PointTypeId == typeId);
-            var lossRule = profile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == typeId);
-            if (!succeeded && currentBalance != null && lossRule != null)
-            {
-                var (proportionalLoss, maximumLoss) = ScaleRiskLoss(lossRule, currentBalance.Amount, riskPercent);
-                lostAmount = Math.Min(currentBalance.Amount, Math.Min(proportionalLoss, maximumLoss));
-                currentBalance.Amount -= lostAmount;
-            }
-
-            if (succeeded && isEligible)
-            {
-                var cap = profile.GetCap(typeId);
-                var earnedThisVoyage = snapshot.CompletedEvents
-                    .SelectMany(expeditionEvent => expeditionEvent.RewardOutcomes)
-                    .Where(previous => string.Equals(previous.UserId, member.UserId, StringComparison.OrdinalIgnoreCase) &&
-                                       previous.PointTypeId == typeId)
-                    .Sum(previous => previous.EarnedAmount);
-                var availableVoyageCap = cap.MaximumUnbankedPerVoyage is { } voyageLimit ? Math.Max(0, voyageLimit - earnedThisVoyage) : long.MaxValue;
-                earnedAmount = Math.Min(rolledByType.GetValueOrDefault(typeId), Math.Min(cap.MaximumPerEvent ?? long.MaxValue, availableVoyageCap));
-                if (earnedAmount > 0)
-                {
-                    currentBalance ??= AddUnbankedBalance(member, typeId, typeName);
-                    currentBalance.Amount += earnedAmount;
-                }
-            }
-            else if (succeeded)
-            {
-                outcome = "Ineligible";
-            }
-
-            resolvedEvent.RewardOutcomes.Add(new StarshipRewardOutcomeSnapshot
-            {
-                UserId = member.UserId,
-                DisplayName = member.DisplayName,
-                PointTypeId = typeId,
-                PointTypeName = typeName,
-                Outcome = outcome,
-                Rarity = rarity,
-                WasRiskyAction = isRisky,
-                SuccessChancePercent = successChancePercent,
-                EarnedAmount = earnedAmount,
-                LostAmount = lostAmount
-            });
-        }
-    }
-
-    private static (long Proportional, long Maximum) ScaleRiskLoss(StarshipLossRule rule, long balance, int riskPercent)
-    {
-        var lossPercent = Math.Min(100m, rule.Percent * riskPercent / 100m);
-        return ((long)(balance * lossPercent / 100m), rule.MaximumPerEvent is { } maximum ? (long)((decimal)maximum * riskPercent / 100m) : long.MaxValue);
-    }
-
-    private static StarshipRewardTier? ChooseEventTier(
-        StarshipExpeditionSnapshot snapshot,
-        StarshipExpeditionEventSnapshot expeditionEvent,
-        StarshipRewardProfile profile)
-    {
-        var tiers = profile.GetTiers().Where(tier => tier.Enabled).ToList();
-        if (tiers.Count == 0) return null;
-        // Legacy profiles always rolled out of 100 (and fell back to the last tier), so keep that exact behaviour.
-        var total = profile.UsesLegacyFields ? 100 : tiers.Sum(tier => Math.Max(0, tier.Weight));
-        if (total <= 0) return tiers[^1];
-        var roll = GetDeterministicIndex(snapshot.Seed, expeditionEvent.Sequence,
-            $"reward-rarity:{expeditionEvent.EventId:N}", total);
-        var cumulative = 0;
-        foreach (var tier in tiers)
-        {
-            cumulative += Math.Max(0, tier.Weight);
-            if (roll < cumulative) return tier;
-        }
-
-        return tiers[^1];
-    }
-
-    private static StarshipUnbankedBalanceSnapshot AddUnbankedBalance(StarshipCrewMemberSnapshot member, int pointTypeId, string pointTypeName)
-    {
-        var balance = new StarshipUnbankedBalanceSnapshot
-        {
-            PointTypeId = pointTypeId,
-            PointTypeName = pointTypeName,
-            Amount = 0
-        };
-        member.UnbankedBalances.Add(balance);
-        return balance;
-    }
-
     private static void EnqueueRewardActions(
         StarshipExpeditionSnapshot snapshot,
         StarshipExpeditionEventSnapshot resolvedEvent,
@@ -1553,27 +1316,15 @@ public sealed class StarshipExpeditionService(
         }
 
         var outcomes = resolvedEvent.RewardOutcomes;
-        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Game"] = "Starship Expedition",
-            ["ExpeditionId"] = snapshot.ExpeditionId.ToString(),
-            ["EventTitle"] = resolvedEvent.Title,
-            ["EventType"] = resolvedEvent.EventType,
-            ["Subject"] = resolvedEvent.Subject,
-            ["Sector"] = resolvedEvent.Sector,
-            ["Leg"] = resolvedEvent.Sequence.ToString(CultureInfo.InvariantCulture),
-            ["Outcome"] = resolvedEvent.OutcomeResult,
-            ["Rarity"] = resolvedEvent.OutcomeRarity,
-            ["Story"] = resolvedEvent.OutcomeStory,
-            ["Path"] = StarshipExpeditionNarrative.FormatPath(resolvedEvent),
-            ["PointType"] = outcomes.FirstOrDefault()?.PointTypeName ?? string.Empty,
-            ["RewardTotal"] = outcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
-            ["LostTotal"] = outcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
-            ["AffectedCount"] = outcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
-                .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture),
-            ["CrewCount"] = snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture),
-            ["StartedBy"] = snapshot.StartedBy
-        };
+        var variables = StarshipEventVariables.ForOutcome(resolvedEvent);
+        variables["Game"] = "Starship Expedition";
+        variables["ExpeditionId"] = snapshot.ExpeditionId.ToString();
+        variables["Sector"] = resolvedEvent.Sector;
+        variables["Leg"] = resolvedEvent.Sequence.ToString(CultureInfo.InvariantCulture);
+        variables["AffectedCount"] = outcomes.Where(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0)
+            .Select(outcome => outcome.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(CultureInfo.InvariantCulture);
+        variables["CrewCount"] = snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture);
+        variables["StartedBy"] = snapshot.StartedBy;
 
         for (var index = 0; index < Math.Min(actions.Count, StarshipRewardProfile.MaximumActionsPerList); index++)
         {
