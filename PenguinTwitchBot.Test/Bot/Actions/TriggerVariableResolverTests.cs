@@ -187,6 +187,39 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             }, resolvedVariables);
             Assert.Contains("Choice", resolvedVariables.Keys);
             Assert.Contains("VoteCount", resolvedVariables.Keys);
+            Assert.Contains("RewardParticipantCount", resolvedVariables.Keys);
+            Assert.Contains("RewardTotal", resolvedVariables.Keys);
+
+            foreach (var eventType in new[]
+                     {
+                         DefaultCommandEventTypes.StarshipCrewRewardBanked,
+                         DefaultCommandEventTypes.StarshipRiskSucceeded,
+                         DefaultCommandEventTypes.StarshipRiskFailed
+                     })
+            {
+                Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                    trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == eventType);
+                var eventVariables = new Dictionary<string, ActionVariableInfo>();
+                resolver.ResolveVariables(new TriggerType
+                {
+                    Type = TriggerTypes.DefaultCommand,
+                    Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                    {
+                        DefaultCommandName = "starship",
+                        EventType = eventType
+                    })
+                }, eventVariables);
+
+                Assert.Contains("User", eventVariables.Keys);
+                if (eventType == DefaultCommandEventTypes.StarshipCrewRewardBanked)
+                    Assert.Contains("Amount", eventVariables.Keys);
+                else
+                {
+                    Assert.Contains("LostAmount", eventVariables.Keys);
+                    Assert.Contains("SuccessChancePercent", eventVariables.Keys);
+                    Assert.Contains("Outcome", eventVariables.Keys);
+                }
+            }
         }
 
         [Fact]

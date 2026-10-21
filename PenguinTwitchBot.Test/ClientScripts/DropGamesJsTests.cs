@@ -319,11 +319,29 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     closesAtUtc = updatedAt.AddSeconds(40).ToString("O"),
                     choices = new[]
                     {
-                        new { choiceId = "direct", label = "Take the direct route" },
-                        new { choiceId = "detour", label = "Take the survey detour" }
+                        new { choiceId = "direct", label = "Take the direct route", isRisky = false },
+                        new { choiceId = "detour", label = "Take the survey detour", isRisky = true }
                     },
                     defaultChoiceId = "direct",
-                    voteCounts = new Dictionary<string, int> { ["direct"] = 1, ["detour"] = 0 }
+                    voteCounts = new Dictionary<string, int> { ["direct"] = 1, ["detour"] = 0 },
+                    rewardDisclosure = new
+                    {
+                        pointTypeName = "Salvage Credits",
+                        successChancePercent = 75,
+                        commonWeightPercent = 60,
+                        commonMinimum = 5,
+                        commonMaximum = 12,
+                        uncommonWeightPercent = 30,
+                        uncommonMinimum = 15,
+                        uncommonMaximum = 25,
+                        rareWeightPercent = 10,
+                        rareMinimum = 30,
+                        rareMaximum = 50,
+                        riskLossPercent = 25,
+                        maximumRiskLossPerEvent = 40,
+                        maximumPerEvent = 100,
+                        maximumUnbankedPerVoyage = 500
+                    }
                 },
                 latestResult = (object?)null
             });
@@ -333,6 +351,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal(2, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
             Assert.Contains("!starship vote direct", engine.Evaluate("document.getElementById('choices').children[0].children[1].textContent").AsString());
             Assert.Equal("1 vote", engine.Evaluate("document.getElementById('choices').children[0].children[2].textContent").AsString());
+            Assert.Contains("Success chance: 75%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
+            Assert.Contains("failure 25%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
+            Assert.Contains("risky effects only apply", engine.Evaluate("document.getElementById('reward-scope').textContent").AsString());
+            Assert.Contains("Common 60%: 5-12", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.Contains("capped at 40", engine.Evaluate("document.getElementById('reward-risk').textContent").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('reward-risk').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, new
             {
@@ -352,12 +376,14 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     title = "Choose a Route",
                     sector = "Kepler Reach",
                     choice = "Take the direct route",
-                    resolvedAtUtc = updatedAt.AddSeconds(1).ToString("O")
+                    resolvedAtUtc = updatedAt.AddSeconds(1).ToString("O"),
+                    bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, isPaid = true } }
                 }
             });
 
             Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
             Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
+            Assert.Equal("30 Salvage Credits banked", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
             Assert.True(engine.Evaluate("document.getElementById('event-panel').hidden").AsBoolean());
 
             DispatchStarshipOverlayState(engine, new

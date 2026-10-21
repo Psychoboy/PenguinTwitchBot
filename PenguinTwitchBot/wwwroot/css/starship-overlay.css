@@ -277,6 +277,35 @@ h1 {
     color: var(--amber);
 }
 
+.reward-disclosure {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px 10px;
+    padding: 7px 10px;
+    border-left: 3px solid var(--amber);
+    background: rgba(66, 53, 37, 0.52);
+    color: #d7e1dc;
+    font: 500 10px 'IBM Plex Mono', monospace;
+    line-height: 1.35;
+}
+
+.reward-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 3px 8px;
+}
+
+.reward-heading strong {
+    color: var(--amber);
+    font: 600 11px 'IBM Plex Mono', monospace;
+}
+
+.risk-note {
+    color: #ffbf9f;
+}
+
 .boarding-panel,
 .result-panel {
     display: grid;
@@ -295,6 +324,15 @@ h1 {
 .boarding-panel > span:last-child,
 .result-panel > span:last-child {
     color: #cad9d4;
+}
+
+.banked-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 10px;
+    margin-top: 3px;
+    color: var(--amber);
+    font: 600 11px 'IBM Plex Mono', monospace;
 }
 
 .result-panel {

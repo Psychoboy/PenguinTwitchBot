@@ -90,6 +90,39 @@
         }
     }
 
+    function renderRewardDisclosure(currentEvent) {
+        const panel = document.getElementById('reward-disclosure');
+        const profile = currentEvent.rewardDisclosure;
+        panel.hidden = !profile;
+        const riskElement = document.getElementById('reward-risk');
+        const hasRiskyChoice = (currentEvent.choices || []).some(choice => choice.isRisky);
+        riskElement.hidden = !profile || !hasRiskyChoice;
+        if (!profile) return;
+
+        setText('reward-point-type', profile.pointTypeName + ' · per eligible crew member');
+        setText('reward-success', 'Success chance: ' + profile.successChancePercent + '% / failure ' + (100 - profile.successChancePercent) + '%');
+        setText('reward-scope', hasRiskyChoice
+            ? 'Scope: shared crew rewards; risky effects only apply to viewers who choose that option.'
+            : 'Scope: shared reward for eligible crew members.');
+        setText('reward-rarity', 'Common ' + profile.commonWeightPercent + '%: ' + profile.commonMinimum + '-' + profile.commonMaximum
+            + ' · Uncommon ' + profile.uncommonWeightPercent + '%: ' + profile.uncommonMinimum + '-' + profile.uncommonMaximum
+            + ' · Rare ' + profile.rareWeightPercent + '%: ' + profile.rareMinimum + '-' + profile.rareMaximum);
+        setText('reward-caps', 'Cap: ' + profile.maximumPerEvent + ' per event · ' + profile.maximumUnbankedPerVoyage + ' unbanked per voyage');
+        setText('reward-risk', 'Risky actions can lose ' + profile.riskLossPercent + '% of exposed balance, capped at ' + profile.maximumRiskLossPerEvent + '. Confirm in chat to participate.');
+    }
+
+    function renderBankedAmounts(latest) {
+        const container = document.getElementById('result-banked');
+        container.replaceChildren();
+        const amounts = latest.bankedAmounts || [];
+        container.hidden = amounts.length === 0;
+        for (const payout of amounts) {
+            const line = document.createElement('span');
+            line.textContent = payout.amount + ' ' + payout.pointTypeName + (payout.isPaid ? ' banked' : ' banking');
+            container.appendChild(line);
+        }
+    }
+
     function renderEvent() {
         if (!snapshot || (snapshot.status !== 'Boarding' && snapshot.status !== 'EventOpen')) {
             const terminal = snapshot && (snapshot.status === 'Returned' || snapshot.status === 'Aborted');
@@ -114,6 +147,7 @@
             setText('event-description', '');
             setText('result-choice', latest.choice);
             setText('result-detail', latest.sector + ' · Leg ' + latest.sequence);
+            renderBankedAmounts(latest);
             return;
         }
 
@@ -140,6 +174,7 @@
             setText('event-description', currentEvent.description);
             setText('event-sector', currentEvent.sector + ' · Default: ' + currentEvent.defaultChoiceId);
             renderChoices(currentEvent);
+            renderRewardDisclosure(currentEvent);
         }
     }
 

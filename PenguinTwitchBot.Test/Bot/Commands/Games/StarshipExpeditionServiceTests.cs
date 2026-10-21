@@ -4,11 +4,14 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Bot.Notifications;
 using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations;
+using PenguinTwitchBot.Database.Bot.Models.Points;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
@@ -373,12 +376,14 @@ public class StarshipExpeditionServiceTests
             LegCount = 6,
             StationIntervalLegs = 3,
             ActiveCrewRewardsOnly = false,
+            RewardProfiles = [new StarshipRewardProfile { EventType = "SalvageSite", SuccessChancePercent = 62 }],
             CustomSectors = ["Cerulean Gate"]
         });
         var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore);
 
         var started = await service.StartExpeditionAsync("moderator", seed: 444);
         settingsStore.Settings.CustomSectors.Add("Changed After Start");
+        settingsStore.Settings.RewardProfiles[0].SuccessChancePercent = 10;
         var current = await service.GetSnapshotAsync();
 
         Assert.Equal(6, current!.LegCount);
@@ -386,7 +391,571 @@ public class StarshipExpeditionServiceTests
         Assert.False(current.ActiveCrewRewardsOnly);
         Assert.Contains("Cerulean Gate", current.SectorPool);
         Assert.DoesNotContain("Changed After Start", current.SectorPool);
+        Assert.Equal(62, Assert.Single(current.RewardProfiles).SuccessChancePercent);
         Assert.Equal(started.ExpeditionId, current.ExpeditionId);
+    }
+
+    [Fact]
+    public async Task ResolveEvent_SnapshotsEligibilityAndAwardsDeterministicCappedCrewBalance()
+    {
+        var stateStore = new InMemoryStateStore();
+        var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings
+        {
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "RouteChoice",
+                    Enabled = true,
+                    PointTypeId = 12,
+                    SuccessChancePercent = 100,
+                    CommonWeightPercent = 100,
+                    UncommonWeightPercent = 0,
+                    RareWeightPercent = 0,
+                    CommonMinimum = 10,
+                    CommonMaximum = 10,
+                    MaximumPerEvent = 7,
+                    MaximumUnbankedPerVoyage = 40
+                }
+            ]
+        });
+        var viewerFeature = new Mock<IViewerFeature>();
+        viewerFeature.Setup(viewers => viewers.GetActiveViewers()).Returns(["pilot"]);
+        viewerFeature.Setup(viewers => viewers.GetCurrentViewers()).Returns(["pilot", "engineer", "subscriber"]);
+        viewerFeature.Setup(viewers => viewers.IsSubscriber("engineer")).ReturnsAsync(false);
+        viewerFeature.Setup(viewers => viewers.IsSubscriber("subscriber")).ReturnsAsync(true);
+        var points = new Mock<IPointsSystem>();
+        points.Setup(system => system.GetPointTypeById(12)).ReturnsAsync(new PointType { Id = 12, Name = "Salvage Credits" });
+        var triggerService = new Mock<IDefaultCommandTriggerService>();
+        triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: settingsStore, viewerFeatureMock: viewerFeature,
+            defaultCommandTriggerService: triggerService.Object, pointsSystem: points.Object);
+
+        await service.StartExpeditionAsync("moderator", legCount: 4, seed: 102);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.JoinCrewAsync(CreateArgs("engineer-id", "Engineer"));
+        await service.JoinCrewAsync(CreateArgs("subscriber-id", "Subscriber"));
+        await service.AdvanceEventAsync();
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "direct");
+        await service.VoteAsync(CreateArgs("engineer-id", "Engineer"), "direct");
+        var resolved = await service.AdvanceEventAsync();
+
+        var resolvedEvent = Assert.Single(resolved.CompletedEvents);
+        Assert.Equal(new[] { "pilot-id", "subscriber-id" }, resolvedEvent.EligibleRewardUserIds);
+        Assert.Equal(new[] { "pilot-id", "subscriber-id" }, resolvedEvent.RewardOutcomes
+            .Where(outcome => outcome.EarnedAmount > 0)
+            .Select(outcome => outcome.UserId)
+            .Order(StringComparer.OrdinalIgnoreCase));
+        Assert.All(resolvedEvent.RewardOutcomes.Where(outcome => outcome.EarnedAmount > 0), outcome => Assert.Equal(7, outcome.EarnedAmount));
+        Assert.Single(resolved.Crew.First(member => member.UserId == "pilot-id").UnbankedBalances);
+        Assert.Empty(resolved.Crew.First(member => member.UserId == "engineer-id").UnbankedBalances);
+        Assert.Single(resolved.Crew.First(member => member.UserId == "subscriber-id").UnbankedBalances);
+        Assert.Equal(7, resolved.Crew.First(member => member.UserId == "pilot-id").UnbankedBalances[0].Amount);
+        triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
+            StarshipExpeditionService.DefaultCommandName,
+            DefaultCommandEventTypes.StarshipEventResolved,
+            It.IsAny<CommandEventArgs>(),
+            It.Is<Dictionary<string, string>>(variables => variables["RewardTotal"] == "14" && variables["RewardParticipantCount"] == "2")), Times.Once);
+    }
+
+    [Fact]
+    public async Task ResolveMultipleEvents_EnforcesPerVoyageUnbankedCap()
+    {
+        var eventTypes = new[] { "RouteChoice", "SignalDetected", "SalvageSite", "Hazard" };
+        var rewardProfiles = eventTypes.Select(eventType => new StarshipRewardProfile
+        {
+            EventType = eventType,
+            Enabled = true,
+            PointTypeId = 4,
+            SuccessChancePercent = 100,
+            CommonWeightPercent = 100,
+            UncommonWeightPercent = 0,
+            RareWeightPercent = 0,
+            CommonMinimum = 10,
+            CommonMaximum = 10,
+            MaximumPerEvent = 100,
+            MaximumUnbankedPerVoyage = 10
+        }).ToList();
+        var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings
+        {
+            ActiveCrewRewardsOnly = false,
+            RewardProfiles = rewardProfiles
+        });
+        var points = new Mock<IPointsSystem>();
+        points.Setup(system => system.GetPointTypeById(4)).ReturnsAsync(new PointType { Id = 4, Name = "Credits" });
+        var service = CreateService(new InMemoryStateStore(), settingsStore: settingsStore, pointsSystem: points.Object);
+        await service.StartExpeditionAsync("moderator", legCount: 5, seed: 106);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.AdvanceEventAsync();
+        await service.AdvanceEventAsync();
+        await service.AdvanceEventAsync();
+        var afterSecondReward = await service.GetSnapshotAsync();
+
+        Assert.Equal(10, Assert.Single(afterSecondReward!.Crew.Single().UnbankedBalances).Amount);
+        Assert.Equal(10, afterSecondReward.CompletedEvents.Sum(item => item.RewardOutcomes.Sum(outcome => outcome.EarnedAmount)));
+    }
+
+    [Fact]
+    public async Task RewardOutcome_ReplaysDeterministicallyFromSeedEventAndParticipant()
+    {
+        static StarshipExpeditionSnapshot CreateRewardScenario() => new()
+        {
+            ExpeditionId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            Seed = 2048,
+            StartedAtUtc = DateTimeOffset.UnixEpoch,
+            UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 1,
+            LegCount = 4,
+            CurrentSector = "Kepler Reach",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Kepler Reach", "Ternion Belt"],
+            ActiveCrewRewardsOnly = false,
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = 9, PointTypeName = "Credits",
+                    SuccessChancePercent = 55, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5,
+                    CommonMinimum = 5, CommonMaximum = 15, UncommonMinimum = 20, UncommonMaximum = 35,
+                    RareMinimum = 40, RareMaximum = 60, MaximumPerEvent = 100, MaximumUnbankedPerVoyage = 300
+                }
+            ],
+            Crew = [new StarshipCrewMemberSnapshot { UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot" }],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                Sequence = 2,
+                EventType = "SignalDetected",
+                Title = "Unidentified Signal",
+                Sector = "Kepler Reach",
+                OpenedAtUtc = DateTimeOffset.UnixEpoch,
+                ClosesAtUtc = DateTimeOffset.UnixEpoch.AddSeconds(60),
+                Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "scan", Label = "Scan" }],
+                DefaultChoiceId = "scan"
+            }
+        };
+
+        var firstStore = new InMemoryStateStore();
+        var secondStore = new InMemoryStateStore();
+        var first = CreateService(firstStore);
+        var second = CreateService(secondStore);
+        await firstStore.SaveAsync(CreateRewardScenario());
+        await secondStore.SaveAsync(CreateRewardScenario());
+
+        var firstResult = await first.AdvanceEventAsync();
+        var secondResult = await second.AdvanceEventAsync();
+
+        var firstOutcome = Assert.Single(firstResult.CompletedEvents.Single().RewardOutcomes);
+        var secondOutcome = Assert.Single(secondResult.CompletedEvents.Single().RewardOutcomes);
+        Assert.Equal(firstOutcome.Outcome, secondOutcome.Outcome);
+        Assert.Equal(firstOutcome.Rarity, secondOutcome.Rarity);
+        Assert.Equal(firstOutcome.EarnedAmount, secondOutcome.EarnedAmount);
+    }
+
+    [Fact]
+    public async Task VoyageCap_RemainsConsumedAfterStationBanking()
+    {
+        var expeditionId = Guid.NewGuid();
+        var profile = new StarshipRewardProfile
+        {
+            EventType = "RouteChoice",
+            Enabled = true,
+            PointTypeId = 4,
+            PointTypeName = "Credits",
+            SuccessChancePercent = 100,
+            CommonWeightPercent = 100,
+            UncommonWeightPercent = 0,
+            RareWeightPercent = 0,
+            CommonMinimum = 10,
+            CommonMaximum = 10,
+            MaximumPerEvent = 50,
+            MaximumUnbankedPerVoyage = 10
+        };
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = expeditionId,
+            Seed = 78,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 1,
+            LegCount = 4,
+            CurrentSector = "Kepler Reach",
+            CurrentRoute = "Uncharted",
+            SectorPool = ["Kepler Reach", "Ternion Belt"],
+            ActiveCrewRewardsOnly = false,
+            RewardProfiles = [profile],
+            Crew = [new StarshipCrewMemberSnapshot { UserId = "pilot-id", DisplayName = "Pilot" }],
+            CompletedEvents =
+            [
+                new StarshipExpeditionEventSnapshot
+                {
+                    EventId = Guid.NewGuid(),
+                    Sequence = 1,
+                    EventType = "RouteChoice",
+                    RewardOutcomes = [new StarshipRewardOutcomeSnapshot
+                    {
+                        UserId = "pilot-id", DisplayName = "Pilot", PointTypeId = 4,
+                        PointTypeName = "Credits", Outcome = "Success", EarnedAmount = 10
+                    }]
+                }
+            ],
+            BankedPayouts =
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = $"starship:{expeditionId:N}:old-bank:pilot-id:4",
+                    EventId = Guid.NewGuid(),
+                    UserId = "pilot-id",
+                    PointTypeId = 4,
+                    Amount = 10,
+                    IsPaid = true
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "RouteChoice",
+                Title = "Second Reward",
+                Sector = "Kepler Reach",
+                OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+                Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "direct", Label = "Direct" }],
+                DefaultChoiceId = "direct"
+            }
+        });
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(10, resolved.CompletedEvents.Sum(item => item.RewardOutcomes.Sum(outcome => outcome.EarnedAmount)));
+        Assert.Equal(0, resolved.CompletedEvents.Last().RewardOutcomes.Single().EarnedAmount);
+        Assert.Empty(resolved.Crew.Single().UnbankedBalances);
+    }
+
+    [Fact]
+    public async Task RiskyChoice_DisclosesBalanceBeforeConfirmationAndLossAppliesOnlyToParticipant()
+    {
+        var stateStore = new InMemoryStateStore();
+        var pointProfile = new StarshipRewardProfile
+        {
+            EventType = "SalvageSite",
+            Enabled = true,
+            PointTypeId = 2,
+            PointTypeName = "Salvage Credits",
+            SuccessChancePercent = 0,
+            CommonWeightPercent = 100,
+            UncommonWeightPercent = 0,
+            RareWeightPercent = 0,
+            RiskLossPercent = 25,
+            MaximumRiskLossPerEvent = 50
+        };
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 33,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 1,
+            LegCount = 4,
+            CurrentSector = "Ternion Belt",
+            CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"],
+            ActiveCrewRewardsOnly = false,
+            RewardProfiles = [pointProfile],
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 80 }]
+                },
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "engineer-id", UserName = "engineer", DisplayName = "Engineer",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 30 }]
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 2,
+                EventType = "SalvageSite",
+                Title = "Derelict Salvage",
+                Sector = "Ternion Belt",
+                OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+                DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new StarshipEventChoiceSnapshot { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true },
+                    new StarshipEventChoiceSnapshot { ChoiceId = "pass", Label = "Pass it by" }
+                ]
+            }
+        });
+        var triggerService = new Mock<IDefaultCommandTriggerService>();
+        triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Returns(Task.CompletedTask);
+        var replies = new List<string>();
+        var serviceBackbone = new Mock<IServiceBackbone>();
+        serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            serviceBackboneMock: serviceBackbone, defaultCommandTriggerService: triggerService.Object,
+            pointsSystem: Mock.Of<IPointsSystem>());
+
+        var riskyVote = CreateArgs("pilot-id", "Pilot");
+        riskyVote.Args = ["vote", "salvage"];
+        await service.OnCommand(null, riskyVote);
+        Assert.Contains(replies, reply => reply.Contains("unbanked Salvage Credits balance is 80", StringComparison.Ordinal)
+            && reply.Contains("lose up to 20", StringComparison.Ordinal)
+            && reply.Contains("Success chance 0%", StringComparison.Ordinal)
+            && reply.Contains("Rare 30-50", StringComparison.Ordinal));
+        var pending = await service.GetSnapshotAsync();
+        Assert.NotNull(pending);
+        var confirmation = Assert.Single(pending.CurrentEvent!.PendingRiskConfirmations);
+        Assert.Equal(80, confirmation.ExposedBalance);
+        Assert.Equal(20, confirmation.MaximumLoss);
+        Assert.Empty(pending.CurrentEvent.Votes);
+        await service.VoteAsync(CreateArgs("engineer-id", "Engineer"), "pass");
+
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        var resolved = await service.AdvanceEventAsync();
+
+        var pilot = resolved.Crew.Single(member => member.UserId == "pilot-id");
+        var engineer = resolved.Crew.Single(member => member.UserId == "engineer-id");
+        Assert.Equal(60, Assert.Single(pilot.UnbankedBalances).Amount);
+        Assert.Equal(30, Assert.Single(engineer.UnbankedBalances).Amount);
+        Assert.Equal("pass", resolved.CompletedEvents.Single().ResolvedChoiceId);
+        var riskOutcome = Assert.Single(resolved.CompletedEvents.Single().RewardOutcomes, outcome => outcome.UserId == "pilot-id");
+        Assert.Equal("pilot-id", riskOutcome.UserId);
+        Assert.Equal("Failure", riskOutcome.Outcome);
+        Assert.Equal(20, riskOutcome.LostAmount);
+        Assert.Contains(resolved.CompletedEvents.Single().RewardOutcomes, outcome => outcome.UserId == "engineer-id" && outcome.LostAmount == 0);
+        triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
+            StarshipExpeditionService.DefaultCommandName,
+            DefaultCommandEventTypes.StarshipRiskFailed,
+            It.Is<CommandEventArgs>(args => args.UserId == "pilot-id"),
+            It.Is<Dictionary<string, string>>(variables => variables["LostAmount"] == "20")), Times.Once);
+    }
+
+    [Fact]
+    public async Task RiskyChoice_DoesNotRewardOrPenalizeCrewThatBecomesIneligibleBeforeResolution()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(), Seed = 32,
+            StartedAtUtc = DateTimeOffset.UtcNow, UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Status = StarshipExpeditionStatus.EventOpen, CurrentLeg = 1, LegCount = 4,
+            CurrentSector = "Ternion Belt", CurrentRoute = "Survey Route",
+            SectorPool = ["Ternion Belt", "Kepler Reach"], ActiveCrewRewardsOnly = true,
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "SalvageSite", Enabled = true, PointTypeId = 2, PointTypeName = "Salvage Credits",
+                    SuccessChancePercent = 0, CommonWeightPercent = 100, UncommonWeightPercent = 0, RareWeightPercent = 0,
+                    RiskLossPercent = 50, MaximumRiskLossPerEvent = 50
+                }
+            ],
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 80 }]
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(), Sequence = 2, EventType = "SalvageSite", Title = "Derelict Salvage",
+                Sector = "Ternion Belt", OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60), DefaultChoiceId = "pass",
+                Choices =
+                [
+                    new StarshipEventChoiceSnapshot { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true },
+                    new StarshipEventChoiceSnapshot { ChoiceId = "pass", Label = "Pass it by" }
+                ]
+            }
+        });
+        var activeNames = new List<string> { "pilot" };
+        var viewerFeature = new Mock<IViewerFeature>();
+        viewerFeature.Setup(viewers => viewers.GetActiveViewers()).Returns(() => activeNames.ToList());
+        viewerFeature.Setup(viewers => viewers.GetCurrentViewers()).Returns([]);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            viewerFeatureMock: viewerFeature, pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        activeNames.Clear();
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(80, Assert.Single(resolved.Crew.Single().UnbankedBalances).Amount);
+        var outcome = Assert.Single(resolved.CompletedEvents.Single().RewardOutcomes);
+        Assert.Equal("Ineligible", outcome.Outcome);
+        Assert.Equal(0, outcome.EarnedAmount);
+        Assert.Equal(0, outcome.LostAmount);
+    }
+
+    [Fact]
+    public async Task StationPayout_RetriesAfterSnapshotSaveFailureWithoutDoubleCrediting()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 77,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 2,
+            LegCount = 5,
+            CurrentSector = "Vela Expanse",
+            CurrentRoute = "Direct Route",
+            ActiveCrewRewardsOnly = false,
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 3, PointTypeName = "Credits", Amount = 25 }]
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 4,
+                EventType = "StationStop",
+                Title = "Space Station",
+                Sector = "Vela Expanse",
+                OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+                DefaultChoiceId = "resupply",
+                Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "resupply", Label = "Resupply" }]
+            }
+        });
+        var permanentBalance = 0L;
+        var appliedOperations = new HashSet<string>(StringComparer.Ordinal);
+        var points = new Mock<IPointsSystem>();
+        var triggerService = new Mock<IDefaultCommandTriggerService>();
+        triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Returns(Task.CompletedTask);
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 3, 25, It.IsAny<string>()))
+            .Returns((string _, int _, long amount, string operationId) =>
+            {
+                if (appliedOperations.Add(operationId)) permanentBalance += amount;
+                return Task.FromResult(true);
+            });
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            defaultCommandTriggerService: triggerService.Object, pointsSystem: points.Object);
+        stateStore.FailOnSaveNumber = stateStore.SaveCount + 2;
+
+        await Assert.ThrowsAsync<IOException>(() => service.AdvanceEventAsync());
+        Assert.Equal(25, permanentBalance);
+        Assert.False((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
+
+        await service.ProcessDueTransitionAsync();
+
+        Assert.Equal(25, permanentBalance);
+        Assert.True((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
+        Assert.Single(appliedOperations);
+        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", 3, 25, It.IsAny<string>()), Times.Exactly(2));
+        triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
+            StarshipExpeditionService.DefaultCommandName,
+            DefaultCommandEventTypes.StarshipCrewRewardBanked,
+            It.Is<CommandEventArgs>(args => args.UserId == "pilot-id"),
+            It.Is<Dictionary<string, string>>(variables => variables["Amount"] == "25")), Times.Once);
+    }
+
+    [Fact]
+    public async Task StartExpedition_DoesNotReplaceSnapshotWhileStationPayoutIsPending()
+    {
+        var stateStore = new InMemoryStateStore();
+        var priorExpeditionId = Guid.NewGuid();
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = priorExpeditionId,
+            Status = StarshipExpeditionStatus.Returned,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            LegCount = 1,
+            CurrentLeg = 1,
+            BankedPayouts =
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = "pending-payout", EventId = Guid.NewGuid(), UserId = "viewer-id",
+                    PointTypeId = 1, Amount = 10
+                }
+            ]
+        });
+        var service = CreateService(stateStore);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.StartExpeditionAsync("moderator", seed: 99));
+
+        Assert.Equal(priorExpeditionId, (await service.GetSnapshotAsync())?.ExpeditionId);
+        Assert.False((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
+    }
+
+    [Fact]
+    public async Task FinalReturn_BanksUnbankedCrewBalanceThroughIdempotentPointsPath()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 91,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            Status = StarshipExpeditionStatus.EventOpen,
+            CurrentLeg = 0,
+            LegCount = 1,
+            CurrentSector = "Kepler Reach",
+            CurrentRoute = "Direct Route",
+            SectorPool = ["Kepler Reach", "Ternion Belt"],
+            ActiveCrewRewardsOnly = false,
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 8, PointTypeName = "Credits", Amount = 35 }]
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 1,
+                EventType = "RouteChoice",
+                Title = "Choose a Route",
+                Sector = "Kepler Reach",
+                OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+                Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "direct", Label = "Direct route" }],
+                DefaultChoiceId = "direct"
+            }
+        });
+        var points = new Mock<IPointsSystem>();
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 8, 35, It.IsAny<string>())).ReturnsAsync(true);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: points.Object);
+
+        var returned = await service.AdvanceEventAsync();
+
+        Assert.Equal(StarshipExpeditionStatus.Returned, returned.Status);
+        var payout = Assert.Single(returned.BankedPayouts);
+        Assert.True(payout.IsPaid);
+        Assert.Equal(35, payout.Amount);
+        points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", 8, 35, payout.OperationId), Times.Once);
     }
 
     private static StarshipExpeditionService CreateService(
@@ -394,14 +963,18 @@ public class StarshipExpeditionServiceTests
         TimeProvider? timeProvider = null,
         InMemorySettingsStore? settingsStore = null,
         Mock<IServiceBackbone>? serviceBackboneMock = null,
-        IDefaultCommandTriggerService? defaultCommandTriggerService = null)
+        IDefaultCommandTriggerService? defaultCommandTriggerService = null,
+        Mock<IViewerFeature>? viewerFeatureMock = null,
+        IPointsSystem? pointsSystem = null)
     {
         var serviceBackbone = serviceBackboneMock ?? new Mock<IServiceBackbone>();
         if (serviceBackboneMock == null)
+        {
             serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>()))
                 .Returns(Task.CompletedTask);
-        serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
-            .Returns(Task.CompletedTask);
+            serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+                .Returns(Task.CompletedTask);
+        }
         var webSocketMessenger = new Mock<IWebSocketMessenger>();
         webSocketMessenger.Setup(messenger => messenger.AddToQueue(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
@@ -415,7 +988,9 @@ public class StarshipExpeditionServiceTests
             NullLogger<StarshipExpeditionService>.Instance,
             Mock.Of<IPenguinDispatcher>(),
             timeProvider,
-            defaultCommandTriggerService);
+            defaultCommandTriggerService,
+            pointsSystem,
+            viewerFeatureMock?.Object);
     }
 
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()
@@ -430,6 +1005,8 @@ public class StarshipExpeditionServiceTests
     {
         private string? _snapshotJson;
         public bool FailNextSave { get; set; }
+        public int SaveCount { get; private set; }
+        public int? FailOnSaveNumber { get; set; }
 
         public Task<StarshipExpeditionSnapshot?> LoadAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(_snapshotJson == null
@@ -438,9 +1015,11 @@ public class StarshipExpeditionServiceTests
 
         public Task SaveAsync(StarshipExpeditionSnapshot snapshot, CancellationToken cancellationToken = default)
         {
-            if (FailNextSave)
+            SaveCount++;
+            if (FailNextSave || SaveCount == FailOnSaveNumber)
             {
                 FailNextSave = false;
+                FailOnSaveNumber = null;
                 throw new IOException("Simulated state persistence failure.");
             }
 

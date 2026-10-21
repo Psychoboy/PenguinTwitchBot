@@ -107,11 +107,31 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
             throw new InvalidDataException("Every Starship crew member must have a user ID.");
         if (snapshot.Crew.Select(member => member.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != snapshot.Crew.Count)
             throw new InvalidDataException("Starship expedition crew contains duplicate user IDs.");
+        if (snapshot.Crew.Any(member => member.UnbankedBalances == null || member.UnbankedBalances.Any(balance => balance.PointTypeId <= 0 || balance.Amount < 0)))
+            throw new InvalidDataException("Starship crew unbanked balances are invalid.");
+        if (snapshot.RewardProfiles == null || snapshot.BankedPayouts == null)
+            throw new InvalidDataException("Starship reward or payout state cannot be null.");
+        if (snapshot.BankedPayouts.Any(payout => string.IsNullOrWhiteSpace(payout.OperationId) || string.IsNullOrWhiteSpace(payout.UserId) || payout.PointTypeId <= 0 || payout.Amount <= 0))
+            throw new InvalidDataException("Starship banked payout state is invalid.");
+        if (snapshot.BankedPayouts.Select(payout => payout.OperationId).Distinct(StringComparer.Ordinal).Count() != snapshot.BankedPayouts.Count)
+            throw new InvalidDataException("Starship banked payouts contain duplicate operation IDs.");
 
         if (snapshot.CurrentEvent is { } currentEvent &&
             (currentEvent.EventId == Guid.Empty || string.IsNullOrWhiteSpace(currentEvent.EventType) || currentEvent.Sequence < 1))
         {
             throw new InvalidDataException("Starship expedition event state is invalid.");
         }
+        if (snapshot.CurrentEvent is { } openEvent &&
+            (openEvent.PendingRiskConfirmations == null || openEvent.PendingRiskConfirmations.Select(item => item.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != openEvent.PendingRiskConfirmations.Count))
+            throw new InvalidDataException("Starship risk confirmations are invalid.");
+        if (snapshot.CurrentEvent is { } rewardEvent &&
+            (rewardEvent.EligibleRewardUserIds.Any(string.IsNullOrWhiteSpace) ||
+             rewardEvent.EligibleRewardUserIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != rewardEvent.EligibleRewardUserIds.Count ||
+             rewardEvent.RewardOutcomes.Any(outcome => string.IsNullOrWhiteSpace(outcome.UserId) || outcome.PointTypeId <= 0 || outcome.EarnedAmount < 0 || outcome.LostAmount < 0)))
+            throw new InvalidDataException("Starship event reward state is invalid.");
+        if (snapshot.CurrentEvent is { } riskEvent && riskEvent.PendingRiskConfirmations.Any(item =>
+                string.IsNullOrWhiteSpace(item.UserId) || string.IsNullOrWhiteSpace(item.ChoiceId) || item.PointTypeId <= 0 ||
+                item.ExposedBalance < 0 || item.MaximumLoss < 0 || item.MaximumLoss > item.ExposedBalance))
+            throw new InvalidDataException("Starship risk confirmation values are invalid.");
     }
 }

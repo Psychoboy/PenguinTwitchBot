@@ -733,6 +733,48 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "starship-crew-reward-banked",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Crew Reward Banked",
+                Description = "Triggers once when a crew member's station payout is settled",
+                Icon = Icons.Material.Filled.AccountBalance,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipCrewRewardBanked
+            },
+            new()
+            {
+                Id = "starship-risk-succeeded",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Risk Succeeded",
+                Description = "Triggers for a crew member who succeeds at a confirmed risky action",
+                Icon = Icons.Material.Filled.CheckCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipRiskSucceeded
+            },
+            new()
+            {
+                Id = "starship-risk-failed",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Risk Failed",
+                Description = "Triggers for a crew member who fails a confirmed risky action",
+                Icon = Icons.Material.Filled.Warning,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipRiskFailed
+            },
+            new()
+            {
                 Id = "defuse-success",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

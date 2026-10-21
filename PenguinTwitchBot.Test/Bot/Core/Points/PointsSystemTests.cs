@@ -8,6 +8,7 @@ using PenguinTwitchBot.Bot.Core.Points;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Bot.Models.Points;
 using PenguinTwitchBot.Database.Repository;
+using System.Linq.Expressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -560,6 +561,54 @@ namespace PenguinTwitchBot.Test.Bot.Core.Points
 
             // Assert
             Assert.Equal(1, maxObservedConcurrency);
+        }
+
+        [Fact]
+        public async Task AddPointsByUserIdOnce_AwardsAndPersistsMarkerOnlyOnce()
+        {
+            var userId = $"user-{Guid.NewGuid():N}";
+            const int pointTypeId = 4;
+            const string operationId = "starship-expedition-station-payout";
+            var viewer = new Viewer { UserId = userId, Username = "TestUser" };
+            var settingsRows = new List<Setting>();
+            UserPoints? storedPoints = null;
+            var settingsRepository = Substitute.For<ISettingsRepository>();
+            settingsRepository.GetAsync(
+                    Arg.Any<Expression<Func<Setting, bool>>>(),
+                    Arg.Any<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
+                    Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<string>())
+                .Returns(call =>
+                {
+                    var predicate = call.Arg<Expression<Func<Setting, bool>>>().Compile();
+                    return Task.FromResult(settingsRows.Where(predicate).ToList());
+                });
+            settingsRepository.AddAsync(Arg.Any<Setting>())
+                .Returns(call =>
+                {
+                    settingsRows.Add(call.Arg<Setting>());
+                    return default(ValueTask<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Setting>>);
+                });
+
+            _unitOfWorkMock.Settings.Returns(settingsRepository);
+            _unitOfWorkMock.UserPoints.GetUserPointsByUserId(userId, pointTypeId).Returns(_ => storedPoints);
+            _unitOfWorkMock.UserPoints.AddAsync(Arg.Any<UserPoints>())
+                .Returns(call =>
+                {
+                    storedPoints = call.Arg<UserPoints>();
+                    return default(ValueTask<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<UserPoints>>);
+                });
+            _viewerFeatureMock.GetViewerByUserId(userId).Returns(viewer);
+
+            var firstSettlement = await _pointsSystem.AddPointsByUserIdOnce(userId, pointTypeId, 25, operationId);
+            var retriedSettlement = await _pointsSystem.AddPointsByUserIdOnce(userId, pointTypeId, 25, operationId);
+
+            Assert.True(firstSettlement);
+            Assert.True(retriedSettlement);
+            Assert.Equal(25, storedPoints!.Points);
+            Assert.Single(settingsRows);
+            Assert.Equal("points_award_once:" + operationId, settingsRows[0].Name);
+            Assert.Equal($"{userId}:{pointTypeId}:25", settingsRows[0].StringSetting);
+            await _unitOfWorkMock.Received(1).SaveChangesAsync();
         }
 
         [Fact]

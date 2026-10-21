@@ -629,12 +629,34 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("EventType", "Kind of the resolved crew event", source, category, "SignalDetected");
             variables.SetVariable("Choice", "Winning/default choice label", source, category, "Scan the signal");
             variables.SetVariable("VoteCount", "Number of crew votes recorded", source, category, "3");
+            variables.SetVariable("PointType", "Point currency used by the event reward profile", source, category, "Salvage Credits");
+            variables.SetVariable("RewardParticipantCount", "Eligible crew members who earned a reward", source, category, "3");
+            variables.SetVariable("RewardTotal", "Aggregate unbanked reward amount for the event", source, category, "45");
         }
         else if (eventType == DefaultCommandEventTypes.StarshipVoyageEnded)
         {
             variables.SetVariable("Result", "Voyage terminal result", source, category, "Returned");
             variables.SetVariable("Duration", "Voyage duration in seconds", source, category, "3600");
             variables.SetVariable("TriggeredBy", "Broadcaster or moderator who ended the voyage", source, category, "Broadcaster");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipCrewRewardBanked)
+        {
+            variables.SetVariable("PointType", "Point currency banked for this crew member", source, category, "Salvage Credits");
+            variables.SetVariable("Amount", "Amount added to the crew member's permanent balance", source, category, "25");
+            variables.SetVariable("EventId", "Station event that settled the payout", source, category, "event-id");
+        }
+        else if (eventType is DefaultCommandEventTypes.StarshipRiskSucceeded or DefaultCommandEventTypes.StarshipRiskFailed)
+        {
+            variables.SetVariable("EventTitle", "Risk event the crew member chose", source, category, "Derelict Salvage");
+            variables.SetVariable("EventType", "Kind of the risk event", source, category, "SalvageSite");
+            variables.SetVariable("PointType", "Point currency exposed to this action", source, category, "Salvage Credits");
+            variables.SetVariable("EarnedAmount", "Unbanked reward earned from success", source, category, "20");
+            variables.SetVariable("LostAmount", "Unbanked balance lost on failure", source, category, "10");
+            variables.SetVariable("Rarity", "Reward rarity selected on success", source, category, "Uncommon");
+            variables.SetVariable("Choice", "Risky action chosen by this crew member", source, category, "Recover salvage");
+            variables.SetVariable("SuccessChancePercent", "Configured probability of success for this risky action", source, category, "75");
+            variables.SetVariable("Outcome", "Individual risky-action outcome", source, category,
+                eventType == DefaultCommandEventTypes.StarshipRiskSucceeded ? "Success" : "Failure");
         }
     }
 }

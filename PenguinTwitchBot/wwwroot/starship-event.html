@@ -24,6 +24,17 @@
         </div>
         <div id="event-panel" hidden>
             <div id="choices" class="choices"></div>
+            <section id="reward-disclosure" class="reward-disclosure" hidden>
+                <div class="reward-heading">
+                    <span class="section-label">OUTCOME PROFILE</span>
+                    <strong id="reward-point-type"></strong>
+                </div>
+                <span id="reward-success"></span>
+                <span id="reward-scope"></span>
+                <span id="reward-rarity"></span>
+                <span id="reward-caps"></span>
+                <span id="reward-risk" class="risk-note" hidden></span>
+            </section>
             <footer class="vote-footer">
                 <span id="event-sector"></span>
                 <span>Vote in chat: <b>!starship vote &lt;choice&gt;</b></span>
@@ -33,6 +44,7 @@
             <span class="section-label">VOYAGE UPDATE</span>
             <strong id="result-choice"></strong>
             <span id="result-detail"></span>
+            <div id="result-banked" class="banked-list" hidden></div>
         </div>
     </main>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>

@@ -35,7 +35,8 @@ public class StarshipExpeditionStateStoreTests
                     UserName = "pilot",
                     DisplayName = "Pilot",
                     JoinedAtUtc = DateTimeOffset.UtcNow,
-                    EnrollmentMethod = StarshipCrewEnrollmentMethod.ExplicitJoin
+                    EnrollmentMethod = StarshipCrewEnrollmentMethod.ExplicitJoin,
+                    UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Credits", Amount = 40 }]
                 },
                 new StarshipCrewMemberSnapshot
                 {
@@ -51,11 +52,39 @@ public class StarshipExpeditionStateStoreTests
                 EventId = Guid.NewGuid(),
                 Sequence = 3,
                 EventType = "SignalDetected",
+                Title = "Signal",
                 OpenedAtUtc = DateTimeOffset.UtcNow,
                 ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(30),
                 Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "scan", Label = "Scan" }],
+                EligibleRewardUserIds = ["viewer-1"],
+                RewardOutcomes = [new StarshipRewardOutcomeSnapshot
+                {
+                    UserId = "viewer-1", DisplayName = "Pilot", PointTypeId = 2, PointTypeName = "Credits",
+                    Outcome = "Success", Rarity = "Common", EarnedAmount = 10
+                }],
+                PendingRiskConfirmations = [new StarshipRiskConfirmationSnapshot
+                {
+                    UserId = "viewer-1", ChoiceId = "scan", ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(20),
+                    PointTypeId = 2, PointTypeName = "Credits", ExposedBalance = 40, MaximumLoss = 10
+                }],
                 Votes = [new StarshipEventVoteSnapshot { UserId = "viewer-1", ChoiceId = "scan" }]
-            }
+            },
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = 2, PointTypeName = "Credits",
+                    SuccessChancePercent = 75, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5
+                }
+            ],
+            BankedPayouts =
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = "starship:bank-1", EventId = Guid.NewGuid(), UserId = "viewer-1",
+                    DisplayName = "Pilot", PointTypeId = 2, PointTypeName = "Credits", Amount = 40
+                }
+            ]
         };
 
         await store.SaveAsync(snapshot);
@@ -72,6 +101,11 @@ public class StarshipExpeditionStateStoreTests
             member => Assert.Equal("viewer-2", member.UserId));
         Assert.Equal("SignalDetected", restored.CurrentEvent?.EventType);
         Assert.Equal("viewer-1", Assert.Single(restored.CurrentEvent!.Votes).UserId);
+        Assert.Equal(40, Assert.Single(restored.Crew[0].UnbankedBalances).Amount);
+        Assert.Equal(75, Assert.Single(restored.RewardProfiles).SuccessChancePercent);
+        Assert.Equal(10, Assert.Single(restored.CurrentEvent.RewardOutcomes).EarnedAmount);
+        Assert.Equal(10, Assert.Single(restored.CurrentEvent.PendingRiskConfirmations).MaximumLoss);
+        Assert.Equal("starship:bank-1", Assert.Single(restored.BankedPayouts).OperationId);
         Assert.Single(settingRows);
     }
 
@@ -116,6 +150,33 @@ public class StarshipExpeditionStateStoreTests
             Status = StarshipExpeditionStatus.EventOpen,
             CurrentLeg = 1,
             LegCount = 4,
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "SignalDetected", Enabled = true, PointTypeId = 4, PointTypeName = "Credits",
+                    SuccessChancePercent = 75, CommonWeightPercent = 70, UncommonWeightPercent = 25, RareWeightPercent = 5,
+                    CommonMinimum = 5, CommonMaximum = 10, MaximumRiskLossPerEvent = 20
+                }
+            ],
+            CompletedEvents =
+            [
+                new StarshipExpeditionEventSnapshot
+                {
+                    EventId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    Sequence = 1, EventType = "StationStop", Title = "Space Station", Sector = "Kepler Reach",
+                    Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "bank", Label = "Bank the haul" }],
+                    ResolvedChoiceId = "bank", ResolvedAtUtc = DateTimeOffset.UtcNow
+                }
+            ],
+            BankedPayouts =
+            [
+                new StarshipBankedPayoutSnapshot
+                {
+                    OperationId = "starship:bank-op", EventId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    UserId = "private-viewer-id", DisplayName = "Pilot", PointTypeId = 4, PointTypeName = "Credits", Amount = 15, IsPaid = true
+                }
+            ],
             Crew = [new StarshipCrewMemberSnapshot { UserId = "private-viewer-id" }],
             CurrentEvent = new StarshipExpeditionEventSnapshot
             {
@@ -139,6 +200,8 @@ public class StarshipExpeditionStateStoreTests
         Assert.Equal(1, projection.CrewCount);
         Assert.Equal(1, projection.CurrentEvent!.VoteCounts["scan"]);
         Assert.Contains(projection.CurrentEvent.Choices, choice => choice.Label == "Scan the signal");
+        Assert.Equal(75, projection.CurrentEvent.RewardDisclosure!.SuccessChancePercent);
+        Assert.Equal(15, Assert.Single(projection.LatestResult!.BankedAmounts).Amount);
         Assert.DoesNotContain("private-viewer-id", serialized, StringComparison.Ordinal);
     }
 

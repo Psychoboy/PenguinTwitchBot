@@ -25,6 +25,24 @@ public class StarshipExpeditionSettingsStoreTests
             AnnounceSessionStatusInChat = false,
             SessionStartChatMessageTemplate = "Boarding {duration}s",
             SessionEndChatMessageTemplate = "Returned {count} in {duration}s",
+            RewardProfiles =
+            [
+                new StarshipRewardProfile
+                {
+                    EventType = "SalvageSite",
+                    Enabled = true,
+                    PointTypeId = 7,
+                    PointTypeName = "Salvage Credits",
+                    SuccessChancePercent = 75,
+                    CommonWeightPercent = 60,
+                    UncommonWeightPercent = 30,
+                    RareWeightPercent = 10,
+                    CommonMinimum = 5,
+                    CommonMaximum = 12,
+                    RiskLossPercent = 25,
+                    MaximumRiskLossPerEvent = 40
+                }
+            ],
             CustomSectors = ["  Delta Reach  ", "Glass Nebula"]
         };
 
@@ -39,6 +57,12 @@ public class StarshipExpeditionSettingsStoreTests
         Assert.False(loaded.AnnounceSessionStatusInChat);
         Assert.Equal("Boarding {duration}s", loaded.SessionStartChatMessageTemplate);
         Assert.Equal("Returned {count} in {duration}s", loaded.SessionEndChatMessageTemplate);
+        var rewardProfile = loaded.RewardProfiles.Single(profile => profile.EventType == "SalvageSite");
+        Assert.Equal("SalvageSite", rewardProfile.EventType);
+        Assert.Equal(7, rewardProfile.PointTypeId);
+        Assert.Equal(75, rewardProfile.SuccessChancePercent);
+        Assert.Equal([60, 30, 10], new[] { rewardProfile.CommonWeightPercent, rewardProfile.UncommonWeightPercent, rewardProfile.RareWeightPercent });
+        Assert.Equal(40, rewardProfile.MaximumRiskLossPerEvent);
         Assert.Equal(["Delta Reach", "Glass Nebula"], loaded.CustomSectors);
         Assert.Equal(Setting.DataTypeEnum.String, Assert.Single(rows).DataType);
     }
@@ -54,6 +78,7 @@ public class StarshipExpeditionSettingsStoreTests
         Assert.Equal(StarshipExpeditionService.DefaultBoardingDurationSeconds, settings.BoardingDurationSeconds);
         Assert.True(settings.ActiveCrewRewardsOnly);
         Assert.True(settings.AnnounceSessionStatusInChat);
+        Assert.All(settings.RewardProfiles, profile => Assert.False(profile.Enabled));
         Assert.Empty(settings.CustomSectors);
         Assert.Equal(5, settings.GetEffectiveSectors().Count);
     }
@@ -75,6 +100,29 @@ public class StarshipExpeditionSettingsStoreTests
             new StarshipExpeditionSettings { CustomSectors = ["  "] }));
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(
             new StarshipExpeditionSettings { CustomSectors = [new string('x', StarshipExpeditionSettings.MaximumSectorNameLength + 1)] }));
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_RejectsInvalidRewardOddsAndUnboundedRanges()
+    {
+        var wrongOdds = new StarshipExpeditionSettings
+        {
+            RewardProfiles = [new StarshipRewardProfile { EventType = "SignalDetected", Enabled = true, PointTypeId = 1, CommonWeightPercent = 50 }]
+        };
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(wrongOdds));
+
+        var unbounded = new StarshipExpeditionSettings
+        {
+            RewardProfiles = [new StarshipRewardProfile
+            {
+                EventType = "SignalDetected",
+                Enabled = true,
+                PointTypeId = 1,
+                CommonMinimum = StarshipExpeditionSettings.MaximumConfiguredReward + 1,
+                CommonMaximum = StarshipExpeditionSettings.MaximumConfiguredReward + 1
+            }]
+        };
+        Assert.Throws<ArgumentOutOfRangeException>(() => StarshipExpeditionSettings.NormalizeAndValidate(unbounded));
     }
 
     private static StarshipExpeditionSettingsStore CreateStore(List<Setting> rows)
