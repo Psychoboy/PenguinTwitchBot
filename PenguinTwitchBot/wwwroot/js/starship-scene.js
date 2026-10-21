@@ -4,6 +4,7 @@
     const RESULT_WINDOW_MS = 14000;
     const EVENT_END_WINDOW_MS = 20000;
     const STATUS_END_WINDOW_MS = 30000;
+    const CRUISE_HOLD_MS = 30000;
     const STEP_WINDOW_MS = 2500;
     const REPLAY_WINDOW_MS = 10000;
 
@@ -69,6 +70,8 @@
             const terminal = status === 'Returned' || status === 'Aborted';
             const updatedAt = parse(snapshot?.updatedAtUtc);
             const forced = parse(snapshot?.statusForcedUntilUtc) > t;
+            const resolvedAt = parse(snapshot?.latestResult?.resolvedAtUtc);
+            const holding = status === 'Cruising' && resolvedAt > 0 && t < resolvedAt + CRUISE_HOLD_MS;
             const resultVisible = !!snapshot?.latestResult && t <= resultUntil &&
                 !(terminal && t > updatedAt + EVENT_END_WINDOW_MS);
 
@@ -91,7 +94,7 @@
                 name: name,
                 eventVisible: eventVisible,
                 forced: forced,
-                statusFaded: !forced && (status === 'Cruising' || (terminal && t > updatedAt + STATUS_END_WINDOW_MS))
+                statusFaded: !forced && !holding && (status === 'Cruising' || (terminal && t > updatedAt + STATUS_END_WINDOW_MS))
             };
         }
 

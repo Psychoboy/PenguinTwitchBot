@@ -672,6 +672,11 @@ namespace PenguinTwitchBot.Test.ClientScripts
                 var freshTracker = window.StarshipScene.createTracker();
                 freshTracker.update(oldCruising);
                 window.__stale = freshTracker.derive(oldCruising);
+                var recentCruising = {{ status: 'Cruising', updatedAtUtc: '{Iso(0)}', serverNowUtc: '{Iso(0)}',
+                    latestResult: {{ sequence: 5, choice: 'Recent', resolvedAtUtc: '{Iso(-25)}' }}, currentEvent: null }};
+                var recentTracker = window.StarshipScene.createTracker();
+                recentTracker.update(recentCruising);
+                window.__recent = recentTracker.derive(recentCruising);
                 var ended = {{ status: 'Returned', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
                     latestResult: {{ sequence: 6, choice: 'Done', resolvedAtUtc: '{Iso(2)}' }}, currentEvent: null }};
                 tracker.update(ended);
@@ -682,8 +687,10 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("StepTransition", engine.Evaluate("window.__second").AsString());
             Assert.Equal("Result", engine.Evaluate("window.__result.name").AsString());
             Assert.True(engine.Evaluate("window.__result.eventVisible").AsBoolean());
-            Assert.True(engine.Evaluate("window.__result.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__result.statusFaded").AsBoolean());
             Assert.Equal("Cruising", engine.Evaluate("window.__stale.name").AsString());
+            Assert.True(engine.Evaluate("window.__stale.statusFaded").AsBoolean());
+            Assert.False(engine.Evaluate("window.__recent.statusFaded").AsBoolean());
             Assert.False(engine.Evaluate("window.__stale.eventVisible").AsBoolean());
             Assert.Equal("VoyageEnd", engine.Evaluate("window.__ended.name").AsString());
             Assert.False(engine.Evaluate("window.__ended.statusFaded").AsBoolean());

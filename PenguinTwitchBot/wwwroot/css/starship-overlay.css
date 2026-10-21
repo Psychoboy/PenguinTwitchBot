@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
 
 :root {
-    color-scheme: dark;
     --panel: rgba(10, 24, 29, 0.94);
     --panel-line: rgba(99, 190, 179, 0.42);
     --text: #edf5ef;
@@ -21,7 +20,7 @@ body {
     height: 100%;
     margin: 0;
     overflow: hidden;
-    background: transparent;
+    background: transparent !important;
     color: var(--text);
     font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
     user-select: none;
