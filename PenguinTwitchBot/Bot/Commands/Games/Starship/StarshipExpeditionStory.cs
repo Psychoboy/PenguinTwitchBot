@@ -76,6 +76,7 @@ public static class StarshipExpeditionStory
         (_, "Common") => "some useful scrap",
         (_, "Uncommon") => "a valuable cache",
         (_, "Rare") => "a priceless find",
+        (_, { Length: > 0 }) => $"a {rarity!.ToLowerInvariant()} find",
         _ => "something valuable"
     };
 

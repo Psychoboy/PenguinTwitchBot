@@ -613,16 +613,14 @@ h1 {
 .rarity-badge {
     flex: 0 0 auto;
     padding: 2px 8px;
-    border: 1px solid var(--muted);
+    border: 1px solid var(--rarity-color, var(--muted));
     border-radius: 10px;
-    color: var(--muted);
+    color: var(--rarity-color, var(--muted));
     font: 600 10px 'IBM Plex Mono', monospace;
     text-transform: uppercase;
 }
 
-.rarity-badge[data-rarity='Common'] { border-color: #a8c1bd; color: #cfe0dc; }
-.rarity-badge[data-rarity='Uncommon'] { border-color: #8be28b; color: #8be28b; }
-.rarity-badge[data-rarity='Rare'] { border-color: #b79cff; color: #d3c3ff; box-shadow: 0 0 8px rgba(183, 156, 255, 0.55); }
+.rarity-badge[data-rarity='Rare'] { box-shadow: 0 0 8px var(--rarity-color, rgba(183, 156, 255, 0.55)); }
 
 #starship-widget[data-scene='StepTransition'] .rarity-badge:not([data-rarity='']) {
     animation: rarity-reveal 1.4s ease-out;

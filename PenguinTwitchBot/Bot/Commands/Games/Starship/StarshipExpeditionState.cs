@@ -36,6 +36,7 @@ public sealed class StarshipExpeditionSnapshot
     public DateTimeOffset? BoardingClosesAtUtc { get; set; }
     public bool ActiveCrewRewardsOnly { get; init; } = true;
     public List<StarshipRewardProfile> RewardProfiles { get; init; } = [];
+    public Dictionary<string, string> EventRewardProfileIds { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AnnounceSessionStatusInChat { get; init; } = true;
     public string SessionStartChatMessageTemplate { get; init; } = string.Empty;
     public string SessionEndChatMessageTemplate { get; init; } = string.Empty;
@@ -47,6 +48,8 @@ public sealed class StarshipExpeditionSnapshot
     public List<StarshipCrewMemberSnapshot> Crew { get; init; } = [];
     public List<StarshipExpeditionEventSnapshot> CompletedEvents { get; init; } = [];
     public List<StarshipBankedPayoutSnapshot> BankedPayouts { get; init; } = [];
+    /// <summary>Reward-profile actions waiting to run, or already run (kept so each fires exactly once).</summary>
+    public List<StarshipPendingActionSnapshot> PendingActions { get; init; } = [];
     public StarshipExpeditionEventSnapshot? CurrentEvent { get; set; }
     /// <summary>While in the future, the status widget stays visible even when it would otherwise fade out during cruising.</summary>
     public DateTimeOffset? StatusForcedUntilUtc { get; set; }
@@ -127,9 +130,11 @@ public sealed class StarshipExpeditionEventSnapshot
     public int RewardMultiplierPercent { get; set; } = 100;
     public int RiskMultiplierPercent { get; set; } = 100;
     public string? RevealedRarity { get; set; }
+    public string RevealedRarityColor { get; set; } = string.Empty;
     public string StepNote { get; set; } = string.Empty;
     public string OutcomeResult { get; set; } = string.Empty;
     public string OutcomeRarity { get; set; } = string.Empty;
+    public string OutcomeRarityColor { get; set; } = string.Empty;
     public List<StarshipEventVoteSnapshot> Votes { get; init; } = [];
     public List<string> EligibleRewardUserIds { get; init; } = [];
     public List<StarshipRewardOutcomeSnapshot> RewardOutcomes { get; init; } = [];
@@ -206,6 +211,20 @@ public sealed class StarshipBankedPayoutSnapshot
     public DateTimeOffset? PaidAtUtc { get; set; }
 }
 
+public sealed class StarshipPendingActionSnapshot
+{
+    public string OperationId { get; init; } = string.Empty;
+    public int ActionId { get; init; }
+    public string ActionName { get; init; } = string.Empty;
+    public string Timing { get; init; } = StarshipActionTimings.Immediate;
+    public Guid EventId { get; init; }
+    /// <summary>For AfterBank actions: the bank (station, return or abort) whose payouts must settle first.</summary>
+    public Guid? BankEventId { get; set; }
+    public bool Executed { get; set; }
+    public int Attempts { get; set; }
+    public Dictionary<string, string> Variables { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
 public sealed class StarshipRiskConfirmationSnapshot
 {
     public string UserId { get; init; } = string.Empty;
@@ -256,8 +275,7 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 ? null
                 : StarshipOverlayEventSnapshot.From(
                     snapshot.CurrentEvent,
-                    snapshot.RewardProfiles.FirstOrDefault(profile => profile.Enabled &&
-                        string.Equals(profile.EventType, snapshot.CurrentEvent.EventType, StringComparison.OrdinalIgnoreCase))),
+                    StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, snapshot.CurrentEvent.EventType)),
             GetLatestOverlayResult(snapshot),
             snapshot.StatusForcedUntilUtc,
             serverNowUtc ?? DateTimeOffset.UtcNow,
@@ -336,7 +354,8 @@ public sealed record StarshipOverlayEventSnapshot(
     string ObjectKind,
     int ObjectVariant,
     DateTimeOffset OpenedAtUtc,
-    int ObjectRoll)
+    int ObjectRoll,
+    string RevealedRarityColor = "")
 {
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
         expeditionEvent.Sequence,
@@ -367,7 +386,8 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.ObjectKind,
         expeditionEvent.ObjectVariant,
         expeditionEvent.OpenedAtUtc,
-        expeditionEvent.ObjectRoll);
+        expeditionEvent.ObjectRoll,
+        expeditionEvent.RevealedRarityColor);
 }
 
 public sealed record StarshipOverlayChoice(
@@ -385,39 +405,80 @@ public sealed record StarshipOverlayChoice(
 
 public sealed record StarshipOverlayTimelineEntry(int Sequence, string Title, string Outcome, string Rarity, string ObjectKind);
 
+public sealed record StarshipRewardDisclosureTier(
+    string Name,
+    string Color,
+    int ChancePercent,
+    string RewardText,
+    bool RunsActions);
+
 public sealed record StarshipRewardDisclosureSnapshot(
     string PointTypeName,
     int SuccessChancePercent,
-    int CommonWeightPercent,
-    long CommonMinimum,
-    long CommonMaximum,
-    int UncommonWeightPercent,
-    long UncommonMinimum,
-    long UncommonMaximum,
-    int RareWeightPercent,
-    long RareMinimum,
-    long RareMaximum,
+    IReadOnlyList<StarshipRewardDisclosureTier> Tiers,
     int RiskLossPercent,
     long MaximumRiskLossPerEvent,
     long MaximumPerEvent,
     long MaximumUnbankedPerVoyage)
 {
-    public static StarshipRewardDisclosureSnapshot From(StarshipRewardProfile profile) => new(
-        profile.PointTypeName,
-        profile.SuccessChancePercent,
-        profile.CommonWeightPercent,
-        profile.CommonMinimum,
-        profile.CommonMaximum,
-        profile.UncommonWeightPercent,
-        profile.UncommonMinimum,
-        profile.UncommonMaximum,
-        profile.RareWeightPercent,
-        profile.RareMinimum,
-        profile.RareMaximum,
-        profile.RiskLossPercent,
-        profile.MaximumRiskLossPerEvent,
-        profile.MaximumPerEvent,
-        profile.MaximumUnbankedPerVoyage);
+    public IReadOnlyList<StarshipRewardCurrencyDisclosure> Currencies { get; init; } = [];
+
+    public static StarshipRewardDisclosureSnapshot From(StarshipRewardProfile profile)
+    {
+        var primaryType = profile.GetPrimaryPointTypeId();
+        var loss = profile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == primaryType) ?? profile.GetLossRules().FirstOrDefault();
+        var cap = profile.GetCap(primaryType);
+        return new StarshipRewardDisclosureSnapshot(
+            profile.GetPointTypeName(primaryType),
+            profile.SuccessChancePercent,
+            StarshipRewardTiers.DescribeTiers(profile),
+            loss?.Percent ?? 0,
+            loss?.MaximumPerEvent ?? 0,
+            cap.MaximumPerEvent,
+            cap.MaximumUnbankedPerVoyage)
+        {
+            Currencies = profile.GetPointTypeIds().Select(id =>
+            {
+                var currencyCap = profile.GetCap(id);
+                var lossRule = profile.GetLossRules().FirstOrDefault(rule => rule.PointTypeId == id);
+                return new StarshipRewardCurrencyDisclosure(profile.GetPointTypeName(id), currencyCap.MaximumPerEvent,
+                    currencyCap.MaximumUnbankedPerVoyage, lossRule?.Percent ?? 0, lossRule?.MaximumPerEvent ?? 0);
+            }).ToList()
+        };
+    }
+}
+
+public sealed record StarshipRewardCurrencyDisclosure(string PointTypeName, long MaximumPerEvent,
+    long MaximumUnbankedPerVoyage, int RiskLossPercent, long MaximumRiskLossPerEvent);
+
+public static class StarshipRewardTiers
+{
+    /// <summary>Enabled tiers with their chance as a whole percent (largest remainder, so the total is 100).</summary>
+    public static IReadOnlyList<StarshipRewardDisclosureTier> DescribeTiers(StarshipRewardProfile profile)
+    {
+        var tiers = profile.GetTiers().Where(tier => tier.Enabled && tier.Weight > 0).ToList();
+        var total = tiers.Sum(tier => tier.Weight);
+        if (total <= 0) return [];
+        var shares = tiers.Select(tier => tier.Weight * 100.0 / total).ToList();
+        var percents = shares.Select(share => (int)Math.Floor(share)).ToList();
+        var remainder = 100 - percents.Sum();
+        foreach (var index in Enumerable.Range(0, tiers.Count).OrderByDescending(index => shares[index] - percents[index]).Take(remainder))
+            percents[index]++;
+        return tiers.Select((tier, index) => new StarshipRewardDisclosureTier(
+            tier.Name, tier.Color, percents[index], DescribeRewards(profile, tier), tier.Actions.Count > 0)).ToList();
+    }
+
+    public static string DescribeRewards(StarshipRewardProfile profile, StarshipRewardTier tier)
+    {
+        var parts = tier.Rewards.Select(reward =>
+        {
+            var name = string.IsNullOrWhiteSpace(reward.PointTypeName) ? profile.GetPointTypeName(reward.PointTypeId) : reward.PointTypeName;
+            var range = reward.Minimum == reward.Maximum ? $"{reward.Minimum}" : $"{reward.Minimum}-{reward.Maximum}";
+            var chance = reward.ChancePercent < 100 ? $" ({reward.ChancePercent}% chance)" : string.Empty;
+            return $"{range} {name}{chance}".Trim();
+        }).ToList();
+        return parts.Count == 0 ? "no points" : string.Join(" + ", parts);
+    }
 }
 
 public sealed record StarshipOverlayEventResult(
@@ -434,7 +495,8 @@ public sealed record StarshipOverlayEventResult(
     string Subject,
     string ObjectKind,
     int ObjectVariant,
-    int ObjectRoll)
+    int ObjectRoll,
+    string RarityColor = "")
 {
     public static StarshipOverlayEventResult From(
         StarshipExpeditionEventSnapshot expeditionEvent,
@@ -462,7 +524,8 @@ public sealed record StarshipOverlayEventResult(
             expeditionEvent.Subject,
             expeditionEvent.ObjectKind,
             expeditionEvent.ObjectVariant,
-            expeditionEvent.ObjectRoll);
+            expeditionEvent.ObjectRoll,
+            expeditionEvent.OutcomeRarityColor);
     }
 }
 

@@ -6,6 +6,7 @@
 @using MudBlazor.Utilities
 @inject IStarshipExpeditionSettingsStore SettingsStore
 @inject IStarshipExpeditionService ExpeditionService
+@inject PenguinTwitchBot.Bot.Actions.IActionManagementService ActionManagement
 @inject PenguinTwitchBot.Bot.Core.Points.IPointsSystem PointsSystem
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -120,62 +121,6 @@
                                 </MudStack>
                             </MudPaper>
 
-                            <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <MudText Typo="Typo.h6" Class="mb-1">Crew Reward Profiles</MudText>
-                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                                    Configure success odds, rarity, payout ranges, caps, and risk per event. Values are per eligible crew member.
-                                </MudText>
-                                @if (_pointTypes.Count == 0)
-                                {
-                                    <MudAlert Severity="Severity.Warning" Dense="true">Create a point type before enabling expedition rewards.</MudAlert>
-                                }
-                                <MudExpansionPanels>
-                                    @foreach (var profile in _settings.RewardProfiles)
-                                    {
-                                        <MudExpansionPanel Text="@GetRewardProfileLabel(profile)" Expanded="@profile.Enabled">
-                                            <MudSwitch T="bool" Color="Color.Primary" @bind-Value="profile.Enabled" Label="Enable rewards for this event" />
-                                            @if (profile.Enabled)
-                                            {
-                                                <MudGrid Spacing="2" Class="mt-2">
-                                                    <MudItem xs="12" sm="6">
-                                                        <MudSelect T="int" Label="Point Type" Variant="Variant.Outlined" @bind-Value="profile.PointTypeId">
-                                                            @foreach (var pointType in _pointTypes)
-                                                            {
-                                                                <MudSelectItem T="int" Value="@pointType.GetId()">@pointType.Name</MudSelectItem>
-                                                            }
-                                                        </MudSelect>
-                                                    </MudItem>
-                                                    <MudItem xs="12" sm="6">
-                                                        <MudNumericField T="int" Label="Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="profile.SuccessChancePercent" />
-                                                    </MudItem>
-                                                    <MudItem xs="12" sm="4">
-                                                        <MudNumericField T="int" Label="Common Weight (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="profile.CommonWeightPercent" />
-                                                    </MudItem>
-                                                    <MudItem xs="12" sm="4">
-                                                        <MudNumericField T="int" Label="Uncommon Weight (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="profile.UncommonWeightPercent" />
-                                                    </MudItem>
-                                                    <MudItem xs="12" sm="4">
-                                                        <MudNumericField T="int" Label="Rare Weight (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="profile.RareWeightPercent" />
-                                                    </MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Common Min" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.CommonMinimum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Common Max" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.CommonMaximum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Uncommon Min" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.UncommonMinimum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Uncommon Max" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.UncommonMaximum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Rare Min" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.RareMinimum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Rare Max" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.RareMaximum" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Max Per Event" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.MaximumPerEvent" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Max Unbanked / Voyage" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumUnbankedReward" @bind-Value="profile.MaximumUnbankedPerVoyage" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Risk Loss (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="profile.RiskLossPercent" /></MudItem>
-                                                    <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Max Risk Loss" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="profile.MaximumRiskLossPerEvent" /></MudItem>
-                                                </MudGrid>
-                                                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
-                                                    @GetRewardProfilePreview(profile)
-                                                </MudAlert>
-                                            }
-                                        </MudExpansionPanel>
-                                    }
-                                </MudExpansionPanels>
-                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" lg="5">
@@ -212,6 +157,39 @@
                             </MudPaper>
                         </MudItem>
                     </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Reward Profiles">
+                    <MudStack Spacing="3">
+                        <MudGrid Spacing="2">
+                            @foreach (var eventType in StarshipExpeditionSettings.RewardEventTypes)
+                            {
+                                <MudItem xs="12" sm="6" lg="3">
+                                    <MudSelect T="string" Label="@eventType" Variant="Variant.Outlined" @bind-Value="_settings.EventRewardProfileIds[eventType]">
+                                        <MudSelectItem T="string" Value="@string.Empty">No rewards</MudSelectItem>
+                                        @foreach (var profile in _settings.RewardProfiles)
+                                        {
+                                            <MudSelectItem T="string" Value="@profile.Id">@profile.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                        <MudExpansionPanels>
+                            @foreach (var profile in _settings.RewardProfiles)
+                            {
+                                <MudExpansionPanel Text="@GetRewardProfileLabel(profile)" @key="profile">
+                                    <StarshipRewardProfileEditor Profile="profile" PointTypes="_rewardPointTypes" Actions="_rewardActions" />
+                                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@GetRewardProfilePreview(profile)</MudAlert>
+                                    @if (profile.EventType.Length == 0)
+                                    {
+                                        <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" Class="mt-2" OnClick="@(() => RemoveRewardProfile(profile))">Delete Profile</MudButton>
+                                    }
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddRewardProfile">Add Reward Profile</MudButton>
+                    </MudStack>
                 </MudTabPanel>
 
                 <MudTabPanel Text="Test Preview">
@@ -421,6 +399,8 @@
     private bool _isOperating;
     private string _eventSample = "event";
     private IJSObjectReference? _editorModule;
+    private Dictionary<int, string> _rewardPointTypes = [];
+    private Dictionary<int, string> _rewardActions = [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -515,7 +495,10 @@
         try
         {
             _settings = await SettingsStore.LoadAsync();
+            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
             _pointTypes = (await PointsSystem.GetPointTypes()).Where(pointType => pointType.Id.HasValue).OrderBy(pointType => pointType.Name).ToList();
+            _rewardPointTypes = _pointTypes.ToDictionary(pointType => pointType.GetId(), pointType => pointType.Name);
+            _rewardActions = (await ActionManagement.GetAllActionsAsync()).Where(action => action.Id.HasValue).ToDictionary(action => action.Id!.Value, action => action.Name);
             _liveSnapshot = await ExpeditionService.GetSnapshotAsync();
         }
         catch (Exception ex)
@@ -683,23 +666,40 @@
         : $"{_liveSnapshot.Status} · Leg {_liveSnapshot.CurrentLeg}/{_liveSnapshot.LegCount} · Crew {_liveSnapshot.Crew.Count}";
 
     private static string GetRewardProfileLabel(StarshipRewardProfile profile) =>
-        $"{profile.EventType} · {(profile.Enabled ? "Enabled" : "Disabled")}";
+        $"{profile.Name} · {(profile.Enabled ? "Enabled" : "Disabled")}";
+
+    private void AddRewardProfile()
+    {
+        if (_settings == null) return;
+        _settings.RewardProfiles.Add(new StarshipRewardProfile
+        {
+            Id = Guid.NewGuid().ToString("N"), Name = $"Reward Profile {_settings.RewardProfiles.Count + 1}",
+            Tiers = [new() { Id = "common", Name = "Common", Weight = 1 }]
+        });
+    }
+
+    private void RemoveRewardProfile(StarshipRewardProfile profile)
+    {
+        if (_settings == null) return;
+        _settings.RewardProfiles.Remove(profile);
+        foreach (var eventType in _settings.EventRewardProfileIds.Where(binding => binding.Value == profile.Id).Select(binding => binding.Key).ToList())
+            _settings.EventRewardProfileIds[eventType] = string.Empty;
+    }
 
     private string GetRewardProfilePreview(StarshipRewardProfile profile, bool useSnapshotPointName = false)
     {
-        var pointTypeName = useSnapshotPointName && !string.IsNullOrWhiteSpace(profile.PointTypeName)
-            ? profile.PointTypeName
-            : _pointTypes.FirstOrDefault(pointType => pointType.GetId() == profile.PointTypeId)?.Name ?? "No point type selected";
-        return $"{pointTypeName} · Success {profile.SuccessChancePercent}% / failure {100 - profile.SuccessChancePercent}% · Common {profile.CommonWeightPercent}% ({profile.CommonMinimum}-{profile.CommonMaximum}) · " +
-        $"Uncommon {profile.UncommonWeightPercent}% ({profile.UncommonMinimum}-{profile.UncommonMaximum}) · " +
-        $"Rare {profile.RareWeightPercent}% ({profile.RareMinimum}-{profile.RareMaximum}) · " +
-        $"Maximum {profile.MaximumPerEvent} per event / {profile.MaximumUnbankedPerVoyage} unbanked per voyage. " +
-        $"Risk failure: up to {profile.RiskLossPercent}% of unbanked balance, capped at {profile.MaximumRiskLossPerEvent}. Shared rewards go to eligible crew; risky choices affect only their participants. Rarity weights must total 100%.";
+        string PointName(int id) => useSnapshotPointName ? profile.GetPointTypeName(id) : _rewardPointTypes.GetValueOrDefault(id, "No point type selected");
+        var tiers = profile.GetTiers().Where(tier => tier.Enabled && tier.Weight > 0).ToList();
+        var total = Math.Max(1, tiers.Sum(tier => tier.Weight));
+        var odds = tiers.Select(tier => $"{tier.Name} {100d * tier.Weight / total:0.#}%: " +
+            string.Join(", ", tier.Rewards.Select(reward => $"{reward.Minimum}-{reward.Maximum} {PointName(reward.PointTypeId)} ({reward.ChancePercent}%)")));
+        var loss = profile.GetLossRules().Select(rule => $"{PointName(rule.PointTypeId)}: up to {rule.Percent}%, maximum {rule.MaximumPerEvent}");
+        return $"Success {profile.SuccessChancePercent}% / failure {100 - profile.SuccessChancePercent}%. " + string.Join("; ", odds) +
+            ". Unbanked loss: " + string.Join("; ", loss) + ".";
     }
 
-    private StarshipRewardProfile? GetRewardProfile(string eventType) => _settings?.RewardProfiles.FirstOrDefault(profile =>
-        profile.Enabled && string.Equals(profile.EventType, eventType, StringComparison.OrdinalIgnoreCase));
+    private StarshipRewardProfile? GetRewardProfile(string eventType) => _settings?.GetRewardProfile(eventType);
 
-    private StarshipRewardProfile? GetLiveRewardProfile(string eventType) => _liveSnapshot?.RewardProfiles.FirstOrDefault(profile =>
-        profile.Enabled && string.Equals(profile.EventType, eventType, StringComparison.OrdinalIgnoreCase));
+    private StarshipRewardProfile? GetLiveRewardProfile(string eventType) => _liveSnapshot == null ? null :
+        StarshipRewardProfile.FindForEvent(_liveSnapshot.RewardProfiles, _liveSnapshot.EventRewardProfileIds, eventType);
 }

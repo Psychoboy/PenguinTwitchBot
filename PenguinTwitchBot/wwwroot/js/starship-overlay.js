@@ -426,6 +426,9 @@
         const known = currentEvent.revealedRarity || '';
         badge.hidden = !currentEvent.rewardDisclosure;
         badge.dataset.rarity = known;
+        const knownTier = (((currentEvent.rewardDisclosure || {}).tiers) || []).find(tier => tier.name === known);
+        const color = currentEvent.revealedRarityColor || (knownTier ? knownTier.color : '');
+        setVar(badge, '--rarity-color', known && /^#[0-9a-fA-F]{6}$/.test(color) ? color : '');
         badge.textContent = known ? known + ' find' : 'rarity unknown';
     }
 
@@ -438,24 +441,29 @@
         riskElement.hidden = !profile;
         if (!profile) return;
 
-        setText('reward-point-type', profile.pointTypeName + ' · per eligible crew member');
+        const currencies = profile.currencies && profile.currencies.length ? profile.currencies : [profile];
+        setText('reward-point-type', currencies.map(currency => currency.pointTypeName).join(' / ') + ' · per eligible crew member');
         const chance = currentEvent.effectiveSuccessChancePercent ?? profile.successChancePercent;
         setText('reward-success', 'Success chance: ' + chance + '% / failure ' + (100 - chance) + '%');
         setText('reward-scope', hasRiskyChoice
             ? 'Scope: only viewers who commit to the risky option can win or lose points.'
             : 'Scope: success pays eligible crew; failure costs the whole crew.');
-        const range = {
-            Common: [profile.commonMinimum, profile.commonMaximum],
-            Uncommon: [profile.uncommonMinimum, profile.uncommonMaximum],
-            Rare: [profile.rareMinimum, profile.rareMaximum]
-        }[currentEvent.revealedRarity];
-        setText('reward-rarity', range
-            ? 'Rarity: ' + currentEvent.revealedRarity + ' (' + range[0] + '-' + range[1] + ' ' + profile.pointTypeName + ')'
-            : 'Rarity: unknown' + (hasRiskyChoice ? ' - scan to reveal it before committing' : ' until the event resolves'));
-        setText('reward-caps', 'Cap: ' + profile.maximumPerEvent + ' per event · ' + profile.maximumUnbankedPerVoyage + ' unbanked per voyage');
-        const riskPercent = Math.min(100, profile.riskLossPercent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
-        const riskCap = Math.floor(profile.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
-        setText('reward-risk', 'If it fails, the whole crew loses up to ' + riskPercent + '% of unbanked points, capped at ' + riskCap + '.');
+        const tiers = profile.tiers || [];
+        const knownTier = tiers.find(tier => tier.name === currentEvent.revealedRarity);
+        if (knownTier) {
+            setText('reward-rarity', 'Rarity: ' + knownTier.name + ' (' + knownTier.rewardText + ')');
+        } else {
+            const odds = tiers.map(tier => tier.name + ' ' + tier.chancePercent + '%' + (tier.rewardText ? ' (' + tier.rewardText + ')' : '')).join(' · ');
+            setText('reward-rarity', 'Rarity: unknown' + (hasRiskyChoice ? ' - scan to reveal it before committing' : ' until the event resolves') +
+                (odds ? ' · Odds: ' + odds : ''));
+        }
+        setText('reward-caps', currencies.map(currency => currency.pointTypeName + ': cap ' + currency.maximumPerEvent + '/event, ' + currency.maximumUnbankedPerVoyage + '/voyage').join(' · '));
+        const risk = currencies.map(currency => {
+            const riskPercent = Math.min(100, currency.riskLossPercent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+            const riskCap = Math.floor(currency.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+            return currency.pointTypeName + ': ' + riskPercent + '% unbanked, capped at ' + riskCap;
+        }).join(' · ');
+        setText('reward-risk', 'Failure loss: ' + risk + '.');
     }
 
     function renderStepInfo(currentEvent) {

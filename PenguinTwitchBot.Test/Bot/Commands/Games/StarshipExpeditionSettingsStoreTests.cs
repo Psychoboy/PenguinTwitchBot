@@ -125,6 +125,44 @@ public class StarshipExpeditionSettingsStoreTests
         Assert.Throws<ArgumentOutOfRangeException>(() => StarshipExpeditionSettings.NormalizeAndValidate(unbounded));
     }
 
+    [Fact]
+    public async Task SaveAndLoad_PreservesReusableProfilesRelativeWeightsAndActionTiming()
+    {
+        var settings = new StarshipExpeditionSettings();
+        settings.RewardProfiles.Add(new StarshipRewardProfile
+        {
+            Id = "shared", Name = "Shared recovery", Enabled = true,
+            Tiers =
+            [
+                new() { Id = "ordinary", Name = "Ordinary", Weight = 3, Rewards = [new() { PointTypeId = 2, Minimum = 1, Maximum = 5 }] },
+                new() { Id = "legendary", Name = "Legendary", Weight = 1, Color = "#ffcc00", Rewards = [new() { PointTypeId = 3, Minimum = 10, Maximum = 15 }], Actions = [new() { ActionId = 42, Timing = StarshipActionTimings.AfterBank }] }
+            ]
+        });
+        settings.EventRewardProfileIds["SalvageSite"] = "shared";
+        settings.EventRewardProfileIds["SignalDetected"] = "shared";
+        var rows = new List<Setting>();
+
+        await CreateStore(rows).SaveAsync(settings);
+        var loaded = await CreateStore(rows).LoadAsync();
+
+        var profile = loaded.GetRewardProfile("SalvageSite")!;
+        Assert.Same(profile, loaded.GetRewardProfile("SignalDetected"));
+        Assert.Equal([75, 25], StarshipRewardTiers.DescribeTiers(profile).Select(tier => tier.ChancePercent));
+        Assert.Equal(StarshipActionTimings.AfterBank, profile.Tiers[1].Actions.Single().Timing);
+        Assert.Equal(2, profile.Caps.Count);
+    }
+
+    [Fact]
+    public void NormalizeAndValidate_RejectsMissingProfileBindingsAndDuplicateTierNames()
+    {
+        var settings = new StarshipExpeditionSettings();
+        settings.EventRewardProfileIds["SalvageSite"] = "missing";
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+        settings.EventRewardProfileIds.Clear();
+        settings.RewardProfiles[0].Tiers = [new() { Name = "Common" }, new() { Name = "common" }];
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+    }
+
     private static StarshipExpeditionSettingsStore CreateStore(List<Setting> rows)
     {
         var repository = new Mock<ISettingsRepository>();

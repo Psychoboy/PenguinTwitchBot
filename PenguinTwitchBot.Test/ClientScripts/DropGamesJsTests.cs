@@ -829,6 +829,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     stepNumber = 2,
                     path = new[] { "Scan the wreck" },
                     revealedRarity = "Rare",
+                    revealedRarityColor = "#ff8800",
                     stepNote = "Scan complete: this is a Rare find.",
                     effectiveSuccessChancePercent = 95,
                     defaultChoiceId = "direct",
@@ -837,15 +838,12 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     {
                         pointTypeName = "Salvage Credits",
                         successChancePercent = 75,
-                        commonWeightPercent = 60,
-                        commonMinimum = 5,
-                        commonMaximum = 12,
-                        uncommonWeightPercent = 30,
-                        uncommonMinimum = 15,
-                        uncommonMaximum = 25,
-                        rareWeightPercent = 10,
-                        rareMinimum = 30,
-                        rareMaximum = 50,
+                        tiers = new object[]
+                        {
+                            new { name = "Common", color = "#a8c1bd", chancePercent = 60, rewardText = "5-12 Salvage Credits", runsActions = false },
+                            new { name = "Uncommon", color = "#8be28b", chancePercent = 30, rewardText = "15-25 Salvage Credits", runsActions = false },
+                            new { name = "Rare", color = "#ff8800", chancePercent = 10, rewardText = "30-50 Salvage Credits + 5 Gold", runsActions = true }
+                        },
                         riskLossPercent = 25,
                         maximumRiskLossPerEvent = 40,
                         maximumPerEvent = 100,
@@ -875,6 +873,8 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Contains("only viewers who commit", engine.Evaluate("document.getElementById('reward-scope').textContent").AsString());
             Assert.Contains("Rarity: Rare (30-50", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
             Assert.DoesNotContain("Common 60%", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.Contains("+ 5 Gold", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.Equal("#ff8800", engine.Evaluate("document.getElementById('rarity-badge').style['--rarity-color']").AsString());
             Assert.Contains("Path: Scan the wreck", engine.Evaluate("document.getElementById('event-sector').textContent").AsString());
             Assert.Equal("Scan complete: this is a Rare find.", engine.Evaluate("document.getElementById('step-note').textContent").AsString());
             Assert.Contains("STEP 2", engine.Evaluate("document.getElementById('event-kicker').textContent").AsString());

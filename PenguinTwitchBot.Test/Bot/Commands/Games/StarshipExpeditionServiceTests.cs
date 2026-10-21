@@ -1,7 +1,10 @@
 using System.Text.Json;
+using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
+using PenguinTwitchBot.Bot.Actions;
 using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Bot.Commands;
 using PenguinTwitchBot.Bot.Commands.Features;
@@ -1490,6 +1493,146 @@ public class StarshipExpeditionServiceTests
         points.Verify(system => system.AddPointsByUserIdOnce("pilot-id", 8, 35, payout.OperationId), Times.Once);
     }
 
+    [Fact]
+    public async Task TierRewards_AggregateCurrenciesAndApplyIndependentCaps()
+    {
+        var snapshot = CreateSalvageFixture(0);
+        var profile = snapshot.RewardProfiles[0];
+        profile.SuccessChancePercent = 100;
+        profile.ConvertLegacyToTiers();
+        profile.Tiers[0].Rewards =
+        [
+            new() { PointTypeId = 2, PointTypeName = "Credits", Minimum = 20, Maximum = 20 },
+            new() { PointTypeId = 2, PointTypeName = "Credits", Minimum = 30, Maximum = 30 },
+            new() { PointTypeId = 3, PointTypeName = "Tokens", Minimum = 12, Maximum = 12 }
+        ];
+        profile.Caps =
+        [
+            new() { PointTypeId = 2, MaximumPerEvent = 40, MaximumUnbankedPerVoyage = 100 },
+            new() { PointTypeId = 3, MaximumPerEvent = 10, MaximumUnbankedPerVoyage = 100 }
+        ];
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var service = CreateService(store);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+
+        var resolved = await service.AdvanceEventAsync();
+
+        var outcomes = Assert.Single(resolved.CompletedEvents).RewardOutcomes;
+        Assert.Equal(40, outcomes.Single(item => item.PointTypeId == 2).EarnedAmount);
+        Assert.Equal(10, outcomes.Single(item => item.PointTypeId == 3).EarnedAmount);
+        Assert.Equal(2, resolved.Crew.Single().UnbankedBalances.Count);
+    }
+
+    [Fact]
+    public async Task LegacyTierConversion_PreservesSeededPayouts()
+    {
+        var original = CreateSalvageFixture(0);
+        original.RewardProfiles[0].SuccessChancePercent = 100;
+        original.RewardProfiles[0].CommonMaximum = 50;
+        var converted = JsonSerializer.Deserialize<StarshipExpeditionSnapshot>(JsonSerializer.Serialize(original))!;
+        converted.RewardProfiles[0].ConvertLegacyToTiers();
+        var originalStore = new InMemoryStateStore();
+        var convertedStore = new InMemoryStateStore();
+        await originalStore.SaveAsync(original);
+        await convertedStore.SaveAsync(converted);
+        var results = new List<string>();
+        foreach (var store in new[] { originalStore, convertedStore })
+        {
+            var service = CreateService(store);
+            await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+            await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+            var resolved = await service.AdvanceEventAsync();
+            results.Add(JsonSerializer.Serialize(resolved.CompletedEvents.Single().RewardOutcomes));
+        }
+
+        Assert.Equal(results[0], results[1]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RewardAction_ClaimsBeforeQueueingAndDoesNotReplayAfterRecovery(bool queueFails)
+    {
+        var snapshot = CreateSalvageFixture();
+        snapshot.PendingActions.Add(new StarshipPendingActionSnapshot
+        {
+            OperationId = "reward-action-operation", ActionId = 42
+        });
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var actions = new Mock<IActionManagementService>();
+        var action = new PenguinTwitchBot.Database.Bot.Actions.ActionType { Name = "Reward alert" };
+        actions.Setup(manager => manager.GetActionByIdAsync(42)).ReturnsAsync(action);
+        var runner = new Mock<IAction>();
+        runner.Setup(instance => instance.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), action, null, null))
+            .Returns(async (ConcurrentDictionary<string, string> variables, PenguinTwitchBot.Database.Bot.Actions.ActionType _, Guid? _, int? _) =>
+            {
+                var saved = await store.LoadAsync();
+                Assert.True(saved!.PendingActions.Single().Executed);
+                Assert.Equal("reward-action-operation", variables["OperationId"]);
+                if (queueFails) throw new IOException("Queue unavailable");
+            });
+        using var provider = new ServiceCollection()
+            .AddSingleton(actions.Object).AddSingleton(runner.Object).BuildServiceProvider();
+        var scopes = provider.GetRequiredService<IServiceScopeFactory>();
+
+        await CreateService(store, scopeFactory: scopes).ProcessDueTransitionAsync();
+        await CreateService(store, scopeFactory: scopes).ProcessDueTransitionAsync();
+
+        runner.Verify(instance => instance.EnqueueAction(It.IsAny<ConcurrentDictionary<string, string>>(), action, null, null), Times.Once);
+        Assert.Equal(1, (await store.LoadAsync())!.PendingActions.Single().Attempts);
+    }
+
+    [Fact]
+    public async Task SharedProfileBinding_DrivesRewardsAndOverlayDisclosure()
+    {
+        var snapshot = CreateSalvageFixture(0);
+        var profile = snapshot.RewardProfiles[0];
+        profile.Id = "shared";
+        profile.EventType = "SignalDetected";
+        profile.SuccessChancePercent = 100;
+        snapshot.EventRewardProfileIds["SalvageSite"] = "shared";
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var service = CreateService(store);
+        Assert.NotNull(StarshipExpeditionOverlaySnapshot.From(snapshot).CurrentEvent!.RewardDisclosure);
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(10, resolved.CompletedEvents.Single().RewardOutcomes.Single().EarnedAmount);
+    }
+
+    [Fact]
+    public async Task AbortBanking_CoalescesAfterBankActionsAndWaitsForAllPayouts()
+    {
+        var snapshot = CreateSalvageFixture();
+        snapshot.PendingActions.AddRange(Enumerable.Range(1, 2).Select(index => new StarshipPendingActionSnapshot
+        {
+            OperationId = $"after-bank-{index}", ActionId = 42, Timing = StarshipActionTimings.AfterBank
+        }));
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var points = new Mock<IPointsSystem>();
+        var attempts = 0;
+        points.Setup(system => system.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()))
+            .ReturnsAsync(() => ++attempts > 1);
+        var service = CreateService(store, pointsSystem: points.Object);
+
+        var stopped = await service.StopExpeditionAsync("moderator");
+
+        Assert.False(stopped!.BankedPayouts.Single().IsPaid);
+        var pending = Assert.Single(stopped.PendingActions, item => !item.Executed);
+        Assert.Equal("Aborted", pending.Variables["VoyageResult"]);
+        Assert.Equal("100", pending.Variables["BankedTotal"]);
+        Assert.NotNull(pending.BankEventId);
+        await service.ProcessDueTransitionAsync();
+        Assert.True((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
+    }
+
     private static StarshipExpeditionService CreateService(
         InMemoryStateStore stateStore,
         TimeProvider? timeProvider = null,
@@ -1498,7 +1641,8 @@ public class StarshipExpeditionServiceTests
         IDefaultCommandTriggerService? defaultCommandTriggerService = null,
         Mock<IViewerFeature>? viewerFeatureMock = null,
         IPointsSystem? pointsSystem = null,
-        List<string>? broadcasts = null)
+        List<string>? broadcasts = null,
+        IServiceScopeFactory? scopeFactory = null)
     {
         var serviceBackbone = serviceBackboneMock ?? new Mock<IServiceBackbone>();
         if (serviceBackboneMock == null)
@@ -1524,7 +1668,8 @@ public class StarshipExpeditionServiceTests
             timeProvider,
             defaultCommandTriggerService,
             pointsSystem,
-            viewerFeatureMock?.Object);
+            viewerFeatureMock?.Object,
+            scopeFactory);
     }
 
     private static CommandEventArgs CreateArgs(string userId, string displayName) => new()

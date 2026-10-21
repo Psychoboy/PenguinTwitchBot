@@ -42,7 +42,12 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 - On success every eligible crew member earns unbanked points based on the revealed rarity.
 - On failure the **whole crew** loses a share of their unbanked points. Securing first reduces that share.
 - Unbanked points are banked at station stops, when the voyage returns, or when it is aborted. Failed payouts are retried without paying twice.
-- Reward odds, caps and loss limits are configured per event type under reward profiles.
+- Open **Reward Profiles** to create named profiles and assign them to event types. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- Each profile has ordered, enabled rarity tiers with names, badge colours and relative weights. Weights do not need to total 100; the editor displays each tier's resulting chance.
+- A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Limits apply separately per currency; the voyage limit includes points already banked.
+- Failure loss rules select a currency, percentage and maximum loss. Only unbanked balances can be lost; banked points are safe.
+- Profiles can run normal actions on success, on failure or after banking. See **Triggers & Actions** for dispatch and recovery behavior.
+- Save settings before starting a voyage. Profiles and event bindings are copied at departure; editing them does not change a voyage already underway. Older saved profiles are converted to three equivalent tiers automatically.
 
 ## Chat commands
 

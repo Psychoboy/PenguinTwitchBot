@@ -1,0 +1,120 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+@using MudBlazor.Utilities
+
+<MudStack Spacing="3">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="6"><MudTextField T="string" Label="Profile Name" Variant="Variant.Outlined" @bind-Value="Profile.Name" /></MudItem>
+        <MudItem xs="12" sm="3"><MudNumericField T="int" Label="Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="Profile.SuccessChancePercent" /></MudItem>
+        <MudItem xs="12" sm="3"><MudSwitch T="bool" Label="Enabled" @bind-Value="Profile.Enabled" Color="Color.Primary" /></MudItem>
+    </MudGrid>
+    @foreach (var tier in Profile.Tiers)
+    {
+        <MudDivider />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudText Typo="Typo.subtitle1">@tier.Name (@TierOdds(tier).ToString("0.#")%)</MudText>
+            <MudSpacer />
+            <MudTooltip Text="Move tier up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move tier up" Disabled="@(Profile.Tiers.IndexOf(tier) == 0)" OnClick="@(() => MoveTier(tier, -1))" /></MudTooltip>
+            <MudTooltip Text="Move tier down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move tier down" Disabled="@(Profile.Tiers.IndexOf(tier) == Profile.Tiers.Count - 1)" OnClick="@(() => MoveTier(tier, 1))" /></MudTooltip>
+            <MudTooltip Text="Remove tier"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove tier" Color="Color.Error" Disabled="@(Profile.Tiers.Count == 1)" OnClick="@(() => Profile.Tiers.Remove(tier))" /></MudTooltip>
+        </MudStack>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4"><MudTextField T="string" Label="Tier Name" Variant="Variant.Outlined" MaxLength="24" @bind-Value="tier.Name" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Relative Weight" Variant="Variant.Outlined" Min="0" Max="1000" @bind-Value="tier.Weight" /></MudItem>
+            <MudItem xs="6" sm="3"><MudColorPicker Label="Badge Colour" Variant="Variant.Outlined" Value="@(new MudColor(tier.Color))" ValueChanged="@(value => tier.Color = value.ToString(MudColorOutputFormats.Hex))" /></MudItem>
+            <MudItem xs="12" sm="2"><MudSwitch T="bool" Label="Enabled" @bind-Value="tier.Enabled" /></MudItem>
+        </MudGrid>
+        @foreach (var reward in tier.Rewards)
+        {
+            <MudGrid Spacing="2" @key="reward">
+                <MudItem xs="12" sm="4">@PointTypeField(reward.PointTypeId, value => reward.PointTypeId = value)</MudItem>
+                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Minimum" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="reward.Minimum" /></MudItem>
+                <MudItem xs="4" sm="2"><MudNumericField T="long" Label="Maximum" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="reward.Maximum" /></MudItem>
+                <MudItem xs="4" sm="2"><MudNumericField T="int" Label="Chance (%)" Variant="Variant.Outlined" Min="1" Max="100" @bind-Value="reward.ChancePercent" /></MudItem>
+                <MudItem xs="12" sm="2"><MudTooltip Text="Remove reward"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove reward" OnClick="@(() => tier.Rewards.Remove(reward))" /></MudTooltip></MudItem>
+            </MudGrid>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(tier.Rewards.Count >= StarshipRewardProfile.MaximumRewardsPerTier)" OnClick="@(() => tier.Rewards.Add(new() { PointTypeId = FirstPointType, Minimum = 5, Maximum = 10 }))">Add Points Reward</MudButton>
+        @ActionRows(tier.Actions, "Success")
+    }
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(Profile.Tiers.Count >= StarshipRewardProfile.MaximumTiers)" OnClick="AddTier">Add Rarity Tier</MudButton>
+    <MudDivider />
+    <MudText Typo="Typo.subtitle1">Failure Actions</MudText>
+    @ActionRows(Profile.FailureActions, "Failure")
+    <MudDivider />
+    <MudText Typo="Typo.subtitle1">Point Limits</MudText>
+    @foreach (var cap in Profile.Caps)
+    {
+        <MudGrid Spacing="2" @key="cap">
+            <MudItem xs="12" sm="4">@PointTypeField(cap.PointTypeId, value => cap.PointTypeId = value)</MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Per Event" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="cap.MaximumPerEvent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Earned Per Voyage" Variant="Variant.Outlined" Min="1" Max="@StarshipExpeditionSettings.MaximumUnbankedReward" @bind-Value="cap.MaximumUnbankedPerVoyage" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTooltip Text="Remove limit"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove limit" OnClick="@(() => Profile.Caps.Remove(cap))" /></MudTooltip></MudItem>
+        </MudGrid>
+    }
+    <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => Profile.Caps.Add(new() { PointTypeId = FirstPointType }))">Add Point Limit</MudButton>
+    <MudText Typo="Typo.subtitle1">Failure Loss Rules</MudText>
+    @foreach (var rule in Profile.LossRules)
+    {
+        <MudGrid Spacing="2" @key="rule">
+            <MudItem xs="12" sm="4">@PointTypeField(rule.PointTypeId, value => rule.PointTypeId = value)</MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Unbanked Loss (%)" Variant="Variant.Outlined" Min="0" Max="100" @bind-Value="rule.Percent" /></MudItem>
+            <MudItem xs="6" sm="3"><MudNumericField T="long" Label="Maximum Loss Per Event" Variant="Variant.Outlined" Min="0" Max="@StarshipExpeditionSettings.MaximumConfiguredReward" @bind-Value="rule.MaximumPerEvent" /></MudItem>
+            <MudItem xs="12" sm="2"><MudTooltip Text="Remove loss rule"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove loss rule" OnClick="@(() => Profile.LossRules.Remove(rule))" /></MudTooltip></MudItem>
+        </MudGrid>
+    }
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(Profile.LossRules.Count >= StarshipRewardProfile.MaximumLossRules)" OnClick="@(() => Profile.LossRules.Add(new() { PointTypeId = FirstPointType }))">Add Loss Rule</MudButton>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public StarshipRewardProfile Profile { get; set; } = default!;
+    [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+
+    private int FirstPointType => PointTypes.Keys.FirstOrDefault();
+
+    private double TierOdds(StarshipRewardTier tier)
+    {
+        var total = Profile.Tiers.Where(item => item.Enabled).Sum(item => Math.Max(0, item.Weight));
+        return tier.Enabled && total > 0 ? 100d * tier.Weight / total : 0;
+    }
+
+    private void AddTier() => Profile.Tiers.Add(new StarshipRewardTier
+    {
+        Id = Guid.NewGuid().ToString("N"), Name = $"Tier {Profile.Tiers.Count + 1}", Weight = 1
+    });
+
+    private void MoveTier(StarshipRewardTier tier, int direction)
+    {
+        var index = Profile.Tiers.IndexOf(tier);
+        var target = index + direction;
+        if (target < 0 || target >= Profile.Tiers.Count) return;
+        (Profile.Tiers[index], Profile.Tiers[target]) = (Profile.Tiers[target], Profile.Tiers[index]);
+    }
+
+    private RenderFragment PointTypeField(int value, Action<int> changed) => @<MudSelect T="int" Label="Point Type" Variant="Variant.Outlined" Value="value" ValueChanged="@(selected => changed(selected))">
+        @foreach (var pointType in PointTypes)
+        {
+            <MudSelectItem T="int" Value="@pointType.Key">@pointType.Value</MudSelectItem>
+        }
+    </MudSelect>;
+
+    private RenderFragment ActionRows(List<StarshipRewardAction> entries, string outcome) => @<MudStack Spacing="2">
+        @foreach (var entry in entries)
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" @key="entry">
+                <MudSelect T="int" Label="Action" Variant="Variant.Outlined" @bind-Value="entry.ActionId">
+                    @foreach (var action in Actions)
+                    {
+                        <MudSelectItem T="int" Value="@action.Key">@action.Value</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="string" Label="When" Variant="Variant.Outlined" @bind-Value="entry.Timing">
+                    <MudSelectItem T="string" Value="@StarshipActionTimings.Immediate">On @outcome</MudSelectItem>
+                    <MudSelectItem T="string" Value="@StarshipActionTimings.AfterBank">After Bank</MudSelectItem>
+                </MudSelect>
+                <MudTooltip Text="Remove action"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Remove action" OnClick="@(() => entries.Remove(entry))" /></MudTooltip>
+            </MudStack>
+        }
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(entries.Count >= StarshipRewardProfile.MaximumActionsPerList || Actions.Count == 0)" OnClick="@(() => entries.Add(new() { ActionId = Actions.Keys.First() }))">Add @outcome Action</MudButton>
+    </MudStack>;
+}

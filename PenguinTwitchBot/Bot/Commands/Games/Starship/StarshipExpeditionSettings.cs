@@ -34,6 +34,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public bool ActiveCrewRewardsOnly { get; set; } = true;
     public List<string> CustomSectors { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
+    public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool AnnounceSessionStatusInChat { get; set; } = true;
     public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
@@ -74,44 +75,73 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         if (allNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != allNames.Count)
             throw new ArgumentException("Sector names must be unique, including built-in sectors.", nameof(settings.CustomSectors));
 
-        if (settings.RewardProfiles.Count > RewardEventTypes.Count)
-            throw new ArgumentOutOfRangeException(nameof(settings.RewardProfiles), "There can be at most one reward profile per built-in event type.");
         foreach (var eventType in RewardEventTypes)
         {
             if (!settings.RewardProfiles.Any(profile => string.Equals(profile.EventType, eventType, StringComparison.OrdinalIgnoreCase)))
                 settings.RewardProfiles.Add(new StarshipRewardProfile { EventType = eventType });
         }
         var configuredEvents = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var profileIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var profile in settings.RewardProfiles)
         {
             profile.EventType = (profile.EventType ?? string.Empty).Trim();
-            if (!RewardEventTypes.Contains(profile.EventType, StringComparer.OrdinalIgnoreCase))
+            if (profile.EventType.Length > 0 && !RewardEventTypes.Contains(profile.EventType, StringComparer.OrdinalIgnoreCase))
                 throw new ArgumentException($"'{profile.EventType}' is not a rewardable built-in event.", nameof(settings.RewardProfiles));
-            if (!configuredEvents.Add(profile.EventType))
+            if (profile.EventType.Length > 0 && !configuredEvents.Add(profile.EventType))
                 throw new ArgumentException($"A reward profile already exists for {profile.EventType}.", nameof(settings.RewardProfiles));
-            if (profile.Enabled && profile.PointTypeId <= 0)
-                throw new ArgumentOutOfRangeException(nameof(profile.PointTypeId), $"Select a point type for {profile.EventType}.");
             if (profile.SuccessChancePercent is < 0 or > 100)
                 throw new ArgumentOutOfRangeException(nameof(profile.SuccessChancePercent), "Success chance must be between 0 and 100 percent.");
-            if (profile.CommonWeightPercent is < 0 or > 100 || profile.UncommonWeightPercent is < 0 or > 100 || profile.RareWeightPercent is < 0 or > 100)
-                throw new ArgumentOutOfRangeException(nameof(profile.CommonWeightPercent), "Rarity weights must be between 0 and 100 percent.");
-            if (profile.Enabled && profile.CommonWeightPercent + profile.UncommonWeightPercent + profile.RareWeightPercent != 100)
-                throw new ArgumentException($"Rarity weights for {profile.EventType} must total 100 percent.", nameof(settings.RewardProfiles));
-            ValidateRewardRange(profile.CommonMinimum, profile.CommonMaximum, nameof(profile.CommonMinimum));
-            ValidateRewardRange(profile.UncommonMinimum, profile.UncommonMaximum, nameof(profile.UncommonMinimum));
-            ValidateRewardRange(profile.RareMinimum, profile.RareMaximum, nameof(profile.RareMinimum));
-            if (profile.MaximumPerEvent is < 1 or > MaximumConfiguredReward ||
-                profile.MaximumUnbankedPerVoyage < profile.MaximumPerEvent || profile.MaximumUnbankedPerVoyage > MaximumUnbankedReward)
-                throw new ArgumentOutOfRangeException(nameof(profile.MaximumPerEvent), "Voyage cap must be at least the per-event cap, and both must be positive.");
-            if (profile.RiskLossPercent is < 0 or > 100 || profile.MaximumRiskLossPerEvent is < 0 or > MaximumConfiguredReward)
-                throw new ArgumentOutOfRangeException(nameof(profile.RiskLossPercent), "Risk loss must be 0-100 percent with a non-negative amount cap.");
+            if (profile.UsesLegacyFields)
+            {
+                if (profile.Enabled && profile.PointTypeId <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(profile.PointTypeId), $"Select a point type for {profile.EventType}.");
+                if (profile.CommonWeightPercent is < 0 or > 100 || profile.UncommonWeightPercent is < 0 or > 100 || profile.RareWeightPercent is < 0 or > 100)
+                    throw new ArgumentOutOfRangeException(nameof(profile.CommonWeightPercent), "Rarity weights must be between 0 and 100 percent.");
+                if (profile.Enabled && profile.CommonWeightPercent + profile.UncommonWeightPercent + profile.RareWeightPercent != 100)
+                    throw new ArgumentException($"Rarity weights for {profile.EventType} must total 100 percent.", nameof(settings.RewardProfiles));
+                ValidateRewardRange(profile.CommonMinimum, profile.CommonMaximum, nameof(profile.CommonMinimum));
+                ValidateRewardRange(profile.UncommonMinimum, profile.UncommonMaximum, nameof(profile.UncommonMinimum));
+                ValidateRewardRange(profile.RareMinimum, profile.RareMaximum, nameof(profile.RareMinimum));
+                if (profile.MaximumPerEvent is < 1 or > MaximumConfiguredReward ||
+                    profile.MaximumUnbankedPerVoyage < profile.MaximumPerEvent || profile.MaximumUnbankedPerVoyage > MaximumUnbankedReward)
+                    throw new ArgumentOutOfRangeException(nameof(profile.MaximumPerEvent), "Voyage cap must be at least the per-event cap, and both must be positive.");
+                if (profile.RiskLossPercent is < 0 or > 100 || profile.MaximumRiskLossPerEvent is < 0 or > MaximumConfiguredReward)
+                    throw new ArgumentOutOfRangeException(nameof(profile.RiskLossPercent), "Risk loss must be 0-100 percent with a non-negative amount cap.");
+            }
+
             profile.PointTypeName = profile.PointTypeName?.Trim() ?? string.Empty;
+            profile.ConvertLegacyToTiers();
+            profile.ValidateTiers(profile.EventType);
+            profile.ValidateCapsAndLoss(profile.EventType);
+            profile.PointTypeId = profile.GetPrimaryPointTypeId();
+            profile.Id = string.IsNullOrWhiteSpace(profile.Id) ? profile.EventType : profile.Id.Trim();
+            profile.Name = string.IsNullOrWhiteSpace(profile.Name) ? profile.EventType : profile.Name.Trim();
+            if (profile.Id.Length is < 1 or > 80 || !profileIds.Add(profile.Id))
+                throw new ArgumentException("Reward profile IDs must be unique and contain 1-80 characters.", nameof(settings.RewardProfiles));
+            if (profile.Name.Length is < 1 or > 80)
+                throw new ArgumentException("Reward profile names must contain 1-80 characters.", nameof(settings.RewardProfiles));
+        }
+
+        settings.EventRewardProfileIds = new Dictionary<string, string>(settings.EventRewardProfileIds ?? [], StringComparer.OrdinalIgnoreCase);
+        foreach (var eventType in RewardEventTypes)
+        {
+            if (!settings.EventRewardProfileIds.ContainsKey(eventType))
+                settings.EventRewardProfileIds[eventType] = settings.RewardProfiles.First(profile => profile.EventType.Equals(eventType, StringComparison.OrdinalIgnoreCase)).Id;
+        }
+        foreach (var binding in settings.EventRewardProfileIds)
+        {
+            if (!RewardEventTypes.Contains(binding.Key, StringComparer.OrdinalIgnoreCase) ||
+                binding.Value.Length > 0 && !profileIds.Contains(binding.Value))
+                throw new ArgumentException("An event reward binding references an unknown event or profile.", nameof(settings.EventRewardProfileIds));
         }
 
         return settings;
     }
 
     public List<string> GetEffectiveSectors() => [.. BuiltInSectors, .. CustomSectors];
+
+    public StarshipRewardProfile? GetRewardProfile(string eventType) =>
+        StarshipRewardProfile.FindForEvent(RewardProfiles, EventRewardProfileIds, eventType);
 
     private static List<StarshipRewardProfile> CreateDefaultRewardProfiles() => RewardEventTypes
         .Select(eventType => new StarshipRewardProfile { EventType = eventType })
@@ -124,8 +154,14 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     }
 }
 
-public sealed class StarshipRewardProfile
+public sealed partial class StarshipRewardProfile
 {
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public List<StarshipRewardTier> Tiers { get; set; } = [];
+    public List<StarshipRewardCap> Caps { get; set; } = [];
+    public List<StarshipLossRule> LossRules { get; set; } = [];
+    public List<StarshipRewardAction> FailureActions { get; set; } = [];
     public string EventType { get; set; } = string.Empty;
     public bool Enabled { get; set; }
     public int PointTypeId { get; set; }
