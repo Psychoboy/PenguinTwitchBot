@@ -1,20 +1,43 @@
-using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.Data.Sqlite;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
+using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
+using PenguinTwitchBot.Migrations.Sqlite;
 
 namespace PenguinTwitchBot.Test.Bot.Commands.Games;
 
-public class StarshipExpeditionSettingsStoreTests
+public class StarshipExpeditionSettingsStoreTests : IDisposable
 {
+    private readonly SqliteConnection _connection;
+    private readonly ServiceProvider _services;
+
+    public StarshipExpeditionSettingsStoreTests()
+    {
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
+        _services = new ServiceCollection()
+            .AddDbContext<ApplicationDbContext>(options => options.UseSqlite(_connection,
+                sqlite => sqlite.MigrationsAssembly(typeof(SqliteDesignTimeDbContextFactory).Assembly.GetName().Name)))
+            .AddScoped<IUnitOfWork, UnitOfWork>().BuildServiceProvider();
+        using var scope = _services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+    }
+
+    public void Dispose()
+    {
+        _services.Dispose();
+        _connection.Dispose();
+    }
+
     [Fact]
     public async Task SaveAndLoad_PreservesSettingsAndNormalizedCustomSectors()
     {
-        var rows = new List<Setting>();
-        var store = CreateStore(rows);
+        var store = CreateStore();
         var settings = new StarshipExpeditionSettings
         {
             LegCount = 8,
@@ -47,7 +70,7 @@ public class StarshipExpeditionSettingsStoreTests
         };
 
         await store.SaveAsync(settings);
-        var loaded = await CreateStore(rows).LoadAsync();
+        var loaded = await CreateStore().LoadAsync();
 
         Assert.Equal(8, loaded.LegCount);
         Assert.Equal(20, loaded.MinimumEventIntervalMinutes);
@@ -64,13 +87,20 @@ public class StarshipExpeditionSettingsStoreTests
         Assert.Equal([60, 30, 10], new[] { rewardProfile.CommonWeightPercent, rewardProfile.UncommonWeightPercent, rewardProfile.RareWeightPercent });
         Assert.Equal(40, rewardProfile.MaximumRiskLossPerEvent);
         Assert.Equal(["Delta Reach", "Glass Nebula"], loaded.CustomSectors);
-        Assert.Equal(Setting.DataTypeEnum.String, Assert.Single(rows).DataType);
+        using var scope = _services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var saved = Assert.Single(context.Settings);
+        Assert.Equal(Setting.DataTypeEnum.String, saved.DataType);
+        Assert.DoesNotContain("\"rewardProfiles\"", saved.StringSetting);
+        Assert.DoesNotContain("\"eventCatalog\"", saved.StringSetting);
+        Assert.Equal(5, context.StarshipEvents.Count());
+        Assert.Equal(4, context.StarshipRewardProfiles.Count());
     }
 
     [Fact]
     public async Task Load_WhenNoSavedRow_ReturnsDefaults()
     {
-        var settings = await CreateStore([]).LoadAsync();
+        var settings = await CreateStore().LoadAsync();
 
         Assert.Equal(StarshipExpeditionService.DefaultLegCount, settings.LegCount);
         Assert.Equal(StarshipExpeditionService.DefaultMinimumEventIntervalMinutes, settings.MinimumEventIntervalMinutes);
@@ -140,10 +170,8 @@ public class StarshipExpeditionSettingsStoreTests
         });
         settings.EventRewardProfileIds["SalvageSite"] = "shared";
         settings.EventRewardProfileIds["SignalDetected"] = "shared";
-        var rows = new List<Setting>();
-
-        await CreateStore(rows).SaveAsync(settings);
-        var loaded = await CreateStore(rows).LoadAsync();
+        await CreateStore().SaveAsync(settings);
+        var loaded = await CreateStore().LoadAsync();
 
         var profile = loaded.GetRewardProfile("SalvageSite")!;
         Assert.Same(profile, loaded.GetRewardProfile("SignalDetected"));
@@ -163,39 +191,80 @@ public class StarshipExpeditionSettingsStoreTests
         Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
     }
 
-    private static StarshipExpeditionSettingsStore CreateStore(List<Setting> rows)
+    [Fact]
+    public async Task Load_ImportsLegacyBlobOnceAndThenUsesCanonicalRows()
     {
-        var repository = new Mock<ISettingsRepository>();
-        repository.Setup(store => store.GetAsync(
-                It.IsAny<Expression<Func<Setting, bool>>>(),
-                It.IsAny<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
-                It.IsAny<int?>(),
-                It.IsAny<int?>(),
-                It.IsAny<string>()))
-            .ReturnsAsync(() => rows.ToList());
-        repository.Setup(store => store.AddAsync(It.IsAny<Setting>()))
-            .Callback<Setting>(setting => rows.Add(setting))
-            .Returns((Setting _) => default(ValueTask<EntityEntry<Setting>>));
-        repository.Setup(store => store.Update(It.IsAny<Setting>()))
-            .Callback<Setting>(setting =>
-            {
-                var index = rows.FindIndex(existing => existing.Name == setting.Name);
-                if (index >= 0) rows[index] = setting;
-            });
+        var legacy = new StarshipExpeditionSettings();
+        legacy.RewardProfiles[0].Name = "My original reward";
+        var json = JsonSerializer.SerializeToNode(legacy, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
+        json.Remove("eventCatalog");
+        json.Remove("catalogStorageVersion");
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            context.Settings.Add(new Setting { Name = StarshipExpeditionSettingsStore.SettingKey, StringSetting = json.ToJsonString(), DataType = Setting.DataTypeEnum.String });
+            await context.SaveChangesAsync();
+        }
+        var imported = await CreateStore().LoadAsync();
+        Assert.Equal(1, imported.CatalogStorageVersion);
+        Assert.Equal("My original reward", imported.RewardProfiles.Single(profile => profile.EventType == "RouteChoice").Name);
+        imported.EventCatalog.Add(new StarshipEventDefinition("custom-event", "Custom Event", "A custom event.",
+            [new() { ChoiceId = "yes", Label = "Yes" }, new() { ChoiceId = "no", Label = "No" }], "yes"));
+        await CreateStore().SaveAsync(imported);
 
-        var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.SetupGet(work => work.Settings).Returns(repository.Object);
-        unitOfWork.Setup(work => work.SaveChangesAsync()).ReturnsAsync(1);
-
-        var provider = new Mock<IServiceProvider>();
-        provider.Setup(serviceProvider => serviceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWork.Object);
-
-        var scope = new Mock<IServiceScope>();
-        scope.SetupGet(serviceScope => serviceScope.ServiceProvider).Returns(provider.Object);
-
-        var scopeFactory = new Mock<IServiceScopeFactory>();
-        scopeFactory.Setup(factory => factory.CreateScope()).Returns(scope.Object);
-
-        return new StarshipExpeditionSettingsStore(scopeFactory.Object);
+        var loaded = await CreateStore().LoadAsync();
+        Assert.Contains(loaded.EventCatalog, definition => definition.EventType == "custom-event");
+        using var check = _services.CreateScope();
+        var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(6, await database.StarshipEvents.CountAsync());
+        Assert.Equal(4, await database.StarshipRewardProfiles.CountAsync());
+        loaded.EventCatalog.RemoveAll(definition => definition.EventType == "custom-event");
+        await CreateStore().SaveAsync(loaded);
+        Assert.DoesNotContain((await CreateStore().LoadAsync()).EventCatalog, definition => definition.EventType == "custom-event");
     }
+
+    [Fact]
+    public async Task FailedCatalogImport_RollsBackRowsAndLeavesLegacyBlobIntact()
+    {
+        var json = JsonSerializer.Serialize(new StarshipExpeditionSettings(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            context.Settings.Add(new Setting { Name = StarshipExpeditionSettingsStore.SettingKey, StringSetting = json, DataType = Setting.DataTypeEnum.String });
+            await context.SaveChangesAsync();
+            await context.Database.ExecuteSqlRawAsync("CREATE TRIGGER reject_starship_profiles BEFORE INSERT ON starship_reward_profiles BEGIN SELECT RAISE(ABORT, 'test import failure'); END;");
+        }
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => CreateStore().LoadAsync());
+
+        using var check = _services.CreateScope();
+        var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Empty(database.StarshipEvents);
+        Assert.Empty(database.StarshipRewardProfiles);
+        Assert.Equal(json, (await database.Settings.SingleAsync()).StringSetting);
+    }
+
+    [Fact]
+    public async Task Load_RejectsUnsupportedCatalogDocumentAndMissingRows()
+    {
+        await CreateStore().LoadAsync();
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var row = await context.StarshipEvents.FirstAsync();
+            var document = JsonNode.Parse(row.DocumentJson)!;
+            document["schemaVersion"] = 99;
+            row.DocumentJson = document.ToJsonString();
+            await context.SaveChangesAsync();
+        }
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore().LoadAsync());
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await context.StarshipEvents.ExecuteDeleteAsync();
+        }
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore().LoadAsync());
+    }
+
+    private StarshipExpeditionSettingsStore CreateStore() => new(_services.GetRequiredService<IServiceScopeFactory>());
 }

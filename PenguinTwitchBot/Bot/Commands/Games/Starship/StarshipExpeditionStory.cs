@@ -62,23 +62,33 @@ public static class StarshipExpeditionStory
         };
     }
 
-    public static string DescribeLoot(string eventType, string? rarity) => (eventType, rarity) switch
+    public static string GenerateSubject(int seed, int sequence, StarshipEventDefinition definition)
     {
-        ("SalvageSite", "Common") => "salvage plating and spare parts",
-        ("SalvageSite", "Uncommon") => "a sealed navigation core",
-        ("SalvageSite", "Rare") => "an intact cryo-vault",
-        ("SignalDetected", "Common") => "a fragment of old star charts",
-        ("SignalDetected", "Uncommon") => "an encrypted data cache",
-        ("SignalDetected", "Rare") => "a lost explorer's black-box archive",
-        ("Hazard", "Common") => "scattered ore chunks",
-        ("Hazard", "Uncommon") => "a cluster of crystal shards",
-        ("Hazard", "Rare") => "a glowing rare-earth nugget",
-        (_, "Common") => "some useful scrap",
-        (_, "Uncommon") => "a valuable cache",
-        (_, "Rare") => "a priceless find",
-        (_, { Length: > 0 }) => $"a {rarity!.ToLowerInvariant()} find",
-        _ => "something valuable"
-    };
+        if (definition.SubjectNames.Count > 0)
+            return definition.SubjectNames[StableIndex(seed, sequence, "story-custom-subject", definition.SubjectNames.Count)];
+        var style = definition.SubjectStyle switch
+        {
+            "ship" => "SalvageSite",
+            "signal" => "SignalDetected",
+            "hazard" => "Hazard",
+            _ => definition.EventType
+        };
+        return GenerateSubject(seed, sequence, style);
+    }
+
+    public static string DescribeLoot(string eventType, string? rarity)
+    {
+        var definition = StarshipEventCatalog.CreateDefaults().FirstOrDefault(item => item.EventType == eventType);
+        if (rarity != null && definition?.LootByTier.TryGetValue(rarity, out var text) == true) return text;
+        return rarity switch
+        {
+            "Common" => "some useful scrap",
+            "Uncommon" => "a valuable cache",
+            "Rare" => "a priceless find",
+            { Length: > 0 } => $"a {rarity.ToLowerInvariant()} find",
+            _ => "something valuable"
+        };
+    }
 
     /// <summary>Renders a story template; names pick a deterministic hero among the people who chose the option.</summary>
     public static string Render(
@@ -103,12 +113,16 @@ public static class StarshipExpeditionStory
         };
         var capitalizedSubject = subject.Length == 0 ? subject : char.ToUpperInvariant(subject[0]) + subject[1..];
 
+        var loot = expeditionEvent.LootByTier == null
+            ? DescribeLoot(expeditionEvent.EventType, rarity)
+            : expeditionEvent.LootByTier.FirstOrDefault(item => string.Equals(item.Key, rarity, StringComparison.OrdinalIgnoreCase)).Value
+                ?? (string.IsNullOrEmpty(rarity) ? "something valuable" : $"a {rarity.ToLowerInvariant()} find");
         return template
             .Replace("{crewlist}", crewList, StringComparison.Ordinal)
             .Replace("{crew}", hero, StringComparison.Ordinal)
             .Replace("{Subject}", capitalizedSubject, StringComparison.Ordinal)
             .Replace("{subject}", subject, StringComparison.Ordinal)
-            .Replace("{loot}", DescribeLoot(expeditionEvent.EventType, rarity), StringComparison.Ordinal)
+            .Replace("{loot}", loot, StringComparison.Ordinal)
             .Replace("{rarity}", rarity ?? "unknown", StringComparison.Ordinal)
             .Replace("{sector}", expeditionEvent.Sector, StringComparison.Ordinal);
     }

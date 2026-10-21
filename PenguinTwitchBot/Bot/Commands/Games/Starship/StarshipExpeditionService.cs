@@ -49,36 +49,6 @@ public sealed class StarshipExpeditionService(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private static readonly EventDefinition[] RandomEvents =
-    [
-        new("SignalDetected", "Unidentified Signal", "A signal from {subject} is repeating at the edge of sensor range. Scan it, trace its origin, then investigate - or move on.",
-            [
-                new() { ChoiceId = "scan", Label = "Scan the signal", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} decodes the looping message from {subject}: a plea in a long-dead dialect, guarding {loot}." },
-                new() { ChoiceId = "trace", Label = "Trace its origin", ContinuesEvent = true, GrantsFlag = "traced", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60, Story = "{crewlist} triangulate {subject} to a hidden dock deep in the {sector}." },
-                new() { ChoiceId = "investigate", Label = "Investigate the source", Story = "{crew} takes a shuttle out to {subject}." },
-                new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true, Story = "The crew lets {subject} fade into static." }
-            ], "ignore",
-            "It was real: the crew recovers {loot}.",
-            "It was a decoy. The shuttle limps home empty and the crew loses cargo."),
-        new("SalvageSite", "Derelict Salvage", "A damaged vessel, {subject}, is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
-            [
-                new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}. Warm signatures flicker behind the cargo hold - it looks like {loot}." },
-                new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50, Story = "{crewlist} lock docking clamps onto {subject} and seal its breached corridors." },
-                new() { ChoiceId = "salvage", Label = "Recover salvage", Story = "{crew} boards {subject} and starts cutting toward the cargo hold." },
-                new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true, Story = "The crew leaves {subject} to drift on." }
-            ], "pass",
-            "The hatch gives way and the crew hauls out {loot}.",
-            "A reactor surge rips through {subject}. The crew drops {loot} and flees."),
-        new("Hazard", "Navigation Hazard", "{Subject} has appeared across the current flight path.",
-            [
-                new() { ChoiceId = "maneuver", Label = "Maneuver around it", Story = "{crew} takes the helm and arcs around {subject}." },
-                new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, Story = "{crew} diverts power to the shields as {subject} closes in." },
-                new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130, Story = "{crew} grits their teeth and holds course through {subject}." }
-            ], "maneuver",
-            "The crew clears {subject} and scoops up {loot}.",
-            "{Subject} clips the hull and cargo is lost.")
-    ];
-
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _payoutLock = new(1, 1);
     private readonly SemaphoreSlim _actionLock = new(1, 1);
@@ -293,7 +263,8 @@ public sealed class StarshipExpeditionService(
             ActiveCrewRewardsOnly = previewSettings.ActiveCrewRewardsOnly,
             RewardProfiles = JsonSerializer.Deserialize<List<StarshipRewardProfile>>(
                 JsonSerializer.Serialize(previewSettings.RewardProfiles, JsonOptions), JsonOptions) ?? [],
-            EventRewardProfileIds = new(previewSettings.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase),
+            EventRewardProfileIds = previewSettings.GetEffectiveRewardBindings(),
+            EventCatalog = previewSettings.EventCatalog,
             SectorPool = sectors,
             CurrentSector = sectors[GetDeterministicIndex(seed, 0, "initial-sector", sectors.Count)],
             CurrentRoute = "Uncharted"
@@ -415,7 +386,9 @@ public sealed class StarshipExpeditionService(
                 BoardingClosesAtUtc = now.AddSeconds(settings.BoardingDurationSeconds),
                 ActiveCrewRewardsOnly = settings.ActiveCrewRewardsOnly,
                 RewardProfiles = rewardProfiles,
-                EventRewardProfileIds = new(settings.EventRewardProfileIds, StringComparer.OrdinalIgnoreCase),
+                EventRewardProfileIds = settings.GetEffectiveRewardBindings(),
+                EventCatalog = JsonSerializer.Deserialize<List<StarshipEventDefinition>>(
+                    JsonSerializer.Serialize(settings.EventCatalog, JsonOptions), JsonOptions)!,
                 AnnounceSessionStatusInChat = settings.AnnounceSessionStatusInChat,
                 SessionStartChatMessageTemplate = settings.SessionStartChatMessageTemplate,
                 SessionEndChatMessageTemplate = settings.SessionEndChatMessageTemplate,
@@ -1145,8 +1118,10 @@ public sealed class StarshipExpeditionService(
             EventType = definition.EventType,
             Title = definition.Title,
             Description = definition.Description,
-            Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition.EventType),
-            ObjectKind = StarshipExpeditionStory.GetObjectKind(definition.EventType),
+            Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition),
+            ObjectKind = definition.ObjectKind,
+            ObjectImages = [.. definition.Images],
+            LootByTier = new(definition.LootByTier, StringComparer.OrdinalIgnoreCase),
             ObjectVariant = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-variant", StarshipExpeditionStory.ObjectVariantCount),
             ObjectRoll = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-roll", int.MaxValue),
             SuccessStory = definition.SuccessStory,
@@ -1806,27 +1781,9 @@ public sealed class StarshipExpeditionService(
         return _snapshot;
     }
 
-    private static EventDefinition GetEventDefinition(StarshipExpeditionSnapshot snapshot, int sequence)
+    private static StarshipEventDefinition GetEventDefinition(StarshipExpeditionSnapshot snapshot, int sequence)
     {
-        if (sequence == 1)
-        {
-            return new EventDefinition("RouteChoice", "Choose a Route", "The crew can take a direct route or detour through a survey area.",
-                [new() { ChoiceId = "direct", Label = "Take the direct route" }, new() { ChoiceId = "detour", Label = "Take the survey detour" }], "direct");
-        }
-
-        if (snapshot.CurrentLeg > 0 && snapshot.StationIntervalLegs > 0 && snapshot.CurrentLeg % snapshot.StationIntervalLegs == 0)
-        {
-            return new EventDefinition("StationStop", "Space Station", "A station offers a brief resupply and banking stop.",
-                [new() { ChoiceId = "resupply", Label = "Resupply" }, new() { ChoiceId = "repair", Label = "Repair the ship" }, new() { ChoiceId = "continue", Label = "Continue the voyage" }], "resupply");
-        }
-
-        var routeEvents = snapshot.CurrentRoute switch
-        {
-            "Direct Route" => RandomEvents.Where(definition => definition.EventType != "SalvageSite").ToArray(),
-            "Survey Route" => RandomEvents.Where(definition => definition.EventType != "Hazard").ToArray(),
-            _ => RandomEvents
-        };
-        return routeEvents[GetDeterministicIndex(snapshot.Seed, sequence, $"event-type:{snapshot.CurrentRoute}", routeEvents.Length)];
+        return StarshipEventCatalog.Select(snapshot.EventCatalog ?? StarshipEventCatalog.CreateDefaults(), snapshot, sequence);
     }
 
     private static StarshipRewardProfile? GetRewardProfile(StarshipExpeditionSnapshot snapshot, string eventType) =>
@@ -1948,12 +1905,4 @@ public sealed class StarshipExpeditionService(
         ? "No Starship Expedition is active."
         : $"Starship Expedition: {snapshot.Status}, leg {snapshot.CurrentLeg}/{snapshot.LegCount}, sector {snapshot.CurrentSector}.";
 
-    private sealed record EventDefinition(
-        string EventType,
-        string Title,
-        string Description,
-        List<StarshipEventChoiceSnapshot> Choices,
-        string DefaultChoiceId,
-        string SuccessStory = "",
-        string FailureStory = "");
 }

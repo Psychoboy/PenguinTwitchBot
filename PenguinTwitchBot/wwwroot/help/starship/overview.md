@@ -64,3 +64,11 @@ Images must be media-library files (a path starting with `/media/`) or an `http(
 - **Event widget** (`/starship-event.html`): numbered choices, vote counts, the path taken, any revealed rarity and the result of each event.
 
 Both widgets use the same real-time connection; if it drops they reconnect and reload the latest state.
+
+## Catalog Storage and Recovery
+
+Event definitions and reward profiles are stored as versioned database documents. Apply the matching SQLite or PostgreSQL migrations before running this version. On first load, existing reward profiles and event bindings are preserved and moved out of the settings document; a failed import leaves the previous settings intact.
+
+New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
+
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized. Event-editor controls and built-in sector toggles are separate later stages.

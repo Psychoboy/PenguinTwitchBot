@@ -25,6 +25,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     ["RouteChoice", "SignalDetected", "SalvageSite", "Hazard"];
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+    public int CatalogStorageVersion { get; set; }
     public int LegCount { get; set; } = StarshipExpeditionService.DefaultLegCount;
     public int MinimumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMinimumEventIntervalMinutes;
     public int MaximumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMaximumEventIntervalMinutes;
@@ -35,6 +36,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public List<string> CustomSectors { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<StarshipEventDefinition> EventCatalog { get; set; } = StarshipEventCatalog.CreateDefaults();
     public bool AnnounceSessionStatusInChat { get; set; } = true;
     public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
@@ -45,6 +47,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         ArgumentNullException.ThrowIfNull(settings);
         if (settings.SchemaVersion != CurrentSchemaVersion)
             throw new InvalidDataException($"Unsupported Starship settings version {settings.SchemaVersion}.");
+        if (settings.CatalogStorageVersion is < 0 or > 1)
+            throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
         if (settings.LegCount is < 1 or > MaximumLegCount)
             throw new ArgumentOutOfRangeException(nameof(settings.LegCount), $"Voyage legs must be between 1 and {MaximumLegCount}.");
         if (settings.MinimumEventIntervalMinutes is < 1 or > MaximumEventIntervalLimitMinutes)
@@ -135,13 +139,22 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
                 throw new ArgumentException("An event reward binding references an unknown event or profile.", nameof(settings.EventRewardProfileIds));
         }
 
+        StarshipEventCatalog.Validate(settings.EventCatalog, settings);
         return settings;
     }
 
     public List<string> GetEffectiveSectors() => [.. BuiltInSectors, .. CustomSectors];
 
     public StarshipRewardProfile? GetRewardProfile(string eventType) =>
-        StarshipRewardProfile.FindForEvent(RewardProfiles, EventRewardProfileIds, eventType);
+        StarshipRewardProfile.FindForEvent(RewardProfiles, GetEffectiveRewardBindings(), eventType);
+
+    public Dictionary<string, string> GetEffectiveRewardBindings()
+    {
+        var bindings = new Dictionary<string, string>(EventRewardProfileIds, StringComparer.OrdinalIgnoreCase);
+        foreach (var definition in EventCatalog.Where(definition => definition.RewardProfileId != null))
+            bindings[definition.EventType] = definition.RewardProfileId!;
+        return bindings;
+    }
 
     private static List<StarshipRewardProfile> CreateDefaultRewardProfiles() => RewardEventTypes
         .Select(eventType => new StarshipRewardProfile { EventType = eventType })

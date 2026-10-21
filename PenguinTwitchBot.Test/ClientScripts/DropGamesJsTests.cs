@@ -507,7 +507,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
         public void StarshipOverlay_PicksCustomEventObjectImagesPerKindAndFallsBackToBuiltInArt()
         {
             var now = DateTimeOffset.UtcNow;
-            string ArtMarkup(string kind, object appearance)
+            string ArtMarkup(string kind, object appearance, string[]? eventImages = null)
             {
                 var engine = CreateStarshipOverlayEngine("event");
                 var currentEvent = new
@@ -515,6 +515,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     sequence = 2, eventType = "X", title = "T", description = "D", sector = "Kepler Reach",
                     openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
                     subject = "the thing", objectKind = kind, objectVariant = 1, objectRoll = 7,
+                    objectImages = eventImages ?? [],
                     choices = Array.Empty<object>(), defaultChoiceId = "x", voteCounts = new Dictionary<string, int>(),
                     stepNumber = 1, path = Array.Empty<string>()
                 };
@@ -530,8 +531,31 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             var wreckImages = new { useBuiltInObjectArt = false, objectImages = new Dictionary<string, string[]> { ["wreck"] = ["/media/w1.png", "/media/w2.png"] } };
             Assert.Equal("IMG:/media/w2.png", ArtMarkup("wreck", wreckImages));
+            Assert.Equal("IMG:/media/event.png", ArtMarkup("wreck", wreckImages, ["/media/event.png"]));
+            Assert.Equal("IMG:/media/w2.png", ArtMarkup("wreck", wreckImages, ["javascript:alert(1)"]));
             Assert.Equal("<svg", ArtMarkup("beacon", wreckImages));
             Assert.Equal("<svg", ArtMarkup("wreck", new { useBuiltInObjectArt = true, objectImages = new Dictionary<string, string[]> { ["wreck"] = ["javascript:alert(1)"] } }));
+        }
+
+        [Theory]
+        [InlineData(4, "false")]
+        [InlineData(6, "true")]
+        public void StarshipEventWidget_SelectsCompactLayoutForMoreThanFourChoices(int count, string expectedCompact)
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            var currentEvent = new
+            {
+                sequence = 2, eventType = "custom-event", title = "Custom Event", description = "A choice.", sector = "Kepler Reach",
+                openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
+                choices = Enumerable.Range(1, count).Select(index => new { choiceId = $"choice-{index}", label = $"Choice {index}", number = index }),
+                voteCounts = new Dictionary<string, int>(), stepNumber = 1, path = Array.Empty<string>()
+            };
+            DispatchStarshipOverlayState(engine, StarshipAppearanceSnapshot(now, 0,
+                new { name = "Ship", hullStyle = "arrow", accentColor = "#66d0c2", variant = 0 }, currentEvent));
+
+            Assert.Equal(count, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
+            Assert.Equal(expectedCompact, engine.Evaluate("document.getElementById('choices').dataset.compact").AsString());
         }
 
         [Fact]

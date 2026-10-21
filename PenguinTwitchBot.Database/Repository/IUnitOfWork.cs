@@ -47,6 +47,8 @@ namespace PenguinTwitchBot.Database.Repository
         IWheelPropertiesRepository WheelProperties { get; }
         ICooldownsRepository Cooldowns { get; }
         IGameSettingsRepository GameSettings { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipEventRow> StarshipEvents { get; }
+        IGenericRepository<PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow> StarshipRewardProfiles { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync();

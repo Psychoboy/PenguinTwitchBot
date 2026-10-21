@@ -1633,6 +1633,49 @@ public class StarshipExpeditionServiceTests
         Assert.True((await service.GetSnapshotAsync())!.BankedPayouts.Single().IsPaid);
     }
 
+    [Fact]
+    public async Task CatalogSnapshot_CustomEventsUseProfilesAndIgnoreLaterSettingsEditsAfterRecovery()
+    {
+        var settings = new StarshipExpeditionSettings { LegCount = 5, StationIntervalLegs = 24, ActiveCrewRewardsOnly = false };
+        var profile = new StarshipRewardProfile
+        {
+            Id = "archive-reward", Name = "Archive Reward", Enabled = true, SuccessChancePercent = 100,
+            Tiers = [new() { Id = "rare", Name = "Rare", Weight = 1, Rewards = [new() { PointTypeId = 8, Minimum = 17, Maximum = 17 }] }]
+        };
+        settings.RewardProfiles.Add(profile);
+        settings.EventCatalog = settings.EventCatalog.Where(definition => StarshipEventCatalog.IsStructural(definition.EventType)).ToList();
+        settings.EventCatalog.Add(new StarshipEventDefinition("lost-archive", "Lost Archive", "Inspect {subject}.",
+            [new() { ChoiceId = "recover", Label = "Recover the archive" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "recover", "Recovered {loot}.")
+        {
+            RewardProfileId = profile.Id, SubjectStyle = "custom", SubjectNames = ["the Quiet Archive"], ObjectKind = "beacon",
+            Images = ["/media/archive.png"], LootByTier = new() { ["Rare"] = "an intact star atlas" }
+        });
+        var points = new Mock<IPointsSystem>();
+        points.Setup(system => system.GetPointTypeById(8)).ReturnsAsync(new PointType { Id = 8, Name = "Archive Credits" });
+        var settingsStore = new InMemorySettingsStore(settings);
+        var stateStore = new InMemoryStateStore();
+        var service = CreateService(stateStore, settingsStore: settingsStore, pointsSystem: points.Object);
+        await service.StartExpeditionAsync("moderator", seed: 81);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.AdvanceEventAsync();
+        await service.AdvanceEventAsync();
+
+        settings.EventCatalog.Clear();
+        profile.Tiers[0].Rewards[0].Minimum = 99;
+        profile.Tiers[0].Rewards[0].Maximum = 99;
+        var restored = CreateService(stateStore, settingsStore: settingsStore, pointsSystem: points.Object);
+        var opened = await restored.AdvanceEventAsync();
+        var expeditionEvent = opened.CurrentEvent!;
+        Assert.Equal("lost-archive", expeditionEvent.EventType);
+        Assert.Equal("the Quiet Archive", expeditionEvent.Subject);
+        Assert.Equal(["/media/archive.png"], StarshipExpeditionOverlaySnapshot.From(opened).CurrentEvent!.ObjectImages);
+        var resolved = await restored.AdvanceEventAsync();
+        var completed = resolved.CompletedEvents.Last();
+        Assert.Equal("an intact star atlas", completed.LootByTier!["Rare"]);
+        Assert.Contains("an intact star atlas", completed.OutcomeStory);
+        Assert.Equal(17, Assert.Single(completed.RewardOutcomes).EarnedAmount);
+    }
+
     private static StarshipExpeditionService CreateService(
         InMemoryStateStore stateStore,
         TimeProvider? timeProvider = null,

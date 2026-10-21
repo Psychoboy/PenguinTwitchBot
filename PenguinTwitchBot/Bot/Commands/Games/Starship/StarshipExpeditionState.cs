@@ -37,6 +37,7 @@ public sealed class StarshipExpeditionSnapshot
     public bool ActiveCrewRewardsOnly { get; init; } = true;
     public List<StarshipRewardProfile> RewardProfiles { get; init; } = [];
     public Dictionary<string, string> EventRewardProfileIds { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<StarshipEventDefinition>? EventCatalog { get; init; }
     public bool AnnounceSessionStatusInChat { get; init; } = true;
     public string SessionStartChatMessageTemplate { get; init; } = string.Empty;
     public string SessionEndChatMessageTemplate { get; init; } = string.Empty;
@@ -110,6 +111,8 @@ public sealed class StarshipExpeditionEventSnapshot
     public string Subject { get; init; } = string.Empty;
     /// <summary>Kind of object the overlay draws (wreck, beacon, debris, station, fork) and which of its looks.</summary>
     public string ObjectKind { get; init; } = string.Empty;
+    public List<string> ObjectImages { get; init; } = [];
+    public Dictionary<string, string>? LootByTier { get; init; }
     public int ObjectVariant { get; init; }
     /// <summary>Large stable number used to pick among custom object images.</summary>
     public int ObjectRoll { get; init; }
@@ -357,6 +360,8 @@ public sealed record StarshipOverlayEventSnapshot(
     int ObjectRoll,
     string RevealedRarityColor = "")
 {
+    public IReadOnlyList<string> ObjectImages { get; init; } = [];
+
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
         expeditionEvent.Sequence,
         expeditionEvent.EventType,
@@ -387,7 +392,8 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.ObjectVariant,
         expeditionEvent.OpenedAtUtc,
         expeditionEvent.ObjectRoll,
-        expeditionEvent.RevealedRarityColor);
+        expeditionEvent.RevealedRarityColor)
+        { ObjectImages = expeditionEvent.ObjectImages };
 }
 
 public sealed record StarshipOverlayChoice(
@@ -498,6 +504,8 @@ public sealed record StarshipOverlayEventResult(
     int ObjectRoll,
     string RarityColor = "")
 {
+    public IReadOnlyList<string> ObjectImages { get; init; } = [];
+
     public static StarshipOverlayEventResult From(
         StarshipExpeditionEventSnapshot expeditionEvent,
         IEnumerable<StarshipBankedPayoutSnapshot> payouts)
@@ -525,7 +533,8 @@ public sealed record StarshipOverlayEventResult(
             expeditionEvent.ObjectKind,
             expeditionEvent.ObjectVariant,
             expeditionEvent.ObjectRoll,
-            expeditionEvent.OutcomeRarityColor);
+            expeditionEvent.OutcomeRarityColor)
+            { ObjectImages = expeditionEvent.ObjectImages };
     }
 }
 

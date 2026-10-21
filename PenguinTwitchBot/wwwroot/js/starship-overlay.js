@@ -176,7 +176,9 @@
         return { svg: large ? svg.replace('viewBox="0 0 64 32"', 'viewBox="-4 -20 72 72"') : svg };
     }
 
-    function objectSpec(kind, variant, roll) {
+    function objectSpec(kind, variant, roll, eventImages) {
+        const custom = (eventImages || []).filter(isSafeImageUrl);
+        if (custom.length) return { image: custom[stableIndex(roll ?? variant, custom.length)] };
         const images = ((appearance.objectImages || {})[kind] || []).filter(isSafeImageUrl);
         if (images.length === 0) {
             const svg = objectSvg(kind, variant, getAccent());
@@ -308,6 +310,7 @@
     function renderChoices(currentEvent) {
         const list = document.getElementById('choices');
         list.replaceChildren();
+        list.dataset.compact = (currentEvent.choices || []).length > 4 ? 'true' : 'false';
         const counts = currentEvent.voteCounts || {};
         const totalVotes = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);
         for (const choice of currentEvent.choices || []) {
@@ -546,7 +549,7 @@
             renderBankedAmounts(latest);
             renderResultLines(latest);
             renderTimeline(terminal ? snapshot.timeline : []);
-            const resultSpec = !terminal && latest.objectKind ? objectSpec(latest.objectKind, latest.objectVariant, latest.objectRoll) : null;
+            const resultSpec = !terminal && latest.objectKind ? objectSpec(latest.objectKind, latest.objectVariant, latest.objectRoll, latest.objectImages) : null;
             renderArt(resultSpec || shipSpec(true), !terminal && latest.subject ? latest.subject : shipName);
             return;
         }
@@ -579,7 +582,7 @@
             setTextAnimated('event-description', currentEvent.description);
             setText('event-sector', ((currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : currentEvent.sector) +
                 ' · Default: ' + currentEvent.defaultChoiceId);
-            renderArt(objectSpec(currentEvent.objectKind, currentEvent.objectVariant, currentEvent.objectRoll) || shipSpec(true), currentEvent.subject || '');
+            renderArt(objectSpec(currentEvent.objectKind, currentEvent.objectVariant, currentEvent.objectRoll, currentEvent.objectImages) || shipSpec(true), currentEvent.subject || '');
             renderChoices(currentEvent);
             renderStepInfo(currentEvent);
             renderRarityBadge(currentEvent);
