@@ -1,0 +1,378 @@
+@page "/games/starship"
+@attribute [Authorize(Roles = "Streamer, Editor")]
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+@using PenguinTwitchBot.Bot.Features
+@using PenguinTwitchBot.Pages.Components
+@inject IStarshipExpeditionSettingsStore SettingsStore
+@inject IStarshipExpeditionService ExpeditionService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Starship Expedition</PageTitle>
+
+<FeatureGate FeatureKey="@FeatureKeys.DropGames" DisabledMessage="Minigames are currently disabled. Enable them on the Bot Features page.">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+            <div>
+                <MudText Typo="Typo.h4">Starship Expedition</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the voyage, preview a seeded route, and control the active expedition.</MudText>
+            </div>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                       Disabled="@_isSaving" OnClick="SaveSettingsAsync">
+                Save Settings
+            </MudButton>
+        </MudStack>
+
+        @if (_isLoading)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_settings != null)
+        {
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">@_error</MudAlert>
+            }
+
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
+                <MudTabPanel Text="Voyage Settings">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="7">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Expedition Configuration</MudText>
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Voyage Legs" Variant="Variant.Outlined"
+                                                         Min="1" Max="@StarshipExpeditionSettings.MaximumLegCount"
+                                                         @bind-Value="_settings.LegCount" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Station Every N Legs" Variant="Variant.Outlined"
+                                                         Min="1" Max="@StarshipExpeditionSettings.MaximumLegCount"
+                                                         @bind-Value="_settings.StationIntervalLegs" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Minimum Event Interval (Minutes)" Variant="Variant.Outlined"
+                                                         Min="1" Max="@StarshipExpeditionSettings.MaximumEventIntervalLimitMinutes"
+                                                         @bind-Value="_settings.MinimumEventIntervalMinutes" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Maximum Event Interval (Minutes)" Variant="Variant.Outlined"
+                                                         Min="1" Max="@StarshipExpeditionSettings.MaximumEventIntervalLimitMinutes"
+                                                         @bind-Value="_settings.MaximumEventIntervalMinutes" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Event Vote Window (Seconds)" Variant="Variant.Outlined"
+                                                         Min="10" Max="300"
+                                                         @bind-Value="_settings.EventVoteDurationSeconds" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int" Label="Crew Boarding Window (Seconds)" Variant="Variant.Outlined"
+                                                         Min="10" Max="300"
+                                                         @bind-Value="_settings.BoardingDurationSeconds" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSwitch T="bool" Color="Color.Primary"
+                                                   @bind-Value="_settings.ActiveCrewRewardsOnly"
+                                                   Label="Only Reward Active Crew" />
+                                    </MudItem>
+                                </MudGrid>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                                    Built-in sectors are always available. Custom sectors are added to the route pool.
+                                </MudText>
+                            </MudPaper>
+
+                            <MudPaper Class="pa-4 mt-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Custom Sectors</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomSectors.Count / @StarshipExpeditionSettings.MaximumCustomSectors</MudText>
+                                    </div>
+                                </MudStack>
+                                <MudStack Spacing="2">
+                                    @for (var index = 0; index < _settings.CustomSectors.Count; index++)
+                                    {
+                                        var sectorIndex = index;
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                            <MudTextField T="string" Label="Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                          Value="@_settings.CustomSectors[sectorIndex]"
+                                                          ValueChanged="@(value => UpdateSectorName(sectorIndex, value))" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                           aria-label="Remove custom sector"
+                                                           OnClick="@(() => RemoveSector(sectorIndex))" />
+                                        </MudStack>
+                                    }
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudTextField T="string" Label="New Sector Name" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                                      @bind-Value="_newSectorName" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary"
+                                                       aria-label="Add custom sector"
+                                                       Disabled="@(_settings.CustomSectors.Count >= StarshipExpeditionSettings.MaximumCustomSectors || string.IsNullOrWhiteSpace(_newSectorName))"
+                                                       OnClick="AddSector" />
+                                    </MudStack>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" lg="5">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.h6">Live Expedition</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@FormatLiveStatus()</MudText>
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Refresh expedition status"
+                                                   Disabled="@_isOperating" OnClick="RefreshLiveStatusAsync" />
+                                </MudStack>
+                                @if (_liveSnapshot?.CurrentEvent is { } activeEvent)
+                                {
+                                    <MudText Typo="Typo.subtitle1">@activeEvent.Title</MudText>
+                                    <MudText Typo="Typo.body2" Class="mb-2">@activeEvent.Description</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Sector: @activeEvent.Sector | Votes: @activeEvent.Votes.Count / @_liveSnapshot.Crew.Count</MudText>
+                                }
+                                <MudDivider Class="my-3" />
+                                <MudStack Row="true" Spacing="2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_isOperating || IsLive)"
+                                               StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="StartLiveExpeditionAsync">Start Voyage</MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="@(_isOperating || !IsLive)"
+                                               StartIcon="@Icons.Material.Filled.SkipNext" OnClick="AdvanceLiveEventAsync">
+                                        @(_liveSnapshot?.Status == StarshipExpeditionStatus.Boarding ? "Launch Now" : "Advance Event")
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="@(_isOperating || !IsLive)"
+                                               StartIcon="@Icons.Material.Filled.Stop" OnClick="StopLiveExpeditionAsync">Stop</MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Test Preview">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" md="4">
+                            <MudPaper Class="pa-4" Outlined="true">
+                                <MudText Typo="Typo.h6" Class="mb-3">Seeded Route Preview</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Preview uses unsaved settings and does not create a live voyage, save state, award points, send chat, or fire actions.</MudText>
+                                <MudNumericField T="int" Label="Preview Seed" Variant="Variant.Outlined" @bind-Value="_previewSeed" />
+                                <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Visibility" OnClick="GeneratePreview">Generate Preview</MudButton>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" md="8">
+                            @if (_previewEvents.Count > 0)
+                            {
+                                <MudStack Spacing="2">
+                                    <MudPaper Class="pa-3" Outlined="true">
+                                        <MudText Typo="Typo.subtitle2">Preview Seed: @_previewSeed</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">Effective Sector Pool</MudText>
+                                        <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-1">
+                                            @foreach (var sector in _settings.GetEffectiveSectors())
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@sector</MudChip>
+                                            }
+                                        </MudStack>
+                                    </MudPaper>
+                                    @foreach (var previewEvent in _previewEvents)
+                                    {
+                                        <MudPaper Class="pa-3" Outlined="true">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                <MudText Typo="Typo.subtitle1">Leg @previewEvent.Sequence: @previewEvent.Title</MudText>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@previewEvent.Sector</MudChip>
+                                            </MudStack>
+                                            <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">Default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
+                                            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-2">
+                                                @foreach (var choice in previewEvent.Choices)
+                                                {
+                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@choice.Label</MudChip>
+                                                }
+                                            </MudStack>
+                                        </MudPaper>
+                                    }
+                                </MudStack>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">Generate a preview to inspect the route and event sequence.</MudText>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <MudTabPanel Text="Automation & Messages">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="8">
+                            <GameOutcomeAutomationPanel DefaultCommandName="starship" GameTitle="Starship Expedition" />
+                        </MudItem>
+                        <MudItem xs="12" lg="4">
+                            <GameSessionMessageSettings Settings="_settings" SessionNoun="Voyage" RequiredStartAnnouncement="true"
+                                                        EndMessageHelperText="Available placeholders: {count}, {duration}, {result}." />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+</FeatureGate>
+
+@code {
+    private StarshipExpeditionSettings? _settings;
+    private StarshipExpeditionSnapshot? _liveSnapshot;
+    private IReadOnlyList<StarshipExpeditionEventSnapshot> _previewEvents = [];
+    private int _previewSeed = 12345;
+    private string _newSectorName = string.Empty;
+    private string _error = string.Empty;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _isOperating;
+
+    private bool IsLive => _liveSnapshot?.Status is StarshipExpeditionStatus.Boarding or StarshipExpeditionStatus.Cruising or StarshipExpeditionStatus.EventOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _settings = await SettingsStore.LoadAsync();
+            _liveSnapshot = await ExpeditionService.GetSnapshotAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not load Starship settings: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void AddSector()
+    {
+        if (_settings == null || string.IsNullOrWhiteSpace(_newSectorName)) return;
+        _settings.CustomSectors.Add(_newSectorName.Trim());
+        _newSectorName = string.Empty;
+    }
+
+    private void UpdateSectorName(int index, string? value)
+    {
+        if (_settings == null || index < 0 || index >= _settings.CustomSectors.Count) return;
+        _settings.CustomSectors[index] = value ?? string.Empty;
+    }
+
+    private void RemoveSector(int index)
+    {
+        if (_settings == null || index < 0 || index >= _settings.CustomSectors.Count) return;
+        _settings.CustomSectors.RemoveAt(index);
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        if (_settings == null) return;
+        _isSaving = true;
+        _error = string.Empty;
+        try
+        {
+            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
+            await SettingsStore.SaveAsync(_settings);
+            Snackbar.Add("Starship Expedition settings saved.", Severity.Success);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not save Starship settings: {ex.Message}";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void GeneratePreview()
+    {
+        if (_settings == null) return;
+        try
+        {
+            _error = string.Empty;
+            _previewEvents = ExpeditionService.BuildPreview(_settings, _previewSeed);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            _previewEvents = [];
+            _error = ex.Message;
+        }
+    }
+
+    private async Task RefreshLiveStatusAsync()
+    {
+        _liveSnapshot = await ExpeditionService.GetSnapshotAsync();
+    }
+
+    private async Task StartLiveExpeditionAsync()
+    {
+        if (_settings == null || IsLive) return;
+        _isOperating = true;
+        try
+        {
+            _settings = StarshipExpeditionSettings.NormalizeAndValidate(_settings);
+            await SettingsStore.SaveAsync(_settings);
+            _liveSnapshot = await ExpeditionService.StartExpeditionAsync("Streamer");
+            Snackbar.Add("Starship Expedition started.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isOperating = false;
+        }
+    }
+
+    private async Task AdvanceLiveEventAsync()
+    {
+        if (!IsLive) return;
+        _isOperating = true;
+        try
+        {
+            _liveSnapshot = await ExpeditionService.AdvanceEventAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isOperating = false;
+        }
+    }
+
+    private async Task StopLiveExpeditionAsync()
+    {
+        if (!IsLive) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Stop Starship Expedition",
+            "Stop the active Starship Expedition? It will be marked aborted.",
+            yesText: "Stop Expedition",
+            cancelText: "Keep Running");
+        if (confirmed != true) return;
+
+        _isOperating = true;
+        try
+        {
+            _liveSnapshot = await ExpeditionService.StopExpeditionAsync("Streamer");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isOperating = false;
+        }
+    }
+
+    private string FormatLiveStatus() => _liveSnapshot == null
+        ? "No expedition has started."
+        : $"{_liveSnapshot.Status} · Leg {_liveSnapshot.CurrentLeg}/{_liveSnapshot.LegCount} · Crew {_liveSnapshot.Crew.Count}";
+}

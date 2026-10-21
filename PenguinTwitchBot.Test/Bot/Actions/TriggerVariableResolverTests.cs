@@ -154,6 +154,42 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public void DefaultCommandTriggerVariableResolver_ResolvesStarshipAutomationEvents()
+        {
+            var resolver = new DefaultCommandTriggerVariableResolver();
+            var openedVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = DefaultCommandEventTypes.StarshipEventOpened
+                })
+            }, openedVariables);
+
+            Assert.Contains("ExpeditionId", openedVariables.Keys);
+            Assert.Contains("EventTitle", openedVariables.Keys);
+            Assert.Contains("Choices", openedVariables.Keys);
+            Assert.Contains("Duration", openedVariables.Keys);
+            Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == DefaultCommandEventTypes.StarshipEventOpened);
+
+            var resolvedVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = DefaultCommandEventTypes.StarshipEventResolved
+                })
+            }, resolvedVariables);
+            Assert.Contains("Choice", resolvedVariables.Keys);
+            Assert.Contains("VoteCount", resolvedVariables.Keys);
+        }
+
+        [Fact]
         public void TwitchEventTriggerVariableResolver_ResolvesCheerAndSubVariables()
         {
             var resolver = new TwitchEventTriggerVariableResolver();

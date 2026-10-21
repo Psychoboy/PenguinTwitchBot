@@ -5,7 +5,8 @@ public enum StarshipExpeditionStatus
     Cruising,
     EventOpen,
     Returned,
-    Aborted
+    Aborted,
+    Boarding
 }
 
 public enum StarshipCrewEnrollmentMethod
@@ -31,10 +32,17 @@ public sealed class StarshipExpeditionSnapshot
     public int MinimumEventIntervalSeconds { get; init; } = 900;
     public int MaximumEventIntervalSeconds { get; init; } = 1800;
     public int EventVoteDurationSeconds { get; init; } = 60;
+    public int BoardingDurationSeconds { get; init; } = 60;
+    public DateTimeOffset? BoardingClosesAtUtc { get; set; }
+    public bool ActiveCrewRewardsOnly { get; init; } = true;
+    public bool AnnounceSessionStatusInChat { get; init; } = true;
+    public string SessionStartChatMessageTemplate { get; init; } = string.Empty;
+    public string SessionEndChatMessageTemplate { get; init; } = string.Empty;
     public int NextEventSequence { get; set; } = 1;
     public DateTimeOffset? NextEventAtUtc { get; set; }
     public string CurrentSector { get; set; } = string.Empty;
     public string CurrentRoute { get; set; } = string.Empty;
+    public List<string> SectorPool { get; init; } = [];
     public List<StarshipCrewMemberSnapshot> Crew { get; init; } = [];
     public List<StarshipExpeditionEventSnapshot> CompletedEvents { get; init; } = [];
     public StarshipExpeditionEventSnapshot? CurrentEvent { get; set; }

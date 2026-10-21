@@ -95,10 +95,12 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
             throw new InvalidDataException("Starship expedition leg progress is invalid.");
         if (snapshot.MinimumEventIntervalSeconds < 1 || snapshot.MaximumEventIntervalSeconds < snapshot.MinimumEventIntervalSeconds)
             throw new InvalidDataException("Starship expedition event interval range is invalid.");
-        if (snapshot.StationIntervalLegs < 1 || snapshot.EventVoteDurationSeconds < 1)
+        if (snapshot.StationIntervalLegs < 1 || snapshot.EventVoteDurationSeconds < 1 || snapshot.BoardingDurationSeconds < 1)
             throw new InvalidDataException("Starship expedition station or event timing settings are invalid.");
         if (!Enum.IsDefined(snapshot.Status))
             throw new InvalidDataException("Starship expedition status is invalid.");
+        if (snapshot.Status == StarshipExpeditionStatus.Boarding && snapshot.BoardingClosesAtUtc == null)
+            throw new InvalidDataException("Starship crew boarding must have a closing time.");
         if (snapshot.Crew == null)
             throw new InvalidDataException("Starship expedition crew cannot be null.");
         if (snapshot.Crew.Any(member => string.IsNullOrWhiteSpace(member.UserId)))

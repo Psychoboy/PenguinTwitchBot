@@ -357,15 +357,19 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         int NameFontSize { get; set; }
     }
 
-    public interface IDropGameSessionSettings
+    public interface IGameSessionMessageSettings
+    {
+        bool AnnounceSessionStatusInChat { get; set; }
+        string SessionStartChatMessageTemplate { get; set; }
+        string SessionEndChatMessageTemplate { get; set; }
+    }
+
+    public interface IDropGameSessionSettings : IGameSessionMessageSettings
     {
         bool SessionModeEnabled { get; set; }
         bool AutoStartOnCommand { get; set; }
         int DefaultSessionDurationSeconds { get; set; }
         int MaxDropsPerUserPerSession { get; set; }
-        bool AnnounceSessionStatusInChat { get; set; }
-        string SessionStartChatMessageTemplate { get; set; }
-        string SessionEndChatMessageTemplate { get; set; }
     }
 
     public class BalloonAscentGameSettings : IDropGameHeaderSettings, IDropGameSessionSettings

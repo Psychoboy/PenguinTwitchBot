@@ -3,27 +3,41 @@
 <MudPaper Class="pa-4 mb-4" Outlined="true">
     <MudStack Spacing="3">
         <div>
-            <MudText Typo="Typo.h6">Round Chat Messages</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the chat announcements shown when a timed round starts and ends.</MudText>
+            <MudText Typo="Typo.h6">@SessionNoun Chat Messages</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the chat announcements shown when a @SessionNoun.ToLowerInvariant() starts and ends.</MudText>
         </div>
 
         <MudSwitch T="bool" Color="Color.Info"
                    @bind-Value="Settings.AnnounceSessionStatusInChat"
-                   Label="Announce Round Start & End in Chat" />
+                   Label="@(RequiredStartAnnouncement ? $"Use Custom {SessionNoun} Messages" : $"Announce {SessionNoun} Start & End in Chat")" />
+
+        @if (RequiredStartAnnouncement)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">Standard boarding and vote prompts are always announced; this setting controls the custom voyage notices.</MudText>
+        }
 
         @if (Settings.AnnounceSessionStatusInChat)
         {
-            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+            <MudTextField T="string" Label="@($"{SessionNoun} Start Chat Message")" Variant="Variant.Outlined"
                           @bind-Value="Settings.SessionStartChatMessageTemplate"
                           HelperText="Available placeholders include {duration}; some games also support {theme}, {condition}, and {distance}." />
-            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+            <MudTextField T="string" Label="@($"{SessionNoun} End Chat Message")" Variant="Variant.Outlined"
                           @bind-Value="Settings.SessionEndChatMessageTemplate"
-                          HelperText="Available placeholders: {count}, {duration}." />
+                          HelperText="@EndMessageHelperText" />
         }
     </MudStack>
 </MudPaper>
 
 @code {
     [Parameter, EditorRequired]
-    public IDropGameSessionSettings Settings { get; set; } = null!;
+    public IGameSessionMessageSettings Settings { get; set; } = null!;
+
+    [Parameter]
+    public string SessionNoun { get; set; } = "Round";
+
+    [Parameter]
+    public bool RequiredStartAnnouncement { get; set; }
+
+    [Parameter]
+    public string EndMessageHelperText { get; set; } = "Available placeholders: {count}, {duration}.";
 }

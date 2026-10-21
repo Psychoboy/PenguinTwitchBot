@@ -94,5 +94,12 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string GolfLose = "Golf.Lose";
         public const string GolfEnd = "Golf.End";
         public const string GolfEnded = "Golf.End";
+
+        // Starship Expedition events
+        public const string StarshipBoardingOpened = "Starship.BoardingOpened";
+        public const string StarshipCrewJoined = "Starship.CrewJoined";
+        public const string StarshipEventOpened = "Starship.EventOpened";
+        public const string StarshipEventResolved = "Starship.EventResolved";
+        public const string StarshipVoyageEnded = "Starship.VoyageEnded";
     }
 }

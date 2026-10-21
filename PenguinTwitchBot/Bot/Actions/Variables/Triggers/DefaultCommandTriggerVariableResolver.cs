@@ -102,6 +102,10 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             case "chip":
                 ResolveGolfVariables(variables, source, category, eventType);
                 break;
+
+            case "starship":
+                ResolveStarshipVariables(variables, source, category, eventType);
+                break;
         }
     }
 
@@ -591,6 +595,46 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("TargetDistancePercent", "Pin distance as a percent of strip length", source, category, "84.0");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Summer (Beach Party)");
             variables.SetVariable("Game", "Game name", source, category, "Golf");
+        }
+    }
+
+    private static void ResolveStarshipVariables(Dictionary<string, ActionVariableInfo> variables, string source, string category, string? eventType)
+    {
+        variables.SetVariable("Game", "Game name", source, category, "Starship Expedition");
+        variables.SetVariable("ExpeditionId", "Unique ID of the voyage", source, category, "00000000-0000-0000-0000-000000000000");
+        variables.SetVariable("Leg", "Current voyage leg", source, category, "1");
+        variables.SetVariable("LegCount", "Total configured voyage legs", source, category, "5");
+        variables.SetVariable("Sector", "Current route sector", source, category, "Kepler Reach");
+        variables.SetVariable("CrewCount", "Number of viewers aboard", source, category, "4");
+
+        if (eventType == DefaultCommandEventTypes.StarshipBoardingOpened)
+        {
+            variables.SetVariable("TriggeredBy", "Broadcaster or moderator who opened boarding", source, category, "Broadcaster");
+            variables.SetVariable("Duration", "Crew boarding window in seconds", source, category, "60");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipCrewJoined)
+        {
+            variables.SetVariable("User", "Crew member who joined", source, category, "Penguin_Fan");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipEventOpened)
+        {
+            variables.SetVariable("EventTitle", "Title of the opened crew event", source, category, "Unidentified Signal");
+            variables.SetVariable("EventType", "Kind of the opened crew event", source, category, "SignalDetected");
+            variables.SetVariable("Choices", "Labels of the available event choices", source, category, "Scan the signal | Trace its origin | Continue on course");
+            variables.SetVariable("Duration", "Crew vote window in seconds", source, category, "60");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipEventResolved)
+        {
+            variables.SetVariable("EventTitle", "Title of the resolved crew event", source, category, "Unidentified Signal");
+            variables.SetVariable("EventType", "Kind of the resolved crew event", source, category, "SignalDetected");
+            variables.SetVariable("Choice", "Winning/default choice label", source, category, "Scan the signal");
+            variables.SetVariable("VoteCount", "Number of crew votes recorded", source, category, "3");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipVoyageEnded)
+        {
+            variables.SetVariable("Result", "Voyage terminal result", source, category, "Returned");
+            variables.SetVariable("Duration", "Voyage duration in seconds", source, category, "3600");
+            variables.SetVariable("TriggeredBy", "Broadcaster or moderator who ended the voyage", source, category, "Broadcaster");
         }
     }
 }

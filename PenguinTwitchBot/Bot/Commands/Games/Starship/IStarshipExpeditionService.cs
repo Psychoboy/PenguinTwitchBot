@@ -5,11 +5,12 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 public interface IStarshipExpeditionService
 {
     Task<StarshipExpeditionSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken = default);
+    IReadOnlyList<StarshipExpeditionEventSnapshot> BuildPreview(StarshipExpeditionSettings settings, int seed);
     Task<StarshipExpeditionSnapshot> StartExpeditionAsync(
         string? startedBy,
-        int legCount = 5,
-        int minimumEventIntervalMinutes = 15,
-        int maximumEventIntervalMinutes = 30,
+        int? legCount = null,
+        int? minimumEventIntervalMinutes = null,
+        int? maximumEventIntervalMinutes = null,
         int? seed = null,
         CancellationToken cancellationToken = default);
     Task<StarshipExpeditionSnapshot?> StopExpeditionAsync(string? stoppedBy, CancellationToken cancellationToken = default);
