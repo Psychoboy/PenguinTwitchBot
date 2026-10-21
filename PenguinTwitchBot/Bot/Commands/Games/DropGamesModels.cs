@@ -418,11 +418,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string DefaultWindGustEmote { get; set; } = "";
         public CrashLandingScoreMode PoppedScoreMode { get; set; } = CrashLandingScoreMode.ZeroScore;
 
-        public string WinActionName { get; set; } = "";
-        public string BullseyeActionName { get; set; } = "";
-        public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "{user} reached the cloud platform with {score} pts!{bullseye}";
-
         // Timed Session / Round settings
         public bool SessionModeEnabled { get; set; } = false;
         public bool AutoStartOnCommand { get; set; } = true;
@@ -564,12 +559,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/curling_win.wav", Volume = 70 };
 
         // Win & Outcome Actions
-        public string WinActionName { get; set; } = "";
-        public string BullseyeActionName { get; set; } = "";
-        public string LoseActionName { get; set; } = "";
-        public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "{user} landed on the button with {score} pts!{bullseye}";
-
         // Timed Session / Round settings
         public bool SessionModeEnabled { get; set; } = false;
         public bool AutoStartOnCommand { get; set; } = true;
@@ -701,12 +690,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public DropGameSoundConfig WinSound { get; set; } = new() { Enabled = true, AudioFile = "/media/golf_win.wav", Volume = 70 };
 
         // Win & Outcome Actions
-        public string WinActionName { get; set; } = "";
-        public string BullseyeActionName { get; set; } = "";
-        public string LoseActionName { get; set; } = "";
-        public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "{user} finished on the green with {score} pts ({strokes} stroke(s))!{bullseye}";
-
         // Timed Session / Round settings
         public bool SessionModeEnabled { get; set; } = false;
         public bool AutoStartOnCommand { get; set; } = true;
@@ -795,10 +778,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             get => 0.0;
             set { /* Ignored - wind removed */ }
         }
-        public string WinActionName { get; set; } = "";
-        public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "{user} landed on the target with {score} pts!{bullseye}";
-
         // Default Droplets settings
         public int DefaultDropletCount { get; set; } = 5;
         public string DefaultDropletSize { get; set; } = "Medium"; // Small, Medium, Large, Giant, Random
@@ -891,9 +870,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
             get => _pegTransparency;
             set => _pegTransparency = Math.Clamp(value, 0, 100);
         }
-        public string WinActionName { get; set; } = "";
-        public bool AnnounceWinsInChat { get; set; } = true;
-        public string WinChatMessageTemplate { get; set; } = "{user}'s Plinko token landed in [{bucket}]!";
         public List<PlinkoBucket> Buckets { get; set; } = [];
 
         // Timed Session / Round settings
@@ -1280,6 +1256,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public string UserColor { get; init; } = "#FFFFFF";
         public required CommandEventArgs EventArgs { get; init; }
         public required DropGameTheme Theme { get; init; }
+        public string ConditionLabel { get; set; } = "";
+        public double TargetDistancePercent { get; set; }
+        public double Power { get; set; }
         public required DateTime CreatedAtUtc { get; init; }
         public required DateTime EarliestCompletionUtc { get; init; }
         public required DateTime ExpiresAtUtc { get; set; }
@@ -1334,8 +1313,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games
         public bool IsProcessing { get; set; }
         public bool IsCompleted { get; set; }
         public bool DefaultCommandTriggerExecuted { get; set; }
-        public bool WinActionExecuted { get; set; }
-        public bool WinChatAnnounced { get; set; }
         public DateTime? LastHeartbeatUtc { get; set; }
         public int MissedHeartbeatCount { get; set; }
     }

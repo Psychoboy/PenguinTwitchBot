@@ -94,6 +94,40 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public void DefaultCommandTriggerVariableResolver_ResolvesGolfAndCurlingConditions()
+        {
+            var resolver = new DefaultCommandTriggerVariableResolver();
+            var golfVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "golf",
+                    EventType = DefaultCommandEventTypes.GolfWin
+                })
+            }, golfVariables);
+
+            Assert.Contains("GreenCondition", golfVariables.Keys);
+            Assert.Contains("PinDistance", golfVariables.Keys);
+            Assert.Contains("TargetDistancePercent", golfVariables.Keys);
+
+            var curlingVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "curl",
+                    EventType = DefaultCommandEventTypes.CurlingWin
+                })
+            }, curlingVariables);
+
+            Assert.Contains("IceCondition", curlingVariables.Keys);
+            Assert.Contains("TargetDistancePercent", curlingVariables.Keys);
+        }
+
+        [Fact]
         public void TwitchEventTriggerVariableResolver_ResolvesCheerAndSubVariables()
         {
             var resolver = new TwitchEventTriggerVariableResolver();

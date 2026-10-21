@@ -51,6 +51,7 @@ public static class SubActionUIFieldEnhancer
             ToggleCommandDisabledType toggle => EnhanceToggleCommandDisabled(fields, toggle, scope.ServiceProvider),
             PointCommandType point => EnhancePointCommand(fields, point, scope.ServiceProvider),
             GiftPointsType gift => EnhanceGiftPoints(fields, gift, scope.ServiceProvider),
+            ManagePointsType managePoints => EnhanceManagePoints(fields, managePoints, scope.ServiceProvider),
             ForEachViewerType foreachViewer => EnhanceForEachViewer(fields, foreachViewer, scope.ServiceProvider),
             ExecuteDefaultCommandType defaultCmd => EnhanceExecuteDefaultCommand(fields, defaultCmd, scope.ServiceProvider),
             ExecuteCommandType cmd => EnhanceExecuteCommand(fields, cmd, scope.ServiceProvider),
@@ -714,6 +715,24 @@ public static class SubActionUIFieldEnhancer
             Required = true,
             Options = pointNames,
             HelperText = "The type of points to gift."
+        });
+
+        return fields;
+    }
+
+    private static List<SubActionUIField> EnhanceManagePoints(List<SubActionUIField> fields, ManagePointsType managePoints, IServiceProvider serviceProvider)
+    {
+        var pointsSystem = serviceProvider.GetRequiredService<IPointsSystem>();
+        var pointTypes = Task.Run(async () => await pointsSystem.GetPointTypes()).GetAwaiter().GetResult();
+
+        fields.RemoveAll(field => field.PropertyName == nameof(ManagePointsType.PointTypeName));
+        fields.Insert(0, new SubActionUIField
+        {
+            PropertyName = nameof(ManagePointsType.PointTypeName),
+            Label = "Point Type",
+            FieldType = UIFieldType.Select,
+            Required = true,
+            Options = pointTypes.Select(pointType => pointType.Name).OrderBy(name => name).ToArray()
         });
 
         return fields;

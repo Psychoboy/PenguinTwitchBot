@@ -119,7 +119,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions
 
             return type switch
             {
-                SubActionTypes.CheckPoints or SubActionTypes.GiftPoints or SubActionTypes.ExecutePointCommand
+                SubActionTypes.CheckPoints or SubActionTypes.GiftPoints or SubActionTypes.ManagePoints or SubActionTypes.ExecutePointCommand
                     or SubActionTypes.ChannelPointSetEnabledState or SubActionTypes.ChannelPointSetPausedState
                     => SubActionCategories.PointsAndRewards,
 

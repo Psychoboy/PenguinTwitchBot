@@ -53,3 +53,7 @@ The minigame supports two distinct scoring rule sets:
 - **Single Slide (Free Play)**: Viewers launch stones at any time (subject to viewer cooldowns).
 - **Timed Session / Round Mode**: A group countdown begins when the round opens. Viewers compete to land closest to the center button. The highest scoring player is crowned the round champion with a golden crown (`👑`) highlight over their stone.
 
+## Outcome Automations
+
+Use **Outcome Automations** on the Curling game page to link an existing action or create a new one for Win, Bullseye, Lose, or round events. Add a Manage Points sub-action for the selected point type; `%Score%` awards the score directly, and `$math(%Score% * 2)$` applies a multiplier. Edit the linked action in [Manage Actions](/actions/manage) to add more sub-actions or point types. Bullseye also fires Win, so linking the same action to both can award twice.
+

@@ -11,7 +11,6 @@
 @inject IDropGamesSettingsService SettingsService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IGolfGameService GolfGameService
-@inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<GolfGame> Logger
@@ -53,6 +52,7 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: GREEN & FAIRWAY LAYOUT ================= -->
                 <MudTabPanel Text="Green & Strip Layout">
+                    <GameSessionMessageSettings Settings="_settings.Golf" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -238,47 +238,9 @@
 
                                     <MudDivider Class="my-2" />
 
-                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Actions</MudText>
+                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Automations</MudText>
+                                    <GameOutcomeAutomationPanel DefaultCommandName="golf" GameTitle="Golf" />
 
-                                    <MudSelect T="string" Label="Hole-in-One / Cup Sunk Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.BullseyeActionName"
-                                               HelperText="Custom Action executed when a viewer sinks the ball in the cup (100 base pts)">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="On-Green Win Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.WinActionName"
-                                               HelperText="Custom Action executed when a ball scores points on the putting green or in the cup">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudSelect T="string" Label="Missed Green / Lose Action (Optional)" Variant="Variant.Outlined" Clearable="true"
-                                               @bind-Value="_settings.Golf.LoseActionName"
-                                               HelperText="Custom Action executed when a ball misses the putting green (0 pts)">
-                                        @foreach (var action in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@action">@action</MudSelectItem>
-                                        }
-                                    </MudSelect>
-
-                                    <MudDivider Class="my-2" />
-
-                                    <MudSwitch T="bool" Color="Color.Success"
-                                               @bind-Value="_settings.Golf.AnnounceWinsInChat"
-                                               Label="Send Chat Message on Score / Hole-Out" />
-
-                                    @if (_settings.Golf.AnnounceWinsInChat)
-                                    {
-                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
-                                                      @bind-Value="_settings.Golf.WinChatMessageTemplate"
-                                                      HelperText="Placeholders: {user}, {score}, {bullseye}, {strokes}" />
-                                    }
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -330,19 +292,6 @@
                                             </MudItem>
                                         </MudGrid>
 
-                                        <MudSwitch T="bool" Color="Color.Info"
-                                                   @bind-Value="_settings.Golf.AnnounceSessionStatusInChat"
-                                                   Label="Announce Round Start & End in Chat" />
-
-                                        @if (_settings.Golf.AnnounceSessionStatusInChat)
-                                        {
-                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Golf.SessionStartChatMessageTemplate"
-                                                          HelperText="Placeholders: {duration}, {theme}, {condition}, {distance}" />
-                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Golf.SessionEndChatMessageTemplate"
-                                                          HelperText="Placeholders: {count}, {duration}" />
-                                        }
                                     }
                                 </MudStack>
                             </MudPaper>
@@ -468,7 +417,6 @@
 
 @code {
     private DropGamesSettings? _settings;
-    private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private int _testPower = 72;
@@ -487,13 +435,6 @@
 
         _settings = await SettingsService.GetSettingsAsync();
 
-        var actions = await ActionManagementService.GetAllActionsAsync();
-        _actionNames = actions
-            .Select(a => a.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private RenderFragment RenderLiveTester() => __builder =>

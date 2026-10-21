@@ -10,7 +10,6 @@
 @inject IDropGamesSettingsService SettingsService
 @inject PenguinTwitchBot.Bot.Overlay.IOverlaySecurityService OverlaySecurityService
 @inject IPlinkoDropService PlinkoDropService
-@inject IActionManagementService ActionManagementService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject ILogger<PlinkoGame> Logger
@@ -52,6 +51,7 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: BOARD & PRIZE BUCKETS ================= -->
                 <MudTabPanel Text="Board & Buckets">
+                    <GameSessionMessageSettings Settings="_settings.Plinko" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -119,27 +119,8 @@
                                         </MudItem>
                                     </MudGrid>
 
-                                    <MudSelect T="string" Label="Direct Win Action (Optional)" Variant="Variant.Outlined"
-                                               Clearable="true"
-                                               @bind-Value="_settings.Plinko.WinActionName"
-                                               HelperText="Action executed when a token lands in a winning bucket. Variables: %User%, %Score%, %BucketLabel%, %BucketIndex%, %Theme%.">
-                                        <MudSelectItem Value="@("")">None (Use Default Command Triggers Only)</MudSelectItem>
-                                        @foreach (var actName in _actionNames)
-                                        {
-                                            <MudSelectItem Value="@actName">@actName</MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <GameOutcomeAutomationPanel DefaultCommandName="plinko" GameTitle="Plinko Bounce" />
 
-                                    <MudSwitch T="bool" Color="Color.Success"
-                                               @bind-Value="_settings.Plinko.AnnounceWinsInChat"
-                                               Label="Send Chat Message on Winning Bucket" />
-
-                                    @if (_settings.Plinko.AnnounceWinsInChat)
-                                    {
-                                        <MudTextField T="string" Label="Win Chat Message Template" Variant="Variant.Outlined"
-                                                      @bind-Value="_settings.Plinko.WinChatMessageTemplate"
-                                                      HelperText="Placeholders: {user}, {score}, {bucket}" />
-                                    }
                                 </MudStack>
                             </MudPaper>
 
@@ -250,19 +231,6 @@
                                             </MudItem>
                                         </MudGrid>
 
-                                        <MudSwitch T="bool" Color="Color.Info"
-                                                   @bind-Value="_settings.Plinko.AnnounceSessionStatusInChat"
-                                                   Label="Announce Round Start & End in Chat" />
-
-                                        @if (_settings.Plinko.AnnounceSessionStatusInChat)
-                                        {
-                                            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Plinko.SessionStartChatMessageTemplate"
-                                                          HelperText="Placeholders: {duration}" />
-                                            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
-                                                          @bind-Value="_settings.Plinko.SessionEndChatMessageTemplate"
-                                                          HelperText="Placeholders: {count}, {duration}" />
-                                        }
                                     }
                                 </MudStack>
                             </MudPaper>
@@ -387,7 +355,6 @@
 
 @code {
     private DropGamesSettings? _settings;
-    private List<string> _actionNames = [];
     private string _testUsername = "PenguinViewer";
     private string _testEmoteInput = "";
     private string _overlayKey = "";
@@ -404,13 +371,6 @@
         }
         _settings = await SettingsService.GetSettingsAsync();
 
-        var actions = await ActionManagementService.GetAllActionsAsync();
-        _actionNames = actions
-            .Select(a => a.Name)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-            .ToList();
     }
 
     private RenderFragment RenderPlinkoLiveTester() => __builder =>

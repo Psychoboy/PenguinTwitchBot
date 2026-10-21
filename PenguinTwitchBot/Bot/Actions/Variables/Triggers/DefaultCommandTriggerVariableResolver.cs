@@ -540,6 +540,10 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("IsWin", "True if the stone stopped inside a scoring house ring", source, category, "true");
             variables.SetVariable("IsBullseye", "True if the stone stopped dead-center on the button (100 pts)", source, category, "true");
             variables.SetVariable("DistanceFromCenter", "Distance from the house center in percentage points", source, category, "0.8");
+            variables.SetVariable("Condition", "Ice condition used for this slide", source, category, "Slick Ice");
+            variables.SetVariable("IceCondition", "Ice condition used for this slide", source, category, "Slick Ice");
+            variables.SetVariable("TargetDistance", "Target distance used for this slide", source, category, "84.0");
+            variables.SetVariable("TargetDistancePercent", "Target distance as a percent of track length", source, category, "84.0");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Winter (Snowflakes)");
             variables.SetVariable("Game", "Game name", source, category, "Curling");
         }
@@ -576,6 +580,11 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("IsHoleInOne", "True if the ball was sunk in the cup on stroke 1", source, category, "true");
             variables.SetVariable("IsLipOut", "True if the ball hit the cup rim too fast and lipped out", source, category, "false");
             variables.SetVariable("DistanceFromCenter", "Distance from the pin in percentage points", source, category, "0.4");
+            variables.SetVariable("Condition", "Green condition used for this golf shot", source, category, "Fast Links");
+            variables.SetVariable("GreenCondition", "Green condition used for this golf shot", source, category, "Fast Links");
+            variables.SetVariable("TargetDistance", "Pin distance used for this golf shot", source, category, "84.0");
+            variables.SetVariable("PinDistance", "Pin distance used for this golf shot", source, category, "84.0");
+            variables.SetVariable("TargetDistancePercent", "Pin distance as a percent of strip length", source, category, "84.0");
             variables.SetVariable("Theme", "Active seasonal or custom theme name", source, category, "Summer (Beach Party)");
             variables.SetVariable("Game", "Game name", source, category, "Golf");
         }

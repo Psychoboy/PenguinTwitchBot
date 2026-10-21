@@ -780,9 +780,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var pSettings = settings.Parachute;
-
             var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.DisplayName,
@@ -790,6 +787,7 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 ["Score"] = record.Score.ToString(CultureInfo.InvariantCulture),
                 ["IsWin"] = record.IsWin ? "true" : "false",
                 ["IsBullseye"] = record.IsBullseye ? "true" : "false",
+                ["DistanceFromCenter"] = (Math.Abs(record.LandingX - record.TargetCenterX) * 100.0).ToString("F1", CultureInfo.InvariantCulture),
                 ["DropletHits"] = record.DropletHitCount.ToString(CultureInfo.InvariantCulture),
                 ["RocketHits"] = record.RocketHitCount.ToString(CultureInfo.InvariantCulture),
                 ["ParachuteDestroyed"] = record.ParachuteDestroyed ? "true" : "false",
@@ -858,62 +856,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Parachute
                 record.DefaultCommandTriggerExecuted = true;
             }
 
-            if (record.IsWin)
-            {
-                if (!record.WinActionExecuted && !string.IsNullOrWhiteSpace(pSettings.WinActionName))
-                {
-                    await EnqueueConfiguredWinActionAsync(pSettings.WinActionName, record.EventArgs, variables);
-                    record.WinActionExecuted = true;
-                }
-
-                if (!record.WinChatAnnounced && pSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(pSettings.WinChatMessageTemplate))
-                {
-                    var bullseyeTag = record.IsBullseye ? " BULLSEYE!" : "";
-                    var msg = pSettings.WinChatMessageTemplate
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bullseye}", bullseyeTag, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{droplethits}", record.DropletHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{rockethits}", record.RocketHitCount.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(msg);
-                    record.WinChatAnnounced = true;
-                }
-            }
-        }
-
-        private async Task EnqueueConfiguredWinActionAsync(
-            string actionName,
-            CommandEventArgs eventArgs,
-            Dictionary<string, string> gameVariables)
-        {
-            try
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                var allActions = await actionManagement.GetAllActionsAsync();
-                var targetAction = allActions.FirstOrDefault(a =>
-                    a.Enabled && a.Name.Equals(actionName.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                if (targetAction == null)
-                {
-                    logger.LogWarning("Configured Parachute win action '{ActionName}' was not found or is disabled.", actionName);
-                    return;
-                }
-
-                var actionVars = CommandEventArgsConverter.ToDictionary(eventArgs);
-                foreach (var kvp in gameVariables)
-                {
-                    actionVars[kvp.Key] = kvp.Value;
-                }
-
-                await actionRunner.EnqueueAction(actionVars, targetAction);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to enqueue win action '{ActionName}' for user {User}", actionName, eventArgs.DisplayName);
-            }
         }
 
         private async Task QueueWsMessageAsync(string topic, string json, string description)

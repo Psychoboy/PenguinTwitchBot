@@ -49,3 +49,7 @@
     $$\text{Final Score} = \max(0,\; \text{BaseScore} - (\text{StrokesUsed} - 1) \times \text{StrokePenaltyPoints})$$
    - **Maximum Base Score (`MaxScore`, Default `100`)**: Configure the cup's maximum base score from `1` to `1000`. Green proximity scales to `1` at the fringe; stroke penalties never lower the final score below `0`.
 
+## Outcome Automations
+
+Use **Outcome Automations** on the Golf game page to link an existing action or create a new one for Win, Bullseye, Lose, or round events. Add a Manage Points sub-action for the selected point type; `%Score%` awards the final score, and `$math(%Score% * 2)$` applies a multiplier. Edit the linked action in [Manage Actions](/actions/manage) to add more sub-actions or point types. A hole-in-one fires both Bullseye and Win, so linking the same action to both can award twice.
+

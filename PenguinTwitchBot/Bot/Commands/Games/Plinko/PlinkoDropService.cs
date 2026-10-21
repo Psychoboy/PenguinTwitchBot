@@ -575,9 +575,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
 
         public async Task ProcessCompletionAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var plinkoSettings = settings.Plinko;
-
             var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.DisplayName,
@@ -605,64 +602,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Plinko
                 record.DefaultCommandTriggerExecuted = true;
             }
 
-            if (record.IsWin)
-            {
-                if (!record.WinActionExecuted && !string.IsNullOrWhiteSpace(plinkoSettings.WinActionName))
-                {
-                    await EnqueueConfiguredWinActionAsync(plinkoSettings.WinActionName, record.EventArgs, variables);
-                    record.WinActionExecuted = true;
-                }
-
-                if (!record.WinChatAnnounced && plinkoSettings.AnnounceWinsInChat && !string.IsNullOrWhiteSpace(plinkoSettings.WinChatMessageTemplate))
-                {
-                    var template = plinkoSettings.WinChatMessageTemplate;
-                    if (record.Score <= 0 && template.Contains("({score} pts)", StringComparison.OrdinalIgnoreCase))
-                    {
-                        template = template.Replace("({score} pts)", "", StringComparison.OrdinalIgnoreCase).Replace("  ", " ").Trim();
-                    }
-                    var msg = template
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bucket}", record.BucketLabel, StringComparison.OrdinalIgnoreCase);
-                    await ServiceBackbone.SendChatMessage(msg);
-                    record.WinChatAnnounced = true;
-                }
-            }
-        }
-
-        private async Task EnqueueConfiguredWinActionAsync(
-            string actionName,
-            CommandEventArgs eventArgs,
-            Dictionary<string, string> gameVariables)
-        {
-            try
-            {
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                var allActions = await actionManagement.GetAllActionsAsync();
-                var targetAction = allActions.FirstOrDefault(a =>
-                    a.Enabled && a.Name.Equals(actionName.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                if (targetAction == null)
-                {
-                    logger.LogWarning("Configured DropGame win action '{ActionName}' was not found or is disabled.", actionName);
-                    return;
-                }
-
-                var actionVars = CommandEventArgsConverter.ToDictionary(eventArgs);
-                foreach (var kvp in gameVariables)
-                {
-                    actionVars[kvp.Key] = kvp.Value;
-                }
-
-                await actionRunner.EnqueueAction(actionVars, targetAction);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to enqueue win action '{ActionName}' for user {User}", actionName, eventArgs.DisplayName);
-            }
         }
 
         private async Task QueueWsMessageAsync(string topic, string json, string description)

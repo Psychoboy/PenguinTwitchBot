@@ -1,0 +1,29 @@
+@using PenguinTwitchBot.Bot.Commands.Games
+
+<MudPaper Class="pa-4 mb-4" Outlined="true">
+    <MudStack Spacing="3">
+        <div>
+            <MudText Typo="Typo.h6">Round Chat Messages</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the chat announcements shown when a timed round starts and ends.</MudText>
+        </div>
+
+        <MudSwitch T="bool" Color="Color.Info"
+                   @bind-Value="Settings.AnnounceSessionStatusInChat"
+                   Label="Announce Round Start & End in Chat" />
+
+        @if (Settings.AnnounceSessionStatusInChat)
+        {
+            <MudTextField T="string" Label="Round Start Chat Message" Variant="Variant.Outlined"
+                          @bind-Value="Settings.SessionStartChatMessageTemplate"
+                          HelperText="Available placeholders include {duration}; some games also support {theme}, {condition}, and {distance}." />
+            <MudTextField T="string" Label="Round End Chat Message" Variant="Variant.Outlined"
+                          @bind-Value="Settings.SessionEndChatMessageTemplate"
+                          HelperText="Available placeholders: {count}, {duration}." />
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public IDropGameSessionSettings Settings { get; set; } = null!;
+}

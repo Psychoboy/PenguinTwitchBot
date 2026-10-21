@@ -542,6 +542,9 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 StrokeNumber = strokeNumber,
                 EventArgs = eventArgs,
                 Theme = theme,
+                ConditionLabel = FormatConditionLabel(condition),
+                TargetDistancePercent = targetDistance,
+                Power = rawPower,
                 // Distance from the tee; the overlay mirrors it when reversed.
                 StartAxisPosition = startAxisOverride ?? 0.05,
                 CreatedAtUtc = now,
@@ -735,9 +738,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
 
         private async Task FireOutcomeAsync(PendingDropRecord record)
         {
-            var settings = await settingsService.GetSettingsAsync();
-            var gSettings = settings.Golf;
-
             var actionVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["User"] = record.Username,
@@ -746,12 +746,21 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 ["Score"] = record.Score.ToString(CultureInfo.InvariantCulture),
                 ["BaseScore"] = record.BaseScore.ToString(CultureInfo.InvariantCulture),
                 ["Strokes"] = record.StrokeNumber.ToString(CultureInfo.InvariantCulture),
+                ["StrokeNumber"] = record.StrokeNumber.ToString(CultureInfo.InvariantCulture),
                 ["StrokePenalty"] = record.StrokePenalty.ToString(CultureInfo.InvariantCulture),
                 ["IsLipOut"] = record.IsLipOut.ToString().ToLowerInvariant(),
                 ["IsWin"] = record.IsWin.ToString().ToLowerInvariant(),
                 ["IsBullseye"] = record.IsBullseye.ToString().ToLowerInvariant(),
                 ["IsHit"] = record.IsHit.ToString().ToLowerInvariant(),
-                ["LandingX"] = record.LandingX.ToString("F4", CultureInfo.InvariantCulture)
+                ["LandingX"] = record.LandingX.ToString("F4", CultureInfo.InvariantCulture),
+                ["Condition"] = record.ConditionLabel,
+                ["GreenCondition"] = record.ConditionLabel,
+                ["TargetDistance"] = record.TargetDistancePercent.ToString("F1", CultureInfo.InvariantCulture),
+                ["PinDistance"] = record.TargetDistancePercent.ToString("F1", CultureInfo.InvariantCulture),
+                ["TargetDistancePercent"] = record.TargetDistancePercent.ToString("F1", CultureInfo.InvariantCulture),
+                ["Power"] = record.Power.ToString("F0", CultureInfo.InvariantCulture),
+                ["Theme"] = record.Theme.Name,
+                ["Game"] = "Golf"
             };
 
             // Trigger DefaultCommand events
@@ -776,60 +785,6 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Golf
                 logger.LogError(ex, "Failed to fire Golf DefaultCommandEvent for {User}", record.DisplayName);
             }
 
-            // Enqueue Win / Bullseye / Lose Action if configured
-            var actionToRun = (record.IsBullseye && !string.IsNullOrWhiteSpace(gSettings.BullseyeActionName))
-                ? gSettings.BullseyeActionName
-                : (record.IsWin ? gSettings.WinActionName : gSettings.LoseActionName);
-
-            if (!string.IsNullOrWhiteSpace(actionToRun))
-            {
-                try
-                {
-                    await using var scope = scopeFactory.CreateAsyncScope();
-                    var actionManagement = scope.ServiceProvider.GetRequiredService<IActionManagementService>();
-                    var actionRunner = scope.ServiceProvider.GetRequiredService<IAction>();
-
-                    var allActions = await actionManagement.GetAllActionsAsync();
-                    var targetAction = allActions.FirstOrDefault(a =>
-                        a.Enabled && a.Name.Equals(actionToRun.Trim(), StringComparison.OrdinalIgnoreCase));
-
-                    if (targetAction != null)
-                    {
-                        var mergedVars = CommandEventArgsConverter.ToDictionary(record.EventArgs);
-                        foreach (var kvp in actionVars)
-                        {
-                            mergedVars[kvp.Key] = kvp.Value;
-                        }
-                        await actionRunner.EnqueueAction(mergedVars, targetAction);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to enqueue Golf action {Action} for {User}", actionToRun, record.DisplayName);
-                }
-            }
-
-            // Announce in chat
-            if (gSettings.AnnounceWinsInChat && (record.IsWin || record.IsBullseye))
-            {
-                try
-                {
-                    var bullseyeStr = record.IsBullseye
-                        ? (record.StrokeNumber == 1 ? " HOLE-IN-ONE!" : " SUNK IN THE CUP!")
-                        : (record.IsLipOut ? " (Lip-Out!)" : "");
-                    var msg = (gSettings.WinChatMessageTemplate ?? "{user} finished on the green with {score} pts ({strokes} stroke(s))!{bullseye}")
-                        .Replace("{user}", record.DisplayName, StringComparison.OrdinalIgnoreCase)
-                        .Replace("{score}", record.Score.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{strokes}", record.StrokeNumber.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                        .Replace("{bullseye}", bullseyeStr, StringComparison.OrdinalIgnoreCase);
-
-                    await ServiceBackbone.SendChatMessage(msg);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send Golf win chat message for {User}", record.DisplayName);
-                }
-            }
         }
 
         public override async Task OnCommand(object? sender, CommandEventArgs e)

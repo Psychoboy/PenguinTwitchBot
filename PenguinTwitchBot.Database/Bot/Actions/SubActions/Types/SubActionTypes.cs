@@ -78,6 +78,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         BalloonAscent,
         BalloonHazards,
         CurlingSlide,
-        GolfPutt
+        GolfPutt,
+        ManagePoints
     }
 }

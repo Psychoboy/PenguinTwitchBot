@@ -1,0 +1,133 @@
+@using System.Text.Json
+@using PenguinTwitchBot.Bot.Actions
+@using PenguinTwitchBot.Bot.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Actions
+@using PenguinTwitchBot.Database.Bot.Models.Actions.Triggers
+@using PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
+@using MudBlazor
+@inject IActionManagementService ActionService
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudStack Spacing="2" Class="game-outcome-automation-panel">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6">Outcome Automations</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Actions run from the regular trigger system.</MudText>
+            </MudStack>
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" aria-label="Refresh automations" OnClick="LoadActions" />
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        @foreach (var outcome in _outcomes)
+        {
+            var linked = GetLinkedActions(outcome);
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="py-1">
+                <MudText Typo="Typo.body1" Style="min-width: 180px">@outcome.DisplayName</MudText>
+                @if (linked.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Not configured</MudText>
+                }
+                else
+                {
+                    @foreach (var action in linked)
+                    {
+                        <MudChip T="string" Color="@GetActionChipColor(action, outcome)" Variant="Variant.Outlined" OnClick="@(() => OpenAction(action))">@GetActionLinkLabel(action, outcome)</MudChip>
+                    }
+                }
+                <MudSpacer />
+                <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="@(() => OpenWizard(outcome.DefaultCommandEventType))">
+                    Set Up
+                </MudButton>
+            </MudStack>
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public string DefaultCommandName { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string GameTitle { get; set; } = string.Empty;
+
+    private bool _isLoading = true;
+    private List<ActionType> _actions = [];
+    private List<TriggerItemInfo> _outcomes = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _outcomes = TriggerCatalog.AllTriggers.Where(item =>
+            item.Type == TriggerTypes.DefaultCommand &&
+            string.Equals(item.DefaultCommandName, DefaultCommandName, StringComparison.OrdinalIgnoreCase)).ToList();
+        await LoadActions();
+    }
+
+    private async Task LoadActions()
+    {
+        _isLoading = true;
+        _actions = await ActionService.GetAllActionsAsync();
+        _isLoading = false;
+    }
+
+    private List<ActionType> GetLinkedActions(TriggerItemInfo outcome) => _actions
+        .Where(action => action.Id.HasValue && action.Triggers.Any(trigger => IsMatchingTrigger(trigger, outcome)))
+        .OrderBy(action => action.Name)
+        .ToList();
+
+    private string GetActionLinkLabel(ActionType action, TriggerItemInfo outcome) =>
+        action.Name + (action.Enabled && action.Triggers.Any(trigger => trigger.Enabled && IsMatchingTrigger(trigger, outcome)) ? string.Empty : " (Disabled)");
+
+    private Color GetActionChipColor(ActionType action, TriggerItemInfo outcome) =>
+        action.Enabled && action.Triggers.Any(trigger => trigger.Enabled && IsMatchingTrigger(trigger, outcome)) ? Color.Success : Color.Warning;
+
+    private static bool IsMatchingTrigger(TriggerType trigger, TriggerItemInfo outcome)
+    {
+        if (trigger.Type != TriggerTypes.DefaultCommand) return false;
+        try
+        {
+            var config = JsonSerializer.Deserialize<DefaultCommandTriggerConfiguration>(trigger.Configuration);
+            return config != null &&
+                   string.Equals(config.DefaultCommandName, outcome.DefaultCommandName, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(config.EventType, outcome.DefaultCommandEventType, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private async Task OpenWizard(string? eventType)
+    {
+        var parameters = new DialogParameters<GameOutcomeAutomationWizard>
+        {
+            { component => component.DefaultCommandName, DefaultCommandName },
+            { component => component.GameTitle, GameTitle },
+            { component => component.InitialEventType, eventType }
+        };
+        var dialog = await DialogService.ShowAsync<GameOutcomeAutomationWizard>($"Set Up {GameTitle} Automation", parameters, new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: int actionId })
+        {
+            await LoadActions();
+            var action = _actions.FirstOrDefault(candidate => candidate.Id == actionId);
+            Snackbar.Add(action == null
+                ? "Automation created."
+                : $"Automation linked to '{action.Name}'. Select the action link to add or edit sub-actions.", Severity.Success);
+        }
+    }
+
+    private void OpenAction(ActionType action)
+    {
+        if (action.Id.HasValue)
+            NavigationManager.NavigateTo($"/actions/manage?actionId={action.Id.Value}");
+    }
+}

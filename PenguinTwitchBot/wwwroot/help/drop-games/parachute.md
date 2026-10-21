@@ -37,3 +37,7 @@ Streamers or chat events can trigger anti-air rockets targeting falling parachut
 
 - **Single Drop**: Viewers drop whenever they use the command (subject to user cooldowns).
 - **Timed Session / Round Mode**: A group countdown begins when the first viewer drops. All viewers who drop within the time window fall together in a single round. The viewer who lands closest to the bullseye is crowned the session leader with a floating gold crown.
+
+## Outcome Automations
+
+Use **Outcome Automations** on the Parachute game page to link an existing action or create a new one for Win, Bullseye, Lose, or round events. Add a Manage Points sub-action for the selected point type; `%Score%` awards the score directly, and `$math(%Score% * 2)$` applies a multiplier. Edit the linked action in [Manage Actions](/actions/manage) to add more sub-actions or point types. Bullseye also fires Win, so linking the same action to both can award twice.
