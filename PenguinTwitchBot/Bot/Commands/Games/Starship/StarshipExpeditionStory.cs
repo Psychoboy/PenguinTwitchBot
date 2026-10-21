@@ -30,6 +30,18 @@ public static class StarshipExpeditionStory
         AccentColor = AccentColors[StableIndex(seed, 0, "ship-accent", AccentColors.Length)]
     };
 
+    public const int ObjectVariantCount = 3;
+
+    public static string GetObjectKind(string eventType) => eventType switch
+    {
+        "SalvageSite" => "wreck",
+        "SignalDetected" => "beacon",
+        "Hazard" => "debris",
+        "StationStop" => "station",
+        "RouteChoice" => "fork",
+        _ => string.Empty
+    };
+
     public static int StableIndex(int seed, int sequence, string purpose, int count)
     {
         if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));

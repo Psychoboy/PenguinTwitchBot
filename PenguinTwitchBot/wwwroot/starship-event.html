@@ -12,42 +12,64 @@
     <main id="starship-widget" class="event-widget" hidden>
         <header class="widget-header">
             <div class="identity">
-                <span id="event-kicker" class="eyebrow">CREW TRANSMISSION</span>
-                <h1 id="event-title">Starship Expedition</h1>
-            </div>
-            <span id="event-timer" class="countdown">--:--</span>
-        </header>
-        <p id="event-description" class="event-description"></p>
-        <div id="boarding-panel" class="boarding-panel" hidden>
-            <span class="section-label">BOARDING WINDOW</span>
-            <strong>Take your place aboard</strong>
-            <span>Join before takeoff with <b>!sj</b></span>
-        </div>
-        <div id="event-panel" hidden>
-            <span id="step-note" class="step-note" hidden></span>
-            <div id="choices" class="choices"></div>
-            <section id="reward-disclosure" class="reward-disclosure" hidden>
-                <div class="reward-heading">
-                    <span class="section-label">OUTCOME PROFILE</span>
-                    <strong id="reward-point-type"></strong>
+                <div id="event-ship" class="ship-icon" aria-hidden="true" hidden></div>
+                <div class="identity-text">
+                    <span id="event-kicker" class="eyebrow">CREW TRANSMISSION</span>
+                    <h1 id="event-title">Starship Expedition</h1>
                 </div>
-                <span id="reward-success"></span>
-                <span id="reward-scope"></span>
-                <span id="reward-rarity"></span>
-                <span id="reward-caps"></span>
-                <span id="reward-risk" class="risk-note" hidden></span>
-            </section>
-            <footer class="vote-footer">
-                <span id="event-sector"></span>
-                <span>Vote in chat: <b>!sv &lt;number&gt;</b></span>
-            </footer>
-        </div>
-        <div id="result-panel" class="result-panel" hidden>
-            <span class="section-label">VOYAGE UPDATE</span>
-            <strong id="result-choice"></strong>
-            <span id="result-detail"></span>
-            <div id="result-lines" class="result-lines" hidden></div>
-            <div id="result-banked" class="banked-list" hidden></div>
+            </div>
+            <div class="ring-timer">
+                <svg viewBox="0 0 40 40" aria-hidden="true">
+                    <circle class="ring-bg" cx="20" cy="20" r="17"></circle>
+                    <circle id="ring-fg" class="ring-fg" cx="20" cy="20" r="17"></circle>
+                </svg>
+                <span id="event-timer" class="countdown">--:--</span>
+            </div>
+        </header>
+        <div class="scene-body">
+            <figure class="scene-art">
+                <div id="scene-object" class="scene-object" aria-hidden="true"></div>
+                <figcaption id="scene-subject"></figcaption>
+            </figure>
+            <div class="scene-main">
+                <p id="event-description" class="event-description"></p>
+                <div id="boarding-panel" class="boarding-panel" hidden>
+                    <span class="section-label">BOARDING WINDOW</span>
+                    <strong>Take your place aboard</strong>
+                    <span>Join before takeoff with <b>!sj</b></span>
+                </div>
+                <div id="event-panel" hidden>
+                    <div class="step-row">
+                        <span id="step-note" class="step-note" hidden></span>
+                        <span id="rarity-badge" class="rarity-badge" data-rarity="" hidden></span>
+                    </div>
+                    <div id="choices" class="choices"></div>
+                    <section id="reward-disclosure" class="reward-disclosure" hidden>
+                        <div class="reward-heading">
+                            <span class="section-label">OUTCOME PROFILE</span>
+                            <strong id="reward-point-type"></strong>
+                        </div>
+                        <span id="reward-success"></span>
+                        <span id="reward-scope"></span>
+                        <span id="reward-rarity"></span>
+                        <span id="reward-caps"></span>
+                        <span id="reward-risk" class="risk-note" hidden></span>
+                    </section>
+                    <footer class="vote-footer">
+                        <span id="event-sector"></span>
+                        <span>Vote in chat: <b>!sv &lt;number&gt;</b></span>
+                    </footer>
+                </div>
+                <div id="result-panel" class="result-panel" hidden>
+                    <span id="result-banner" class="result-banner" data-outcome=""></span>
+                    <strong id="result-choice"></strong>
+                    <span id="result-detail"></span>
+                    <p id="result-story" class="result-story" hidden></p>
+                    <div id="result-lines" class="result-lines" hidden></div>
+                    <div id="result-banked" class="banked-list" hidden></div>
+                    <div id="result-timeline" class="timeline" hidden></div>
+                </div>
+            </div>
         </div>
     </main>
     <div id="starship-toast" class="toast" hidden></div>

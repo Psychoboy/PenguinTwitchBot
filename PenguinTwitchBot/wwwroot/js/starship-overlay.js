@@ -16,6 +16,7 @@
     let toastEndsAt = 0;
     let pulseUntil = 0;
     let routeSignature = '';
+    let revealCounter = 0;
     const tracker = window.StarshipScene.createTracker();
     const feedHandlers = [handleActivity];
     window.StarshipOverlay = { onFeed: function (handler) { feedHandlers.push(handler); } };
@@ -84,6 +85,12 @@
     function renderShip() {
         const accent = getAccent();
         setVar(stage, '--ship-accent', accent);
+        if (view === 'event') {
+            const eventShip = document.getElementById('event-ship');
+            const hasEventShip = !!(snapshot?.ship && snapshot.ship.name);
+            eventShip.innerHTML = hasEventShip ? shipSvg(snapshot.ship.hullStyle, accent) : '';
+            eventShip.hidden = !hasEventShip;
+        }
         if (view !== 'status') return;
         const ship = snapshot?.ship;
         const hasShip = !!(ship && ship.name);
@@ -191,6 +198,8 @@
     function renderChoices(currentEvent) {
         const list = document.getElementById('choices');
         list.replaceChildren();
+        const counts = currentEvent.voteCounts || {};
+        const totalVotes = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0);
         for (const choice of currentEvent.choices || []) {
             const row = document.createElement('div');
             row.className = 'choice-row';
@@ -202,17 +211,121 @@
             command.textContent = '!sv ' + (choice.number ?? '');
             const votes = document.createElement('span');
             votes.className = 'choice-votes';
-            const count = currentEvent.voteCounts?.[choice.choiceId] ?? 0;
+            const count = counts[choice.choiceId] ?? 0;
             votes.textContent = count + (count === 1 ? ' vote' : ' votes');
             row.append(label, command, votes);
-            if (choice.hint) {
-                const hint = document.createElement('span');
-                hint.className = 'choice-hint';
-                hint.textContent = choice.hint;
-                row.appendChild(hint);
+
+            const chips = document.createElement('span');
+            chips.className = 'chip-row';
+            for (const chip of choiceChips(choice)) {
+                const element = document.createElement('span');
+                element.className = 'chip';
+                element.dataset.tone = chip[1];
+                element.textContent = chip[0];
+                chips.appendChild(element);
             }
+            row.appendChild(chips);
+
+            const bar = document.createElement('span');
+            bar.className = 'vote-bar';
+            const fill = document.createElement('span');
+            fill.style.width = (totalVotes > 0 ? count / totalVotes * 100 : 0) + '%';
+            bar.appendChild(fill);
+            row.appendChild(bar);
             list.appendChild(row);
         }
+    }
+
+    function choiceChips(choice) {
+        const chips = [];
+        const success = choice.successModifierPercent ?? 0;
+        const reward = choice.rewardMultiplierPercent ?? 100;
+        const risk = choice.riskMultiplierPercent ?? 100;
+        if (success) chips.push([(success > 0 ? '+' : '') + success + '% success', success > 0 ? 'good' : 'bad']);
+        if (reward !== 100) chips.push(['x' + reward / 100 + ' reward', reward > 100 ? 'good' : 'bad']);
+        if (risk !== 100) chips.push(['x' + risk / 100 + ' loss', risk < 100 ? 'good' : 'bad']);
+        if (choice.revealsRarity) chips.push(['reveals rarity', 'info']);
+        if (choice.endsWithoutReward) chips.push(['no reward', 'neutral']);
+        return chips;
+    }
+
+    // Each text change restarts a CSS reveal by alternating between two identical animations.
+    function setTextAnimated(id, value) {
+        const element = document.getElementById(id);
+        if (!element) return;
+        const text = value ?? '';
+        if (element.textContent === text) return;
+        element.textContent = text;
+        if (text) {
+            revealCounter++;
+            element.dataset.reveal = String(revealCounter % 2);
+        }
+    }
+
+    const OBJECT_ART = {
+        wreck: [
+            '<polygon points="14,40 56,30 62,46 50,58 18,56" fill="%H"/><polygon points="70,44 108,38 104,58 76,62" fill="%H"/><polygon points="56,30 62,46 50,58" fill="%D"/><circle cx="36" cy="46" r="5" fill="%A"/><polygon points="64,64 70,70 60,72" fill="%H"/><polygon points="84,24 90,30 80,32" fill="%H"/>',
+            '<rect x="22" y="36" width="70" height="24" rx="6" fill="%H" transform="rotate(-12 57 48)"/><rect x="44" y="40" width="16" height="12" fill="%D" transform="rotate(-12 57 48)"/><line x1="86" y1="30" x2="100" y2="14" stroke="%A" stroke-width="2"/><circle cx="101" cy="13" r="3" fill="%A"/><polygon points="30,62 24,74 40,66" fill="%H"/>',
+            '<polygon points="10,46 70,26 100,46 70,66" fill="%H"/><circle cx="68" cy="46" r="11" fill="%D"/><circle cx="68" cy="46" r="6" fill="%A" opacity=".8"/><rect x="100" y="40" width="10" height="12" fill="%H" transform="rotate(18 105 46)"/><polygon points="20,70 34,64 30,78" fill="%H" opacity=".7"/>'
+        ],
+        beacon: [
+            '<rect x="56" y="30" width="8" height="46" fill="%H"/><circle cx="60" cy="26" r="7" fill="%A"/><circle cx="60" cy="26" r="14" fill="none" stroke="%A" stroke-width="1.5" opacity=".7"/><circle cx="60" cy="26" r="22" fill="none" stroke="%A" stroke-width="1.5" opacity=".4"/><rect x="46" y="74" width="28" height="6" fill="%H"/>',
+            '<circle cx="60" cy="45" r="16" fill="%D" stroke="%H" stroke-width="2"/><circle cx="60" cy="45" r="8" fill="%A"/><ellipse cx="60" cy="45" rx="32" ry="9" fill="none" stroke="%A" stroke-width="1.5" opacity=".6"/><ellipse cx="60" cy="45" rx="44" ry="14" fill="none" stroke="%A" stroke-width="1" opacity=".35"/>',
+            '<polygon points="40,64 80,64 70,76 50,76" fill="%H"/><path d="M34 44 Q60 70 86 44 Z" fill="%H"/><line x1="60" y1="52" x2="60" y2="24" stroke="%A" stroke-width="2"/><circle cx="60" cy="22" r="4" fill="%A"/><path d="M42 18 Q60 4 78 18" fill="none" stroke="%A" stroke-width="1.5" opacity=".6"/>'
+        ],
+        debris: [
+            '<polygon points="20,50 38,34 54,44 48,64 26,66" fill="#7f8f8b"/><polygon points="64,30 84,24 94,42 78,52 62,46" fill="#9aa9a5"/><polygon points="70,62 92,60 98,74 76,78" fill="#6c7b77"/><polygon points="40,14 50,12 48,22" fill="#9aa9a5"/>',
+            '<polygon points="30,70 40,22 52,66" fill="#9fd3e8"/><polygon points="50,72 66,14 80,70" fill="#bfe6f3"/><polygon points="76,70 90,34 100,68" fill="#8fc4da"/><circle cx="24" cy="30" r="3" fill="#bfe6f3"/>',
+            '<rect x="18" y="30" width="34" height="20" fill="%H" transform="rotate(-18 35 40)"/><rect x="62" y="22" width="28" height="16" fill="%D" stroke="%H" transform="rotate(22 76 30)"/><rect x="50" y="56" width="40" height="12" fill="%H" transform="rotate(8 70 62)"/><circle cx="26" cy="64" r="5" fill="%A"/>'
+        ],
+        station: [
+            '<circle cx="60" cy="45" r="30" fill="none" stroke="%H" stroke-width="7"/><circle cx="60" cy="45" r="10" fill="%A"/><line x1="60" y1="15" x2="60" y2="75" stroke="%H" stroke-width="3"/><line x1="30" y1="45" x2="90" y2="45" stroke="%H" stroke-width="3"/>',
+            '<polygon points="56,10 64,10 68,62 52,62" fill="%H"/><rect x="38" y="62" width="44" height="8" fill="%H"/><rect x="46" y="72" width="28" height="6" fill="%D"/><circle cx="60" cy="24" r="5" fill="%A"/><rect x="28" y="40" width="64" height="5" fill="%H" opacity=".8"/>',
+            '<rect x="48" y="33" width="24" height="24" fill="%H"/><rect x="18" y="39" width="26" height="12" fill="%H"/><rect x="76" y="39" width="26" height="12" fill="%H"/><rect x="52" y="8" width="16" height="22" fill="%H"/><rect x="52" y="60" width="16" height="22" fill="%H"/><circle cx="60" cy="45" r="6" fill="%A"/>'
+        ],
+        fork: [
+            '<path d="M60 80 L60 52 L30 20" stroke="%H" stroke-width="6" fill="none"/><path d="M60 52 L90 20" stroke="%A" stroke-width="6" fill="none"/><polygon points="22,26 34,14 38,28" fill="%H"/><polygon points="98,26 86,14 82,28" fill="%A"/>',
+            '<ellipse cx="60" cy="42" rx="16" ry="12" fill="#7f8f8b"/><path d="M60 82 Q24 66 24 34" stroke="%H" stroke-width="5" fill="none"/><path d="M60 82 Q96 66 96 34" stroke="%A" stroke-width="5" fill="none"/><circle cx="24" cy="28" r="5" fill="%H"/><circle cx="96" cy="28" r="5" fill="%A"/>',
+            '<rect x="20" y="20" width="10" height="46" fill="%H"/><rect x="90" y="20" width="10" height="46" fill="%A"/><rect x="20" y="16" width="80" height="6" fill="%H" opacity=".5"/><path d="M60 82 L60 50 M60 50 L34 30 M60 50 L86 30" stroke="%H" stroke-width="4" fill="none"/><circle cx="60" cy="50" r="5" fill="%A"/>'
+        ]
+    };
+
+    function objectSvg(kind, variant, accent) {
+        const set = OBJECT_ART[kind];
+        if (!set) return '';
+        const index = Math.abs(parseInt(variant, 10) || 0) % set.length;
+        const body = set[index].split('%H').join('#cfdcd9').split('%D').join('#17343a').split('%A').join(accent);
+        return '<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>';
+    }
+
+    function renderArt(markup, caption) {
+        const art = document.getElementById('scene-object');
+        if (art.dataset.art !== markup) {
+            art.dataset.art = markup;
+            art.innerHTML = markup;
+        }
+        setText('scene-subject', caption);
+    }
+
+    function shipArt() {
+        const ship = snapshot?.ship;
+        return ship && ship.name ? shipSvg(ship.hullStyle, getAccent()).replace('viewBox="0 0 64 32"', 'viewBox="-4 -20 72 72"') : '';
+    }
+
+    function renderRing(currentEvent) {
+        const ring = document.getElementById('ring-fg');
+        const total = (Date.parse(currentEvent.closesAtUtc) - Date.parse(currentEvent.openedAtUtc)) / 1000;
+        const remaining = (Date.parse(currentEvent.closesAtUtc) - tracker.now()) / 1000;
+        const fraction = total > 0 ? Math.min(1, Math.max(0, remaining / total)) : 0;
+        ring.style.strokeDashoffset = String(106.8 * (1 - fraction));
+    }
+
+    function renderRarityBadge(currentEvent) {
+        const badge = document.getElementById('rarity-badge');
+        const known = currentEvent.revealedRarity || '';
+        badge.hidden = !currentEvent.rewardDisclosure;
+        badge.dataset.rarity = known;
+        badge.textContent = known ? known + ' find' : 'rarity unknown';
     }
 
     function renderRewardDisclosure(currentEvent) {
@@ -245,14 +358,9 @@
     }
 
     function renderStepInfo(currentEvent) {
-        const note = document.getElementById('step-note');
-        const text = [
-            currentEvent.stepNumber > 1 ? 'Step ' + currentEvent.stepNumber : '',
-            (currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : '',
-            currentEvent.stepNote || ''
-        ].filter(Boolean).join(' · ');
-        note.textContent = text;
-        note.hidden = !text;
+        const text = currentEvent.stepNote || '';
+        setTextAnimated('step-note', text);
+        document.getElementById('step-note').hidden = !text;
     }
 
     function renderResultLines(latest) {
@@ -279,11 +387,27 @@
         }
     }
 
+    function renderTimeline(entries) {
+        const container = document.getElementById('result-timeline');
+        container.replaceChildren();
+        container.hidden = !entries || entries.length === 0;
+        for (const entry of entries || []) {
+            const pill = document.createElement('span');
+            pill.className = 'timeline-entry';
+            pill.dataset.outcome = entry.outcome || '';
+            const mark = entry.outcome === 'Success' ? ' ✓' : entry.outcome === 'Failure' ? ' ✗' : '';
+            pill.textContent = entry.sequence + ' ' + entry.title + (entry.rarity ? ' · ' + entry.rarity : '') + mark;
+            container.appendChild(pill);
+        }
+    }
+
     function renderEvent() {
+        const scene = tracker.derive(snapshot);
+        root.dataset.scene = scene.name;
         if (!snapshot || (snapshot.status !== 'Boarding' && snapshot.status !== 'EventOpen')) {
             const terminal = snapshot && (snapshot.status === 'Returned' || snapshot.status === 'Aborted');
             const latest = snapshot?.latestResult;
-            if (!tracker.derive(snapshot).eventVisible) {
+            if (!scene.eventVisible) {
                 root.hidden = true;
                 return;
             }
@@ -292,14 +416,29 @@
             document.getElementById('boarding-panel').hidden = true;
             document.getElementById('event-panel').hidden = true;
             document.getElementById('result-panel').hidden = false;
+            document.getElementById('event-description').hidden = true;
+            const shipName = snapshot?.ship?.name || 'Starship Expedition';
             setText('event-kicker', terminal ? 'VOYAGE COMPLETE' : 'EVENT RESOLVED');
-            setText('event-title', terminal ? 'Starship Expedition' : latest.title);
-            setText('event-timer', terminal ? snapshot.status : 'RESOLVED');
+            setText('event-title', terminal ? shipName : latest.title);
+            setText('event-timer', terminal ? 'END' : latest.outcome === 'Success' ? '\u2713' : latest.outcome === 'Failure' ? '\u2717' : '\u2013');
+            document.getElementById('ring-fg').style.strokeDashoffset = '0';
             setText('event-description', '');
-            setText('result-choice', latest.choice);
-            setText('result-detail', latest.sector + ' · Leg ' + latest.sequence);
+            const banner = document.getElementById('result-banner');
+            const outcome = terminal ? snapshot.status : (latest.outcome || '');
+            banner.dataset.outcome = outcome;
+            banner.textContent = terminal ? (outcome === 'Aborted' ? 'Voyage aborted' : 'Voyage complete') : outcome;
+            banner.hidden = !banner.textContent;
+            setText('result-choice', terminal ? '' : latest.choice);
+            setText('result-detail', terminal ? '' : latest.sector + ' \u00b7 Leg ' + latest.sequence);
+            document.getElementById('result-choice').hidden = terminal;
+            document.getElementById('result-detail').hidden = terminal;
+            setTextAnimated('result-story', latest.story || '');
+            document.getElementById('result-story').hidden = !latest.story;
             renderBankedAmounts(latest);
             renderResultLines(latest);
+            renderTimeline(terminal ? snapshot.timeline : []);
+            const objectMarkup = !terminal && latest.objectKind ? objectSvg(latest.objectKind, latest.objectVariant, getAccent()) : '';
+            renderArt(objectMarkup || shipArt(), !terminal && latest.subject ? latest.subject : shipName);
             return;
         }
 
@@ -311,22 +450,30 @@
 
         if (boarding) {
             setText('event-kicker', 'CREW ASSEMBLY');
-            setText('event-title', 'Boarding is open');
+            setText('event-title', snapshot.ship?.name || 'Boarding is open');
             setText('event-timer', formatTimeRemaining(snapshot.boardingClosesAtUtc));
-            setText('event-description', 'The expedition launches when boarding closes.');
+            document.getElementById('ring-fg').style.strokeDashoffset = '0';
+            document.getElementById('event-description').hidden = false;
+            setText('event-description', 'Boarding is open. The expedition launches when it closes.');
+            renderArt(shipArt(), snapshot.ship?.name || '');
         } else {
             const currentEvent = snapshot.currentEvent;
             if (!currentEvent) {
                 root.hidden = true;
                 return;
             }
-            setText('event-kicker', 'LEG ' + currentEvent.sequence + ' · ' + currentEvent.sector);
+            setText('event-kicker', 'LEG ' + currentEvent.sequence + (currentEvent.stepNumber > 1 ? ' · STEP ' + currentEvent.stepNumber : '') + ' · ' + currentEvent.sector);
             setText('event-title', currentEvent.title);
             setText('event-timer', formatTimeRemaining(currentEvent.closesAtUtc));
-            setText('event-description', currentEvent.description);
-            setText('event-sector', currentEvent.sector + ' · Default: ' + currentEvent.defaultChoiceId);
+            renderRing(currentEvent);
+            document.getElementById('event-description').hidden = currentEvent.stepNumber > 1;
+            setTextAnimated('event-description', currentEvent.description);
+            setText('event-sector', ((currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : currentEvent.sector) +
+                ' · Default: ' + currentEvent.defaultChoiceId);
+            renderArt(objectSvg(currentEvent.objectKind, currentEvent.objectVariant, getAccent()) || shipArt(), currentEvent.subject || '');
             renderChoices(currentEvent);
             renderStepInfo(currentEvent);
+            renderRarityBadge(currentEvent);
             renderRewardDisclosure(currentEvent);
         }
     }

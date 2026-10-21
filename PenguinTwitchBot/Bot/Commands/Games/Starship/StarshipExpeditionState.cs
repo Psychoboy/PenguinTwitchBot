@@ -103,6 +103,9 @@ public sealed class StarshipExpeditionEventSnapshot
     public string Title { get; init; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Subject { get; init; } = string.Empty;
+    /// <summary>Kind of object the overlay draws (wreck, beacon, debris, station, fork) and which of its looks.</summary>
+    public string ObjectKind { get; init; } = string.Empty;
+    public int ObjectVariant { get; init; }
     public string SuccessStory { get; init; } = string.Empty;
     public string FailureStory { get; init; } = string.Empty;
     public string OutcomeStory { get; set; } = string.Empty;
@@ -229,7 +232,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     DateTimeOffset ServerNowUtc,
     IReadOnlyList<StarshipActivityItem> Activity,
     StarshipShipSnapshot Ship,
-    IReadOnlyList<int> StationLegs)
+    IReadOnlyList<int> StationLegs,
+    IReadOnlyList<StarshipOverlayTimelineEntry> Timeline)
 {
     public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
     {
@@ -255,7 +259,9 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             serverNowUtc ?? DateTimeOffset.UtcNow,
             snapshot.ActivityFeed.TakeLast(MaximumActivityItems).ToList(),
             snapshot.Ship,
-            GetStationLegs(snapshot));
+            GetStationLegs(snapshot),
+            snapshot.CompletedEvents.Select(item => new StarshipOverlayTimelineEntry(
+                item.Sequence, item.Title, item.OutcomeResult, item.OutcomeRarity, item.ObjectKind)).ToList());
     }
 
     /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>
@@ -292,7 +298,11 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 .ToList(),
             snapshot.Status.ToString(),
             string.Empty,
-            StarshipExpeditionNarrative.BuildVoyageLines(snapshot));
+            StarshipExpeditionNarrative.BuildVoyageLines(snapshot),
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            0);
     }
 
     private static bool IsTerminal(StarshipExpeditionStatus status) =>
@@ -316,7 +326,11 @@ public sealed record StarshipOverlayEventSnapshot(
     string StepNote,
     int? EffectiveSuccessChancePercent,
     int RewardMultiplierPercent,
-    int RiskMultiplierPercent)
+    int RiskMultiplierPercent,
+    string Subject,
+    string ObjectKind,
+    int ObjectVariant,
+    DateTimeOffset OpenedAtUtc)
 {
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
         expeditionEvent.Sequence,
@@ -326,7 +340,9 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.Sector,
         expeditionEvent.ClosesAtUtc,
         expeditionEvent.Choices.Select((choice, index) => new StarshipOverlayChoice(
-            choice.ChoiceId, choice.Label, choice.IsRisky, index + 1, StarshipExpeditionNarrative.DescribeEffects(choice))).ToList(),
+            choice.ChoiceId, choice.Label, choice.IsRisky, index + 1, StarshipExpeditionNarrative.DescribeEffects(choice),
+            choice.SuccessChanceModifierPercent, choice.RewardMultiplierPercent, choice.RiskMultiplierPercent,
+            choice.ContinuesEvent, choice.RevealsRarity, choice.EndsWithoutReward)).ToList(),
         expeditionEvent.DefaultChoiceId,
         expeditionEvent.Votes
             .GroupBy(vote => vote.ChoiceId, StringComparer.OrdinalIgnoreCase)
@@ -340,10 +356,27 @@ public sealed record StarshipOverlayEventSnapshot(
             ? null
             : Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent, 0, 100),
         expeditionEvent.RewardMultiplierPercent,
-        expeditionEvent.RiskMultiplierPercent);
+        expeditionEvent.RiskMultiplierPercent,
+        expeditionEvent.Subject,
+        expeditionEvent.ObjectKind,
+        expeditionEvent.ObjectVariant,
+        expeditionEvent.OpenedAtUtc);
 }
 
-public sealed record StarshipOverlayChoice(string ChoiceId, string Label, bool IsRisky, int Number, string Hint);
+public sealed record StarshipOverlayChoice(
+    string ChoiceId,
+    string Label,
+    bool IsRisky,
+    int Number,
+    string Hint,
+    int SuccessModifierPercent = 0,
+    int RewardMultiplierPercent = 100,
+    int RiskMultiplierPercent = 100,
+    bool ContinuesEvent = false,
+    bool RevealsRarity = false,
+    bool EndsWithoutReward = false);
+
+public sealed record StarshipOverlayTimelineEntry(int Sequence, string Title, string Outcome, string Rarity, string ObjectKind);
 
 public sealed record StarshipRewardDisclosureSnapshot(
     string PointTypeName,
@@ -389,7 +422,11 @@ public sealed record StarshipOverlayEventResult(
     IReadOnlyList<StarshipOverlayBankedAmount> BankedAmounts,
     string Outcome,
     string Rarity,
-    IReadOnlyList<string> Lines)
+    IReadOnlyList<string> Lines,
+    string Story,
+    string Subject,
+    string ObjectKind,
+    int ObjectVariant)
 {
     public static StarshipOverlayEventResult From(
         StarshipExpeditionEventSnapshot expeditionEvent,
@@ -412,7 +449,11 @@ public sealed record StarshipOverlayEventResult(
                 .ToList(),
             expeditionEvent.OutcomeResult,
             expeditionEvent.OutcomeRarity,
-            StarshipExpeditionNarrative.BuildEventLines(expeditionEvent));
+            StarshipExpeditionNarrative.BuildEventLines(expeditionEvent, includeStory: false),
+            expeditionEvent.OutcomeStory,
+            expeditionEvent.Subject,
+            expeditionEvent.ObjectKind,
+            expeditionEvent.ObjectVariant);
     }
 }
 

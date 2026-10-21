@@ -1113,6 +1113,8 @@ public sealed class StarshipExpeditionService(
             Title = definition.Title,
             Description = definition.Description,
             Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition.EventType),
+            ObjectKind = StarshipExpeditionStory.GetObjectKind(definition.EventType),
+            ObjectVariant = StarshipExpeditionStory.StableIndex(snapshot.Seed, sequence, "object-variant", StarshipExpeditionStory.ObjectVariantCount),
             SuccessStory = definition.SuccessStory,
             FailureStory = definition.FailureStory,
             Sector = snapshot.CurrentSector,

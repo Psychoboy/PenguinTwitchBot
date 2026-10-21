@@ -37,10 +37,10 @@ public static class StarshipExpeditionNarrative
     public static string FormatPath(StarshipExpeditionEventSnapshot expeditionEvent) =>
         string.Join(" > ", expeditionEvent.Path.Select(step => step.Label));
 
-    public static IReadOnlyList<string> BuildEventLines(StarshipExpeditionEventSnapshot expeditionEvent)
+    public static IReadOnlyList<string> BuildEventLines(StarshipExpeditionEventSnapshot expeditionEvent, bool includeStory = true)
     {
         var lines = new List<string>();
-        if (!string.IsNullOrWhiteSpace(expeditionEvent.OutcomeStory))
+        if (includeStory && !string.IsNullOrWhiteSpace(expeditionEvent.OutcomeStory))
             lines.Add(expeditionEvent.OutcomeStory);
         if (expeditionEvent.Path.Count > 1)
             lines.Add($"Crew path: {FormatPath(expeditionEvent)}.");

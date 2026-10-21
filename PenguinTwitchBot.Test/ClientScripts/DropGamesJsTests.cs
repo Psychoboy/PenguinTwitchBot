@@ -581,6 +581,100 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void StarshipEventWidget_DrawsEveryObjectKindAndVariant()
+        {
+            var now = DateTimeOffset.UtcNow;
+            var markups = new HashSet<string>();
+            foreach (var kind in new[] { "wreck", "beacon", "debris", "station", "fork" })
+            {
+                for (var variant = 0; variant < 3; variant++)
+                {
+                    var engine = CreateStarshipOverlayEngine("event");
+                    DispatchStarshipOverlayState(engine, new
+                    {
+                        status = "EventOpen",
+                        updatedAtUtc = now.ToString("O"),
+                        serverNowUtc = now.ToString("O"),
+                        currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Direct Route", crewCount = 2,
+                        currentEvent = new
+                        {
+                            sequence = 2, eventType = "X", title = "T", description = "D", sector = "Kepler Reach",
+                            openedAtUtc = now.ToString("O"), closesAtUtc = now.AddSeconds(30).ToString("O"),
+                            subject = "the thing", objectKind = kind, objectVariant = variant,
+                            choices = Array.Empty<object>(), defaultChoiceId = "x",
+                            voteCounts = new Dictionary<string, int>(), stepNumber = 1, path = Array.Empty<string>()
+                        },
+                        latestResult = (object?)null,
+                        ship = new { name = "S", hullStyle = "arrow", accentColor = "#66d0c2" }
+                    });
+
+                    var markup = engine.Evaluate("document.getElementById('scene-object').innerHTML").AsString();
+                    Assert.StartsWith("<svg", markup, StringComparison.Ordinal);
+                    Assert.DoesNotContain("%", markup, StringComparison.Ordinal);
+                    markups.Add(markup);
+                }
+            }
+
+            Assert.Equal(15, markups.Count);
+        }
+
+        [Fact]
+        public void StarshipEventWidget_ShowsShipAndTimelineOnVoyageEndAndShipOnBoarding()
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            var ship = new { name = "Rockhopper Voyager", hullStyle = "scout", accentColor = "#8fb8ff" };
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Boarding",
+                updatedAtUtc = now.ToString("O"),
+                serverNowUtc = now.ToString("O"),
+                currentLeg = 0, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Uncharted", crewCount = 2,
+                boardingClosesAtUtc = now.AddSeconds(30).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                ship
+            });
+            Assert.Equal("Rockhopper Voyager", engine.Evaluate("document.getElementById('event-title').textContent").AsString());
+            Assert.Equal("Rockhopper Voyager", engine.Evaluate("document.getElementById('scene-subject').textContent").AsString());
+            Assert.Contains("#8fb8ff", engine.Evaluate("document.getElementById('scene-object').innerHTML").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('event-ship').hidden").AsBoolean());
+
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Returned",
+                updatedAtUtc = now.AddSeconds(1).ToString("O"),
+                serverNowUtc = now.AddSeconds(1).ToString("O"),
+                currentLeg = 5, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Direct Route", crewCount = 2,
+                currentEvent = (object?)null,
+                latestResult = new
+                {
+                    sequence = 5, title = "Space Station", sector = "Kepler Reach", choice = "Resupply",
+                    resolvedAtUtc = now.AddSeconds(1).ToString("O"),
+                    bankedAmounts = Array.Empty<object>(),
+                    outcome = "", rarity = "",
+                    lines = new[] { "Voyage completed: 5 events, 3 successful, 1 failed, 2 crew." },
+                    story = "", subject = "", objectKind = "", objectVariant = 0
+                },
+                ship,
+                timeline = new[]
+                {
+                    new { sequence = 1, title = "Choose a Route", outcome = "", rarity = "", objectKind = "fork" },
+                    new { sequence = 2, title = "Derelict Salvage", outcome = "Success", rarity = "Rare", objectKind = "wreck" },
+                    new { sequence = 3, title = "Navigation Hazard", outcome = "Failure", rarity = "Common", objectKind = "debris" }
+                }
+            });
+
+            Assert.Equal("Voyage complete", engine.Evaluate("document.getElementById('result-banner').textContent").AsString());
+            Assert.Equal("VOYAGE COMPLETE", engine.Evaluate("document.getElementById('event-kicker').textContent").AsString());
+            Assert.Equal(3, (int)engine.Evaluate("document.getElementById('result-timeline').children.length").AsNumber());
+            Assert.Equal("2 Derelict Salvage \u00b7 Rare \u2713", engine.Evaluate("document.getElementById('result-timeline').children[1].textContent").AsString());
+            Assert.Equal("Failure", engine.Evaluate("document.getElementById('result-timeline').children[2].dataset.outcome").AsString());
+            Assert.Equal("Rockhopper Voyager", engine.Evaluate("document.getElementById('scene-subject').textContent").AsString());
+            Assert.True(engine.Evaluate("document.getElementById('result-story').hidden").AsBoolean());
+        }
+
+        [Fact]
         public void StarshipEventWidget_RendersVoteCommandsThenCollapsesToResolution()
         {
             var engine = CreateStarshipOverlayEngine("event");
@@ -607,10 +701,14 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     description = "The crew can take a direct route or detour through a survey area.",
                     sector = "Kepler Reach",
                     closesAtUtc = updatedAt.AddSeconds(40).ToString("O"),
-                    choices = new[]
+                    openedAtUtc = updatedAt.AddSeconds(-20).ToString("O"),
+                    subject = "the ISV Quiet Meridian",
+                    objectKind = "wreck",
+                    objectVariant = 1,
+                    choices = new object[]
                     {
                         new { choiceId = "direct", label = "Take the direct route", isRisky = false, number = 1, hint = "" },
-                        new { choiceId = "detour", label = "Take the survey detour", isRisky = true, number = 2, hint = "rewards x0.8" }
+                        new { choiceId = "detour", label = "Take the survey detour", isRisky = true, number = 2, hint = "rewards x0.8", successModifierPercent = 20, rewardMultiplierPercent = 80, riskMultiplierPercent = 100, continuesEvent = true, revealsRarity = true }
                     },
                     stepNumber = 2,
                     path = new[] { "Scan the wreck" },
@@ -645,14 +743,25 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("Choose a Route", engine.Evaluate("document.getElementById('event-title').textContent").AsString());
             Assert.Equal(2, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
             Assert.Contains("!sv 1", engine.Evaluate("document.getElementById('choices').children[0].children[1].textContent").AsString());
-            Assert.Equal("rewards x0.8", engine.Evaluate("document.getElementById('choices').children[1].children[3].textContent").AsString());
+            Assert.Equal("+20% success,x0.8 reward,reveals rarity", engine.Evaluate("document.getElementById('choices').children[1].children[3].children.map(function (chip) { return chip.textContent; }).join(',')").AsString());
+            Assert.Equal("100%", engine.Evaluate("document.getElementById('choices').children[0].children[4].children[0].style.width").AsString());
+            Assert.Equal("0%", engine.Evaluate("document.getElementById('choices').children[1].children[4].children[0].style.width").AsString());
+            Assert.Equal("Rare find", engine.Evaluate("document.getElementById('rarity-badge').textContent").AsString());
+            Assert.Equal("Rare", engine.Evaluate("document.getElementById('rarity-badge').dataset.rarity").AsString());
+            Assert.Equal("the ISV Quiet Meridian", engine.Evaluate("document.getElementById('scene-subject').textContent").AsString());
+            Assert.Contains("<svg", engine.Evaluate("document.getElementById('scene-object').innerHTML").AsString());
+            Assert.True(engine.Evaluate("document.getElementById('event-description').hidden").AsBoolean());
+            var ringOffset = double.Parse(engine.Evaluate("document.getElementById('ring-fg').style.strokeDashoffset").AsString(), System.Globalization.CultureInfo.InvariantCulture);
+            Assert.InRange(ringOffset, 106.8 / 3 - 4, 106.8 / 3 + 4);
             Assert.Equal("1 vote", engine.Evaluate("document.getElementById('choices').children[0].children[2].textContent").AsString());
             Assert.Contains("Success chance: 95%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
             Assert.Contains("failure 5%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
             Assert.Contains("only viewers who commit", engine.Evaluate("document.getElementById('reward-scope').textContent").AsString());
             Assert.Contains("Rarity: Rare (30-50", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
             Assert.DoesNotContain("Common 60%", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
-            Assert.Contains("Path: Scan the wreck", engine.Evaluate("document.getElementById('step-note').textContent").AsString());
+            Assert.Contains("Path: Scan the wreck", engine.Evaluate("document.getElementById('event-sector').textContent").AsString());
+            Assert.Equal("Scan complete: this is a Rare find.", engine.Evaluate("document.getElementById('step-note').textContent").AsString());
+            Assert.Contains("STEP 2", engine.Evaluate("document.getElementById('event-kicker').textContent").AsString());
             Assert.Contains("capped at 40", engine.Evaluate("document.getElementById('reward-risk').textContent").AsString());
             Assert.False(engine.Evaluate("document.getElementById('reward-risk').hidden").AsBoolean());
 
@@ -678,11 +787,20 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, isPaid = true } },
                     outcome = "Success",
                     rarity = "Rare",
-                    lines = new[] { "SUCCESS - Rare find.", "Earned 30 Salvage Credits for 2 crew." }
+                    lines = new[] { "SUCCESS - Rare find.", "Earned 30 Salvage Credits for 2 crew." },
+                    story = "Pilot boards the ISV Quiet Meridian. The crew hauls out an intact cryo-vault.",
+                    subject = "the ISV Quiet Meridian",
+                    objectKind = "wreck",
+                    objectVariant = 2
                 }
             });
 
             Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+            Assert.Equal("Success", engine.Evaluate("document.getElementById('result-banner').textContent").AsString());
+            Assert.Equal("Success", engine.Evaluate("document.getElementById('result-banner').dataset.outcome").AsString());
+            Assert.Equal("Pilot boards the ISV Quiet Meridian. The crew hauls out an intact cryo-vault.", engine.Evaluate("document.getElementById('result-story').textContent").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('result-story').hidden").AsBoolean());
+            Assert.True(engine.Evaluate("document.getElementById('result-timeline').hidden").AsBoolean());
             Assert.Equal("2", engine.Evaluate("String(document.getElementById('result-lines').children.length)").AsString());
             Assert.Equal("SUCCESS - Rare find.", engine.Evaluate("document.getElementById('result-lines').children[0].textContent").AsString());
             Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());

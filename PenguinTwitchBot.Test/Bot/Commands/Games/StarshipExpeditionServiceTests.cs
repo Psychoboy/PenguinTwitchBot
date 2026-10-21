@@ -1137,6 +1137,53 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void BuildPreview_GivesEveryEventADeterministicObjectLook()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var settings = new StarshipExpeditionSettings { LegCount = 24 };
+        var first = service.BuildPreview(settings, seed: 303);
+        var second = service.BuildPreview(settings, seed: 303);
+
+        Assert.Equal(first.Select(item => (item.ObjectKind, item.ObjectVariant)), second.Select(item => (item.ObjectKind, item.ObjectVariant)));
+        Assert.All(first, item =>
+        {
+            Assert.Equal(StarshipExpeditionStory.GetObjectKind(item.EventType), item.ObjectKind);
+            Assert.InRange(item.ObjectVariant, 0, StarshipExpeditionStory.ObjectVariantCount - 1);
+        });
+        Assert.Equal("fork", first[0].ObjectKind);
+        Assert.True(first.Select(item => item.ObjectVariant).Distinct().Count() > 1);
+    }
+
+    [Fact]
+    public async Task OverlayProjection_ExposesStructuredEffectsTimelineAndStoryWithoutDuplicatingIt()
+    {
+        var fixture = CreateSalvageFixture();
+        fixture.RewardProfiles[0].SuccessChancePercent = 100;
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(fixture);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        var open = StarshipExpeditionOverlaySnapshot.From((await service.GetSnapshotAsync())!);
+        var secure = open.CurrentEvent!.Choices.Single(choice => choice.ChoiceId == "secure");
+        Assert.Equal(20, secure.SuccessModifierPercent);
+        Assert.Equal(80, secure.RewardMultiplierPercent);
+        Assert.Equal(50, secure.RiskMultiplierPercent);
+        Assert.True(secure.ContinuesEvent);
+        Assert.True(open.CurrentEvent.Choices.Single(choice => choice.ChoiceId == "scan").RevealsRarity);
+        Assert.Equal("the ISV Quiet Meridian", open.CurrentEvent.Subject);
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "pass");
+        var resolved = await service.AdvanceEventAsync();
+        var projection = StarshipExpeditionOverlaySnapshot.From(resolved);
+
+        var entry = Assert.Single(projection.Timeline);
+        Assert.Equal("Derelict Salvage", entry.Title);
+        Assert.Equal("Passed", entry.Outcome);
+        Assert.NotNull(projection.LatestResult);
+        Assert.DoesNotContain(projection.LatestResult!.Lines, line => line == projection.LatestResult.Story && line.Length > 0);
+    }
+
+    [Fact]
     public async Task ActivityFeed_RecordsLifecycleWithIncreasingIdsAndServerTime()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);

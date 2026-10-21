@@ -351,8 +351,8 @@ h1 {
 #starship-widget.event-widget {
     display: grid;
     align-content: start;
-    gap: 12px;
-    padding: 18px 20px;
+    gap: 6px;
+    padding: 14px 18px;
     animation: panel-in 0.28s ease-out both;
 }
 
@@ -501,6 +501,281 @@ h1 {
 .result-panel {
     border-left-color: var(--teal);
     background: rgba(30, 65, 67, 0.65);
+}
+
+.ring-timer {
+    position: relative;
+    flex: 0 0 auto;
+    width: 50px;
+    height: 50px;
+}
+
+.ring-timer svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ring-bg,
+.ring-fg {
+    fill: none;
+    stroke-width: 3;
+}
+
+.ring-bg {
+    stroke: rgba(231, 245, 239, 0.14);
+}
+
+.ring-fg {
+    stroke: var(--amber);
+    stroke-dasharray: 106.8;
+    stroke-dashoffset: 0;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s linear;
+}
+
+.ring-timer .countdown {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    padding: 0;
+    border: 0;
+    font-size: 11px;
+    place-items: center;
+}
+
+.scene-body {
+    display: grid;
+    grid-template-columns: 124px minmax(0, 1fr);
+    gap: 14px;
+    min-height: 0;
+}
+
+.scene-art {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 6px;
+    margin: 0;
+    text-align: center;
+}
+
+.scene-object {
+    width: 124px;
+    height: 93px;
+    filter: drop-shadow(0 0 8px rgba(102, 208, 194, 0.28));
+}
+
+.scene-object svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#scene-subject {
+    color: var(--muted);
+    font: 500 11px 'IBM Plex Mono', monospace;
+    line-height: 1.3;
+}
+
+.scene-main {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.event-widget .event-description {
+    max-height: 2.3em;
+}
+
+.step-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.step-row .step-note {
+    min-width: 0;
+    max-height: 3.4em;
+    overflow: hidden;
+    color: #f0d9a8;
+    font: 500 14px 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    line-height: 1.12;
+}
+
+.rarity-badge {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border: 1px solid var(--muted);
+    border-radius: 10px;
+    color: var(--muted);
+    font: 600 10px 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+}
+
+.rarity-badge[data-rarity='Common'] { border-color: #a8c1bd; color: #cfe0dc; }
+.rarity-badge[data-rarity='Uncommon'] { border-color: #8be28b; color: #8be28b; }
+.rarity-badge[data-rarity='Rare'] { border-color: #b79cff; color: #d3c3ff; box-shadow: 0 0 8px rgba(183, 156, 255, 0.55); }
+
+#starship-widget[data-scene='StepTransition'] .rarity-badge:not([data-rarity='']) {
+    animation: rarity-reveal 1.4s ease-out;
+}
+
+.event-widget .choices {
+    gap: 4px;
+}
+
+.event-widget .choice-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    overflow: hidden;
+    padding: 4px 10px 6px;
+}
+
+.event-widget .choice-label {
+    order: 1;
+    flex: 1 1 110px;
+    min-width: 84px;
+    font-size: 16px;
+}
+
+.chip-row {
+    order: 2;
+    display: flex;
+    flex: 0 1 auto;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.chip {
+    flex: 0 0 auto;
+    padding: 1px 5px;
+    border: 1px solid rgba(168, 193, 189, 0.45);
+    border-radius: 8px;
+    color: var(--muted);
+    font: 500 9px 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+}
+
+.chip[data-tone='good'] { border-color: rgba(139, 226, 139, 0.6); color: #8be28b; }
+.chip[data-tone='bad'] { border-color: rgba(239, 134, 111, 0.6); color: var(--coral); }
+.chip[data-tone='info'] { border-color: rgba(244, 189, 104, 0.6); color: var(--amber); }
+
+.event-widget .choice-command {
+    order: 3;
+}
+
+.event-widget .choice-votes {
+    order: 4;
+    min-width: 38px;
+    white-space: nowrap;
+}
+
+.vote-bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(231, 245, 239, 0.08);
+}
+
+.vote-bar span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--ship-accent);
+    transition: width 0.4s ease;
+}
+
+.event-widget .reward-disclosure {
+    gap: 1px;
+    padding: 4px 10px;
+}
+
+.event-widget .reward-heading,
+.event-widget #reward-scope,
+.event-widget #reward-caps {
+    display: none;
+}
+
+.event-widget .vote-footer {
+    font-size: 9px;
+}
+
+.result-banner {
+    justify-self: start;
+    padding: 2px 10px;
+    border: 1px solid var(--teal);
+    border-radius: 10px;
+    color: var(--teal);
+    font: 600 11px 'IBM Plex Mono', monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.result-banner[data-outcome='Failure'],
+.result-banner[data-outcome='Aborted'] { border-color: var(--coral); color: var(--coral); }
+.result-banner[data-outcome='Passed'] { border-color: var(--muted); color: var(--muted); }
+
+.result-story {
+    color: #e3eee9;
+    font-size: 16px;
+    line-height: 1.15;
+}
+
+.result-panel {
+    gap: 4px;
+    padding: 10px 12px;
+}
+
+.result-panel strong {
+    font-size: 19px;
+}
+
+.timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 58px;
+    overflow: hidden;
+}
+
+.timeline-entry {
+    padding: 1px 6px;
+    border: 1px solid rgba(168, 193, 189, 0.45);
+    border-radius: 8px;
+    color: var(--muted);
+    font: 500 10px 'IBM Plex Mono', monospace;
+    white-space: nowrap;
+}
+
+.timeline-entry[data-outcome='Success'] { border-color: rgba(139, 226, 139, 0.6); color: #8be28b; }
+.timeline-entry[data-outcome='Failure'] { border-color: rgba(239, 134, 111, 0.6); color: var(--coral); }
+
+[data-reveal='0'] { animation: text-reveal-a 0.6s ease-out; }
+[data-reveal='1'] { animation: text-reveal-b 0.6s ease-out; }
+
+@keyframes text-reveal-a {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes text-reveal-b {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rarity-reveal {
+    0% { opacity: 0; transform: scale(0.4); filter: blur(4px); }
+    60% { opacity: 1; transform: scale(1.25); filter: blur(0); }
+    100% { transform: scale(1); }
 }
 
 @keyframes panel-in {
