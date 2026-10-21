@@ -5,7 +5,7 @@ using PenguinTwitchBot.Database.Repository;
 
 namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
-public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFactory) : IStarshipExpeditionSettingsStore
+public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFactory, IWebHostEnvironment environment) : IStarshipExpeditionSettingsStore
 {
     public const string SettingKey = "starship_expedition.settings.v1";
 
@@ -55,7 +55,8 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
                 throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
 
             StarshipExpeditionSettings.NormalizeAndValidate(settings);
-            if (settings.CatalogStorageVersion == 0)
+            var installedStarters = StarshipStarterEvents.Install(settings, environment.WebRootPath);
+            if (settings.CatalogStorageVersion == 0 || installedStarters)
                 await SaveLockedAsync(unitOfWork, settings, setting);
             return settings;
         }
@@ -68,6 +69,7 @@ public sealed class StarshipExpeditionSettingsStore(IServiceScopeFactory scopeFa
     public async Task SaveAsync(StarshipExpeditionSettings settings, CancellationToken cancellationToken = default)
     {
         var normalized = StarshipExpeditionSettings.NormalizeAndValidate(settings);
+        StarshipStarterEvents.Install(normalized, environment.WebRootPath);
         await _operationLock.WaitAsync(cancellationToken);
         try
         {

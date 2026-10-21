@@ -1,4 +1,6 @@
 using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Hosting;
+using Moq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +95,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(Setting.DataTypeEnum.String, saved.DataType);
         Assert.DoesNotContain("\"rewardProfiles\"", saved.StringSetting);
         Assert.DoesNotContain("\"eventCatalog\"", saved.StringSetting);
-        Assert.Equal(5, context.StarshipEvents.Count());
+        Assert.Equal(8, context.StarshipEvents.Count());
         Assert.Equal(4, context.StarshipRewardProfiles.Count());
     }
 
@@ -219,7 +221,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Contains(loaded.EventCatalog, definition => definition.EventType == "custom-event");
         using var check = _services.CreateScope();
         var database = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        Assert.Equal(6, await database.StarshipEvents.CountAsync());
+        Assert.Equal(9, await database.StarshipEvents.CountAsync());
         Assert.Equal(4, await database.StarshipRewardProfiles.CountAsync());
         loaded.EventCatalog.RemoveAll(definition => definition.EventType == "custom-event");
         await CreateStore().SaveAsync(loaded);
@@ -335,5 +337,50 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Null(uncapped.GetCap(7).MaximumUnbankedPerVoyage);
     }
 
-    private StarshipExpeditionSettingsStore CreateStore() => new(_services.GetRequiredService<IServiceScopeFactory>());
+    [Fact]
+    public async Task StarterEvents_AreInstalledOnceAndKeepEditsAndDeletions()
+    {
+        var settings = await CreateStore().LoadAsync();
+        Assert.Equal(1, settings.StarterEventsVersion);
+        Assert.Equal(8, settings.EventCatalog.Count);
+        var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "courier-relay");
+        settings.EventCatalog[index] = settings.EventCatalog[index] with { Title = "My Relay" };
+        settings.EventCatalog.RemoveAll(definition => definition.EventType == "debris-crossing");
+        await CreateStore().SaveAsync(settings);
+
+        var reloaded = await CreateStore().LoadAsync();
+        Assert.Equal(7, reloaded.EventCatalog.Count);
+        Assert.Equal("My Relay", reloaded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
+        Assert.DoesNotContain(reloaded.EventCatalog, definition => definition.EventType == "debris-crossing");
+    }
+
+    [Fact]
+    public async Task StarterEvents_UpgradeExistingCatalogWithoutDuplicatesOrOverwritingNames()
+    {
+        var settings = await CreateStore().LoadAsync();
+        var index = settings.EventCatalog.FindIndex(definition => definition.EventType == "courier-relay");
+        settings.EventCatalog[index] = settings.EventCatalog[index] with { Title = "Existing Relay" };
+        await CreateStore().SaveAsync(settings);
+        using (var scope = _services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var row = await context.Settings.SingleAsync();
+            var json = JsonNode.Parse(row.StringSetting!)!;
+            json.AsObject().Remove("starterEventsVersion");
+            row.StringSetting = json.ToJsonString();
+            await context.SaveChangesAsync();
+        }
+        var upgraded = await CreateStore().LoadAsync();
+        Assert.Equal(8, upgraded.EventCatalog.Count);
+        Assert.Equal("Existing Relay", upgraded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
+        Assert.Equal(1, (await CreateStore().LoadAsync()).StarterEventsVersion);
+    }
+
+    private StarshipExpeditionSettingsStore CreateStore()
+    {
+        var environment = new Mock<IWebHostEnvironment>();
+        environment.SetupGet(instance => instance.WebRootPath).Returns(Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot")));
+        return new(_services.GetRequiredService<IServiceScopeFactory>(), environment.Object);
+    }
 }

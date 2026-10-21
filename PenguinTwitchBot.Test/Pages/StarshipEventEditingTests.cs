@@ -5,6 +5,39 @@ namespace PenguinTwitchBot.Test.Pages;
 
 public class StarshipEventEditingTests
 {
+    [Theory]
+    [InlineData("courier-relay.json")]
+    [InlineData("survey-cache.json")]
+    [InlineData("debris-crossing.json")]
+    public async Task BundledStarterEvent_ImportsValidatesAndRendersWithoutChangingSettings(string fileName)
+    {
+        var path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PenguinTwitchBot", "wwwroot", "help", "starship", "examples", fileName));
+        var json = await File.ReadAllTextAsync(path);
+        var settings = StarshipExpeditionSettings.NormalizeAndValidate(new());
+        var draft = StarshipEventEditing.Import(json, settings);
+        StarshipEventEditing.ValidateDraft(settings, draft, null);
+
+        Assert.Equal(5, settings.EventCatalog.Count);
+        Assert.InRange(draft.Choices.Count, 2, 6);
+        Assert.All(draft.Choices, choice => Assert.False(choice.IsRisky));
+        var defaultChoice = Assert.Single(draft.Choices, choice => choice.ChoiceId == draft.DefaultChoiceId);
+        Assert.False(defaultChoice.ContinuesEvent);
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventType = draft.EventType, Subject = StarshipExpeditionStory.GenerateSubject(12345, 2, draft),
+            Sector = "Ternion Belt", LootByTier = draft.LootByTier
+        };
+        var templates = draft.Choices.Select(choice => choice.Story).Concat([draft.Description, draft.SuccessStory, draft.FailureStory]);
+        foreach (var template in templates)
+        {
+            var rendered = StarshipExpeditionStory.Render(template, expeditionEvent, 12345, ["Viewer"], "Rare");
+            Assert.DoesNotContain("{", rendered);
+            Assert.DoesNotContain("}", rendered);
+        }
+        var reimported = StarshipEventEditing.Import(StarshipEventEditing.Export(draft), settings);
+        StarshipEventEditing.ValidateDraft(settings, reimported, null);
+    }
+
     [Fact]
     public void Duplicate_IsIndependentAndPreservesInheritedRewardBinding()
     {

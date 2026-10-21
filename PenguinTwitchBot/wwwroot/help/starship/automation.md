@@ -12,7 +12,7 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | Event Step Advanced | A multi-step event moves on (after a scan or securing the area) |
 | Event Resolved | An event finishes, whatever the outcome |
 | Event Succeeded | An event's outcome roll succeeds |
-| Event Failed | An event's outcome roll fails and the crew loses unbanked points |
+| Event Failed | An event's outcome roll fails; configured loss may be zero |
 | Crew Reward Banked | A crew member's payout is settled (once per payout) |
 | Risk Succeeded / Failed | A viewer who confirmed a risky choice wins or loses (only events that offer one) |
 | Voyage Ended | The voyage returns or is aborted |
@@ -28,7 +28,9 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | `%Step%`, `%StepNote%`, `%RevealedRarity%` | Event Step Advanced | What the last choice did |
 | `%Path%` | Step, Resolved, Succeeded, Failed | Choices made, in order |
 | `%Outcome%`, `%Rarity%` | Resolved, Succeeded, Failed | Result of the roll and the find's rarity |
-| `%PointType%`, `%RewardTotal%`, `%LostTotal%`, `%AffectedCount%` | Resolved, Succeeded, Failed | Points earned or lost |
+| `%PointType%`, `%RewardTotal%`, `%LostTotal%` | Resolved, Succeeded, Failed | First outcome currency and aggregate amounts across currencies |
+| `%AffectedCount%` | Succeeded, Failed | Number of reward/loss outcome rows with a nonzero amount; one viewer may have several currencies |
+| `%RewardParticipantCount%` | Resolved | Number of reward outcome rows with a positive earned amount |
 | `%Summary%` | Resolved, Voyage Ended | Ready-made sentence for chat |
 | `%Story%` | Resolved, Succeeded, Failed | Generated story of what happened, using the names of the viewers who chose each option |
 | `%Subject%` | Event Opened, Step Advanced, Resolved, Succeeded, Failed | Generated name of the ship, signal or hazard (for example `the ISV Quiet Meridian`) |
@@ -37,12 +39,21 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 
 ## Suggested messages
 
-- Event Succeeded: `%Summary%`
-- Event Failed: `Ouch! %EventTitle% went wrong - the crew lost %LostTotal% %PointType%.`
+- Event Resolved: `%Summary%`
+- Event Succeeded: `%EventTitle%: %Story%`
+- Event Failed: `%EventTitle%: %Story%`
 - Event Step Advanced: `%StepNote% Options: %Choices%`
 - Voyage Ended: `%Summary%`
 
 The bot already announces these in chat by default; use triggers for extra alerts, sounds or scene changes.
+
+## Custom Event Context
+
+Custom events use these same event triggers, not a separate trigger per definition. `%EventType%` is the stable custom event ID and `%EventTitle%` is its title. A duplicated/imported event receives a new ID. Story tokens such as `{subject}` belong in event templates; action messages use `%Subject%`, `%Story%` and the other runtime variables above.
+
+Event Resolved fires once for the group, including a passed or non-rewarding event. Event Succeeded/Failed require an enabled reward profile and a success/failure outcome; they do not fire simply because a story-only event reached its terminal choice. Step Advanced fires after a continuing choice. `%Summary%` is available on Resolved and Voyage Ended, not Succeeded/Failed.
+
+With several currencies, do not describe `%RewardTotal%` as an amount of `%PointType%`: the total is aggregate while the name is the first outcome currency. Use the Resolved `%Summary%` for grouped chat feedback, or Crew Reward Banked for the actual per-user/per-currency permanent payout. Use Risk triggers only for events that genuinely offer that older personal-choice path; custom editor events do not.
 
 ## Reward Profile Actions
 

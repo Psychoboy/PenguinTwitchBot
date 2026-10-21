@@ -21,22 +21,9 @@ In **Events & Sectors**, the **Sectors** section lets you enable or disable each
 
 ## Events and choices
 
-Open **Events & Sectors** to search events, edit built-ins, add custom events or duplicate an event as a custom draft. Built-in IDs cannot be changed or deleted. Route Choice and Station Stop allow wording/art edits only; their defaults, choices and mechanics stay protected.
+Open **Events & Sectors** to edit the catalog. The **Custom Events** help tab covers choices, profiles, filters, previews, story tokens, media and JSON sharing. Apply Event updates the unsaved page; Save Settings persists the validated catalog. Active voyages keep their original definitions.
 
-- **Apply Event** validates the draft and updates the page's unsaved catalog. **Save Settings** persists the catalog and also validates/applies an open draft. Switching tabs retains the draft. Apply or discard it before opening another event.
-- Non-structural events expose enabled state, selection weight, route/sector filters and a terminal default choice. No selected routes or sectors means unrestricted availability. Every route/active-sector combination must still have an eligible event.
-- Choose a shared reward profile or create an event-specific profile with the normal tier/reward/action editor. New profiles are applied with their event. Selecting no rewards disables payouts; custom choices that reveal rarity require a profile.
-- Add two to six choices. Edit their IDs, labels, stories and bounded success/reward/loss modifiers. A continuing choice needs a unique granted flag so it disappears after use; the default must always remain available and end the event. Custom events do not have risky commit/confirmation choices.
-- Set a subject style or name pool, object kind and optional images with the media-library picker. Loot wording can be supplied for each profile tier; blank wording uses the generic rarity find.
-- **Preview Event** renders the description, option effects, choice stories and success/failure text using the sample seed, a sample viewer and the first enabled rarity tier. It does not run a voyage or award anything.
-
-Story fields accept `{crew}`, `{crewlist}`, `{subject}`, `{Subject}`, `{loot}`, `{rarity}` and `{sector}`. Unknown tokens, invalid defaults, duplicate IDs/labels, command-prefixed text and out-of-range effects are rejected.
-
-### Sharing one event
-
-**Export JSON** downloads the current validated draft and fills the JSON text field. **Open JSON File** or **Import as Draft** loads a versioned single-event document, up to 256 KB. Imports receive a fresh custom ID and never overwrite existing events. A missing reward-profile reference remains an inline error until you select or create a local profile; profiles themselves are not included in the event export. Invalid data is rejected before it reaches the saved catalog.
-
-Apply the draft and Save Settings when ready. Existing voyages keep their departure-time catalog; these changes only affect future voyages.
+Courier Relay, Survey Cache and Debris Crossing are installed automatically as editable starter events. No manual import is needed. Their reward profiles remain under your control; installation does not select a currency or enable rewards. Edits and deletions are retained on later loads.
 
 Some events resolve in one vote. Others are mini-voyages made of several steps:
 

@@ -479,6 +479,7 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
             Icons.Material.Filled.RocketLaunch,
             [
                 ("Starship Expedition", Icons.Material.Filled.RocketLaunch, "starship/overview.md"),
+                ("Custom Events", Icons.Material.Filled.EditNote, "starship/events.md"),
                 ("Triggers & Actions", Icons.Material.Filled.Bolt, "starship/automation.md")
             ]
         ),

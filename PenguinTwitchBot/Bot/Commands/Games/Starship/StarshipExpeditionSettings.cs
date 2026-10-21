@@ -26,6 +26,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public int CatalogStorageVersion { get; set; }
+    public int StarterEventsVersion { get; set; }
     public int LegCount { get; set; } = StarshipExpeditionService.DefaultLegCount;
     public int MinimumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMinimumEventIntervalMinutes;
     public int MaximumEventIntervalMinutes { get; set; } = StarshipExpeditionService.DefaultMaximumEventIntervalMinutes;
@@ -50,6 +51,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
             throw new InvalidDataException($"Unsupported Starship settings version {settings.SchemaVersion}.");
         if (settings.CatalogStorageVersion is < 0 or > 1)
             throw new InvalidDataException($"Unsupported Starship catalog storage version {settings.CatalogStorageVersion}.");
+        if (settings.StarterEventsVersion is < 0 or > StarshipStarterEvents.CurrentVersion)
+            throw new InvalidDataException($"Unsupported Starship starter event version {settings.StarterEventsVersion}.");
         if (settings.LegCount is < 1 or > MaximumLegCount)
             throw new ArgumentOutOfRangeException(nameof(settings.LegCount), $"Voyage legs must be between 1 and {MaximumLegCount}.");
         if (settings.MinimumEventIntervalMinutes is < 1 or > MaximumEventIntervalLimitMinutes)

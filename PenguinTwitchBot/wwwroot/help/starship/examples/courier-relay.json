@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "event": {
+    "eventType": "courier-relay",
+    "title": "Courier Relay",
+    "description": "A navigation message from {subject} is waiting in {sector}. Relay it or keep moving.",
+    "choices": [
+      {
+        "choiceId": "relay",
+        "label": "Relay the message",
+        "story": "{crewlist} restores the link to {subject} and forwards the waiting message."
+      },
+      {
+        "choiceId": "continue",
+        "label": "Continue the voyage",
+        "story": "The crew leaves {subject} transmitting into the quiet.",
+        "endsWithoutReward": true
+      }
+    ],
+    "defaultChoiceId": "continue",
+    "successStory": "The message reaches its destination.",
+    "failureStory": "The transmission fades before the link is restored.",
+    "enabled": true,
+    "weight": 1,
+    "subjectStyle": "signal",
+    "objectKind": "beacon",
+    "rewardProfileId": ""
+  }
+}

@@ -151,6 +151,7 @@ public class HelpContentServiceTests
     [InlineData("balloon-game", "Balloon Ascent Guide", 3)]
     [InlineData("curling-game", "Curling / Shuffleboard Guide", 3)]
     [InlineData("golf-game", "Golf (Chip & Putt) Guide", 3)]
+    [InlineData("starship-game", "Starship Expedition Guide", 3)]
     [InlineData("game-themes", "Minigame Themes Guide", 2)]
     public async Task GetTopicAsync_StreamToolsTopics_ReturnValidTopicsAndContent(string topicId, string expectedTitle, int expectedTabCount)
     {
@@ -169,6 +170,21 @@ public class HelpContentServiceTests
             Assert.False(string.IsNullOrWhiteSpace(tab.Markdown));
             Assert.DoesNotContain("is being prepared", tab.Markdown);
         }
+    }
+
+    [Fact]
+    public async Task StarshipCustomEventsGuide_LinksEveryBundledStarterAndStaysGameSpecific()
+    {
+        var topic = await new HelpContentService(_env).GetTopicAsync("starship-game");
+        var guide = Assert.Single(topic!.Tabs, tab => tab.Title == "Custom Events");
+        foreach (var fileName in PenguinTwitchBot.Bot.Commands.Games.Starship.StarshipStarterEvents.FileNames)
+        {
+            Assert.Contains($"/help/starship/examples/{fileName}", guide.Markdown);
+            Assert.True(File.Exists(Path.Combine(_testWebRoot, "help", "starship", "examples", fileName)));
+        }
+        Assert.Contains("unlimited", guide.Markdown, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("automatically", guide.Markdown, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(topic.Tabs, tab => tab.Title.Contains("Plinko", StringComparison.OrdinalIgnoreCase));
     }
 }
 

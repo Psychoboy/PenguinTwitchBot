@@ -47,6 +47,7 @@ public class StarshipSectorSelectionTests
         var page = context.Render<StarshipExpeditionGame>();
 
         page.WaitForAssertion(() => Assert.Contains("5 available (minimum 2)", page.Markup));
+        Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour");
         foreach (var sector in StarshipExpeditionSettings.BuiltInSectors.Skip(1))
             page.FindComponents<MudCheckBox<bool>>().Single(component => component.Instance.Label == sector).Find("input").Change(false);
         page.WaitForAssertion(() => Assert.Contains("1 available (minimum 2)", page.Markup));
@@ -67,5 +68,10 @@ public class StarshipSectorSelectionTests
         page.FindAll("button").Single(button => button.TextContent.Contains("Save Settings", StringComparison.Ordinal)).Click();
         page.WaitForAssertion(() => store.Verify(instance => instance.SaveAsync(
             It.Is<StarshipExpeditionSettings>(value => value.EventCatalog.Any(definition => definition.Title == "Page Save Draft")), It.IsAny<CancellationToken>()), Times.Exactly(2)));
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(4));
+        page.WaitForAssertion(() => Assert.Contains(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
+        await page.InvokeAsync(() => page.FindComponent<MudTabs>().Instance.ActivatePanelAsync(0));
+        page.WaitForAssertion(() => Assert.DoesNotContain(page.FindComponents<MudColorPicker>(), component => component.Instance.Label == "Panel colour"));
+        Assert.Single(page.FindComponents<StarshipEventCatalogEditor>());
     }
 }

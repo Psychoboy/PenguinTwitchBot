@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "event": {
+    "eventType": "debris-crossing",
+    "title": "Debris Crossing",
+    "description": "{Subject} blocks the passage through {sector}. The crew must choose how to cross.",
+    "choices": [
+      {
+        "choiceId": "navigate",
+        "label": "Navigate the gaps",
+        "story": "{crew} plots a course through {subject}."
+      },
+      {
+        "choiceId": "shield",
+        "label": "Divert power to shields",
+        "story": "{crewlist} reinforces the shields before entering {subject}.",
+        "successChanceModifierPercent": 20,
+        "rewardMultiplierPercent": 80,
+        "riskMultiplierPercent": 50
+      },
+      {
+        "choiceId": "push",
+        "label": "Push through the center",
+        "story": "{crew} holds the helm steady through {subject}.",
+        "successChanceModifierPercent": -15,
+        "rewardMultiplierPercent": 130,
+        "riskMultiplierPercent": 150
+      }
+    ],
+    "defaultChoiceId": "navigate",
+    "successStory": "The ship clears {subject} and recovers {loot}.",
+    "failureStory": "The crew retreats from a rough crossing through {subject}.",
+    "enabled": true,
+    "weight": 1,
+    "subjectStyle": "custom",
+    "subjectNames": ["the Shattered Crown", "the Glass Wake", "the Silent Ring"],
+    "objectKind": "debris",
+    "lootByTier": {
+      "Common": "salvageable shielding",
+      "Uncommon": "a compact power core",
+      "Rare": "a pristine navigation array"
+    },
+    "rewardProfileId": "Hazard"
+  }
+}

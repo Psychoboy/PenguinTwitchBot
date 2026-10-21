@@ -20,7 +20,7 @@
         <MudGrid Spacing="2">
             <MudItem xs="12" sm="4"><MudTextField T="string" Label="Tier Name" Variant="Variant.Outlined" MaxLength="24" @bind-Value="tier.Name" /></MudItem>
             <MudItem xs="6" sm="3"><MudNumericField T="int" Label="Relative Weight" Variant="Variant.Outlined" Min="0" Max="1000" @bind-Value="tier.Weight" /></MudItem>
-            <MudItem xs="6" sm="3"><MudColorPicker Label="Badge Colour" Variant="Variant.Outlined" Value="@(new MudColor(tier.Color))" ValueChanged="@(value => tier.Color = value.ToString(MudColorOutputFormats.Hex))" /></MudItem>
+            <MudItem xs="6" sm="3"><MudColorPicker Label="Badge Colour" Variant="Variant.Outlined" Value="@TierColor(tier.Color)" ValueChanged="@(value => tier.Color = value.ToString(MudColorOutputFormats.Hex))" /></MudItem>
             <MudItem xs="12" sm="2"><MudSwitch T="bool" Label="Enabled" @bind-Value="tier.Enabled" /></MudItem>
         </MudGrid>
         @foreach (var reward in tier.Rewards)
@@ -71,6 +71,14 @@
     [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
 
     private int FirstPointType => PointTypes.Keys.FirstOrDefault();
+    private readonly Dictionary<string, MudColor> _tierColors = new(StringComparer.OrdinalIgnoreCase);
+
+    private MudColor TierColor(string value)
+    {
+        if (!_tierColors.TryGetValue(value, out var color))
+            _tierColors[value] = color = new MudColor(value);
+        return color;
+    }
 
     private double TierOdds(StarshipRewardTier tier)
     {
