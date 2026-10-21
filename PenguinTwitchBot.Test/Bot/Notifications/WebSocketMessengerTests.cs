@@ -8,9 +8,9 @@ namespace PenguinTwitchBot.Test.Bot.Notifications
         [Fact]
         public void Parse_KeepsKnownTopicsAndNormalizesCase()
         {
-            var parsed = WsTopics.Parse(["CHAT", "Alerts"]);
+            var parsed = WsTopics.Parse(["CHAT", "Alerts", "STARSHIP"]);
 
-            Assert.Equal(new[] { WsTopics.Alerts, WsTopics.Chat }, parsed.OrderBy(topic => topic));
+            Assert.Equal(new[] { WsTopics.Alerts, WsTopics.Chat, WsTopics.Starship }, parsed.OrderBy(topic => topic));
         }
 
         [Fact]

@@ -93,6 +93,10 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
             throw new InvalidDataException("Starship expedition state must have an expedition ID.");
         if (snapshot.LegCount < 1 || snapshot.CurrentLeg < 0 || snapshot.CurrentLeg > snapshot.LegCount)
             throw new InvalidDataException("Starship expedition leg progress is invalid.");
+        if (snapshot.MinimumEventIntervalSeconds < 1 || snapshot.MaximumEventIntervalSeconds < snapshot.MinimumEventIntervalSeconds)
+            throw new InvalidDataException("Starship expedition event interval range is invalid.");
+        if (snapshot.StationIntervalLegs < 1 || snapshot.EventVoteDurationSeconds < 1)
+            throw new InvalidDataException("Starship expedition station or event timing settings are invalid.");
         if (!Enum.IsDefined(snapshot.Status))
             throw new InvalidDataException("Starship expedition status is invalid.");
         if (snapshot.Crew == null)

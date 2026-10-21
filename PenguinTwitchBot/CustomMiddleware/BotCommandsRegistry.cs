@@ -394,6 +394,13 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
             services.AddSingleton<IDropRegistry, DropRegistry>();
             services.AddSingleton<IStarshipExpeditionStateStore, StarshipExpeditionStateStore>();
+            services.AddRuntimeFeatureService<IStarshipExpeditionService, StarshipExpeditionService>(
+                FeatureKeys.DropGames,
+                "Starship Expedition",
+                moduleName: "StarshipExpedition",
+                isCore: false,
+                description: "Shared, server-authoritative Starship Expedition with crew voting and scheduled events."
+            );
             services.AddRuntimeFeatureService<IParachuteDropService, ParachuteDropService>(
                 FeatureKeys.DropGames,
                 "Parachute Drop",
