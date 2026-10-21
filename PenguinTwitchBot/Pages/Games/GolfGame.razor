@@ -52,7 +52,6 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: GREEN & FAIRWAY LAYOUT ================= -->
                 <MudTabPanel Text="Green & Strip Layout">
-                    <GameSessionMessageSettings Settings="_settings.Golf" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -164,7 +163,19 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 2: GREEN CONDITIONS & MECHANICS ================= -->
+                <!-- ================= TAB 2: AUTOMATION & MESSAGES ================= -->
+                <MudTabPanel Text="Automation & Messages">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="8">
+                            <GameOutcomeAutomationPanel DefaultCommandName="golf" GameTitle="Golf" />
+                        </MudItem>
+                        <MudItem xs="12" lg="4">
+                            <GameSessionMessageSettings Settings="_settings.Golf" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: GREEN CONDITIONS & MECHANICS ================= -->
                 <MudTabPanel Text="Green Conditions & Power">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -236,11 +247,6 @@
                                         </MudItem>
                                     </MudGrid>
 
-                                    <MudDivider Class="my-2" />
-
-                                    <MudText Typo="Typo.h6" Class="mb-1">Outcome Automations</MudText>
-                                    <GameOutcomeAutomationPanel DefaultCommandName="golf" GameTitle="Golf" />
-
                                 </MudStack>
                             </MudPaper>
                         </MudItem>
@@ -251,7 +257,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 3: SESSION & OVERLAY DISPLAY ================= -->
+                <!-- ================= TAB 4: SESSION & OVERLAY DISPLAY ================= -->
                 <MudTabPanel Text="Session & Display">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -349,7 +355,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
+                <!-- ================= TAB 5: AUDIO & SOUND EFFECTS ================= -->
                 <MudTabPanel Text="Audio & Sound Effects">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">

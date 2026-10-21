@@ -51,7 +51,6 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: BOARD & PRIZE BUCKETS ================= -->
                 <MudTabPanel Text="Board & Buckets">
-                    <GameSessionMessageSettings Settings="_settings.Plinko" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -118,8 +117,6 @@
                                                              HelperText="Token weight during mid-air collisions" />
                                         </MudItem>
                                     </MudGrid>
-
-                                    <GameOutcomeAutomationPanel DefaultCommandName="plinko" GameTitle="Plinko Bounce" />
 
                                 </MudStack>
                             </MudPaper>
@@ -190,7 +187,19 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 2: TIMED SESSION & OVERLAY DISPLAY ================= -->
+                <!-- ================= TAB 2: AUTOMATION & MESSAGES ================= -->
+                <MudTabPanel Text="Automation & Messages">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="8">
+                            <GameOutcomeAutomationPanel DefaultCommandName="plinko" GameTitle="Plinko Bounce" />
+                        </MudItem>
+                        <MudItem xs="12" lg="4">
+                            <GameSessionMessageSettings Settings="_settings.Plinko" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: TIMED SESSION & OVERLAY DISPLAY ================= -->
                 <MudTabPanel Text="Session & Display">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -296,7 +305,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 3: AUDIO & SOUND EFFECTS ================= -->
+                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
                 <MudTabPanel Text="Audio & Sound Effects">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">

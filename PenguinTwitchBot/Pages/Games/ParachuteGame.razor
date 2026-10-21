@@ -51,7 +51,6 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: PARACHUTE DROP ================= -->
                 <MudTabPanel Text="Gameplay & Target">
-                    <GameSessionMessageSettings Settings="_settings.Parachute" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -104,9 +103,6 @@
                                 </MudStack>
                             </MudPaper>
 
-                            <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <GameOutcomeAutomationPanel DefaultCommandName="drop" GameTitle="Parachute Drop" />
-                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" md="5">
@@ -115,7 +111,19 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 2: INTERACTIVE DROPLETS ================= -->
+                <!-- ================= TAB 2: AUTOMATION & MESSAGES ================= -->
+                <MudTabPanel Text="Automation & Messages">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="8">
+                            <GameOutcomeAutomationPanel DefaultCommandName="drop" GameTitle="Parachute Drop" />
+                        </MudItem>
+                        <MudItem xs="12" lg="4">
+                            <GameSessionMessageSettings Settings="_settings.Parachute" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: INTERACTIVE DROPLETS ================= -->
                 <MudTabPanel Text="Interactive Droplets (!droplets)">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -215,7 +223,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 3: SKY ROCKETS & SABOTAGE ================= -->
+                <!-- ================= TAB 4: SKY ROCKETS & SABOTAGE ================= -->
                 <MudTabPanel Text="Rockets & Sabotage">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -306,7 +314,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 4: TIMED SESSION & OVERLAY HEADER ================= -->
+                <!-- ================= TAB 5: TIMED SESSION & OVERLAY HEADER ================= -->
                 <MudTabPanel Text="Session & Display">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -409,7 +417,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 5: AUDIO & SOUND EFFECTS ================= -->
+                <!-- ================= TAB 6: AUDIO & SOUND EFFECTS ================= -->
                 <MudTabPanel Text="Audio & Sound Effects">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">

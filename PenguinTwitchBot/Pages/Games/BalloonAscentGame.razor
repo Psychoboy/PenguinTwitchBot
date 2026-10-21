@@ -51,7 +51,6 @@
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pa-5">
                 <!-- ================= TAB 1: CLOUD PLATFORM & ASCENT PHYSICS ================= -->
                 <MudTabPanel Text="Cloud Platform & Physics">
-                    <GameSessionMessageSettings Settings="_settings.Balloon" />
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
                             <MudPaper Class="pa-4" Outlined="true">
@@ -125,9 +124,6 @@
                                 </MudStack>
                             </MudPaper>
 
-                            <MudPaper Class="pa-4 mt-4" Outlined="true">
-                                <GameOutcomeAutomationPanel DefaultCommandName="balloon" GameTitle="Balloon Ascent" />
-                            </MudPaper>
                         </MudItem>
 
                         <MudItem xs="12" md="5">
@@ -136,7 +132,19 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 2: HAZARDS & SABOTAGE ================= -->
+                <!-- ================= TAB 2: AUTOMATION & MESSAGES ================= -->
+                <MudTabPanel Text="Automation & Messages">
+                    <MudGrid Spacing="4">
+                        <MudItem xs="12" lg="8">
+                            <GameOutcomeAutomationPanel DefaultCommandName="balloon" GameTitle="Balloon Ascent" />
+                        </MudItem>
+                        <MudItem xs="12" lg="4">
+                            <GameSessionMessageSettings Settings="_settings.Balloon" />
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+
+                <!-- ================= TAB 3: HAZARDS & SABOTAGE ================= -->
                 <MudTabPanel Text="Hazards & Sabotage">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -262,7 +270,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 3: TIMED SESSION & OVERLAY HEADER ================= -->
+                <!-- ================= TAB 4: TIMED SESSION & OVERLAY HEADER ================= -->
                 <MudTabPanel Text="Session & Display">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
@@ -360,7 +368,7 @@
                     </MudGrid>
                 </MudTabPanel>
 
-                <!-- ================= TAB 4: AUDIO & SOUND EFFECTS ================= -->
+                <!-- ================= TAB 5: AUDIO & SOUND EFFECTS ================= -->
                 <MudTabPanel Text="Audio & Sound Effects">
                     <MudGrid Spacing="4">
                         <MudItem xs="12" md="7">
