@@ -100,6 +100,30 @@ public class StarshipExpeditionServiceTests
             It.IsAny<Dictionary<string, string>>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task StatusCommand_IncludesShipResourcesOnlyForIntegratedVoyages(bool integrated, bool expectResources)
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: integrated ? StarshipShipSystems.Create(new() { StartingHull = 72, StartingSupplies = 34 }) : null);
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var replies = new List<string>();
+        var backbone = new Mock<IServiceBackbone>();
+        backbone.Setup(service => service.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, string, bool>((_, message, _) => replies.Add(message))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(store, serviceBackboneMock: backbone);
+        var args = CreateArgs("viewer-id", "Viewer");
+        args.Args = ["status"];
+
+        await service.OnCommand(null, args);
+
+        var reply = Assert.Single(replies);
+        Assert.Contains("EventOpen, leg", reply);
+        Assert.Equal(expectResources, reply.Contains("Hull: 72/100, Supplies: 34/100.", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task BoardingTimeout_AbortsWithoutCrewAndLateViewersAreEnrolledForTheNextEvent()
     {

@@ -1745,8 +1745,13 @@ public sealed class StarshipExpeditionService(
     private static int? ParseOptionalInteger(IReadOnlyList<string> args, int index) =>
         index < args.Count && int.TryParse(args[index], out var parsed) ? parsed : null;
 
-    private static string FormatStatus(StarshipExpeditionSnapshot? snapshot) => snapshot == null
-        ? "No Starship Expedition is active."
-        : $"Starship Expedition: {snapshot.Status}, leg {snapshot.CurrentLeg}/{snapshot.LegCount}, sector {snapshot.CurrentSector}.";
+    private static string FormatStatus(StarshipExpeditionSnapshot? snapshot)
+    {
+        if (snapshot == null) return "No Starship Expedition is active.";
+        var message = $"Starship Expedition: {snapshot.Status}, leg {snapshot.CurrentLeg}/{snapshot.LegCount}, sector {snapshot.CurrentSector}.";
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } ship)
+            message += $" Hull: {ship.Hull}/{StarshipShipSystemsSettings.MaximumResource}, Supplies: {ship.Supplies}/{StarshipShipSystemsSettings.MaximumResource}.";
+        return message;
+    }
 
 }

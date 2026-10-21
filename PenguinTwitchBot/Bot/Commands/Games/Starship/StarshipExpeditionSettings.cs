@@ -40,7 +40,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<StarshipEventDefinition> EventCatalog { get; set; } = StarshipEventCatalog.CreateDefaults();
     public bool AnnounceSessionStatusInChat { get; set; } = true;
-    public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join before launch!";
+    public string SessionStartChatMessageTemplate { get; set; } = "Starship Expedition boarding is OPEN for {duration}s! Type !starship join or !sj before launch!";
     public string SessionEndChatMessageTemplate { get; set; } = "Starship Expedition {result}. {count} crew members were aboard for {duration}s.";
     public StarshipAppearanceSettings Appearance { get; set; } = new();
     public StarshipShipSystemsSettings ShipSystems { get; set; } = new();
