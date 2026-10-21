@@ -21,7 +21,7 @@ public static partial class StarshipEventCatalog
                 new() { ChoiceId = "investigate", Label = "Investigate the source", Story = "{crew} takes a shuttle out to {subject}." },
                 new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true, Story = "The crew lets {subject} fade into static." }
             ], "ignore", "It was real: the crew recovers {loot}.", "It was a decoy. The shuttle limps home empty and the crew loses cargo.")
-        { SortOrder = 0, SubjectStyle = "signal", ObjectKind = "beacon", LootByTier = new() { ["Common"] = "a fragment of old star charts", ["Uncommon"] = "an encrypted data cache", ["Rare"] = "a lost explorer's black-box archive" } },
+        { SortOrder = 0, SubjectStyle = "signal", ObjectKind = "beacon", ShipFailureEffect = GetDefaultShipFailureEffect("SignalDetected"), LootByTier = new() { ["Common"] = "a fragment of old star charts", ["Uncommon"] = "an encrypted data cache", ["Rare"] = "a lost explorer's black-box archive" } },
         new("SalvageSite", "Derelict Salvage", "A damaged vessel, {subject}, is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
             [
                 new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}. Warm signatures flicker behind the cargo hold - it looks like {loot}." },
@@ -29,14 +29,14 @@ public static partial class StarshipEventCatalog
                 new() { ChoiceId = "salvage", Label = "Recover salvage", Story = "{crew} boards {subject} and starts cutting toward the cargo hold." },
                 new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true, Story = "The crew leaves {subject} to drift on." }
             ], "pass", "The hatch gives way and the crew hauls out {loot}.", "A reactor surge rips through {subject}. The crew drops {loot} and flees.")
-        { SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", AllowedRoutes = ["Uncharted", "Survey Route"], LootByTier = new() { ["Common"] = "salvage plating and spare parts", ["Uncommon"] = "a sealed navigation core", ["Rare"] = "an intact cryo-vault" } },
+        { SortOrder = 1, SubjectStyle = "ship", ObjectKind = "wreck", ShipFailureEffect = GetDefaultShipFailureEffect("SalvageSite"), AllowedRoutes = ["Uncharted", "Survey Route"], LootByTier = new() { ["Common"] = "salvage plating and spare parts", ["Uncommon"] = "a sealed navigation core", ["Rare"] = "an intact cryo-vault" } },
         new("Hazard", "Navigation Hazard", "{Subject} has appeared across the current flight path.",
             [
                 new() { ChoiceId = "maneuver", Label = "Maneuver around it", Story = "{crew} takes the helm and arcs around {subject}." },
                 new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, Story = "{crew} diverts power to the shields as {subject} closes in." },
                 new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130, Story = "{crew} grits their teeth and holds course through {subject}." }
             ], "maneuver", "The crew clears {subject} and scoops up {loot}.", "{Subject} clips the hull and cargo is lost.")
-        { SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", AllowedRoutes = ["Uncharted", "Direct Route"], LootByTier = new() { ["Common"] = "scattered ore chunks", ["Uncommon"] = "a cluster of crystal shards", ["Rare"] = "a glowing rare-earth nugget" } },
+        { SortOrder = 2, SubjectStyle = "hazard", ObjectKind = "debris", ShipFailureEffect = GetDefaultShipFailureEffect("Hazard"), AllowedRoutes = ["Uncharted", "Direct Route"], LootByTier = new() { ["Common"] = "scattered ore chunks", ["Uncommon"] = "a cluster of crystal shards", ["Rare"] = "a glowing rare-earth nugget" } },
         new("RouteChoice", "Choose a Route", "The crew can take a direct route or detour through a survey area.",
             [new() { ChoiceId = "direct", Label = "Take the direct route" }, new() { ChoiceId = "detour", Label = "Take the survey detour" }], "direct")
         { SortOrder = 3, ObjectKind = "fork", LootByTier = new() { ["Common"] = "some useful scrap", ["Uncommon"] = "a valuable cache", ["Rare"] = "a priceless find" } },
@@ -47,6 +47,13 @@ public static partial class StarshipEventCatalog
 
     public static bool IsStructural(string eventType) => eventType is "RouteChoice" or "StationStop";
     public static bool IsBuiltIn(string eventType) => BuiltInIds.Contains(eventType);
+    public static StarshipShipEffect? GetDefaultShipFailureEffect(string eventType) => eventType switch
+    {
+        "Hazard" or "debris-crossing" => new() { HullDelta = -15, SuppliesDelta = -5 },
+        "SalvageSite" or "survey-cache" => new() { HullDelta = -10, SuppliesDelta = -5 },
+        "SignalDetected" => new() { HullDelta = -5, SuppliesDelta = -5 },
+        _ => null
+    };
 
     public static StarshipEventDefinition Select(IReadOnlyList<StarshipEventDefinition> catalog,
         StarshipExpeditionSnapshot snapshot, int sequence)
@@ -86,6 +93,12 @@ public static partial class StarshipEventCatalog
             ValidateText(definition.Description, 1000, true);
             ValidateText(definition.SuccessStory, 1000);
             ValidateText(definition.FailureStory, 1000);
+            if (definition.SuccessChancePercent is < 0 or > 100)
+                throw new ArgumentException($"{definition.Title}: success chance must be 0-100 percent.");
+            definition.ShipSuccessEffect?.Validate();
+            definition.ShipFailureEffect?.Validate();
+            if (definition.ShipSuccessEffect?.SuppliesCost > 0 || definition.ShipFailureEffect?.SuppliesCost > 0)
+                throw new ArgumentException($"{definition.Title}: outcome effects cannot require a supply payment.");
             if (definition.Weight is < 1 or > 10 || definition.SortOrder < 0)
                 throw new ArgumentException($"{definition.Title}: weight must be 1-10 and sort order non-negative.");
             if (definition.Choices == null || definition.Choices.Count is < 2 or > MaximumChoices)
@@ -100,6 +113,7 @@ public static partial class StarshipEventCatalog
                 ValidateText(choice.Label, 80, true, false);
                 ValidateText(choice.Story, 1000);
                 ValidateText(choice.Hint, 160, false, false);
+                choice.ShipEffect?.Validate();
                 if (!labels.Add(choice.Label.Trim())) throw new ArgumentException($"{definition.Title}: choice labels must be unique.");
                 if (choice.IsRisky || choice.SuccessChanceModifierPercent is < -50 or > 50 ||
                     choice.RewardMultiplierPercent is < 10 or > 300 || choice.RiskMultiplierPercent is < 0 or > 300)
@@ -111,6 +125,8 @@ public static partial class StarshipEventCatalog
             }
             if (!definition.Choices.Any(choice => choice.ChoiceId == definition.DefaultChoiceId && !choice.ContinuesEvent && choice.GrantsFlag.Length == 0))
                 throw new ArgumentException($"{definition.Title}: choose a terminal, always-available default.");
+            if (definition.Choices.Single(choice => choice.ChoiceId == definition.DefaultChoiceId).ShipEffect?.SuppliesCost > 0)
+                throw new ArgumentException($"{definition.Title}: the default choice cannot require supplies.");
             var binding = definition.RewardProfileId ?? settings.EventRewardProfileIds.GetValueOrDefault(definition.EventType, "");
             if (binding.Length > 0 && !settings.RewardProfiles.Any(profile => profile.Id == binding))
                 throw new ArgumentException($"{definition.Title}: the reward profile does not exist.");
@@ -150,12 +166,13 @@ public static partial class StarshipEventCatalog
     {
         if (!definition.Enabled || definition.Weight != 1 || definition.DefaultChoiceId != baseline.DefaultChoiceId ||
             definition.AllowedRoutes.Count > 0 || definition.AllowedSectors.Count > 0 ||
-            definition.Choices.Count != baseline.Choices.Count || definition.RewardProfileId != baseline.RewardProfileId)
+            definition.Choices.Count != baseline.Choices.Count || definition.RewardProfileId != baseline.RewardProfileId ||
+            definition.SuccessChancePercent != null || definition.ShipSuccessEffect != null || definition.ShipFailureEffect != null)
             throw new ArgumentException($"{definition.EventType}: only wording and art can be customized.");
         for (var index = 0; index < baseline.Choices.Count; index++)
         {
             var choice = definition.Choices[index];
-            if (choice.ChoiceId != baseline.Choices[index].ChoiceId || choice.ContinuesEvent || choice.IsRisky ||
+            if (choice.ChoiceId != baseline.Choices[index].ChoiceId || choice.ContinuesEvent || choice.IsRisky || choice.ShipEffect != null ||
                 choice.EndsWithoutReward || choice.RevealsRarity || choice.GrantsFlag.Length > 0 ||
                 choice.SuccessChanceModifierPercent != 0 || choice.RewardMultiplierPercent != 100 || choice.RiskMultiplierPercent != 100)
                 throw new ArgumentException($"{definition.EventType}: structural choice mechanics cannot be changed.");

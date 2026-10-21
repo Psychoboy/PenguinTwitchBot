@@ -63,6 +63,21 @@ public class StarshipExpeditionStateStoreTests
     }
 
     [Fact]
+    public async Task Save_RejectsMalformedShipEventContext()
+    {
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(), LegCount = 4,
+            CurrentEvent = new()
+            {
+                EventId = Guid.NewGuid(), EventType = "custom", Sequence = 1,
+                ShipContext = new() { BaseSuccessChancePercent = 101 }
+            }
+        };
+        await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore([]).SaveAsync(snapshot));
+    }
+
+    [Fact]
     public async Task SaveAndLoad_PreservesMissionSeedCrewAndOpenEvent()
     {
         var settingRows = new List<Setting>();

@@ -2,11 +2,10 @@ namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
 
 internal static class StarshipRewardResolver
 {
-    internal static void ApplyRewardProfile(
+    internal static void ResolveOutcome(
         StarshipExpeditionSnapshot snapshot,
         StarshipExpeditionEventSnapshot resolvedEvent,
-        StarshipRewardProfile profile,
-        IReadOnlySet<string> eligibleUserIds)
+        StarshipRewardProfile? profile)
     {
         var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
             string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
@@ -21,12 +20,28 @@ internal static class StarshipRewardResolver
         var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
         var succeeded = StarshipExpeditionStory.StableIndex(snapshot.Seed, resolvedEvent.Sequence,
             $"reward-success:{resolvedEvent.EventId:N}", 100) < chance;
-        var tier = ChooseEventTier(snapshot, resolvedEvent, profile);
-        var rewardPercent = CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
-        var riskPercent = CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
+        var tier = profile == null ? null : ChooseEventTier(snapshot, resolvedEvent, profile);
         resolvedEvent.OutcomeResult = succeeded ? StarshipExpeditionNarrative.OutcomeSuccess : StarshipExpeditionNarrative.OutcomeFailure;
         resolvedEvent.OutcomeRarity = tier?.Name ?? string.Empty;
         resolvedEvent.OutcomeRarityColor = tier?.Color ?? string.Empty;
+    }
+
+    internal static void ApplyRewardProfile(
+        StarshipExpeditionSnapshot snapshot,
+        StarshipExpeditionEventSnapshot resolvedEvent,
+        StarshipRewardProfile profile,
+        IReadOnlySet<string> eligibleUserIds)
+    {
+        if (string.IsNullOrEmpty(resolvedEvent.OutcomeResult)) ResolveOutcome(snapshot, resolvedEvent, profile);
+        if (resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomePassed) return;
+        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var committed = finalChoice?.IsRisky == true;
+        var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
+        var succeeded = resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess;
+        var tier = profile.GetTiers().FirstOrDefault(item => item.Name == resolvedEvent.OutcomeRarity);
+        var rewardPercent = CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
+        var riskPercent = CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
 
         if (committed)
         {
@@ -49,10 +64,12 @@ internal static class StarshipRewardResolver
     }
 
     internal static int GetEffectiveSuccessChance(
-        StarshipRewardProfile profile,
+        StarshipRewardProfile? profile,
         StarshipExpeditionEventSnapshot expeditionEvent,
         StarshipEventChoiceSnapshot? choice = null) =>
-        Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent + (choice?.SuccessChanceModifierPercent ?? 0), 0, 100);
+        Math.Clamp((expeditionEvent.ShipContext?.BaseSuccessChancePercent ?? profile?.SuccessChancePercent ?? 0) +
+            (expeditionEvent.ShipContext?.ResourceSuccessModifierPercent ?? 0) + expeditionEvent.SuccessChanceModifierPercent +
+            (choice?.SuccessChanceModifierPercent ?? 0), 0, 100);
 
     internal static int CombinePercent(int first, int second) => Math.Clamp((int)((long)first * second / 100), 0, 1000);
 

@@ -7,6 +7,7 @@ public static class StarshipShipSystems
         settings.Validate();
         return settings.Enabled ? new StarshipShipSystemsSnapshot
         {
+            IntegrationEnabled = true,
             Rules = settings with { },
             Hull = settings.StartingHull,
             Supplies = settings.StartingSupplies
@@ -46,16 +47,18 @@ public static class StarshipShipSystems
     public static StarshipShipEffectResult ApplyTravel(StarshipShipSystemsSnapshot state, string operationId) =>
         ApplyEffect(state, operationId, new() { SuppliesDelta = -state.Rules.TravelSuppliesCost });
 
-    public static StarshipShipEffectResult ApplyStationChoice(StarshipShipSystemsSnapshot state, string operationId, string choiceId)
-    {
-        var effect = choiceId switch
+    public static StarshipShipEffect GetStationEffect(StarshipShipSystemsSnapshot state, string choiceId) =>
+        choiceId switch
         {
             "resupply" => new StarshipShipEffect { SuppliesDelta = state.Rules.StationResupplyAmount },
             "repair" => new StarshipShipEffect { HullDelta = state.Rules.StationRepairAmount, SuppliesCost = state.Rules.StationRepairSuppliesCost },
             "continue" => new StarshipShipEffect(),
             _ => throw new ArgumentException("Unknown ship station choice.", nameof(choiceId))
         };
-        var result = ApplyEffect(state, operationId, effect);
+
+    public static StarshipShipEffectResult ApplyStationChoice(StarshipShipSystemsSnapshot state, string operationId, string choiceId)
+    {
+        var result = ApplyEffect(state, operationId, GetStationEffect(state, choiceId));
         if (result == StarshipShipEffectResult.Applied && choiceId == "continue")
             state.PendingSuccessBonusPercent = state.Rules.ContinueSuccessBonusPercent;
         return result;

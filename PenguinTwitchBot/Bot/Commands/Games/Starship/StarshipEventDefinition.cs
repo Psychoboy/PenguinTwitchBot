@@ -20,4 +20,7 @@ public sealed record StarshipEventDefinition(
     public List<string> Images { get; init; } = [];
     public Dictionary<string, string> LootByTier { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public string? RewardProfileId { get; init; }
+    public int? SuccessChancePercent { get; init; }
+    public StarshipShipEffect? ShipSuccessEffect { get; init; }
+    public StarshipShipEffect? ShipFailureEffect { get; init; }
 }

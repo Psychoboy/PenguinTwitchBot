@@ -13,6 +13,7 @@ public sealed record StarshipShipSystemsSettings
     public int StationRepairAmount { get; set; } = 30;
     public int StationRepairSuppliesCost { get; set; } = 15;
     public int ContinueSuccessBonusPercent { get; set; } = 10;
+    public int DefaultEventSuccessChancePercent { get; set; } = 80;
 
     public void Validate()
     {
@@ -22,13 +23,14 @@ public sealed record StarshipShipSystemsSettings
             StationResupplyAmount is < 0 or > MaximumResource || StationRepairAmount is < 0 or > MaximumResource ||
             StationRepairSuppliesCost is < 0 or > MaximumResource)
             throw new ArgumentOutOfRangeException(nameof(TravelSuppliesCost), "Ship resource costs and restores must be 0-100.");
-        if (EmptySuppliesSuccessPenaltyPercent is < 0 or > 100 || ContinueSuccessBonusPercent is < 0 or > 100)
+        if (EmptySuppliesSuccessPenaltyPercent is < 0 or > 100 || ContinueSuccessBonusPercent is < 0 or > 100 || DefaultEventSuccessChancePercent is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(EmptySuppliesSuccessPenaltyPercent), "Ship success modifiers must be 0-100 percentage points.");
     }
 }
 
 public sealed class StarshipShipSystemsSnapshot
 {
+    public bool IntegrationEnabled { get; init; }
     public StarshipShipSystemsSettings Rules { get; init; } = new();
     public int Hull { get; set; }
     public int Supplies { get; set; }
@@ -48,6 +50,30 @@ public sealed record StarshipShipEffect
     {
         if (HullDelta is < -100 or > 100 || SuppliesDelta is < -100 or > 100 || SuppliesCost is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(HullDelta), "Ship effects must use -100 to 100 deltas and a 0-100 supply cost.");
+    }
+}
+
+public sealed class StarshipShipEventContext
+{
+    public bool HasRewards { get; init; }
+    public int BaseSuccessChancePercent { get; init; } = 80;
+    public int ResourceSuccessModifierPercent { get; init; }
+    public StarshipShipEffect? SuccessEffect { get; init; }
+    public StarshipShipEffect? FailureEffect { get; init; }
+    public int HullBefore { get; init; }
+    public int SuppliesBefore { get; init; }
+    public int HullAfter { get; set; }
+    public int SuppliesAfter { get; set; }
+
+    public void Validate()
+    {
+        if (BaseSuccessChancePercent is < 0 or > 100 || ResourceSuccessModifierPercent is < -100 or > 100 ||
+            HullBefore is < 0 or > 100 || SuppliesBefore is < 0 or > 100 || HullAfter is < 0 or > 100 || SuppliesAfter is < 0 or > 100)
+            throw new InvalidDataException("Persisted ship event resources and chance modifiers are invalid.");
+        SuccessEffect?.Validate();
+        FailureEffect?.Validate();
+        if (SuccessEffect?.SuppliesCost > 0 || FailureEffect?.SuppliesCost > 0)
+            throw new InvalidDataException("Ship outcome effects cannot require supplies.");
     }
 }
 

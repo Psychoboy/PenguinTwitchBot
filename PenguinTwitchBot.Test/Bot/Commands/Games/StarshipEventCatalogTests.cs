@@ -138,6 +138,34 @@ public class StarshipEventCatalogTests
         }
     }
 
+    [Fact]
+    public void ShipEffects_ValidateBoundsAffordableDefaultAndProtectedStationMechanics()
+    {
+        var settings = new StarshipExpeditionSettings();
+        var definition = Custom("ship-cache") with
+        {
+            SuccessChancePercent = 75,
+            ShipSuccessEffect = new() { SuppliesDelta = 10 },
+            ShipFailureEffect = new() { HullDelta = -20 }
+        };
+        settings.EventCatalog.Add(definition);
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+        var index = settings.EventCatalog.Count - 1;
+        settings.EventCatalog[index] = definition with { ShipFailureEffect = new() { HullDelta = -101 } };
+        Assert.Throws<ArgumentOutOfRangeException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+        settings.EventCatalog[index] = definition with { ShipFailureEffect = new() { SuppliesCost = 1 } };
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+        settings.EventCatalog[index] = definition with
+        {
+            Choices = [new() { ChoiceId = "go", Label = "Go", ShipEffect = new() { SuppliesCost = 1 } }, new() { ChoiceId = "pass", Label = "Pass" }]
+        };
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+        settings.EventCatalog[index] = definition;
+        var stationIndex = settings.EventCatalog.FindIndex(item => item.EventType == "StationStop");
+        settings.EventCatalog[stationIndex] = settings.EventCatalog[stationIndex] with { ShipSuccessEffect = new() { HullDelta = 1 } };
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+    }
+
     private static StarshipEventDefinition Custom(string id) => new(id, id, "An event near {subject}.",
         [new() { ChoiceId = "go", Label = "Go" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "go");
 }

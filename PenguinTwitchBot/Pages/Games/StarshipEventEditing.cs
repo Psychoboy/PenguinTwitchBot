@@ -39,7 +39,8 @@ public static class StarshipEventEditing
             EventType = UniqueId(slug + "-copy", settings),
             Title = source.Title[..Math.Min(94, source.Title.Length)] + " Copy",
             SortOrder = settings.EventCatalog.Count,
-            RewardProfileId = source.RewardProfileId ?? settings.EventRewardProfileIds.GetValueOrDefault(source.EventType, "")
+            RewardProfileId = source.RewardProfileId ?? settings.EventRewardProfileIds.GetValueOrDefault(source.EventType, ""),
+            ShipFailureEffect = source.ShipFailureEffect ?? StarshipEventCatalog.GetDefaultShipFailureEffect(source.EventType)
         };
     }
 

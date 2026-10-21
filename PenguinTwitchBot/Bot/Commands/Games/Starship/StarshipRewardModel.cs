@@ -68,10 +68,10 @@ public sealed partial class StarshipRewardProfile
     public static IReadOnlyList<string> ActionTimings { get; } = [StarshipActionTimings.Immediate, StarshipActionTimings.AfterBank];
 
     public static StarshipRewardProfile? FindForEvent(IEnumerable<StarshipRewardProfile> profiles,
-        IReadOnlyDictionary<string, string> bindings, string eventType)
+        IReadOnlyDictionary<string, string> bindings, string eventType, bool requireEnabled = true)
     {
         var binding = bindings.FirstOrDefault(item => string.Equals(item.Key, eventType, StringComparison.OrdinalIgnoreCase));
-        return profiles.FirstOrDefault(profile => profile.Enabled && (binding.Key != null
+        return profiles.FirstOrDefault(profile => (!requireEnabled || profile.Enabled) && (binding.Key != null
             ? string.Equals(profile.Id, binding.Value, StringComparison.OrdinalIgnoreCase)
             : string.Equals(profile.EventType, eventType, StringComparison.OrdinalIgnoreCase)));
     }

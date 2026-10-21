@@ -58,6 +58,7 @@ public sealed class StarshipExpeditionSnapshot
     public long NextActivityId { get; set; } = 1;
     public StarshipShipSnapshot Ship { get; init; } = new();
     public StarshipShipSystemsSnapshot? ShipSystems { get; init; }
+    public string ReturnReason { get; set; } = string.Empty;
 }
 
 /// <summary>Look of the voyage's ship, generated once from the voyage seed.</summary>
@@ -139,6 +140,7 @@ public sealed class StarshipExpeditionEventSnapshot
     public string OutcomeResult { get; set; } = string.Empty;
     public string OutcomeRarity { get; set; } = string.Empty;
     public string OutcomeRarityColor { get; set; } = string.Empty;
+    public StarshipShipEventContext? ShipContext { get; set; }
     public List<StarshipEventVoteSnapshot> Votes { get; init; } = [];
     public List<string> EligibleRewardUserIds { get; init; } = [];
     public List<StarshipRewardOutcomeSnapshot> RewardOutcomes { get; init; } = [];
@@ -164,6 +166,7 @@ public sealed class StarshipEventChoiceSnapshot
     public int RewardMultiplierPercent { get; init; } = 100;
     public int RiskMultiplierPercent { get; init; } = 100;
     public string Hint { get; init; } = string.Empty;
+    public StarshipShipEffect? ShipEffect { get; init; }
 }
 
 public sealed class StarshipEventPathStepSnapshot

@@ -50,13 +50,13 @@ public static class StarshipExpeditionNarrative
         switch (expeditionEvent.OutcomeResult)
         {
             case OutcomeSuccess:
-                lines.Add($"SUCCESS - {expeditionEvent.OutcomeRarity} find.");
+                lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "SUCCESS." : $"SUCCESS - {expeditionEvent.OutcomeRarity} find.");
                 lines.Add(earned.Count == 0
-                    ? "No rewards were paid out (caps reached or crew inactive)."
+                    ? expeditionEvent.ShipContext is { HasRewards: false } ? "Points rewards are disabled for this event." : "No rewards were paid out (caps reached or crew inactive)."
                     : $"Earned {FormatAmounts(earned)} for {expeditionEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0)} crew (unbanked until a station stop or voyage end).");
                 break;
             case OutcomeFailure:
-                lines.Add($"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.");
+                lines.Add(string.IsNullOrEmpty(expeditionEvent.OutcomeRarity) ? "FAILED - the encounter was unsuccessful." : $"FAILED - the {expeditionEvent.OutcomeRarity} find was lost.");
                 if (lost.Count > 0)
                     lines.Add($"The crew lost {FormatAmounts(lost)} of unbanked points ({expeditionEvent.RewardOutcomes.Count(outcome => outcome.LostAmount > 0)} crew affected).");
                 break;
@@ -64,6 +64,9 @@ public static class StarshipExpeditionNarrative
                 lines.Add("The crew passed - no risk, no reward.");
                 break;
         }
+
+        if (expeditionEvent.ShipContext is { } ship)
+            lines.Add($"Ship hull: {ship.HullBefore} -> {ship.HullAfter}. Supplies: {ship.SuppliesBefore} -> {ship.SuppliesAfter}.");
 
         return lines;
     }
@@ -83,7 +86,8 @@ public static class StarshipExpeditionNarrative
 
     public static IReadOnlyList<string> BuildVoyageLines(StarshipExpeditionSnapshot snapshot)
     {
-        var result = snapshot.Status == StarshipExpeditionStatus.Returned ? "completed" : "aborted";
+        var result = snapshot.ReturnReason == "HullDepleted" ? "returned early (hull depleted)" :
+            snapshot.Status == StarshipExpeditionStatus.Returned ? "completed" : "aborted";
         var succeeded = snapshot.CompletedEvents.Count(item => item.OutcomeResult == OutcomeSuccess);
         var failed = snapshot.CompletedEvents.Count(item => item.OutcomeResult == OutcomeFailure);
         var lines = new List<string>

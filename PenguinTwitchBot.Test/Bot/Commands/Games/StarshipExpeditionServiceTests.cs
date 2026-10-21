@@ -890,10 +890,11 @@ public class StarshipExpeditionServiceTests
             It.Is<Dictionary<string, string>>(variables => variables["LostAmount"] == "20")), Times.Once);
     }
 
-    private static StarshipExpeditionSnapshot CreateSalvageFixture(int pilotBalance = 100) => new()
+    private static StarshipExpeditionSnapshot CreateSalvageFixture(int pilotBalance = 100, StarshipShipSystemsSnapshot? shipSystems = null) => new()
     {
         ExpeditionId = Guid.NewGuid(),
         Seed = 71,
+        ShipSystems = shipSystems,
         StartedAtUtc = DateTimeOffset.UtcNow,
         UpdatedAtUtc = DateTimeOffset.UtcNow,
         Status = StarshipExpeditionStatus.EventOpen,
@@ -1866,6 +1867,231 @@ public class StarshipExpeditionServiceTests
         await service.ProcessDueTransitionAsync();
         Assert.All((await service.GetSnapshotAsync())!.BankedPayouts, payout => Assert.True(payout.IsPaid));
         points.Verify(instance => instance.AddPointsByUserIdOnce("second-user", 2, 20, "second-operation"), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("resupply", 40, 90, 0)]
+    [InlineData("repair", 70, 35, 0)]
+    [InlineData("continue", 40, 50, 10)]
+    public async Task ShipStationChoices_ApplyDistinctEffectsAndBankEveryChoice(string choiceId, int expectedHull, int expectedSupplies, int expectedBonus)
+    {
+        var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 40, StartingSupplies = 50 }));
+        snapshot.CurrentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 2, EventType = "StationStop", Title = "Station", DefaultChoiceId = "resupply",
+            OpenedAtUtc = DateTimeOffset.UtcNow, ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+            Choices = [new() { ChoiceId = "resupply", Label = "Resupply" }, new() { ChoiceId = "repair", Label = "Repair" }, new() { ChoiceId = "continue", Label = "Continue" }]
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(snapshot);
+        var points = new Mock<IPointsSystem>();
+        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>())).ReturnsAsync(true);
+        var service = CreateService(store, pointsSystem: points.Object);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), choiceId);
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(expectedHull, resolved.ShipSystems!.Hull);
+        Assert.Equal(expectedSupplies, resolved.ShipSystems.Supplies);
+        Assert.Equal(expectedBonus, resolved.ShipSystems.PendingSuccessBonusPercent);
+        Assert.True(Assert.Single(resolved.BankedPayouts).IsPaid);
+        await service.ProcessDueTransitionAsync();
+        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ShipTravel_ChargesPerOpenedLegAndOmitsUnaffordableRepair()
+    {
+        var settings = new StarshipExpeditionSettings { LegCount = 5, StationIntervalLegs = 1, ShipSystems = new() { StartingSupplies = 10 } };
+        var service = CreateService(new InMemoryStateStore(), settingsStore: new InMemorySettingsStore(settings));
+        await service.StartExpeditionAsync("moderator", seed: 71);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        var route = await service.AdvanceEventAsync();
+        Assert.Equal(10, route.ShipSystems!.Supplies);
+        await service.AdvanceEventAsync();
+
+        var station = await service.AdvanceEventAsync();
+
+        Assert.Equal(5, station.ShipSystems!.Supplies);
+        Assert.Equal("StationStop", station.CurrentEvent!.EventType);
+        Assert.DoesNotContain(station.CurrentEvent.Choices, choice => choice.ChoiceId == "repair");
+        Assert.Contains(station.CurrentEvent.Choices, choice => choice.ChoiceId == station.CurrentEvent.DefaultChoiceId);
+        await Assert.ThrowsAsync<ArgumentException>(() => service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "repair"));
+    }
+
+    [Theory]
+    [InlineData(100, "Success", 100)]
+    [InlineData(0, "Failure", 80)]
+    public async Task ShipOutcome_ResolvesWithoutRewardProfileAndAppliesSharedDamage(int chance, string expectedOutcome, int expectedHull)
+    {
+        var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new()));
+        fixture.RewardProfiles.Clear();
+        var expeditionEvent = fixture.CurrentEvent!;
+        expeditionEvent.Choices = [new() { ChoiceId = "recover", Label = "Recover" }];
+        expeditionEvent.ChoicePool = [.. expeditionEvent.Choices];
+        expeditionEvent.ShipContext = new()
+        {
+            BaseSuccessChancePercent = chance, FailureEffect = new() { HullDelta = -20 },
+            HullBefore = 100, SuppliesBefore = 100, HullAfter = 100, SuppliesAfter = 100
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(fixture);
+        var service = CreateService(store);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "recover");
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal(expectedOutcome, resolved.CompletedEvents.Last().OutcomeResult);
+        Assert.Equal(expectedHull, resolved.ShipSystems!.Hull);
+        Assert.Empty(resolved.CompletedEvents.Last().RewardOutcomes);
+        Assert.Equal(100, resolved.Crew.Single().UnbankedBalances.Single().Amount);
+        Assert.DoesNotContain("caps reached", StarshipExpeditionNarrative.BuildEventMessage(resolved.CompletedEvents.Last()));
+    }
+
+    [Fact]
+    public async Task ShipHullDepletion_ReturnsAndBanksOnlyOnceAcrossRecovery()
+    {
+        var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 10 }));
+        fixture.RewardProfiles.Clear();
+        fixture.CurrentEvent!.Choices = [new() { ChoiceId = "recover", Label = "Recover" }];
+        fixture.CurrentEvent.ChoicePool = [.. fixture.CurrentEvent.Choices];
+        fixture.CurrentEvent.ShipContext = new() { BaseSuccessChancePercent = 0, FailureEffect = new() { HullDelta = -20 }, HullBefore = 10 };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(fixture);
+        var points = new Mock<IPointsSystem>();
+        points.Setup(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>())).ReturnsAsync(true);
+        var service = CreateService(store, pointsSystem: points.Object);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "recover");
+
+        var returned = await service.AdvanceEventAsync();
+
+        Assert.Equal(StarshipExpeditionStatus.Returned, returned.Status);
+        Assert.Equal("HullDepleted", returned.ReturnReason);
+        Assert.Contains("returned early (hull depleted)", string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(returned)));
+        Assert.Equal(0, returned.ShipSystems!.Hull);
+        Assert.Null(returned.NextEventAtUtc);
+        Assert.True(Assert.Single(returned.BankedPayouts).IsPaid);
+        await CreateService(store, pointsSystem: points.Object).ProcessDueTransitionAsync();
+        points.Verify(instance => instance.AddPointsByUserIdOnce("pilot-id", 2, 100, It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ShipMultiStep_ChargesTravelAndChoiceCostOnceAndRetainsBonusAfterRecovery()
+    {
+        var settings = new StarshipExpeditionSettings { LegCount = 5, StationIntervalLegs = 24 };
+        settings.EventCatalog = settings.EventCatalog.Where(definition => StarshipEventCatalog.IsStructural(definition.EventType)).ToList();
+        settings.EventCatalog.Add(new StarshipEventDefinition("ship-test", "Ship Test", "A cache.",
+            [new() { ChoiceId = "scan", Label = "Scan", ContinuesEvent = true, GrantsFlag = "scanned", ShipEffect = new() { SuppliesCost = 10 } },
+             new() { ChoiceId = "recover", Label = "Recover" }], "recover") { SuccessChancePercent = 100 });
+        var settingsStore = new InMemorySettingsStore(settings);
+        var store = new InMemoryStateStore();
+        var service = CreateService(store, settingsStore: settingsStore);
+        await service.StartExpeditionAsync("moderator", seed: 71);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.AdvanceEventAsync();
+        await service.AdvanceEventAsync();
+        var cruising = await service.GetSnapshotAsync();
+        StarshipShipSystems.ApplyStationChoice(cruising!.ShipSystems!, "test-continue", "continue");
+        await store.SaveAsync(cruising);
+        service = CreateService(store, settingsStore: settingsStore);
+        var opened = await service.AdvanceEventAsync();
+        Assert.Equal(95, opened.ShipSystems!.Supplies);
+        Assert.Equal(10, opened.CurrentEvent!.ShipContext!.ResourceSuccessModifierPercent);
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
+        var stepped = await service.AdvanceEventAsync();
+        Assert.Equal(85, stepped.ShipSystems!.Supplies);
+        Assert.Equal(10, stepped.ShipSystems.ActiveSuccessBonusPercent);
+        Assert.DoesNotContain(stepped.CurrentEvent!.Choices, choice => choice.ChoiceId == "scan");
+
+        var recovered = CreateService(store, settingsStore: settingsStore);
+        var finished = await recovered.AdvanceEventAsync();
+
+        Assert.Equal(85, finished.ShipSystems!.Supplies);
+        Assert.Null(finished.ShipSystems.ActiveBonusEventId);
+        Assert.Equal("Success", finished.CompletedEvents.Last().OutcomeResult);
+    }
+
+    [Fact]
+    public async Task ShipIntegration_LegacyFoundationSnapshotDoesNotGainStationEffects()
+    {
+        var ship = StarshipShipSystems.Create(new() { StartingHull = 40, StartingSupplies = 50 })!;
+        var json = JsonSerializer.SerializeToNode(ship)!.AsObject();
+        json.Remove(nameof(StarshipShipSystemsSnapshot.IntegrationEnabled));
+        var legacy = JsonSerializer.Deserialize<StarshipShipSystemsSnapshot>(json.ToJsonString())!;
+        Assert.False(legacy.IntegrationEnabled);
+        var fixture = CreateSalvageFixture(shipSystems: legacy);
+        fixture.CurrentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), EventType = "StationStop", Sequence = 2, Title = "Station", DefaultChoiceId = "resupply",
+            ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60), Choices = [new() { ChoiceId = "resupply", Label = "Resupply" }]
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(fixture);
+
+        var resolved = await CreateService(store).AdvanceEventAsync();
+
+        Assert.Equal(40, resolved.ShipSystems!.Hull);
+        Assert.Equal(50, resolved.ShipSystems.Supplies);
+        Assert.Empty(resolved.ShipSystems.AppliedOperationIds);
+    }
+
+    [Fact]
+    public void ShipSuccessChance_UsesFrozenResourceContextAndTerminalChoiceModifier()
+    {
+        var expeditionEvent = new StarshipExpeditionEventSnapshot
+        {
+            ShipContext = new() { BaseSuccessChancePercent = 75, ResourceSuccessModifierPercent = -5 },
+            SuccessChanceModifierPercent = 20
+        };
+        Assert.Equal(90, StarshipRewardResolver.GetEffectiveSuccessChance(null, expeditionEvent));
+        Assert.Equal(75, StarshipRewardResolver.GetEffectiveSuccessChance(null, expeditionEvent, new() { SuccessChanceModifierPercent = -15 }));
+    }
+
+    [Fact]
+    public async Task ShipChoice_SaveFailureRollsBackEffectAndRetryAppliesItOnce()
+    {
+        var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 40, StartingSupplies = 50 }));
+        fixture.CurrentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 2, EventType = "StationStop", Title = "Station", DefaultChoiceId = "resupply",
+            ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60), Choices = [new() { ChoiceId = "resupply", Label = "Resupply" }]
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(fixture);
+        var service = CreateService(store);
+        store.FailNextSave = true;
+
+        await Assert.ThrowsAsync<IOException>(() => service.AdvanceEventAsync());
+
+        var rolledBack = await service.GetSnapshotAsync();
+        Assert.Equal(50, rolledBack!.ShipSystems!.Supplies);
+        Assert.Empty(rolledBack.ShipSystems.AppliedOperationIds);
+        var retried = await service.AdvanceEventAsync();
+        Assert.Equal(90, retried.ShipSystems!.Supplies);
+        Assert.Single(retried.ShipSystems.AppliedOperationIds);
+    }
+
+    [Fact]
+    public async Task ShipChoice_StaleUnaffordableVoteUsesSafeDefaultWithoutEnrollingRejectedViewer()
+    {
+        var fixture = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingSupplies = 5 }));
+        fixture.CurrentEvent = new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(), Sequence = 2, EventType = "StationStop", Title = "Station", DefaultChoiceId = "resupply",
+            ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+            Choices = [new() { ChoiceId = "resupply", Label = "Resupply" }, new() { ChoiceId = "repair", Label = "Repair" }],
+            Votes = [new() { UserId = "pilot-id", ChoiceId = "repair" }]
+        };
+        var store = new InMemoryStateStore();
+        await store.SaveAsync(fixture);
+        var service = CreateService(store);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.VoteAsync(CreateArgs("new-viewer", "New Viewer"), "repair"));
+        Assert.Single((await service.GetSnapshotAsync())!.Crew);
+
+        var resolved = await service.AdvanceEventAsync();
+
+        Assert.Equal("resupply", resolved.CompletedEvents.Last().ResolvedChoiceId);
+        Assert.Equal(45, resolved.ShipSystems!.Supplies);
     }
 
     private static StarshipExpeditionService CreateService(

@@ -61,6 +61,7 @@ public class StarshipEventEditingTests
         copy.Choices.Clear();
         Assert.Equal(4, original.Choices.Count);
         Assert.Equal("SalvageSite", copy.RewardProfileId);
+        Assert.Equal(original.ShipFailureEffect, copy.ShipFailureEffect);
         Assert.DoesNotContain(settings.EventCatalog, definition => definition.EventType == copy.EventType);
     }
 

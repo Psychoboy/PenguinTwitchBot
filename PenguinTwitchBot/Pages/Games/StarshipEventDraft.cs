@@ -22,6 +22,9 @@ public sealed class StarshipEventDraft
     public List<string> Images { get; set; } = [];
     public Dictionary<string, string> LootByTier { get; set; } = [];
     public string? RewardProfileId { get; set; }
+    public int? SuccessChancePercent { get; set; }
+    public StarshipShipEffect? ShipSuccessEffect { get; set; }
+    public StarshipShipEffect? ShipFailureEffect { get; set; }
 
     public StarshipEventDefinition ToDefinition() => StarshipEventEditing.Convert<StarshipEventDefinition>(this);
     public static StarshipEventDraft From(StarshipEventDefinition definition) => StarshipEventEditing.Convert<StarshipEventDraft>(definition);
@@ -41,4 +44,5 @@ public sealed class StarshipChoiceDraft
     public int RewardMultiplierPercent { get; set; } = 100;
     public int RiskMultiplierPercent { get; set; } = 100;
     public string Hint { get; set; } = "";
+    public StarshipShipEffect? ShipEffect { get; set; }
 }

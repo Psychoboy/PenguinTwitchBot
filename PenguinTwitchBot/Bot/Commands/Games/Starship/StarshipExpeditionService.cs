@@ -511,6 +511,8 @@ public sealed class StarshipExpeditionService(
                 choice = snapshot.CurrentEvent.Choices[choiceNumber - 1];
             if (choice == null)
                 throw new ArgumentException("That is not one of the current event options. Use the option number, e.g. !sv 1.", nameof(choiceId));
+            if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems && !CanAffordShipChoice(shipSystems, snapshot.CurrentEvent.EventType, choice))
+                throw new InvalidOperationException("The ship does not have enough supplies for that choice.");
 
             var previousSnapshot = Clone(snapshot);
             enrolled = AddCrewMember(snapshot, userId, eventArgs.Name, eventArgs.DisplayName,
@@ -1120,6 +1122,27 @@ public sealed class StarshipExpeditionService(
             DefaultChoiceId = definition.DefaultChoiceId,
             Votes = []
         };
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
+        {
+            if (snapshot.CurrentLeg > 0)
+                StarshipShipSystems.ApplyTravel(shipSystems, $"ship-travel:{snapshot.CurrentEvent.EventId:N}");
+            StarshipShipSystems.BeginEvent(shipSystems, snapshot.CurrentEvent.EventId, definition.EventType == "StationStop");
+            snapshot.CurrentEvent.Choices = FilterChoices(definition.Choices, [], shipSystems, definition.EventType);
+            var configuredProfile = StarshipRewardProfile.FindForEvent(snapshot.RewardProfiles, snapshot.EventRewardProfileIds, definition.EventType, requireEnabled: false);
+            snapshot.CurrentEvent.ShipContext = new()
+            {
+                BaseSuccessChancePercent = definition.SuccessChancePercent ?? configuredProfile?.SuccessChancePercent ?? shipSystems.Rules.DefaultEventSuccessChancePercent,
+                ResourceSuccessModifierPercent = (shipSystems.ActiveBonusEventId == snapshot.CurrentEvent.EventId ? shipSystems.ActiveSuccessBonusPercent : 0) -
+                    (shipSystems.Supplies == 0 ? shipSystems.Rules.EmptySuppliesSuccessPenaltyPercent : 0),
+                HasRewards = configuredProfile?.Enabled == true,
+                SuccessEffect = definition.ShipSuccessEffect,
+                FailureEffect = definition.ShipFailureEffect ?? StarshipEventCatalog.GetDefaultShipFailureEffect(definition.EventType),
+                HullBefore = shipSystems.Hull,
+                SuppliesBefore = shipSystems.Supplies,
+                HullAfter = shipSystems.Hull,
+                SuppliesAfter = shipSystems.Supplies
+            };
+        }
         snapshot.NextEventSequence++;
         snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
             definition.Description, snapshot.CurrentEvent, snapshot.Seed, [], null);
@@ -1132,10 +1155,18 @@ public sealed class StarshipExpeditionService(
 
     private static List<StarshipEventChoiceSnapshot> FilterChoices(
         IEnumerable<StarshipEventChoiceSnapshot> pool,
-        ICollection<string> flags) =>
+        ICollection<string> flags,
+        StarshipShipSystemsSnapshot? shipSystems = null,
+        string eventType = "") =>
         pool.Where(choice => string.IsNullOrEmpty(choice.GrantsFlag) ||
                              !flags.Contains(choice.GrantsFlag, StringComparer.OrdinalIgnoreCase))
+            .Where(choice => shipSystems == null || CanAffordShipChoice(shipSystems, eventType, choice))
             .ToList();
+
+    private static bool CanAffordShipChoice(StarshipShipSystemsSnapshot state, string eventType, StarshipEventChoiceSnapshot choice) =>
+        StarshipShipSystems.CanAfford(state, eventType == "StationStop"
+            ? StarshipShipSystems.GetStationEffect(state, choice.ChoiceId)
+            : choice.ShipEffect ?? new());
 
     private static void AdvanceEventStepLocked(
         StarshipExpeditionSnapshot snapshot,
@@ -1186,7 +1217,8 @@ public sealed class StarshipExpeditionService(
         currentEvent.StepNumber++;
         currentEvent.Votes.Clear();
         currentEvent.PendingRiskConfirmations.Clear();
-        currentEvent.Choices = FilterChoices(currentEvent.ChoicePool, currentEvent.Flags);
+        currentEvent.Choices = FilterChoices(currentEvent.ChoicePool, currentEvent.Flags,
+            snapshot.ShipSystems is { IntegrationEnabled: true } state ? state : null, currentEvent.EventType);
         currentEvent.OpenedAtUtc = now;
         currentEvent.ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds);
     }
@@ -1206,7 +1238,25 @@ public sealed class StarshipExpeditionService(
             : currentEvent.DefaultChoiceId;
         var winningChoice = currentEvent.Choices.FirstOrDefault(choice =>
             string.Equals(choice.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase));
-        if (winningChoice is { ContinuesEvent: true })
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
+        {
+            if (winningChoice == null || !CanAffordShipChoice(shipSystems, currentEvent.EventType, winningChoice))
+            {
+                winningId = currentEvent.DefaultChoiceId;
+                winningChoice = currentEvent.ChoicePool.Concat(currentEvent.Choices).First(choice => choice.ChoiceId == winningId);
+                currentEvent.Choices = FilterChoices(currentEvent.ChoicePool.Count > 0 ? currentEvent.ChoicePool : currentEvent.Choices,
+                    currentEvent.Flags, shipSystems, currentEvent.EventType);
+            }
+            var operationId = $"ship-choice:{currentEvent.EventId:N}:{currentEvent.StepNumber}:{winningId}";
+            var applied = currentEvent.EventType == "StationStop"
+                ? StarshipShipSystems.ApplyStationChoice(shipSystems, operationId, winningId)
+                : StarshipShipSystems.ApplyEffect(shipSystems, operationId, winningChoice.ShipEffect ?? new());
+            if (applied == StarshipShipEffectResult.InsufficientSupplies)
+                throw new InvalidOperationException("The default ship choice must remain affordable.");
+            UpdateShipEventResources(currentEvent, shipSystems);
+        }
+        var hullDepleted = snapshot.ShipSystems is { IntegrationEnabled: true } activeShip && StarshipShipSystems.RequiresEmergencyReturn(activeShip);
+        if (winningChoice is { ContinuesEvent: true } && !hullDepleted)
         {
             AdvanceEventStepLocked(snapshot, currentEvent, winningChoice,
                 voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0,
@@ -1215,6 +1265,8 @@ public sealed class StarshipExpeditionService(
         }
 
         currentEvent.ResolvedChoiceId = winningId;
+        if (hullDepleted && winningChoice?.EndsWithoutReward != true)
+            currentEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomeFailure;
         currentEvent.ResolvedAtUtc = now;
         currentEvent.PendingRiskConfirmations.Clear();
         currentEvent.Path.Add(new StarshipEventPathStepSnapshot
@@ -1258,8 +1310,24 @@ public sealed class StarshipExpeditionService(
         var resolvedEvent = snapshot.CompletedEvents[^1];
         resolvedEvent.EligibleRewardUserIds.AddRange(eligibleUserIds.Order(StringComparer.OrdinalIgnoreCase));
 
+        if (string.IsNullOrEmpty(resolvedEvent.OutcomeResult) &&
+            (profile != null || resolvedEvent.ShipContext != null && !StarshipEventCatalog.IsStructural(resolvedEvent.EventType)))
+            StarshipRewardResolver.ResolveOutcome(snapshot, resolvedEvent, profile);
         if (profile != null)
             StarshipRewardResolver.ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
+        if (snapshot.ShipSystems is { IntegrationEnabled: true } shipSystems)
+        {
+            ApplyShipOutcome(resolvedEvent, shipSystems);
+            StarshipShipSystems.CompleteEvent(shipSystems, resolvedEvent.EventId);
+            if (StarshipShipSystems.RequiresEmergencyReturn(shipSystems))
+            {
+                snapshot.Status = StarshipExpeditionStatus.Returned;
+                snapshot.ReturnReason = "HullDepleted";
+                if (!string.IsNullOrEmpty(resolvedEvent.Sector)) snapshot.CurrentSector = resolvedEvent.Sector;
+                snapshot.NextEventAtUtc = null;
+                snapshot.CurrentEvent = null;
+            }
+        }
         resolvedEvent.OutcomeStory = StarshipExpeditionStory.BuildOutcomeStory(snapshot, resolvedEvent);
         if (profile != null)
             EnqueueRewardActions(snapshot, resolvedEvent, profile);
@@ -1269,6 +1337,35 @@ public sealed class StarshipExpeditionService(
 
         if (resolvedEvent.EventType == "StationStop" || snapshot.Status == StarshipExpeditionStatus.Returned)
             QueuePayouts(snapshot, resolvedEvent.EventId);
+    }
+
+    private static void UpdateShipEventResources(StarshipExpeditionEventSnapshot expeditionEvent, StarshipShipSystemsSnapshot state)
+    {
+        if (expeditionEvent.ShipContext == null) return;
+        expeditionEvent.ShipContext.HullAfter = state.Hull;
+        expeditionEvent.ShipContext.SuppliesAfter = state.Supplies;
+    }
+
+    private static void ApplyShipOutcome(StarshipExpeditionEventSnapshot resolvedEvent, StarshipShipSystemsSnapshot state)
+    {
+        var effect = resolvedEvent.OutcomeResult switch
+        {
+            StarshipExpeditionNarrative.OutcomeSuccess => resolvedEvent.ShipContext?.SuccessEffect,
+            StarshipExpeditionNarrative.OutcomeFailure => resolvedEvent.ShipContext?.FailureEffect,
+            _ => null
+        };
+        if (effect != null)
+        {
+            var choice = resolvedEvent.Choices.FirstOrDefault(item => item.ChoiceId == resolvedEvent.ResolvedChoiceId);
+            var riskPercent = StarshipRewardResolver.CombinePercent(resolvedEvent.RiskMultiplierPercent, choice?.RiskMultiplierPercent ?? 100);
+            var scaled = effect with
+            {
+                HullDelta = effect.HullDelta < 0 ? (int)Math.Clamp((long)effect.HullDelta * riskPercent / 100, -100, 0) : effect.HullDelta,
+                SuppliesDelta = effect.SuppliesDelta < 0 ? (int)Math.Clamp((long)effect.SuppliesDelta * riskPercent / 100, -100, 0) : effect.SuppliesDelta
+            };
+            StarshipShipSystems.ApplyEffect(state, $"ship-outcome:{resolvedEvent.EventId:N}", scaled);
+        }
+        UpdateShipEventResources(resolvedEvent, state);
     }
 
     private async Task<HashSet<string>> GetEligibleCrewUserIdsAsync(

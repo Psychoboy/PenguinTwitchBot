@@ -132,6 +132,19 @@ public sealed class StarshipExpeditionStateStore(IServiceScopeFactory scopeFacto
         {
             throw new InvalidDataException("Starship expedition event state is invalid.");
         }
+        foreach (var expeditionEvent in snapshot.CompletedEvents.Concat(snapshot.CurrentEvent == null ? [] : new[] { snapshot.CurrentEvent }))
+        {
+            try
+            {
+                expeditionEvent.ShipContext?.Validate();
+                foreach (var choice in expeditionEvent.Choices.Concat(expeditionEvent.ChoicePool))
+                    choice.ShipEffect?.Validate();
+            }
+            catch (ArgumentException ex)
+            {
+                throw new InvalidDataException("Persisted ship event effects are invalid.", ex);
+            }
+        }
         if (snapshot.CurrentEvent is { } openEvent &&
             (openEvent.PendingRiskConfirmations == null || openEvent.PendingRiskConfirmations.Select(item => item.UserId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != openEvent.PendingRiskConfirmations.Count))
             throw new InvalidDataException("Starship risk confirmations are invalid.");

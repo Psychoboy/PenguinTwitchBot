@@ -433,7 +433,10 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
 
         var edited = await CreateStore().LoadAsync();
         var index = edited.EventCatalog.FindIndex(definition => definition.EventType == "release-cache");
-        edited.EventCatalog[index] = edited.EventCatalog[index] with { Title = "Edited Cache", SubjectNames = ["the New Archive"] };
+        edited.EventCatalog[index] = edited.EventCatalog[index] with
+        {
+            Title = "Edited Cache", SubjectNames = ["the New Archive"], ShipSuccessEffect = new() { HullDelta = -20 }
+        };
         var reward = edited.RewardProfiles.Single(profile => profile.Id == "release-profile").Tiers[0].Rewards[0];
         reward.Minimum = reward.Maximum = 99;
         await CreateStore().SaveAsync(edited);
@@ -445,6 +448,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal("Original Cache", completed.Title);
         Assert.Equal("the Quiet Archive", completed.Subject);
         Assert.Equal(10, Assert.Single(completed.RewardOutcomes).EarnedAmount);
+        Assert.NotNull(completed.ShipContext);
+        Assert.Equal(100, resolved.ShipSystems!.Hull);
         await recovered.StopExpeditionAsync("moderator");
         points.Verify(instance => instance.AddPointsByUserIdOnce("release-pilot", 8, 10, It.IsAny<string>()), Times.Once);
 
@@ -458,6 +463,9 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal("the New Archive", nextEvent.CurrentEvent.Subject);
         var nextResult = await next.AdvanceEventAsync();
         Assert.Equal(99, Assert.Single(nextResult.CompletedEvents.Last().RewardOutcomes).EarnedAmount);
+        Assert.Equal(80, nextResult.ShipSystems!.Hull);
+        Assert.Equal(100, nextResult.CompletedEvents.Last().ShipContext!.HullBefore);
+        Assert.Equal(80, nextResult.CompletedEvents.Last().ShipContext!.HullAfter);
     }
 
     [Fact]
