@@ -115,7 +115,7 @@ public static partial class StarshipEventCatalog
                 throw new ArgumentException($"{definition.Title}: revealing rarity requires a reward profile.");
             if (definition.AllowedRoutes == null || definition.AllowedRoutes.Any(route => !Routes.Contains(route, StringComparer.Ordinal)))
                 throw new ArgumentException($"{definition.Title}: unknown route filter.");
-            if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !settings.GetEffectiveSectors().Contains(sector, StringComparer.OrdinalIgnoreCase)))
+            if (definition.AllowedSectors == null || definition.AllowedSectors.Any(sector => !StarshipExpeditionSettings.BuiltInSectors.Concat(settings.CustomSectors).Contains(sector, StringComparer.OrdinalIgnoreCase)))
                 throw new ArgumentException($"{definition.Title}: unknown sector filter.");
             if (definition.SubjectStyle is not ("" or "ship" or "signal" or "hazard" or "custom"))
                 throw new ArgumentException($"{definition.Title}: unknown subject style.");

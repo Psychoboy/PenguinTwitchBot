@@ -11,6 +11,14 @@ A shared, long-form voyage. Viewers board, then vote in chat on occasional event
 4. Moderators can use `!starship advance` to skip ahead and `!starship stop` to abort.
 5. The voyage ends after the configured number of legs. Anything earned is banked to the crew.
 
+## Sector Selection
+
+In **Voyage Settings**, the **Sectors** section lets you enable or disable each built-in sector alongside the custom-sector list. All five built-ins are enabled by default, including when loading older settings.
+
+- Keep at least two sectors available in total. You can disable every built-in if you add at least two custom sectors.
+- Save the selection before starting a voyage. The seeded preview uses your unsaved selection; disabled sectors are excluded from both previews and new voyages.
+- Active voyages keep the sector pool copied at departure, even after edits or a bot restart. Event filters can still reference disabled built-in sectors; those events become eligible there again if the sector is re-enabled.
+
 ## Events and choices
 
 Some events resolve in one vote. Others are mini-voyages made of several steps:
@@ -71,4 +79,4 @@ Event definitions and reward profiles are stored as versioned database documents
 
 New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
 
-Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized. Event-editor controls and built-in sector toggles are separate later stages.
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized. Event-editor controls are a separate later stage.

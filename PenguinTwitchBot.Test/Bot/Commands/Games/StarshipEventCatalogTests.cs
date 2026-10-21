@@ -123,6 +123,21 @@ public class StarshipEventCatalogTests
         Assert.Equal("a common find", StarshipExpeditionStory.Render("{loot}", expeditionEvent, 81, [], "Common"));
     }
 
+    [Fact]
+    public void DisabledBuiltInSector_RemainsValidFilterButCannotSelectItsEvent()
+    {
+        var settings = new StarshipExpeditionSettings { DisabledBuiltInSectors = ["Kepler Reach"] };
+        settings.EventCatalog.Add(Custom("kepler-only") with { AllowedSectors = ["Kepler Reach"], Weight = 10 });
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+
+        foreach (var sector in settings.GetEffectiveSectors())
+        {
+            var selected = StarshipEventCatalog.Select(settings.EventCatalog,
+                new() { CurrentLeg = 1, CurrentRoute = "Uncharted", CurrentSector = sector, Seed = 15 }, 2);
+            Assert.NotEqual("kepler-only", selected.EventType);
+        }
+    }
+
     private static StarshipEventDefinition Custom(string id) => new(id, id, "An event near {subject}.",
         [new() { ChoiceId = "go", Label = "Go" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "go");
 }

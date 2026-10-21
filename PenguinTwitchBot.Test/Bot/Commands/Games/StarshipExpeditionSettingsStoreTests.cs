@@ -199,6 +199,7 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         var json = JsonSerializer.SerializeToNode(legacy, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
         json.Remove("eventCatalog");
         json.Remove("catalogStorageVersion");
+        json.Remove("disabledBuiltInSectors");
         using (var scope = _services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -207,6 +208,8 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         }
         var imported = await CreateStore().LoadAsync();
         Assert.Equal(1, imported.CatalogStorageVersion);
+        Assert.Empty(imported.DisabledBuiltInSectors);
+        Assert.Equal(StarshipExpeditionSettings.BuiltInSectors, imported.GetEffectiveSectors());
         Assert.Equal("My original reward", imported.RewardProfiles.Single(profile => profile.EventType == "RouteChoice").Name);
         imported.EventCatalog.Add(new StarshipEventDefinition("custom-event", "Custom Event", "A custom event.",
             [new() { ChoiceId = "yes", Label = "Yes" }, new() { ChoiceId = "no", Label = "No" }], "yes"));
@@ -264,6 +267,49 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
             await context.StarshipEvents.ExecuteDeleteAsync();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => CreateStore().LoadAsync());
+    }
+
+    [Fact]
+    public async Task SaveAndLoad_PreservesSelectedSectorsAndNormalizesDisabledNames()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            DisabledBuiltInSectors = [" kepler reach ", "VELA EXPANSE", "Kepler Reach"],
+            CustomSectors = ["Glass Nebula"]
+        };
+        await CreateStore().SaveAsync(settings);
+
+        var loaded = await CreateStore().LoadAsync();
+
+        Assert.Equal(["Kepler Reach", "Vela Expanse"], loaded.DisabledBuiltInSectors);
+        Assert.Equal(["Ternion Belt", "Asterion Drift", "Pioneer Verge", "Glass Nebula"], loaded.GetEffectiveSectors());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void SectorSelection_RejectsFewerThanTwoEffectiveSectors(int customCount)
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors],
+            CustomSectors = Enumerable.Range(0, customCount).Select(index => $"Sector {index}").ToList()
+        };
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
+    }
+
+    [Fact]
+    public void SectorSelection_AllowsCustomOnlyPoolAndRejectsUnknownBuiltIns()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors],
+            CustomSectors = ["Glass Nebula", "Delta Reach"]
+        };
+        StarshipExpeditionSettings.NormalizeAndValidate(settings);
+        Assert.Equal(settings.CustomSectors, settings.GetEffectiveSectors());
+        settings.DisabledBuiltInSectors.Add("Unknown Sector");
+        Assert.Throws<ArgumentException>(() => StarshipExpeditionSettings.NormalizeAndValidate(settings));
     }
 
     private StarshipExpeditionSettingsStore CreateStore() => new(_services.GetRequiredService<IServiceScopeFactory>());

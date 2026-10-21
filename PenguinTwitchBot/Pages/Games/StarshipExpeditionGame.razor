@@ -85,18 +85,27 @@
                                                    Label="Only Reward Active Crew" />
                                     </MudItem>
                                 </MudGrid>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
-                                    Built-in sectors are always available. Custom sectors are added to the route pool.
-                                </MudText>
                             </MudPaper>
 
                             <MudPaper Class="pa-4 mt-4" Outlined="true">
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
                                     <div>
-                                        <MudText Typo="Typo.h6">Custom Sectors</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@_settings.CustomSectors.Count / @StarshipExpeditionSettings.MaximumCustomSectors</MudText>
+                                        <MudText Typo="Typo.h6">Sectors</MudText>
+                                        <MudText Typo="Typo.caption" Color="@(_settings.GetEffectiveSectors().Count < 2 ? Color.Error : Color.Secondary)">@_settings.GetEffectiveSectors().Count available (minimum 2)</MudText>
                                     </div>
                                 </MudStack>
+                                <MudGrid Spacing="1" Class="mb-3">
+                                    @foreach (var sector in StarshipExpeditionSettings.BuiltInSectors)
+                                    {
+                                        <MudItem xs="12" sm="6">
+                                            <MudCheckBox T="bool" Color="Color.Primary" Label="@sector"
+                                                         Value="@(!_settings.DisabledBuiltInSectors.Contains(sector, StringComparer.OrdinalIgnoreCase))"
+                                                         ValueChanged="@(enabled => SetBuiltInSectorEnabled(sector, enabled))" />
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                                <MudText Typo="Typo.subtitle2">Custom Sectors</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">@_settings.CustomSectors.Count / @StarshipExpeditionSettings.MaximumCustomSectors</MudText>
                                 <MudStack Spacing="2">
                                     @for (var index = 0; index < _settings.CustomSectors.Count; index++)
                                     {
@@ -509,6 +518,13 @@
         {
             _isLoading = false;
         }
+    }
+
+    private void SetBuiltInSectorEnabled(string sector, bool enabled)
+    {
+        if (_settings == null) return;
+        _settings.DisabledBuiltInSectors.RemoveAll(name => string.Equals(name, sector, StringComparison.OrdinalIgnoreCase));
+        if (!enabled) _settings.DisabledBuiltInSectors.Add(sector);
     }
 
     private void AddSector()

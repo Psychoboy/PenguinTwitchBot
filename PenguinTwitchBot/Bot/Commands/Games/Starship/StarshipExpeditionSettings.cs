@@ -33,6 +33,7 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
     public int EventVoteDurationSeconds { get; set; } = StarshipExpeditionService.DefaultVoteDurationSeconds;
     public int BoardingDurationSeconds { get; set; } = StarshipExpeditionService.DefaultBoardingDurationSeconds;
     public bool ActiveCrewRewardsOnly { get; set; } = true;
+    public List<string> DisabledBuiltInSectors { get; set; } = [];
     public List<string> CustomSectors { get; set; } = [];
     public List<StarshipRewardProfile> RewardProfiles { get; set; } = CreateDefaultRewardProfiles();
     public Dictionary<string, string> EventRewardProfileIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -65,6 +66,12 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         settings.SessionEndChatMessageTemplate ??= string.Empty;
         settings.Appearance = StarshipAppearanceSettings.NormalizeAndValidate(settings.Appearance);
         settings.CustomSectors ??= [];
+        settings.DisabledBuiltInSectors ??= [];
+        if (settings.DisabledBuiltInSectors.Any(name => name == null || !BuiltInSectors.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase)))
+            throw new ArgumentException("Only known built-in sectors can be disabled.", nameof(settings.DisabledBuiltInSectors));
+        settings.DisabledBuiltInSectors = BuiltInSectors
+            .Where(name => settings.DisabledBuiltInSectors.Any(disabled => string.Equals(disabled.Trim(), name, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
         settings.RewardProfiles ??= CreateDefaultRewardProfiles();
         if (settings.CustomSectors.Count > MaximumCustomSectors)
             throw new ArgumentOutOfRangeException(nameof(settings.CustomSectors), $"Add no more than {MaximumCustomSectors} custom sectors.");
@@ -78,6 +85,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         var allNames = BuiltInSectors.Concat(settings.CustomSectors).ToList();
         if (allNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != allNames.Count)
             throw new ArgumentException("Sector names must be unique, including built-in sectors.", nameof(settings.CustomSectors));
+        if (settings.GetEffectiveSectors().Count < 2)
+            throw new ArgumentException("Enable or add at least two expedition sectors.", nameof(settings.DisabledBuiltInSectors));
 
         foreach (var eventType in RewardEventTypes)
         {
@@ -143,7 +152,8 @@ public sealed class StarshipExpeditionSettings : IGameSessionMessageSettings
         return settings;
     }
 
-    public List<string> GetEffectiveSectors() => [.. BuiltInSectors, .. CustomSectors];
+    public List<string> GetEffectiveSectors() =>
+        [.. BuiltInSectors.Where(name => !DisabledBuiltInSectors.Contains(name, StringComparer.OrdinalIgnoreCase)), .. CustomSectors];
 
     public StarshipRewardProfile? GetRewardProfile(string eventType) =>
         StarshipRewardProfile.FindForEvent(RewardProfiles, GetEffectiveRewardBindings(), eventType);

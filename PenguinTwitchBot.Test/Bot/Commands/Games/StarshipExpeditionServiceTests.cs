@@ -429,6 +429,51 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void BuildPreview_UsesOnlySelectedBuiltInsAndCustomSectorsDeterministically()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var settings = new StarshipExpeditionSettings
+        {
+            LegCount = 8,
+            DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors.Skip(1)],
+            CustomSectors = ["Glass Nebula"]
+        };
+        var first = service.BuildPreview(settings, 881122);
+        var second = service.BuildPreview(settings, 881122);
+
+        Assert.Equal(first.Select(item => item.Sector), second.Select(item => item.Sector));
+        Assert.All(first, item => Assert.Contains(item.Sector, new[] { "Kepler Reach", "Glass Nebula" }));
+        Assert.Equal(2, first.Select(item => item.Sector).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task SectorSelection_ActiveVoyageKeepsDeparturePoolAcrossEditsAndRecovery()
+    {
+        var settings = new StarshipExpeditionSettings
+        {
+            LegCount = 6,
+            DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors.Skip(2)]
+        };
+        var settingsStore = new InMemorySettingsStore(settings);
+        var stateStore = new InMemoryStateStore();
+        var service = CreateService(stateStore, settingsStore: settingsStore);
+        var started = await service.StartExpeditionAsync("moderator", seed: 444);
+        await service.JoinCrewAsync(CreateArgs("pilot-id", "Pilot"));
+        settings.DisabledBuiltInSectors = [.. StarshipExpeditionSettings.BuiltInSectors];
+        settings.CustomSectors = ["New Sector One", "New Sector Two"];
+        var restored = CreateService(stateStore, settingsStore: settingsStore);
+
+        for (var transition = 0; transition < 6; transition++)
+        {
+            var current = await restored.AdvanceEventAsync();
+            Assert.Equal(["Kepler Reach", "Ternion Belt"], current.SectorPool);
+            Assert.Contains(current.CurrentSector, current.SectorPool);
+        }
+        Assert.Equal(["Kepler Reach", "Ternion Belt"], started.SectorPool);
+        Assert.Equal(["New Sector One", "New Sector Two"], settings.GetEffectiveSectors());
+    }
+
+    [Fact]
     public async Task StartExpedition_SnapshotsSettingsAndSectorPoolForCurrentVoyage()
     {
         var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings
