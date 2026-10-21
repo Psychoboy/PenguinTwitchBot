@@ -5,8 +5,9 @@ A shared, long-form voyage. Viewers board, then vote in chat on occasional event
 ## Running a voyage
 
 1. **Start** it from the Starship Expedition page (or with `!starship start [legs] [min minutes] [max minutes]` as a moderator).
-2. During **boarding**, viewers join with `!sj` (long form: `!starship join`). Only crew can vote or earn rewards.
-3. When boarding closes the ship launches. Events open on a timer; the crew votes with `!sv <number>` (the option ID also works).
+2. During **boarding**, viewers join with `!sj` (long form: `!starship join`).
+3. When boarding closes the ship launches. Viewers can still join **at any time** while the ship is cruising or an event is open, with `!sj` or simply by voting - a first vote enrolls them automatically. Events open on a timer; the crew votes with `!sv <number>` (the option ID also works).
+   - If someone joins while an event is open, their vote counts straight away, but they only share that event's rewards and losses from the **next** event.
 4. Moderators can use `!starship advance` to skip ahead and `!starship stop` to abort.
 5. The voyage ends after the configured number of legs. Anything earned is banked to the crew.
 
@@ -36,8 +37,8 @@ Each event gets a generated subject (for example "the ISV Quiet Meridian" or "th
 
 | Command | What it does |
 | :--- | :--- |
-| `!sj` | Join the crew during boarding |
-| `!sv <number>` | Vote for an option |
+| `!sj` | Join the crew (before launch, or any time while the voyage is under way) |
+| `!sv <number>` | Vote for an option (also joins you if you are not aboard yet) |
 | `!sc` | Confirm a risky choice (only for events that offer one) |
 | `!starship status` | Show the voyage status |
 

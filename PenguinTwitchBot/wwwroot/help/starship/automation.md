@@ -7,7 +7,7 @@ Starship Expedition uses the bot's normal trigger and action system. Attach acti
 | Trigger | Fires when |
 | :--- | :--- |
 | Boarding Opened | The crew boarding window opens |
-| Crew Joined | A viewer joins before launch |
+| Crew Joined | A viewer joins the crew (with `!sj`, or automatically by voting) |
 | Event Opened | A crew event opens for voting |
 | Event Step Advanced | A multi-step event moves on (after a scan or securing the area) |
 | Event Resolved | An event finishes, whatever the outcome |

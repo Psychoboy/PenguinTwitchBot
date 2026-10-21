@@ -73,7 +73,7 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
-    public async Task BoardingTimeout_AbortsWithoutCrewAndLateJoinersCannotVote()
+    public async Task BoardingTimeout_AbortsWithoutCrewAndLateViewersAreEnrolledForTheNextEvent()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings { BoardingDurationSeconds = 20 });
@@ -87,10 +87,47 @@ public class StarshipExpeditionServiceTests
         var nextVoyage = await service.StartExpeditionAsync("moderator", seed: 85);
         await service.JoinCrewAsync(CreateArgs("viewer-1", "Pilot"));
         await service.AdvanceEventAsync();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.JoinCrewAsync(CreateArgs("late-viewer", "Late Viewer")));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.VoteAsync(CreateArgs("late-viewer", "Late Viewer"), "direct"));
+        var openEvent = (await service.GetSnapshotAsync())!.CurrentEvent!;
+
+        var joined = await service.JoinCrewAsync(CreateArgs("late-viewer", "Late Viewer"));
+        var lateJoiner = joined.Crew.Single(member => member.UserId == "late-viewer");
+        Assert.Equal(StarshipCrewEnrollmentMethod.ExplicitJoin, lateJoiner.EnrollmentMethod);
+        Assert.Equal(openEvent.Sequence + 1, lateJoiner.EffectiveFromSequence);
+
+        var voted = await service.VoteAsync(CreateArgs("voter-id", "Voter"), "1");
+        var autoEnrolled = voted.Crew.Single(member => member.UserId == "voter-id");
+        Assert.Equal(StarshipCrewEnrollmentMethod.AutomaticAction, autoEnrolled.EnrollmentMethod);
+        Assert.Equal(openEvent.Sequence + 1, autoEnrolled.EffectiveFromSequence);
+        Assert.Contains(voted.CurrentEvent!.Votes, vote => vote.UserId == "voter-id");
         Assert.Equal(StarshipExpeditionStatus.EventOpen, (await service.GetSnapshotAsync())?.Status);
         Assert.NotEqual(Guid.Empty, nextVoyage.ExpeditionId);
+    }
+
+    [Fact]
+    public async Task AutoEnrolledVoter_CountsInVoteButSharesRewardsOnlyFromNextEvent()
+    {
+        var fixture = CreateSalvageFixture();
+        fixture.RewardProfiles[0].SuccessChancePercent = 100;
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(fixture);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.VoteAsync(CreateArgs("newcomer-id", "Newcomer"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("newcomer-id", "Newcomer"));
+        var voting = await service.GetSnapshotAsync();
+        Assert.Equal(2, voting!.CurrentEvent!.Votes.Count);
+        Assert.Contains(voting.Crew, member => member.UserId == "newcomer-id");
+
+        var resolved = await service.AdvanceEventAsync();
+
+        var completed = Assert.Single(resolved.CompletedEvents);
+        Assert.Equal("salvage", completed.ResolvedChoiceId);
+        Assert.Equal(["pilot-id"], completed.EligibleRewardUserIds);
+        Assert.DoesNotContain(completed.RewardOutcomes, outcome => outcome.UserId == "newcomer-id" && (outcome.EarnedAmount > 0 || outcome.LostAmount > 0));
+        Assert.Empty(resolved.Crew.Single(member => member.UserId == "newcomer-id").UnbankedBalances);
+        Assert.Equal(110, resolved.Crew.Single(member => member.UserId == "pilot-id").UnbankedBalances.Single().Amount);
     }
 
     [Fact]

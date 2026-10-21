@@ -188,7 +188,7 @@ public sealed class StarshipExpeditionService(
 
                 case "join":
                     var joined = await JoinCrewAsync(eventArgs);
-                    await RespondWithMessage(eventArgs, $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard).");
+                    await RespondWithMessage(eventArgs, $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard).{DescribePendingShare(joined, eventArgs.UserId)}");
                     return;
 
                 case "vote":
@@ -198,7 +198,10 @@ public sealed class StarshipExpeditionService(
                         return;
                     }
 
-                    var voted = await VoteAsync(eventArgs, args[1]);
+                    var (voted, enrolledByVote) = await VoteCoreAsync(eventArgs, args[1], CancellationToken.None);
+                    var enrollNote = enrolledByVote
+                        ? $" You joined the crew ({voted.Crew.Count} aboard).{DescribePendingShare(voted, eventArgs.UserId)}"
+                        : string.Empty;
                     var riskConfirmation = voted.CurrentEvent?.PendingRiskConfirmations.FirstOrDefault(item =>
                         string.Equals(item.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase));
                     if (riskConfirmation != null)
@@ -219,7 +222,7 @@ public sealed class StarshipExpeditionService(
                             .FirstOrDefault();
                         var tally = voted.CurrentEvent?.Votes.Count ?? 0;
                         await RespondWithMessage(eventArgs,
-                            $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).");
+                            $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).{enrollNote}");
                     }
                     return;
 
@@ -474,10 +477,11 @@ public sealed class StarshipExpeditionService(
         try
         {
             var snapshot = GetActiveSnapshot();
-            if (snapshot.Status != StarshipExpeditionStatus.Boarding || snapshot.BoardingClosesAtUtc <= _timeProvider.GetUtcNow())
-                throw new InvalidOperationException("The crew boarding window is closed. Join during the next expedition's boarding call.");
+            if (snapshot.Status == StarshipExpeditionStatus.Boarding && snapshot.BoardingClosesAtUtc <= _timeProvider.GetUtcNow())
+                throw new InvalidOperationException("The crew boarding window just closed - the voyage is about to launch. Join once it is under way.");
             var previousSnapshot = Clone(snapshot);
-            added = AddCrewMember(snapshot, userId, eventArgs.Name, eventArgs.DisplayName, StarshipCrewEnrollmentMethod.ExplicitJoin);
+            added = AddCrewMember(snapshot, userId, eventArgs.Name, eventArgs.DisplayName, StarshipCrewEnrollmentMethod.ExplicitJoin,
+                GetEffectiveFromSequence(snapshot));
             if (added)
                 await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
             joinedSnapshot = Clone(snapshot);
@@ -498,20 +502,23 @@ public sealed class StarshipExpeditionService(
         return joinedSnapshot;
     }
 
-    public async Task<StarshipExpeditionSnapshot> VoteAsync(CommandEventArgs eventArgs, string choiceId, CancellationToken cancellationToken = default)
+    public async Task<StarshipExpeditionSnapshot> VoteAsync(CommandEventArgs eventArgs, string choiceId, CancellationToken cancellationToken = default) =>
+        (await VoteCoreAsync(eventArgs, choiceId, cancellationToken)).Snapshot;
+
+    private async Task<(StarshipExpeditionSnapshot Snapshot, bool Enrolled)> VoteCoreAsync(CommandEventArgs eventArgs, string choiceId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventArgs);
         if (string.IsNullOrWhiteSpace(choiceId)) throw new ArgumentException("Choose one of the current event options.", nameof(choiceId));
         var userId = RequireUserId(eventArgs);
         await EnsureLoadedAsync(cancellationToken);
+        StarshipExpeditionSnapshot result;
+        var enrolled = false;
         await _stateLock.WaitAsync(cancellationToken);
         try
         {
             var snapshot = GetActiveSnapshot();
             if (snapshot.CurrentEvent == null || snapshot.Status != StarshipExpeditionStatus.EventOpen)
                 throw new InvalidOperationException("There is no open Starship event to vote on.");
-            if (!snapshot.Crew.Any(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException("Only crew members can vote. Join during the boarding window with !starship join.");
 
             var trimmedChoice = choiceId.Trim();
             var choice = snapshot.CurrentEvent.Choices.FirstOrDefault(option =>
@@ -523,6 +530,8 @@ public sealed class StarshipExpeditionService(
                 throw new ArgumentException("That is not one of the current event options. Use the option number, e.g. !sv 1.", nameof(choiceId));
 
             var previousSnapshot = Clone(snapshot);
+            enrolled = AddCrewMember(snapshot, userId, eventArgs.Name, eventArgs.DisplayName,
+                StarshipCrewEnrollmentMethod.AutomaticAction, GetEffectiveFromSequence(snapshot));
             if (snapshot.CurrentEvent.Votes.Any(vote => string.Equals(vote.UserId, userId, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Your choice for this event has already been recorded.");
 
@@ -557,18 +566,30 @@ public sealed class StarshipExpeditionService(
                     RewardMultiplierPercent = CombinePercent(snapshot.CurrentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent),
                     RevealedRarity = snapshot.CurrentEvent.RevealedRarity
                 });
-                await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
-                return Clone(snapshot);
+            }
+            else
+            {
+                snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = choice.ChoiceId });
             }
 
-            snapshot.CurrentEvent.Votes.Add(new StarshipEventVoteSnapshot { UserId = userId, ChoiceId = choice.ChoiceId });
             await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
-            return Clone(snapshot);
+            result = Clone(snapshot);
         }
         finally
         {
             _stateLock.Release();
         }
+
+        if (enrolled)
+        {
+            await FireTriggerAsync(DefaultCommandEventTypes.StarshipCrewJoined, result, new Dictionary<string, string>
+            {
+                ["User"] = eventArgs.DisplayName,
+                ["CrewCount"] = result.Crew.Count.ToString(CultureInfo.InvariantCulture)
+            }, eventArgs);
+        }
+
+        return (result, enrolled);
     }
 
     public async Task<StarshipExpeditionSnapshot> ConfirmRiskActionAsync(CommandEventArgs eventArgs, CancellationToken cancellationToken = default)
@@ -1242,8 +1263,10 @@ public sealed class StarshipExpeditionService(
         StarshipExpeditionSnapshot snapshot,
         CancellationToken cancellationToken)
     {
+        var eventSequence = snapshot.CurrentEvent?.Sequence ?? int.MaxValue;
+        var effectiveCrew = snapshot.Crew.Where(member => member.EffectiveFromSequence <= eventSequence).ToList();
         if (!snapshot.ActiveCrewRewardsOnly)
-            return snapshot.Crew.Select(member => member.UserId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return effectiveCrew.Select(member => member.UserId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         if (viewerFeature == null)
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1258,7 +1281,7 @@ public sealed class StarshipExpeditionService(
             }
         }
 
-        return snapshot.Crew
+        return effectiveCrew
             .Where(member => eligibleNames.Contains(member.UserName) || eligibleNames.Contains(member.DisplayName))
             .Select(member => member.UserId)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -1569,7 +1592,8 @@ public sealed class StarshipExpeditionService(
         string userId,
         string? userName,
         string? displayName,
-        StarshipCrewEnrollmentMethod enrollmentMethod)
+        StarshipCrewEnrollmentMethod enrollmentMethod,
+        int effectiveFromSequence = 0)
     {
         if (snapshot.Crew.Any(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase))) return false;
         snapshot.Crew.Add(new StarshipCrewMemberSnapshot
@@ -1578,9 +1602,21 @@ public sealed class StarshipExpeditionService(
             UserName = string.IsNullOrWhiteSpace(userName) ? displayName ?? userId : userName,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName ?? userId : displayName,
             JoinedAtUtc = _timeProvider.GetUtcNow(),
-            EnrollmentMethod = enrollmentMethod
+            EnrollmentMethod = enrollmentMethod,
+            EffectiveFromSequence = effectiveFromSequence
         });
         return true;
+    }
+
+    private static int GetEffectiveFromSequence(StarshipExpeditionSnapshot snapshot) =>
+        snapshot.CurrentEvent == null ? 0 : snapshot.CurrentEvent.Sequence + 1;
+
+    private static string DescribePendingShare(StarshipExpeditionSnapshot snapshot, string userId)
+    {
+        var member = snapshot.Crew.FirstOrDefault(item => string.Equals(item.UserId, userId, StringComparison.OrdinalIgnoreCase));
+        return member != null && snapshot.CurrentEvent != null && member.EffectiveFromSequence > snapshot.CurrentEvent.Sequence
+            ? " Your vote counts now; you share rewards and losses from the next event."
+            : string.Empty;
     }
 
     private static string RequireUserId(CommandEventArgs eventArgs)

@@ -59,6 +59,8 @@ public sealed class StarshipCrewMemberSnapshot
     public string DisplayName { get; init; } = string.Empty;
     public DateTimeOffset JoinedAtUtc { get; init; }
     public StarshipCrewEnrollmentMethod EnrollmentMethod { get; init; }
+    /// <summary>Events with a lower sequence do not reward or penalize this member (joined while they were open).</summary>
+    public int EffectiveFromSequence { get; init; }
     public List<StarshipUnbankedBalanceSnapshot> UnbankedBalances { get; init; } = [];
 }
 
