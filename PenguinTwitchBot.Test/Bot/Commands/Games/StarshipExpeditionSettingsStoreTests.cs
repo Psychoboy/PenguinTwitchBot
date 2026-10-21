@@ -1,11 +1,18 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PenguinTwitchBot.Bot.Commands.Games.Starship;
+using PenguinTwitchBot.Bot.Commands;
+using PenguinTwitchBot.Bot.Core;
+using PenguinTwitchBot.Bot.Core.Points;
+using PenguinTwitchBot.Bot.Events.Chat;
+using PenguinTwitchBot.Bot.Notifications;
+using PenguinTwitchBot.Application.Notifications;
 using PenguinTwitchBot.Database.Bot.Core.Database;
 using PenguinTwitchBot.Database.Bot.Models;
 using PenguinTwitchBot.Database.Repository;
@@ -374,6 +381,78 @@ public class StarshipExpeditionSettingsStoreTests : IDisposable
         Assert.Equal(8, upgraded.EventCatalog.Count);
         Assert.Equal("Existing Relay", upgraded.EventCatalog.Single(definition => definition.EventType == "courier-relay").Title);
         Assert.Equal(1, (await CreateStore().LoadAsync()).StarterEventsVersion);
+    }
+
+    [Fact]
+    public async Task ReleaseGate_PersistedCatalogEditsAffectNextVoyageButNotRecoveredVoyage()
+    {
+        var settingsStore = CreateStore();
+        var settings = await settingsStore.LoadAsync();
+        settings.LegCount = 4;
+        settings.StationIntervalLegs = 24;
+        settings.ActiveCrewRewardsOnly = false;
+        settings.EventCatalog = settings.EventCatalog.Where(definition => StarshipEventCatalog.IsStructural(definition.EventType)).ToList();
+        settings.RewardProfiles.Add(new StarshipRewardProfile
+        {
+            Id = "release-profile", Name = "Release Profile", Enabled = true, SuccessChancePercent = 100,
+            Tiers = [new() { Id = "common", Name = "Common", Weight = 1, Rewards = [new() { PointTypeId = 8, Minimum = 10, Maximum = 10 }] }]
+        });
+        settings.EventCatalog.Add(new StarshipEventDefinition("release-cache", "Original Cache", "A cache near {subject}.",
+            [new() { ChoiceId = "recover", Label = "Recover the cache" }, new() { ChoiceId = "pass", Label = "Pass", EndsWithoutReward = true }], "recover", "Recovered {loot}.")
+        {
+            RewardProfileId = "release-profile", SubjectStyle = "custom", SubjectNames = ["the Quiet Archive"], ObjectKind = "beacon",
+            LootByTier = new() { ["Common"] = "the original star chart" }
+        });
+        await settingsStore.SaveAsync(settings);
+        var points = new Mock<IPointsSystem>();
+        points.Setup(instance => instance.GetPointTypeById(8)).ReturnsAsync(new PenguinTwitchBot.Database.Bot.Models.Points.PointType { Id = 8, Name = "Credits" });
+        points.Setup(instance => instance.AddPointsByUserIdOnce(It.IsAny<string>(), 8, It.IsAny<long>(), It.IsAny<string>())).ReturnsAsync(true);
+        StarshipExpeditionService CreateService()
+        {
+            var chat = new Mock<IServiceBackbone>();
+            chat.Setup(instance => instance.SendChatMessage(It.IsAny<string>())).Returns(Task.CompletedTask);
+            var websocket = new Mock<IWebSocketMessenger>();
+            websocket.Setup(instance => instance.AddToQueue(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+            return new StarshipExpeditionService(chat.Object, Mock.Of<ICommandHandler>(),
+                new StarshipExpeditionStateStore(_services.GetRequiredService<IServiceScopeFactory>()), CreateStore(), websocket.Object,
+                NullLogger<StarshipExpeditionService>.Instance, Mock.Of<IPenguinDispatcher>(), pointsSystem: points.Object);
+        }
+        var viewer = new CommandEventArgs { UserId = "release-pilot", Name = "pilot", DisplayName = "Pilot" };
+        var original = CreateService();
+        await original.StartExpeditionAsync("moderator", seed: 2468);
+        await original.JoinCrewAsync(viewer);
+        await original.AdvanceEventAsync();
+        await original.AdvanceEventAsync();
+        var opened = await original.AdvanceEventAsync();
+        Assert.Equal("Original Cache", opened.CurrentEvent!.Title);
+
+        var edited = await CreateStore().LoadAsync();
+        var index = edited.EventCatalog.FindIndex(definition => definition.EventType == "release-cache");
+        edited.EventCatalog[index] = edited.EventCatalog[index] with { Title = "Edited Cache", SubjectNames = ["the New Archive"] };
+        var reward = edited.RewardProfiles.Single(profile => profile.Id == "release-profile").Tiers[0].Rewards[0];
+        reward.Minimum = reward.Maximum = 99;
+        await CreateStore().SaveAsync(edited);
+
+        var recovered = CreateService();
+        Assert.Equal(opened.CurrentEvent.EventId, (await recovered.GetSnapshotAsync())!.CurrentEvent!.EventId);
+        var resolved = await recovered.AdvanceEventAsync();
+        var completed = resolved.CompletedEvents.Last();
+        Assert.Equal("Original Cache", completed.Title);
+        Assert.Equal("the Quiet Archive", completed.Subject);
+        Assert.Equal(10, Assert.Single(completed.RewardOutcomes).EarnedAmount);
+        await recovered.StopExpeditionAsync("moderator");
+        points.Verify(instance => instance.AddPointsByUserIdOnce("release-pilot", 8, 10, It.IsAny<string>()), Times.Once);
+
+        var next = CreateService();
+        await next.StartExpeditionAsync("moderator", seed: 2468);
+        await next.JoinCrewAsync(viewer);
+        await next.AdvanceEventAsync();
+        await next.AdvanceEventAsync();
+        var nextEvent = await next.AdvanceEventAsync();
+        Assert.Equal("Edited Cache", nextEvent.CurrentEvent!.Title);
+        Assert.Equal("the New Archive", nextEvent.CurrentEvent.Subject);
+        var nextResult = await next.AdvanceEventAsync();
+        Assert.Equal(99, Assert.Single(nextResult.CompletedEvents.Last().RewardOutcomes).EarnedAmount);
     }
 
     private StarshipExpeditionSettingsStore CreateStore()
