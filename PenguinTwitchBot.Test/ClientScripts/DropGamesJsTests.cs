@@ -252,6 +252,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             ");
 
             var jsRoot = FindWwwRootPath();
+            engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-scene.js")));
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-overlay.js")));
             return engine;
         }
@@ -336,6 +337,113 @@ namespace PenguinTwitchBot.Test.ClientScripts
 
             DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-59), now.AddSeconds(30)));
             Assert.Equal("false", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+        }
+
+        [Fact]
+        public void StarshipOverlay_AnimatesEachActivityItemOnceAndReplaysOnlyRecentOnesAfterLoad()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            engine.Execute("window.__feed = []; window.StarshipOverlay.onFeed(function (item) { window.__feed.push(item.id); });");
+            var now = DateTimeOffset.UtcNow;
+            object Item(long id, double ageSeconds) => new
+            {
+                id,
+                atUtc = now.AddSeconds(-ageSeconds).ToString("O"),
+                kind = "CrewJoined",
+                text = $"Viewer{id} joined the crew - {id} aboard",
+                actor = $"Viewer{id}"
+            };
+            object Snapshot(DateTimeOffset updatedAt, params object[] activity) => new
+            {
+                status = "Cruising",
+                updatedAtUtc = updatedAt.ToString("O"),
+                serverNowUtc = updatedAt.ToString("O"),
+                currentLeg = 1,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Direct Route",
+                crewCount = 3,
+                nextEventAtUtc = now.AddMinutes(10).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                activity
+            };
+
+            DispatchStarshipOverlayState(engine, Snapshot(now, Item(1, 120), Item(2, 3)));
+            Assert.Equal("2", engine.Evaluate("window.__feed.join(',')").AsString());
+
+            DispatchStarshipOverlayState(engine, Snapshot(now.AddSeconds(1), Item(1, 120), Item(2, 3), Item(3, 0)));
+            Assert.Equal("2,3", engine.Evaluate("window.__feed.join(',')").AsString());
+
+            DispatchStarshipOverlayState(engine, Snapshot(now.AddSeconds(2), Item(2, 3), Item(3, 0)));
+            Assert.Equal("2,3", engine.Evaluate("window.__feed.join(',')").AsString());
+        }
+
+        [Fact]
+        public void StarshipOverlay_CountdownsUseServerTimeWhenTheLocalClockDiffers()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var serverNow = DateTimeOffset.UtcNow.AddHours(2);
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Boarding",
+                updatedAtUtc = serverNow.ToString("O"),
+                serverNowUtc = serverNow.ToString("O"),
+                currentLeg = 0,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Uncharted",
+                crewCount = 1,
+                boardingClosesAtUtc = serverNow.AddSeconds(35).ToString("O"),
+                nextEventAtUtc = (string?)null,
+                currentEvent = (object?)null,
+                latestResult = (object?)null
+            });
+
+            var timing = engine.Evaluate("document.getElementById('timing').textContent").AsString();
+            Assert.True(timing is "Takeoff in 00:35" or "Takeoff in 00:34", timing);
+        }
+
+        [Fact]
+        public void StarshipScene_DerivesStepTransitionResultAndVoyageEndScenes()
+        {
+            var engine = CreateStarshipOverlayEngine("event");
+            var now = DateTimeOffset.UtcNow;
+            string Iso(double seconds) => now.AddSeconds(seconds).ToString("O");
+            engine.Execute($@"
+                var tracker = window.StarshipScene.createTracker();
+                function eventSnapshot(step) {{
+                    return {{ status: 'EventOpen', updatedAtUtc: '{Iso(0)}', serverNowUtc: '{Iso(0)}',
+                        currentEvent: {{ sequence: 4, stepNumber: step }}, latestResult: null }};
+                }}
+                tracker.update(eventSnapshot(1));
+                window.__first = tracker.derive(eventSnapshot(1)).name;
+                tracker.update(eventSnapshot(2));
+                window.__second = tracker.derive(eventSnapshot(2)).name;
+                var cruising = {{ status: 'Cruising', updatedAtUtc: '{Iso(1)}', serverNowUtc: '{Iso(1)}',
+                    latestResult: {{ sequence: 4, choice: 'Pass it by', resolvedAtUtc: '{Iso(1)}' }}, currentEvent: null }};
+                tracker.update(cruising);
+                window.__result = tracker.derive(cruising);
+                var oldCruising = {{ status: 'Cruising', updatedAtUtc: '{Iso(-100)}', serverNowUtc: '{Iso(0)}',
+                    latestResult: {{ sequence: 5, choice: 'Old', resolvedAtUtc: '{Iso(-100)}' }}, currentEvent: null }};
+                var freshTracker = window.StarshipScene.createTracker();
+                freshTracker.update(oldCruising);
+                window.__stale = freshTracker.derive(oldCruising);
+                var ended = {{ status: 'Returned', updatedAtUtc: '{Iso(2)}', serverNowUtc: '{Iso(2)}',
+                    latestResult: {{ sequence: 6, choice: 'Done', resolvedAtUtc: '{Iso(2)}' }}, currentEvent: null }};
+                tracker.update(ended);
+                window.__ended = tracker.derive(ended);
+            ");
+
+            Assert.Equal("EventVoting", engine.Evaluate("window.__first").AsString());
+            Assert.Equal("StepTransition", engine.Evaluate("window.__second").AsString());
+            Assert.Equal("Result", engine.Evaluate("window.__result.name").AsString());
+            Assert.True(engine.Evaluate("window.__result.eventVisible").AsBoolean());
+            Assert.True(engine.Evaluate("window.__result.statusFaded").AsBoolean());
+            Assert.Equal("Cruising", engine.Evaluate("window.__stale.name").AsString());
+            Assert.False(engine.Evaluate("window.__stale.eventVisible").AsBoolean());
+            Assert.Equal("VoyageEnd", engine.Evaluate("window.__ended.name").AsString());
+            Assert.False(engine.Evaluate("window.__ended.statusFaded").AsBoolean());
         }
 
         [Fact]

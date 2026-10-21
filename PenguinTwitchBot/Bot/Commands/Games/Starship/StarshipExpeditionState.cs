@@ -50,6 +50,28 @@ public sealed class StarshipExpeditionSnapshot
     public StarshipExpeditionEventSnapshot? CurrentEvent { get; set; }
     /// <summary>While in the future, the status widget stays visible even when it would otherwise fade out during cruising.</summary>
     public DateTimeOffset? StatusForcedUntilUtc { get; set; }
+    public List<StarshipActivityItem> ActivityFeed { get; init; } = [];
+    public long NextActivityId { get; set; } = 1;
+}
+
+public static class StarshipActivityKinds
+{
+    public const string CrewJoined = "CrewJoined";
+    public const string EventOpened = "EventOpened";
+    public const string StepAdvanced = "StepAdvanced";
+    public const string RarityRevealed = "RarityRevealed";
+    public const string EventResolved = "EventResolved";
+    public const string VoyageEnded = "VoyageEnded";
+}
+
+/// <summary>Short-lived happening that overlays animate once; ids increase for the life of a voyage.</summary>
+public sealed class StarshipActivityItem
+{
+    public long Id { get; init; }
+    public DateTimeOffset AtUtc { get; init; }
+    public string Kind { get; init; } = string.Empty;
+    public string Text { get; init; } = string.Empty;
+    public string Actor { get; init; } = string.Empty;
 }
 
 public sealed class StarshipCrewMemberSnapshot
@@ -194,9 +216,11 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     DateTimeOffset? NextEventAtUtc,
     StarshipOverlayEventSnapshot? CurrentEvent,
     StarshipOverlayEventResult? LatestResult,
-    DateTimeOffset? StatusForcedUntilUtc)
+    DateTimeOffset? StatusForcedUntilUtc,
+    DateTimeOffset ServerNowUtc,
+    IReadOnlyList<StarshipActivityItem> Activity)
 {
-    public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot)
+    public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         return new StarshipExpeditionOverlaySnapshot(
@@ -216,8 +240,12 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                     snapshot.RewardProfiles.FirstOrDefault(profile => profile.Enabled &&
                         string.Equals(profile.EventType, snapshot.CurrentEvent.EventType, StringComparison.OrdinalIgnoreCase))),
             GetLatestOverlayResult(snapshot),
-            snapshot.StatusForcedUntilUtc);
+            snapshot.StatusForcedUntilUtc,
+            serverNowUtc ?? DateTimeOffset.UtcNow,
+            snapshot.ActivityFeed.TakeLast(MaximumActivityItems).ToList());
     }
+
+    public const int MaximumActivityItems = 20;
 
     private static StarshipOverlayEventResult? GetLatestOverlayResult(StarshipExpeditionSnapshot snapshot)
     {

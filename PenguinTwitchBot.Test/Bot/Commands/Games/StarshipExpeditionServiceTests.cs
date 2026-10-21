@@ -1104,6 +1104,61 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task ActivityFeed_RecordsLifecycleWithIncreasingIdsAndServerTime()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var service = CreateService(new InMemoryStateStore(), clock);
+        await service.StartExpeditionAsync("moderator", seed: 61);
+
+        await service.JoinCrewAsync(CreateArgs("viewer-1", "Pilot"));
+        await service.AdvanceEventAsync();
+        var voted = await service.VoteAsync(CreateArgs("viewer-2", "Newcomer"), "1");
+
+        var kinds = voted.ActivityFeed.Select(item => item.Kind).ToList();
+        Assert.Equal([StarshipActivityKinds.CrewJoined, StarshipActivityKinds.EventOpened, StarshipActivityKinds.CrewJoined], kinds);
+        Assert.Equal([1L, 2L, 3L], voted.ActivityFeed.Select(item => item.Id));
+        Assert.Equal("Pilot joined the crew - 1 aboard", voted.ActivityFeed[0].Text);
+        Assert.Equal("Newcomer", voted.ActivityFeed[2].Actor);
+        Assert.All(voted.ActivityFeed, item => Assert.Equal(clock.GetUtcNow(), item.AtUtc));
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(voted, clock.GetUtcNow());
+        Assert.Equal(clock.GetUtcNow(), projection.ServerNowUtc);
+        Assert.Equal(3, projection.Activity.Count);
+    }
+
+    [Fact]
+    public async Task ActivityFeed_IsCappedAndEndsWithVoyageSummary()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        await service.StartExpeditionAsync("moderator", legCount: 1, seed: 62);
+        for (var index = 0; index < 30; index++)
+            await service.JoinCrewAsync(CreateArgs($"viewer-{index}", $"Viewer{index}"));
+        await service.AdvanceEventAsync();
+        await service.AdvanceEventAsync();
+
+        var ended = (await service.GetSnapshotAsync())!;
+        Assert.Equal(StarshipExpeditionStatus.Returned, ended.Status);
+        Assert.Equal(StarshipExpeditionOverlaySnapshot.MaximumActivityItems, ended.ActivityFeed.Count);
+        Assert.Equal(StarshipActivityKinds.VoyageEnded, ended.ActivityFeed[^1].Kind);
+        Assert.Equal(StarshipActivityKinds.EventResolved, ended.ActivityFeed[^2].Kind);
+        Assert.Equal(ended.ActivityFeed.Select(item => item.Id).Order(), ended.ActivityFeed.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task MultiStepEvent_AddsStepAndRarityActivity()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
+        var afterScan = await service.AdvanceEventAsync();
+
+        Assert.Contains(afterScan.ActivityFeed, item => item.Kind == StarshipActivityKinds.StepAdvanced && item.Actor == "Pilot");
+        Assert.Contains(afterScan.ActivityFeed, item => item.Kind == StarshipActivityKinds.RarityRevealed && item.Text == "Common find revealed");
+    }
+
+    [Fact]
     public async Task RiskyChoice_DoesNotRewardOrPenalizeCrewThatBecomesIneligibleBeforeResolution()
     {
         var stateStore = new InMemoryStateStore();

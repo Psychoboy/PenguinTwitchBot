@@ -448,6 +448,7 @@ public sealed class StarshipExpeditionService(
             _snapshot.NextEventAtUtc = null;
             _snapshot.BoardingClosesAtUtc = null;
             QueuePayouts(_snapshot, _snapshot.ExpeditionId);
+            AppendVoyageEndedActivity(_snapshot, _timeProvider.GetUtcNow());
             await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
             logger.LogInformation("Starship Expedition {ExpeditionId} stopped by {User}", _snapshot.ExpeditionId, stoppedBy ?? "System");
             stoppedSnapshot = Clone(_snapshot);
@@ -1058,6 +1059,7 @@ public sealed class StarshipExpeditionService(
                 {
                     snapshot.Status = StarshipExpeditionStatus.Aborted;
                     snapshot.NextEventAtUtc = null;
+                    AppendVoyageEndedActivity(snapshot, now);
                 }
                 else
                 {
@@ -1096,6 +1098,7 @@ public sealed class StarshipExpeditionService(
             snapshot.Status = StarshipExpeditionStatus.Returned;
             snapshot.NextEventAtUtc = null;
             snapshot.CurrentEvent = null;
+            AppendVoyageEndedActivity(snapshot, now);
             return;
         }
 
@@ -1123,6 +1126,9 @@ public sealed class StarshipExpeditionService(
         snapshot.NextEventSequence++;
         snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
             definition.Description, snapshot.CurrentEvent, snapshot.Seed, [], null);
+        AppendActivityLocked(snapshot, StarshipActivityKinds.EventOpened,
+            snapshot.CurrentEvent.Subject.Length == 0 ? snapshot.CurrentEvent.Title : $"{snapshot.CurrentEvent.Title}: {snapshot.CurrentEvent.Subject}",
+            string.Empty, now);
         snapshot.Status = StarshipExpeditionStatus.EventOpen;
         snapshot.NextEventAtUtc = null;
     }
@@ -1175,6 +1181,9 @@ public sealed class StarshipExpeditionService(
         var effects = StarshipExpeditionNarrative.DescribeEffects(choice);
         if (!choice.RevealsRarity && effects.Length > 0) note.Add($"Effect: {effects}.");
         currentEvent.StepNote = string.Join(" ", note);
+        AppendActivityLocked(snapshot, StarshipActivityKinds.StepAdvanced, currentEvent.StepNote, string.Join(", ", voterNames), now);
+        if (choice.RevealsRarity && currentEvent.RevealedRarity != null)
+            AppendActivityLocked(snapshot, StarshipActivityKinds.RarityRevealed, $"{currentEvent.RevealedRarity} find revealed", string.Empty, now);
         currentEvent.StepNumber++;
         currentEvent.Votes.Clear();
         currentEvent.PendingRiskConfirmations.Clear();
@@ -1254,6 +1263,9 @@ public sealed class StarshipExpeditionService(
         if (profile != null)
             ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
         resolvedEvent.OutcomeStory = StarshipExpeditionStory.BuildOutcomeStory(snapshot, resolvedEvent);
+        AppendActivityLocked(snapshot, StarshipActivityKinds.EventResolved, StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent), string.Empty, now);
+        if (snapshot.Status == StarshipExpeditionStatus.Returned)
+            AppendVoyageEndedActivity(snapshot, now);
 
         if (resolvedEvent.EventType == "StationStop" || snapshot.Status == StarshipExpeditionStatus.Returned)
             QueuePayouts(snapshot, resolvedEvent.EventId);
@@ -1495,7 +1507,7 @@ public sealed class StarshipExpeditionService(
         var payload = JsonSerializer.Serialize(new
         {
             type = "expedition_state",
-            snapshot = StarshipExpeditionOverlaySnapshot.From(_snapshot)
+            snapshot = StarshipExpeditionOverlaySnapshot.From(_snapshot, _timeProvider.GetUtcNow())
         }, JsonOptions);
         try
         {
@@ -1596,17 +1608,38 @@ public sealed class StarshipExpeditionService(
         int effectiveFromSequence = 0)
     {
         if (snapshot.Crew.Any(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase))) return false;
+        var now = _timeProvider.GetUtcNow();
         snapshot.Crew.Add(new StarshipCrewMemberSnapshot
         {
             UserId = userId,
             UserName = string.IsNullOrWhiteSpace(userName) ? displayName ?? userId : userName,
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? userName ?? userId : displayName,
-            JoinedAtUtc = _timeProvider.GetUtcNow(),
+            JoinedAtUtc = now,
             EnrollmentMethod = enrollmentMethod,
             EffectiveFromSequence = effectiveFromSequence
         });
+        var joined = snapshot.Crew[^1];
+        AppendActivityLocked(snapshot, StarshipActivityKinds.CrewJoined,
+            $"{joined.DisplayName} joined the crew - {snapshot.Crew.Count} aboard", joined.DisplayName, now);
         return true;
     }
+
+    private static void AppendActivityLocked(StarshipExpeditionSnapshot snapshot, string kind, string text, string actor, DateTimeOffset now)
+    {
+        snapshot.ActivityFeed.Add(new StarshipActivityItem
+        {
+            Id = snapshot.NextActivityId++,
+            AtUtc = now,
+            Kind = kind,
+            Text = text,
+            Actor = actor
+        });
+        var excess = snapshot.ActivityFeed.Count - StarshipExpeditionOverlaySnapshot.MaximumActivityItems;
+        if (excess > 0) snapshot.ActivityFeed.RemoveRange(0, excess);
+    }
+
+    private static void AppendVoyageEndedActivity(StarshipExpeditionSnapshot snapshot, DateTimeOffset now) =>
+        AppendActivityLocked(snapshot, StarshipActivityKinds.VoyageEnded, StarshipExpeditionNarrative.BuildVoyageLines(snapshot)[0], string.Empty, now);
 
     private static int GetEffectiveFromSequence(StarshipExpeditionSnapshot snapshot) =>
         snapshot.CurrentEvent == null ? 0 : snapshot.CurrentEvent.Sequence + 1;

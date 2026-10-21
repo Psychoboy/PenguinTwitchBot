@@ -7,8 +7,9 @@
     let snapshot = null;
     let hasSnapshot = false;
     let lastAppliedTimestamp = -Infinity;
-    let resultKey = '';
-    let resultVisibleUntil = 0;
+    const tracker = window.StarshipScene.createTracker();
+    const feedHandlers = [];
+    window.StarshipOverlay = { onFeed: function (handler) { feedHandlers.push(handler); } };
 
     function applyEnvelope(message) {
         if (!message || message.type !== 'expedition_state') return;
@@ -20,6 +21,9 @@
         }
         snapshot = incoming;
         hasSnapshot = true;
+        for (const item of tracker.update(snapshot)) {
+            for (const handler of feedHandlers) handler(item);
+        }
         render();
     }
 
@@ -35,7 +39,7 @@
 
     function formatTimeRemaining(timestamp) {
         if (!timestamp) return '--:--';
-        const remaining = Math.max(0, Math.ceil((Date.parse(timestamp) - Date.now()) / 1000));
+        const remaining = Math.max(0, Math.ceil((Date.parse(timestamp) - tracker.now()) / 1000));
         return String(Math.floor(remaining / 60)).padStart(2, '0') + ':' + String(remaining % 60).padStart(2, '0');
     }
 
@@ -68,10 +72,7 @@
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
 
-        const forced = (snapshot?.statusForcedUntilUtc ? Date.parse(snapshot.statusForcedUntilUtc) : 0) > Date.now();
-        const terminal = status === 'Returned' || status === 'Aborted';
-        const endedLongAgo = terminal && Date.now() > Date.parse(snapshot.updatedAtUtc) + 30000;
-        root.dataset.faded = !forced && (status === 'Cruising' || endedLongAgo) ? 'true' : 'false';
+        root.dataset.faded = tracker.derive(snapshot).statusFaded ? 'true' : 'false';
     }
 
     function renderChoices(currentEvent) {
@@ -169,12 +170,7 @@
         if (!snapshot || (snapshot.status !== 'Boarding' && snapshot.status !== 'EventOpen')) {
             const terminal = snapshot && (snapshot.status === 'Returned' || snapshot.status === 'Aborted');
             const latest = snapshot?.latestResult;
-            const key = latest ? latest.sequence + ':' + latest.choice : '';
-            if (key && key !== resultKey) {
-                resultKey = key;
-                resultVisibleUntil = Date.now() + 14000;
-            }
-            if (!latest || Date.now() > resultVisibleUntil || (terminal && Date.now() > Date.parse(snapshot.updatedAtUtc) + 20000)) {
+            if (!tracker.derive(snapshot).eventVisible) {
                 root.hidden = true;
                 return;
             }
