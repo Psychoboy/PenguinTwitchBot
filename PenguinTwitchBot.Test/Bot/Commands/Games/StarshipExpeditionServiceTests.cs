@@ -2152,6 +2152,26 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void OverlayEventSnapshot_SuppressesStructuralChanceWithoutProfileOnly()
+    {
+        var structural = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "StationStop",
+            ShipContext = new() { BaseSuccessChancePercent = 75 }
+        };
+        var nonStructural = new StarshipExpeditionEventSnapshot
+        {
+            EventType = "SalvageSite",
+            ShipContext = new() { BaseSuccessChancePercent = 75 }
+        };
+        var profile = CreateSalvageFixture().RewardProfiles[0];
+
+        Assert.Null(StarshipOverlayEventSnapshot.From(structural, null).EffectiveSuccessChancePercent);
+        Assert.Equal(75, StarshipOverlayEventSnapshot.From(nonStructural, null).EffectiveSuccessChancePercent);
+        Assert.Equal(75, StarshipOverlayEventSnapshot.From(structural, profile).EffectiveSuccessChancePercent);
+    }
+
+    [Fact]
     public void ShipOverlayDisclosure_UsesFrozenChanceAndSharedFailureScaling()
     {
         var snapshot = CreateSalvageFixture(shipSystems: StarshipShipSystems.Create(new() { StartingHull = 50, StartingSupplies = 40 }));

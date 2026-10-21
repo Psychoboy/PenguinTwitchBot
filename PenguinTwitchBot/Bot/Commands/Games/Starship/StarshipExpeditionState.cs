@@ -397,7 +397,7 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.Path.Select(step => step.Label).ToList(),
         expeditionEvent.RevealedRarity,
         expeditionEvent.StepNote,
-        profile == null && expeditionEvent.ShipContext == null
+        profile == null && (expeditionEvent.ShipContext == null || StarshipEventCatalog.IsStructural(expeditionEvent.EventType))
             ? null
             : StarshipRewardResolver.GetEffectiveSuccessChance(profile, expeditionEvent),
         expeditionEvent.RewardMultiplierPercent,
