@@ -67,6 +67,7 @@ namespace PenguinTwitchBot.Pages.Components
                 GolfPuttType golf => $"Golf Shot: {golf.Username} (Power: {golf.Power}{(string.IsNullOrWhiteSpace(golf.EmoteOrImage) ? "" : $", {golf.EmoteOrImage}")})",
                 StartDropGameSessionType startSession => $"Start {startSession.GameType} Session ({startSession.DurationSeconds}s)",
                 StopDropGameSessionType stopSession => $"Stop {stopSession.GameType} Session",
+                StarshipShowStatusType starshipShow => $"Starship Status Widget: show for {starshipShow.DurationSeconds}s",
                 _ => subAction.Text?.Length > 0 ? subAction.Text : "No description available"
             };
         }

@@ -369,6 +369,26 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public void BuildPreview_ExposesEveryOptionAndGeneratedStoryForTheFullVoyage()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var preview = service.BuildPreview(new StarshipExpeditionSettings { LegCount = 24 }, seed: 2024);
+
+        var storyEvents = preview.Where(item => item.EventType is "SalvageSite" or "SignalDetected" or "Hazard").ToList();
+        Assert.NotEmpty(storyEvents);
+        Assert.All(storyEvents, item =>
+        {
+            Assert.NotEmpty(item.Subject);
+            Assert.DoesNotContain("{", item.Description, StringComparison.Ordinal);
+            Assert.True(item.ChoicePool.Count >= 3);
+            Assert.All(item.ChoicePool, choice => Assert.NotEmpty(choice.Story));
+            Assert.NotEmpty(item.SuccessStory);
+        });
+        Assert.All(preview.Where(item => item.EventType == "SalvageSite"), item =>
+            Assert.Contains(item.ChoicePool, choice => choice.ContinuesEvent));
+    }
+
+    [Fact]
     public async Task StartExpedition_SnapshotsSettingsAndSectorPoolForCurrentVoyage()
     {
         var settingsStore = new InMemorySettingsStore(new StarshipExpeditionSettings
@@ -794,9 +814,9 @@ public class StarshipExpeditionServiceTests
     {
         StarshipEventChoiceSnapshot[] pool =
         [
-            new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
+            new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}." },
             new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
-            new() { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true },
+            new() { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true, Story = "{crew} boards {subject}." },
             new() { ChoiceId = "pass", Label = "Pass it by" }
         ];
         return new StarshipExpeditionEventSnapshot
@@ -809,6 +829,8 @@ public class StarshipExpeditionServiceTests
             OpenedAtUtc = DateTimeOffset.UtcNow,
             ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
             DefaultChoiceId = "pass",
+            Subject = "the ISV Quiet Meridian",
+            SuccessStory = "The crew hauls out {loot}.",
             Choices = [.. pool],
             ChoicePool = [.. pool]
         };
@@ -867,6 +889,9 @@ public class StarshipExpeditionServiceTests
         Assert.Equal(108, Assert.Single(resolved.Crew.Single().UnbankedBalances).Amount);
         Assert.Equal(8, Assert.Single(completed.RewardOutcomes).EarnedAmount);
         Assert.Contains(chatMessages, message => message.Contains("SUCCESS - Common find", StringComparison.Ordinal)
+            && message.Contains("Pilot boards the ISV Quiet Meridian. The crew hauls out salvage plating and spare parts.", StringComparison.Ordinal));
+        Assert.Contains(chatMessages, message => message.Contains("Pilot sweeps the sensors over the ISV Quiet Meridian.", StringComparison.Ordinal));
+        Assert.Contains(chatMessages, message => message.Contains("SUCCESS - Common find", StringComparison.Ordinal)
             && message.Contains("Earned 8 Salvage Credits", StringComparison.Ordinal)
             && message.Contains("Scan the wreck > Secure the area > Recover salvage", StringComparison.Ordinal));
     }
@@ -915,6 +940,7 @@ public class StarshipExpeditionServiceTests
         foreach (var vote in new[] { "salvage", "pass" })
         {
             var fixture = CreateSalvageFixture();
+            fixture.RewardProfiles[0].SuccessChancePercent = 100;
             fixture.CurrentEvent!.Choices = [.. pool];
             fixture.CurrentEvent.ChoicePool = [.. pool];
             var stateStore = new InMemoryStateStore();
@@ -968,6 +994,76 @@ public class StarshipExpeditionServiceTests
 
         Assert.Equal(60, losses[0]);
         Assert.Equal(30, losses[1]);
+    }
+
+    [Fact]
+    public async Task ShowStatusWidget_SetsForcedVisibilityWindowAndBroadcastsIt()
+    {
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        var stateStore = new InMemoryStateStore();
+        var service = CreateService(stateStore, clock);
+        Assert.Null(await service.ShowStatusWidgetAsync(30));
+
+        await service.StartExpeditionAsync("moderator", seed: 5);
+        var shown = await service.ShowStatusWidgetAsync(45);
+
+        Assert.Equal(clock.GetUtcNow().AddSeconds(45), shown!.StatusForcedUntilUtc);
+        Assert.Equal(shown.StatusForcedUntilUtc, StarshipExpeditionOverlaySnapshot.From(shown).StatusForcedUntilUtc);
+        Assert.Equal(shown.StatusForcedUntilUtc, (await stateStore.LoadAsync())!.StatusForcedUntilUtc);
+        var capped = await service.ShowStatusWidgetAsync(100000);
+        Assert.Equal(clock.GetUtcNow().AddSeconds(3600), capped!.StatusForcedUntilUtc);
+    }
+
+    [Fact]
+    public async Task MultiStepEvent_FiresStepAdvancedAndOutcomeTriggers()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var firedEvents = new List<string>();
+        var triggerService = new Mock<IDefaultCommandTriggerService>();
+        triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, eventType, _, _) => firedEvents.Add(eventType))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            defaultCommandTriggerService: triggerService.Object, pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "scan");
+        await service.AdvanceEventAsync();
+        Assert.Equal(1, firedEvents.Count(item => item == DefaultCommandEventTypes.StarshipEventStepAdvanced));
+        Assert.DoesNotContain(DefaultCommandEventTypes.StarshipEventResolved, firedEvents);
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "pass");
+        await service.AdvanceEventAsync();
+        Assert.Contains(DefaultCommandEventTypes.StarshipEventResolved, firedEvents);
+        Assert.DoesNotContain(DefaultCommandEventTypes.StarshipEventSucceeded, firedEvents);
+        Assert.DoesNotContain(DefaultCommandEventTypes.StarshipEventFailed, firedEvents);
+    }
+
+    [Theory]
+    [InlineData(100, "Starship.EventSucceeded")]
+    [InlineData(0, "Starship.EventFailed")]
+    public async Task CompletedRewardEvent_FiresMatchingOutcomeTrigger(int successChance, string expectedTrigger)
+    {
+        var fixture = CreateSalvageFixture();
+        fixture.RewardProfiles[0].SuccessChancePercent = successChance;
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(fixture);
+        var firedEvents = new List<string>();
+        var triggerService = new Mock<IDefaultCommandTriggerService>();
+        triggerService.Setup(trigger => trigger.TriggerDefaultCommandEventAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CommandEventArgs>(), It.IsAny<Dictionary<string, string>>()))
+            .Callback<string, string, CommandEventArgs, Dictionary<string, string>>((_, eventType, _, _) => firedEvents.Add(eventType))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            defaultCommandTriggerService: triggerService.Object, pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        await service.AdvanceEventAsync();
+
+        Assert.Equal(1, firedEvents.Count(item => item == expectedTrigger));
+        Assert.Equal(1, firedEvents.Count(item => item is "Starship.EventSucceeded" or "Starship.EventFailed"));
     }
 
     [Fact]

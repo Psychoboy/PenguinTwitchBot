@@ -620,6 +620,7 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
         {
             variables.SetVariable("EventTitle", "Title of the opened crew event", source, category, "Unidentified Signal");
             variables.SetVariable("EventType", "Kind of the opened crew event", source, category, "SignalDetected");
+            variables.SetVariable("Subject", "Generated name of the ship, signal or hazard", source, category, "the Kestrel-7 beacon");
             variables.SetVariable("Choices", "Labels of the available event choices", source, category, "Scan the signal | Trace its origin | Continue on course");
             variables.SetVariable("Duration", "Crew vote window in seconds", source, category, "60");
         }
@@ -632,12 +633,48 @@ public class DefaultCommandTriggerVariableResolver : ITriggerVariableResolver
             variables.SetVariable("PointType", "Point currency used by the event reward profile", source, category, "Salvage Credits");
             variables.SetVariable("RewardParticipantCount", "Eligible crew members who earned a reward", source, category, "3");
             variables.SetVariable("RewardTotal", "Aggregate unbanked reward amount for the event", source, category, "45");
+            variables.SetVariable("Outcome", "Event outcome: Success, Failure or Passed (empty for events without rewards)", source, category, "Success");
+            variables.SetVariable("Rarity", "Rarity of the find rolled for the event", source, category, "Uncommon");
+            variables.SetVariable("Path", "Choices the crew made, in order", source, category, "Scan the wreck > Secure the area > Recover salvage");
+            variables.SetVariable("LostTotal", "Aggregate unbanked points the crew lost on failure", source, category, "0");
+            variables.SetVariable("Summary", "Ready-made outcome sentence for chat", source, category, "Derelict Salvage resolved. SUCCESS - Uncommon find.");
+            variables.SetVariable("Story", "Generated story of what happened, using viewer names", source, category, "Penguin_Fan boards the ISV Quiet Meridian and starts cutting toward the cargo hold.");
+            variables.SetVariable("Subject", "Generated name of the ship, signal or hazard", source, category, "the ISV Quiet Meridian");
+        }
+        else if (eventType == DefaultCommandEventTypes.StarshipEventStepAdvanced)
+        {
+            variables.SetVariable("EventTitle", "Title of the multi-step event", source, category, "Derelict Salvage");
+            variables.SetVariable("EventType", "Kind of the event", source, category, "SalvageSite");
+            variables.SetVariable("Step", "Step the event just moved to", source, category, "2");
+            variables.SetVariable("Subject", "Generated name of the ship, signal or hazard", source, category, "the ISV Quiet Meridian");
+            variables.SetVariable("Path", "Choices the crew made so far, in order", source, category, "Scan the wreck");
+            variables.SetVariable("RevealedRarity", "Rarity revealed by a scan (empty until scanned)", source, category, "Rare");
+            variables.SetVariable("StepNote", "What the last choice did", source, category, "Scan complete: this is a Rare find.");
+            variables.SetVariable("Choices", "Numbered choices available in the new step", source, category, "1) Secure the area 2) Recover salvage 3) Pass it by");
+        }
+        else if (eventType is DefaultCommandEventTypes.StarshipEventSucceeded or DefaultCommandEventTypes.StarshipEventFailed)
+        {
+            variables.SetVariable("EventTitle", "Title of the finished event", source, category, "Derelict Salvage");
+            variables.SetVariable("EventType", "Kind of the finished event", source, category, "SalvageSite");
+            variables.SetVariable("Outcome", "Event outcome", source, category,
+                eventType == DefaultCommandEventTypes.StarshipEventSucceeded ? "Success" : "Failure");
+            variables.SetVariable("Rarity", "Rarity of the find", source, category, "Uncommon");
+            variables.SetVariable("Path", "Choices the crew made, in order", source, category, "Scan the wreck > Secure the area > Recover salvage");
+            variables.SetVariable("PointType", "Point currency used by the event reward profile", source, category, "Salvage Credits");
+            variables.SetVariable("RewardTotal", "Aggregate unbanked reward amount", source, category, "45");
+            variables.SetVariable("LostTotal", "Aggregate unbanked points lost by the crew", source, category, "0");
+            variables.SetVariable("AffectedCount", "Crew members who earned or lost points", source, category, "4");
+            variables.SetVariable("Story", "Generated story of what happened, using viewer names", source, category, "Penguin_Fan boards the ISV Quiet Meridian and starts cutting toward the cargo hold. The hatch gives way and the crew hauls out an intact cryo-vault.");
+            variables.SetVariable("Subject", "Generated name of the ship, signal or hazard", source, category, "the ISV Quiet Meridian");
         }
         else if (eventType == DefaultCommandEventTypes.StarshipVoyageEnded)
         {
             variables.SetVariable("Result", "Voyage terminal result", source, category, "Returned");
             variables.SetVariable("Duration", "Voyage duration in seconds", source, category, "3600");
             variables.SetVariable("TriggeredBy", "Broadcaster or moderator who ended the voyage", source, category, "Broadcaster");
+            variables.SetVariable("Summary", "Ready-made voyage summary for chat", source, category, "Voyage completed: 5 events, 3 successful, 1 failed, 4 crew. Earned 120 Salvage Credits.");
+            variables.SetVariable("EventsSucceeded", "Events whose outcome roll succeeded", source, category, "3");
+            variables.SetVariable("EventsFailed", "Events whose outcome roll failed", source, category, "1");
         }
         else if (eventType == DefaultCommandEventTypes.StarshipCrewRewardBanked)
         {

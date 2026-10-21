@@ -48,26 +48,32 @@ public sealed class StarshipExpeditionService(
 
     private static readonly EventDefinition[] RandomEvents =
     [
-        new("SignalDetected", "Unidentified Signal", "A signal is repeating from the edge of the sensor range. Scan it, trace its origin, then investigate - or move on.",
+        new("SignalDetected", "Unidentified Signal", "A signal from {subject} is repeating at the edge of sensor range. Scan it, trace its origin, then investigate - or move on.",
             [
-                new() { ChoiceId = "scan", Label = "Scan the signal", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
-                new() { ChoiceId = "trace", Label = "Trace its origin", ContinuesEvent = true, GrantsFlag = "traced", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60 },
-                new() { ChoiceId = "investigate", Label = "Investigate the source" },
-                new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true }
-            ], "ignore"),
-        new("SalvageSite", "Derelict Salvage", "A damaged vessel is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
+                new() { ChoiceId = "scan", Label = "Scan the signal", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} decodes the looping message from {subject}: a plea in a long-dead dialect, guarding {loot}." },
+                new() { ChoiceId = "trace", Label = "Trace its origin", ContinuesEvent = true, GrantsFlag = "traced", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60, Story = "{crewlist} triangulate {subject} to a hidden dock deep in the {sector}." },
+                new() { ChoiceId = "investigate", Label = "Investigate the source", Story = "{crew} takes a shuttle out to {subject}." },
+                new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true, Story = "The crew lets {subject} fade into static." }
+            ], "ignore",
+            "It was real: the crew recovers {loot}.",
+            "It was a decoy. The shuttle limps home empty and the crew loses cargo."),
+        new("SalvageSite", "Derelict Salvage", "A damaged vessel, {subject}, is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
             [
-                new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
-                new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
-                new() { ChoiceId = "salvage", Label = "Recover salvage" },
-                new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true }
-            ], "pass"),
-        new("Hazard", "Navigation Hazard", "Debris has appeared across the current flight path.",
+                new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true, Story = "{crew} sweeps the sensors over {subject}. Warm signatures flicker behind the cargo hold - it looks like {loot}." },
+                new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50, Story = "{crewlist} lock docking clamps onto {subject} and seal its breached corridors." },
+                new() { ChoiceId = "salvage", Label = "Recover salvage", Story = "{crew} boards {subject} and starts cutting toward the cargo hold." },
+                new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true, Story = "The crew leaves {subject} to drift on." }
+            ], "pass",
+            "The hatch gives way and the crew hauls out {loot}.",
+            "A reactor surge rips through {subject}. The crew drops {loot} and flees."),
+        new("Hazard", "Navigation Hazard", "{Subject} has appeared across the current flight path.",
             [
-                new() { ChoiceId = "maneuver", Label = "Maneuver around it" },
-                new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80 },
-                new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130 }
-            ], "maneuver")
+                new() { ChoiceId = "maneuver", Label = "Maneuver around it", Story = "{crew} takes the helm and arcs around {subject}." },
+                new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, Story = "{crew} diverts power to the shields as {subject} closes in." },
+                new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130, Story = "{crew} grits their teeth and holds course through {subject}." }
+            ], "maneuver",
+            "The crew clears {subject} and scoops up {loot}.",
+            "{Subject} clips the hull and cargo is lost.")
     ];
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
@@ -595,6 +601,25 @@ public sealed class StarshipExpeditionService(
         }
     }
 
+    public async Task<StarshipExpeditionSnapshot?> ShowStatusWidgetAsync(int durationSeconds, CancellationToken cancellationToken = default)
+    {
+        await EnsureLoadedAsync(cancellationToken);
+        await _stateLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_snapshot == null) return null;
+            var previousSnapshot = Clone(_snapshot);
+            var seconds = Math.Clamp(durationSeconds, 1, 3600);
+            _snapshot.StatusForcedUntilUtc = _timeProvider.GetUtcNow().AddSeconds(seconds);
+            await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
+            return Clone(_snapshot);
+        }
+        finally
+        {
+            _stateLock.Release();
+        }
+    }
+
     private async Task AnnounceBoardingAsync(StarshipExpeditionSnapshot snapshot)
     {
         var defaultMessage = $"Starship Expedition boarding is open for {snapshot.BoardingDurationSeconds}s. Join before takeoff with !starship join.";
@@ -616,6 +641,7 @@ public sealed class StarshipExpeditionService(
             {
                 ["EventTitle"] = openedEvent.Title,
                 ["EventType"] = openedEvent.EventType,
+                ["Subject"] = openedEvent.Subject,
                 ["Choices"] = string.Join(" | ", openedEvent.Choices.Select(choice => $"{choice.ChoiceId}: {choice.Label}")),
                 ["Duration"] = current.EventVoteDurationSeconds.ToString(CultureInfo.InvariantCulture)
             });
@@ -626,6 +652,17 @@ public sealed class StarshipExpeditionService(
                  current.CurrentEvent.StepNumber > previous.CurrentEvent.StepNumber)
         {
             await AnnounceEventStepAsync(current, current.CurrentEvent);
+            await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventStepAdvanced, current, new Dictionary<string, string>
+            {
+                ["EventTitle"] = current.CurrentEvent.Title,
+                ["EventType"] = current.CurrentEvent.EventType,
+                ["Step"] = current.CurrentEvent.StepNumber.ToString(CultureInfo.InvariantCulture),
+                ["Subject"] = current.CurrentEvent.Subject,
+                ["Path"] = StarshipExpeditionNarrative.FormatPath(current.CurrentEvent),
+                ["RevealedRarity"] = current.CurrentEvent.RevealedRarity ?? string.Empty,
+                ["StepNote"] = current.CurrentEvent.StepNote,
+                ["Choices"] = StarshipExpeditionNarrative.FormatChoices(current.CurrentEvent.Choices)
+            });
         }
 
         if (current.CompletedEvents.Count > previous.CompletedEvents.Count)
@@ -644,8 +681,38 @@ public sealed class StarshipExpeditionService(
                 ["Sector"] = resolvedEvent.Sector,
                 ["RewardParticipantCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0).ToString(CultureInfo.InvariantCulture),
                 ["RewardTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
-                ["PointType"] = resolvedEvent.RewardOutcomes.FirstOrDefault()?.PointTypeName ?? string.Empty
+                ["PointType"] = resolvedEvent.RewardOutcomes.FirstOrDefault()?.PointTypeName ?? string.Empty,
+                ["Outcome"] = resolvedEvent.OutcomeResult,
+                ["Rarity"] = resolvedEvent.OutcomeRarity,
+                ["Story"] = resolvedEvent.OutcomeStory,
+                ["Subject"] = resolvedEvent.Subject,
+                ["Path"] = StarshipExpeditionNarrative.FormatPath(resolvedEvent),
+                ["LostTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
+                ["Summary"] = StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent)
             });
+
+            if (resolvedEvent.OutcomeResult is StarshipExpeditionNarrative.OutcomeSuccess or StarshipExpeditionNarrative.OutcomeFailure)
+            {
+                await FireTriggerAsync(
+                    resolvedEvent.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess
+                        ? DefaultCommandEventTypes.StarshipEventSucceeded
+                        : DefaultCommandEventTypes.StarshipEventFailed,
+                    current,
+                    new Dictionary<string, string>
+                    {
+                        ["EventTitle"] = resolvedEvent.Title,
+                        ["EventType"] = resolvedEvent.EventType,
+                        ["Outcome"] = resolvedEvent.OutcomeResult,
+                        ["Rarity"] = resolvedEvent.OutcomeRarity,
+                        ["Story"] = resolvedEvent.OutcomeStory,
+                        ["Subject"] = resolvedEvent.Subject,
+                        ["Path"] = StarshipExpeditionNarrative.FormatPath(resolvedEvent),
+                        ["PointType"] = resolvedEvent.RewardOutcomes.FirstOrDefault()?.PointTypeName ?? string.Empty,
+                        ["RewardTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.EarnedAmount).ToString(CultureInfo.InvariantCulture),
+                        ["LostTotal"] = resolvedEvent.RewardOutcomes.Sum(outcome => outcome.LostAmount).ToString(CultureInfo.InvariantCulture),
+                        ["AffectedCount"] = resolvedEvent.RewardOutcomes.Count(outcome => outcome.EarnedAmount > 0 || outcome.LostAmount > 0).ToString(CultureInfo.InvariantCulture)
+                    });
+            }
 
             foreach (var outcome in resolvedEvent.RewardOutcomes.Where(outcome =>
                          outcome.WasRiskyAction && outcome.Outcome is "Success" or "Failure"))
@@ -767,7 +834,7 @@ public sealed class StarshipExpeditionService(
     private Task AnnounceEventOpenedAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
         var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
-        var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
+        var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {currentEvent.Description} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
         return SendChatAnnouncementAsync(message);
     }
 
@@ -802,7 +869,10 @@ public sealed class StarshipExpeditionService(
         {
             ["Result"] = snapshot.Status.ToString(),
             ["Duration"] = Math.Max(0, (long)(_timeProvider.GetUtcNow() - snapshot.StartedAtUtc).TotalSeconds).ToString(CultureInfo.InvariantCulture),
-            ["TriggeredBy"] = triggeredBy ?? snapshot.StartedBy
+            ["TriggeredBy"] = triggeredBy ?? snapshot.StartedBy,
+            ["Summary"] = string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)),
+            ["EventsSucceeded"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeSuccess).ToString(CultureInfo.InvariantCulture),
+            ["EventsFailed"] = snapshot.CompletedEvents.Count(item => item.OutcomeResult == StarshipExpeditionNarrative.OutcomeFailure).ToString(CultureInfo.InvariantCulture)
         });
 
     private async Task FireTriggerAsync(
@@ -1017,6 +1087,9 @@ public sealed class StarshipExpeditionService(
             EventType = definition.EventType,
             Title = definition.Title,
             Description = definition.Description,
+            Subject = StarshipExpeditionStory.GenerateSubject(snapshot.Seed, sequence, definition.EventType),
+            SuccessStory = definition.SuccessStory,
+            FailureStory = definition.FailureStory,
             Sector = snapshot.CurrentSector,
             OpenedAtUtc = now,
             ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds),
@@ -1027,6 +1100,8 @@ public sealed class StarshipExpeditionService(
             Votes = []
         };
         snapshot.NextEventSequence++;
+        snapshot.CurrentEvent.Description = StarshipExpeditionStory.Render(
+            definition.Description, snapshot.CurrentEvent, snapshot.Seed, [], null);
         snapshot.Status = StarshipExpeditionStatus.EventOpen;
         snapshot.NextEventAtUtc = null;
     }
@@ -1043,6 +1118,7 @@ public sealed class StarshipExpeditionService(
         StarshipExpeditionEventSnapshot currentEvent,
         StarshipEventChoiceSnapshot choice,
         int voteCount,
+        IReadOnlyList<string> voterNames,
         DateTimeOffset now)
     {
         currentEvent.Path.Add(new StarshipEventPathStepSnapshot
@@ -1057,20 +1133,22 @@ public sealed class StarshipExpeditionService(
         currentEvent.RewardMultiplierPercent = CombinePercent(currentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent);
         currentEvent.RiskMultiplierPercent = CombinePercent(currentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
 
-        var note = new List<string> { $"Crew chose: {choice.Label}." };
+        var note = new List<string>();
         if (choice.RevealsRarity)
         {
             var profile = snapshot.RewardProfiles.FirstOrDefault(item => item.Enabled &&
                 string.Equals(item.EventType, currentEvent.EventType, StringComparison.OrdinalIgnoreCase));
-            if (profile == null)
-            {
-                note.Add("The scan finds nothing of value.");
-            }
-            else
-            {
+            if (profile != null)
                 currentEvent.RevealedRarity = ChooseEventRarity(snapshot, currentEvent, profile);
-                note.Add($"Scan complete: this is a {currentEvent.RevealedRarity} find.");
-            }
+        }
+
+        var story = StarshipExpeditionStory.Render(choice.Story, currentEvent, snapshot.Seed, voterNames, currentEvent.RevealedRarity);
+        note.Add(story.Length > 0 ? story : $"Crew chose: {choice.Label}.");
+        if (choice.RevealsRarity)
+        {
+            note.Add(currentEvent.RevealedRarity == null
+                ? "The scan finds nothing of value."
+                : $"Scan complete: this is a {currentEvent.RevealedRarity} find.");
         }
 
         var effects = StarshipExpeditionNarrative.DescribeEffects(choice);
@@ -1102,7 +1180,8 @@ public sealed class StarshipExpeditionService(
         if (winningChoice is { ContinuesEvent: true })
         {
             AdvanceEventStepLocked(snapshot, currentEvent, winningChoice,
-                voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0, now);
+                voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0,
+                StarshipExpeditionStory.GetVoterNames(snapshot, currentEvent, winningId), now);
             return false;
         }
 
@@ -1153,6 +1232,7 @@ public sealed class StarshipExpeditionService(
 
         if (profile != null)
             ApplyRewardProfile(snapshot, resolvedEvent, profile, eligibleUserIds);
+        resolvedEvent.OutcomeStory = StarshipExpeditionStory.BuildOutcomeStory(snapshot, resolvedEvent);
 
         if (resolvedEvent.EventType == "StationStop" || snapshot.Status == StarshipExpeditionStatus.Returned)
             QueuePayouts(snapshot, resolvedEvent.EventId);
@@ -1468,13 +1548,8 @@ public sealed class StarshipExpeditionService(
         return snapshot.MinimumEventIntervalSeconds + GetDeterministicIndex(snapshot.Seed, snapshot.NextEventSequence, "event-interval", intervalRange);
     }
 
-    private static int GetDeterministicIndex(int seed, int sequence, string purpose, int count)
-    {
-        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
-        var input = Encoding.UTF8.GetBytes($"{seed}:{sequence}:{purpose}");
-        var hash = SHA256.HashData(input);
-        return (int)(BinaryPrimitives.ReadUInt32LittleEndian(hash) % (uint)count);
-    }
+    private static int GetDeterministicIndex(int seed, int sequence, string purpose, int count) =>
+        StarshipExpeditionStory.StableIndex(seed, sequence, purpose, count);
 
     private static Guid CreateDeterministicEventId(Guid expeditionId, int sequence)
     {
@@ -1543,5 +1618,7 @@ public sealed class StarshipExpeditionService(
         string Title,
         string Description,
         List<StarshipEventChoiceSnapshot> Choices,
-        string DefaultChoiceId);
+        string DefaultChoiceId,
+        string SuccessStory = "",
+        string FailureStory = "");
 }

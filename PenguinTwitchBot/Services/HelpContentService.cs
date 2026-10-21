@@ -474,6 +474,14 @@ public class HelpContentService(IWebHostEnvironment environment) : IHelpContentS
                 ("Triggers & Automation", Icons.Material.Filled.Bolt, "drop-games/subactions.md")
             ]
         ),
+        ["starship-game"] = (
+            "Starship Expedition Guide",
+            Icons.Material.Filled.RocketLaunch,
+            [
+                ("Starship Expedition", Icons.Material.Filled.RocketLaunch, "starship/overview.md"),
+                ("Triggers & Actions", Icons.Material.Filled.Bolt, "starship/automation.md")
+            ]
+        ),
         ["game-themes"] = (
             "Minigame Themes Guide",
             Icons.Material.Filled.Palette,

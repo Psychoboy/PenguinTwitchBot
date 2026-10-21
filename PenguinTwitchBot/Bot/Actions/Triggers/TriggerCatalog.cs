@@ -719,6 +719,48 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "starship-event-step-advanced",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Step Advanced",
+                Description = "Triggers when a multi-step crew event moves to its next step (for example after a scan or securing the area)",
+                Icon = Icons.Material.Filled.SkipNext,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventStepAdvanced
+            },
+            new()
+            {
+                Id = "starship-event-succeeded",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Succeeded",
+                Description = "Triggers when a crew event's outcome roll succeeds and the crew is rewarded",
+                Icon = Icons.Material.Filled.CheckCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventSucceeded
+            },
+            new()
+            {
+                Id = "starship-event-failed",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Failed",
+                Description = "Triggers when a crew event's outcome roll fails and the crew loses unbanked points",
+                Icon = Icons.Material.Filled.ReportProblem,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventFailed
+            },
+            new()
+            {
                 Id = "starship-voyage-ended",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",
@@ -752,7 +794,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 CategoryId = "minigames",
                 CategoryName = "Minigames",
                 DisplayName = "Starship Expedition - Risk Succeeded",
-                Description = "Triggers for a crew member who succeeds at a confirmed risky action",
+                Description = "Triggers for a crew member who succeeds at a confirmed risky action (only events that offer a risky choice)",
                 Icon = Icons.Material.Filled.CheckCircle,
                 Color = Color.Success,
                 FeatureKey = FeatureKeys.DropGames,
@@ -766,7 +808,7 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
                 CategoryId = "minigames",
                 CategoryName = "Minigames",
                 DisplayName = "Starship Expedition - Risk Failed",
-                Description = "Triggers for a crew member who fails a confirmed risky action",
+                Description = "Triggers for a crew member who fails a confirmed risky action (only events that offer a risky choice)",
                 Icon = Icons.Material.Filled.Warning,
                 Color = Color.Warning,
                 FeatureKey = FeatureKeys.DropGames,

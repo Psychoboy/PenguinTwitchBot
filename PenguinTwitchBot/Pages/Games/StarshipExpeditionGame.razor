@@ -18,10 +18,13 @@
                 <MudText Typo="Typo.h4">Starship Expedition</MudText>
                 <MudText Typo="Typo.body2" Color="Color.Secondary">Configure the voyage, preview a seeded route, and control the active expedition.</MudText>
             </div>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
-                       Disabled="@_isSaving" OnClick="SaveSettingsAsync">
-                Save Settings
-            </MudButton>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                           Disabled="@_isSaving" OnClick="SaveSettingsAsync">
+                    Save Settings
+                </MudButton>
+                <HelpButton Topic="starship-game" />
+            </MudStack>
         </MudStack>
 
         @if (_isLoading)
@@ -241,17 +244,42 @@
                                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@previewEvent.Sector</MudChip>
                                             </MudStack>
                                             <MudText Typo="Typo.body2">@previewEvent.Description</MudText>
+                                            @if (!string.IsNullOrEmpty(previewEvent.Subject))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary">Generated subject: @previewEvent.Subject</MudText>
+                                            }
                                             <MudText Typo="Typo.caption" Color="Color.Secondary">Default: @previewEvent.Choices.FirstOrDefault(choice => choice.ChoiceId == previewEvent.DefaultChoiceId)?.Label</MudText>
                                             @if (GetRewardProfile(previewEvent.EventType) is { } previewProfile)
                                             {
                                                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">@GetRewardProfilePreview(previewProfile)</MudAlert>
                                             }
-                                            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-2">
-                                                @foreach (var choice in previewEvent.Choices)
-                                                {
-                                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">@choice.Label</MudChip>
-                                                }
-                                            </MudStack>
+                                            <MudSimpleTable Dense="true" Bordered="true" Class="mt-2">
+                                                <thead>
+                                                    <tr><th>#</th><th>Option</th><th>Effect</th><th>Story (sample viewer: Viewer)</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    @{ var previewOptions = GetPreviewOptions(previewEvent); }
+                                                    @for (var optionIndex = 0; optionIndex < previewOptions.Count; optionIndex++)
+                                                    {
+                                                        var option = previewOptions[optionIndex];
+                                                        <tr>
+                                                            <td>@(optionIndex + 1)</td>
+                                                            <td>@option.Label@(option.ContinuesEvent ? " (next step)" : option.EndsWithoutReward ? " (ends, no reward)" : "")</td>
+                                                            <td>@StarshipExpeditionNarrative.DescribeEffects(option)</td>
+                                                            <td>@StarshipExpeditionStory.Render(option.Story, previewEvent, _previewSeed, ["Viewer"], null)</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </MudSimpleTable>
+                                            @if (GetExamplePath(previewEvent) is { } examplePath)
+                                            {
+                                                <MudText Typo="Typo.caption" Class="mt-2" Style="display:block">Example full path: @examplePath</MudText>
+                                            }
+                                            @if (!string.IsNullOrEmpty(previewEvent.SuccessStory) || !string.IsNullOrEmpty(previewEvent.FailureStory))
+                                            {
+                                                <MudText Typo="Typo.caption" Color="Color.Success" Style="display:block">On success (Rare): @StarshipExpeditionStory.Render(previewEvent.SuccessStory, previewEvent, _previewSeed, ["Viewer"], "Rare")</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Warning" Style="display:block">On failure: @StarshipExpeditionStory.Render(previewEvent.FailureStory, previewEvent, _previewSeed, ["Viewer"], "Rare")</MudText>
+                                            }
                                         </MudPaper>
                                     }
                                 </MudStack>
@@ -369,6 +397,26 @@
             _previewEvents = [];
             _error = ex.Message;
         }
+    }
+
+    private static IReadOnlyList<StarshipEventChoiceSnapshot> GetPreviewOptions(StarshipExpeditionEventSnapshot previewEvent) =>
+        previewEvent.ChoicePool.Count > 0 ? previewEvent.ChoicePool : previewEvent.Choices;
+
+    private string? GetExamplePath(StarshipExpeditionEventSnapshot previewEvent)
+    {
+        var options = GetPreviewOptions(previewEvent);
+        var steps = options.Where(option => option.ContinuesEvent).ToList();
+        if (steps.Count == 0) return null;
+
+        var finalChoice = options.FirstOrDefault(option => !option.ContinuesEvent && !option.EndsWithoutReward);
+        var path = finalChoice == null ? steps : [.. steps, finalChoice];
+        var text = string.Join(" > ", path.Select(option => option.Label));
+        if (GetRewardProfile(previewEvent.EventType) is not { } profile) return text;
+
+        var chance = Math.Clamp(profile.SuccessChancePercent + path.Sum(option => option.SuccessChanceModifierPercent), 0, 100);
+        var reward = path.Aggregate(100, (total, option) => total * option.RewardMultiplierPercent / 100);
+        var risk = path.Aggregate(100, (total, option) => total * option.RiskMultiplierPercent / 100);
+        return $"{text} - success {chance}%, rewards x{StarshipExpeditionNarrative.FormatMultiplier(reward)}, loss exposure x{StarshipExpeditionNarrative.FormatMultiplier(risk)}";
     }
 
     private async Task RefreshLiveStatusAsync()

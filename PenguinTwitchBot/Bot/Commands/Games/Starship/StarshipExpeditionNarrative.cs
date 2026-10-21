@@ -40,6 +40,8 @@ public static class StarshipExpeditionNarrative
     public static IReadOnlyList<string> BuildEventLines(StarshipExpeditionEventSnapshot expeditionEvent)
     {
         var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(expeditionEvent.OutcomeStory))
+            lines.Add(expeditionEvent.OutcomeStory);
         if (expeditionEvent.Path.Count > 1)
             lines.Add($"Crew path: {FormatPath(expeditionEvent)}.");
 

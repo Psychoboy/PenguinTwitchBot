@@ -67,6 +67,12 @@ body {
 
 #starship-widget.status-widget {
     padding-top: 28px;
+    transition: opacity 1.2s ease;
+}
+
+#starship-widget.status-widget[data-faded='true'] {
+    opacity: 0;
+    pointer-events: none;
 }
 
 #starship-widget[hidden],

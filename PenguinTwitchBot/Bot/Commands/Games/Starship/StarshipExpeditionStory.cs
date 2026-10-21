@@ -1,0 +1,120 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace PenguinTwitchBot.Bot.Commands.Games.Starship;
+
+/// <summary>
+/// Deterministic flavour text for events: generated subject names, crew callouts and loot descriptions.
+/// Templates support {crew}, {crewlist}, {subject}, {Subject}, {loot}, {rarity} and {sector}.
+/// </summary>
+public static class StarshipExpeditionStory
+{
+    private static readonly string[] ShipPrefixes = ["ISV", "MV", "RSS", "UEV", "SS"];
+    private static readonly string[] ShipAdjectives = ["Quiet", "Gilded", "Wandering", "Forgotten", "Ember", "Hollow", "Silver", "Stubborn", "Fading", "Restless"];
+    private static readonly string[] ShipNouns = ["Meridian", "Kestrel", "Lantern", "Harbinger", "Marigold", "Odyssey", "Tidewater", "Larkspur", "Cormorant", "Aurora"];
+    private static readonly string[] SignalWords = ["Kestrel", "Vesper", "Orrin", "Tamsin", "Halcyon", "Brigid", "Corvus", "Ilex"];
+    private static readonly string[] SignalKinds = ["beacon", "transponder", "distress loop", "pulse", "relay"];
+    private static readonly string[] HazardAdjectives = ["ragged", "glittering", "drifting", "tumbling", "silent"];
+    private static readonly string[] HazardKinds = ["debris field", "micro-meteor swarm", "ion storm", "wreckage cloud"];
+
+    public static int StableIndex(int seed, int sequence, string purpose, int count)
+    {
+        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{seed}:{sequence}:{purpose}"));
+        return (int)(BinaryPrimitives.ReadUInt32LittleEndian(hash) % (uint)count);
+    }
+
+    public static string GenerateSubject(int seed, int sequence, string eventType)
+    {
+        string Pick(string[] items, string purpose) => items[StableIndex(seed, sequence, $"story-{purpose}", items.Length)];
+        return eventType switch
+        {
+            "SalvageSite" => $"the {Pick(ShipPrefixes, "prefix")} {Pick(ShipAdjectives, "adjective")} {Pick(ShipNouns, "noun")}",
+            "SignalDetected" => $"the {Pick(SignalWords, "word")}-{StableIndex(seed, sequence, "story-number", 9) + 1} {Pick(SignalKinds, "kind")}",
+            "Hazard" => $"the {Pick(HazardAdjectives, "adjective")} {Pick(HazardKinds, "kind")}",
+            _ => string.Empty
+        };
+    }
+
+    public static string DescribeLoot(string eventType, string? rarity) => (eventType, rarity) switch
+    {
+        ("SalvageSite", "Common") => "salvage plating and spare parts",
+        ("SalvageSite", "Uncommon") => "a sealed navigation core",
+        ("SalvageSite", "Rare") => "an intact cryo-vault",
+        ("SignalDetected", "Common") => "a fragment of old star charts",
+        ("SignalDetected", "Uncommon") => "an encrypted data cache",
+        ("SignalDetected", "Rare") => "a lost explorer's black-box archive",
+        ("Hazard", "Common") => "scattered ore chunks",
+        ("Hazard", "Uncommon") => "a cluster of crystal shards",
+        ("Hazard", "Rare") => "a glowing rare-earth nugget",
+        (_, "Common") => "some useful scrap",
+        (_, "Uncommon") => "a valuable cache",
+        (_, "Rare") => "a priceless find",
+        _ => "something valuable"
+    };
+
+    /// <summary>Renders a story template; names pick a deterministic hero among the people who chose the option.</summary>
+    public static string Render(
+        string template,
+        StarshipExpeditionEventSnapshot expeditionEvent,
+        int seed,
+        IReadOnlyList<string> crewNames,
+        string? rarity)
+    {
+        if (string.IsNullOrWhiteSpace(template)) return string.Empty;
+        var subject = expeditionEvent.Subject;
+        var hero = crewNames.Count == 0
+            ? "The crew"
+            : crewNames[StableIndex(seed, expeditionEvent.Sequence, $"story-hero:{expeditionEvent.StepNumber}", crewNames.Count)];
+        var others = crewNames.Count - 1;
+        var crewList = crewNames.Count switch
+        {
+            0 => "the crew",
+            1 => crewNames[0],
+            2 => $"{crewNames[0]} and {crewNames[1]}",
+            _ => $"{hero} and {others} others"
+        };
+        var capitalizedSubject = subject.Length == 0 ? subject : char.ToUpperInvariant(subject[0]) + subject[1..];
+
+        return template
+            .Replace("{crewlist}", crewList, StringComparison.Ordinal)
+            .Replace("{crew}", hero, StringComparison.Ordinal)
+            .Replace("{Subject}", capitalizedSubject, StringComparison.Ordinal)
+            .Replace("{subject}", subject, StringComparison.Ordinal)
+            .Replace("{loot}", DescribeLoot(expeditionEvent.EventType, rarity), StringComparison.Ordinal)
+            .Replace("{rarity}", rarity ?? "unknown", StringComparison.Ordinal)
+            .Replace("{sector}", expeditionEvent.Sector, StringComparison.Ordinal);
+    }
+
+    public static IReadOnlyList<string> GetVoterNames(
+        StarshipExpeditionSnapshot snapshot,
+        StarshipExpeditionEventSnapshot expeditionEvent,
+        string choiceId) =>
+        expeditionEvent.Votes
+            .Where(vote => string.Equals(vote.ChoiceId, choiceId, StringComparison.OrdinalIgnoreCase))
+            .Select(vote => snapshot.Crew.FirstOrDefault(member =>
+                string.Equals(member.UserId, vote.UserId, StringComparison.OrdinalIgnoreCase))?.DisplayName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    public static string BuildOutcomeStory(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot resolvedEvent)
+    {
+        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var voters = GetVoterNames(snapshot, resolvedEvent, resolvedEvent.ResolvedChoiceId ?? string.Empty);
+        var rarity = string.IsNullOrEmpty(resolvedEvent.OutcomeRarity) ? resolvedEvent.RevealedRarity : resolvedEvent.OutcomeRarity;
+        var parts = new List<string> { Render(finalChoice?.Story ?? string.Empty, resolvedEvent, snapshot.Seed, voters, rarity) };
+        var outcomeTemplate = resolvedEvent.OutcomeResult switch
+        {
+            StarshipExpeditionNarrative.OutcomeSuccess => resolvedEvent.SuccessStory,
+            StarshipExpeditionNarrative.OutcomeFailure => resolvedEvent.FailureStory,
+            _ => string.Empty
+        };
+        parts.Add(Render(outcomeTemplate, resolvedEvent, snapshot.Seed, voters, rarity));
+        return string.Join(" ", parts.Where(part => part.Length > 0));
+    }
+}

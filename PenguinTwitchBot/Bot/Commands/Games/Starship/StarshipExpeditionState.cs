@@ -48,6 +48,8 @@ public sealed class StarshipExpeditionSnapshot
     public List<StarshipExpeditionEventSnapshot> CompletedEvents { get; init; } = [];
     public List<StarshipBankedPayoutSnapshot> BankedPayouts { get; init; } = [];
     public StarshipExpeditionEventSnapshot? CurrentEvent { get; set; }
+    /// <summary>While in the future, the status widget stays visible even when it would otherwise fade out during cruising.</summary>
+    public DateTimeOffset? StatusForcedUntilUtc { get; set; }
 }
 
 public sealed class StarshipCrewMemberSnapshot
@@ -66,7 +68,11 @@ public sealed class StarshipExpeditionEventSnapshot
     public int Sequence { get; init; }
     public string EventType { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
-    public string Description { get; init; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Subject { get; init; } = string.Empty;
+    public string SuccessStory { get; init; } = string.Empty;
+    public string FailureStory { get; init; } = string.Empty;
+    public string OutcomeStory { get; set; } = string.Empty;
     public string Sector { get; init; } = string.Empty;
     public DateTimeOffset OpenedAtUtc { get; set; }
     public DateTimeOffset ClosesAtUtc { get; set; }
@@ -97,6 +103,8 @@ public sealed class StarshipEventChoiceSnapshot
     public string ChoiceId { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
     public bool IsRisky { get; init; }
+    /// <summary>Story template shown when this choice is made (see StarshipExpeditionStory for tokens).</summary>
+    public string Story { get; init; } = string.Empty;
     /// <summary>When true, winning this choice ends the event with no reward for anyone.</summary>
     public bool EndsWithoutReward { get; init; }
     /// <summary>When true, winning this choice advances the event to another step instead of resolving it.</summary>
@@ -183,7 +191,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     DateTimeOffset? BoardingClosesAtUtc,
     DateTimeOffset? NextEventAtUtc,
     StarshipOverlayEventSnapshot? CurrentEvent,
-    StarshipOverlayEventResult? LatestResult)
+    StarshipOverlayEventResult? LatestResult,
+    DateTimeOffset? StatusForcedUntilUtc)
 {
     public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot)
     {
@@ -204,7 +213,8 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                     snapshot.CurrentEvent,
                     snapshot.RewardProfiles.FirstOrDefault(profile => profile.Enabled &&
                         string.Equals(profile.EventType, snapshot.CurrentEvent.EventType, StringComparison.OrdinalIgnoreCase))),
-            GetLatestOverlayResult(snapshot));
+            GetLatestOverlayResult(snapshot),
+            snapshot.StatusForcedUntilUtc);
     }
 
     private static StarshipOverlayEventResult? GetLatestOverlayResult(StarshipExpeditionSnapshot snapshot)

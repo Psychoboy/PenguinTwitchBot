@@ -291,6 +291,54 @@ namespace PenguinTwitchBot.Test.ClientScripts
         }
 
         [Fact]
+        public void StarshipStatusWidget_FadesWhileCruisingUnlessForcedVisible()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            object Snapshot(string status, DateTimeOffset updatedAt, DateTimeOffset? forcedUntil) => new
+            {
+                status,
+                updatedAtUtc = updatedAt.ToString("O"),
+                currentLeg = 1,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Direct Route",
+                crewCount = 3,
+                boardingClosesAtUtc = (string?)null,
+                nextEventAtUtc = now.AddMinutes(10).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                statusForcedUntilUtc = forcedUntil?.ToString("O")
+            };
+            string Faded() => engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString();
+
+            DispatchStarshipOverlayState(engine, Snapshot("Boarding", now, null));
+            Assert.Equal("false", Faded());
+
+            DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(1), null));
+            Assert.Equal("true", Faded());
+
+            DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(2), now.AddSeconds(30)));
+            Assert.Equal("false", Faded());
+
+            DispatchStarshipOverlayState(engine, Snapshot("Cruising", now.AddSeconds(3), now.AddSeconds(-1)));
+            Assert.Equal("true", Faded());
+
+            DispatchStarshipOverlayState(engine, Snapshot("EventOpen", now.AddSeconds(4), null));
+            Assert.Equal("false", Faded());
+
+            DispatchStarshipOverlayState(engine, Snapshot("Returned", now.AddSeconds(5), null));
+            Assert.Equal("false", Faded());
+
+            var endedEngine = CreateStarshipOverlayEngine("status");
+            DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-60), null));
+            Assert.Equal("true", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+
+            DispatchStarshipOverlayState(endedEngine, Snapshot("Returned", now.AddSeconds(-59), now.AddSeconds(30)));
+            Assert.Equal("false", endedEngine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+        }
+
+        [Fact]
         public void StarshipEventWidget_RendersVoteCommandsThenCollapsesToResolution()
         {
             var engine = CreateStarshipOverlayEngine("event");

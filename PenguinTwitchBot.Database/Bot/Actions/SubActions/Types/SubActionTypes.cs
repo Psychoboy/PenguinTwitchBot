@@ -79,6 +79,7 @@ namespace PenguinTwitchBot.Database.Bot.Actions.SubActions.Types
         BalloonHazards,
         CurlingSlide,
         GolfPutt,
-        ManagePoints
+        ManagePoints,
+        StarshipShowStatus
     }
 }

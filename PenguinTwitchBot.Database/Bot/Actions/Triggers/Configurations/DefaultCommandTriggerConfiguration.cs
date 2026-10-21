@@ -104,5 +104,8 @@ namespace PenguinTwitchBot.Database.Bot.Actions.Triggers.Configurations
         public const string StarshipCrewRewardBanked = "Starship.CrewRewardBanked";
         public const string StarshipRiskSucceeded = "Starship.RiskSucceeded";
         public const string StarshipRiskFailed = "Starship.RiskFailed";
+        public const string StarshipEventStepAdvanced = "Starship.EventStepAdvanced";
+        public const string StarshipEventSucceeded = "Starship.EventSucceeded";
+        public const string StarshipEventFailed = "Starship.EventFailed";
     }
 }

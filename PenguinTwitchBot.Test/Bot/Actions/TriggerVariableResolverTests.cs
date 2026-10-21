@@ -222,6 +222,30 @@ namespace PenguinTwitchBot.Test.Bot.Actions
             }
         }
 
+        [Theory]
+        [InlineData(DefaultCommandEventTypes.StarshipEventStepAdvanced, "Step", "RevealedRarity")]
+        [InlineData(DefaultCommandEventTypes.StarshipEventSucceeded, "Outcome", "LostTotal")]
+        [InlineData(DefaultCommandEventTypes.StarshipEventFailed, "AffectedCount", "Path")]
+        [InlineData(DefaultCommandEventTypes.StarshipVoyageEnded, "Summary", "EventsFailed")]
+        public void DefaultCommandTriggerVariableResolver_ResolvesStarshipOutcomeEvents(string eventType, string first, string second)
+        {
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            new DefaultCommandTriggerVariableResolver().ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = eventType
+                })
+            }, variables);
+
+            Assert.Contains(first, variables.Keys);
+            Assert.Contains(second, variables.Keys);
+            Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == eventType);
+        }
+
         [Fact]
         public void TwitchEventTriggerVariableResolver_ResolvesCheerAndSubVariables()
         {

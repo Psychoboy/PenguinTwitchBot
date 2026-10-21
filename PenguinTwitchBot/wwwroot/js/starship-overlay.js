@@ -67,6 +67,11 @@
         else if (status === 'Returned') timer = 'Voyage complete';
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
+
+        const forced = (snapshot?.statusForcedUntilUtc ? Date.parse(snapshot.statusForcedUntilUtc) : 0) > Date.now();
+        const terminal = status === 'Returned' || status === 'Aborted';
+        const endedLongAgo = terminal && Date.now() > Date.parse(snapshot.updatedAtUtc) + 30000;
+        root.dataset.faded = !forced && (status === 'Cruising' || endedLongAgo) ? 'true' : 'false';
     }
 
     function renderChoices(currentEvent) {
