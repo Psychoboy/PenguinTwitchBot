@@ -52,6 +52,15 @@ public sealed class StarshipExpeditionSnapshot
     public DateTimeOffset? StatusForcedUntilUtc { get; set; }
     public List<StarshipActivityItem> ActivityFeed { get; init; } = [];
     public long NextActivityId { get; set; } = 1;
+    public StarshipShipSnapshot Ship { get; init; } = new();
+}
+
+/// <summary>Look of the voyage's ship, generated once from the voyage seed.</summary>
+public sealed class StarshipShipSnapshot
+{
+    public string Name { get; init; } = string.Empty;
+    public string HullStyle { get; init; } = string.Empty;
+    public string AccentColor { get; init; } = string.Empty;
 }
 
 public static class StarshipActivityKinds
@@ -218,7 +227,9 @@ public sealed record StarshipExpeditionOverlaySnapshot(
     StarshipOverlayEventResult? LatestResult,
     DateTimeOffset? StatusForcedUntilUtc,
     DateTimeOffset ServerNowUtc,
-    IReadOnlyList<StarshipActivityItem> Activity)
+    IReadOnlyList<StarshipActivityItem> Activity,
+    StarshipShipSnapshot Ship,
+    IReadOnlyList<int> StationLegs)
 {
     public static StarshipExpeditionOverlaySnapshot From(StarshipExpeditionSnapshot snapshot, DateTimeOffset? serverNowUtc = null)
     {
@@ -242,8 +253,18 @@ public sealed record StarshipExpeditionOverlaySnapshot(
             GetLatestOverlayResult(snapshot),
             snapshot.StatusForcedUntilUtc,
             serverNowUtc ?? DateTimeOffset.UtcNow,
-            snapshot.ActivityFeed.TakeLast(MaximumActivityItems).ToList());
+            snapshot.ActivityFeed.TakeLast(MaximumActivityItems).ToList(),
+            snapshot.Ship,
+            GetStationLegs(snapshot));
     }
+
+    /// <summary>1-based legs that are station stops (leg 1 is always the route choice).</summary>
+    public static IReadOnlyList<int> GetStationLegs(StarshipExpeditionSnapshot snapshot) =>
+        snapshot.StationIntervalLegs <= 0
+            ? []
+            : Enumerable.Range(2, Math.Max(0, snapshot.LegCount - 1))
+                .Where(leg => (leg - 1) % snapshot.StationIntervalLegs == 0)
+                .ToList();
 
     public const int MaximumActivityItems = 20;
 

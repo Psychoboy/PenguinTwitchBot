@@ -395,6 +395,7 @@ public sealed class StarshipExpeditionService(
                 ExpeditionId = Guid.NewGuid(),
                 Seed = expeditionSeed,
                 StartedBy = startedBy?.Trim() ?? string.Empty,
+                Ship = StarshipExpeditionStory.GenerateShip(expeditionSeed),
                 Status = StarshipExpeditionStatus.Boarding,
                 StartedAtUtc = now,
                 UpdatedAtUtc = now,

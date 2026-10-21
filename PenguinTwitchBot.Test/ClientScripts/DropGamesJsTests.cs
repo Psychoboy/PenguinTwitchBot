@@ -215,7 +215,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             return engine;
         }
 
-        private static Engine CreateStarshipOverlayEngine(string view)
+        private static Engine CreateStarshipOverlayEngine(string view, string extraSetup = "")
         {
             var engine = new Engine(options => options.TimeoutInterval(TimeSpan.FromSeconds(5)));
             engine.Execute($@"
@@ -252,6 +252,7 @@ namespace PenguinTwitchBot.Test.ClientScripts
             ");
 
             var jsRoot = FindWwwRootPath();
+            if (extraSetup.Length > 0) engine.Execute(extraSetup);
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-scene.js")));
             engine.Execute(File.ReadAllText(Path.Combine(jsRoot, "starship-overlay.js")));
             return engine;
@@ -289,6 +290,139 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.Equal("Leg 0 / 5", engine.Evaluate("document.getElementById('leg-count').textContent").AsString());
             Assert.Contains("Takeoff in", engine.Evaluate("document.getElementById('timing').textContent").AsString());
             Assert.Equal("starship", engine.Evaluate("window.__topics[0]").AsString());
+        }
+
+        [Fact]
+        public void StarshipStatusWidget_RendersShipRouteMapAndScalesToTheSourceSize()
+        {
+            var engine = CreateStarshipOverlayEngine("status", "window.innerWidth = 1040; window.innerHeight = 360;");
+            Assert.Equal("2", engine.Evaluate("document.getElementById('stage').style['--ui-scale']").AsString());
+
+            var now = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "EventOpen",
+                updatedAtUtc = now.ToString("O"),
+                serverNowUtc = now.ToString("O"),
+                currentLeg = 2,
+                legCount = 6,
+                currentSector = "Kepler Reach",
+                currentRoute = "Direct Route",
+                crewCount = 4,
+                boardingClosesAtUtc = (string?)null,
+                nextEventAtUtc = (string?)null,
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                ship = new { name = "Rockhopper Voyager", hullStyle = "cruiser", accentColor = "#f4bd68" },
+                stationLegs = new[] { 3, 5 }
+            });
+
+            Assert.Equal("Rockhopper Voyager", engine.Evaluate("document.getElementById('ship-name').textContent").AsString());
+            Assert.False(engine.Evaluate("document.getElementById('ship-icon').hidden").AsBoolean());
+            var icon = engine.Evaluate("document.getElementById('ship-icon').innerHTML").AsString();
+            Assert.Contains("#f4bd68", icon);
+            Assert.Contains("<svg", icon);
+            Assert.Equal(icon, engine.Evaluate("document.getElementById('ship-marker').innerHTML").AsString());
+            Assert.Equal("#f4bd68", engine.Evaluate("document.getElementById('stage').style['--ship-accent']").AsString());
+            Assert.Equal(6, (int)engine.Evaluate("document.getElementById('route-nodes').children.length").AsNumber());
+            Assert.Equal("leg-node done", engine.Evaluate("document.getElementById('route-nodes').children[0].className").AsString());
+            Assert.Equal("leg-node station current", engine.Evaluate("document.getElementById('route-nodes').children[2].className").AsString());
+            Assert.Equal("leg-node", engine.Evaluate("document.getElementById('route-nodes').children[3].className").AsString());
+            Assert.Equal("leg-node station", engine.Evaluate("document.getElementById('route-nodes').children[4].className").AsString());
+            Assert.StartsWith("41.6", engine.Evaluate("document.getElementById('ship-marker').style.left").AsString(), StringComparison.Ordinal);
+
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Cruising",
+                updatedAtUtc = now.AddSeconds(1).ToString("O"),
+                serverNowUtc = now.AddSeconds(1).ToString("O"),
+                currentLeg = 2,
+                legCount = 6,
+                currentSector = "Kepler Reach",
+                currentRoute = "Direct Route",
+                crewCount = 4,
+                nextEventAtUtc = now.AddMinutes(5).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                ship = new { name = "Odd Ship", hullStyle = "nonsense", accentColor = "red;}</style>" },
+                stationLegs = Array.Empty<int>()
+            });
+            Assert.Equal("#66d0c2", engine.Evaluate("document.getElementById('stage').style['--ship-accent']").AsString());
+            Assert.Contains("<polygon points=\"2,16 26,5 62,16 26,27\"", engine.Evaluate("document.getElementById('ship-icon').innerHTML").AsString());
+        }
+
+        [Fact]
+        public void StarshipOverlay_ShowsJoinToastsPulsesCrewAndRevealsFadedStatusWidget()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            object Snapshot(int second, params object[] activity) => new
+            {
+                status = "Cruising",
+                updatedAtUtc = now.AddSeconds(second).ToString("O"),
+                serverNowUtc = now.AddSeconds(second).ToString("O"),
+                currentLeg = 1,
+                legCount = 5,
+                currentSector = "Kepler Reach",
+                currentRoute = "Direct Route",
+                crewCount = 3,
+                nextEventAtUtc = now.AddMinutes(10).ToString("O"),
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                activity
+            };
+            object Join(long id, string name, int aboard) => new
+            {
+                id,
+                atUtc = now.ToString("O"),
+                kind = "CrewJoined",
+                text = $"{name} joined the crew - {aboard} aboard",
+                actor = name
+            };
+
+            DispatchStarshipOverlayState(engine, Snapshot(0));
+            Assert.Equal("true", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.Equal(string.Empty, engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
+
+            DispatchStarshipOverlayState(engine, Snapshot(1, Join(1, "Pilot", 4)));
+            Assert.False(engine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
+            Assert.Equal("Pilot joined the crew - 4 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
+            Assert.Equal("false", engine.Evaluate("document.getElementById('starship-widget').dataset.faded").AsString());
+            Assert.Equal("true", engine.Evaluate("document.getElementById('crew-block').dataset.pulse").AsString());
+
+            DispatchStarshipOverlayState(engine, Snapshot(2, Join(2, "Medic", 5), Join(3, "Engineer", 6), Join(4, "Cook", 7)));
+            Assert.Equal("Pilot joined the crew - 4 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
+
+            var eventEngine = CreateStarshipOverlayEngine("event");
+            DispatchStarshipOverlayState(eventEngine, Snapshot(0));
+            DispatchStarshipOverlayState(eventEngine, Snapshot(1, Join(1, "Pilot", 4)));
+            Assert.False(eventEngine.Evaluate("document.getElementById('starship-toast').hidden").AsBoolean());
+            Assert.True(eventEngine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+        }
+
+        [Fact]
+        public void StarshipOverlay_CoalescesBurstsOfJoinsIntoOneToast()
+        {
+            var engine = CreateStarshipOverlayEngine("status");
+            var now = DateTimeOffset.UtcNow;
+            DispatchStarshipOverlayState(engine, new
+            {
+                status = "Cruising",
+                updatedAtUtc = now.ToString("O"),
+                serverNowUtc = now.ToString("O"),
+                currentLeg = 1, legCount = 5, currentSector = "Kepler Reach", currentRoute = "Direct Route", crewCount = 3,
+                currentEvent = (object?)null,
+                latestResult = (object?)null,
+                activity = new[]
+                {
+                    new { id = 1L, atUtc = now.ToString("O"), kind = "CrewJoined", text = "Pilot joined the crew - 4 aboard", actor = "Pilot" },
+                    new { id = 2L, atUtc = now.ToString("O"), kind = "CrewJoined", text = "Medic joined the crew - 5 aboard", actor = "Medic" },
+                    new { id = 3L, atUtc = now.ToString("O"), kind = "CrewJoined", text = "Cook joined the crew - 6 aboard", actor = "Cook" },
+                    new { id = 4L, atUtc = now.ToString("O"), kind = "CrewJoined", text = "Engineer joined the crew - 7 aboard", actor = "Engineer" }
+                }
+            });
+
+            Assert.Equal("Pilot and 3 others joined the crew - 7 aboard", engine.Evaluate("document.getElementById('starship-toast').textContent").AsString());
         }
 
         [Fact]

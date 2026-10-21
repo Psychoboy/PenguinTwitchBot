@@ -8,6 +8,7 @@
 </head>
 <body data-starship-view="event">
     <div id="ws-status" data-overlay="Starship Event">Disconnected</div>
+    <div id="stage">
     <main id="starship-widget" class="event-widget" hidden>
         <header class="widget-header">
             <div class="identity">
@@ -49,6 +50,8 @@
             <div id="result-banked" class="banked-list" hidden></div>
         </div>
     </main>
+    <div id="starship-toast" class="toast" hidden></div>
+    </div>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/ws-status.js"></script>

@@ -1104,6 +1104,39 @@ public class StarshipExpeditionServiceTests
     }
 
     [Fact]
+    public async Task Ship_IsGeneratedFromTheSeedAndExposedWithStationLegs()
+    {
+        var service = CreateService(new InMemoryStateStore(), settingsStore: new InMemorySettingsStore(
+            new StarshipExpeditionSettings { LegCount = 6, StationIntervalLegs = 2 }));
+        var started = await service.StartExpeditionAsync("moderator", seed: 777);
+
+        Assert.NotEmpty(started.Ship.Name);
+        Assert.Contains(started.Ship.HullStyle, new[] { "arrow", "hauler", "scout", "cruiser" });
+        Assert.Matches("^#[0-9a-f]{6}$", started.Ship.AccentColor);
+        Assert.Equal(started.Ship.Name, StarshipExpeditionStory.GenerateShip(777).Name);
+        Assert.Contains(Enumerable.Range(1, 60), seed => StarshipExpeditionStory.GenerateShip(seed).HullStyle != started.Ship.HullStyle);
+
+        var projection = StarshipExpeditionOverlaySnapshot.From(started);
+        Assert.Equal(started.Ship.Name, projection.Ship.Name);
+        Assert.Equal([3, 5], projection.StationLegs);
+        Assert.Empty(StarshipExpeditionOverlaySnapshot.From(new StarshipExpeditionSnapshot { LegCount = 5, StationIntervalLegs = 0 }).StationLegs);
+    }
+
+    [Fact]
+    public async Task StationLegs_MatchTheLegsWhereStationStopsActuallyOccur()
+    {
+        var service = CreateService(new InMemoryStateStore());
+        var preview = service.BuildPreview(new StarshipExpeditionSettings { LegCount = 9, StationIntervalLegs = 3 }, seed: 5);
+        var projectedStations = StarshipExpeditionOverlaySnapshot.GetStationLegs(
+            new StarshipExpeditionSnapshot { LegCount = 9, StationIntervalLegs = 3 });
+
+        Assert.Equal(
+            preview.Where(item => item.EventType == "StationStop").Select(item => item.Sequence),
+            projectedStations);
+        await Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task ActivityFeed_RecordsLifecycleWithIncreasingIdsAndServerTime()
     {
         var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);

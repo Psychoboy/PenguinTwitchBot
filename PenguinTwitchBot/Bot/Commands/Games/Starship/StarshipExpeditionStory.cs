@@ -18,6 +18,18 @@ public static class StarshipExpeditionStory
     private static readonly string[] HazardAdjectives = ["ragged", "glittering", "drifting", "tumbling", "silent"];
     private static readonly string[] HazardKinds = ["debris field", "micro-meteor swarm", "ion storm", "wreckage cloud"];
 
+    private static readonly string[] ShipFirstNames = ["Emperor", "Rockhopper", "Macaroni", "Adelie", "Chinstrap", "Gentoo", "King", "Fairy", "Humboldt", "Snares"];
+    private static readonly string[] ShipLastNames = ["Voyager", "Glider", "Skua", "Drifter", "Harbinger", "Comet", "Pathfinder", "Wayfarer"];
+    private static readonly string[] HullStyles = ["arrow", "hauler", "scout", "cruiser"];
+    private static readonly string[] AccentColors = ["#66d0c2", "#f4bd68", "#ef866f", "#8fb8ff", "#b79cff", "#8be28b"];
+
+    public static StarshipShipSnapshot GenerateShip(int seed) => new()
+    {
+        Name = $"{ShipFirstNames[StableIndex(seed, 0, "ship-first", ShipFirstNames.Length)]} {ShipLastNames[StableIndex(seed, 0, "ship-last", ShipLastNames.Length)]}",
+        HullStyle = HullStyles[StableIndex(seed, 0, "ship-hull", HullStyles.Length)],
+        AccentColor = AccentColors[StableIndex(seed, 0, "ship-accent", AccentColors.Length)]
+    };
+
     public static int StableIndex(int seed, int sequence, string purpose, int count)
     {
         if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));

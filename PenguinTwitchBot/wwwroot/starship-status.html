@@ -8,11 +8,15 @@
 </head>
 <body data-starship-view="status">
     <div id="ws-status" data-overlay="Starship Status">Disconnected</div>
+    <div id="stage">
     <main id="starship-widget" class="status-widget">
         <header class="widget-header">
             <div class="identity">
-                <span class="eyebrow">FLIGHT OPERATIONS</span>
-                <h1>Starship Expedition</h1>
+                <div id="ship-icon" class="ship-icon" aria-hidden="true" hidden></div>
+                <div class="identity-text">
+                    <span class="eyebrow">FLIGHT OPERATIONS</span>
+                    <h1 id="ship-name">Starship Expedition</h1>
+                </div>
             </div>
             <span id="phase" class="phase">Awaiting</span>
         </header>
@@ -22,19 +26,23 @@
                 <strong id="sector">No active voyage</strong>
                 <span id="route" class="route">Start a voyage to begin</span>
             </div>
-            <div class="crew-block">
+            <div id="crew-block" class="crew-block">
                 <strong id="crew-count">0</strong>
                 <span>CREW</span>
             </div>
         </div>
-        <div class="progress-track" aria-label="Voyage progress">
-            <span id="progress-fill"></span>
+        <div id="route-map" class="route-map" aria-label="Voyage route">
+            <span class="route-line"><span id="progress-fill"></span></span>
+            <div id="route-nodes"></div>
+            <div id="ship-marker" class="ship-marker" hidden></div>
         </div>
         <footer class="status-footer">
             <span id="leg-count">Leg 0 / 0</span>
             <span id="timing">Awaiting launch</span>
         </footer>
     </main>
+    <div id="starship-toast" class="toast" hidden></div>
+    </div>
     <script src="/js/reconnecting-websocket/reconnectingWS.min.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/ws-status.js"></script>

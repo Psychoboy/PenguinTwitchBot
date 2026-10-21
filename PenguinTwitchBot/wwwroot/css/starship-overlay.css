@@ -51,6 +51,17 @@ body {
     opacity: 0;
 }
 
+#stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(100% / var(--ui-scale, 1));
+    height: calc(100% / var(--ui-scale, 1));
+    transform: scale(var(--ui-scale, 1));
+    transform-origin: top left;
+    --ship-accent: var(--teal);
+}
+
 #starship-widget {
     position: relative;
     width: 100%;
@@ -145,7 +156,7 @@ h1 {
 
 .status-main {
     gap: 18px;
-    margin: 14px 0 12px;
+    margin: 8px 0 4px;
 }
 
 .route-block {
@@ -197,6 +208,132 @@ h1 {
     height: 100%;
     background: var(--teal);
     transition: width 0.4s ease;
+}
+
+.identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.identity-text {
+    min-width: 0;
+}
+
+.ship-icon {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 24px;
+    filter: drop-shadow(0 0 5px var(--ship-accent));
+}
+
+.ship-icon svg,
+.ship-marker svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.route-map {
+    position: relative;
+    height: 20px;
+    margin: 0 14px;
+}
+
+.route-line {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: rgba(231, 245, 239, 0.14);
+    transform: translateY(-50%);
+}
+
+.route-line span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--ship-accent);
+    transition: width 0.6s ease;
+}
+
+.leg-node {
+    position: absolute;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4.5px;
+    border: 1px solid rgba(231, 245, 239, 0.4);
+    border-radius: 50%;
+    background: #17343a;
+}
+
+.leg-node.station {
+    border-radius: 2px;
+    transform: rotate(45deg);
+}
+
+.leg-node.done {
+    border-color: var(--ship-accent);
+    background: var(--ship-accent);
+}
+
+.leg-node.current {
+    border-color: var(--amber);
+    animation: node-pulse 1.6s ease-in-out infinite;
+}
+
+.ship-marker {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 28px;
+    height: 14px;
+    margin: -7px 0 0 -14px;
+    filter: drop-shadow(0 0 4px var(--ship-accent));
+    transition: left 0.6s ease;
+}
+
+.crew-block[data-pulse='true'] strong {
+    animation: crew-pulse 0.7s ease-out;
+}
+
+.toast {
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    left: 12px;
+    z-index: 20;
+    overflow: hidden;
+    padding: 8px 12px;
+    border: 1px solid var(--panel-line);
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
+    background: var(--panel);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    font-size: 17px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    animation: toast-in 0.25s ease-out both;
+}
+
+@keyframes node-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(244, 189, 104, 0.55); }
+    50% { box-shadow: 0 0 0 5px rgba(244, 189, 104, 0); }
+}
+
+@keyframes crew-pulse {
+    0% { transform: scale(1.5); }
+    100% { transform: scale(1); }
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .status-footer {

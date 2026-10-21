@@ -3,13 +3,126 @@
 
     const view = document.body.dataset.starshipView;
     const root = document.getElementById('starship-widget');
+    const stage = document.getElementById('stage');
+    const BASE_SIZE = view === 'event' ? { width: 620, height: 360 } : { width: 520, height: 180 };
+    const DEFAULT_ACCENT = '#66d0c2';
+    const TOAST_MS = 3500;
+    const PULSE_MS = 700;
     let socket;
     let snapshot = null;
     let hasSnapshot = false;
     let lastAppliedTimestamp = -Infinity;
+    let toastQueue = [];
+    let toastEndsAt = 0;
+    let pulseUntil = 0;
+    let routeSignature = '';
     const tracker = window.StarshipScene.createTracker();
-    const feedHandlers = [];
+    const feedHandlers = [handleActivity];
     window.StarshipOverlay = { onFeed: function (handler) { feedHandlers.push(handler); } };
+
+    function setVar(element, name, value) {
+        if (!element) return;
+        if (element.style && typeof element.style.setProperty === 'function') element.style.setProperty(name, value);
+        else if (element.style) element.style[name] = value;
+    }
+
+    // Layouts are designed at the default browser-source size and scaled to whatever size the streamer uses.
+    function applyScale() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        if (!(width > 0 && height > 0)) return;
+        const scale = Math.min(4, Math.max(0.4, Math.min(width / BASE_SIZE.width, height / BASE_SIZE.height)));
+        setVar(stage, '--ui-scale', String(scale));
+    }
+
+    function handleActivity(item) {
+        if (item.kind !== 'CrewJoined') return;
+        toastQueue.push(item);
+        pulseUntil = Date.now() + PULSE_MS;
+    }
+
+    function pumpToast() {
+        const toast = document.getElementById('starship-toast');
+        if (!toast) return;
+        const nowMs = Date.now();
+        if (toastEndsAt && nowMs >= toastEndsAt) {
+            toast.hidden = true;
+            toastEndsAt = 0;
+        }
+        if (toastEndsAt || toastQueue.length === 0) return;
+
+        let text;
+        if (toastQueue.length > 2) {
+            const aboard = /(\d+) aboard/.exec(toastQueue[toastQueue.length - 1].text || '');
+            text = toastQueue[0].actor + ' and ' + (toastQueue.length - 1) + ' others joined the crew' +
+                (aboard ? ' - ' + aboard[1] + ' aboard' : '');
+            toastQueue = [];
+        } else {
+            text = toastQueue.shift().text;
+        }
+        toast.textContent = text;
+        toast.hidden = false;
+        toastEndsAt = nowMs + TOAST_MS;
+    }
+
+    function shipSvg(style, accent) {
+        const hull = '#e8f3f0';
+        const shapes = {
+            arrow: '<polygon points="2,16 26,5 62,16 26,27" fill="' + hull + '"/><polygon points="22,16 40,11 52,16 40,21" fill="' + accent + '"/><rect x="0" y="13" width="6" height="6" fill="' + accent + '" opacity=".7"/>',
+            hauler: '<rect x="10" y="8" width="46" height="16" rx="3" fill="' + hull + '"/><polygon points="56,8 63,16 56,24" fill="' + hull + '"/><rect x="3" y="11" width="8" height="10" fill="' + accent + '"/><rect x="38" y="11" width="14" height="10" fill="' + accent + '" opacity=".8"/>',
+            scout: '<ellipse cx="34" cy="16" rx="24" ry="8" fill="' + hull + '"/><ellipse cx="42" cy="13" rx="8" ry="5" fill="' + accent + '"/><polygon points="12,16 2,5 2,27" fill="' + accent + '" opacity=".8"/>',
+            cruiser: '<polygon points="4,12 54,12 63,16 54,20 4,20" fill="' + hull + '"/><rect x="20" y="4" width="14" height="8" rx="2" fill="' + hull + '"/><rect x="24" y="6" width="6" height="4" fill="' + accent + '"/><rect x="0" y="13" width="6" height="6" fill="' + accent + '" opacity=".7"/><rect x="36" y="14" width="18" height="4" fill="' + accent + '" opacity=".8"/>'
+        };
+        return '<svg viewBox="0 0 64 32" xmlns="http://www.w3.org/2000/svg">' + (shapes[style] || shapes.arrow) + '</svg>';
+    }
+
+    function getAccent() {
+        const accent = snapshot?.ship?.accentColor;
+        return typeof accent === 'string' && /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : DEFAULT_ACCENT;
+    }
+
+    function renderShip() {
+        const accent = getAccent();
+        setVar(stage, '--ship-accent', accent);
+        if (view !== 'status') return;
+        const ship = snapshot?.ship;
+        const hasShip = !!(ship && ship.name);
+        setText('ship-name', hasShip ? ship.name : 'Starship Expedition');
+        const icon = document.getElementById('ship-icon');
+        const marker = document.getElementById('ship-marker');
+        const markup = hasShip ? shipSvg(ship.hullStyle, accent) : '';
+        icon.innerHTML = markup;
+        icon.hidden = !hasShip;
+        marker.innerHTML = markup;
+        marker.hidden = !hasShip;
+    }
+
+    function renderRouteMap(status, legCount, completed) {
+        const nodes = document.getElementById('route-nodes');
+        const stations = snapshot?.stationLegs || [];
+        const signature = legCount + ':' + stations.join(',');
+        if (signature !== routeSignature) {
+            routeSignature = signature;
+            nodes.replaceChildren();
+            for (let leg = 1; leg <= legCount; leg++) {
+                const node = document.createElement('span');
+                node.dataset.leg = String(leg);
+                node.style.left = (leg / legCount * 100) + '%';
+                nodes.appendChild(node);
+            }
+        }
+
+        const active = status === 'Cruising' || status === 'EventOpen' || status === 'Boarding';
+        Array.prototype.forEach.call(nodes.children || [], function (node) {
+            const leg = Number(node.dataset.leg);
+            node.className = 'leg-node' + (stations.indexOf(leg) >= 0 ? ' station' : '') +
+                (leg <= completed ? ' done' : '') + (active && leg === completed + 1 ? ' current' : '');
+        });
+
+        const progress = legCount ? Math.min(100, (completed + (status === 'EventOpen' ? 0.5 : 0)) / legCount * 100) : 0;
+        document.getElementById('progress-fill').style.width = progress + '%';
+        document.getElementById('ship-marker').style.left = progress + '%';
+    }
 
     function applyEnvelope(message) {
         if (!message || message.type !== 'expedition_state') return;
@@ -61,8 +174,7 @@
         const completed = Math.max(0, snapshot?.currentLeg ?? 0);
         const shownLeg = status === 'Boarding' ? 0 : Math.min(legCount, completed + (status === 'EventOpen' ? 1 : 0));
         setText('leg-count', 'Leg ' + shownLeg + ' / ' + legCount);
-        const fill = document.getElementById('progress-fill');
-        fill.style.width = legCount ? Math.min(100, (completed / legCount) * 100) + '%' : '0%';
+        renderRouteMap(status, legCount, completed);
 
         let timer = 'Awaiting launch';
         if (status === 'Boarding') timer = 'Takeoff in ' + formatTimeRemaining(snapshot.boardingClosesAtUtc);
@@ -72,7 +184,8 @@
         else if (status === 'Aborted') timer = 'Voyage aborted';
         setText('timing', timer);
 
-        root.dataset.faded = tracker.derive(snapshot).statusFaded ? 'true' : 'false';
+        root.dataset.faded = tracker.derive(snapshot).statusFaded && !toastEndsAt ? 'true' : 'false';
+        document.getElementById('crew-block').dataset.pulse = Date.now() < pulseUntil ? 'true' : 'false';
     }
 
     function renderChoices(currentEvent) {
@@ -220,6 +333,8 @@
 
     function render() {
         if (!root) return;
+        pumpToast();
+        renderShip();
         if (view === 'status') renderStatus();
         else renderEvent();
     }
@@ -248,6 +363,8 @@
         });
     }
 
+    applyScale();
+    if (typeof window.addEventListener === 'function') window.addEventListener('resize', applyScale);
     render();
     loadInitialState();
     connect();
