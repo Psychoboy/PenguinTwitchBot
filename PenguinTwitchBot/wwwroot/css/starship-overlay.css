@@ -266,6 +266,26 @@ h1 {
     text-align: right;
 }
 
+.choice-hint {
+    grid-column: 1 / -1;
+    color: var(--muted);
+    font: 500 10px 'IBM Plex Mono', monospace;
+}
+
+.step-note {
+    color: var(--amber);
+    font: 500 11px 'IBM Plex Mono', monospace;
+    line-height: 1.35;
+}
+
+.result-lines {
+    display: grid;
+    gap: 3px;
+    color: #d7e1dc;
+    font: 500 11px 'IBM Plex Mono', monospace;
+    line-height: 1.35;
+}
+
 .vote-footer {
     align-items: start;
     gap: 8px;

@@ -319,9 +319,14 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     closesAtUtc = updatedAt.AddSeconds(40).ToString("O"),
                     choices = new[]
                     {
-                        new { choiceId = "direct", label = "Take the direct route", isRisky = false },
-                        new { choiceId = "detour", label = "Take the survey detour", isRisky = true }
+                        new { choiceId = "direct", label = "Take the direct route", isRisky = false, number = 1, hint = "" },
+                        new { choiceId = "detour", label = "Take the survey detour", isRisky = true, number = 2, hint = "rewards x0.8" }
                     },
+                    stepNumber = 2,
+                    path = new[] { "Scan the wreck" },
+                    revealedRarity = "Rare",
+                    stepNote = "Scan complete: this is a Rare find.",
+                    effectiveSuccessChancePercent = 95,
                     defaultChoiceId = "direct",
                     voteCounts = new Dictionary<string, int> { ["direct"] = 1, ["detour"] = 0 },
                     rewardDisclosure = new
@@ -349,12 +354,15 @@ namespace PenguinTwitchBot.Test.ClientScripts
             Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
             Assert.Equal("Choose a Route", engine.Evaluate("document.getElementById('event-title').textContent").AsString());
             Assert.Equal(2, (int)engine.Evaluate("document.getElementById('choices').children.length").AsNumber());
-            Assert.Contains("!starship vote direct", engine.Evaluate("document.getElementById('choices').children[0].children[1].textContent").AsString());
+            Assert.Contains("!sv 1", engine.Evaluate("document.getElementById('choices').children[0].children[1].textContent").AsString());
+            Assert.Equal("rewards x0.8", engine.Evaluate("document.getElementById('choices').children[1].children[3].textContent").AsString());
             Assert.Equal("1 vote", engine.Evaluate("document.getElementById('choices').children[0].children[2].textContent").AsString());
-            Assert.Contains("Success chance: 75%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
-            Assert.Contains("failure 25%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
-            Assert.Contains("risky effects only apply", engine.Evaluate("document.getElementById('reward-scope').textContent").AsString());
-            Assert.Contains("Common 60%: 5-12", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.Contains("Success chance: 95%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
+            Assert.Contains("failure 5%", engine.Evaluate("document.getElementById('reward-success').textContent").AsString());
+            Assert.Contains("only viewers who commit", engine.Evaluate("document.getElementById('reward-scope').textContent").AsString());
+            Assert.Contains("Rarity: Rare (30-50", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.DoesNotContain("Common 60%", engine.Evaluate("document.getElementById('reward-rarity').textContent").AsString());
+            Assert.Contains("Path: Scan the wreck", engine.Evaluate("document.getElementById('step-note').textContent").AsString());
             Assert.Contains("capped at 40", engine.Evaluate("document.getElementById('reward-risk').textContent").AsString());
             Assert.False(engine.Evaluate("document.getElementById('reward-risk').hidden").AsBoolean());
 
@@ -377,11 +385,16 @@ namespace PenguinTwitchBot.Test.ClientScripts
                     sector = "Kepler Reach",
                     choice = "Take the direct route",
                     resolvedAtUtc = updatedAt.AddSeconds(1).ToString("O"),
-                    bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, isPaid = true } }
+                    bankedAmounts = new[] { new { pointTypeId = 12, pointTypeName = "Salvage Credits", amount = 30, isPaid = true } },
+                    outcome = "Success",
+                    rarity = "Rare",
+                    lines = new[] { "SUCCESS - Rare find.", "Earned 30 Salvage Credits for 2 crew." }
                 }
             });
 
             Assert.False(engine.Evaluate("document.getElementById('starship-widget').hidden").AsBoolean());
+            Assert.Equal("2", engine.Evaluate("String(document.getElementById('result-lines').children.length)").AsString());
+            Assert.Equal("SUCCESS - Rare find.", engine.Evaluate("document.getElementById('result-lines').children[0].textContent").AsString());
             Assert.Equal("Take the direct route", engine.Evaluate("document.getElementById('result-choice').textContent").AsString());
             Assert.Equal("30 Salvage Credits banked", engine.Evaluate("document.getElementById('result-banked').children[0].textContent").AsString());
             Assert.True(engine.Evaluate("document.getElementById('event-panel').hidden").AsBoolean());

@@ -31,6 +31,9 @@ public sealed class StarshipExpeditionService(
     : BaseCommandService(serviceBackbone, commandHandler, "StarshipExpedition", dispatcher), IHostedService, IStarshipExpeditionService
 {
     public const string DefaultCommandName = "starship";
+    public const string ShortVoteCommandName = "sv";
+    public const string ShortJoinCommandName = "sj";
+    public const string ShortConfirmCommandName = "sc";
     public const int DefaultLegCount = 5;
     public const int DefaultMinimumEventIntervalMinutes = 15;
     public const int DefaultMaximumEventIntervalMinutes = 30;
@@ -45,12 +48,26 @@ public sealed class StarshipExpeditionService(
 
     private static readonly EventDefinition[] RandomEvents =
     [
-        new("SignalDetected", "Unidentified Signal", "A signal is repeating from the edge of the sensor range.",
-            [new() { ChoiceId = "scan", Label = "Scan the signal" }, new() { ChoiceId = "trace", Label = "Trace its origin" }, new() { ChoiceId = "ignore", Label = "Continue on course" }], "ignore"),
-        new("SalvageSite", "Derelict Salvage", "A damaged vessel is drifting near the route.",
-            [new() { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true }, new() { ChoiceId = "secure", Label = "Secure the area first" }, new() { ChoiceId = "pass", Label = "Pass it by" }], "pass"),
+        new("SignalDetected", "Unidentified Signal", "A signal is repeating from the edge of the sensor range. Scan it, trace its origin, then investigate - or move on.",
+            [
+                new() { ChoiceId = "scan", Label = "Scan the signal", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
+                new() { ChoiceId = "trace", Label = "Trace its origin", ContinuesEvent = true, GrantsFlag = "traced", SuccessChanceModifierPercent = 15, RewardMultiplierPercent = 85, RiskMultiplierPercent = 60 },
+                new() { ChoiceId = "investigate", Label = "Investigate the source" },
+                new() { ChoiceId = "ignore", Label = "Continue on course", EndsWithoutReward = true }
+            ], "ignore"),
+        new("SalvageSite", "Derelict Salvage", "A damaged vessel is drifting near the route. Scan it, secure the area, then recover the salvage - or pass.",
+            [
+                new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
+                new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
+                new() { ChoiceId = "salvage", Label = "Recover salvage" },
+                new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true }
+            ], "pass"),
         new("Hazard", "Navigation Hazard", "Debris has appeared across the current flight path.",
-            [new() { ChoiceId = "maneuver", Label = "Maneuver around it" }, new() { ChoiceId = "shield", Label = "Raise shields" }, new() { ChoiceId = "hold", Label = "Hold course" }], "maneuver")
+            [
+                new() { ChoiceId = "maneuver", Label = "Maneuver around it" },
+                new() { ChoiceId = "shield", Label = "Raise shields", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80 },
+                new() { ChoiceId = "hold", Label = "Hold course", SuccessChanceModifierPercent = -15, RewardMultiplierPercent = 130 }
+            ], "maneuver")
     ];
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
@@ -100,13 +117,27 @@ public sealed class StarshipExpeditionService(
             Rank.Viewer,
                 userCooldown: 2,
                 description: "Join or vote in the shared Starship Expedition; confirm disclosed risky choices. Moderators can start, stop, and advance it.");
+        await RegisterDefaultCommand(ShortVoteCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
+            description: "Shortcut for !starship vote <option number>.");
+        await RegisterDefaultCommand(ShortJoinCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
+            description: "Shortcut for !starship join.");
+        await RegisterDefaultCommand(ShortConfirmCommandName, this, ModuleName, Rank.Viewer, userCooldown: 2,
+            description: "Shortcut for !starship confirm.");
     }
 
     public override async Task OnCommand(object? sender, CommandEventArgs eventArgs)
     {
         var args = eventArgs.Args.Count > 0
-            ? eventArgs.Args
+            ? eventArgs.Args.ToList()
             : (eventArgs.Arg ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var shortSubCommand = eventArgs.Command?.Trim().TrimStart('!').ToLowerInvariant() switch
+        {
+            ShortVoteCommandName => "vote",
+            ShortJoinCommandName => "join",
+            ShortConfirmCommandName => "confirm",
+            _ => null
+        };
+        if (shortSubCommand != null) args.Insert(0, shortSubCommand);
         var subCommand = args.FirstOrDefault()?.Trim().ToLowerInvariant();
 
         try
@@ -150,14 +181,14 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 case "join":
-                    await JoinCrewAsync(eventArgs);
-                    await RespondWithMessage(eventArgs, "You joined the Starship Expedition crew.");
+                    var joined = await JoinCrewAsync(eventArgs);
+                    await RespondWithMessage(eventArgs, $"You joined the Starship Expedition crew ({joined.Crew.Count} aboard).");
                     return;
 
                 case "vote":
                     if (args.Count < 2)
                     {
-                        await RespondWithMessage(eventArgs, "Choose one of the current Starship event options: !starship vote <choice>");
+                        await RespondWithMessage(eventArgs, "Choose one of the current Starship event options: !sv <number>");
                         return;
                     }
 
@@ -166,24 +197,34 @@ public sealed class StarshipExpeditionService(
                         string.Equals(item.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase));
                     if (riskConfirmation != null)
                     {
-                                                var riskProfile = GetRewardProfile(voted, voted.CurrentEvent!.EventType);
-                                                var rewardOutcomes = riskProfile == null
-                                                        ? string.Empty
-                                                        : $" Success chance {riskProfile.SuccessChancePercent}% (failure {100 - riskProfile.SuccessChancePercent}%). " +
-                                                            $"Potential {riskProfile.PointTypeName}: Common {riskProfile.CommonMinimum}-{riskProfile.CommonMaximum}, " +
-                                                            $"Uncommon {riskProfile.UncommonMinimum}-{riskProfile.UncommonMaximum}, Rare {riskProfile.RareMinimum}-{riskProfile.RareMaximum}.";
+                        var rarityText = string.IsNullOrEmpty(riskConfirmation.RevealedRarity)
+                            ? "Rarity: unknown (scan to reveal it first)."
+                            : $"Rarity: {riskConfirmation.RevealedRarity}.";
                         await RespondWithMessage(eventArgs,
-                                                        $"Risk disclosure: your unbanked {riskConfirmation.PointTypeName} balance is {riskConfirmation.ExposedBalance}; this choice can lose up to {riskConfirmation.MaximumLoss}.{rewardOutcomes} Confirm with !starship confirm within 30 seconds.");
+                            $"Risk check: your unbanked {riskConfirmation.PointTypeName} balance is {riskConfirmation.ExposedBalance}; failing can lose up to {riskConfirmation.MaximumLoss}. " +
+                            $"Success chance {riskConfirmation.SuccessChancePercent}%, rewards x{StarshipExpeditionNarrative.FormatMultiplier(riskConfirmation.RewardMultiplierPercent)}. {rarityText} Confirm with !sc within 30 seconds.");
                     }
                     else
                     {
-                        await RespondWithMessage(eventArgs, "Your Starship event choice was recorded.");
+                        var votedChoice = voted.CurrentEvent?.Votes
+                            .Where(vote => string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase))
+                            .Select(vote => voted.CurrentEvent.Choices.FirstOrDefault(choice =>
+                                string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
+                            .FirstOrDefault();
+                        var tally = voted.CurrentEvent?.Votes.Count ?? 0;
+                        await RespondWithMessage(eventArgs,
+                            $"Your Starship vote was recorded: {votedChoice?.Label ?? "your choice"} ({tally} vote{(tally == 1 ? string.Empty : "s")} so far).");
                     }
                     return;
 
                 case "confirm":
-                    await ConfirmRiskActionAsync(eventArgs);
-                    await RespondWithMessage(eventArgs, "Your risky Starship action was confirmed and recorded.");
+                    var confirmed = await ConfirmRiskActionAsync(eventArgs);
+                    var confirmedChoice = confirmed.CurrentEvent?.Votes
+                        .Where(vote => string.Equals(vote.UserId, eventArgs.UserId, StringComparison.OrdinalIgnoreCase))
+                        .Select(vote => confirmed.CurrentEvent.Choices.FirstOrDefault(choice =>
+                            string.Equals(choice.ChoiceId, vote.ChoiceId, StringComparison.OrdinalIgnoreCase)))
+                        .FirstOrDefault();
+                    await RespondWithMessage(eventArgs, $"Confirmed and committed: {confirmedChoice?.Label ?? "your risky action"}. Results are announced when the vote ends.");
                     return;
 
                 case "status":
@@ -191,7 +232,7 @@ public sealed class StarshipExpeditionService(
                     return;
 
                 default:
-                        await RespondWithMessage(eventArgs, "Use !starship join, !starship vote <choice>, or !starship confirm after reviewing a risk prompt. Moderators: !starship start [legs] [min minutes] [max minutes], !starship advance, or !starship stop.");
+                        await RespondWithMessage(eventArgs, "Use !sj to join, !sv <number> to vote, or !sc to confirm a risk prompt (long forms: !starship join|vote|confirm). Moderators: !starship start [legs] [min minutes] [max minutes], !starship advance, or !starship stop.");
                     return;
             }
         }
@@ -466,10 +507,14 @@ public sealed class StarshipExpeditionService(
             if (!snapshot.Crew.Any(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Only crew members can vote. Join during the boarding window with !starship join.");
 
+            var trimmedChoice = choiceId.Trim();
             var choice = snapshot.CurrentEvent.Choices.FirstOrDefault(option =>
-                string.Equals(option.ChoiceId, choiceId.Trim(), StringComparison.OrdinalIgnoreCase));
+                string.Equals(option.ChoiceId, trimmedChoice, StringComparison.OrdinalIgnoreCase));
+            if (choice == null && int.TryParse(trimmedChoice, NumberStyles.None, CultureInfo.InvariantCulture, out var choiceNumber) &&
+                choiceNumber >= 1 && choiceNumber <= snapshot.CurrentEvent.Choices.Count)
+                choice = snapshot.CurrentEvent.Choices[choiceNumber - 1];
             if (choice == null)
-                throw new ArgumentException("That is not one of the current event options.", nameof(choiceId));
+                throw new ArgumentException("That is not one of the current event options. Use the option number, e.g. !sv 1.", nameof(choiceId));
 
             var previousSnapshot = Clone(snapshot);
             if (snapshot.CurrentEvent.Votes.Any(vote => string.Equals(vote.UserId, userId, StringComparison.OrdinalIgnoreCase)))
@@ -491,7 +536,8 @@ public sealed class StarshipExpeditionService(
                 var balance = snapshot.Crew
                     .First(member => string.Equals(member.UserId, userId, StringComparison.OrdinalIgnoreCase))
                     .UnbankedBalances.FirstOrDefault(item => item.PointTypeId == rewardProfile.PointTypeId)?.Amount ?? 0;
-                var proportionalLoss = (long)((decimal)balance * rewardProfile.RiskLossPercent / 100m);
+                var riskPercent = CombinePercent(snapshot.CurrentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
+                var (proportionalLoss, maximumLoss) = ScaleRiskLoss(rewardProfile, balance, riskPercent);
                 snapshot.CurrentEvent.PendingRiskConfirmations.Add(new StarshipRiskConfirmationSnapshot
                 {
                     UserId = userId,
@@ -500,7 +546,10 @@ public sealed class StarshipExpeditionService(
                     PointTypeId = rewardProfile.PointTypeId,
                     PointTypeName = rewardProfile.PointTypeName,
                     ExposedBalance = balance,
-                    MaximumLoss = Math.Min(balance, Math.Min(proportionalLoss, rewardProfile.MaximumRiskLossPerEvent))
+                    MaximumLoss = Math.Min(balance, Math.Min(proportionalLoss, maximumLoss)),
+                    SuccessChancePercent = GetEffectiveSuccessChance(rewardProfile, snapshot.CurrentEvent, choice),
+                    RewardMultiplierPercent = CombinePercent(snapshot.CurrentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent),
+                    RevealedRarity = snapshot.CurrentEvent.RevealedRarity
                 });
                 await PersistMutationWithRollbackAsync(previousSnapshot, cancellationToken);
                 return Clone(snapshot);
@@ -572,12 +621,19 @@ public sealed class StarshipExpeditionService(
             });
         }
 
+        else if (previous.CurrentEvent != null && current.CurrentEvent != null &&
+                 previous.CurrentEvent.EventId == current.CurrentEvent.EventId &&
+                 current.CurrentEvent.StepNumber > previous.CurrentEvent.StepNumber)
+        {
+            await AnnounceEventStepAsync(current, current.CurrentEvent);
+        }
+
         if (current.CompletedEvents.Count > previous.CompletedEvents.Count)
         {
             var resolvedEvent = current.CompletedEvents[^1];
             var selectedChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
                 string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
-            await SendChatAnnouncementAsync($"Starship event resolved: {resolvedEvent.Title}. Crew chose {selectedChoice?.Label ?? resolvedEvent.ResolvedChoiceId ?? "the default"}.");
+            await SendChatAnnouncementAsync(StarshipExpeditionNarrative.BuildEventMessage(resolvedEvent));
             await FireTriggerAsync(DefaultCommandEventTypes.StarshipEventResolved, current, new Dictionary<string, string>
             {
                 ["EventTitle"] = resolvedEvent.Title,
@@ -710,23 +766,35 @@ public sealed class StarshipExpeditionService(
 
     private Task AnnounceEventOpenedAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
     {
-        var choices = string.Join(" | ", currentEvent.Choices.Select(choice => $"{choice.ChoiceId}: {choice.Label}"));
-        var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {choices}. Crew vote with !starship vote <choice> within {snapshot.EventVoteDurationSeconds}s.";
+        var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
+        var message = $"Starship vote: {currentEvent.Title} at {currentEvent.Sector}. {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.";
         return SendChatAnnouncementAsync(message);
+    }
+
+    private Task AnnounceEventStepAsync(StarshipExpeditionSnapshot snapshot, StarshipExpeditionEventSnapshot currentEvent)
+    {
+        var choices = StarshipExpeditionNarrative.FormatChoices(currentEvent.Choices);
+        var rarity = string.IsNullOrEmpty(currentEvent.RevealedRarity) ? string.Empty : $" Known rarity: {currentEvent.RevealedRarity}.";
+        return SendChatAnnouncementAsync(
+            $"{currentEvent.Title} - step {currentEvent.StepNumber}. {currentEvent.StepNote}{rarity} {choices} Vote with !sv <number> within {snapshot.EventVoteDurationSeconds}s.");
     }
 
     private async Task AnnounceVoyageEndedAsync(StarshipExpeditionSnapshot snapshot)
     {
-        if (!snapshot.AnnounceSessionStatusInChat) return;
-        var duration = Math.Max(0, (long)(_timeProvider.GetUtcNow() - snapshot.StartedAtUtc).TotalSeconds);
-        var result = snapshot.Status == StarshipExpeditionStatus.Returned ? "returned" : "was aborted";
-        var message = snapshot.SessionEndChatMessageTemplate
-            .Replace("{count}", snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-            .Replace("{duration}", duration.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-            .Replace("{result}", result, StringComparison.OrdinalIgnoreCase);
-        if (string.IsNullOrWhiteSpace(message))
-            message = $"Starship Expedition {result} with {snapshot.Crew.Count} crew after {duration}s.";
-        await SendChatAnnouncementAsync(message);
+        if (snapshot.AnnounceSessionStatusInChat)
+        {
+            var duration = Math.Max(0, (long)(_timeProvider.GetUtcNow() - snapshot.StartedAtUtc).TotalSeconds);
+            var result = snapshot.Status == StarshipExpeditionStatus.Returned ? "returned" : "was aborted";
+            var message = snapshot.SessionEndChatMessageTemplate
+                .Replace("{count}", snapshot.Crew.Count.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace("{duration}", duration.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace("{result}", result, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(message))
+                message = $"Starship Expedition {result} with {snapshot.Crew.Count} crew after {duration}s.";
+            await SendChatAnnouncementAsync(message);
+        }
+
+        await SendChatAnnouncementAsync(string.Join(" ", StarshipExpeditionNarrative.BuildVoyageLines(snapshot)));
     }
 
     private Task FireVoyageEndedTriggerAsync(StarshipExpeditionSnapshot snapshot, string? triggeredBy) =>
@@ -795,7 +863,8 @@ public sealed class StarshipExpeditionService(
         current.CurrentLeg == observed.CurrentLeg &&
         current.NextEventSequence == observed.NextEventSequence &&
         current.NextEventAtUtc == observed.NextEventAtUtc &&
-        current.CurrentEvent?.EventId == observed.CurrentEvent?.EventId;
+        current.CurrentEvent?.EventId == observed.CurrentEvent?.EventId &&
+        current.CurrentEvent?.StepNumber == observed.CurrentEvent?.StepNumber;
 
     private async Task EnsureLoadedAsync(CancellationToken cancellationToken)
     {
@@ -951,7 +1020,9 @@ public sealed class StarshipExpeditionService(
             Sector = snapshot.CurrentSector,
             OpenedAtUtc = now,
             ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds),
-            Choices = definition.Choices,
+            Choices = FilterChoices(definition.Choices, []),
+            ChoicePool = [.. definition.Choices],
+            StepNumber = 1,
             DefaultChoiceId = definition.DefaultChoiceId,
             Votes = []
         };
@@ -960,7 +1031,61 @@ public sealed class StarshipExpeditionService(
         snapshot.NextEventAtUtc = null;
     }
 
-    private void ResolveCurrentEventLocked(StarshipExpeditionSnapshot snapshot, DateTimeOffset now)
+    private static List<StarshipEventChoiceSnapshot> FilterChoices(
+        IEnumerable<StarshipEventChoiceSnapshot> pool,
+        ICollection<string> flags) =>
+        pool.Where(choice => string.IsNullOrEmpty(choice.GrantsFlag) ||
+                             !flags.Contains(choice.GrantsFlag, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+    private static void AdvanceEventStepLocked(
+        StarshipExpeditionSnapshot snapshot,
+        StarshipExpeditionEventSnapshot currentEvent,
+        StarshipEventChoiceSnapshot choice,
+        int voteCount,
+        DateTimeOffset now)
+    {
+        currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+        {
+            StepNumber = currentEvent.StepNumber,
+            ChoiceId = choice.ChoiceId,
+            Label = choice.Label,
+            VoteCount = voteCount
+        });
+        if (!string.IsNullOrEmpty(choice.GrantsFlag)) currentEvent.Flags.Add(choice.GrantsFlag);
+        currentEvent.SuccessChanceModifierPercent += choice.SuccessChanceModifierPercent;
+        currentEvent.RewardMultiplierPercent = CombinePercent(currentEvent.RewardMultiplierPercent, choice.RewardMultiplierPercent);
+        currentEvent.RiskMultiplierPercent = CombinePercent(currentEvent.RiskMultiplierPercent, choice.RiskMultiplierPercent);
+
+        var note = new List<string> { $"Crew chose: {choice.Label}." };
+        if (choice.RevealsRarity)
+        {
+            var profile = snapshot.RewardProfiles.FirstOrDefault(item => item.Enabled &&
+                string.Equals(item.EventType, currentEvent.EventType, StringComparison.OrdinalIgnoreCase));
+            if (profile == null)
+            {
+                note.Add("The scan finds nothing of value.");
+            }
+            else
+            {
+                currentEvent.RevealedRarity = ChooseEventRarity(snapshot, currentEvent, profile);
+                note.Add($"Scan complete: this is a {currentEvent.RevealedRarity} find.");
+            }
+        }
+
+        var effects = StarshipExpeditionNarrative.DescribeEffects(choice);
+        if (!choice.RevealsRarity && effects.Length > 0) note.Add($"Effect: {effects}.");
+        currentEvent.StepNote = string.Join(" ", note);
+        currentEvent.StepNumber++;
+        currentEvent.Votes.Clear();
+        currentEvent.PendingRiskConfirmations.Clear();
+        currentEvent.Choices = FilterChoices(currentEvent.ChoicePool, currentEvent.Flags);
+        currentEvent.OpenedAtUtc = now;
+        currentEvent.ClosesAtUtc = now.AddSeconds(snapshot.EventVoteDurationSeconds);
+    }
+
+    /// <returns><c>true</c> when the event finished; <c>false</c> when it advanced to another step.</returns>
+    private bool ResolveCurrentEventLocked(StarshipExpeditionSnapshot snapshot, DateTimeOffset now)
     {
         var currentEvent = snapshot.CurrentEvent ?? throw new InvalidOperationException("There is no open event to resolve.");
         var voteCounts = currentEvent.Votes
@@ -969,11 +1094,28 @@ public sealed class StarshipExpeditionService(
             .ToList();
         var maxVotes = voteCounts.Count == 0 ? 0 : voteCounts.Max(vote => vote.Count);
         var leaders = voteCounts.Where(vote => vote.Count == maxVotes).Select(vote => vote.ChoiceId).ToList();
-        currentEvent.ResolvedChoiceId = leaders.Count == 1
+        var winningId = leaders.Count == 1
             ? leaders[0]
             : currentEvent.DefaultChoiceId;
+        var winningChoice = currentEvent.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase));
+        if (winningChoice is { ContinuesEvent: true })
+        {
+            AdvanceEventStepLocked(snapshot, currentEvent, winningChoice,
+                voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0, now);
+            return false;
+        }
+
+        currentEvent.ResolvedChoiceId = winningId;
         currentEvent.ResolvedAtUtc = now;
         currentEvent.PendingRiskConfirmations.Clear();
+        currentEvent.Path.Add(new StarshipEventPathStepSnapshot
+        {
+            StepNumber = currentEvent.StepNumber,
+            ChoiceId = winningId,
+            Label = winningChoice?.Label ?? winningId,
+            VoteCount = voteCounts.FirstOrDefault(vote => string.Equals(vote.ChoiceId, winningId, StringComparison.OrdinalIgnoreCase))?.Count ?? 0
+        });
         snapshot.CompletedEvents.Add(Clone(currentEvent));
 
         if (currentEvent.EventType == "RouteChoice")
@@ -988,12 +1130,13 @@ public sealed class StarshipExpeditionService(
         {
             snapshot.Status = StarshipExpeditionStatus.Returned;
             snapshot.NextEventAtUtc = null;
-            return;
+            return true;
         }
 
         snapshot.Status = StarshipExpeditionStatus.Cruising;
         var interval = GetDeterministicIntervalSeconds(snapshot);
         snapshot.NextEventAtUtc = now.AddSeconds(interval);
+        return true;
     }
 
     private void ResolveCurrentEventAndRewardsLocked(
@@ -1004,7 +1147,7 @@ public sealed class StarshipExpeditionService(
         var eventType = snapshot.CurrentEvent?.EventType;
         var profile = snapshot.RewardProfiles.FirstOrDefault(item => item.Enabled &&
             string.Equals(item.EventType, eventType, StringComparison.OrdinalIgnoreCase));
-        ResolveCurrentEventLocked(snapshot, now);
+        if (!ResolveCurrentEventLocked(snapshot, now)) return;
         var resolvedEvent = snapshot.CompletedEvents[^1];
         resolvedEvent.EligibleRewardUserIds.AddRange(eligibleUserIds.Order(StringComparer.OrdinalIgnoreCase));
 
@@ -1047,26 +1190,56 @@ public sealed class StarshipExpeditionService(
         StarshipRewardProfile profile,
         IReadOnlySet<string> eligibleUserIds)
     {
-        var riskyChoiceIds = resolvedEvent.Choices
-            .Where(choice => choice.IsRisky)
-            .Select(choice => choice.ChoiceId)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var riskyVotes = resolvedEvent.Votes
-            .Where(vote => riskyChoiceIds.Contains(vote.ChoiceId))
-            .ToList();
-        var riskyParticipantIds = riskyVotes.Select(vote => vote.UserId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var member in snapshot.Crew.Where(member => eligibleUserIds.Contains(member.UserId) && !riskyParticipantIds.Contains(member.UserId)))
-            ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, isRisky: false, isEligible: true);
-
-        foreach (var vote in riskyVotes)
+        var finalChoice = resolvedEvent.Choices.FirstOrDefault(choice =>
+            string.Equals(choice.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase));
+        var committed = finalChoice?.IsRisky == true;
+        var offersCommit = resolvedEvent.ChoicePool.Concat(resolvedEvent.Choices).Any(choice => choice.IsRisky);
+        if (finalChoice?.EndsWithoutReward == true || (!committed && offersCommit))
         {
-            var member = snapshot.Crew.FirstOrDefault(candidate =>
-                string.Equals(candidate.UserId, vote.UserId, StringComparison.OrdinalIgnoreCase));
-            if (member != null)
-                ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, isRisky: true, eligibleUserIds.Contains(member.UserId));
+            resolvedEvent.OutcomeResult = StarshipExpeditionNarrative.OutcomePassed;
+            return;
         }
+
+        var chance = GetEffectiveSuccessChance(profile, resolvedEvent, finalChoice);
+        var succeeded = GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
+            $"reward-success:{resolvedEvent.EventId:N}", 100) < chance;
+        var rarity = ChooseEventRarity(snapshot, resolvedEvent, profile);
+        var rewardPercent = CombinePercent(resolvedEvent.RewardMultiplierPercent, finalChoice?.RewardMultiplierPercent ?? 100);
+        var riskPercent = CombinePercent(resolvedEvent.RiskMultiplierPercent, finalChoice?.RiskMultiplierPercent ?? 100);
+        resolvedEvent.OutcomeResult = succeeded ? StarshipExpeditionNarrative.OutcomeSuccess : StarshipExpeditionNarrative.OutcomeFailure;
+        resolvedEvent.OutcomeRarity = rarity;
+
+        if (committed)
+        {
+            var voterIds = resolvedEvent.Votes
+                .Where(vote => string.Equals(vote.ChoiceId, resolvedEvent.ResolvedChoiceId, StringComparison.OrdinalIgnoreCase))
+                .Select(vote => vote.UserId)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (var voterId in voterIds)
+            {
+                var member = snapshot.Crew.FirstOrDefault(candidate =>
+                    string.Equals(candidate.UserId, voterId, StringComparison.OrdinalIgnoreCase));
+                if (member != null)
+                    ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, true, eligibleUserIds.Contains(member.UserId),
+                        succeeded, rarity, chance, rewardPercent, riskPercent);
+            }
+            return;
+        }
+
+        foreach (var member in snapshot.Crew.Where(member => eligibleUserIds.Contains(member.UserId)))
+            ApplyRewardToParticipant(snapshot, resolvedEvent, profile, member, false, true,
+                succeeded, rarity, chance, rewardPercent, riskPercent);
     }
+
+    private static int GetEffectiveSuccessChance(
+        StarshipRewardProfile profile,
+        StarshipExpeditionEventSnapshot expeditionEvent,
+        StarshipEventChoiceSnapshot? choice) =>
+        Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent +
+                   (choice?.SuccessChanceModifierPercent ?? 0), 0, 100);
+
+    private static int CombinePercent(int first, int second) =>
+        Math.Clamp((int)((long)first * second / 100), 0, 1000);
 
     private static void ApplyRewardToParticipant(
         StarshipExpeditionSnapshot snapshot,
@@ -1074,7 +1247,12 @@ public sealed class StarshipExpeditionService(
         StarshipRewardProfile profile,
         StarshipCrewMemberSnapshot member,
         bool isRisky,
-        bool isEligible)
+        bool isEligible,
+        bool succeeded,
+        string rarity,
+        int successChancePercent,
+        int rewardPercent,
+        int riskPercent)
     {
         if (isRisky && !isEligible)
         {
@@ -1086,34 +1264,30 @@ public sealed class StarshipExpeditionService(
                 PointTypeName = profile.PointTypeName,
                 Outcome = "Ineligible",
                 WasRiskyAction = true,
-                SuccessChancePercent = profile.SuccessChancePercent
+                SuccessChancePercent = successChancePercent
             });
             return;
         }
 
-        var successRoll = GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
-            $"reward-success:{resolvedEvent.EventId:N}:{member.UserId}", 100);
-        var succeeded = successRoll < profile.SuccessChancePercent;
         long earnedAmount = 0;
         long lostAmount = 0;
-        var rarity = string.Empty;
         var outcome = succeeded ? "Success" : "Failure";
 
         var currentBalance = member.UnbankedBalances.FirstOrDefault(balance => balance.PointTypeId == profile.PointTypeId);
-        if (isRisky && !succeeded && currentBalance != null)
+        if (!succeeded && currentBalance != null)
         {
-            var proportionalLoss = (long)((decimal)currentBalance.Amount * profile.RiskLossPercent / 100m);
-            lostAmount = Math.Min(currentBalance.Amount, Math.Min(proportionalLoss, profile.MaximumRiskLossPerEvent));
+            var (proportionalLoss, maximumLoss) = ScaleRiskLoss(profile, currentBalance.Amount, riskPercent);
+            lostAmount = Math.Min(currentBalance.Amount, Math.Min(proportionalLoss, maximumLoss));
             currentBalance.Amount -= lostAmount;
         }
 
         if (succeeded && isEligible)
         {
-            rarity = ChooseRarity(snapshot, resolvedEvent, member, profile);
             var (minimum, maximum) = GetRarityRange(profile, rarity);
             var range = checked((int)Math.Min(int.MaxValue, maximum - minimum + 1));
             var rolledAmount = minimum + GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
                 $"reward-amount:{resolvedEvent.EventId:N}:{member.UserId}:{rarity}", Math.Max(1, range));
+            rolledAmount = (long)((decimal)rolledAmount * rewardPercent / 100m);
             var earnedThisVoyage = snapshot.CompletedEvents
                 .SelectMany(expeditionEvent => expeditionEvent.RewardOutcomes)
                 .Where(outcome => string.Equals(outcome.UserId, member.UserId, StringComparison.OrdinalIgnoreCase) &&
@@ -1141,20 +1315,25 @@ public sealed class StarshipExpeditionService(
             Outcome = outcome,
             Rarity = rarity,
             WasRiskyAction = isRisky,
-            SuccessChancePercent = profile.SuccessChancePercent,
+            SuccessChancePercent = successChancePercent,
             EarnedAmount = earnedAmount,
             LostAmount = lostAmount
         });
     }
 
-    private static string ChooseRarity(
+    private static (long Proportional, long Maximum) ScaleRiskLoss(StarshipRewardProfile profile, long balance, int riskPercent)
+    {
+        var lossPercent = Math.Min(100m, profile.RiskLossPercent * riskPercent / 100m);
+        return ((long)(balance * lossPercent / 100m), (long)((decimal)profile.MaximumRiskLossPerEvent * riskPercent / 100m));
+    }
+
+    private static string ChooseEventRarity(
         StarshipExpeditionSnapshot snapshot,
-        StarshipExpeditionEventSnapshot resolvedEvent,
-        StarshipCrewMemberSnapshot member,
+        StarshipExpeditionEventSnapshot expeditionEvent,
         StarshipRewardProfile profile)
     {
-        var roll = GetDeterministicIndex(snapshot.Seed, resolvedEvent.Sequence,
-            $"reward-rarity:{resolvedEvent.EventId:N}:{member.UserId}", 100);
+        var roll = GetDeterministicIndex(snapshot.Seed, expeditionEvent.Sequence,
+            $"reward-rarity:{expeditionEvent.EventId:N}", 100);
         if (roll < profile.CommonWeightPercent) return "Common";
         if (roll < profile.CommonWeightPercent + profile.UncommonWeightPercent) return "Uncommon";
         return "Rare";

@@ -68,10 +68,22 @@ public sealed class StarshipExpeditionEventSnapshot
     public string Title { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string Sector { get; init; } = string.Empty;
-    public DateTimeOffset OpenedAtUtc { get; init; }
-    public DateTimeOffset ClosesAtUtc { get; init; }
-    public List<StarshipEventChoiceSnapshot> Choices { get; init; } = [];
+    public DateTimeOffset OpenedAtUtc { get; set; }
+    public DateTimeOffset ClosesAtUtc { get; set; }
+    public List<StarshipEventChoiceSnapshot> Choices { get; set; } = [];
+    /// <summary>Every choice this event can offer; <see cref="Choices"/> is the subset available at the current step.</summary>
+    public List<StarshipEventChoiceSnapshot> ChoicePool { get; set; } = [];
     public string DefaultChoiceId { get; init; } = string.Empty;
+    public int StepNumber { get; set; } = 1;
+    public List<string> Flags { get; init; } = [];
+    public List<StarshipEventPathStepSnapshot> Path { get; init; } = [];
+    public int SuccessChanceModifierPercent { get; set; }
+    public int RewardMultiplierPercent { get; set; } = 100;
+    public int RiskMultiplierPercent { get; set; } = 100;
+    public string? RevealedRarity { get; set; }
+    public string StepNote { get; set; } = string.Empty;
+    public string OutcomeResult { get; set; } = string.Empty;
+    public string OutcomeRarity { get; set; } = string.Empty;
     public List<StarshipEventVoteSnapshot> Votes { get; init; } = [];
     public List<string> EligibleRewardUserIds { get; init; } = [];
     public List<StarshipRewardOutcomeSnapshot> RewardOutcomes { get; init; } = [];
@@ -85,6 +97,24 @@ public sealed class StarshipEventChoiceSnapshot
     public string ChoiceId { get; init; } = string.Empty;
     public string Label { get; init; } = string.Empty;
     public bool IsRisky { get; init; }
+    /// <summary>When true, winning this choice ends the event with no reward for anyone.</summary>
+    public bool EndsWithoutReward { get; init; }
+    /// <summary>When true, winning this choice advances the event to another step instead of resolving it.</summary>
+    public bool ContinuesEvent { get; init; }
+    public string GrantsFlag { get; init; } = string.Empty;
+    public bool RevealsRarity { get; init; }
+    public int SuccessChanceModifierPercent { get; init; }
+    public int RewardMultiplierPercent { get; init; } = 100;
+    public int RiskMultiplierPercent { get; init; } = 100;
+    public string Hint { get; init; } = string.Empty;
+}
+
+public sealed class StarshipEventPathStepSnapshot
+{
+    public int StepNumber { get; init; }
+    public string ChoiceId { get; init; } = string.Empty;
+    public string Label { get; init; } = string.Empty;
+    public int VoteCount { get; init; }
 }
 
 public sealed class StarshipEventVoteSnapshot
@@ -137,6 +167,9 @@ public sealed class StarshipRiskConfirmationSnapshot
     public string PointTypeName { get; init; } = string.Empty;
     public long ExposedBalance { get; init; }
     public long MaximumLoss { get; init; }
+    public int SuccessChancePercent { get; init; }
+    public int RewardMultiplierPercent { get; init; } = 100;
+    public string? RevealedRarity { get; init; }
 }
 
 public sealed record StarshipExpeditionOverlaySnapshot(
@@ -195,7 +228,10 @@ public sealed record StarshipExpeditionOverlaySnapshot(
                 .GroupBy(payout => new { payout.PointTypeId, payout.PointTypeName })
                 .Select(group => new StarshipOverlayBankedAmount(
                     group.Key.PointTypeId, group.Key.PointTypeName, group.Sum(payout => payout.Amount), group.All(payout => payout.IsPaid)))
-                .ToList());
+                .ToList(),
+            snapshot.Status.ToString(),
+            string.Empty,
+            StarshipExpeditionNarrative.BuildVoyageLines(snapshot));
     }
 
     private static bool IsTerminal(StarshipExpeditionStatus status) =>
@@ -212,7 +248,14 @@ public sealed record StarshipOverlayEventSnapshot(
     IReadOnlyList<StarshipOverlayChoice> Choices,
     string DefaultChoiceId,
     IReadOnlyDictionary<string, int> VoteCounts,
-    StarshipRewardDisclosureSnapshot? RewardDisclosure)
+    StarshipRewardDisclosureSnapshot? RewardDisclosure,
+    int StepNumber,
+    IReadOnlyList<string> Path,
+    string? RevealedRarity,
+    string StepNote,
+    int? EffectiveSuccessChancePercent,
+    int RewardMultiplierPercent,
+    int RiskMultiplierPercent)
 {
     public static StarshipOverlayEventSnapshot From(StarshipExpeditionEventSnapshot expeditionEvent, StarshipRewardProfile? profile) => new(
         expeditionEvent.Sequence,
@@ -221,15 +264,25 @@ public sealed record StarshipOverlayEventSnapshot(
         expeditionEvent.Description,
         expeditionEvent.Sector,
         expeditionEvent.ClosesAtUtc,
-        expeditionEvent.Choices.Select(choice => new StarshipOverlayChoice(choice.ChoiceId, choice.Label, choice.IsRisky)).ToList(),
+        expeditionEvent.Choices.Select((choice, index) => new StarshipOverlayChoice(
+            choice.ChoiceId, choice.Label, choice.IsRisky, index + 1, StarshipExpeditionNarrative.DescribeEffects(choice))).ToList(),
         expeditionEvent.DefaultChoiceId,
         expeditionEvent.Votes
             .GroupBy(vote => vote.ChoiceId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase),
-        profile == null ? null : StarshipRewardDisclosureSnapshot.From(profile));
+        profile == null ? null : StarshipRewardDisclosureSnapshot.From(profile),
+        expeditionEvent.StepNumber,
+        expeditionEvent.Path.Select(step => step.Label).ToList(),
+        expeditionEvent.RevealedRarity,
+        expeditionEvent.StepNote,
+        profile == null
+            ? null
+            : Math.Clamp(profile.SuccessChancePercent + expeditionEvent.SuccessChanceModifierPercent, 0, 100),
+        expeditionEvent.RewardMultiplierPercent,
+        expeditionEvent.RiskMultiplierPercent);
 }
 
-public sealed record StarshipOverlayChoice(string ChoiceId, string Label, bool IsRisky);
+public sealed record StarshipOverlayChoice(string ChoiceId, string Label, bool IsRisky, int Number, string Hint);
 
 public sealed record StarshipRewardDisclosureSnapshot(
     string PointTypeName,
@@ -272,7 +325,10 @@ public sealed record StarshipOverlayEventResult(
     string Sector,
     string Choice,
     DateTimeOffset? ResolvedAtUtc,
-    IReadOnlyList<StarshipOverlayBankedAmount> BankedAmounts)
+    IReadOnlyList<StarshipOverlayBankedAmount> BankedAmounts,
+    string Outcome,
+    string Rarity,
+    IReadOnlyList<string> Lines)
 {
     public static StarshipOverlayEventResult From(
         StarshipExpeditionEventSnapshot expeditionEvent,
@@ -292,7 +348,10 @@ public sealed record StarshipOverlayEventResult(
                     group.Key.PointTypeName,
                     group.Sum(payout => payout.Amount),
                     group.All(payout => payout.IsPaid)))
-                .ToList());
+                .ToList(),
+            expeditionEvent.OutcomeResult,
+            expeditionEvent.OutcomeRarity,
+            StarshipExpeditionNarrative.BuildEventLines(expeditionEvent));
     }
 }
 

@@ -57,9 +57,9 @@ public class StarshipExpeditionServiceTests
         await service.JoinCrewAsync(CreateArgs("viewer-1", "Pilot"));
         await service.AdvanceEventAsync();
 
-        Assert.Contains(chatMessages, message => message.Contains("!starship vote <choice>", StringComparison.Ordinal));
-        Assert.Contains(chatMessages, message => message.Contains("direct:", StringComparison.Ordinal));
-        Assert.Contains(chatMessages, message => message.Contains("detour:", StringComparison.Ordinal));
+        Assert.Contains(chatMessages, message => message.Contains("!sv <number>", StringComparison.Ordinal));
+        Assert.Contains(chatMessages, message => message.Contains("1) ", StringComparison.Ordinal));
+        Assert.Contains(chatMessages, message => message.Contains("2) ", StringComparison.Ordinal));
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipBoardingOpened,
@@ -713,38 +713,261 @@ public class StarshipExpeditionServiceTests
             pointsSystem: Mock.Of<IPointsSystem>());
 
         var riskyVote = CreateArgs("pilot-id", "Pilot");
-        riskyVote.Args = ["vote", "salvage"];
+        riskyVote.Args = ["vote", "1"];
         await service.OnCommand(null, riskyVote);
         Assert.Contains(replies, reply => reply.Contains("unbanked Salvage Credits balance is 80", StringComparison.Ordinal)
             && reply.Contains("lose up to 20", StringComparison.Ordinal)
             && reply.Contains("Success chance 0%", StringComparison.Ordinal)
-            && reply.Contains("Rare 30-50", StringComparison.Ordinal));
+            && reply.Contains("Rarity: unknown", StringComparison.Ordinal)
+            && reply.Contains("!sc", StringComparison.Ordinal));
+        Assert.DoesNotContain(replies, reply => reply.Contains("Rare 30-50", StringComparison.Ordinal));
         var pending = await service.GetSnapshotAsync();
         Assert.NotNull(pending);
         var confirmation = Assert.Single(pending.CurrentEvent!.PendingRiskConfirmations);
         Assert.Equal(80, confirmation.ExposedBalance);
         Assert.Equal(20, confirmation.MaximumLoss);
         Assert.Empty(pending.CurrentEvent.Votes);
-        await service.VoteAsync(CreateArgs("engineer-id", "Engineer"), "pass");
 
-        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+        var shortConfirm = CreateArgs("pilot-id", "Pilot");
+        shortConfirm.Command = StarshipExpeditionService.ShortConfirmCommandName;
+        shortConfirm.Args = [];
+        await service.OnCommand(null, shortConfirm);
+        Assert.Contains(replies, reply => reply.Contains("Confirmed and committed: Recover salvage", StringComparison.Ordinal));
         var resolved = await service.AdvanceEventAsync();
 
         var pilot = resolved.Crew.Single(member => member.UserId == "pilot-id");
         var engineer = resolved.Crew.Single(member => member.UserId == "engineer-id");
         Assert.Equal(60, Assert.Single(pilot.UnbankedBalances).Amount);
         Assert.Equal(30, Assert.Single(engineer.UnbankedBalances).Amount);
-        Assert.Equal("pass", resolved.CompletedEvents.Single().ResolvedChoiceId);
-        var riskOutcome = Assert.Single(resolved.CompletedEvents.Single().RewardOutcomes, outcome => outcome.UserId == "pilot-id");
+        Assert.Equal("salvage", resolved.CompletedEvents.Single().ResolvedChoiceId);
+        Assert.Equal("Failure", resolved.CompletedEvents.Single().OutcomeResult);
+        var riskOutcome = Assert.Single(resolved.CompletedEvents.Single().RewardOutcomes);
         Assert.Equal("pilot-id", riskOutcome.UserId);
         Assert.Equal("Failure", riskOutcome.Outcome);
         Assert.Equal(20, riskOutcome.LostAmount);
-        Assert.Contains(resolved.CompletedEvents.Single().RewardOutcomes, outcome => outcome.UserId == "engineer-id" && outcome.LostAmount == 0);
+        var failureMessage = StarshipExpeditionNarrative.BuildEventMessage(resolved.CompletedEvents.Single());
+        Assert.Contains("FAILED", failureMessage, StringComparison.Ordinal);
+        Assert.Contains("lost 20 Salvage Credits", failureMessage, StringComparison.Ordinal);
         triggerService.Verify(trigger => trigger.TriggerDefaultCommandEventAsync(
             StarshipExpeditionService.DefaultCommandName,
             DefaultCommandEventTypes.StarshipRiskFailed,
             It.Is<CommandEventArgs>(args => args.UserId == "pilot-id"),
             It.Is<Dictionary<string, string>>(variables => variables["LostAmount"] == "20")), Times.Once);
+    }
+
+    private static StarshipExpeditionSnapshot CreateSalvageFixture(int pilotBalance = 100) => new()
+    {
+        ExpeditionId = Guid.NewGuid(),
+        Seed = 71,
+        StartedAtUtc = DateTimeOffset.UtcNow,
+        UpdatedAtUtc = DateTimeOffset.UtcNow,
+        Status = StarshipExpeditionStatus.EventOpen,
+        CurrentLeg = 1,
+        LegCount = 4,
+        CurrentSector = "Ternion Belt",
+        CurrentRoute = "Survey Route",
+        SectorPool = ["Ternion Belt", "Kepler Reach"],
+        EventVoteDurationSeconds = 60,
+        ActiveCrewRewardsOnly = false,
+        RewardProfiles =
+        [
+            new StarshipRewardProfile
+            {
+                EventType = "SalvageSite", Enabled = true, PointTypeId = 2, PointTypeName = "Salvage Credits",
+                SuccessChancePercent = 80, CommonWeightPercent = 100, UncommonWeightPercent = 0, RareWeightPercent = 0,
+                CommonMinimum = 10, CommonMaximum = 10, MaximumPerEvent = 100, MaximumUnbankedPerVoyage = 500,
+                RiskLossPercent = 40, MaximumRiskLossPerEvent = 100
+            }
+        ],
+        Crew =
+        [
+            new StarshipCrewMemberSnapshot
+            {
+                UserId = "pilot-id", UserName = "pilot", DisplayName = "Pilot",
+                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = pilotBalance }]
+            }
+        ],
+        CurrentEvent = CreateSalvageEvent()
+    };
+
+    private static StarshipExpeditionEventSnapshot CreateSalvageEvent()
+    {
+        StarshipEventChoiceSnapshot[] pool =
+        [
+            new() { ChoiceId = "scan", Label = "Scan the wreck", ContinuesEvent = true, GrantsFlag = "scanned", RevealsRarity = true },
+            new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", SuccessChanceModifierPercent = 20, RewardMultiplierPercent = 80, RiskMultiplierPercent = 50 },
+            new() { ChoiceId = "salvage", Label = "Recover salvage", IsRisky = true },
+            new() { ChoiceId = "pass", Label = "Pass it by" }
+        ];
+        return new StarshipExpeditionEventSnapshot
+        {
+            EventId = Guid.NewGuid(),
+            Sequence = 2,
+            EventType = "SalvageSite",
+            Title = "Derelict Salvage",
+            Sector = "Ternion Belt",
+            OpenedAtUtc = DateTimeOffset.UtcNow,
+            ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(60),
+            DefaultChoiceId = "pass",
+            Choices = [.. pool],
+            ChoicePool = [.. pool]
+        };
+    }
+
+    [Fact]
+    public async Task SalvageEvent_ScanThenSecureThenSalvage_ReportsRevealedRarityModifiersAndOutcome()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var chatMessages = new List<string>();
+        var serviceBackbone = new Mock<IServiceBackbone>();
+        serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>()))
+            .Callback<string>(chatMessages.Add)
+            .Returns(Task.CompletedTask);
+        serviceBackbone.Setup(backbone => backbone.SendChatMessage(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
+            .Returns(Task.CompletedTask);
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(),
+            serviceBackboneMock: serviceBackbone, pointsSystem: Mock.Of<IPointsSystem>());
+
+        var aliasVote = CreateArgs("pilot-id", "Pilot");
+        aliasVote.Command = StarshipExpeditionService.ShortVoteCommandName;
+        aliasVote.Args = ["1"];
+        await service.OnCommand(null, aliasVote);
+        var afterScan = await service.AdvanceEventAsync();
+
+        Assert.Empty(afterScan.CompletedEvents);
+        Assert.Equal(2, afterScan.CurrentEvent!.StepNumber);
+        Assert.Equal("Common", afterScan.CurrentEvent.RevealedRarity);
+        Assert.DoesNotContain(afterScan.CurrentEvent.Choices, choice => choice.ChoiceId == "scan");
+        Assert.Contains(chatMessages, message => message.Contains("Known rarity: Common", StringComparison.Ordinal));
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "secure");
+        var afterSecure = await service.AdvanceEventAsync();
+
+        Assert.Equal(3, afterSecure.CurrentEvent!.StepNumber);
+        Assert.Equal(20, afterSecure.CurrentEvent.SuccessChanceModifierPercent);
+        Assert.Equal(80, afterSecure.CurrentEvent.RewardMultiplierPercent);
+        Assert.Equal(50, afterSecure.CurrentEvent.RiskMultiplierPercent);
+        Assert.Equal(["salvage", "pass"], afterSecure.CurrentEvent.Choices.Select(choice => choice.ChoiceId));
+
+        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "1");
+        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
+        Assert.Equal(20, confirmation.MaximumLoss);
+        Assert.Equal(100, confirmation.SuccessChancePercent);
+        Assert.Equal(80, confirmation.RewardMultiplierPercent);
+        Assert.Equal("Common", confirmation.RevealedRarity);
+        await service.ConfirmRiskActionAsync(CreateArgs("pilot-id", "Pilot"));
+
+        var resolved = await service.AdvanceEventAsync();
+
+        var completed = Assert.Single(resolved.CompletedEvents);
+        Assert.Equal("Success", completed.OutcomeResult);
+        Assert.Equal("Common", completed.OutcomeRarity);
+        Assert.Equal(["Scan the wreck", "Secure the area", "Recover salvage"], completed.Path.Select(step => step.Label));
+        Assert.Equal(108, Assert.Single(resolved.Crew.Single().UnbankedBalances).Amount);
+        Assert.Equal(8, Assert.Single(completed.RewardOutcomes).EarnedAmount);
+        Assert.Contains(chatMessages, message => message.Contains("SUCCESS - Common find", StringComparison.Ordinal)
+            && message.Contains("Earned 8 Salvage Credits", StringComparison.Ordinal)
+            && message.Contains("Scan the wreck > Secure the area > Recover salvage", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SalvageEvent_GoingStraightToSalvage_HasHigherRiskAndFullRewards()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        var prompt = await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+
+        var confirmation = Assert.Single(prompt.CurrentEvent!.PendingRiskConfirmations);
+        Assert.Equal(40, confirmation.MaximumLoss);
+        Assert.Equal(80, confirmation.SuccessChancePercent);
+        Assert.Equal(100, confirmation.RewardMultiplierPercent);
+        Assert.Null(confirmation.RevealedRarity);
+    }
+
+    [Fact]
+    public async Task SalvageEvent_PassingWithoutCommitting_EndsWithoutRewardOrLoss()
+    {
+        var stateStore = new InMemoryStateStore();
+        await stateStore.SaveAsync(CreateSalvageFixture());
+        var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+
+        await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "pass");
+        var resolved = await service.AdvanceEventAsync();
+
+        var completed = Assert.Single(resolved.CompletedEvents);
+        Assert.Equal("Passed", completed.OutcomeResult);
+        Assert.Empty(completed.RewardOutcomes);
+        Assert.Equal(100, Assert.Single(resolved.Crew.Single().UnbankedBalances).Amount);
+    }
+
+    [Fact]
+    public async Task EventWithoutRiskyChoices_PaysSharedRewardUnlessCrewForfeits()
+    {
+        StarshipEventChoiceSnapshot[] pool =
+        [
+            new() { ChoiceId = "salvage", Label = "Recover salvage" },
+            new() { ChoiceId = "pass", Label = "Pass it by", EndsWithoutReward = true }
+        ];
+        var results = new List<StarshipExpeditionSnapshot>();
+        foreach (var vote in new[] { "salvage", "pass" })
+        {
+            var fixture = CreateSalvageFixture();
+            fixture.CurrentEvent!.Choices = [.. pool];
+            fixture.CurrentEvent.ChoicePool = [.. pool];
+            var stateStore = new InMemoryStateStore();
+            await stateStore.SaveAsync(fixture);
+            var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+            await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), vote);
+            results.Add(await service.AdvanceEventAsync());
+        }
+
+        Assert.Equal("Success", results[0].CompletedEvents.Single().OutcomeResult);
+        Assert.Equal(110, results[0].Crew.Single().UnbankedBalances.Single().Amount);
+        Assert.Equal("Passed", results[1].CompletedEvents.Single().OutcomeResult);
+        Assert.Equal(100, results[1].Crew.Single().UnbankedBalances.Single().Amount);
+    }
+
+    [Fact]
+    public async Task FailedSharedEvent_CostsWholeCrewUnbankedPointsScaledByRiskModifiers()
+    {
+        StarshipEventChoiceSnapshot[] pool =
+        [
+            new() { ChoiceId = "secure", Label = "Secure the area", ContinuesEvent = true, GrantsFlag = "secured", RiskMultiplierPercent = 50 },
+            new() { ChoiceId = "salvage", Label = "Recover salvage" }
+        ];
+        var losses = new List<long>();
+        foreach (var secureFirst in new[] { false, true })
+        {
+            var fixture = CreateSalvageFixture();
+            fixture.RewardProfiles[0].SuccessChancePercent = 0;
+            fixture.Crew.Add(new StarshipCrewMemberSnapshot
+            {
+                UserId = "engineer-id", UserName = "engineer", DisplayName = "Engineer",
+                UnbankedBalances = [new StarshipUnbankedBalanceSnapshot { PointTypeId = 2, PointTypeName = "Salvage Credits", Amount = 50 }]
+            });
+            fixture.CurrentEvent!.Choices = [.. pool];
+            fixture.CurrentEvent.ChoicePool = [.. pool];
+            var stateStore = new InMemoryStateStore();
+            await stateStore.SaveAsync(fixture);
+            var service = CreateService(stateStore, settingsStore: new InMemorySettingsStore(), pointsSystem: Mock.Of<IPointsSystem>());
+            if (secureFirst)
+            {
+                await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "secure");
+                await service.AdvanceEventAsync();
+            }
+
+            await service.VoteAsync(CreateArgs("pilot-id", "Pilot"), "salvage");
+            var resolved = await service.AdvanceEventAsync();
+            Assert.Equal("Failure", resolved.CompletedEvents.Single().OutcomeResult);
+            losses.Add(resolved.CompletedEvents.Single().RewardOutcomes.Sum(outcome => outcome.LostAmount));
+            Assert.Equal(2, resolved.CompletedEvents.Single().RewardOutcomes.Count(outcome => outcome.LostAmount > 0));
+        }
+
+        Assert.Equal(60, losses[0]);
+        Assert.Equal(30, losses[1]);
     }
 
     [Fact]

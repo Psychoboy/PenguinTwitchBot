@@ -80,12 +80,18 @@
             label.textContent = choice.label;
             const command = document.createElement('span');
             command.className = 'choice-command';
-            command.textContent = '!starship vote ' + choice.choiceId;
+            command.textContent = '!sv ' + (choice.number ?? '');
             const votes = document.createElement('span');
             votes.className = 'choice-votes';
             const count = currentEvent.voteCounts?.[choice.choiceId] ?? 0;
             votes.textContent = count + (count === 1 ? ' vote' : ' votes');
             row.append(label, command, votes);
+            if (choice.hint) {
+                const hint = document.createElement('span');
+                hint.className = 'choice-hint';
+                hint.textContent = choice.hint;
+                row.appendChild(hint);
+            }
             list.appendChild(row);
         }
     }
@@ -96,19 +102,50 @@
         panel.hidden = !profile;
         const riskElement = document.getElementById('reward-risk');
         const hasRiskyChoice = (currentEvent.choices || []).some(choice => choice.isRisky);
-        riskElement.hidden = !profile || !hasRiskyChoice;
+        riskElement.hidden = !profile;
         if (!profile) return;
 
         setText('reward-point-type', profile.pointTypeName + ' · per eligible crew member');
-        setText('reward-success', 'Success chance: ' + profile.successChancePercent + '% / failure ' + (100 - profile.successChancePercent) + '%');
+        const chance = currentEvent.effectiveSuccessChancePercent ?? profile.successChancePercent;
+        setText('reward-success', 'Success chance: ' + chance + '% / failure ' + (100 - chance) + '%');
         setText('reward-scope', hasRiskyChoice
-            ? 'Scope: shared crew rewards; risky effects only apply to viewers who choose that option.'
-            : 'Scope: shared reward for eligible crew members.');
-        setText('reward-rarity', 'Common ' + profile.commonWeightPercent + '%: ' + profile.commonMinimum + '-' + profile.commonMaximum
-            + ' · Uncommon ' + profile.uncommonWeightPercent + '%: ' + profile.uncommonMinimum + '-' + profile.uncommonMaximum
-            + ' · Rare ' + profile.rareWeightPercent + '%: ' + profile.rareMinimum + '-' + profile.rareMaximum);
+            ? 'Scope: only viewers who commit to the risky option can win or lose points.'
+            : 'Scope: success pays eligible crew; failure costs the whole crew.');
+        const range = {
+            Common: [profile.commonMinimum, profile.commonMaximum],
+            Uncommon: [profile.uncommonMinimum, profile.uncommonMaximum],
+            Rare: [profile.rareMinimum, profile.rareMaximum]
+        }[currentEvent.revealedRarity];
+        setText('reward-rarity', range
+            ? 'Rarity: ' + currentEvent.revealedRarity + ' (' + range[0] + '-' + range[1] + ' ' + profile.pointTypeName + ')'
+            : 'Rarity: unknown' + (hasRiskyChoice ? ' - scan to reveal it before committing' : ' until the event resolves'));
         setText('reward-caps', 'Cap: ' + profile.maximumPerEvent + ' per event · ' + profile.maximumUnbankedPerVoyage + ' unbanked per voyage');
-        setText('reward-risk', 'Risky actions can lose ' + profile.riskLossPercent + '% of exposed balance, capped at ' + profile.maximumRiskLossPerEvent + '. Confirm in chat to participate.');
+        const riskPercent = Math.min(100, profile.riskLossPercent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+        const riskCap = Math.floor(profile.maximumRiskLossPerEvent * (currentEvent.riskMultiplierPercent ?? 100) / 100);
+        setText('reward-risk', 'If it fails, the whole crew loses up to ' + riskPercent + '% of unbanked points, capped at ' + riskCap + '.');
+    }
+
+    function renderStepInfo(currentEvent) {
+        const note = document.getElementById('step-note');
+        const text = [
+            currentEvent.stepNumber > 1 ? 'Step ' + currentEvent.stepNumber : '',
+            (currentEvent.path || []).length ? 'Path: ' + currentEvent.path.join(' > ') : '',
+            currentEvent.stepNote || ''
+        ].filter(Boolean).join(' · ');
+        note.textContent = text;
+        note.hidden = !text;
+    }
+
+    function renderResultLines(latest) {
+        const container = document.getElementById('result-lines');
+        container.replaceChildren();
+        const lines = latest.lines || [];
+        container.hidden = lines.length === 0;
+        for (const text of lines) {
+            const line = document.createElement('span');
+            line.textContent = text;
+            container.appendChild(line);
+        }
     }
 
     function renderBankedAmounts(latest) {
@@ -130,9 +167,9 @@
             const key = latest ? latest.sequence + ':' + latest.choice : '';
             if (key && key !== resultKey) {
                 resultKey = key;
-                resultVisibleUntil = Date.now() + 9000;
+                resultVisibleUntil = Date.now() + 14000;
             }
-            if (!latest || Date.now() > resultVisibleUntil || (terminal && Date.now() > Date.parse(snapshot.updatedAtUtc) + 12000)) {
+            if (!latest || Date.now() > resultVisibleUntil || (terminal && Date.now() > Date.parse(snapshot.updatedAtUtc) + 20000)) {
                 root.hidden = true;
                 return;
             }
@@ -148,6 +185,7 @@
             setText('result-choice', latest.choice);
             setText('result-detail', latest.sector + ' · Leg ' + latest.sequence);
             renderBankedAmounts(latest);
+            renderResultLines(latest);
             return;
         }
 
@@ -174,6 +212,7 @@
             setText('event-description', currentEvent.description);
             setText('event-sector', currentEvent.sector + ' · Default: ' + currentEvent.defaultChoiceId);
             renderChoices(currentEvent);
+            renderStepInfo(currentEvent);
             renderRewardDisclosure(currentEvent);
         }
     }

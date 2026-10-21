@@ -20,9 +20,10 @@
         <div id="boarding-panel" class="boarding-panel" hidden>
             <span class="section-label">BOARDING WINDOW</span>
             <strong>Take your place aboard</strong>
-            <span>Join before takeoff with <b>!starship join</b></span>
+            <span>Join before takeoff with <b>!sj</b></span>
         </div>
         <div id="event-panel" hidden>
+            <span id="step-note" class="step-note" hidden></span>
             <div id="choices" class="choices"></div>
             <section id="reward-disclosure" class="reward-disclosure" hidden>
                 <div class="reward-heading">
@@ -37,13 +38,14 @@
             </section>
             <footer class="vote-footer">
                 <span id="event-sector"></span>
-                <span>Vote in chat: <b>!starship vote &lt;choice&gt;</b></span>
+                <span>Vote in chat: <b>!sv &lt;number&gt;</b></span>
             </footer>
         </div>
         <div id="result-panel" class="result-panel" hidden>
             <span class="section-label">VOYAGE UPDATE</span>
             <strong id="result-choice"></strong>
             <span id="result-detail"></span>
+            <div id="result-lines" class="result-lines" hidden></div>
             <div id="result-banked" class="banked-list" hidden></div>
         </div>
     </main>
