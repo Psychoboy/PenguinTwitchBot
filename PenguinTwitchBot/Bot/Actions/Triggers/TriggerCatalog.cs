@@ -663,6 +663,160 @@ namespace PenguinTwitchBot.Bot.Actions.Triggers
             },
             new()
             {
+                Id = "starship-boarding-opened",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Boarding Opened",
+                Description = "Triggers when the crew boarding window opens",
+                Icon = Icons.Material.Filled.GroupAdd,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipBoardingOpened
+            },
+            new()
+            {
+                Id = "starship-crew-joined",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Crew Joined",
+                Description = "Triggers when a viewer joins the crew before launch",
+                Icon = Icons.Material.Filled.PersonAdd,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipCrewJoined
+            },
+            new()
+            {
+                Id = "starship-event-opened",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Opened",
+                Description = "Triggers when a crew event opens for voting",
+                Icon = Icons.Material.Filled.HowToVote,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventOpened
+            },
+            new()
+            {
+                Id = "starship-event-resolved",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Resolved",
+                Description = "Triggers when a crew vote resolves",
+                Icon = Icons.Material.Filled.DoneAll,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventResolved
+            },
+            new()
+            {
+                Id = "starship-event-step-advanced",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Step Advanced",
+                Description = "Triggers when a multi-step crew event moves to its next step (for example after a scan or securing the area)",
+                Icon = Icons.Material.Filled.SkipNext,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventStepAdvanced
+            },
+            new()
+            {
+                Id = "starship-event-succeeded",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Succeeded",
+                Description = "Triggers when a crew event's outcome roll succeeds, even with point rewards disabled",
+                Icon = Icons.Material.Filled.CheckCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventSucceeded
+            },
+            new()
+            {
+                Id = "starship-event-failed",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Event Failed",
+                Description = "Triggers when a crew event's outcome roll fails, even without point losses",
+                Icon = Icons.Material.Filled.ReportProblem,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipEventFailed
+            },
+            new()
+            {
+                Id = "starship-voyage-ended",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Voyage Ended",
+                Description = "Triggers when a voyage returns or is aborted",
+                Icon = Icons.Material.Filled.FlagCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipVoyageEnded
+            },
+            new()
+            {
+                Id = "starship-crew-reward-banked",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Crew Reward Banked",
+                Description = "Triggers once when a crew member's station payout is settled",
+                Icon = Icons.Material.Filled.AccountBalance,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipCrewRewardBanked
+            },
+            new()
+            {
+                Id = "starship-risk-succeeded",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Risk Succeeded",
+                Description = "Triggers for a crew member who succeeds at a confirmed risky action (only events that offer a risky choice)",
+                Icon = Icons.Material.Filled.CheckCircle,
+                Color = Color.Success,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipRiskSucceeded
+            },
+            new()
+            {
+                Id = "starship-risk-failed",
+                Type = TriggerTypes.DefaultCommand,
+                CategoryId = "minigames",
+                CategoryName = "Minigames",
+                DisplayName = "Starship Expedition - Risk Failed",
+                Description = "Triggers for a crew member who fails a confirmed risky action (only events that offer a risky choice)",
+                Icon = Icons.Material.Filled.Warning,
+                Color = Color.Warning,
+                FeatureKey = FeatureKeys.DropGames,
+                DefaultCommandName = "starship",
+                DefaultCommandEventType = DefaultCommandEventTypes.StarshipRiskFailed
+            },
+            new()
+            {
                 Id = "defuse-success",
                 Type = TriggerTypes.DefaultCommand,
                 CategoryId = "minigames",

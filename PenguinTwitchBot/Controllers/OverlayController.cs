@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PenguinTwitchBot.Bot.Commands.Fishing;
+using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Bot.Overlay;
 using PenguinTwitchBot.Database.Bot.Models.Overlay;
 using PenguinTwitchBot.Database.Repository;
@@ -29,6 +30,7 @@ namespace PenguinTwitchBot.Controllers
             IStreamTimerService streamTimerService,
             ICounterService counterService,
             IDeathCounterService deathCounterService,
+            IStarshipExpeditionService starshipExpeditionService,
             ILogger<OverlayController> logger)
         {
             _unitOfWork = unitOfWork;
@@ -36,8 +38,11 @@ namespace PenguinTwitchBot.Controllers
             _streamTimerService = streamTimerService;
             _counterService = counterService;
             _deathCounterService = deathCounterService;
+            _starshipExpeditionService = starshipExpeditionService;
             _logger = logger;
         }
+
+        private readonly IStarshipExpeditionService _starshipExpeditionService;
 
         /// <summary>
         /// Returns the overlay layout config for the compositor page.
@@ -77,6 +82,17 @@ namespace PenguinTwitchBot.Controllers
                 .ToList();
 
             return Ok(new OverlayConfigResponse(overlayLayout.Name, overlayLayout.CanvasWidth, overlayLayout.CanvasHeight, widgets));
+        }
+
+        [AllowAnonymous]
+        [HttpGet("starship-state")]
+        public async Task<IActionResult> GetStarshipState()
+        {
+            var cancellationToken = HttpContext.RequestAborted;
+            var snapshot = await _starshipExpeditionService.GetSnapshotAsync(cancellationToken);
+            var state = snapshot == null ? null : StarshipExpeditionOverlaySnapshot.From(snapshot);
+            var appearance = await _starshipExpeditionService.GetAppearanceAsync(cancellationToken);
+            return Ok(new { type = "expedition_state", snapshot = state, appearance });
         }
 
         /// <summary>Returns all layouts (names + ids) for the editor UI.</summary>

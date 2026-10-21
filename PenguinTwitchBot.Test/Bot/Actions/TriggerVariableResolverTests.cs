@@ -154,6 +154,106 @@ namespace PenguinTwitchBot.Test.Bot.Actions
         }
 
         [Fact]
+        public void DefaultCommandTriggerVariableResolver_ResolvesStarshipAutomationEvents()
+        {
+            var resolver = new DefaultCommandTriggerVariableResolver();
+            var openedVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = DefaultCommandEventTypes.StarshipEventOpened
+                })
+            }, openedVariables);
+
+            Assert.Contains("ExpeditionId", openedVariables.Keys);
+            Assert.Contains("EventTitle", openedVariables.Keys);
+            Assert.Contains("Choices", openedVariables.Keys);
+            Assert.Contains("Duration", openedVariables.Keys);
+            Assert.Contains("Hull", openedVariables.Keys);
+            Assert.Contains("Supplies", openedVariables.Keys);
+            Assert.Contains("ReturnReason", openedVariables.Keys);
+            Assert.DoesNotContain("HullChange", openedVariables.Keys);
+            Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == DefaultCommandEventTypes.StarshipEventOpened);
+
+            var resolvedVariables = new Dictionary<string, ActionVariableInfo>();
+            resolver.ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = DefaultCommandEventTypes.StarshipEventResolved
+                })
+            }, resolvedVariables);
+            Assert.Contains("Choice", resolvedVariables.Keys);
+            Assert.Contains("VoteCount", resolvedVariables.Keys);
+            Assert.Contains("RewardParticipantCount", resolvedVariables.Keys);
+            Assert.Contains("RewardTotal", resolvedVariables.Keys);
+            Assert.Contains("HullChange", resolvedVariables.Keys);
+            Assert.Contains("SuppliesBefore", resolvedVariables.Keys);
+            Assert.Contains("EventSuccessModifierPercent", resolvedVariables.Keys);
+
+            foreach (var eventType in new[]
+                     {
+                         DefaultCommandEventTypes.StarshipCrewRewardBanked,
+                         DefaultCommandEventTypes.StarshipRiskSucceeded,
+                         DefaultCommandEventTypes.StarshipRiskFailed
+                     })
+            {
+                Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                    trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == eventType);
+                var eventVariables = new Dictionary<string, ActionVariableInfo>();
+                resolver.ResolveVariables(new TriggerType
+                {
+                    Type = TriggerTypes.DefaultCommand,
+                    Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                    {
+                        DefaultCommandName = "starship",
+                        EventType = eventType
+                    })
+                }, eventVariables);
+
+                Assert.Contains("User", eventVariables.Keys);
+                if (eventType == DefaultCommandEventTypes.StarshipCrewRewardBanked)
+                    Assert.Contains("Amount", eventVariables.Keys);
+                else
+                {
+                    Assert.Contains("LostAmount", eventVariables.Keys);
+                    Assert.Contains("SuccessChancePercent", eventVariables.Keys);
+                    Assert.Contains("Outcome", eventVariables.Keys);
+                }
+            }
+        }
+
+        [Theory]
+        [InlineData(DefaultCommandEventTypes.StarshipEventStepAdvanced, "Step", "RevealedRarity")]
+        [InlineData(DefaultCommandEventTypes.StarshipEventSucceeded, "Outcome", "LostTotal")]
+        [InlineData(DefaultCommandEventTypes.StarshipEventFailed, "AffectedCount", "Path")]
+        [InlineData(DefaultCommandEventTypes.StarshipVoyageEnded, "Summary", "EventsFailed")]
+        public void DefaultCommandTriggerVariableResolver_ResolvesStarshipOutcomeEvents(string eventType, string first, string second)
+        {
+            var variables = new Dictionary<string, ActionVariableInfo>();
+            new DefaultCommandTriggerVariableResolver().ResolveVariables(new TriggerType
+            {
+                Type = TriggerTypes.DefaultCommand,
+                Configuration = System.Text.Json.JsonSerializer.Serialize(new DefaultCommandTriggerConfiguration
+                {
+                    DefaultCommandName = "starship",
+                    EventType = eventType
+                })
+            }, variables);
+
+            Assert.Contains(first, variables.Keys);
+            Assert.Contains(second, variables.Keys);
+            Assert.Contains(TriggerCatalog.AllTriggers, trigger =>
+                trigger.DefaultCommandName == "starship" && trigger.DefaultCommandEventType == eventType);
+        }
+
+        [Fact]
         public void TwitchEventTriggerVariableResolver_ResolvesCheerAndSubVariables()
         {
             var resolver = new TwitchEventTriggerVariableResolver();

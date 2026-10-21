@@ -1,0 +1,100 @@
+# Starship Expedition
+
+A shared, long-form voyage. Viewers board, then vote in chat on occasional events while the ship travels between sectors. Everything is decided by the bot, so every overlay shows the same result.
+
+## Running a voyage
+
+1. **Start** it from the Starship Expedition page (or with `!starship start [legs] [min minutes] [max minutes]` as a moderator).
+2. During **boarding**, viewers join with `!sj` (long form: `!starship join`).
+3. When boarding closes the ship launches. Viewers can still join **at any time** while the ship is cruising or an event is open, with `!sj` or simply by voting - a first vote enrolls them automatically. Events open on a timer; the crew votes with `!sv <number>` (the option ID also works).
+   - If someone joins while an event is open, their vote counts straight away, but they only share that event's rewards and losses from the **next** event.
+4. Moderators can use `!starship advance` to skip ahead and `!starship stop` to abort.
+5. The voyage ends after the configured number of legs. Anything earned is banked to the crew.
+
+## Sector Selection
+
+In **Events & Sectors**, the **Sectors** section lets you enable or disable each built-in sector alongside the custom-sector list. All five built-ins are enabled by default, including when loading older settings.
+
+- Keep at least two sectors available in total. You can disable every built-in if you add at least two custom sectors.
+- Save the selection before starting a voyage. The seeded preview uses your unsaved selection; disabled sectors are excluded from both previews and new voyages.
+- Active voyages keep the sector pool copied at departure, even after edits or a bot restart. Event filters can still reference disabled built-in sectors; those events become eligible there again if the sector is re-enabled.
+
+## Events and choices
+
+Open **Events & Sectors** to edit the catalog. The **Custom Events** help tab covers choices, profiles, filters, previews, story tokens, media and JSON sharing. Apply Event updates the unsaved page; Save Settings persists the validated catalog. Active voyages keep their original definitions.
+
+Courier Relay, Survey Cache and Debris Crossing are installed automatically as editable starter events. No manual import is needed. Their reward profiles remain under your control; installation does not select a currency or enable rewards. Edits and deletions are retained on later loads.
+
+Some events resolve in one vote. Others are mini-voyages made of several steps:
+
+- **Derelict Salvage**: Scan the wreck (reveals the actual rarity), Secure the area, then Recover salvage or Pass.
+- **Unidentified Signal**: Scan the signal (reveals rarity), Trace its origin, then Investigate or Continue on course.
+- **Navigation Hazard**: Maneuver (balanced), Raise shields (safer, smaller reward) or Hold course (riskier, bigger reward).
+
+Choices that continue an event are used up once chosen. Each choice can change the success chance, the reward size and the loss exposure; the hints are shown next to the options in chat and on the overlay. Passing or continuing on course ends an event with no reward and no loss.
+
+## Hull, Supplies and Stations
+
+Enable **Ship Systems** in voyage settings. New voyages default to 100 hull and 100 supplies; both resources stay within 0-100. Rules are copied at departure. Existing legacy voyages and voyages started with ship systems disabled retain their original behavior.
+
+- Travel after the initial boarding event costs 5 supplies per leg by default, once per event, not once per step.
+- Empty supplies reduce event success chance by 15 percentage points by default. They do not force a return or prevent the safe default choice.
+- Zero hull triggers an emergency return and banks remaining winnings. Already-banked points remain safe.
+- Every station choice banks winnings. **Resupply** restores 40 supplies; **Repair the ship** restores 30 hull for 15 shared supplies; **Continue the voyage** grants +10 percentage points success for the next whole non-station event.
+- The Continue bonus does not stack, survives steps and restart, and is consumed once. It changes success chance, not point amounts. An unaffordable repair is shown without a voting number.
+- Starting resources, travel cost, shortage penalty, station amounts/cost, Continue bonus and default event chance are configurable. Resource gains are clamped to 100.
+
+Both widgets show resources and bonus state. Before voting, the event widget shows each choice's actual resource changes, supply payment, effective success chance and possible outcome damage. Supply changes are net of any separately displayed cost. Damage can be reduced by the choice's loss multiplier. The seeded route preview follows safe defaults; the catalog preview uses starting resources and no prior travel.
+
+## Story
+
+Each event gets a generated subject (for example "the ISV Quiet Meridian" or "the Kestrel-7 beacon") that stays the same for the whole event. Every choice adds a short story beat that names the viewers who picked it, and the outcome ends with what the crew found or lost, so each voyage reads differently.
+
+## Appearance
+
+Open the **Appearance** tab on the Starship page to restyle both widgets. Everything defaults to the original look.
+
+- **Colours and style:** panel, text, accent, highlight and warning colours, panel opacity, corner radius and font. Tick *Use each ship's own accent colour* to keep the per-voyage ship colour, or untick it to use your accent everywhere.
+- **Show or hide:** animations, join toasts, the route map, effect chips, vote bars, the odds and loss lines and the path footer.
+- **Custom images:** pick ship images and per-object images (wreck, beacon, debris field, station, route fork) from the media library. They are mixed into the same pool as the built-in art, so each voyage's ship and each event's object is chosen automatically. Switch the built-in art off to use only your images; an object type with no images keeps its built-in art.
+- **Live preview:** the tab shows sample data with your unsaved changes. Press **Save Settings** to keep them - connected overlays in OBS update immediately, without changing their URLs.
+
+Images must be media-library files (a path starting with `/media/`) or an `http(s)` address.
+
+## Success, rewards and losses
+
+- Success and rarity are rolled **once per event** from the voyage seed, so results are repeatable and cannot be changed by the overlay.
+- On success every eligible crew member earns unbanked points based on the revealed rarity.
+- On failure the **whole crew** loses a share of their unbanked points. Securing first reduces that share.
+- Unbanked points are banked at station stops, when the voyage returns, or when it is aborted. Failed payouts are retried without paying twice.
+- Open **Reward Profiles** to create named profiles and assign them to event types. Multiple events can share one profile; choose **No rewards** to leave an event unbound.
+- Each profile has ordered, enabled rarity tiers with names, badge colours and relative weights. Weights do not need to total 100; the editor displays each tier's resulting chance.
+- A tier can award multiple point currencies, each with a minimum, maximum and optional bonus chance. Point limits default to **unlimited**. Add a limit to cap a currency per event or voyage; clearing a limit field or deleting its row makes that limit unlimited. An explicit voyage limit includes points already banked.
+- Failure loss rules select a currency, percentage and optional maximum loss amount (unlimited by default). An explicit zero maximum prevents loss. Even without an amount cap, losses still respect the configured percentage and cannot exceed unbanked balances; banked points are safe.
+- Previously saved numeric limits are preserved. Clear or delete them to make an existing profile unlimited. Per-reward payout ranges and configuration safety bounds are separate from these optional point limits.
+- Profiles can run normal actions on success, on failure or after banking. See **Triggers & Actions** for dispatch and recovery behavior.
+- Save settings before starting a voyage. Profiles and event bindings are copied at departure; editing them does not change a voyage already underway. Older saved profiles are converted to three equivalent tiers automatically.
+
+## Chat commands
+
+| Command | What it does |
+| :--- | :--- |
+| `!sj` | Join the crew (before launch, or any time while the voyage is under way) |
+| `!sv <number>` | Vote for an option (also joins you if you are not aboard yet) |
+| `!sc` | Confirm a risky choice (only for events that offer one) |
+| `!starship status` | Show voyage status and current Hull/Supplies when ship systems are enabled |
+
+## Overlays
+
+- **Status widget** (`/starship-status.html`): compact progress, sector, crew and timer. It fades out while the ship is cruising between events and returns for boarding, events and the voyage end. Use the **Starship Show Status Widget** action to bring it back for a set time.
+- **Event widget** (`/starship-event.html`): numbered choices, vote counts, the path taken, any revealed rarity and the result of each event.
+
+Both widgets use the same real-time connection; if it drops they reconnect and reload the latest state.
+
+## Catalog Storage and Recovery
+
+Event definitions and reward profiles are stored as versioned database documents. Apply the matching SQLite or PostgreSQL migrations before running this version. On first load, existing reward profiles and event bindings are preserved and moved out of the settings document; a failed import leaves the previous settings intact.
+
+New voyages copy their event catalog, reward profiles and bindings at departure. Editing settings cannot change an active voyage, including after a restart. Older voyages without a saved catalog continue using the built-in event definitions. Missing or unsupported catalog documents fail visibly rather than silently resetting to defaults.
+
+Custom events use the same server-owned voting, step, reward, loss and banking paths as built-in events. Definitions permit two to six choices; more than four use a compact two-column overlay layout. Route Choice and Station Stop retain their fixed mechanics even when wording or art is customized.

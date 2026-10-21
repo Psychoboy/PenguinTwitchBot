@@ -7,6 +7,7 @@ using PenguinTwitchBot.Bot.Commands.AudioCommand;
 using PenguinTwitchBot.Bot.Commands.Features;
 using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.Games.Common;
+using PenguinTwitchBot.Bot.Commands.Games.Starship;
 using PenguinTwitchBot.Bot.Commands.Games.Parachute;
 using PenguinTwitchBot.Bot.Commands.Games.Plinko;
 using PenguinTwitchBot.Bot.Commands.Games.Balloon;
@@ -392,6 +393,15 @@ namespace PenguinTwitchBot.CustomMiddleware
             services.AddSingleton<IOverlaySecurityService, OverlaySecurityService>();
             services.AddSingleton<IDropGamesSettingsService, DropGamesSettingsService>();
             services.AddSingleton<IDropRegistry, DropRegistry>();
+            services.AddSingleton<IStarshipExpeditionStateStore, StarshipExpeditionStateStore>();
+            services.AddSingleton<IStarshipExpeditionSettingsStore, StarshipExpeditionSettingsStore>();
+            services.AddRuntimeFeatureService<IStarshipExpeditionService, StarshipExpeditionService>(
+                FeatureKeys.DropGames,
+                "Starship Expedition",
+                moduleName: "StarshipExpedition",
+                isCore: false,
+                description: "Shared, server-authoritative Starship Expedition with crew voting and scheduled events."
+            );
             services.AddRuntimeFeatureService<IParachuteDropService, ParachuteDropService>(
                 FeatureKeys.DropGames,
                 "Parachute Drop",

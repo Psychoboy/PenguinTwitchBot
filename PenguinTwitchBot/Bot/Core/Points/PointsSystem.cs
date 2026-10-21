@@ -4,6 +4,8 @@ using PenguinTwitchBot.Bot.Commands.Games;
 using PenguinTwitchBot.Bot.Commands.TicketGames;
 using PenguinTwitchBot.Bot.Events.Chat;
 using PenguinTwitchBot.Database.Bot.Models.Points;
+using PenguinTwitchBot.Database.Bot.Models;
+using System.Globalization;
 using PenguinTwitchBot.Models;
 using PenguinTwitchBot.Database.Repository;
 using LinqToDB.Internal.SqlQuery;
@@ -85,6 +87,69 @@ namespace PenguinTwitchBot.Bot.Core.Points
                 logger.LogError(ex, "Error adding points to user {userId}", userId);
                 return 0;
             }
+        }
+
+        public async Task<bool> AddPointsByUserIdOnce(string userId, int pointType, long points, string operationId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) throw new ArgumentException("A user ID is required.", nameof(userId));
+            if (pointType <= 0) throw new ArgumentOutOfRangeException(nameof(pointType));
+            if (points <= 0) throw new ArgumentOutOfRangeException(nameof(points), "An idempotent point award must be positive.");
+            if (string.IsNullOrWhiteSpace(operationId) || operationId.Length > 180)
+                throw new ArgumentException("The point award operation ID must contain 1-180 characters.", nameof(operationId));
+
+            using var userLock = await UserLocks.AcquireAsync($"{userId}:{pointType}", CancellationToken.None);
+            var settingName = $"points_award_once:{operationId}";
+
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var marker = (await db.Settings.GetAsync(x => x.Name == settingName)).FirstOrDefault();
+            var userPoints = await db.UserPoints.GetUserPointsByUserId(userId, pointType);
+            if (marker != null)
+            {
+                var expectedMarkerValue = $"{userId}:{pointType}:{points}";
+                if (!string.Equals(marker.StringSetting, expectedMarkerValue, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The point award operation ID was already used with different payout details.");
+                return true;
+            }
+
+            var viewer = await viewerFeature.GetViewerByUserId(userId)
+                ?? throw new InvalidOperationException($"Viewer {userId} was not found for an idempotent point award.");
+
+            if (userPoints == null)
+            {
+                userPoints = new UserPoints
+                {
+                    UserId = userId,
+                    Username = viewer.Username,
+                    PointTypeId = pointType,
+                    Points = points
+                };
+                await db.UserPoints.AddAsync(userPoints);
+            }
+            else
+            {
+                userPoints.Username = viewer.Username;
+                userPoints.Points = checked(userPoints.Points + points);
+                db.UserPoints.Update(userPoints);
+            }
+
+            await db.Settings.AddAsync(new Setting
+            {
+                Name = settingName,
+                DataType = Setting.DataTypeEnum.String,
+                StringSetting = $"{userId}:{pointType}:{points.ToString(CultureInfo.InvariantCulture)}"
+            });
+            await db.SaveChangesAsync();
+            try
+            {
+                NumberOfPoints.WithLabels(userPoints.Username, pointType.ToString()).Inc(points);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error updating points metric for idempotent award {OperationId}", operationId);
+            }
+
+            return true;
         }
 
         public async Task<long> SetPointsByUserId(string userId, int pointType, long points)

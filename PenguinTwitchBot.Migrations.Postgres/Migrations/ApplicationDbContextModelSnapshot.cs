@@ -1565,6 +1565,66 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                     b.ToTable("GameSettings");
                 });
 
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.StarshipEventRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("DocumentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("Enabled", "Weight");
+
+                    b.ToTable("starship_events");
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Games.StarshipRewardProfileRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("DocumentJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("Enabled", "Weight");
+
+                    b.ToTable("starship_reward_profiles");
+                });
+
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Models.Giveaway.GiveawayEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -3967,6 +4027,17 @@ namespace PenguinTwitchBot.Migrations.Postgres.Migrations
                         .HasColumnType("text");
 
                     b.ToTable("subactions_setvariable", (string)null);
+                });
+
+            modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.StarshipShowStatusType", b =>
+                {
+                    b.HasBaseType("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.SubActionType");
+
+                    b.Property<string>("DurationSeconds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.ToTable("subactions_starship_show_status", (string)null);
                 });
 
             modelBuilder.Entity("PenguinTwitchBot.Database.Bot.Actions.SubActions.Types.StartDropGameSessionType", b =>

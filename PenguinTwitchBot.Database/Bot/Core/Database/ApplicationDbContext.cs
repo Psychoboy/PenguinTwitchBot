@@ -58,6 +58,8 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
         public DbSet<WheelProperty> WheelProperties { get; set; }
         public DbSet<CurrentCooldowns> Cooldowns { get; set; }
         public DbSet<Models.Games.GameSetting> GameSettings { get; set; }
+        public DbSet<Models.Games.StarshipEventRow> StarshipEvents { get; set; } = null!;
+        public DbSet<Models.Games.StarshipRewardProfileRow> StarshipRewardProfiles { get; set; } = null!;
         public DbSet<Models.Points.PointType> PointTypes { get; set; }
         public DbSet<Models.Points.UserPoints> UserPoints { get; set; }
         public DbSet<Models.Points.PointCommand> PointCommands { get; set; }
@@ -99,6 +101,10 @@ namespace PenguinTwitchBot.Database.Bot.Core.Database
             // Configure DateTime properties for database provider compatibility
             var provider = Database.IsNpgsql() ? "postgres" : Database.IsSqlite() ? "sqlite" : null;
             modelBuilder.ConfigureDateTimes(provider);
+            modelBuilder.Entity<Models.Games.StarshipEventRow>().Property(row => row.DocumentJson)
+                .HasColumnType(Database.IsNpgsql() ? "jsonb" : "TEXT");
+            modelBuilder.Entity<Models.Games.StarshipRewardProfileRow>().Property(row => row.DocumentJson)
+                .HasColumnType(Database.IsNpgsql() ? "jsonb" : "TEXT");
 
             modelBuilder.Entity<SongRequestViewItem>()
             .HasKey(c => c.Id);

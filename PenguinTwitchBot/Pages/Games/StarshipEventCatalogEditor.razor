@@ -1,0 +1,515 @@
+@using PenguinTwitchBot.Bot.Commands.Games.Starship
+@using PenguinTwitchBot.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@inject IJSRuntime JSRuntime
+
+<MudStack Spacing="3">
+    @if (!string.IsNullOrEmpty(_operationError))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true">@_operationError</MudAlert>
+    }
+    @if (!string.IsNullOrEmpty(_notice))
+    {
+        <MudAlert Severity="Severity.Success" Dense="true">@_notice</MudAlert>
+    }
+    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center">
+        <MudTextField T="string" Label="Search Events" Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="_search" Immediate="true" />
+        <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="NewEvent">Add Event</MudButton>
+    </MudStack>
+    <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+        <thead><tr><th>Event</th><th>State</th><th>Weight</th><th>Actions</th></tr></thead>
+        <tbody>
+            @foreach (var definition in FilteredEvents)
+            {
+                <tr @key="definition.EventType">
+                    <td>@definition.Title<br /><small>@definition.EventType</small></td>
+                    <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "Structural" : definition.Enabled ? "Enabled" : "Disabled")</td>
+                    <td>@(StarshipEventCatalog.IsStructural(definition.EventType) ? "-" : definition.Weight.ToString())</td>
+                    <td style="white-space:nowrap">
+                        <MudTooltip Text="Edit event"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit {definition.EventType}")" OnClick="@(() => OpenEvent(definition))" /></MudTooltip>
+                        <MudTooltip Text="Duplicate as custom"><MudIconButton Icon="@Icons.Material.Filled.ContentCopy" aria-label="@($"Duplicate {definition.EventType}")" OnClick="@(() => DuplicateEvent(definition))" /></MudTooltip>
+                        @if (!IsBuiltIn(definition.EventType))
+                        {
+                            <MudTooltip Text="Delete event"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="@($"Delete {definition.EventType}")" OnClick="@(() => _deleteId = definition.EventType)" /></MudTooltip>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+    @if (_deleteId != null)
+    {
+        <MudAlert Severity="Severity.Warning">Delete @_deleteId?
+            <MudButton Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteEvent">Delete Event</MudButton>
+            <MudButton OnClick="@(() => _deleteId = null)">Cancel</MudButton>
+        </MudAlert>
+    }
+
+    @if (_draft is { } draft)
+    {
+        <MudDivider />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+            <MudText Typo="Typo.h6">@(_originalId == null ? "New Event Draft" : "Edit Event")</MudText>
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Check" Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyDraft">Apply Event</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Undo" OnClick="DiscardDraft">Discard Draft</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Download" Disabled="@(!string.IsNullOrEmpty(_validationError))" OnClick="ExportAsync">Export JSON</MudButton>
+        </MudStack>
+        @if (!string.IsNullOrEmpty(_validationError))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">@_validationError</MudAlert>
+        }
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Event ID" Variant="Variant.Outlined" Disabled="@(_originalId != null)" @bind-Value="draft.EventType" @bind-Value:after="DraftChanged" MaxLength="80" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Title" Variant="Variant.Outlined" @bind-Value="draft.Title" @bind-Value:after="DraftChanged" MaxLength="100" /></MudItem>
+            <MudItem xs="12"><MudTextField T="string" Label="Description" Variant="Variant.Outlined" Lines="3" @bind-Value="draft.Description" @bind-Value:after="DraftChanged" MaxLength="1000" /></MudItem>
+            @if (!IsStructuralDraft)
+            {
+                <MudItem xs="6" sm="4"><MudSwitch T="bool" Label="Enabled" Color="Color.Primary" @bind-Value="draft.Enabled" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="6" sm="4"><MudNumericField T="int" Label="Selection Weight" Variant="Variant.Outlined" Min="1" Max="10" @bind-Value="draft.Weight" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12" sm="4"><MudSelect T="string" Label="Default Choice" Variant="Variant.Outlined" @bind-Value="draft.DefaultChoiceId" @bind-Value:after="DraftChanged">
+                    @foreach (var choice in draft.Choices.Where(choice => !choice.ContinuesEvent && string.IsNullOrEmpty(choice.GrantsFlag)))
+                    {
+                        <MudSelectItem T="string" Value="@choice.ChoiceId">@choice.Label</MudSelectItem>
+                    }
+                </MudSelect></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Routes (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">
+                    @foreach (var route in StarshipEventCatalog.Routes)
+                    {
+                        <MudCheckBox T="bool" Label="@route" Value="@(draft.AllowedRoutes.Contains(route))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedRoutes, route, enabled))" />
+                    }
+                </MudStack></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.subtitle2">Sectors (none selected means all)</MudText><MudStack Row="true" Wrap="Wrap.Wrap">
+                    @foreach (var sector in StarshipExpeditionSettings.BuiltInSectors.Concat(Settings.CustomSectors))
+                    {
+                        <MudCheckBox T="bool" Label="@sector" Value="@(draft.AllowedSectors.Contains(sector, StringComparer.OrdinalIgnoreCase))" ValueChanged="@(enabled => ToggleFilter(draft.AllowedSectors, sector, enabled))" />
+                    }
+                </MudStack></MudItem>
+            }
+            <MudItem xs="12" sm="6"><MudSelect T="string" Label="Subject Style" Variant="Variant.Outlined" @bind-Value="draft.SubjectStyle" @bind-Value:after="DraftChanged">
+                @foreach (var style in StarshipEventCatalog.SubjectStyles) { <MudSelectItem T="string" Value="@style">@(style.Length == 0 ? "Default" : style)</MudSelectItem> }
+            </MudSelect></MudItem>
+            <MudItem xs="12" sm="6"><MudSelect T="string" Label="Object Art" Variant="Variant.Outlined" @bind-Value="draft.ObjectKind" @bind-Value:after="DraftChanged">
+                @foreach (var kind in StarshipEventCatalog.ObjectKinds) { <MudSelectItem T="string" Value="@kind">@(kind.Length == 0 ? "Ship fallback" : kind)</MudSelectItem> }
+            </MudSelect></MudItem>
+            <MudItem xs="12"><MudTextField T="string" Label="Subject Names (one per line)" Variant="Variant.Outlined" Lines="3" Value="@string.Join('\n', draft.SubjectNames)" ValueChanged="SetSubjectNames" /></MudItem>
+            <MudItem xs="12"><MediaUrlPicker Label="Event Images" AllowMultiple="true" Value="@string.Join(", ", draft.Images)" ValueChanged="SetImages" /></MudItem>
+        </MudGrid>
+
+        @if (!IsStructuralDraft)
+        {
+            <MudDivider />
+            <MudNumericField T="int?" Label="Event Success Chance (%)" Variant="Variant.Outlined" Min="0" Max="100" Clearable="true" Placeholder="Profile or ship default" @bind-Value="draft.SuccessChancePercent" @bind-Value:after="DraftChanged" />
+            <StarshipShipEffectEditor Label="Success Ship Effect" Value="draft.ShipSuccessEffect" ValueChanged="@(effect => SetOutcomeEffect(effect, true))" />
+            <StarshipShipEffectEditor Label="Failure Ship Effect" Value="draft.ShipFailureEffect" Fallback="@StarshipEventCatalog.GetDefaultShipFailureEffect(draft.EventType)" ValueChanged="@(effect => SetOutcomeEffect(effect, false))" />
+            <MudSelect T="string" Label="Reward Profile" Variant="Variant.Outlined" Value="@(draft.RewardProfileId ?? InheritedBinding)" ValueChanged="SetProfile">
+                <MudSelectItem T="string" Value="@string.Empty">No rewards</MudSelectItem>
+                @foreach (var profile in Settings.RewardProfiles) { <MudSelectItem T="string" Value="@profile.Id">@profile.Name</MudSelectItem> }
+                @if (_ownedProfile is { } optionProfile) { <MudSelectItem T="string" Value="@optionProfile.Id">@optionProfile.Name (new)</MudSelectItem> }
+            </MudSelect>
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(_ownedProfile != null)" OnClick="CreateOwnedProfile">Create Event Reward Profile</MudButton>
+            @if (_ownedProfile != null)
+            {
+                <StarshipRewardProfileEditor Profile="_ownedProfile" PointTypes="PointTypes" Actions="Actions" />
+            }
+        }
+        @foreach (var tier in CurrentProfile?.GetTiers() ?? [])
+        {
+            <MudTextField T="string" Label="@($"{tier.Name} Loot Wording")" Variant="Variant.Outlined" MaxLength="160" Value="@draft.LootByTier.GetValueOrDefault(tier.Name, "")" ValueChanged="@(value => SetLoot(tier.Name, value))" />
+        }
+
+        <MudText Typo="Typo.subtitle1">Choices</MudText>
+        <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+            <thead><tr><th>#</th><th>Choice</th><th>Effect</th><th>Actions</th></tr></thead>
+            <tbody>
+                @for (var index = 0; index < draft.Choices.Count; index++)
+                {
+                    var choiceIndex = index;
+                    var choice = draft.Choices[index];
+                    <tr><td>@(index + 1)</td><td>@choice.Label @(draft.DefaultChoiceId == choice.ChoiceId ? "(default)" : "")</td><td>@ChoiceEffect(choice)</td>
+                        <td style="white-space:nowrap">
+                            <MudTooltip Text="Edit choice"><MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="@($"Edit choice {index + 1}")" OnClick="@(() => _choiceIndex = choiceIndex)" /></MudTooltip>
+                            @if (!IsStructuralDraft)
+                            {
+                                <MudTooltip Text="Move choice up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="@($"Move choice {index + 1} up")" Disabled="@(index == 0)" OnClick="@(() => MoveChoice(choiceIndex, -1))" /></MudTooltip>
+                                <MudTooltip Text="Move choice down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="@($"Move choice {index + 1} down")" Disabled="@(index == draft.Choices.Count - 1)" OnClick="@(() => MoveChoice(choiceIndex, 1))" /></MudTooltip>
+                                <MudTooltip Text="Remove choice"><MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="@($"Remove choice {index + 1}")" Disabled="@(draft.Choices.Count <= 2)" OnClick="@(() => RemoveChoice(choiceIndex))" /></MudTooltip>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+        @if (!IsStructuralDraft)
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Disabled="@(draft.Choices.Count >= StarshipEventCatalog.MaximumChoices)" OnClick="AddChoice">Add Choice</MudButton>
+        }
+        @if (_choiceIndex >= 0 && _choiceIndex < draft.Choices.Count)
+        {
+            var choice = draft.Choices[_choiceIndex];
+            <MudGrid Spacing="2" @key="choice">
+                <MudItem xs="12" sm="4"><MudTextField T="string" Label="Choice ID" Variant="Variant.Outlined" Disabled="@IsStructuralDraft" MaxLength="40" @bind-Value="choice.ChoiceId" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12" sm="8"><MudTextField T="string" Label="Choice Label" Variant="Variant.Outlined" MaxLength="80" @bind-Value="choice.Label" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12"><MudTextField T="string" Label="Choice Story" Variant="Variant.Outlined" Lines="2" MaxLength="1000" @bind-Value="choice.Story" @bind-Value:after="DraftChanged" /></MudItem>
+                <MudItem xs="12"><MudTextField T="string" Label="Choice Hint" Variant="Variant.Outlined" MaxLength="160" @bind-Value="choice.Hint" @bind-Value:after="DraftChanged" /></MudItem>
+                @if (!IsStructuralDraft)
+                {
+                    <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Success Modifier (%)" Variant="Variant.Outlined" Min="-50" Max="50" @bind-Value="choice.SuccessChanceModifierPercent" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Reward Multiplier (%)" Variant="Variant.Outlined" Min="10" Max="300" @bind-Value="choice.RewardMultiplierPercent" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudNumericField T="int" Label="Loss Multiplier (%)" Variant="Variant.Outlined" Min="0" Max="300" @bind-Value="choice.RiskMultiplierPercent" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Continues Event" @bind-Value="choice.ContinuesEvent" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Reveals Rarity" @bind-Value="choice.RevealsRarity" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudCheckBox T="bool" Label="Ends Without Reward" @bind-Value="choice.EndsWithoutReward" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12"><MudTextField T="string" Label="Granted Flag" Variant="Variant.Outlined" MaxLength="40" @bind-Value="choice.GrantsFlag" @bind-Value:after="DraftChanged" /></MudItem>
+                    <MudItem xs="12"><StarshipShipEffectEditor Label="Choice Ship Effect" AllowCost="true" Value="choice.ShipEffect" ValueChanged="@(effect => SetChoiceEffect(choice, effect))" /></MudItem>
+                }
+            </MudGrid>
+        }
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Success Story" Variant="Variant.Outlined" Lines="3" MaxLength="1000" @bind-Value="draft.SuccessStory" @bind-Value:after="DraftChanged" /></MudItem>
+            <MudItem xs="12" sm="6"><MudTextField T="string" Label="Failure Story" Variant="Variant.Outlined" Lines="3" MaxLength="1000" @bind-Value="draft.FailureStory" @bind-Value:after="DraftChanged" /></MudItem>
+        </MudGrid>
+        <MudText Typo="Typo.caption">Story tokens: {crew}, {crewlist}, {subject}, {Subject}, {loot}, {rarity}, {sector}</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap">
+            <MudNumericField T="int" Label="Sample Seed" Variant="Variant.Outlined" @bind-Value="_sampleSeed" />
+            <MudButton StartIcon="@Icons.Material.Filled.Visibility" OnClick="Preview">Preview Event</MudButton>
+        </MudStack>
+        @if (_preview != null)
+        {
+            <MudText Typo="Typo.subtitle1">@_preview.Title</MudText>
+            <MudText Typo="Typo.body2">@_preview.Description</MudText>
+            @if (_previewDisclosure is { } shipPreview)
+            {
+                <MudText Typo="Typo.caption">Hull @shipPreview.Hull/100; Supplies @shipPreview.Supplies/100; resource success modifier @shipPreview.ResourceSuccessModifierPercent pp</MudText>
+            }
+            <MudSimpleTable Dense="true" Bordered="true" Style="overflow-x:auto">
+                <thead><tr><th>#</th><th>Option</th><th>Effect</th><th>Story</th></tr></thead>
+                <tbody>
+                    @for (var index = 0; index < _preview.Choices.Count; index++)
+                    {
+                        var choice = _preview.Choices[index];
+                        var shipChoice = _previewDisclosure?.Choices.FirstOrDefault(item => item.ChoiceId == choice.ChoiceId);
+                        <tr><td>@(shipChoice == null ? (index + 1).ToString() : shipChoice.Number?.ToString() ?? "-")</td><td>@choice.Label</td><td>@StarshipExpeditionNarrative.DescribeEffects(choice) @shipChoice?.Describe()</td><td>@RenderStory(choice.Story)</td></tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudText Typo="Typo.body2">Success: @RenderStory(_preview.SuccessStory)</MudText>
+            <MudText Typo="Typo.body2">Failure: @RenderStory(_preview.FailureStory)</MudText>
+        }
+    }
+    <MudDivider />
+    <MudText Typo="Typo.subtitle1">Single-Event JSON</MudText>
+    <MudTextField T="string" Label="Event JSON" Variant="Variant.Outlined" Lines="6" @bind-Value="_json" />
+    <MudStack Row="true" Wrap="Wrap.Wrap">
+        <MudButton StartIcon="@Icons.Material.Filled.Upload" OnClick="ImportJson">Import as Draft</MudButton>
+        <MudFileUpload T="IBrowserFile" FilesChanged="ImportFileAsync" Accept=".json,application/json">
+            <CustomContent><MudButton StartIcon="@Icons.Material.Filled.FolderOpen" OnClick="@context.OpenFilePickerAsync">Open JSON File</MudButton></CustomContent>
+        </MudFileUpload>
+    </MudStack>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public StarshipExpeditionSettings Settings { get; set; } = default!;
+    [Parameter] public IReadOnlyDictionary<int, string> PointTypes { get; set; } = new Dictionary<int, string>();
+    [Parameter] public IReadOnlyDictionary<int, string> Actions { get; set; } = new Dictionary<int, string>();
+    private StarshipEventDraft? _draft;
+    private StarshipRewardProfile? _ownedProfile;
+    private string? _originalId;
+    private string? _deleteId;
+    private string _search = "";
+    private string _validationError = "";
+    private string _operationError = "";
+    private string _notice = "";
+    private string _json = "";
+    private bool _dirty;
+    private int _choiceIndex;
+    private int _sampleSeed = 12345;
+    private StarshipExpeditionEventSnapshot? _preview;
+    private StarshipShipEventDisclosure? _previewDisclosure;
+    private IEnumerable<StarshipEventDefinition> FilteredEvents => Settings.EventCatalog.Where(definition =>
+        definition.Title.Contains(_search, StringComparison.OrdinalIgnoreCase) || definition.EventType.Contains(_search, StringComparison.OrdinalIgnoreCase));
+    private bool IsStructuralDraft => _originalId != null && StarshipEventCatalog.IsStructural(_originalId);
+    private string InheritedBinding => Settings.EventRewardProfileIds.GetValueOrDefault(_originalId ?? "", "");
+    private StarshipRewardProfile? CurrentProfile => _ownedProfile != null && _ownedProfile.Id == _draft?.RewardProfileId ? _ownedProfile :
+        Settings.RewardProfiles.FirstOrDefault(profile => profile.Id == (_draft?.RewardProfileId ?? InheritedBinding));
+    private static bool IsBuiltIn(string id) => StarshipEventCatalog.IsBuiltIn(id);
+
+    private bool CanChangeDraft()
+    {
+        if (!_dirty) return true;
+        _operationError = "Apply or discard the current draft before opening another event.";
+        return false;
+    }
+
+    private void Begin(StarshipEventDefinition definition, string? originalId)
+    {
+        _draft = StarshipEventDraft.From(definition);
+        _originalId = originalId;
+        _ownedProfile = null;
+        _dirty = originalId == null;
+        _choiceIndex = 0;
+        _preview = null;
+        _notice = _operationError = "";
+        ValidateCurrent();
+    }
+
+    private void OpenEvent(StarshipEventDefinition definition)
+    {
+        if (CanChangeDraft()) Begin(definition, definition.EventType);
+    }
+
+    private void NewEvent()
+    {
+        if (CanChangeDraft()) Begin(StarshipEventEditing.NewEvent(Settings), null);
+    }
+
+    private void DuplicateEvent(StarshipEventDefinition definition)
+    {
+        if (CanChangeDraft()) Begin(StarshipEventEditing.Duplicate(definition, Settings), null);
+    }
+
+    private void DiscardDraft()
+    {
+        _draft = null;
+        _ownedProfile = null;
+        _dirty = false;
+        _validationError = _operationError = "";
+        _preview = null;
+    }
+
+    private void DraftChanged()
+    {
+        _dirty = true;
+        _notice = "";
+        _preview = null;
+        ValidateCurrent();
+    }
+
+    private bool ValidateCurrent()
+    {
+        _validationError = "";
+        if (_draft == null) return true;
+        try
+        {
+            StarshipEventEditing.ValidateDraft(Settings, _draft.ToDefinition(), _originalId, _ownedProfile);
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            _validationError = ex.Message;
+            return false;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _validationError = "Complete the required event and reward fields.";
+            return false;
+        }
+    }
+
+    public bool TryApplyDraft()
+    {
+        if (_draft == null || !_dirty) return true;
+        if (!ValidateCurrent()) return false;
+        var definition = _draft.ToDefinition();
+        var index = _originalId == null ? -1 : Settings.EventCatalog.FindIndex(item => item.EventType == _originalId);
+        if (_ownedProfile != null) Settings.RewardProfiles.Add(StarshipEventEditing.Copy(_ownedProfile));
+        if (index < 0)
+            Settings.EventCatalog.Add(definition);
+        else
+            Settings.EventCatalog[index] = definition;
+        Begin(definition, definition.EventType);
+        _notice = "Event applied. Save Settings to persist changes.";
+        return true;
+    }
+
+    private void ApplyDraft() => TryApplyDraft();
+
+    private void ToggleFilter(List<string> filter, string value, bool enabled)
+    {
+        filter.RemoveAll(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        if (enabled) filter.Add(value);
+        DraftChanged();
+    }
+
+    private void SetSubjectNames(string? value)
+    {
+        _draft!.SubjectNames = (value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        DraftChanged();
+    }
+
+    private void SetImages(string? value)
+    {
+        _draft!.Images = (value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        DraftChanged();
+    }
+
+    private void SetLoot(string tier, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            _draft!.LootByTier.Remove(tier);
+        else
+            _draft!.LootByTier[tier] = value;
+        DraftChanged();
+    }
+
+    private void SetProfile(string? id)
+    {
+        _draft!.RewardProfileId = id ?? "";
+        if (_ownedProfile?.Id != id) _ownedProfile = null;
+        DraftChanged();
+    }
+
+    private void SetOutcomeEffect(StarshipShipEffect? effect, bool success)
+    {
+        if (success) _draft!.ShipSuccessEffect = effect;
+        else _draft!.ShipFailureEffect = effect;
+        DraftChanged();
+    }
+
+    private void SetChoiceEffect(StarshipChoiceDraft choice, StarshipShipEffect? effect)
+    {
+        choice.ShipEffect = effect;
+        DraftChanged();
+    }
+
+    private void CreateOwnedProfile()
+    {
+        _ownedProfile = new()
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = _draft!.Title + " Rewards",
+            Enabled = true,
+            Tiers =
+            [
+                new()
+                {
+                    Id = "common",
+                    Name = "Common",
+                    Weight = 1,
+                    Rewards = [new() { PointTypeId = PointTypes.Keys.FirstOrDefault(), Minimum = 5, Maximum = 10 }]
+                }
+            ]
+        };
+        _draft.RewardProfileId = _ownedProfile.Id;
+        DraftChanged();
+    }
+
+    private void AddChoice()
+    {
+        if (_draft == null || _draft.Choices.Count >= StarshipEventCatalog.MaximumChoices) return;
+        var id = "choice";
+        for (var suffix = 2; _draft.Choices.Any(choice => choice.ChoiceId == id); suffix++) id = $"choice-{suffix}";
+        _draft.Choices.Add(new() { ChoiceId = id, Label = $"Choice {_draft.Choices.Count + 1}" });
+        _choiceIndex = _draft.Choices.Count - 1;
+        DraftChanged();
+    }
+    private void RemoveChoice(int index)
+    {
+        if (_draft!.Choices.Count <= 2) return;
+        _draft.Choices.RemoveAt(index);
+        _choiceIndex = Math.Min(index, _draft.Choices.Count - 1);
+        DraftChanged();
+    }
+
+    private void MoveChoice(int index, int offset)
+    {
+        var target = index + offset;
+        if (target < 0 || target >= _draft!.Choices.Count) return;
+        (_draft.Choices[index], _draft.Choices[target]) = (_draft.Choices[target], _draft.Choices[index]);
+        _choiceIndex = target;
+        DraftChanged();
+    }
+    private static string ChoiceEffect(StarshipChoiceDraft choice) => StarshipExpeditionNarrative.DescribeEffects(new()
+    {
+        ContinuesEvent = choice.ContinuesEvent, RevealsRarity = choice.RevealsRarity, EndsWithoutReward = choice.EndsWithoutReward,
+        SuccessChanceModifierPercent = choice.SuccessChanceModifierPercent, RewardMultiplierPercent = choice.RewardMultiplierPercent,
+        RiskMultiplierPercent = choice.RiskMultiplierPercent, Hint = choice.Hint ?? ""
+    });
+    private void DeleteEvent()
+    {
+        if (_deleteId == null || IsBuiltIn(_deleteId)) return;
+        try
+        {
+            if (_dirty) throw new ArgumentException("Apply or discard the current draft before deleting an event.");
+            var copy = StarshipEventEditing.Copy(Settings);
+            copy.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
+            StarshipExpeditionSettings.NormalizeAndValidate(copy);
+            Settings.EventCatalog.RemoveAll(item => item.EventType == _deleteId);
+            if (_originalId == _deleteId) DiscardDraft();
+            _deleteId = null;
+            _notice = "Event deleted. Save Settings to persist changes.";
+        }
+        catch (ArgumentException ex)
+        {
+            _operationError = ex.Message;
+        }
+    }
+
+    private void Preview()
+    {
+        if (_draft == null || !ValidateCurrent()) return;
+        var definition = _draft.ToDefinition();
+        _preview = new()
+        {
+            EventId = Guid.NewGuid(),
+            EventType = definition.EventType,
+            Title = definition.Title,
+            Subject = StarshipExpeditionStory.GenerateSubject(_sampleSeed, 2, definition),
+            Sector = Settings.GetEffectiveSectors().FirstOrDefault() ?? "Sector",
+            Choices = definition.Choices,
+            LootByTier = definition.LootByTier,
+            SuccessStory = definition.SuccessStory,
+            FailureStory = definition.FailureStory
+        };
+        _preview.Description = RenderStory(definition.Description);
+        var ship = StarshipShipSystems.Create(Settings.ShipSystems);
+        _previewDisclosure = null;
+        if (ship != null)
+        {
+            StarshipShipSystems.BeginEvent(ship, _preview.EventId, definition.EventType == "StationStop");
+            _preview.ShipContext = StarshipShipSystems.CreateEventContext(ship, _preview, definition, CurrentProfile);
+            var available = _preview.Choices.Where(choice => StarshipShipSystems.CanAfford(ship,
+                definition.EventType == "StationStop" ? StarshipShipSystems.GetStationEffect(ship, choice.ChoiceId) : choice.ShipEffect ?? new())).ToList();
+            var eventForDisclosure = new StarshipExpeditionEventSnapshot
+            {
+                EventId = _preview.EventId, EventType = definition.EventType, Choices = available,
+                ChoicePool = definition.Choices, ShipContext = _preview.ShipContext
+            };
+            _previewDisclosure = StarshipShipEventDisclosure.From(new() { ShipSystems = ship }, eventForDisclosure, CurrentProfile);
+        }
+    }
+    private string RenderStory(string template) => StarshipExpeditionStory.Render(template, _preview!, _sampleSeed, ["Viewer"], CurrentProfile?.GetTiers().FirstOrDefault(tier => tier.Enabled)?.Name);
+    private async Task ExportAsync()
+    {
+        if (_draft == null || !ValidateCurrent()) return;
+        _json = StarshipEventEditing.Export(_draft.ToDefinition());
+        await JSRuntime.InvokeVoidAsync("downloadFile", _draft.EventType + ".json", _json);
+    }
+    private void ImportJson()
+    {
+        if (!CanChangeDraft()) return;
+        try
+        {
+            Begin(StarshipEventEditing.Import(_json, Settings), null);
+        }
+        catch (ArgumentException ex)
+        {
+            _operationError = ex.Message;
+        }
+    }
+    private async Task ImportFileAsync(IBrowserFile file)
+    {
+        if (!CanChangeDraft()) return;
+        try
+        {
+            using var stream = file.OpenReadStream(StarshipEventEditing.MaximumImportBytes);
+            using var reader = new StreamReader(stream);
+            _json = await reader.ReadToEndAsync();
+            ImportJson();
+        }
+        catch (Exception ex) when (ex is IOException or ArgumentException)
+        {
+            _operationError = ex.Message;
+        }
+    }
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "event": {
+    "eventType": "survey-cache",
+    "title": "Survey Cache",
+    "description": "The survey route passes {subject} in {sector}. Scan the cache, stabilize it, then recover its contents or pass.",
+    "choices": [
+      {
+        "choiceId": "scan",
+        "label": "Scan the cache",
+        "story": "{crew} identifies {loot} behind the sealed door of {subject}.",
+        "continuesEvent": true,
+        "grantsFlag": "scanned",
+        "revealsRarity": true
+      },
+      {
+        "choiceId": "stabilize",
+        "label": "Stabilize the cache",
+        "story": "{crewlist} secures the fractured frame of {subject}.",
+        "continuesEvent": true,
+        "grantsFlag": "stabilized",
+        "successChanceModifierPercent": 20,
+        "rewardMultiplierPercent": 80,
+        "riskMultiplierPercent": 50
+      },
+      {
+        "choiceId": "recover",
+        "label": "Recover the contents",
+        "story": "{crew} opens the hatch of {subject}."
+      },
+      {
+        "choiceId": "pass",
+        "label": "Leave the cache",
+        "story": "The crew marks {subject} for another expedition.",
+        "endsWithoutReward": true
+      }
+    ],
+    "defaultChoiceId": "pass",
+    "successStory": "The crew retrieves {loot} from {subject}.",
+    "failureStory": "The frame breaks apart and the crew abandons the recovery.",
+    "enabled": true,
+    "weight": 2,
+    "allowedRoutes": ["Survey Route"],
+    "allowedSectors": ["Ternion Belt"],
+    "subjectStyle": "custom",
+    "subjectNames": ["the Lantern Cache", "the Hollow Archive"],
+    "objectKind": "wreck",
+    "shipFailureEffect": { "hullDelta": -10, "suppliesDelta": -5 },
+    "lootByTier": {
+      "Common": "a crate of survey instruments",
+      "Uncommon": "an intact stellar recorder",
+      "Rare": "a sealed deep-field atlas"
+    },
+    "rewardProfileId": "SalvageSite"
+  }
+}
