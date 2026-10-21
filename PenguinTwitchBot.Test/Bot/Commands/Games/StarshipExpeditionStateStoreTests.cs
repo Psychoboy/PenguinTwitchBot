@@ -1,0 +1,144 @@
+using System.Linq.Expressions;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using PenguinTwitchBot.Bot.Commands.Games.Starship;
+using PenguinTwitchBot.Database.Bot.Models;
+using PenguinTwitchBot.Database.Repository;
+
+namespace PenguinTwitchBot.Test.Bot.Commands.Games;
+
+public class StarshipExpeditionStateStoreTests
+{
+    [Fact]
+    public async Task SaveAndLoad_PreservesMissionSeedCrewAndOpenEvent()
+    {
+        var settingRows = new List<Setting>();
+        var store = CreateStore(settingRows);
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            Seed = 127430,
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow,
+            LegCount = 5,
+            CurrentLeg = 2,
+            NextEventSequence = 4,
+            NextEventAtUtc = DateTimeOffset.UtcNow.AddMinutes(5),
+            CurrentSector = "Kepler Reach",
+            CurrentRoute = "Debris Corridor",
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "viewer-1",
+                    UserName = "pilot",
+                    DisplayName = "Pilot",
+                    JoinedAtUtc = DateTimeOffset.UtcNow,
+                    EnrollmentMethod = StarshipCrewEnrollmentMethod.ExplicitJoin
+                },
+                new StarshipCrewMemberSnapshot
+                {
+                    UserId = "viewer-2",
+                    UserName = "scanner",
+                    DisplayName = "Scanner",
+                    JoinedAtUtc = DateTimeOffset.UtcNow,
+                    EnrollmentMethod = StarshipCrewEnrollmentMethod.AutomaticAction
+                }
+            ],
+            CurrentEvent = new StarshipExpeditionEventSnapshot
+            {
+                EventId = Guid.NewGuid(),
+                Sequence = 3,
+                EventType = "SignalDetected",
+                OpenedAtUtc = DateTimeOffset.UtcNow,
+                ClosesAtUtc = DateTimeOffset.UtcNow.AddSeconds(30),
+                Choices = [new StarshipEventChoiceSnapshot { ChoiceId = "scan", Label = "Scan" }],
+                Votes = [new StarshipEventVoteSnapshot { UserId = "viewer-1", ChoiceId = "scan" }]
+            }
+        };
+
+        await store.SaveAsync(snapshot);
+        var restored = await CreateStore(settingRows).LoadAsync();
+
+        Assert.NotNull(restored);
+        Assert.Equal(snapshot.ExpeditionId, restored.ExpeditionId);
+        Assert.Equal(snapshot.Seed, restored.Seed);
+        Assert.Equal(snapshot.CurrentLeg, restored.CurrentLeg);
+        Assert.Equal(snapshot.NextEventSequence, restored.NextEventSequence);
+        Assert.Collection(
+            restored.Crew.OrderBy(member => member.UserId),
+            member => Assert.Equal("viewer-1", member.UserId),
+            member => Assert.Equal("viewer-2", member.UserId));
+        Assert.Equal("SignalDetected", restored.CurrentEvent?.EventType);
+        Assert.Equal("viewer-1", Assert.Single(restored.CurrentEvent!.Votes).UserId);
+        Assert.Single(settingRows);
+    }
+
+    [Fact]
+    public async Task Save_RejectsUnsupportedSnapshotVersion()
+    {
+        var store = CreateStore([]);
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            SchemaVersion = StarshipExpeditionSnapshot.CurrentSchemaVersion + 1,
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 1
+        };
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(snapshot));
+    }
+
+    [Fact]
+    public async Task Save_RejectsDuplicateCrewUserIds()
+    {
+        var store = CreateStore([]);
+        var snapshot = new StarshipExpeditionSnapshot
+        {
+            ExpeditionId = Guid.NewGuid(),
+            LegCount = 1,
+            Crew =
+            [
+                new StarshipCrewMemberSnapshot { UserId = "viewer-1" },
+                new StarshipCrewMemberSnapshot { UserId = "VIEWER-1" }
+            ]
+        };
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(snapshot));
+    }
+
+    private static StarshipExpeditionStateStore CreateStore(List<Setting> settingRows)
+    {
+        var settingsRepository = new Mock<ISettingsRepository>();
+        settingsRepository.Setup(repository => repository.GetAsync(
+                It.IsAny<Expression<Func<Setting, bool>>>(),
+                It.IsAny<Func<IQueryable<Setting>, IOrderedQueryable<Setting>>>(),
+                It.IsAny<int?>(),
+                It.IsAny<int?>(),
+                It.IsAny<string>()))
+            .ReturnsAsync(() => settingRows.ToList());
+        settingsRepository.Setup(repository => repository.AddAsync(It.IsAny<Setting>()))
+            .Callback<Setting>(setting => settingRows.Add(setting))
+            .Returns((Setting _) => default);
+        settingsRepository.Setup(repository => repository.Update(It.IsAny<Setting>()))
+            .Callback<Setting>(setting =>
+            {
+                var index = settingRows.FindIndex(existing => existing.Name == setting.Name);
+                if (index >= 0) settingRows[index] = setting;
+            });
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.SetupGet(work => work.Settings).Returns(settingsRepository.Object);
+        unitOfWork.Setup(work => work.SaveChangesAsync()).ReturnsAsync(1);
+
+        var provider = new Mock<IServiceProvider>();
+        provider.Setup(serviceProvider => serviceProvider.GetService(typeof(IUnitOfWork))).Returns(unitOfWork.Object);
+
+        var scope = new Mock<IServiceScope>();
+        scope.SetupGet(serviceScope => serviceScope.ServiceProvider).Returns(provider.Object);
+
+        var scopeFactory = new Mock<IServiceScopeFactory>();
+        scopeFactory.Setup(factory => factory.CreateScope()).Returns(scope.Object);
+
+        return new StarshipExpeditionStateStore(scopeFactory.Object);
+    }
+}
